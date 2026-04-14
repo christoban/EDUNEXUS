@@ -86,3 +86,14 @@ export interface schedule {
   day: string; // "Monday", "Tuesday", etc.
   periods: period[];
 }
+
+export type AttendanceStatus = "present" | "absent" | "late" | "excused";
+
+export interface AttendanceRecord {
+  _id: string;
+  student: user;
+  class: { _id: string; name: string };
+  date: string;
+  status: AttendanceStatus;
+  markedBy: { _id: string; name: string; role: UserRole };
+}

@@ -16,8 +16,9 @@ import { CustomInput } from "@/components/global/CustomInput";
 import { api } from "@/lib/api";
 import { CustomSelect } from "@/components/global/CustomSelect";
 import { useEffect, useState } from "react";
-// import { useAuth } from "@/hooks/AuthProvider";
+import { useAuth } from "@/hooks/AuthProvider";
 import { CustomMultiSelect } from "@/components/global/CustomMultiSelect";
+import { useNavigate } from "react-router";
 
 export type FormType = "login" | "create" | "update";
 interface Props {
@@ -70,7 +71,8 @@ type FormValues = z.infer<ReturnType<typeof createSchema>>;
 const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   const isUpdate = type === "update";
   const isLogin = type === "login";
-  // const { setUser } = useAuth();
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
 
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,11 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
 
   // fetch classes
   useEffect(() => {
+    if (isLogin) {
+      setLoading(false);
+      return;
+    }
+
     const fetchClasses = async () => {
       try {
         setLoading(true);
@@ -109,10 +116,15 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       }
     };
     fetchClasses();
-  }, []);
+  }, [isLogin, type]);
 
   // Fetch subjects
   useEffect(() => {
+    if (isLogin) {
+      setLoadingOptions(false);
+      return;
+    }
+
     const fetchSubjects = async () => {
       try {
         setLoadingOptions(true);
@@ -131,7 +143,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       }
     };
     fetchSubjects();
-  }, []);
+  }, [isLogin, type]);
 
   // Populate form for Update mode
   useEffect(() => {
@@ -163,14 +175,15 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         ...data,
       };
       if (isLogin) {
-        const { data: user } = await api.post("/users/login", {
+        await api.post("/users/login", {
           email: data.email,
           password: data.password,
         });
-        //   todo: set user context
-        console.log(user);
+
+        const { data: profile } = await api.get("/users/profile");
+        setUser(profile.user);
         toast.success("Logged in successfully");
-        window.location.href = "/dashboard";
+        navigate("/dashboard", { replace: true });
       } else if (type === "create") {
         await api.post("/users/register", payload);
         toast.success("Account created successfully!");

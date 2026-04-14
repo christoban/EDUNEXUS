@@ -8,6 +8,7 @@ import UserManagementPage from "@/pages/users";
 import Classes from "@/pages/academics/Classes";
 import { Subjects } from "@/pages/academics/Subjects";
 import Timetable from "@/pages/academics/Timetable";
+import AttendancePage from "@/pages/academics/Attendance";
 import Exams from "@/pages/lms/Exams";
 import Exam from "../lms/Exam";
 
@@ -75,6 +76,10 @@ export const router = createBrowserRouter([
           {
             path: "timetable",
             element: <Timetable />,
+          },
+          {
+            path: "attendance",
+            element: <AttendancePage />,
           },
           {
             path: "lms/exams",

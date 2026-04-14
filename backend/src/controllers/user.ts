@@ -51,6 +51,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       teacherSubject,
       teacherSubjects,
       isActive,
+      parentId,
     } = req.body;
 
     const resolvedTeacherSubjects = teacherSubjects ?? teacherSubject;
@@ -63,6 +64,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Validate role-specific requirements
+    if (role === "student" && !studentClass) {
+      res.status(400).json({ message: "Student must be assigned to a class" });
+      return;
+    }
+
+    if (role === "teacher" && (!resolvedTeacherSubjects || !Array.isArray(resolvedTeacherSubjects) || resolvedTeacherSubjects.length === 0)) {
+      res.status(400).json({ message: "Teacher must be assigned to at least one subject" });
+      return;
+    }
+
     // create user
     const newUser = await User.create({
       name,
@@ -71,6 +83,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       role,
       studentClass: role === "student" ? studentClass : null,
       teacherSubject: role === "teacher" ? resolvedTeacherSubjects : [],
+      parentId: role === "student" ? parentId : null,
       isActive,
     });
 
@@ -88,7 +101,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         await logActivity({
           userId: (req as any).user._id,
           action: "Registered User",
-          details: `Registered user with email: ${newUser.email}`,
+          details: `Registered user with email: ${newUser.email} as ${newUser.role}`,
         });
       }
       res.status(201).json({
@@ -97,9 +110,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         email: newUser.email,
         role: newUser.role,
         isActive: newUser.isActive,
-        studentClass: newUser.studentClass,
-        teacherSubject: newUser.teacherSubject,
-        teacherSubjects: newUser.teacherSubject,
+        studentClass: newUser.studentClass || null,
+        teacherSubject: newUser.teacherSubject || [],
+        teacherSubjects: newUser.teacherSubject || [],
+        parentId: newUser.parentId || null,
         message: "User registered successfully",
       });
     } else {
@@ -144,13 +158,21 @@ export const updateUser = async (req: Request, res: Response) => {
       user.role = req.body.role || user.role;
       user.isActive =
         req.body.isActive !== undefined ? req.body.isActive : user.isActive;
+      
+      // Handle studentClass (only for students)
       if (user.role === "student") {
         if (req.body.studentClass !== undefined) {
           user.studentClass = req.body.studentClass;
         }
+        if (req.body.parentId !== undefined) {
+          user.parentId = req.body.parentId;
+        }
       } else {
         user.studentClass = null;
+        user.parentId = null;
       }
+      
+      // Handle teacherSubject (only for teachers)
       const incomingTeacherSubjects =
         req.body.teacherSubjects ?? req.body.teacherSubject;
       if (user.role === "teacher") {
@@ -160,6 +182,7 @@ export const updateUser = async (req: Request, res: Response) => {
       } else {
         user.teacherSubject = [];
       }
+      
       if (req.body.password) {
         user.password = req.body.password;
       }
@@ -176,27 +199,25 @@ export const updateUser = async (req: Request, res: Response) => {
         previousTeacherSubjectIds,
         nextTeacherSubjectIds
       );
-      // up to here it's working
+      
       if ((req as any).user) {
-        // here we passing userId as objectId instead of string
-        // we also have other problem
         await logActivity({
           userId: (req as any).user._id.toString(),
           action: "Updated User",
           details: `Updated user with email: ${updatedUser.email}`,
         });
       }
-      // we are not returning something here (res.json) so the client is waiting forever
-      // sorry about that!
+      
       res.json({
         _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
         isActive: updatedUser.isActive,
-        studentClass: updatedUser.studentClass,
-        teacherSubject: updatedUser.teacherSubject,
-        teacherSubjects: updatedUser.teacherSubject,
+        studentClass: updatedUser.studentClass || null,
+        teacherSubject: updatedUser.teacherSubject || [],
+        teacherSubjects: updatedUser.teacherSubject || [],
+        parentId: updatedUser.parentId || null,
         message: "User updated successfully",
       });
     } else {

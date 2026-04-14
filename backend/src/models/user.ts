@@ -18,6 +18,7 @@ export interface IUser extends Document {
   isActive: boolean;
   studentClass?: string | null;
   teacherSubject?: string[] | null;
+  parentId?: string | null; // Parent reference for students
   matchPassword: (enteredPassword: string) => Promise<boolean>;
 }
 
@@ -35,6 +36,7 @@ const userSchema: Schema<IUser> = new Schema(
     isActive: { type: Boolean, default: true },
     studentClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class" },
     teacherSubject: [{ type: mongoose.Schema.Types.ObjectId, ref: "Subject" }],
+    parentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Reference to parent user
   },
   {
     timestamps: true,

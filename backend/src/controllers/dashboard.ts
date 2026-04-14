@@ -5,6 +5,14 @@ import Exam from "../models/exam.ts";
 import Submission from "../models/submission.ts";
 import ActivityLog from "../models/activitieslog.ts";
 import Timetable from "../models/timetable.ts";
+import Attendance from "../models/attendance.ts";
+
+const formatPercent = (numerator: number, denominator: number) => {
+  if (!denominator) {
+    return "0%";
+  }
+  return `${Math.round((numerator / denominator) * 100)}%`;
+};
 
 // Helper to get day name (e.g., "Monday")
 const getTodayName = () =>
@@ -53,8 +61,14 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       const totalTeachers = await User.countDocuments({ role: "teacher" });
       const activeExams = await Exam.countDocuments({ isActive: true });
 
-      // Mocking Attendance (You'd need an Attendance model for real data)
-      const avgAttendance = "94.5%";
+      const [presentLikeAttendanceCount, totalAttendanceCount] = await Promise.all([
+        Attendance.countDocuments({ status: { $in: ["present", "late", "excused"] } }),
+        Attendance.countDocuments(),
+      ]);
+      const avgAttendance = formatPercent(
+        presentLikeAttendanceCount,
+        totalAttendanceCount
+      );
 
       stats = {
         totalStudents,
@@ -162,8 +176,17 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         dueDate: { $gte: new Date() },
       });
 
-      // 2. Attendance (Mock)
-      const myAttendance = "98%";
+      const [myPresentLikeAttendanceCount, myTotalAttendanceCount] = await Promise.all([
+        Attendance.countDocuments({
+          student: user._id,
+          status: { $in: ["present", "late", "excused"] },
+        }),
+        Attendance.countDocuments({ student: user._id }),
+      ]);
+      const myAttendance = formatPercent(
+        myPresentLikeAttendanceCount,
+        myTotalAttendanceCount
+      );
 
       stats = {
         myAttendance,
@@ -173,6 +196,57 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         nextExamDate: nextExam
           ? new Date(nextExam.dueDate).toLocaleDateString()
           : "",
+        recentActivity: formattedActivity,
+      };
+    } else if (user.role === "parent") {
+      // Get parent's children (students)
+      const parentChildren = await User.find({
+        role: "student",
+        parentId: user._id,
+      }).select("_id name studentClass");
+
+      const childIds = parentChildren.map((child) => child._id);
+
+      // Get attendance for all children
+      const [childrenPresentAttendance, childrenTotalAttendance] = await Promise.all([
+        Attendance.countDocuments({
+          student: { $in: childIds },
+          status: { $in: ["present", "late", "excused"] },
+        }),
+        Attendance.countDocuments({
+          student: { $in: childIds },
+        }),
+      ]);
+
+      const childrenAvgAttendance = formatPercent(
+        childrenPresentAttendance,
+        childrenTotalAttendance
+      );
+
+      const childClassIds = parentChildren
+        .map((child) => child.studentClass)
+        .filter(
+          (classId): classId is NonNullable<typeof classId> => classId != null
+        );
+
+      // Get upcoming exams for children
+      const upcomingExams = await Exam.find({
+        class: { $in: childClassIds },
+        isActive: true,
+        dueDate: { $gte: new Date() },
+      })
+        .select("title dueDate")
+        .sort({ dueDate: 1 })
+        .limit(3);
+
+      stats = {
+        childrenCount: childIds.length,
+        childrenAvgAttendance,
+        childrenNames: parentChildren.map((c) => c.name),
+        upcomingExams: upcomingExams.map((e) => ({
+          title: e.title,
+          dueDate: new Date(e.dueDate).toLocaleDateString(),
+        })),
         recentActivity: formattedActivity,
       };
     }

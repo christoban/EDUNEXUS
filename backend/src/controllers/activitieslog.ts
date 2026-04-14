@@ -9,13 +9,25 @@ export const getAllActivities = async (
   res: Response
 ): Promise<void> => {
   try {
+    const currentUser = (req as any).user;
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
+    const search = String(req.query.search || "").trim();
     const skip = (page - 1) * limit;
 
-    const count = await ActivityLog.countDocuments();
+    const query: any = {};
 
-    const logs = await ActivityLog.find()
+    if (currentUser?.role === "teacher") {
+      query.user = currentUser._id;
+    }
+
+    if (search) {
+      query.$or = [{ action: { $regex: search, $options: "i" } }, { details: { $regex: search, $options: "i" } }];
+    }
+
+    const count = await ActivityLog.countDocuments(query);
+
+    const logs = await ActivityLog.find(query)
       .populate("user", "name email role") // populate user details
       .sort({ createdAt: -1 }) // latest first
       .skip(skip)

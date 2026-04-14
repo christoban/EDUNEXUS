@@ -15,6 +15,7 @@ const dayEnum = z.enum([
 ]);
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format. Use HH:MM");
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format. Use YYYY-MM-DD");
 
 export const idParamSchema = z.object({
   id: objectId,
@@ -37,6 +38,7 @@ export const registerBodySchema = z.object({
   studentClass: optionalObjectId,
   teacherSubject: z.array(objectId).optional(),
   teacherSubjects: z.array(objectId).optional(),
+  parentId: optionalObjectId,
 });
 
 export const loginBodySchema = z.object({
@@ -54,6 +56,7 @@ export const updateUserBodySchema = z
     studentClass: optionalObjectId,
     teacherSubject: z.array(objectId).optional(),
     teacherSubjects: z.array(objectId).optional(),
+    parentId: optionalObjectId,
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided",
@@ -133,4 +136,31 @@ export const generateTimetableBodySchema = z.object({
 
 export const classIdParamSchema = z.object({
   classId: objectId,
+});
+
+export const markAttendanceBodySchema = z.object({
+  classId: objectId,
+  date: isoDate,
+  records: z
+    .array(
+      z.object({
+        studentId: objectId,
+        status: z.enum(["present", "absent", "late", "excused"]),
+      })
+    )
+    .min(1),
+});
+
+export const attendanceQuerySchema = z.object({
+  classId: objectId.optional(),
+  studentId: objectId.optional(),
+  date: isoDate.optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export const globalSearchQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(50).optional(),
 });

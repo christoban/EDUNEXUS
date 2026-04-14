@@ -20,7 +20,7 @@ classRouter.post(
   validate({ body: createClassBodySchema }),
   createClass
 );
-classRouter.get("/", protect, authorize(["admin", "teacher"]), getAllClasses);
+classRouter.get("/", protect, authorize(["admin", "teacher", "parent"]), getAllClasses);
 classRouter.patch(
   "/update/:id",
   sensitiveWriteLimiter,

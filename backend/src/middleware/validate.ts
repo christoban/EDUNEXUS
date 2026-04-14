@@ -19,22 +19,34 @@ export const validate = (schemas: SchemaBundle) => {
       }
 
       if (schemas.query) {
-        req.query = schemas.query.parse(req.query) as any;
+        const parsedQuery = schemas.query.parse(req.query) as any;
+
+        // In Express 5, req.query can be implemented as a getter-only property
+        // depending on runtime internals, so direct assignment may throw.
+        try {
+          req.query = parsedQuery;
+        } catch {
+          (req as any).validatedQuery = parsedQuery;
+        }
       }
 
       return next();
     } catch (error) {
-      if (error instanceof ZodError) {
+      if (error instanceof ZodError || (error as any)?.name === "ZodError") {
+        const issues = (error as ZodError).issues || [];
         return res.status(400).json({
           message: "Validation failed",
-          errors: error.issues.map((issue) => ({
+          errors: issues.map((issue) => ({
             path: issue.path.join("."),
             message: issue.message,
           })),
         });
       }
 
-      return res.status(500).json({ message: "Validation middleware error" });
+      return res.status(500).json({
+        message: "Validation middleware error",
+        error: error instanceof Error ? error.message : "Unknown validation error",
+      });
     }
   };
 };

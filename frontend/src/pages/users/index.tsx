@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import UserTable from "@/components/users/UserTable";
 import UserDialog from "@/components/users/UserDialog";
+import { useAuth } from "@/hooks/AuthProvider";
 
 interface Props {
   role: UserRole;
@@ -21,6 +22,8 @@ export default function UserManagementPage({
   title,
   description,
 }: Props) {
+  const { user } = useAuth();
+  const canManageUsers = user?.role === "admin";
   const [users, setUsers] = useState<user[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -47,6 +50,12 @@ export default function UserManagementPage({
   }, [search]);
 
   const fetchUsers = async () => {
+    if (!canManageUsers) {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       // Construct Query
@@ -62,9 +71,11 @@ export default function UserManagementPage({
       } else {
         setUsers([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
-      toast.error(`Failed to load ${role}s`);
+      toast.error(
+        error?.response?.data?.message || `Failed to load ${role}s`
+      );
     } finally {
       setLoading(false);
     }
@@ -72,14 +83,16 @@ export default function UserManagementPage({
 
   useEffect(() => {
     fetchUsers();
-  }, [role, page, debouncedSearch]); // Re-fetch if role changes
+  }, [role, page, debouncedSearch, canManageUsers]); // Re-fetch if role changes
 
   const handleCreate = () => {
+    if (!canManageUsers) return;
     setEditingUser(null);
     setIsFormOpen(true);
   };
 
   const handleDelete = async () => {
+    if (!canManageUsers) return;
     if (!deleteId) return;
     try {
       await api.delete(`/users/delete/${deleteId}`);
@@ -101,11 +114,13 @@ export default function UserManagementPage({
           <h1 className="text-3xl font-bold tracking-tight capitalize">
             {title}
           </h1>
-          <p className="text-muted-foreground">{description}</p>
+          <p className="text-muted-foreground">
+            {canManageUsers ? description : "You are not authorized to manage users."}
+          </p>
         </div>
         <div className="flex gap-2">
           <Search search={search} setSearch={setSearch} title={`${role}s`} />
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} disabled={!canManageUsers}>
             <Plus className="mr-2 h-4 w-4" /> Add{" "}
             {role.charAt(0).toUpperCase() + role.slice(1)}
           </Button>
@@ -129,14 +144,14 @@ export default function UserManagementPage({
       <UserDialog
         editingUser={editingUser}
         role={role}
-        open={isFormOpen}
+        open={canManageUsers && isFormOpen}
         setOpen={setIsFormOpen}
         onSuccess={fetchUsers}
       />
 
       {/* alert */}
       <CustomAlert
-        isOpen={isDeleteOpen}
+        isOpen={canManageUsers && isDeleteOpen}
         setIsOpen={setIsDeleteOpen}
         handleDelete={handleDelete}
         title="Delete User?"

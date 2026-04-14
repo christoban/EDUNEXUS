@@ -120,6 +120,62 @@ export function DashboardStats({ role, data }: StatsProps) {
     );
   }
 
+  // --- PARENT VIEW ---
+  if (role === "parent") {
+    return (
+      <>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">My Children</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.childrenCount || 0}</div>
+            <p className="text-xs text-muted-foreground">
+              {data.childrenNames?.slice(0, 2).join(", ") || "No children yet"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Avg Attendance
+            </CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data.childrenAvgAttendance || "0%"}
+            </div>
+            <p className="text-xs text-muted-foreground">Children's attendance</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upcoming Exams</CardTitle>
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.upcomingExams?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Status</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold truncate">Active</div>
+            <p className="text-xs text-muted-foreground">
+              All children enrolled
+            </p>
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
+
   // --- STUDENT VIEW ---
   return (
     <>

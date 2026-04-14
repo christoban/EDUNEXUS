@@ -40,6 +40,10 @@ const syncSubjectTeachers = async (
 // @access  Private/Admin
 export const createSubject = async (req: Request, res: Response) => {
   try {
+    if ((req as any).user?.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can create subjects" });
+    }
+
     const { name, code, teacher, isActive } = req.body; // Expecting teacher to be ["ID1", "ID2"]
     const subjectExists = await subject.findOne({ code });
     if (subjectExists) {
@@ -167,6 +171,10 @@ export const getAllSubjects = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const updateSubject = async (req: Request, res: Response) => {
   try {
+    if ((req as any).user?.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can update subjects" });
+    }
+
     const { name, code, teacher, isActive } = req.body;
 
     const existingSubject = await subject.findById(req.params.id);
@@ -213,6 +221,10 @@ export const updateSubject = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const deleteSubject = async (req: Request, res: Response) => {
   try {
+    if ((req as any).user?.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can delete subjects" });
+    }
+
     const deletedSubject = await subject.findByIdAndDelete(req.params.id);
     if (!deletedSubject) {
       return res.status(404).json({ message: "Subject not found" });

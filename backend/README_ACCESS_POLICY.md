@@ -74,6 +74,15 @@ This document defines explicit API access policy and protection controls.
 
 ---
 
+## Attendance
+
+| Method | Route | Access | Validation | Rate Limit |
+|---|---|---|---|---|
+| POST | `/api/attendance/mark` | `admin`, `teacher` (teacher restricted to assigned classes) | `markAttendanceBodySchema` | `sensitiveWriteLimiter` |
+| GET | `/api/attendance` | `admin`, `teacher`, `student`, `parent` (student forced to own records) | `attendanceQuerySchema` | none |
+
+---
+
 ## Week 1 Security Baseline
 - No write endpoint for users/classes/subjects/exams/timetable is left without payload/params validation.
 - Explicit onboarding policy: user registration is admin-only.

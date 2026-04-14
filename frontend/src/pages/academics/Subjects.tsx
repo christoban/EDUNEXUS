@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/AuthProvider";
 
 export const Subjects = () => {
   const { user } = useAuth();
+  const canView = user?.role === "admin" || user?.role === "teacher";
   const isAdmin = user?.role === "admin";
   const [subjects, setSubjects] = useState<subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,12 @@ export const Subjects = () => {
 
   // 2. Fetch Subjects
   const fetchSubjects = async () => {
+    if (!canView) {
+      setSubjects([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -60,8 +67,8 @@ export const Subjects = () => {
       } else {
         setSubjects([]);
       }
-    } catch (error) {
-      toast.error("Failed to load subjects");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to load subjects");
     } finally {
       setLoading(false);
     }
@@ -70,7 +77,7 @@ export const Subjects = () => {
   // Trigger fetch when Page or Search changes
   useEffect(() => {
     fetchSubjects();
-  }, [pageNum, debouncedSearch]);
+  }, [pageNum, debouncedSearch, canView]);
 
   const handleCreate = () => {
     setEditingSubject(null);
@@ -106,7 +113,9 @@ export const Subjects = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Subjects</h1>
           <p className="text-muted-foreground">
-            {isAdmin
+            {!canView
+              ? "You are not authorized to view subjects."
+              : isAdmin
               ? "Manage curriculum subjects and codes."
               : "View assigned subjects and codes."}
           </p>

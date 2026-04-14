@@ -10,9 +10,14 @@ import Search from "@/components/global/Search";
 import CustomAlert from "@/components/global/CustomAlert";
 import ClassTable from "@/components/classes/ClassTable";
 import ClassForm from "@/components/classes/ClassForm";
+import { useAuth } from "@/hooks/AuthProvider";
 
 const Classes = () => {
   // it's the same as users/academics-year components
+  const { user } = useAuth();
+  const canView =
+    user?.role === "admin" || user?.role === "teacher" || user?.role === "parent";
+  const isAdmin = user?.role === "admin";
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -37,6 +42,12 @@ const Classes = () => {
 
   // 2. Fetch Classes
   const fetchClasses = async () => {
+    if (!canView) {
+      setClasses([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -57,8 +68,8 @@ const Classes = () => {
       } else {
         setClasses([]);
       }
-    } catch (error) {
-      toast.error("Failed to load classes");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to load classes");
     } finally {
       setLoading(false);
     }
@@ -67,24 +78,28 @@ const Classes = () => {
   // Trigger fetch when Page or Search changes
   useEffect(() => {
     fetchClasses();
-  }, [pageNum, debouncedSearch]);
+  }, [pageNum, debouncedSearch, canView]);
 
   const handleCreate = () => {
+    if (!isAdmin) return;
     setEditingClass(null);
     setIsFormOpen(true);
   };
 
   const handleEdit = (cls: Class) => {
+    if (!isAdmin) return;
     setEditingClass(cls);
     setIsFormOpen(true);
   };
 
   const handleDeleteClick = (id: string) => {
+    if (!isAdmin) return;
     setDeleteId(id);
     setIsDeleteOpen(true);
   };
 
   const confirmDelete = async () => {
+    if (!isAdmin) return;
     if (!deleteId) return;
     try {
       await api.delete(`/classes/delete/${deleteId}`);
@@ -104,14 +119,20 @@ const Classes = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Classes</h1>
           <p className="text-muted-foreground">
-            Manage grades, sections, and teacher assignments.
+            {!canView
+              ? "You are not authorized to view classes."
+              : isAdmin
+              ? "Manage grades, sections, and teacher assignments."
+              : "View your authorized classes."}
           </p>
         </div>
         <div className="flex gap-2">
           <Search search={search} setSearch={setSearch} title="Classes" />
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" /> Create Class
-          </Button>
+          {isAdmin && (
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Create Class
+            </Button>
+          )}
         </div>
       </div>
       {/* table */}
@@ -123,18 +144,21 @@ const Classes = () => {
         page={pageNum}
         setPage={setPageNum}
         totalPages={totalPages}
+        canManage={isAdmin}
       />
       {/* form */}
-      <ClassForm
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        initialData={editingClass}
-        onSuccess={fetchClasses}
-      />
+      {isAdmin && (
+        <ClassForm
+          open={isFormOpen}
+          onOpenChange={setIsFormOpen}
+          initialData={editingClass}
+          onSuccess={fetchClasses}
+        />
+      )}
       {/* alert */}
       <CustomAlert
         handleDelete={confirmDelete}
-        isOpen={isDeleteOpen}
+        isOpen={isAdmin && isDeleteOpen}
         setIsOpen={setIsDeleteOpen}
         title="Delete Class"
         description="Are you sure you want to delete this class? This action cannot be undone."

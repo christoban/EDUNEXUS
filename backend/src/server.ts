@@ -26,6 +26,8 @@ import {
 import timeRouter from "./routes/timetable.ts";
 import examRouter from "./routes/exam.ts";
 import dashboardRouter from "./routes/dashboard.ts";
+import attendanceRouter from "./routes/attendance.ts";
+import searchRouter from "./routes/search.ts";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -69,6 +71,8 @@ app.use("/api/subjects", subjectRouter);
 app.use("/api/timetables", timeRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/attendance", attendanceRouter);
+app.use("/api/search", searchRouter);
 app.use(
   "/api/inngest",
   serve({

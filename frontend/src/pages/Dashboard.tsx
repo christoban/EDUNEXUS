@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { Calendar, FileText, CheckCircle2 } from "lucide-react";
 
 // Custom Components
@@ -24,6 +25,17 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState<any>({});
+  const [globalQuery, setGlobalQuery] = useState("");
+  const [debouncedGlobalQuery, setDebouncedGlobalQuery] = useState("");
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [globalResults, setGlobalResults] = useState<any[]>([]);
+  const [globalTotals, setGlobalTotals] = useState<any>(null);
+  const [globalPagination, setGlobalPagination] = useState({
+    total: 0,
+    page: 1,
+    pages: 0,
+    limit: 8,
+  });
 
   // 1. Fetch Data Logic
   useEffect(() => {
@@ -42,6 +54,45 @@ export default function Dashboard() {
 
     if (user) fetchDashboardData();
   }, [user]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGlobalQuery(globalQuery.trim());
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [globalQuery]);
+
+  const fetchGlobalSearch = async (page = 1) => {
+    if (user?.role !== "admin") {
+      return;
+    }
+
+    if (!debouncedGlobalQuery) {
+      setGlobalResults([]);
+      setGlobalTotals(null);
+      setGlobalPagination((prev) => ({ ...prev, total: 0, page: 1, pages: 0 }));
+      return;
+    }
+
+    try {
+      setGlobalSearchLoading(true);
+      const { data } = await api.get(
+        `/search/global?q=${encodeURIComponent(debouncedGlobalQuery)}&page=${page}&limit=8`
+      );
+      setGlobalResults(data.results || []);
+      setGlobalTotals(data.totalsByType || null);
+      setGlobalPagination(data.pagination || { total: 0, page, pages: 0, limit: 8 });
+    } catch (error) {
+      console.error("Failed to run global search", error);
+    } finally {
+      setGlobalSearchLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalSearch(1);
+  }, [debouncedGlobalQuery, user?.role]);
 
   // 2. Loading State
   if (loading) {
@@ -93,6 +144,75 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <DashboardStats role={user?.role || "student"} data={statsData} />
       </div>
+
+      {user?.role === "admin" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Global Search</CardTitle>
+            <CardDescription>
+              Search users, classes, subjects, exams, and activity logs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Input
+              value={globalQuery}
+              onChange={(event) => setGlobalQuery(event.target.value)}
+              placeholder="Search across all modules..."
+            />
+
+            {globalTotals && (
+              <div className="text-sm text-muted-foreground">
+                Users: {globalTotals.users || 0} | Classes: {globalTotals.classes || 0} |
+                Subjects: {globalTotals.subjects || 0} | Exams: {globalTotals.exams || 0} |
+                Activities: {globalTotals.activities || 0}
+              </div>
+            )}
+
+            {globalSearchLoading ? (
+              <div className="text-sm text-muted-foreground">Searching...</div>
+            ) : globalResults.length > 0 ? (
+              <div className="space-y-3">
+                {globalResults.map((item) => (
+                  <div key={`${item.type}-${item.id}`} className="rounded-md border p-3">
+                    <div className="text-sm font-medium">
+                      [{item.type.toUpperCase()}] {item.title}
+                    </div>
+                    {item.subtitle && (
+                      <div className="text-xs text-muted-foreground">{item.subtitle}</div>
+                    )}
+                  </div>
+                ))}
+
+                <div className="flex items-center justify-between pt-2">
+                  <Button
+                    variant="outline"
+                    disabled={globalPagination.page <= 1}
+                    onClick={() => fetchGlobalSearch(globalPagination.page - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {globalPagination.page} of {globalPagination.pages || 1}
+                  </span>
+                  <Button
+                    variant="outline"
+                    disabled={globalPagination.page >= globalPagination.pages}
+                    onClick={() => fetchGlobalSearch(globalPagination.page + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            ) : debouncedGlobalQuery ? (
+              <div className="text-sm text-muted-foreground">No results found.</div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Type at least one keyword to search globally.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* --- MAIN CONTENT GRID --- */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

@@ -68,7 +68,7 @@ export const sidebardata = {
         },
         {
           title: "Activities Log",
-          url: "/activies-log",
+          url: "/activities-log",
           roles: ["admin"], // Restricted to Admin
         },
       ],
@@ -93,6 +93,11 @@ export const sidebardata = {
           title: "Timetable",
           url: "/timetable",
           // Everyone needs to see the schedule
+        },
+        {
+          title: "Attendance",
+          url: "/attendance",
+          roles: ["admin", "teacher", "student", "parent"],
         },
       ],
     },

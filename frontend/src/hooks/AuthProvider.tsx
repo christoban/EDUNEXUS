@@ -21,32 +21,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [year, setYear] = useState<academicYear | null>(null);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setLoading(true);
-        const { data } = await api.get("/users/profile");
-        setUser(data.user);
-        setLoading(false);
-      } catch (error) {
-        console.log(error);
-        setLoading(false);
+    const bootstrapAuth = async () => {
+      setLoading(true);
+
+      const [profileResult, yearResult] = await Promise.allSettled([
+        api.get("/users/profile"),
+        api.get("/academic-years/current"),
+      ]);
+
+      if (profileResult.status === "fulfilled") {
+        setUser(profileResult.value.data.user);
+      } else {
         setUser(null);
       }
-    };
-    const fetchYear = async () => {
-      try {
-        const { data } = await api.get("/academic-years/current");
-        setYear(data);
-        setLoading(false);
-      } catch (error) {
-        console.log(error);
-        setLoading(false);
+
+      if (yearResult.status === "fulfilled") {
+        setYear(yearResult.value.data);
+      } else {
         setYear(null);
       }
+
+      setLoading(false);
     };
 
-    checkAuth();
-    fetchYear();
+    bootstrapAuth();
   }, []);
 
   return (

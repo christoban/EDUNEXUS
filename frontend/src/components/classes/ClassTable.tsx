@@ -27,6 +27,7 @@ interface Props {
   page: number;
   setPage: (page: number) => void;
   totalPages: number;
+  canManage?: boolean;
 }
 const ClassTable = ({
   data,
@@ -36,6 +37,7 @@ const ClassTable = ({
   page,
   setPage,
   totalPages,
+  canManage = true,
 }: Props) => {
   return (
     <div className="border rounded-md">
@@ -46,20 +48,20 @@ const ClassTable = ({
             <TableHead>Academic Year</TableHead>
             <TableHead>Class Teacher</TableHead>
             <TableHead>Students</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            {canManage && <TableHead className="text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
               </TableCell>
             </TableRow>
           ) : data.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={5}
+                colSpan={canManage ? 5 : 4}
                 className="h-24 text-center text-muted-foreground"
               >
                 No classes found. Add one to get started.
@@ -87,28 +89,30 @@ const ClassTable = ({
                     {(cls.studentCount ?? cls.students?.length ?? 0)} / {cls.capacity}
                   </div>
                 </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => onEdit(cls)}>
-                        <Pencil className="mr-2 h-4 w-4" /> Edit Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-400 dark:hover:text-red-600 hover:text-red-600"
-                        onClick={() => onDelete(cls._id)}
-                      >
-                        <Trash2 className="mr-2 size-4 text-red-400 dark:hover:text-red-600 hover:text-red-600" />{" "}
-                        Delete Class
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+                {canManage && (
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => onEdit(cls)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-red-400 dark:hover:text-red-600 hover:text-red-600"
+                          onClick={() => onDelete(cls._id)}
+                        >
+                          <Trash2 className="mr-2 size-4 text-red-400 dark:hover:text-red-600 hover:text-red-600" />{" "}
+                          Delete Class
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                )}
               </TableRow>
             ))
           )}

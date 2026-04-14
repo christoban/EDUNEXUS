@@ -8,6 +8,10 @@ import { logActivity } from "../utils/activitieslog.ts";
 // @access  Private/Admin
 export const createClass = async (req: Request, res: Response) => {
   try {
+    if ((req as any).user?.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can create classes" });
+    }
+
     const { name, academicYear, classTeacher, capacity, subjects } = req.body;
 
     const existingClass = await Class.findOne({ name, academicYear });
@@ -69,6 +73,29 @@ export const getAllClasses = async (req: Request, res: Response) => {
       }
 
       query.subjects = { $in: teacherSubjectIds };
+    } else if (currentUser?.role === "parent") {
+      // Parents can only see classes of their children (students with parentId === currentUser._id)
+      const parentStudents = await User.find({
+        role: "student",
+        parentId: currentUser._id,
+      });
+
+      const studentClassIds = parentStudents
+        .map((student: any) => student.studentClass)
+        .filter(Boolean);
+
+      if (!studentClassIds.length) {
+        return res.json({
+          classes: [],
+          pagination: {
+            total: 0,
+            page,
+            pages: 0,
+          },
+        });
+      }
+
+      query._id = { $in: studentClassIds };
     }
 
     // 3. Execute Query (Count & Find)
@@ -126,6 +153,10 @@ export const getAllClasses = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const updateClass = async (req: Request, res: Response) => {
   try {
+    if ((req as any).user?.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can update classes" });
+    }
+
     const classId = req.params.id;
     const { name, academicYear } = req.body;
 
@@ -170,6 +201,10 @@ export const updateClass = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const deleteClass = async (req: Request, res: Response) => {
   try {
+    if ((req as any).user?.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can delete classes" });
+    }
+
     const deletedClass = await Class.findByIdAndDelete(req.params.id);
     const userId = (req as any).user._id;
     await logActivity({
