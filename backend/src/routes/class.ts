@@ -6,12 +6,36 @@ import {
   getAllClasses,
 } from "../controllers/class.ts";
 import { authorize, protect } from "../middleware/auth.ts";
+import { validate } from "../middleware/validate.ts";
+import { sensitiveWriteLimiter } from "../middleware/rateLimit.ts";
+import { createClassBodySchema, idParamSchema, updateClassBodySchema } from "../validation/schemas.ts";
 
 const classRouter = express.Router();
 
-classRouter.post("/create", protect, authorize(["admin"]), createClass);
+classRouter.post(
+  "/create",
+  sensitiveWriteLimiter,
+  protect,
+  authorize(["admin"]),
+  validate({ body: createClassBodySchema }),
+  createClass
+);
 classRouter.get("/", protect, authorize(["admin", "teacher"]), getAllClasses);
-classRouter.patch("/update/:id", protect, authorize(["admin"]), updateClass);
-classRouter.delete("/delete/:id", protect, authorize(["admin"]), deleteClass);
+classRouter.patch(
+  "/update/:id",
+  sensitiveWriteLimiter,
+  protect,
+  authorize(["admin"]),
+  validate({ params: idParamSchema, body: updateClassBodySchema }),
+  updateClass
+);
+classRouter.delete(
+  "/delete/:id",
+  sensitiveWriteLimiter,
+  protect,
+  authorize(["admin"]),
+  validate({ params: idParamSchema }),
+  deleteClass
+);
 
 export default classRouter;

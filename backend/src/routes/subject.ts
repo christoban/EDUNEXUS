@@ -6,12 +6,21 @@ import {
   updateSubject,
   deleteSubject,
 } from "../controllers/subject.ts";
+import { validate } from "../middleware/validate.ts";
+import { sensitiveWriteLimiter } from "../middleware/rateLimit.ts";
+import { createSubjectBodySchema, idParamSchema, updateSubjectBodySchema } from "../validation/schemas.ts";
 
 const subjectRouter = express.Router();
 
 subjectRouter
   .route("/create")
-  .post(protect, authorize(["admin"]), createSubject);
+  .post(
+    sensitiveWriteLimiter,
+    protect,
+    authorize(["admin"]),
+    validate({ body: createSubjectBodySchema }),
+    createSubject
+  );
 
 subjectRouter
   .route("/")
@@ -19,10 +28,22 @@ subjectRouter
 
 subjectRouter
   .route("/delete/:id")
-  .delete(protect, authorize(["admin"]), deleteSubject);
+  .delete(
+    sensitiveWriteLimiter,
+    protect,
+    authorize(["admin"]),
+    validate({ params: idParamSchema }),
+    deleteSubject
+  );
 
 subjectRouter
   .route("/update/:id")
-  .patch(protect, authorize(["admin"]), updateSubject);
+  .patch(
+    sensitiveWriteLimiter,
+    protect,
+    authorize(["admin"]),
+    validate({ params: idParamSchema, body: updateSubjectBodySchema }),
+    updateSubject
+  );
 
 export default subjectRouter;

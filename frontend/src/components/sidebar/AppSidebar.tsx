@@ -6,7 +6,6 @@ import {
   GraduationCap,
   Users,
   LayoutDashboard,
-  Banknote,
   type LucideIcon,
   LogOut,
 } from "lucide-react";
@@ -95,11 +94,6 @@ export const sidebardata = {
           url: "/timetable",
           // Everyone needs to see the schedule
         },
-        {
-          title: "Attendance",
-          url: "/attendance",
-          // Parents want to see if their kid was present
-        },
       ],
     },
     {
@@ -108,9 +102,7 @@ export const sidebardata = {
       icon: GraduationCap,
       roles: ["teacher", "student", "admin"], // Parents usually don't need deep LMS access
       items: [
-        { title: "Assignments", url: "/lms/assignments" },
         { title: "Exams", url: "/lms/exams" },
-        { title: "Study Materials", url: "/lms/materials" },
       ],
     },
     {
@@ -135,17 +127,6 @@ export const sidebardata = {
           url: "/users/admins",
           roles: ["admin"], // Only Admin can see other Admins
         },
-      ],
-    },
-    {
-      title: "Finance",
-      url: "#",
-      icon: Banknote,
-      roles: ["admin"],
-      items: [
-        { title: "Fee Collection", url: "/finance/fees" },
-        { title: "Expenses", url: "/finance/expenses" },
-        { title: "Salary", url: "/finance/salary" },
       ],
     },
     {

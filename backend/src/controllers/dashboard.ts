@@ -65,7 +65,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       };
     } else if (user.role === "teacher") {
       const teacherSubjectIds = Array.isArray(user.teacherSubject)
-        ? user.teacherSubject.map((subjectId) => subjectId.toString())
+        ? user.teacherSubject.map((subjectId: any) => subjectId.toString())
         : [];
 
       const classFilter = teacherSubjectIds.length
