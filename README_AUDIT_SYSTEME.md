@@ -241,3 +241,144 @@ EDUNEXUS est une base sérieuse et crédible pour un LMS scolaire moderne, avec 
 | Gemini AI + AI SDK | Atteint |
 | NodeMailer + templates pro | Non atteint |
 | Patreon: emails + bulletins + dashboard bulletin élève | Non atteint dans ce repo |
+
+---
+
+## 12) Plan de Sprint (8 semaines) avec estimations
+
+Objectif: passer de l’état actuel à une version pré-production exploitable en établissement réel.
+
+## Semaine 1 - Sécurité API et gouvernance minimale
+- Backend:
+  - Ajouter validation des payloads (zod/joi) sur users, classes, subjects, exams, timetable.
+  - Ajouter rate limiting sur login/register et endpoints sensibles.
+  - Corriger/valider le flux d’onboarding (`register` policy explicite).
+- Frontend:
+  - Masquer les routes non implémentées de la sidebar (finance, attendance, assignments/materials) tant qu’inactives.
+- Livrables:
+  - 0 endpoint write sans validation.
+  - Politique d’accès documentée endpoint par endpoint.
+
+## Semaine 2 - Attendance réel (fin du mock)
+- Backend:
+  - Créer `Attendance` model (student, class, date, status, markedBy).
+  - Endpoints: marquer présence, lister présence par élève/classe/date.
+- Frontend:
+  - Page Attendance (admin/teacher saisie, student/parent lecture).
+  - Dashboard branché sur données réelles attendance.
+- Livrables:
+  - Suppression des valeurs mock `94.5%` et `98%`.
+
+## Semaine 3 - Global Search + durcissement audit logs
+- Backend:
+  - Endpoint recherche globale admin (users/classes/subjects/exams/activities).
+  - Restreindre les logs enseignant à ses propres actions.
+- Frontend:
+  - Barre de recherche globale admin + résultats paginés.
+- Livrables:
+  - Recherche transversale opérationnelle avec pagination.
+
+## Semaine 4 - Module Notes/Bulletins (socle)
+- Backend:
+  - Créer `Grade` model (exam, student, score, maxScore, percentage, subject, period).
+  - Créer `ReportCard` model (student, year, period, aggregates, mentions).
+  - Job Inngest: génération bulletin par période.
+- Frontend:
+  - Vue notes élève + vue synthèse admin/teacher.
+- Livrables:
+  - Bulletin calculable et consultable en base.
+
+## Semaine 5 - Emails transactionnels (socle production)
+- Backend:
+  - Intégrer NodeMailer (ou provider SMTP) + templates HTML réutilisables.
+  - Jobs Inngest: notification résultat exam, notification bulletin disponible.
+- Frontend:
+  - Historique simple des envois sur page admin.
+- Livrables:
+  - Emails automatiques fiables sur événements académiques.
+
+## Semaine 6 - Portail Parent (MVP)
+- Backend:
+  - Lier parent à 1..n élèves (`parentOf` mapping).
+  - Endpoints parent: timetable, exams, attendance, report cards des enfants.
+- Frontend:
+  - Dashboard parent dédié (lecture seule).
+- Livrables:
+  - Rôle parent réellement utile et exploitable.
+
+## Semaine 7 - Finance scolaire (adapté Cameroun)
+- Backend:
+  - `FeePlan`, `Invoice`, `Payment`, `Expense` models.
+  - Endpoints facturation, encaissement, statut impayés.
+  - Prise en charge des canaux de paiement locaux (référence transaction).
+- Frontend:
+  - Pages finance admin: plans de frais, paiements, relances.
+- Livrables:
+  - Cycle frais scolaires de base fonctionnel.
+
+## Semaine 8 - Stabilisation pré-production
+- Qualité:
+  - Tests d’intégration critiques (auth, exams, timetable, attendance, finance).
+  - Journalisation d’erreurs centralisée + monitoring basique.
+  - Scripts seed + jeux de données de démo réalistes.
+- Livrables:
+  - Release candidate avec checklist Go/No-Go.
+
+---
+
+## 13) Adaptation Cameroun (priorités fonctionnelles locales)
+
+Cette section adapte les modules restants au contexte réel des établissements au Cameroun.
+
+## 13.1 Finance (priorité locale)
+- Devise par défaut: XAF (FCFA), format monétaire local.
+- Structure des frais configurable par établissement:
+  - Inscription
+  - Scolarité (mensuelle/trimestrielle)
+  - APEE/PTA
+  - Transport
+  - Cantine
+  - Uniforme / fournitures
+  - Frais d’examens blancs / officiels
+- Modes d’encaissement à prévoir:
+  - Cash caisse
+  - Virement bancaire
+  - Mobile Money (MTN MoMo, Orange Money) via référence transaction
+- États financiers utiles terrain:
+  - Élèves en impayé
+  - Échéancier par classe
+  - Recettes par période
+  - Reçus imprimables (PDF)
+
+## 13.2 Calendrier et découpage académique
+- Paramétrer périodes selon établissement:
+  - Trimestres (courant)
+  - Semestres (certains établissements)
+- Report cards et moyennes calculées par période paramétrable.
+
+## 13.3 Bilingue FR/EN
+- Prévoir i18n FR/EN pour interfaces parents/enseignants.
+- Templates email multilingues selon préférence utilisateur.
+
+## 13.4 Contraintes réseau et usage terrain
+- Optimiser pages lourdes (pagination stricte, payloads légers).
+- Prévoir mode dégradé sur connexions instables (retries et feedback clair).
+- Éviter les dépendances fortes au temps réel; privilégier jobs async + polling robuste.
+
+## 13.5 Conformité et exploitation
+- Conserver un audit trail exploitable pour contrôle interne.
+- Tracer qui a modifié quoi (notes, paiements, rôles).
+- Rendre configurables les règles de calcul et les libellés financiers par école.
+
+---
+
+## 14) Definition of Done (DoD) avant déploiement école
+
+- Tous les endpoints write protégés + validés (schémas).
+- Aucun rôle n’accède à une donnée hors politique.
+- Attendance réel en production (plus aucun mock).
+- Bulletins générés et consultables par élève/parent autorisé.
+- Emails critiques opérationnels (résultats, bulletins, notifications).
+- Module finance XAF opérationnel (facture -> paiement -> reçu -> impayés).
+- Dashboards sans route cassée ni widget mock non signalé.
+- Logs d’activité filtrés correctement par rôle.
