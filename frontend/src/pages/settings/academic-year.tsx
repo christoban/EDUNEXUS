@@ -11,6 +11,8 @@ import Search from "@/components/global/Search";
 import AcademicYearForm from "@/components/academic-year/AcademicYearForm";
 import CustomAlert from "@/components/global/CustomAlert";
 
+const ACADEMIC_YEARS_PAGE_SIZE = 15;
+
 const AcademicYear = () => {
   const [years, setYears] = useState<academicYear[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ const AcademicYear = () => {
       // Construct Query Params
       const params = new URLSearchParams();
       params.append("page", pageNum.toString());
-      params.append("limit", "10");
+      params.append("limit", String(ACADEMIC_YEARS_PAGE_SIZE));
       if (debouncedSearch) params.append("search", debouncedSearch);
 
       const { data } = await api.get(`/academic-years?${params.toString()}`);

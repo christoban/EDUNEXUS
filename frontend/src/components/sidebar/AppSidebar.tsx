@@ -108,6 +108,7 @@ export const sidebardata = {
       roles: ["teacher", "student", "admin"], // Parents usually don't need deep LMS access
       items: [
         { title: "Exams", url: "/lms/exams" },
+        { title: "Report Cards", url: "/lms/report-cards" },
       ],
     },
     {
@@ -142,7 +143,17 @@ export const sidebardata = {
       items: [
         { title: "School Settings", url: "/settings/general" }, // Added to match router
         { title: "Academic Years", url: "/settings/academic-years" },
+        { title: "Email History", url: "/settings/email-history" },
         { title: "Roles & Permissions", url: "/settings/roles" },
+      ],
+    },
+    {
+      title: "Parent Portal",
+      url: "/parent/dashboard",
+      icon: LayoutDashboard,
+      roles: ["parent"],
+      items: [
+        { title: "My Children", url: "/parent/dashboard", roles: ["parent"] },
       ],
     },
   ] as NavItem[],

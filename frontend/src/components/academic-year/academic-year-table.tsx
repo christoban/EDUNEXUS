@@ -112,7 +112,7 @@ const AcademicYearTable = ({
         </TableBody>
       </Table>
       {/* pagination => seen when we have more than the limit*/}
-      {data.length > 10 && (
+      {totalPages > 1 && (
         <CustomPagination
           loading={loading}
           page={pageNum}

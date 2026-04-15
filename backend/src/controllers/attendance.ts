@@ -189,6 +189,7 @@ export const getAttendance = async (req: Request, res: Response) => {
     } else if (currentUser?.role === "parent") {
       // Parents can only see attendance of their children
       const parentChildren = await User.find({
+        role: "student",
         parentId: currentUser._id,
       }).select("_id");
 

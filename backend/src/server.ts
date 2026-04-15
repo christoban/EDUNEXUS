@@ -22,12 +22,16 @@ import {
   generateTimeTable,
   generateExam,
   handleExamSubmission,
+  generateReportCards,
 } from "./inngest/functions.ts";
 import timeRouter from "./routes/timetable.ts";
 import examRouter from "./routes/exam.ts";
 import dashboardRouter from "./routes/dashboard.ts";
 import attendanceRouter from "./routes/attendance.ts";
 import searchRouter from "./routes/search.ts";
+import reportCardRouter from "./routes/reportCard.ts";
+import emailLogRouter from "./routes/emailLog.ts";
+import parentRouter from "./routes/parent.ts";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -73,11 +77,19 @@ app.use("/api/exams", examRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/attendance", attendanceRouter);
 app.use("/api/search", searchRouter);
+app.use("/api/report-cards", reportCardRouter);
+app.use("/api/email-logs", emailLogRouter);
+app.use("/api/parent", parentRouter);
 app.use(
   "/api/inngest",
   serve({
     client: inngest,
-    functions: [generateTimeTable, generateExam, handleExamSubmission],
+    functions: [
+      generateTimeTable,
+      generateExam,
+      handleExamSubmission,
+      generateReportCards,
+    ],
   })
 );
 

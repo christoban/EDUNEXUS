@@ -121,7 +121,7 @@ export function SubjectTable({
           )}
         </TableBody>
       </Table>
-      {data.length > 10 && (
+      {totalPages > 1 && (
         <CustomPagination
           loading={loading}
           page={page}

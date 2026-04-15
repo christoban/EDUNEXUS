@@ -39,6 +39,9 @@ const schema = z.object({
   count: z.coerce.number().min(1).max(20),
 });
 
+const CLASS_FETCH_LIMIT = 100;
+const SUBJECT_FETCH_LIMIT = 100;
+
 type FormValues = z.infer<typeof schema>;
 
 interface Props {
@@ -70,12 +73,56 @@ const ExamGenerator = ({ open, onOpenChange, onSuccess }: Props) => {
   // Fetch Options
   useEffect(() => {
     if (open) {
-      Promise.all([api.get("/subjects"), api.get("/classes")]).then(
-        ([subRes, clsRes]) => {
-          setSubjects(subRes.data.subjects);
-          setClasses(clsRes.data.classes);
-        }
-      );
+      const fetchAllPages = async () => {
+        const loadAllClasses = async () => {
+          const allClasses: Class[] = [];
+          let page = 1;
+          let totalPages = 1;
+
+          do {
+            const clsRes = await api.get(
+              `/classes?page=${page}&limit=${CLASS_FETCH_LIMIT}`
+            );
+            const pageClasses = Array.isArray(clsRes.data?.classes)
+              ? clsRes.data.classes
+              : [];
+            allClasses.push(...pageClasses);
+            totalPages = Number(clsRes.data?.pagination?.pages || 1);
+            page += 1;
+          } while (page <= totalPages);
+
+          return allClasses;
+        };
+
+        const loadAllSubjects = async () => {
+          const allSubjects: subject[] = [];
+          let page = 1;
+          let totalPages = 1;
+
+          do {
+            const subRes = await api.get(
+              `/subjects?page=${page}&limit=${SUBJECT_FETCH_LIMIT}`
+            );
+            const pageSubjects = Array.isArray(subRes.data?.subjects)
+              ? subRes.data.subjects
+              : [];
+            allSubjects.push(...pageSubjects);
+            totalPages = Number(subRes.data?.pagination?.pages || 1);
+            page += 1;
+          } while (page <= totalPages);
+
+          return allSubjects;
+        };
+
+        Promise.all([loadAllSubjects(), loadAllClasses()]).then(
+          ([subList, clsList]) => {
+            setSubjects(subList);
+            setClasses(clsList);
+          }
+        );
+      };
+
+      void fetchAllPages();
     }
   }, [open]);
 

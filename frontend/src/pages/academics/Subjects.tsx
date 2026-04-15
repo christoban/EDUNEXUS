@@ -11,6 +11,8 @@ import { SubjectTable } from "@/components/subjects/SubjectTable";
 import { SubjectForm } from "@/components/subjects/SubjectForm";
 import { useAuth } from "@/hooks/AuthProvider";
 
+const SUBJECTS_PAGE_SIZE = 15;
+
 export const Subjects = () => {
   const { user } = useAuth();
   const canView = user?.role === "admin" || user?.role === "teacher";
@@ -53,7 +55,7 @@ export const Subjects = () => {
       // Construct Query Params
       const params = new URLSearchParams();
       params.append("page", pageNum.toString());
-      params.append("limit", "10");
+      params.append("limit", String(SUBJECTS_PAGE_SIZE));
       if (debouncedSearch) params.append("search", debouncedSearch);
 
       const { data } = (await api.get(`/subjects?${params.toString()}`)) as {

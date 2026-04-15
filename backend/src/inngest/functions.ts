@@ -6,6 +6,15 @@ import TimetableGeneration from "../models/timetableGeneration.ts";
 import ExamGeneration from "../models/examGeneration.ts";
 import Exam from "../models/exam.ts";
 import Submission from "../models/submission.ts";
+import Grade from "../models/grade.ts";
+import ReportCard from "../models/reportCard.ts";
+import AcademicYear from "../models/academicYear.ts";
+import { getMentionFromAverage, getPeriodDateRange, type ReportPeriod } from "../utils/reporting.ts";
+import { sendTransactionalEmail } from "../services/emailService.ts";
+import {
+  buildExamResultTemplate,
+  buildReportCardTemplate,
+} from "../utils/emailTemplates.ts";
 
 import { NonRetriableError } from "inngest";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -451,6 +460,324 @@ export const handleExamSubmission = inngest.createFunction(
         score,
       });
     });
+
+    await step.run("send-exam-result-notification", async () => {
+      const submission = await Submission.findOne({
+        exam: examId,
+        student: studentId,
+      })
+        .select("score")
+        .lean();
+
+      if (!submission) return { sent: 0, failed: 0 };
+
+      const exam = await Exam.findById(examId)
+        .populate("subject", "name")
+        .select("title subject questions")
+        .lean();
+
+      if (!exam) return { sent: 0, failed: 0 };
+
+      const student = await User.findById(studentId)
+        .select("name email parentId")
+        .lean();
+
+      if (!student?.email) return { sent: 0, failed: 0 };
+
+      const maxScore = Array.isArray((exam as any).questions)
+        ? (exam as any).questions.reduce(
+            (sum: number, question: any) => sum + (Number(question.points) || 1),
+            0
+          )
+        : 0;
+
+      if (!maxScore) return { sent: 0, failed: 0 };
+
+      const percentage = Number(((Number(submission.score) / maxScore) * 100).toFixed(2));
+      const recipients: Array<{ email: string; userId?: string }> = [
+        { email: student.email, userId: String(student._id) },
+      ];
+
+      if (student.parentId) {
+        const parent = await User.findById(student.parentId)
+          .select("email")
+          .lean();
+        if (parent?.email) {
+          recipients.push({ email: parent.email, userId: String(parent._id) });
+        }
+      }
+
+      let sent = 0;
+      let failed = 0;
+      for (const recipient of recipients) {
+        const template = buildExamResultTemplate({
+          recipientName: student.name,
+          examTitle: (exam as any).title,
+          subjectName: (exam as any).subject?.name || "Subject",
+          score: Number(submission.score) || 0,
+          maxScore,
+          percentage,
+        });
+
+        const response = await sendTransactionalEmail({
+          recipientEmail: recipient.email,
+          recipientUserId: recipient.userId,
+          subject: template.subject,
+          html: template.html,
+          text: template.text,
+          template: "exam_result",
+          eventType: "exam_result",
+          relatedEntityType: "exam",
+          relatedEntityId: String(examId),
+          metadata: {
+            studentId: String(student._id),
+            score: Number(submission.score) || 0,
+            maxScore,
+            percentage,
+          },
+        });
+
+        if (response.status === "sent") sent += 1;
+        else failed += 1;
+      }
+
+      return { sent, failed };
+    });
+
     return { message: "Exam submitted successfully" };
+  }
+);
+
+export const generateReportCards = inngest.createFunction(
+  { id: "Generate-Report-Cards", triggers: [{ event: "reportcard/generate" }] },
+  async ({ event, step }) => {
+    const { yearId, period, classId, studentId } = event.data as {
+      yearId: string;
+      period: ReportPeriod;
+      classId?: string | null;
+      studentId?: string | null;
+    };
+
+    const year = await step.run("fetch-academic-year", async () => {
+      const data = await AcademicYear.findById(yearId);
+      if (!data) {
+        throw new NonRetriableError("Academic year not found");
+      }
+      return data;
+    });
+
+    const { start, end } = getPeriodDateRange(year, period);
+
+    const exams = await step.run("fetch-exams-for-period", async () => {
+      const examQuery: any = {
+        dueDate: { $gte: start, $lte: end },
+      };
+
+      if (classId) {
+        examQuery.class = classId;
+      }
+
+      const found = await Exam.find(examQuery)
+        .select("_id subject questions class dueDate")
+        .lean();
+
+      return found;
+    });
+
+    if (!exams.length) {
+      return { message: "No exams found for selected period", generated: 0 };
+    }
+
+    const examIds = exams.map((exam: any) => exam._id);
+
+    const submissions = await step.run("fetch-submissions", async () => {
+      const submissionQuery: any = {
+        exam: { $in: examIds },
+      };
+
+      if (studentId) {
+        submissionQuery.student = studentId;
+      }
+
+      return Submission.find(submissionQuery)
+        .select("exam student score")
+        .lean();
+    });
+
+    const examMap = new Map<string, any>();
+    for (const exam of exams as any[]) {
+      examMap.set(String(exam._id), exam);
+    }
+
+    const gradeIdsByStudent = new Map<string, string[]>();
+
+    await step.run("upsert-grades", async () => {
+      for (const submission of submissions as any[]) {
+        const exam = examMap.get(String(submission.exam));
+        if (!exam) continue;
+
+        const maxScore = Array.isArray(exam.questions)
+          ? exam.questions.reduce(
+              (sum: number, question: any) => sum + (Number(question.points) || 1),
+              0
+            )
+          : 0;
+
+        if (!maxScore) continue;
+
+        const percentage = Number(((Number(submission.score) / maxScore) * 100).toFixed(2));
+
+        const grade = await Grade.findOneAndUpdate(
+          {
+            exam: exam._id,
+            student: submission.student,
+            year: yearId,
+            period,
+          },
+          {
+            exam: exam._id,
+            student: submission.student,
+            score: Number(submission.score) || 0,
+            maxScore,
+            percentage,
+            subject: exam.subject,
+            year: yearId,
+            period,
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        const studentKey = String(submission.student);
+        const existing = gradeIdsByStudent.get(studentKey) || [];
+        existing.push(String(grade._id));
+        gradeIdsByStudent.set(studentKey, existing);
+      }
+    });
+
+    const generatedStudents: string[] = [];
+
+    await step.run("upsert-report-cards", async () => {
+      for (const [studentKey, gradeIds] of gradeIdsByStudent.entries()) {
+        const grades = await Grade.find({ _id: { $in: gradeIds } })
+          .select("percentage")
+          .lean();
+
+        if (!grades.length) continue;
+
+        const percentages = grades.map((grade: any) => Number(grade.percentage) || 0);
+        const totalExams = percentages.length;
+        const average = Number(
+          (percentages.reduce((sum, value) => sum + value, 0) / totalExams).toFixed(2)
+        );
+        const passedExams = percentages.filter((value) => value >= 50).length;
+        const failedExams = totalExams - passedExams;
+        const highestPercentage = Math.max(...percentages);
+        const lowestPercentage = Math.min(...percentages);
+
+        await ReportCard.findOneAndUpdate(
+          {
+            student: studentKey,
+            year: yearId,
+            period,
+          },
+          {
+            student: studentKey,
+            year: yearId,
+            period,
+            grades: gradeIds,
+            aggregates: {
+              average,
+              totalExams,
+              passedExams,
+              failedExams,
+              highestPercentage,
+              lowestPercentage,
+            },
+            mention: getMentionFromAverage(average),
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        generatedStudents.push(studentKey);
+      }
+    });
+
+    await step.run("send-report-card-notification", async () => {
+      if (!generatedStudents.length) {
+        return { sent: 0, failed: 0 };
+      }
+
+      const reportCards = await ReportCard.find({
+        student: { $in: generatedStudents },
+        year: yearId,
+        period,
+      })
+        .populate("student", "name email parentId")
+        .populate("year", "name")
+        .select("student year period aggregates mention")
+        .lean();
+
+      let sent = 0;
+      let failed = 0;
+
+      for (const reportCard of reportCards as any[]) {
+        const student = reportCard.student;
+        if (!student?.email) continue;
+
+        const recipients: Array<{ email: string; userId?: string }> = [
+          { email: student.email, userId: String(student._id) },
+        ];
+
+        if (student.parentId) {
+          const parent = await User.findById(student.parentId)
+            .select("email")
+            .lean();
+          if (parent?.email) {
+            recipients.push({ email: parent.email, userId: String(parent._id) });
+          }
+        }
+
+        for (const recipient of recipients) {
+          const template = buildReportCardTemplate({
+            recipientName: student.name,
+            period,
+            yearName: reportCard.year?.name || "Academic Year",
+            average: Number(reportCard.aggregates?.average || 0),
+            mention: reportCard.mention,
+            totalExams: Number(reportCard.aggregates?.totalExams || 0),
+          });
+
+          const response = await sendTransactionalEmail({
+            recipientEmail: recipient.email,
+            recipientUserId: recipient.userId,
+            subject: template.subject,
+            html: template.html,
+            text: template.text,
+            template: "report_card_available",
+            eventType: "report_card_available",
+            relatedEntityType: "report_card",
+            relatedEntityId: String(reportCard._id),
+            metadata: {
+              studentId: String(student._id),
+              period,
+              average: Number(reportCard.aggregates?.average || 0),
+              mention: reportCard.mention,
+            },
+          });
+
+          if (response.status === "sent") sent += 1;
+          else failed += 1;
+        }
+      }
+
+      return { sent, failed };
+    });
+
+    return {
+      message: "Report cards generated successfully",
+      generated: generatedStudents.length,
+      period,
+      yearId,
+    };
   }
 );

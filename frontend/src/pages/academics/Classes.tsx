@@ -12,6 +12,8 @@ import ClassTable from "@/components/classes/ClassTable";
 import ClassForm from "@/components/classes/ClassForm";
 import { useAuth } from "@/hooks/AuthProvider";
 
+const CLASSES_PAGE_SIZE = 15;
+
 const Classes = () => {
   // it's the same as users/academics-year components
   const { user } = useAuth();
@@ -54,7 +56,7 @@ const Classes = () => {
       // Construct Query Params
       const params = new URLSearchParams();
       params.append("page", pageNum.toString());
-      params.append("limit", "10");
+      params.append("limit", String(CLASSES_PAGE_SIZE));
       if (debouncedSearch) params.append("search", debouncedSearch);
 
       const { data } = (await api.get(`/classes?${params.toString()}`)) as {

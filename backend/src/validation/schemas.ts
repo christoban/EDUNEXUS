@@ -164,3 +164,30 @@ export const globalSearchQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(50).optional(),
 });
+
+const reportPeriodEnum = z.enum(["term1", "term2", "term3", "annual"]);
+
+export const generateReportCardsBodySchema = z.object({
+  yearId: objectId,
+  period: reportPeriodEnum,
+  classId: objectId.optional(),
+  studentId: objectId.optional(),
+});
+
+export const reportCardsQuerySchema = z.object({
+  yearId: objectId.optional(),
+  period: reportPeriodEnum.optional(),
+  classId: objectId.optional(),
+  studentId: objectId.optional(),
+  search: z.string().trim().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export const emailLogsQuerySchema = z.object({
+  search: z.string().trim().optional(),
+  status: z.enum(["sent", "failed"]).optional(),
+  eventType: z.enum(["exam_result", "report_card_available"]).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});

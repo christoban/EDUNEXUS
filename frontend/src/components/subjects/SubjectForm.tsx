@@ -112,9 +112,21 @@ export function SubjectForm({
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      const msg =
-        error.response?.data?.message || error.message || "Operation failed";
-      toast.error(typeof msg === "string" ? msg : "Error occurred");
+      const responseData = error?.response?.data;
+      const validationErrors = Array.isArray(responseData?.errors)
+        ? responseData.errors
+            .map((entry: any) => entry?.message)
+            .filter(Boolean)
+            .join(" | ")
+        : "";
+
+      const message =
+        validationErrors ||
+        responseData?.message ||
+        error?.message ||
+        "Operation failed";
+
+      toast.error(message);
     }
   };
 

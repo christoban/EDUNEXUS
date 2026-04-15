@@ -41,6 +41,8 @@ const TEACHING_DAY_OPTIONS = [
   "Saturday",
 ];
 
+const CLASS_FETCH_LIMIT = 100;
+
 interface Props {
   onGenerate: (
     classId: string,
@@ -61,6 +63,7 @@ const GeneratorControls = ({
 }: Props) => {
   const { user } = useAuth();
   const hideGenerate = user?.role !== "admin";
+  const isParent = user?.role === "parent";
   const [classes, setClasses] = useState<Class[]>([]);
   const [years, setYears] = useState<academicYear[]>([]);
   const [selectedYear, setSelectedYear] = useState("");
@@ -82,17 +85,32 @@ const GeneratorControls = ({
     const fetchData = async () => {
       setLoadingData(true);
       try {
-        const [clsRes, yearRes] = await Promise.all([
-          api.get("/classes"),
-          api.get("/academic-years"), // Get all years so we can see history if needed
-        ]);
-        setClasses(clsRes.data.classes);
-        setYears(yearRes.data.years);
+        // Timetable class selector must load all classes, not only the API default first page.
+        const allClasses: Class[] = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+          const clsRes = await api.get(`/classes?page=${page}&limit=${CLASS_FETCH_LIMIT}`);
+          const pageClasses = Array.isArray(clsRes.data?.classes)
+            ? clsRes.data.classes
+            : [];
+          allClasses.push(...pageClasses);
+          totalPages = Number(clsRes.data?.pagination?.pages || 1);
+          page += 1;
+        } while (page <= totalPages);
+
+        const yearRes = isParent
+          ? await api.get("/academic-years/current")
+          : await api.get("/academic-years?page=1&limit=100"); // Get years so we can see history if needed
+
+        setClasses(allClasses);
+        setYears(Array.isArray(yearRes.data?.years) ? yearRes.data.years : [yearRes.data]);
 
         // Auto-select current year
         const currentYears = Array.isArray(yearRes.data?.years)
           ? yearRes.data.years
-          : [];
+          : [yearRes.data];
         const current = currentYears.find((y: academicYear) => y.isCurrent);
 
         if (current?._id) setSelectedYear(current._id);

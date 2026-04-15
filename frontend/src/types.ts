@@ -97,3 +97,51 @@ export interface AttendanceRecord {
   status: AttendanceStatus;
   markedBy: { _id: string; name: string; role: UserRole };
 }
+
+export type ReportPeriod = "term1" | "term2" | "term3" | "annual";
+
+export interface Grade {
+  _id: string;
+  exam: string;
+  student: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  subject: string;
+  year: string;
+  period: ReportPeriod;
+}
+
+export interface ReportCard {
+  _id: string;
+  student: user;
+  year: academicYear;
+  period: ReportPeriod;
+  grades: Grade[];
+  aggregates: {
+    average: number;
+    totalExams: number;
+    passedExams: number;
+    failedExams: number;
+    highestPercentage: number;
+    lowestPercentage: number;
+  };
+  mention: string;
+}
+
+export type EmailEventType = "exam_result" | "report_card_available";
+export type EmailStatus = "sent" | "failed";
+
+export interface EmailLog {
+  _id: string;
+  recipientEmail: string;
+  recipientUser?: user;
+  subject: string;
+  template: string;
+  eventType: EmailEventType;
+  status: EmailStatus;
+  providerMessageId?: string | null;
+  errorMessage?: string | null;
+  sentAt: string;
+  metadata?: Record<string, unknown>;
+}

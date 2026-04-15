@@ -68,6 +68,29 @@ const createSchema = (type: FormType) => {
 
 type FormValues = z.infer<ReturnType<typeof createSchema>>;
 
+const OPTION_FETCH_LIMIT = 100;
+
+const loadAllPaginatedItems = async <T,>(
+  endpoint: "classes" | "subjects",
+  collectionKey: "classes" | "subjects"
+): Promise<T[]> => {
+  const items: T[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const { data } = await api.get(
+      `/${endpoint}?page=${page}&limit=${OPTION_FETCH_LIMIT}`
+    );
+    const pageItems = Array.isArray(data?.[collectionKey]) ? data[collectionKey] : [];
+    items.push(...pageItems);
+    totalPages = Number(data?.pagination?.pages || 1);
+    page += 1;
+  } while (page <= totalPages);
+
+  return items;
+};
+
 const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   const isUpdate = type === "update";
   const isLogin = type === "login";
@@ -102,10 +125,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
     const fetchClasses = async () => {
       try {
         setLoading(true);
-        const { data } = (await api.get("/classes")) as {
-          data: { classes: Class[]; pagination: pagination };
-        };
-        setClasses(data.classes);
+        const allClasses = await loadAllPaginatedItems<Class>("classes", "classes");
+        setClasses(allClasses);
       } catch (error) {
         if (type !== "login") {
           toast.error("Failed to load Classes");
@@ -128,10 +149,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
     const fetchSubjects = async () => {
       try {
         setLoadingOptions(true);
-        const { data } = (await api.get("/subjects")) as {
-          data: { subjects: subject[]; pagination: pagination };
-        };
-        setSubjects(data.subjects);
+        const allSubjects = await loadAllPaginatedItems<subject>("subjects", "subjects");
+        setSubjects(allSubjects);
         setLoadingOptions(false);
       } catch (error) {
         if (type !== "login") {
@@ -167,13 +186,29 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   async function onSubmit(data: FormValues) {
     try {
       setServerError("");
-      // console.log(data);
-      const payload = {
-        studentClass: data.classId ? data.classId : undefined,
-        teacherSubjects: data.subjectIds ? data.subjectIds : [],
-        // role: role,
-        ...data,
+      const payload: Record<string, unknown> = {
+        name: data.name,
+        email: data.email,
+        role: data.role,
       };
+
+      if (data.classId) {
+        payload.studentClass = data.classId;
+      }
+
+      if (Array.isArray(data.subjectIds)) {
+        payload.teacherSubjects = data.subjectIds;
+      }
+
+      // For update, omit empty password to avoid backend validation rejection.
+      if (data.password && data.password.trim().length > 0) {
+        payload.password = data.password;
+      }
+
+      if (type === "create") {
+        payload.password = data.password;
+      }
+
       if (isLogin) {
         await api.post("/users/login", {
           email: data.email,
@@ -193,7 +228,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         toast.success("User updated successfully");
         if (onSuccess) onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log(error);
       if (isLogin) {
         const message =
@@ -202,7 +237,21 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         setServerError(message);
         return;
       }
-      toast.error("An error occurred. Please try again.");
+
+      const responseData = error?.response?.data;
+      const validationErrors = Array.isArray(responseData?.errors)
+        ? responseData.errors
+            .map((entry: any) => entry?.message)
+            .filter(Boolean)
+            .join(" | ")
+        : "";
+
+      const message =
+        validationErrors ||
+        responseData?.message ||
+        "Action impossible. Verifiez les champs puis reessayez.";
+
+      toast.error(message);
     }
   }
 

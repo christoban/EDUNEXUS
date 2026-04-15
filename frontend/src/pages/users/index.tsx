@@ -17,6 +17,9 @@ interface Props {
   title: string;
   description: string;
 }
+
+const USERS_PAGE_SIZE = 15;
+
 export default function UserManagementPage({
   role,
   title,
@@ -62,7 +65,7 @@ export default function UserManagementPage({
       const searchParam = debouncedSearch ? `&search=${debouncedSearch}` : "";
       const roleParam = `&role=${role}`;
       const { data } = (await api.get(
-        `/users?page=${page}&limit=10${roleParam}${searchParam}`
+        `/users?page=${page}&limit=${USERS_PAGE_SIZE}${roleParam}${searchParam}`
       )) as { data: { users: user[]; pagination: pagination } };
       // Handle response based on your new controller structure
       if (data.users) {

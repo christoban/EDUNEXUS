@@ -119,7 +119,15 @@ export default function AttendancePage() {
         data: { records: AttendanceRecord[] };
       };
 
-      const attendanceRecords = data.records || [];
+      let attendanceRecords = data.records || [];
+
+      // Parent/student UX: keep today's date selected, but if no rows for that day,
+      // fallback to all available attendance records to avoid a false-empty screen.
+      if (!isManager && selectedDate && attendanceRecords.length === 0) {
+        const fallback = await api.get("/attendance");
+        attendanceRecords = fallback.data?.records || [];
+      }
+
       setRecords(attendanceRecords);
 
       if (isManager && filteredStudents.length) {
@@ -321,6 +329,7 @@ export default function AttendancePage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead>Student</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Marked By</TableHead>
@@ -329,14 +338,14 @@ export default function AttendancePage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     Loading attendance...
                   </TableCell>
                 </TableRow>
               ) : records.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No attendance records found.
@@ -348,6 +357,7 @@ export default function AttendancePage() {
                     <TableCell>
                       {new Date(record.date).toLocaleDateString()}
                     </TableCell>
+                    <TableCell>{record.student?.name || "N/A"}</TableCell>
                     <TableCell>{record.class?.name || "N/A"}</TableCell>
                     <TableCell>{prettyStatus(record.status)}</TableCell>
                     <TableCell>{record.markedBy?.name || "N/A"}</TableCell>

@@ -132,7 +132,7 @@ export function DashboardStats({ role, data }: StatsProps) {
           <CardContent>
             <div className="text-2xl font-bold">{data.childrenCount || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {data.childrenNames?.slice(0, 2).join(", ") || "No children yet"}
+              {data.childrenNames?.join(", ") || "No children yet"}
             </p>
           </CardContent>
         </Card>

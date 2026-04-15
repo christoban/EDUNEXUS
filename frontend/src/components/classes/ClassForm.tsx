@@ -32,6 +32,29 @@ interface Props {
   initialData: Class | null;
   onSuccess: () => void;
 }
+
+const OPTION_FETCH_LIMIT = 100;
+
+const loadAllPaginatedItems = async <T,>(
+  endpoint: "users" | "subjects" | "academic-years",
+  collectionKey: "users" | "subjects" | "years"
+): Promise<T[]> => {
+  const items: T[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const { data } = await api.get(
+      `/${endpoint}?page=${page}&limit=${OPTION_FETCH_LIMIT}`
+    );
+    const pageItems = Array.isArray(data?.[collectionKey]) ? data[collectionKey] : [];
+    items.push(...pageItems);
+    totalPages = Number(data?.pagination?.pages || 1);
+    page += 1;
+  } while (page <= totalPages);
+
+  return items;
+};
 const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
   const [teachers, setTeachers] = useState<Option[]>([]);
   const [years, setYears] = useState<Option[]>([]);
@@ -45,12 +68,13 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
       const fetchData = async () => {
         setLoadingOptions(true);
         try {
-          const [teachersRes, yearsRes] = await Promise.all([
-            api.get("/users?role=teacher"),
-            api.get("/academic-years"),
+          const [teachersList, yearsList] = await Promise.all([
+            loadAllPaginatedItems<Option>("users", "users"),
+            loadAllPaginatedItems<Option>("academic-years", "years"),
           ]);
-          setTeachers(teachersRes.data.users);
-          setYears(yearsRes.data.years);
+
+          setTeachers(teachersList.filter((teacher: any) => teacher.role === "teacher"));
+          setYears(yearsList);
         } catch (error) {
           toast.error("Failed to load options");
         } finally {
@@ -66,8 +90,8 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
     const fetchSubjects = async () => {
       try {
         setLoadingSubjects(true);
-        const { data } = await api.get("/subjects");
-        setSubjects(data.subjects);
+        const allSubjects = await loadAllPaginatedItems<Option>("subjects", "subjects");
+        setSubjects(allSubjects);
         setLoadingSubjects(false);
       } catch (error) {
         toast.error("Failed to load subjects");
