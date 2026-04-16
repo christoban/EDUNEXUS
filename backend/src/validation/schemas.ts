@@ -39,6 +39,9 @@ export const registerBodySchema = z.object({
   teacherSubject: z.array(objectId).optional(),
   teacherSubjects: z.array(objectId).optional(),
   parentId: optionalObjectId,
+  schoolSection: z.enum(["francophone", "anglophone", "bilingual"]).optional(),
+  uiLanguagePreference: z.enum(["fr", "en"]).optional(),
+  parentLanguagePreference: z.enum(["fr", "en"]).optional(),
 });
 
 export const loginBodySchema = z.object({
@@ -57,6 +60,9 @@ export const updateUserBodySchema = z
     teacherSubject: z.array(objectId).optional(),
     teacherSubjects: z.array(objectId).optional(),
     parentId: optionalObjectId,
+    parentLanguagePreference: z.enum(["fr", "en"]).optional(),
+    schoolSection: z.enum(["francophone", "anglophone", "bilingual"]).optional(),
+    uiLanguagePreference: z.enum(["fr", "en"]).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided",
@@ -86,6 +92,8 @@ export const createSubjectBodySchema = z.object({
   name: z.string().min(1).max(100),
   code: z.string().min(1).max(50),
   teacher: z.array(objectId).optional(),
+  coefficient: z.coerce.number().int().min(1).max(20).optional(),
+  appreciation: z.string().max(500).optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -94,6 +102,8 @@ export const updateSubjectBodySchema = z
     name: z.string().min(1).max(100).optional(),
     code: z.string().min(1).max(50).optional(),
     teacher: z.array(objectId).optional(),
+    coefficient: z.coerce.number().int().min(1).max(20).optional(),
+    appreciation: z.string().max(500).optional(),
     isActive: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
@@ -136,6 +146,10 @@ export const generateTimetableBodySchema = z.object({
 
 export const classIdParamSchema = z.object({
   classId: objectId,
+});
+
+export const studentIdParamSchema = z.object({
+  studentId: objectId,
 });
 
 export const markAttendanceBodySchema = z.object({
@@ -187,7 +201,158 @@ export const reportCardsQuerySchema = z.object({
 export const emailLogsQuerySchema = z.object({
   search: z.string().trim().optional(),
   status: z.enum(["sent", "failed"]).optional(),
-  eventType: z.enum(["exam_result", "report_card_available"]).optional(),
+  eventType: z.enum(["exam_result", "report_card_available", "payment_reminder"]).optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+const feeCategoryEnum = z.enum([
+  "registration",
+  "tuition",
+  "apee_pta",
+  "transport",
+  "canteen",
+  "uniform_supplies",
+  "exam_fees",
+  "other",
+]);
+
+const feeFrequencyEnum = z.enum(["one_time", "monthly", "termly"]);
+
+const invoiceStatusEnum = z.enum([
+  "draft",
+  "issued",
+  "partially_paid",
+  "paid",
+  "overdue",
+  "cancelled",
+]);
+
+const paymentMethodEnum = z.enum([
+  "cash",
+  "bank_transfer",
+  "mobile_money_mtn",
+  "mobile_money_orange",
+]);
+
+export const createFeePlanBodySchema = z.object({
+  name: z.string().min(2).max(120),
+  category: feeCategoryEnum,
+  frequency: feeFrequencyEnum,
+  amount: z.number().positive(),
+  academicYear: objectId,
+  classes: z.array(objectId).min(1),
+  dueDayOfMonth: z.number().int().min(1).max(31).optional(),
+  isActive: z.boolean().optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export const updateFeePlanBodySchema = createFeePlanBodySchema
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+const invoiceLineSchema = z.object({
+  feePlan: objectId.optional(),
+  label: z.string().min(1).max(200),
+  category: feeCategoryEnum.or(z.literal("other")),
+  amount: z.number().nonnegative(),
+});
+
+export const createInvoiceBodySchema = z.object({
+  studentId: objectId,
+  classId: objectId,
+  academicYearId: objectId,
+  dueDate: isoDate,
+  lines: z.array(invoiceLineSchema).min(1),
+  notes: z.string().max(500).optional(),
+  status: invoiceStatusEnum.optional(),
+});
+
+export const createInvoicesFromFeePlanBodySchema = z.object({
+  feePlanId: objectId,
+  dueDate: isoDate,
+  classId: objectId.optional(),
+  studentId: objectId.optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export const invoiceQuerySchema = z.object({
+  studentId: objectId.optional(),
+  classId: objectId.optional(),
+  academicYearId: objectId.optional(),
+  status: invoiceStatusEnum.optional(),
+  dueBefore: isoDate.optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export const createPaymentBodySchema = z
+  .object({
+    invoiceId: objectId,
+    amount: z.number().positive(),
+    paymentDate: isoDate.optional(),
+    method: paymentMethodEnum,
+    transactionReference: z.string().trim().min(3).max(120).optional(),
+    notes: z.string().max(500).optional(),
+  })
+  .refine(
+    (data) =>
+      data.method === "cash" ||
+      (typeof data.transactionReference === "string" && data.transactionReference.length > 0),
+    {
+      message: "transactionReference is required for transfer and mobile money",
+      path: ["transactionReference"],
+    }
+  );
+
+export const paymentQuerySchema = z.object({
+  invoiceId: objectId.optional(),
+  studentId: objectId.optional(),
+  method: paymentMethodEnum.optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export const createExpenseBodySchema = z
+  .object({
+    category: z.enum(["salary", "utilities", "maintenance", "supplies", "transport", "other"]),
+    description: z.string().min(2).max(300),
+    amount: z.number().positive(),
+    expenseDate: isoDate.optional(),
+    paymentMethod: paymentMethodEnum,
+    transactionReference: z.string().trim().min(3).max(120).optional(),
+  })
+  .refine(
+    (data) =>
+      data.paymentMethod === "cash" ||
+      (typeof data.transactionReference === "string" && data.transactionReference.length > 0),
+    {
+      message: "transactionReference is required for transfer and mobile money",
+      path: ["transactionReference"],
+    }
+  );
+
+export const expenseQuerySchema = z.object({
+  category: z.enum(["salary", "utilities", "maintenance", "supplies", "transport", "other"]).optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export const financeReportQuerySchema = z.object({
+  classId: objectId.optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+});
+
+export const sendFinanceReminderBodySchema = z.object({
+  studentId: objectId,
+  channels: z.array(z.enum(["email", "sms"])).min(1),
+  phoneNumber: z.string().trim().min(8).max(30).optional(),
+  customMessage: z.string().trim().min(3).max(500).optional(),
 });

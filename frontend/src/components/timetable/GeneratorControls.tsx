@@ -23,6 +23,8 @@ import {
 import { Label } from "@/components/ui/label";
 import type { academicYear, Class } from "@/types";
 import { useAuth } from "@/hooks/AuthProvider";
+import { t } from "@/lib/i18n";
+import type { UILanguage } from "@/hooks/useUILanguage";
 
 export interface GenSettings {
   startTime: string;
@@ -53,6 +55,7 @@ interface Props {
   isGenerating: boolean;
   selectedClass: string;
   setSelectedClass: (classId: string) => void;
+  language: UILanguage;
 }
 const GeneratorControls = ({
   onGenerate,
@@ -60,6 +63,7 @@ const GeneratorControls = ({
   isGenerating,
   selectedClass,
   setSelectedClass,
+  language,
 }: Props) => {
   const { user } = useAuth();
   const hideGenerate = user?.role !== "admin";
@@ -115,7 +119,7 @@ const GeneratorControls = ({
 
         if (current?._id) setSelectedYear(current._id);
       } catch (error) {
-        toast.error("Failed to load selection data");
+        toast.error(t("timetable.error.loadSelection", language));
       } finally {
         setLoadingData(false);
       }
@@ -125,12 +129,12 @@ const GeneratorControls = ({
 
   const handleGenerateClick = () => {
     if (!selectedClass || !selectedYear) {
-      toast.error("Please select both a Class and Academic Year");
+      toast.error(t("timetable.error.selectClassYear", language));
       return;
     }
 
     if (teachingDays.length === 0) {
-      toast.error("Please select at least one teaching day");
+      toast.error(t("timetable.error.selectTeachingDay", language));
       return;
     }
 
@@ -167,18 +171,18 @@ const GeneratorControls = ({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>
-              {hideGenerate ? "View Timetable" : "Timetable Controls"}
+              {hideGenerate ? t("timetable.viewOnlyTitle", language) : t("timetable.controlsTitle", language)}
             </CardTitle>
             <CardDescription>
               {hideGenerate
-                ? "Select a class to view its schedule"
-                : "Configure constraints and generate schedule"}
+                ? t("timetable.viewOnlyDescription", language)
+                : t("timetable.controlsDescription", language)}
             </CardDescription>
           </div>
           {isGenerating && (
             <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full animate-pulse">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>AI is thinking...</span>
+              <span>{t("timetable.aiThinking", language)}</span>
             </div>
           )}
         </div>
@@ -186,14 +190,14 @@ const GeneratorControls = ({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Academic Year</Label>
+            <Label>{t("timetable.academicYear", language)}</Label>
             <Select
               value={selectedYear}
               onValueChange={setSelectedYear}
               disabled={loadingData}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Year" />
+                <SelectValue placeholder={t("timetable.selectYear", language)} />
               </SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
@@ -205,14 +209,14 @@ const GeneratorControls = ({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Class</Label>
+            <Label>{t("timetable.class", language)}</Label>
             <Select
               value={selectedClass}
               onValueChange={handleClassSelect}
               disabled={loadingData}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select Class" />
+                <SelectValue placeholder={t("timetable.selectClass", language)} />
               </SelectTrigger>
               <SelectContent>
                 {classes.map((c) => (
@@ -228,7 +232,7 @@ const GeneratorControls = ({
           <>
             <div className="grid grid-cols-3 gap-4 border-t pt-4 mt-4">
               <div className="space-y-2">
-                <Label>Start Time</Label>
+                <Label>{t("timetable.startTime", language)}</Label>
                 <Input
                   type="time"
                   value={startTime}
@@ -237,7 +241,7 @@ const GeneratorControls = ({
                 />
               </div>
               <div className="space-y-2">
-                <Label>End Time</Label>
+                <Label>{t("timetable.endTime", language)}</Label>
                 <Input
                   type="time"
                   value={endTime}
@@ -246,7 +250,7 @@ const GeneratorControls = ({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Periods Per Day</Label>
+                <Label>{t("timetable.periodsPerDay", language)}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -259,7 +263,7 @@ const GeneratorControls = ({
             </div>
 
             <div className="space-y-3 border-t pt-4 mt-4">
-              <Label>Teaching Days</Label>
+              <Label>{t("timetable.teachingDays", language)}</Label>
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 {TEACHING_DAY_OPTIONS.map((day) => {
                   const checked = teachingDays.includes(day);
@@ -275,14 +279,14 @@ const GeneratorControls = ({
                         }
                         disabled={isGenerating}
                       />
-                      <span>{day}</span>
+                      <span>{t(`weekday.${day}`, language)}</span>
                     </label>
                   );
                 })}
               </div>
               <p className="text-xs text-muted-foreground">
-                Weekly Total: {weeklyTotal} periods ({teachingDays.length} days x{" "}
-                {parseInt(periodsPerDay, 10) || 0} periods/day)
+                {t("timetable.weeklyTotal", language)}: {weeklyTotal} {t("timetable.periods", language)} ({teachingDays.length} {t("timetable.days", language)} x{" "}
+                {parseInt(periodsPerDay, 10) || 0} {t("timetable.periodsPerDay", language).toLowerCase()})
               </p>
             </div>
 
@@ -293,12 +297,11 @@ const GeneratorControls = ({
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Optimizing
-                  Schedule...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("timetable.optimizing", language)}
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" /> Generate with AI
+                  <Sparkles className="mr-2 h-4 w-4" /> {t("timetable.generateWithAI", language)}
                 </>
               )}
             </Button>

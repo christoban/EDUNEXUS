@@ -16,9 +16,12 @@ import { useNavigate } from "react-router";
 import type { exam } from "@/types";
 import { toast } from "sonner";
 import ExamGenerator from "@/components/lms/ExamGenerator";
+import { useUILanguage } from "@/hooks/useUILanguage";
+import { t } from "@/lib/i18n";
 
 const Exams = () => {
   const { user } = useAuth();
+  const language = useUILanguage();
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const [exams, setExams] = useState<exam[]>([]);
   const [isGenOpen, setIsGenOpen] = useState(false);
@@ -33,7 +36,7 @@ const Exams = () => {
       setExams(data);
       setLoading(false);
     } catch (error) {
-      toast.error("failed to load exams");
+      toast.error(language === "fr" ? "Impossible de charger les examens" : "Failed to load exams");
       console.log(error);
       setLoading(false);
     }
@@ -57,20 +60,20 @@ const Exams = () => {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quizzes & Exams</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("exams.title", language)}</h1>
           <p className="text-muted-foreground">
-            Manage assessments and view results.
+            {t("exams.subtitle", language)}
           </p>
         </div>
         {isTeacher && (
           <Button onClick={() => setIsGenOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> New AI Quiz
+            <Plus className="mr-2 h-4 w-4" /> {t("exams.newAiQuiz", language)}
           </Button>
         )}
       </div>
       {exams.length === 0 && (
         <div className="flex items-center justify-center h-full">
-          <p>No exams found</p>
+          <p>{t("exams.none", language)}</p>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -80,11 +83,11 @@ const Exams = () => {
               <div className="pb-2">
                 <Badge>
                   {exam.isActive && new Date(exam.dueDate) >= date
-                    ? "Active"
-                    : "Inactive"}
+                    ? t("exams.active", language)
+                    : t("exams.inactive", language)}
                 </Badge>
                 <span className="text-xs text-muted-foreground ml-2">
-                  {new Date(exam.dueDate).toLocaleDateString()}
+                  {new Date(exam.dueDate).toLocaleDateString(language === "fr" ? "fr-CM" : "en-GB")}
                 </span>
               </div>
               <CardTitle className="mt-2 text-lg">{exam.title}</CardTitle>
@@ -92,15 +95,15 @@ const Exams = () => {
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                  {exam.subject?.name || "Deleted subject"}
+                  {exam.subject?.name || t("exams.deletedSubject", language)}
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                  {exam.class?.name || "Deleted class"}
+                  {exam.class?.name || t("exams.deletedClass", language)}
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                {exam.duration} mins
+                {exam.duration} {t("exams.durationMinutes", language)}
               </div>
             </CardContent>
             <CardFooter>
@@ -110,10 +113,10 @@ const Exams = () => {
                 onClick={() => navigate(`/lms/exams/${exam._id}`)}
               >
                 {isTeacher
-                  ? "Manage Questions"
+                  ? t("exams.manageQuestions", language)
                   : exam.hasSubmitted
-                  ? "View Result"
-                  : "Start Quiz"}
+                  ? t("exams.viewResult", language)
+                  : t("exams.startQuiz", language)}
               </Button>
             </CardFooter>
           </Card>

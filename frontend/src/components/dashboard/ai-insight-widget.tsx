@@ -3,7 +3,7 @@ import { Sparkles, RefreshCw, Lightbulb, BrainCircuit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-// import api from "@/lib/api";
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 interface Props {
@@ -13,34 +13,35 @@ interface Props {
 export function AiInsightWidget({ role }: Props) {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generateInsight = async () => {
     setLoading(true);
+    setError(null);
+    setInsight(null);
+    
     try {
-      // In a real app, you would call:
-      // const { data } = await api.post('/ai/generate-insight', { context: "dashboard", role });
-      // setInsight(data.text);
-
-      // --- MOCK AI RESPONSE (Simulation) ---
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Fake delay
-
-      let mockResponse = "";
-      if (role === "admin") {
-        mockResponse =
-          "Analysis complete: Grade 10B has shown a 15% drop in attendance on Fridays. Additionally, Math scores across the high school section have improved by 5% compared to last term.";
-      } else if (role === "teacher") {
-        mockResponse =
-          "Observation: 3 students in your History class (John, Sarah, Mike) scored below 40% in the last 2 quizzes. I suggest assigning them the remedial 'World War II' reading material.";
-      } else if (role === "student") {
-        mockResponse =
-          "Study Tip: Your Physics exam is in 3 days. Based on your quiz results, you should focus on 'Thermodynamics'. I've highlighted 2 key chapters for you in the Library.";
-      } else {
-        mockResponse = "System is running smoothly. No critical alerts found.";
-      }
-
-      setInsight(mockResponse);
-    } catch (e) {
-      toast.error("Could not generate insight");
+      console.log("🤖 Calling AI insight API...");
+      const { data } = await api.post("/ai/generate-insight");
+      console.log("✅ API Response:", data);
+      setInsight(data.insight);
+      setError(null);
+    } catch (error: any) {
+      console.error("❌ AI Insight Error Details:");
+      console.error("Status:", error?.response?.status);
+      console.error("Data:", error?.response?.data);
+      console.error("Message:", error?.message);
+      console.error("Full Error:", error);
+      
+      const errorMsg =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Unknown error occurred";
+      
+      setError(errorMsg);
+      setInsight(null);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -71,6 +72,23 @@ export function AiInsightWidget({ role }: Props) {
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-[90%]" />
             <Skeleton className="h-4 w-[60%]" />
+          </div>
+        ) : error ? (
+          <div className="space-y-3">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3 space-y-2">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-400">❌ Error Details:</p>
+              <p className="text-xs text-red-600 dark:text-red-300 font-mono bg-red-100 dark:bg-red-900/40 p-2 rounded break-words">
+                {error}
+              </p>
+            </div>
+            <div className="text-center">
+              <Button size="sm" onClick={generateInsight} variant="outline">
+                Try Again
+              </Button>
+              <p className="text-xs text-gray-500 mt-2">
+                Check browser console (F12) for more details
+              </p>
+            </div>
           </div>
         ) : insight ? (
           <div className="flex gap-3 items-start animate-in fade-in slide-in-from-bottom-2 duration-500">

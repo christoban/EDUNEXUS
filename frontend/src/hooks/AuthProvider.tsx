@@ -8,11 +8,13 @@ const AuthContext = createContext<{
   setUser: React.Dispatch<React.SetStateAction<user | null>>;
   loading: boolean;
   year: academicYear | null;
+  setYear: React.Dispatch<React.SetStateAction<academicYear | null>>;
 }>({
   user: null,
   setUser: () => {},
   loading: true,
   year: null,
+  setYear: () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -48,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, year }}>
+    <AuthContext.Provider value={{ user, setUser, loading, year, setYear }}>
       {!loading && children}
     </AuthContext.Provider>
   );

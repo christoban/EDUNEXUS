@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
-import { Menu, X, GraduationCap } from "lucide-react";
-import { Link } from "react-router";
+import { Menu, X, GraduationCap, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router";
+import { useAuth } from "@/hooks/AuthProvider";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, setUser } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -13,6 +16,12 @@ const Navbar = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
 
   return (
     <nav
@@ -55,9 +64,30 @@ const Navbar = () => {
             >
               AI Guide
             </a>
-            <button className="bg-[#3ecf8e] text-black px-5 py-2 rounded-md font-bold hover:bg-[#34b27b] transition-all transform hover:scale-105">
-              Apply Now
-            </button>
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/dashboard"
+                  className="bg-[#3ecf8e] text-black px-5 py-2 rounded-md font-bold hover:bg-[#34b27b] transition-all transform hover:scale-105"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-600 dark:text-gray-300 hover:text-red-500 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="bg-[#3ecf8e] text-black px-5 py-2 rounded-md font-bold hover:bg-[#34b27b] transition-all transform hover:scale-105"
+              >
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile button */}
@@ -103,9 +133,30 @@ const Navbar = () => {
           >
             AI Guide
           </a>
-          <button className="w-full bg-[#3ecf8e] text-black px-5 py-3 rounded-md font-bold text-center">
-            Apply Now
-          </button>
+          {user ? (
+            <div className="space-y-2">
+              <Link
+                to="/dashboard"
+                className="w-full bg-[#3ecf8e] text-black px-5 py-3 rounded-md font-bold text-center block"
+              >
+                Dashboard
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 bg-red-500 text-white px-5 py-3 rounded-md font-bold"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              className="w-full bg-[#3ecf8e] text-black px-5 py-3 rounded-md font-bold text-center block"
+            >
+              Login
+            </Link>
+          )}
         </div>
       )}
     </nav>

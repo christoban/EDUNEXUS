@@ -10,6 +10,12 @@ const toIdStrings = (value: unknown) =>
     ? value.filter(Boolean).map((item) => String(item))
     : [];
 
+const isValidSection = (value: unknown): value is "francophone" | "anglophone" | "bilingual" =>
+  value === "francophone" || value === "anglophone" || value === "bilingual";
+
+const isValidLanguage = (value: unknown): value is "fr" | "en" =>
+  value === "fr" || value === "en";
+
 const syncTeacherSubjects = async (
   teacherId: string,
   previousSubjectIds: string[],
@@ -52,6 +58,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       teacherSubjects,
       isActive,
       parentId,
+      parentLanguagePreference,
+      schoolSection,
+      uiLanguagePreference,
     } = req.body;
 
     const resolvedTeacherSubjects = teacherSubjects ?? teacherSubject;
@@ -84,6 +93,26 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       studentClass: role === "student" ? studentClass : null,
       teacherSubject: role === "teacher" ? resolvedTeacherSubjects : [],
       parentId: role === "student" ? parentId : null,
+      parentLanguagePreference:
+        role === "parent" && isValidLanguage(parentLanguagePreference)
+          ? parentLanguagePreference
+          : "fr",
+      schoolSection:
+        role === "student" || role === "teacher"
+          ? isValidSection(schoolSection)
+            ? schoolSection
+            : "francophone"
+          : "francophone",
+      uiLanguagePreference:
+        role === "admin"
+          ? isValidLanguage(uiLanguagePreference)
+            ? uiLanguagePreference
+            : undefined
+          : role === "teacher" && schoolSection === "bilingual"
+          ? isValidLanguage(uiLanguagePreference)
+            ? uiLanguagePreference
+            : undefined
+          : undefined,
       isActive,
     });
 
@@ -114,6 +143,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         teacherSubject: newUser.teacherSubject || [],
         teacherSubjects: newUser.teacherSubject || [],
         parentId: newUser.parentId || null,
+        parentLanguagePreference: newUser.parentLanguagePreference || "fr",
+        schoolSection: newUser.schoolSection || "francophone",
+        uiLanguagePreference: newUser.uiLanguagePreference,
         message: "User registered successfully",
       });
     } else {
@@ -146,13 +178,32 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 // @desc    Update user (Admin)
-// @route   PUT /api/users/:id
-// @access  Private/Admin
+// @desc    Update user
+// @route   PUT /api/users/update/:id (admin only)
+// @route   PATCH /api/users/:id (self or admin)
+// @access  Private/Admin or Self
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (user) {
-      const previousTeacherSubjectIds = toIdStrings(user.teacherSubject);
+    const currentUser = (req as any).user;
+    const targetUserId = req.params.id;
+    
+    // Check authorization: must be admin or updating own profile
+    const isAdmin = currentUser.role === "admin";
+    const isOwnProfile = String(currentUser._id) === String(targetUserId);
+    
+    if (!isAdmin && !isOwnProfile) {
+      return res.status(403).json({ message: "Not authorized to update this user" });
+    }
+
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const previousTeacherSubjectIds = toIdStrings(user.teacherSubject);
+    
+    // Fields that only admin can update
+    if (isAdmin) {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
       user.role = req.body.role || user.role;
@@ -171,6 +222,16 @@ export const updateUser = async (req: Request, res: Response) => {
         user.studentClass = null;
         user.parentId = null;
       }
+
+      if (req.body.schoolSection !== undefined) {
+        if (!isValidSection(req.body.schoolSection)) {
+          return res.status(400).json({ message: "Invalid schoolSection. Must be francophone, anglophone, or bilingual" });
+        }
+
+        if (user.role === "student" || user.role === "teacher") {
+          user.schoolSection = req.body.schoolSection;
+        }
+      }
       
       // Handle teacherSubject (only for teachers)
       const incomingTeacherSubjects =
@@ -186,29 +247,61 @@ export const updateUser = async (req: Request, res: Response) => {
       if (req.body.password) {
         user.password = req.body.password;
       }
-      const updatedUser = await user.save();
-      const nextTeacherSubjectIds =
-        updatedUser.role === "teacher"
-          ? incomingTeacherSubjects !== undefined
-            ? toIdStrings(incomingTeacherSubjects)
-            : toIdStrings(updatedUser.teacherSubject)
-          : [];
-
-      await syncTeacherSubjects(
-        updatedUser._id.toString(),
-        previousTeacherSubjectIds,
-        nextTeacherSubjectIds
-      );
-      
-      if ((req as any).user) {
-        await logActivity({
-          userId: (req as any).user._id.toString(),
-          action: "Updated User",
-          details: `Updated user with email: ${updatedUser.email}`,
-        });
+    }
+    
+    // Fields that users can update for themselves (or admins can update for anyone)
+    if (isOwnProfile || isAdmin) {
+      if (user.role === "parent" && req.body.parentLanguagePreference !== undefined) {
+        // Validate language preference
+        if (isValidLanguage(req.body.parentLanguagePreference)) {
+          user.parentLanguagePreference = req.body.parentLanguagePreference;
+        } else {
+          return res.status(400).json({ message: "Invalid language preference. Must be 'fr' or 'en'" });
+        }
       }
-      
-      res.json({
+
+      if (req.body.uiLanguagePreference !== undefined) {
+        if (!isValidLanguage(req.body.uiLanguagePreference)) {
+          return res.status(400).json({ message: "Invalid uiLanguagePreference. Must be 'fr' or 'en'" });
+        }
+
+        if (user.role === "admin") {
+          user.uiLanguagePreference = req.body.uiLanguagePreference;
+        } else if (user.role === "teacher" && user.schoolSection === "bilingual") {
+          user.uiLanguagePreference = req.body.uiLanguagePreference;
+        } else {
+          return res.status(400).json({
+            message:
+              "uiLanguagePreference can only be set for admins, or teachers assigned to bilingual section",
+          });
+        }
+      }
+    }
+
+    const updatedUser = await user.save();
+    const nextTeacherSubjectIds =
+      updatedUser.role === "teacher"
+        ? req.body.teacherSubjects !== undefined || req.body.teacherSubject !== undefined
+          ? toIdStrings(req.body.teacherSubjects ?? req.body.teacherSubject)
+          : toIdStrings(updatedUser.teacherSubject)
+        : [];
+
+    await syncTeacherSubjects(
+      updatedUser._id.toString(),
+      previousTeacherSubjectIds,
+      nextTeacherSubjectIds
+    );
+    
+    if (currentUser) {
+      await logActivity({
+        userId: currentUser._id.toString(),
+        action: "Updated User",
+        details: `Updated user with email: ${updatedUser.email}`,
+      });
+    }
+    
+    res.json({
+      user: {
         _id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
@@ -218,11 +311,12 @@ export const updateUser = async (req: Request, res: Response) => {
         teacherSubject: updatedUser.teacherSubject || [],
         teacherSubjects: updatedUser.teacherSubject || [],
         parentId: updatedUser.parentId || null,
-        message: "User updated successfully",
-      });
-    } else {
-      res.status(404).json({ message: "User not found" });
-    }
+        parentLanguagePreference: updatedUser.parentLanguagePreference || "fr",
+        schoolSection: updatedUser.schoolSection || "francophone",
+        uiLanguagePreference: updatedUser.uiLanguagePreference,
+      },
+      message: "User updated successfully",
+    });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error });
   }

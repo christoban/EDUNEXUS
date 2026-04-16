@@ -11,6 +11,8 @@ import { api } from "@/lib/api";
 import UserTable from "@/components/users/UserTable";
 import UserDialog from "@/components/users/UserDialog";
 import { useAuth } from "@/hooks/AuthProvider";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Props {
   role: UserRole;
@@ -26,6 +28,7 @@ export default function UserManagementPage({
   description,
 }: Props) {
   const { user } = useAuth();
+  const language = useUILanguage();
   const canManageUsers = user?.role === "admin";
   const [users, setUsers] = useState<user[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +80,7 @@ export default function UserManagementPage({
     } catch (error: any) {
       console.log(error);
       toast.error(
-        error?.response?.data?.message || `Failed to load ${role}s`
+        error?.response?.data?.message || t("users.loadFail", language, { role: t(`users.role.${role}s`, language) })
       );
     } finally {
       setLoading(false);
@@ -99,10 +102,10 @@ export default function UserManagementPage({
     if (!deleteId) return;
     try {
       await api.delete(`/users/delete/${deleteId}`);
-      toast.success("User deleted");
+      toast.success(t("users.deleteSuccess", language));
       fetchUsers();
     } catch (error) {
-      toast.error("Failed to delete user");
+      toast.error(t("users.deleteFail", language));
       console.log(error);
     } finally {
       setIsDeleteOpen(false);
@@ -115,17 +118,16 @@ export default function UserManagementPage({
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight capitalize">
-            {title}
+            {title || t(`users.role.${role}s`, language)}
           </h1>
           <p className="text-muted-foreground">
-            {canManageUsers ? description : "You are not authorized to manage users."}
+            {canManageUsers ? t(`users.subtitle.${role}`, language) : t("users.noAccess", language)}
           </p>
         </div>
         <div className="flex gap-2">
-          <Search search={search} setSearch={setSearch} title={`${role}s`} />
+          <Search search={search} setSearch={setSearch} title={t(`users.role.${role}s`, language)} />
           <Button onClick={handleCreate} disabled={!canManageUsers}>
-            <Plus className="mr-2 h-4 w-4" /> Add{" "}
-            {role.charAt(0).toUpperCase() + role.slice(1)}
+            <Plus className="mr-2 h-4 w-4" /> {t("users.addRole", language, { role: t(`users.role.${role}`, language) })}
           </Button>
         </div>
       </div>
@@ -157,8 +159,8 @@ export default function UserManagementPage({
         isOpen={canManageUsers && isDeleteOpen}
         setIsOpen={setIsDeleteOpen}
         handleDelete={handleDelete}
-        title="Delete User?"
-        description="This will permanently delete this user from the system."
+        title={t("users.delete.title", language)}
+        description={t("users.delete.description", language)}
       />
     </div>
   );

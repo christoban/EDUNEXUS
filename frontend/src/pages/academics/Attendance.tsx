@@ -19,6 +19,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useUILanguage } from "@/hooks/useUILanguage";
+import { t } from "@/lib/i18n";
 
 const statusOptions: AttendanceStatus[] = [
   "present",
@@ -34,10 +36,9 @@ const formatDateInput = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const prettyStatus = (status: AttendanceStatus) =>
-  status.charAt(0).toUpperCase() + status.slice(1);
+const prettyStatus = (status: AttendanceStatus, language: "fr" | "en") =>
+  t(`status.${status}`, language);
 
-// Helper to ensure ID is string
 const ensureString = (id: any): string => {
   if (typeof id === "string") return id;
   if (typeof id === "object" && id?._id) return String(id._id);
@@ -46,6 +47,8 @@ const ensureString = (id: any): string => {
 
 export default function AttendancePage() {
   const { user } = useAuth();
+  const language = useUILanguage();
+  const dateLocale = language === "fr" ? "fr-CM" : "en-GB";
 
   const isManager = user?.role === "admin" || user?.role === "teacher";
 
@@ -86,7 +89,7 @@ export default function AttendancePage() {
         setSelectedClassId(data.classes[0]._id);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to load classes");
+      toast.error(error?.response?.data?.message || t("attendance.error.loadClasses", language));
     }
   };
 
@@ -100,7 +103,7 @@ export default function AttendancePage() {
       };
       setStudents(data.users || []);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to load students");
+      toast.error(error?.response?.data?.message || t("attendance.error.loadStudents", language));
     }
   };
 
@@ -121,8 +124,6 @@ export default function AttendancePage() {
 
       let attendanceRecords = data.records || [];
 
-      // Parent/student UX: keep today's date selected, but if no rows for that day,
-      // fallback to all available attendance records to avoid a false-empty screen.
       if (!isManager && selectedDate && attendanceRecords.length === 0) {
         const fallback = await api.get("/attendance");
         attendanceRecords = fallback.data?.records || [];
@@ -142,7 +143,7 @@ export default function AttendancePage() {
         setStatusByStudent(nextMap);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to load attendance");
+      toast.error(error?.response?.data?.message || t("attendance.error.loadAttendance", language));
     } finally {
       setLoading(false);
     }
@@ -180,12 +181,12 @@ export default function AttendancePage() {
 
   const handleSave = async () => {
     if (!selectedClassId) {
-      toast.error("Please select a class");
+      toast.error(t("attendance.error.selectClass", language));
       return;
     }
 
     if (!filteredStudents.length) {
-      toast.error("No students found in this class");
+      toast.error(t("attendance.error.noStudents", language));
       return;
     }
 
@@ -204,13 +205,13 @@ export default function AttendancePage() {
       };
 
       await api.post("/attendance/mark", payload);
-      toast.success("Attendance saved successfully");
+      toast.success(t("attendance.saved", language));
       loadAttendance();
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.errors?.[0]?.message ||
         error?.response?.data?.message ||
-        "Failed to save attendance";
+        t("attendance.error.save", language);
       toast.error(errorMessage);
     } finally {
       setSubmitting(false);
@@ -220,17 +221,17 @@ export default function AttendancePage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{t("attendance.title", language)}</h1>
         <p className="text-muted-foreground">
           {isManager
-            ? "Mark daily attendance for classes and track records."
-            : "View attendance history."}
+            ? t("attendance.subtitle.manager", language)
+            : t("attendance.subtitle.viewer", language)}
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Date</label>
+          <label className="text-sm font-medium">{t("attendance.date", language)}</label>
           <Input
             type="date"
             value={selectedDate}
@@ -240,13 +241,13 @@ export default function AttendancePage() {
 
         {isManager && (
           <div className="space-y-2">
-            <label className="text-sm font-medium">Class</label>
+            <label className="text-sm font-medium">{t("attendance.class", language)}</label>
             <select
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               value={selectedClassId}
               onChange={(event) => setSelectedClassId(event.target.value)}
             >
-              <option value="">-- Select a class --</option>
+              <option value="">-- {t("attendance.selectClass", language)} --</option>
               {classes.map((schoolClass) => (
                 <option key={schoolClass._id} value={schoolClass._id}>
                   {schoolClass.name}
@@ -259,7 +260,7 @@ export default function AttendancePage() {
         {isManager && (
           <div className="flex items-end">
             <Button onClick={handleSave} disabled={submitting || loading}>
-              {submitting ? "Saving..." : "Save Attendance"}
+              {submitting ? t("attendance.saving", language) : t("attendance.save", language)}
             </Button>
           </div>
         )}
@@ -270,16 +271,16 @@ export default function AttendancePage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("attendance.student", language)}</TableHead>
+                <TableHead>{t("attendance.email", language)}</TableHead>
+                <TableHead>{t("attendance.status", language)}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={3} className="h-24 text-center">
-                    Loading attendance...
+                    {t("attendance.loading", language)}
                   </TableCell>
                 </TableRow>
               ) : filteredStudents.length === 0 ? (
@@ -288,7 +289,7 @@ export default function AttendancePage() {
                     colSpan={3}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No students found for this class.
+                    {t("attendance.noStudents", language)}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -311,7 +312,7 @@ export default function AttendancePage() {
                         >
                           {statusOptions.map((status) => (
                             <option key={status} value={status}>
-                              {prettyStatus(status)}
+                              {prettyStatus(status, language)}
                             </option>
                           ))}
                         </select>
@@ -328,18 +329,18 @@ export default function AttendancePage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Student</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Marked By</TableHead>
+                <TableHead>{t("attendance.date", language)}</TableHead>
+                <TableHead>{t("attendance.student", language)}</TableHead>
+                <TableHead>{t("attendance.class", language)}</TableHead>
+                <TableHead>{t("attendance.status", language)}</TableHead>
+                <TableHead>{t("attendance.markedBy", language)}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    Loading attendance...
+                    {t("attendance.loading", language)}
                   </TableCell>
                 </TableRow>
               ) : records.length === 0 ? (
@@ -348,18 +349,18 @@ export default function AttendancePage() {
                     colSpan={5}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No attendance records found.
+                    {t("attendance.noRecords", language)}
                   </TableCell>
                 </TableRow>
               ) : (
                 records.map((record) => (
                   <TableRow key={record._id}>
                     <TableCell>
-                      {new Date(record.date).toLocaleDateString()}
+                      {new Date(record.date).toLocaleDateString(dateLocale)}
                     </TableCell>
                     <TableCell>{record.student?.name || "N/A"}</TableCell>
                     <TableCell>{record.class?.name || "N/A"}</TableCell>
-                    <TableCell>{prettyStatus(record.status)}</TableCell>
+                    <TableCell>{prettyStatus(record.status, language)}</TableCell>
                     <TableCell>{record.markedBy?.name || "N/A"}</TableCell>
                   </TableRow>
                 ))

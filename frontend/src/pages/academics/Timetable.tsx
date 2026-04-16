@@ -9,9 +9,12 @@ import GeneratorControls, {
   type GenSettings,
 } from "@/components/timetable/GeneratorControls";
 import TimetableGrid from "@/components/timetable/TimetableGrid";
+import { useUILanguage } from "@/hooks/useUILanguage";
+import { t } from "@/lib/i18n";
 
 const Timetable = () => {
   const { user } = useAuth();
+  const language = useUILanguage();
   const isAdmin = user?.role === "admin";
   const isStudent = user?.role === "student";
 
@@ -35,7 +38,6 @@ const Timetable = () => {
     }
   }, [isStudent, user, selectedClass]);
 
-  // fetch timetable
   const fetchTimetable = async (classId: string) => {
     if (!classId) return;
 
@@ -47,18 +49,16 @@ const Timetable = () => {
       if (error.response && error.response.status === 404) {
         setScheduleData([]);
         if (!isAdmin) {
-          // Only show toast if user isn't admin (admins expect empty on new classes)
-          toast("No schedule found for this class", { icon: "📅" });
+          toast(t("timetable.defaultNoSchedule", language), { icon: "📅" });
         }
       } else {
-        toast.error("Failed to load timetable");
+        toast.error(t("timetable.error.load", language));
       }
     } finally {
       setLoadingSchedule(false);
     }
   };
 
-  // auto fetch using useEffect
   useEffect(() => {
     if (selectedClass) {
       fetchTimetable(selectedClass);
@@ -101,7 +101,7 @@ const Timetable = () => {
             window.clearInterval(generationIntervalRef.current);
           }
           await fetchTimetable(classId);
-          toast.success(generation.message || "Timetable generated successfully");
+          toast.success(generation.message || t("timetable.defaultGenerationSuccess", language));
           return;
         }
 
@@ -110,9 +110,7 @@ const Timetable = () => {
           if (generationIntervalRef.current) {
             window.clearInterval(generationIntervalRef.current);
           }
-          toast.error(
-            generation.message || "Timetable generation failed"
-          );
+          toast.error(generation.message || t("timetable.error.generation", language));
         }
       } catch (error: any) {
         if (generationIntervalRef.current) {
@@ -120,9 +118,7 @@ const Timetable = () => {
         }
         setGenerationStatus("failed");
         setGenerationProgress(0);
-        toast.error(
-          error.response?.data?.message || "Failed to check generation status"
-        );
+        toast.error(error.response?.data?.message || t("timetable.error.checkStatus", language));
       }
     };
 
@@ -143,12 +139,12 @@ const Timetable = () => {
       });
 
       setGenerationStatus(data.status || "queued");
-      setGenerationMessage(data.message || "Timetable generation initiated");
+      setGenerationMessage(data.message || t("timetable.defaultQueued", language));
       setGenerationProgress(20);
-      toast.success(data.message || "AI Generation Started");
+      toast.success(data.message || t("timetable.defaultGenerationStarted", language));
       startPollingGeneration(data.generationId, selectedClass);
     } catch (error: any) {
-      const message = error.response?.data?.message || "Generation failed";
+      const message = error.response?.data?.message || t("timetable.error.generation", language);
       setGenerationStatus("failed");
       setGenerationMessage(message);
       setGenerationProgress(0);
@@ -157,18 +153,17 @@ const Timetable = () => {
   };
 
   const isGenerating = generationStatus === "queued" || generationStatus === "running";
-  //   console.log("class timetable:", scheduleData);
-  //   console.log("selected class:", selectedClass);
+
   return (
     <div className="p-4 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          Timetable Management
+          {t("timetable.title", language)}
         </h1>
         <p className="text-muted-foreground">
           {isStudent
-            ? "View your weekly class schedule."
-            : "View or manage weekly schedules."}
+            ? t("timetable.subtitle.student", language)
+            : t("timetable.subtitle.manager", language)}
         </p>
       </div>
       {!isStudent && (
@@ -178,6 +173,7 @@ const Timetable = () => {
           isGenerating={isGenerating}
           selectedClass={selectedClass}
           setSelectedClass={setSelectedClass}
+          language={language}
         />
       )}
       {generationStatus !== "idle" && (
@@ -186,22 +182,22 @@ const Timetable = () => {
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-medium capitalize">
                 {generationStatus === "queued"
-                  ? "Queued"
+                  ? t("timetable.status.queued", language)
                   : generationStatus === "running"
-                  ? "Generating"
-                  : generationStatus === "completed"
-                  ? "Completed"
-                  : "Failed"}
+                    ? t("timetable.status.running", language)
+                    : generationStatus === "completed"
+                      ? t("timetable.status.completed", language)
+                      : t("timetable.status.failed", language)}
               </span>
               <span className="text-muted-foreground">
-                {generationMessage || "Preparing timetable generation..."}
+                {generationMessage || t("timetable.defaultPreparing", language)}
               </span>
             </div>
             <Progress value={generationProgress} />
           </CardContent>
         </Card>
       )}
-      <TimetableGrid schedule={scheduleData} isLoading={loadingSchedule} />
+      <TimetableGrid schedule={scheduleData} isLoading={loadingSchedule} language={language} />
     </div>
   );
 };

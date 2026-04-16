@@ -21,6 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useUISchoolContext } from "@/hooks/useUILanguage";
+import { getPeriodLabel, t } from "@/lib/i18n";
 
 interface ChildData {
   _id: string;
@@ -77,9 +79,9 @@ interface TimetableData {
 const ChildDetails = () => {
   const { childId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { language, academicCalendarType } = useUISchoolContext();
+  const dateLocale = language === "fr" ? "fr-CM" : "en-GB";
 
-  const [childData, setChildData] = useState<ChildData | null>(null);
   const [exams, setExams] = useState<ExamData[]>([]);
   const [reportCards, setReportCards] = useState<ReportCardData[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -121,7 +123,7 @@ const ChildDetails = () => {
     } catch (error: any) {
       toast.error(
         error.response?.data?.message ||
-        "Failed to load child data"
+          (language === "fr" ? "Impossible de charger les donnees de l'enfant" : "Failed to load child data")
       );
       console.error(error);
     } finally {
@@ -157,10 +159,10 @@ const ChildDetails = () => {
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Academic Progress
+            {t("parent.child.progressTitle", language)}
           </h1>
           <p className="text-muted-foreground">
-            Comprehensive view of your child's performance
+            {t("parent.child.progressSubtitle", language)}
           </p>
         </div>
       </div>
@@ -168,22 +170,22 @@ const ChildDetails = () => {
       {/* Tabs for different sections */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="exams">Exams</TabsTrigger>
-          <TabsTrigger value="grades">Report Cards</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="timetable">Timetable</TabsTrigger>
+          <TabsTrigger value="exams">{t("parent.child.tab.exams", language)}</TabsTrigger>
+          <TabsTrigger value="grades">{t("parent.child.tab.reportCards", language)}</TabsTrigger>
+          <TabsTrigger value="attendance">{t("parent.child.tab.attendance", language)}</TabsTrigger>
+          <TabsTrigger value="timetable">{t("parent.child.tab.timetable", language)}</TabsTrigger>
         </TabsList>
 
         {/* Exams Tab */}
         <TabsContent value="exams" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Exams & Assignments</CardTitle>
+              <CardTitle>{t("parent.child.examsTitle", language)}</CardTitle>
             </CardHeader>
             <CardContent>
               {exams.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No exams found
+                  {t("parent.child.noExams", language)}
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -199,9 +201,9 @@ const ChildDetails = () => {
                           {exam.teacher.name}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Due:{" "}
-                          {new Date(exam.dueDate).toLocaleDateString()} •{" "}
-                          {exam.duration} min
+                          {t("parent.child.label.due", language)}: {" "}
+                          {new Date(exam.dueDate).toLocaleDateString(dateLocale)} •{" "}
+                          {exam.duration} {language === "fr" ? "min" : "min"}
                         </p>
                       </div>
                       {exam.grade ? (
@@ -209,7 +211,7 @@ const ChildDetails = () => {
                           {exam.grade.percentage}%
                         </Badge>
                       ) : (
-                        <Badge variant="outline">Pending</Badge>
+                        <Badge variant="outline">{t("status.pending", language)}</Badge>
                       )}
                     </div>
                   ))}
@@ -223,12 +225,12 @@ const ChildDetails = () => {
         <TabsContent value="grades" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Report Cards</CardTitle>
+              <CardTitle>{t("parent.child.tab.reportCards", language)}</CardTitle>
             </CardHeader>
             <CardContent>
               {reportCards.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No report cards available yet
+                  {t("parent.child.noReportCards", language)}
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -238,26 +240,26 @@ const ChildDetails = () => {
                         <div>
                           <h3 className="font-medium">{rc.year.name}</h3>
                           <p className="text-sm text-muted-foreground capitalize">
-                            {rc.period}
+                            {getPeriodLabel(rc.period, language, academicCalendarType)}
                           </p>
                         </div>
                         <Badge variant="outline">{rc.mention}</Badge>
                       </div>
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Average</p>
+                          <p className="text-muted-foreground">{t("parent.child.label.average", language)}</p>
                           <p className="font-bold">
                             {rc.aggregates.average.toFixed(1)}%
                           </p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Passed</p>
+                          <p className="text-muted-foreground">{t("parent.child.label.passed", language)}</p>
                           <p className="font-bold text-green-600">
                             {rc.aggregates.passedExams}
                           </p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Failed</p>
+                          <p className="text-muted-foreground">{t("parent.child.label.failed", language)}</p>
                           <p className="font-bold text-red-600">
                             {rc.aggregates.failedExams}
                           </p>
@@ -275,28 +277,28 @@ const ChildDetails = () => {
         <TabsContent value="attendance" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Attendance Record</CardTitle>
+              <CardTitle>{t("parent.child.tab.attendance", language)}</CardTitle>
             </CardHeader>
             <CardContent>
               {attendance.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No attendance records found
+                  {t("parent.child.noAttendance", language)}
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Class</TableHead>
+                        <TableHead>{t("parent.child.label.date", language)}</TableHead>
+                        <TableHead>{t("parent.child.label.status", language)}</TableHead>
+                        <TableHead>{t("parent.child.label.class", language)}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {attendance.slice(0, 20).map((record) => (
                         <TableRow key={record._id}>
                           <TableCell>
-                            {new Date(record.date).toLocaleDateString()}
+                            {new Date(record.date).toLocaleDateString(dateLocale)}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -308,7 +310,7 @@ const ChildDetails = () => {
                                     : "outline"
                               }
                             >
-                              {record.status}
+                                {t(`status.${record.status}`, language)}
                             </Badge>
                           </TableCell>
                           <TableCell>{record.class.name}</TableCell>
@@ -326,18 +328,18 @@ const ChildDetails = () => {
         <TabsContent value="timetable" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Weekly Timetable</CardTitle>
+              <CardTitle>{t("parent.child.tab.timetable", language)}</CardTitle>
             </CardHeader>
             <CardContent>
               {!timetable ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No timetable available
+                  {t("parent.child.noTimetable", language)}
                 </p>
               ) : (
                 <div className="space-y-4">
                   {timetable.schedule?.map((day, idx) => (
                     <div key={idx} className="border rounded-lg p-4">
-                      <h3 className="font-bold mb-3 capitalize">{day.day}</h3>
+                      <h3 className="font-bold mb-3 capitalize">{t(`weekday.${day.day}`, language)}</h3>
                       <div className="space-y-2">
                         {day.periods?.map((period, pidx) => (
                           <div
@@ -346,7 +348,7 @@ const ChildDetails = () => {
                           >
                             <div>
                               <p className="font-medium">
-                                Period {period.period}: {period.subject?.name} (
+                                {t("parent.child.period", language)} {period.period}: {period.subject?.name} (
                                 {period.subject?.code})
                               </p>
                               <p className="text-xs text-muted-foreground">

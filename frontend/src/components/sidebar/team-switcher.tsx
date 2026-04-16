@@ -26,11 +26,18 @@ export function TeamSwitcher({
   teams: {
     name: string;
     logo: React.ElementType;
+    logoUrl?: string;
   }[];
   yearName: string;
 }) {
   const { isMobile } = useSidebar();
   const [activeTeam, setActiveTeam] = React.useState(teams[0]);
+
+  React.useEffect(() => {
+    if (teams.length > 0) {
+      setActiveTeam(teams[0]);
+    }
+  }, [teams]);
 
   if (!activeTeam) {
     return null;
@@ -46,7 +53,15 @@ export function TeamSwitcher({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
+                {activeTeam.logoUrl ? (
+                  <img
+                    src={activeTeam.logoUrl}
+                    alt={activeTeam.name}
+                    className="size-6 rounded object-contain"
+                  />
+                ) : (
+                  <activeTeam.logo className="size-4" />
+                )}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{activeTeam.name}</span>
@@ -71,7 +86,15 @@ export function TeamSwitcher({
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
+                  {team.logoUrl ? (
+                    <img
+                      src={team.logoUrl}
+                      alt={team.name}
+                      className="size-4 rounded object-contain"
+                    />
+                  ) : (
+                    <team.logo className="size-3.5 shrink-0" />
+                  )}
                 </div>
                 {team.name}
                 <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>

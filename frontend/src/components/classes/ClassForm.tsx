@@ -20,6 +20,8 @@ import { CustomInput } from "@/components/global/CustomInput";
 import { CustomSelect } from "@/components/global/CustomSelect";
 import { CustomMultiSelect } from "@/components/global/CustomMultiSelect";
 import Modal from "@/components/global/Modal";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Option {
   _id: string;
@@ -56,6 +58,7 @@ const loadAllPaginatedItems = async <T,>(
   return items;
 };
 const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
+  const language = useUILanguage();
   const [teachers, setTeachers] = useState<Option[]>([]);
   const [years, setYears] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -76,7 +79,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
           setTeachers(teachersList.filter((teacher: any) => teacher.role === "teacher"));
           setYears(yearsList);
         } catch (error) {
-          toast.error("Failed to load options");
+          toast.error(t("classes.form.loadOptionsFail", language));
         } finally {
           setLoadingOptions(false);
         }
@@ -94,7 +97,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
         setSubjects(allSubjects);
         setLoadingSubjects(false);
       } catch (error) {
-        toast.error("Failed to load subjects");
+        toast.error(t("classes.form.loadSubjectsFail", language));
       } finally {
         setLoadingOptions(false);
       }
@@ -147,16 +150,16 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
       };
       if (initialData) {
         await api.patch(`/classes/update/${initialData._id}`, payload);
-        toast.success("Class updated successfully");
+        toast.success(t("classes.form.updated", language));
       } else {
         await api.post("/classes/create", payload);
-        toast.success("Class created successfully");
+        toast.success(t("classes.form.created", language));
       }
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.log(error);
-      toast.error("Failed to save class");
+      toast.error(t("classes.form.saveFail", language));
     }
   };
 
@@ -178,8 +181,12 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
     <Modal
       open={open}
       setOpen={onOpenChange}
-      description={initialData ? "Edit Class" : "Create New Class"}
-      title={initialData ? "Edit Class" : "Create New Class"}
+      description={
+        initialData ? t("classes.form.editTitle", language) : t("classes.form.createTitle", language)
+      }
+      title={
+        initialData ? t("classes.form.editTitle", language) : t("classes.form.createTitle", language)
+      }
     >
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <FieldGroup className="space-y-4">
@@ -187,15 +194,15 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
             <CustomInput
               control={form.control}
               name="name"
-              label="Name"
+              label={t("classes.form.name", language)}
               placeholder="Grade 1"
               disabled={pending}
             />
             <CustomSelect
               control={form.control}
               name="academicYear"
-              label="Year"
-              placeholder="Select Year"
+              label={t("classes.form.year", language)}
+              placeholder={t("classes.form.selectYear", language)}
               options={yearOptions}
               disabled={pending}
               loading={loadingOptions}
@@ -205,8 +212,8 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
             <CustomSelect
               control={form.control}
               name="classTeacher"
-              label="Year"
-              placeholder="Select Teacher"
+              label={t("classes.form.teacher", language)}
+              placeholder={t("classes.form.selectTeacher", language)}
               options={teachersOptions}
               disabled={pending}
               loading={loadingOptions}
@@ -216,7 +223,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="capacity">Max Capacity</FieldLabel>
+                  <FieldLabel htmlFor="capacity">{t("classes.form.capacity", language)}</FieldLabel>
                   <Input id="capacity" type="number" {...field} />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -228,8 +235,8 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
           <CustomMultiSelect
             control={form.control}
             name="subjectIds"
-            label="Subjects"
-            placeholder="Select subjects..."
+            label={t("classes.form.subjects", language)}
+            placeholder={t("classes.form.selectSubjects", language)}
             options={subjectOptions}
             loading={loadingSubjects}
             disabled={pending}
@@ -240,7 +247,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
           type="submit"
           disabled={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? "Saving..." : "Save Class"}
+          {form.formState.isSubmitting ? t("common.saving", language) : t("classes.form.save", language)}
         </Button>
       </form>
     </Modal>

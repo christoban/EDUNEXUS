@@ -10,11 +10,14 @@ import type { pagination, subject } from "@/types";
 import { SubjectTable } from "@/components/subjects/SubjectTable";
 import { SubjectForm } from "@/components/subjects/SubjectForm";
 import { useAuth } from "@/hooks/AuthProvider";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 const SUBJECTS_PAGE_SIZE = 15;
 
 export const Subjects = () => {
   const { user } = useAuth();
+  const language = useUILanguage();
   const canView = user?.role === "admin" || user?.role === "teacher";
   const isAdmin = user?.role === "admin";
   const [subjects, setSubjects] = useState<subject[]>([]);
@@ -70,7 +73,7 @@ export const Subjects = () => {
         setSubjects([]);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to load subjects");
+      toast.error(error?.response?.data?.message || t("subjects.loadFail", language));
     } finally {
       setLoading(false);
     }
@@ -100,10 +103,10 @@ export const Subjects = () => {
     if (!deleteId) return;
     try {
       await api.delete(`/subjects/delete/${deleteId}`);
-      toast.success("Subject deleted successfully");
+      toast.success(t("subjects.deleteSuccess", language));
       fetchSubjects();
     } catch (error: any) {
-      toast.error("Failed to delete subject");
+      toast.error(error?.response?.data?.message || t("subjects.deleteFail", language));
     } finally {
       setIsDeleteOpen(false);
       setDeleteId(null);
@@ -113,20 +116,20 @@ export const Subjects = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Subjects</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("subjects.title", language)}</h1>
           <p className="text-muted-foreground">
             {!canView
-              ? "You are not authorized to view subjects."
+              ? t("subjects.subtitle.noAccess", language)
               : isAdmin
-              ? "Manage curriculum subjects and codes."
-              : "View assigned subjects and codes."}
+              ? t("subjects.subtitle.admin", language)
+              : t("subjects.subtitle.viewer", language)}
           </p>
         </div>
         <div className="flex gap-3">
-          <Search search={search} setSearch={setSearch} title="Subject" />
+          <Search search={search} setSearch={setSearch} title={t("subjects.title", language)} />
           {isAdmin && (
             <Button onClick={handleCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Create Subject
+              <Plus className="mr-2 h-4 w-4" /> {t("subjects.create", language)}
             </Button>
           )}
         </div>
@@ -155,8 +158,8 @@ export const Subjects = () => {
         handleDelete={confirmDelete}
         isOpen={isAdmin && isDeleteOpen}
         setIsOpen={setIsDeleteOpen}
-        title="Delete Subject"
-        description="Are you sure you want to delete this subject? This action cannot be undone."
+        title={t("subjects.delete.title", language)}
+        description={t("subjects.delete.description", language)}
       />
     </div>
   );

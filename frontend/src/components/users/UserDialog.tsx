@@ -1,6 +1,8 @@
 import Modal from "@/components/global/Modal";
 import UniversalUserForm from "@/components/auth/UniversalUserForm";
 import type { user, UserRole } from "@/types";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 const UserDialog = ({
   open,
@@ -15,8 +17,13 @@ const UserDialog = ({
   role: UserRole;
   onSuccess?: () => void;
 }) => {
-  const title = editingUser ? "Update User" : "Create User";
-  const description = editingUser ? "Update user details" : "Add a new user";
+  const language = useUILanguage();
+  const title = editingUser
+    ? t("users.dialog.updateTitle", language)
+    : t("users.dialog.createTitle", language);
+  const description = editingUser
+    ? t("users.dialog.updateDescription", language)
+    : t("users.dialog.createDescription", language);
   const onSuccessPlus = () => {
     setOpen(false);
     onSuccess?.();

@@ -1,6 +1,15 @@
 import type { ReportPeriod } from "./reporting.ts";
 
-const formatPeriodLabel = (period: ReportPeriod) => {
+type Language = "fr" | "en";
+
+const formatPeriodLabel = (period: ReportPeriod, language: Language) => {
+  if (language === "fr") {
+    if (period === "term1") return "Trimestre 1";
+    if (period === "term2") return "Trimestre 2";
+    if (period === "term3") return "Trimestre 3";
+    return "Annuel";
+  }
+
   if (period === "term1") return "Term 1";
   if (period === "term2") return "Term 2";
   if (period === "term3") return "Term 3";
@@ -50,11 +59,24 @@ export const buildExamResultTemplate = (payload: {
   score: number;
   maxScore: number;
   percentage: number;
+  language?: Language;
 }) => {
-  const { recipientName, examTitle, subjectName, score, maxScore, percentage } = payload;
+  const {
+    recipientName,
+    examTitle,
+    subjectName,
+    score,
+    maxScore,
+    percentage,
+    language = "fr",
+  } = payload;
 
-  const subjectLine = `Resultat examen: ${examTitle}`;
-  const body = `
+  const isFr = language === "fr";
+  const subjectLine = isFr
+    ? `Resultat examen: ${examTitle}`
+    : `Exam result: ${examTitle}`;
+  const body = isFr
+    ? `
     <p>Bonjour <strong>${recipientName}</strong>,</p>
     <p>Le resultat d'examen est maintenant disponible.</p>
     <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
@@ -64,12 +86,25 @@ export const buildExamResultTemplate = (payload: {
       <tr><td><strong>Pourcentage:</strong></td><td>${percentage}%</td></tr>
     </table>
     <p>Connectez-vous a la plateforme pour consulter les details de vos reponses.</p>
+  `
+    : `
+    <p>Hello <strong>${recipientName}</strong>,</p>
+    <p>Your exam result is now available.</p>
+    <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
+      <tr><td><strong>Subject:</strong></td><td>${subjectName}</td></tr>
+      <tr><td><strong>Exam:</strong></td><td>${examTitle}</td></tr>
+      <tr><td><strong>Score:</strong></td><td>${score}/${maxScore}</td></tr>
+      <tr><td><strong>Percentage:</strong></td><td>${percentage}%</td></tr>
+    </table>
+    <p>Please sign in to EDUNEXUS to view full details.</p>
   `;
 
   return {
     subject: subjectLine,
-    html: shell(subjectLine, "Notification academique", body),
-    text: `Bonjour ${recipientName}, votre resultat pour ${examTitle} (${subjectName}) est disponible. Score: ${score}/${maxScore} (${percentage}%).`,
+    html: shell(subjectLine, isFr ? "Notification academique" : "Academic notification", body),
+    text: isFr
+      ? `Bonjour ${recipientName}, votre resultat pour ${examTitle} (${subjectName}) est disponible. Score: ${score}/${maxScore} (${percentage}%).`
+      : `Hello ${recipientName}, your result for ${examTitle} (${subjectName}) is now available. Score: ${score}/${maxScore} (${percentage}%).`,
   };
 };
 
@@ -80,11 +115,24 @@ export const buildReportCardTemplate = (payload: {
   average: number;
   mention: string;
   totalExams: number;
+  language?: Language;
 }) => {
-  const { recipientName, period, yearName, average, mention, totalExams } = payload;
-  const periodLabel = formatPeriodLabel(period);
-  const subjectLine = `Bulletin disponible - ${periodLabel}`;
-  const body = `
+  const {
+    recipientName,
+    period,
+    yearName,
+    average,
+    mention,
+    totalExams,
+    language = "fr",
+  } = payload;
+  const isFr = language === "fr";
+  const periodLabel = formatPeriodLabel(period, language);
+  const subjectLine = isFr
+    ? `Bulletin disponible - ${periodLabel}`
+    : `Report card available - ${periodLabel}`;
+  const body = isFr
+    ? `
     <p>Bonjour <strong>${recipientName}</strong>,</p>
     <p>Le bulletin ${periodLabel} pour l'annee ${yearName} est maintenant disponible.</p>
     <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
@@ -93,11 +141,58 @@ export const buildReportCardTemplate = (payload: {
       <tr><td><strong>Nombre d'examens:</strong></td><td>${totalExams}</td></tr>
     </table>
     <p>Connectez-vous a EDUNEXUS pour consulter le bulletin complet.</p>
+  `
+    : `
+    <p>Hello <strong>${recipientName}</strong>,</p>
+    <p>Your ${periodLabel} report card for ${yearName} is now available.</p>
+    <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
+      <tr><td><strong>Average:</strong></td><td>${average}%</td></tr>
+      <tr><td><strong>Mention:</strong></td><td>${mention}</td></tr>
+      <tr><td><strong>Total exams:</strong></td><td>${totalExams}</td></tr>
+    </table>
+    <p>Sign in to EDUNEXUS to view the full report card.</p>
   `;
 
   return {
     subject: subjectLine,
-    html: shell(subjectLine, "Bulletin scolaire", body),
-    text: `Bonjour ${recipientName}, votre bulletin ${periodLabel} (${yearName}) est disponible. Moyenne: ${average}%, mention: ${mention}.`,
+    html: shell(subjectLine, isFr ? "Bulletin scolaire" : "Report card", body),
+    text: isFr
+      ? `Bonjour ${recipientName}, votre bulletin ${periodLabel} (${yearName}) est disponible. Moyenne: ${average}%, mention: ${mention}.`
+      : `Hello ${recipientName}, your ${periodLabel} report card (${yearName}) is available. Average: ${average}%, mention: ${mention}.`,
+  };
+};
+
+export const buildPaymentReminderTemplate = (payload: {
+  studentName: string;
+  totalOutstanding: number;
+  currency?: string;
+  language?: Language;
+}) => {
+  const { studentName, totalOutstanding, currency = "XAF", language = "fr" } = payload;
+  const isFr = language === "fr";
+  const amount = `${Math.round(totalOutstanding).toLocaleString("fr-CM")} ${currency}`;
+
+  const subject = isFr ? "Rappel de paiement - EDUNEXUS" : "Payment reminder - EDUNEXUS";
+  const body = isFr
+    ? `
+      <p>Bonjour,</p>
+      <p>Nous vous informons que <strong>${studentName}</strong> a un montant impaye de <strong>${amount}</strong>.</p>
+      <p>Merci de regulariser des que possible.</p>
+    `
+    : `
+      <p>Hello,</p>
+      <p>Please note that <strong>${studentName}</strong> has an outstanding balance of <strong>${amount}</strong>.</p>
+      <p>Please complete payment as soon as possible.</p>
+    `;
+
+  return {
+    subject,
+    html: shell(subject, isFr ? "Rappel finance" : "Finance reminder", body),
+    text: isFr
+      ? `Rappel EDUNEXUS: ${studentName} a un montant impaye de ${amount}. Merci de regulariser.`
+      : `EDUNEXUS reminder: ${studentName} has an outstanding balance of ${amount}. Please complete payment.`,
+    sms: isFr
+      ? `Rappel EDUNEXUS: ${studentName} a un montant impaye de ${amount}. Merci de regulariser.`
+      : `EDUNEXUS reminder: ${studentName} has an outstanding balance of ${amount}. Please complete payment.`,
   };
 };

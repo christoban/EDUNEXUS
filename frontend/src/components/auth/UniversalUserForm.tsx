@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   type Class,
   type UserRole,
-  type pagination,
   type subject,
   type user,
 } from "@/types";
@@ -19,6 +18,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/AuthProvider";
 import { CustomMultiSelect } from "@/components/global/CustomMultiSelect";
 import { useNavigate } from "react-router";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 export type FormType = "login" | "create" | "update";
 interface Props {
@@ -39,6 +40,8 @@ const createSchema = (type: FormType) => {
       subjectIds: z.array(z.string()).optional(),
       email: z.email("Invalid email address"),
       role: z.string().optional(),
+      schoolSection: z.enum(["francophone", "anglophone", "bilingual"]).optional(),
+      uiLanguagePreference: z.enum(["fr", "en"]).optional(),
       password:
         type === "update"
           ? z
@@ -92,6 +95,7 @@ const loadAllPaginatedItems = async <T,>(
 };
 
 const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
+  const language = useUILanguage();
   const isUpdate = type === "update";
   const isLogin = type === "login";
   const { setUser } = useAuth();
@@ -112,6 +116,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       password: "",
       classId: undefined,
       subjectIds: [],
+      schoolSection: undefined,
+      uiLanguagePreference: undefined,
     },
   });
 
@@ -128,8 +134,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         const allClasses = await loadAllPaginatedItems<Class>("classes", "classes");
         setClasses(allClasses);
       } catch (error) {
-        if (type !== "login") {
-          toast.error("Failed to load Classes");
+        if (!isLogin) {
+          toast.error(t("users.form.loadClassesFail", language));
           console.log(error);
         }
       } finally {
@@ -153,8 +159,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         setSubjects(allSubjects);
         setLoadingOptions(false);
       } catch (error) {
-        if (type !== "login") {
-          toast.error("Failed to load subjects");
+        if (!isLogin) {
+          toast.error(t("users.form.loadSubjectsFail", language));
           console.log(error);
         }
       } finally {
@@ -179,6 +185,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         password: "",
         classId: existingClassId || "",
         subjectIds: initialData.teacherSubjects?.map((s) => s._id) || [],
+        schoolSection: initialData.schoolSection,
+        uiLanguagePreference: initialData.uiLanguagePreference,
       });
     }
   }, [isUpdate, initialData, form, classes]);
@@ -200,6 +208,14 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         payload.teacherSubjects = data.subjectIds;
       }
 
+      if (data.schoolSection) {
+        payload.schoolSection = data.schoolSection;
+      }
+
+      if (data.uiLanguagePreference) {
+        payload.uiLanguagePreference = data.uiLanguagePreference;
+      }
+
       // For update, omit empty password to avoid backend validation rejection.
       if (data.password && data.password.trim().length > 0) {
         payload.password = data.password;
@@ -217,15 +233,15 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
 
         const { data: profile } = await api.get("/users/profile");
         setUser(profile.user);
-        toast.success("Logged in successfully");
+        toast.success(t("users.form.loginSuccess", language));
         navigate("/dashboard", { replace: true });
       } else if (type === "create") {
         await api.post("/users/register", payload);
-        toast.success("Account created successfully!");
+        toast.success(t("users.form.created", language));
         if (onSuccess) onSuccess();
       } else if (type === "update" && initialData?._id) {
         await api.put(`/users/update/${initialData._id}`, payload);
-        toast.success("User updated successfully");
+        toast.success(t("users.form.updated", language));
         if (onSuccess) onSuccess();
       }
     } catch (error: any) {
@@ -233,7 +249,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       if (isLogin) {
         const message =
           (error as { response?: { data?: { message?: string } } })?.response
-            ?.data?.message || "Identifiant ou mot de passe incorrect.";
+            ?.data?.message || t("users.form.loginInvalid", language);
         setServerError(message);
         return;
       }
@@ -249,7 +265,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       const message =
         validationErrors ||
         responseData?.message ||
-        "Action impossible. Verifiez les champs puis reessayez.";
+        t("users.form.actionFail", language);
 
       toast.error(message);
     }
@@ -265,12 +281,28 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
     ? subjects.map((s) => ({ label: s.name, value: s._id }))
     : [];
   const roleOptions = role ? [{ label: role, value: role }] : [];
+  const sectionOptions = [
+    { label: t("users.form.section.francophone", language), value: "francophone" },
+    { label: t("users.form.section.anglophone", language), value: "anglophone" },
+    { label: t("users.form.section.bilingual", language), value: "bilingual" },
+  ];
+  const uiLanguageOptions = [
+    { label: t("common.french", language), value: "fr" },
+    { label: t("common.english", language), value: "en" },
+  ];
+  const selectedRole = (form.watch("role") as UserRole | undefined) || role;
+  const selectedSection = form.watch("schoolSection");
 
   const pending = form.formState.isSubmitting;
   const showRoleSelector = !isLogin;
   // you can also include teacher is needed
-  const showClassSelector = !isLogin && role === "student";
-  const showSubjectSelector = !isLogin && role === "teacher";
+  const showClassSelector = !isLogin && selectedRole === "student";
+  const showSubjectSelector = !isLogin && selectedRole === "teacher";
+  const showSectionSelector = !isLogin && (selectedRole === "student" || selectedRole === "teacher");
+  const showUiLanguagePreference =
+    !isLogin &&
+    (selectedRole === "admin" ||
+      (selectedRole === "teacher" && selectedSection === "bilingual"));
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -280,7 +312,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
             <CustomInput
               control={form.control}
               name="name"
-              label="Full Name"
+              label={t("users.form.fullName", language)}
               placeholder="Jane Doe"
               disabled={pending}
             />
@@ -290,8 +322,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
             <CustomSelect
               control={form.control}
               name="role"
-              label="Role"
-              placeholder="Select role"
+              label={t("users.form.role", language)}
+              placeholder={t("users.form.selectRole", language)}
               options={roleOptions}
               disabled={pending}
             />
@@ -302,8 +334,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
               <CustomSelect
                 control={form.control}
                 name="classId"
-                label="Class"
-                placeholder="Select Class"
+                label={t("users.form.class", language)}
+                placeholder={t("users.form.selectClass", language)}
                 options={classOptions}
                 disabled={pending}
                 loading={loading}
@@ -314,17 +346,37 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
               <CustomMultiSelect
                 control={form.control}
                 name="subjectIds"
-                label="Subjects"
-                placeholder="Select subjects..."
+                label={t("users.form.subjects", language)}
+                placeholder={t("users.form.selectSubjects", language)}
                 options={subjectOptions}
                 loading={loadingOptions}
+                disabled={pending}
+              />
+            )}
+            {showSectionSelector && (
+              <CustomSelect
+                control={form.control}
+                name="schoolSection"
+                label={t("users.form.schoolSection", language)}
+                placeholder={t("users.form.selectSchoolSection", language)}
+                options={sectionOptions}
+                disabled={pending}
+              />
+            )}
+            {showUiLanguagePreference && (
+              <CustomSelect
+                control={form.control}
+                name="uiLanguagePreference"
+                label={t("users.form.uiLanguagePreference", language)}
+                placeholder={t("users.form.selectUiLanguagePreference", language)}
+                options={uiLanguageOptions}
                 disabled={pending}
               />
             )}
             <CustomInput
               control={form.control}
               name="email"
-              label="Email Address"
+              label={t("users.form.email", language)}
               type="email"
               placeholder="m@example.com"
               disabled={pending}
@@ -334,9 +386,11 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
             <CustomInput
               control={form.control}
               name="password"
-              label="Password"
+              label={t("users.form.password", language)}
               type="password"
-              placeholder={isUpdate ? "New Password (Optional)" : "Password"}
+              placeholder={
+                isUpdate ? t("users.form.newPasswordOptional", language) : t("users.form.password", language)
+              }
               disabled={pending}
             />
           </div>
@@ -345,9 +399,9 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
               <CustomInput
                 control={form.control}
                 name="confirmPassword"
-                label="Confirm Password"
+                label={t("users.form.confirmPassword", language)}
                 type="password"
-                placeholder={"Confirm Password"}
+                placeholder={t("users.form.confirmPassword", language)}
                 disabled={pending}
               />
             </div>
@@ -355,12 +409,12 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
           <div className="col-span-2 mt-2">
             <Button type="submit" className="w-full" disabled={pending}>
               {pending
-                ? "Processing..."
+                ? t("common.processing", language)
                 : type === "login"
-                ? "Sign In"
+                ? t("users.form.signIn", language)
                 : type === "create"
-                ? "Create Account"
-                : "Save Changes"}
+                ? t("users.form.createAccount", language)
+                : t("users.form.saveChanges", language)}
             </Button>
             {isLogin && serverError && (
               <p className="mt-2 text-sm text-destructive text-center">

@@ -15,6 +15,8 @@ import {
   buildExamResultTemplate,
   buildReportCardTemplate,
 } from "../utils/emailTemplates.ts";
+import { resolveUserLanguage } from "../utils/languageHelper.ts";
+import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 
 import { NonRetriableError } from "inngest";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -479,7 +481,7 @@ export const handleExamSubmission = inngest.createFunction(
       if (!exam) return { sent: 0, failed: 0 };
 
       const student = await User.findById(studentId)
-        .select("name email parentId")
+        .select("name email parentId schoolSection uiLanguagePreference")
         .lean();
 
       if (!student?.email) return { sent: 0, failed: 0 };
@@ -494,22 +496,55 @@ export const handleExamSubmission = inngest.createFunction(
       if (!maxScore) return { sent: 0, failed: 0 };
 
       const percentage = Number(((Number(submission.score) / maxScore) * 100).toFixed(2));
-      const recipients: Array<{ email: string; userId?: string }> = [
-        { email: student.email, userId: String(student._id) },
+      const schoolSettings = await getEffectiveSchoolSettings();
+
+      const recipients: Array<{
+        email: string;
+        userId?: string;
+        role: "student" | "parent";
+        parentLanguagePreference?: "fr" | "en";
+        schoolSection?: "francophone" | "anglophone" | "bilingual";
+        uiLanguagePreference?: "fr" | "en";
+      }> = [
+        {
+          email: student.email,
+          userId: String(student._id),
+          role: "student",
+          schoolSection: (student as any).schoolSection,
+          uiLanguagePreference: (student as any).uiLanguagePreference,
+        },
       ];
 
       if (student.parentId) {
         const parent = await User.findById(student.parentId)
-          .select("email")
+          .select("email parentLanguagePreference schoolSection uiLanguagePreference")
           .lean();
         if (parent?.email) {
-          recipients.push({ email: parent.email, userId: String(parent._id) });
+          recipients.push({
+            email: parent.email,
+            userId: String(parent._id),
+            role: "parent",
+            parentLanguagePreference:
+              ((parent as any).parentLanguagePreference as "fr" | "en" | undefined) ||
+              undefined,
+            schoolSection: (parent as any).schoolSection,
+            uiLanguagePreference: (parent as any).uiLanguagePreference,
+          });
         }
       }
 
       let sent = 0;
       let failed = 0;
       for (const recipient of recipients) {
+        const language = resolveUserLanguage({
+          role: recipient.role,
+          schoolLanguageMode: schoolSettings.schoolLanguageMode,
+          schoolSection: recipient.schoolSection,
+          parentLanguagePreference: recipient.parentLanguagePreference,
+          uiLanguagePreference: recipient.uiLanguagePreference,
+          schoolPreferredLanguage: schoolSettings.preferredLanguage,
+        });
+
         const template = buildExamResultTemplate({
           recipientName: student.name,
           examTitle: (exam as any).title,
@@ -517,6 +552,7 @@ export const handleExamSubmission = inngest.createFunction(
           score: Number(submission.score) || 0,
           maxScore,
           percentage,
+          language,
         });
 
         const response = await sendTransactionalEmail({
@@ -534,6 +570,7 @@ export const handleExamSubmission = inngest.createFunction(
             score: Number(submission.score) || 0,
             maxScore,
             percentage,
+            language,
           },
         });
 
@@ -712,10 +749,12 @@ export const generateReportCards = inngest.createFunction(
         year: yearId,
         period,
       })
-        .populate("student", "name email parentId")
+        .populate("student", "name email parentId schoolSection uiLanguagePreference")
         .populate("year", "name")
         .select("student year period aggregates mention")
         .lean();
+
+      const schoolSettings = await getEffectiveSchoolSettings();
 
       let sent = 0;
       let failed = 0;
@@ -724,20 +763,51 @@ export const generateReportCards = inngest.createFunction(
         const student = reportCard.student;
         if (!student?.email) continue;
 
-        const recipients: Array<{ email: string; userId?: string }> = [
-          { email: student.email, userId: String(student._id) },
+        const recipients: Array<{
+          email: string;
+          userId?: string;
+          role: "student" | "parent";
+          parentLanguagePreference?: "fr" | "en";
+          schoolSection?: "francophone" | "anglophone" | "bilingual";
+          uiLanguagePreference?: "fr" | "en";
+        }> = [
+          {
+            email: student.email,
+            userId: String(student._id),
+            role: "student",
+            schoolSection: student.schoolSection,
+            uiLanguagePreference: student.uiLanguagePreference,
+          },
         ];
 
         if (student.parentId) {
           const parent = await User.findById(student.parentId)
-            .select("email")
+            .select("email parentLanguagePreference schoolSection uiLanguagePreference")
             .lean();
           if (parent?.email) {
-            recipients.push({ email: parent.email, userId: String(parent._id) });
+            recipients.push({
+              email: parent.email,
+              userId: String(parent._id),
+              role: "parent",
+              parentLanguagePreference:
+                ((parent as any).parentLanguagePreference as "fr" | "en" | undefined) ||
+                undefined,
+              schoolSection: (parent as any).schoolSection,
+              uiLanguagePreference: (parent as any).uiLanguagePreference,
+            });
           }
         }
 
         for (const recipient of recipients) {
+          const language = resolveUserLanguage({
+            role: recipient.role,
+            schoolLanguageMode: schoolSettings.schoolLanguageMode,
+            schoolSection: recipient.schoolSection,
+            parentLanguagePreference: recipient.parentLanguagePreference,
+            uiLanguagePreference: recipient.uiLanguagePreference,
+            schoolPreferredLanguage: schoolSettings.preferredLanguage,
+          });
+
           const template = buildReportCardTemplate({
             recipientName: student.name,
             period,
@@ -745,6 +815,7 @@ export const generateReportCards = inngest.createFunction(
             average: Number(reportCard.aggregates?.average || 0),
             mention: reportCard.mention,
             totalExams: Number(reportCard.aggregates?.totalExams || 0),
+            language,
           });
 
           const response = await sendTransactionalEmail({
@@ -762,6 +833,7 @@ export const generateReportCards = inngest.createFunction(
               period,
               average: Number(reportCard.aggregates?.average || 0),
               mention: reportCard.mention,
+              language,
             },
           });
 

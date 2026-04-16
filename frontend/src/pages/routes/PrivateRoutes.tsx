@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router";
 import { Loader2 } from "lucide-react"; // Optional: for loading spinner
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/AppSidebar";
+import { getRoleHomePath } from "@/lib/roleAccess";
 
 const PrivateRoutes = () => {
   const { loading, user, year } = useAuth();
@@ -20,21 +21,22 @@ const PrivateRoutes = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!year) {
-    // Scenario A: Admin needs to create a year
-    if (user.role === "admin") {
-      // CRITICAL: Only redirect if they are NOT ALREADY on the settings page.
-      // If we don't check this, it causes an infinite loop (Blank Page).
-      if (location.pathname !== "/settings/academic-years") {
-        return <Navigate to="/settings/academic-years" replace />;
-      }
-      // If they ARE on the settings page, we let code flow down to render the Sidebar/Outlet
-    }
-    // Scenario B: Non-admins cannot use the system without an active year
-    else {
-      return <Navigate to="/login" replace />;
-    }
+  // Parents use a dedicated dashboard view.
+  if (user.role === "parent" && location.pathname === "/dashboard") {
+    return <Navigate to={getRoleHomePath(user.role)} replace />;
   }
+
+  // If admin has no year AND is NOT on academic-years page, redirect
+  // But once on academic-years page, allow them to stay there to create one
+  if (!year && user.role === "admin" && location.pathname !== "/settings/academic-years") {
+    return <Navigate to="/settings/academic-years" replace />;
+  }
+
+  // Non-admins without year cannot proceed
+  if (!year && user.role !== "admin") {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />

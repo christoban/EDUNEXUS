@@ -31,6 +31,14 @@ userRoutes.put(
   validate({ params: userIdParamSchema, body: updateUserBodySchema }),
   updateUser
 );
+// Allow users to update their own profile (for parent language preference, etc)
+userRoutes.patch(
+  "/:id",
+  sensitiveWriteLimiter,
+  protect,
+  validate({ params: userIdParamSchema, body: updateUserBodySchema }),
+  updateUser
+);
 userRoutes.delete(
   "/delete/:id",
   sensitiveWriteLimiter,

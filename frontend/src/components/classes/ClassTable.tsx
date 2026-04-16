@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Class } from "@/types";
 import CustomPagination from "@/components/global/CustomPagination";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Props {
   data: Class[];
@@ -39,16 +41,18 @@ const ClassTable = ({
   totalPages,
   canManage = true,
 }: Props) => {
+  const language = useUILanguage();
+
   return (
     <div className="border rounded-md">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Class</TableHead>
-            <TableHead>Academic Year</TableHead>
-            <TableHead>Class Teacher</TableHead>
-            <TableHead>Students</TableHead>
-            {canManage && <TableHead className="text-right">Actions</TableHead>}
+            <TableHead>{t("classes.table.class", language)}</TableHead>
+            <TableHead>{t("classes.table.year", language)}</TableHead>
+            <TableHead>{t("classes.table.teacher", language)}</TableHead>
+            <TableHead>{t("classes.table.students", language)}</TableHead>
+            {canManage && <TableHead className="text-right">{t("common.actions", language)}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -64,14 +68,14 @@ const ClassTable = ({
                 colSpan={canManage ? 5 : 4}
                 className="h-24 text-center text-muted-foreground"
               >
-                No classes found. Add one to get started.
+                {t("classes.table.empty", language)}
               </TableCell>
             </TableRow>
           ) : (
             data.map((cls) => (
               <TableRow key={cls._id}>
                 <TableCell className="font-medium">{cls.name}</TableCell>
-                <TableCell>{cls.academicYear?.name || "N/A"}</TableCell>
+                <TableCell>{cls.academicYear?.name || t("common.na", language)}</TableCell>
                 <TableCell>
                   {cls.classTeacher ? (
                     <span className="flex items-center gap-2">
@@ -79,7 +83,7 @@ const ClassTable = ({
                     </span>
                   ) : (
                     <span className="text-muted-foreground italic">
-                      Unassigned
+                      {t("common.unassigned", language)}
                     </span>
                   )}
                 </TableCell>
@@ -98,16 +102,16 @@ const ClassTable = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t("common.actions", language)}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => onEdit(cls)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Edit Details
+                          <Pencil className="mr-2 h-4 w-4" /> {t("common.editDetails", language)}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-400 dark:hover:text-red-600 hover:text-red-600"
                           onClick={() => onDelete(cls._id)}
                         >
                           <Trash2 className="mr-2 size-4 text-red-400 dark:hover:text-red-600 hover:text-red-600" />{" "}
-                          Delete Class
+                          {t("classes.delete.title", language)}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

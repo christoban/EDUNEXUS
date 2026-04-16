@@ -11,12 +11,15 @@ import CustomAlert from "@/components/global/CustomAlert";
 import ClassTable from "@/components/classes/ClassTable";
 import ClassForm from "@/components/classes/ClassForm";
 import { useAuth } from "@/hooks/AuthProvider";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 const CLASSES_PAGE_SIZE = 15;
 
 const Classes = () => {
   // it's the same as users/academics-year components
   const { user } = useAuth();
+  const language = useUILanguage();
   const canView =
     user?.role === "admin" || user?.role === "teacher" || user?.role === "parent";
   const isAdmin = user?.role === "admin";
@@ -71,7 +74,7 @@ const Classes = () => {
         setClasses([]);
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to load classes");
+      toast.error(error?.response?.data?.message || t("classes.loadFail", language));
     } finally {
       setLoading(false);
     }
@@ -105,10 +108,10 @@ const Classes = () => {
     if (!deleteId) return;
     try {
       await api.delete(`/classes/delete/${deleteId}`);
-      toast.success("Class deleted successfully");
+      toast.success(t("classes.deleteSuccess", language));
       fetchClasses(); // to refresh the list
     } catch (error: any) {
-      toast.error("Failed to delete class");
+      toast.error(error?.response?.data?.message || t("classes.deleteFail", language));
     } finally {
       setIsDeleteOpen(false);
       setDeleteId(null);
@@ -119,20 +122,20 @@ const Classes = () => {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Classes</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("classes.title", language)}</h1>
           <p className="text-muted-foreground">
             {!canView
-              ? "You are not authorized to view classes."
+              ? t("classes.subtitle.noAccess", language)
               : isAdmin
-              ? "Manage grades, sections, and teacher assignments."
-              : "View your authorized classes."}
+              ? t("classes.subtitle.admin", language)
+              : t("classes.subtitle.viewer", language)}
           </p>
         </div>
         <div className="flex gap-2">
-          <Search search={search} setSearch={setSearch} title="Classes" />
+          <Search search={search} setSearch={setSearch} title={t("classes.title", language)} />
           {isAdmin && (
             <Button onClick={handleCreate}>
-              <Plus className="mr-2 h-4 w-4" /> Create Class
+              <Plus className="mr-2 h-4 w-4" /> {t("classes.create", language)}
             </Button>
           )}
         </div>
@@ -162,8 +165,8 @@ const Classes = () => {
         handleDelete={confirmDelete}
         isOpen={isAdmin && isDeleteOpen}
         setIsOpen={setIsDeleteOpen}
-        title="Delete Class"
-        description="Are you sure you want to delete this class? This action cannot be undone."
+        title={t("classes.delete.title", language)}
+        description={t("classes.delete.description", language)}
       />
     </div>
   );

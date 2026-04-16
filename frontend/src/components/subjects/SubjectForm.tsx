@@ -14,6 +14,8 @@ import { CustomMultiSelect } from "@/components/global/CustomMultiSelect";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import type { subject } from "@/types";
 import Modal from "@/components/global/Modal";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Option {
   _id: string;
@@ -33,6 +35,7 @@ export function SubjectForm({
   initialData,
   onSuccess,
 }: Props) {
+  const language = useUILanguage();
   const [teachers, setTeachers] = useState<Option[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
@@ -45,7 +48,7 @@ export function SubjectForm({
           const { data } = await api.get("/users?role=teacher");
           setTeachers(data.users);
         } catch (error) {
-          toast.error("Failed to load teachers");
+          toast.error(t("subjects.form.loadTeachersFail", language));
         } finally {
           setLoadingOptions(false);
         }
@@ -104,10 +107,10 @@ export function SubjectForm({
 
       if (initialData) {
         await api.patch(`/subjects/update/${initialData._id}`, payload);
-        toast.success("Subject updated successfully");
+        toast.success(t("subjects.form.updated", language));
       } else {
         await api.post("/subjects/create", payload);
-        toast.success("Subject created successfully");
+        toast.success(t("subjects.form.created", language));
       }
       onSuccess();
       onOpenChange(false);
@@ -124,7 +127,7 @@ export function SubjectForm({
         validationErrors ||
         responseData?.message ||
         error?.message ||
-        "Operation failed";
+        t("subjects.form.operationFail", language);
 
       toast.error(message);
     }
@@ -138,11 +141,13 @@ export function SubjectForm({
 
   return (
     <Modal
-      title={initialData ? "Edit Subject" : "Create Subject"}
+      title={
+        initialData ? t("subjects.form.editTitle", language) : t("subjects.form.createTitle", language)
+      }
       description={
         initialData
-          ? "Edit the subject details."
-          : "Fill in the details to create a new subject."
+          ? t("subjects.form.editDescription", language)
+          : t("subjects.form.createDescription", language)
       }
       open={open}
       setOpen={onOpenChange}
@@ -153,14 +158,14 @@ export function SubjectForm({
             <CustomInput
               control={form.control}
               name="name"
-              label="Name"
+              label={t("subjects.form.name", language)}
               placeholder="Mathematics"
               disabled={pending}
             />
             <CustomInput
               control={form.control}
               name="code"
-              label="Code"
+              label={t("subjects.form.code", language)}
               placeholder="MATH-101"
               disabled={pending}
             />
@@ -168,8 +173,8 @@ export function SubjectForm({
           <CustomMultiSelect
             control={form.control}
             name="teacher"
-            label="Teacher"
-            placeholder="Select teacher..."
+            label={t("subjects.form.teacher", language)}
+            placeholder={t("subjects.form.selectTeacher", language)}
             options={teachersOptions}
             loading={loadingOptions}
             disabled={pending}
@@ -191,10 +196,10 @@ export function SubjectForm({
                       htmlFor="isActive"
                       className="cursor-pointer mb-0"
                     >
-                      Active Subject
+                      {t("subjects.form.activeTitle", language)}
                     </FieldLabel>
                     <p className="text-xs text-muted-foreground">
-                      Inactive subjects won't appear in schedules.
+                      {t("subjects.form.activeHint", language)}
                     </p>
                   </div>
                 </div>
@@ -207,7 +212,7 @@ export function SubjectForm({
           className="w-full mt-4"
           disabled={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? "Saving..." : "Save Subject"}
+          {form.formState.isSubmitting ? t("common.saving", language) : t("subjects.form.save", language)}
         </Button>
       </form>
     </Modal>

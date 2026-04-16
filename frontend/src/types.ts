@@ -1,4 +1,5 @@
 export type UserRole = "admin" | "teacher" | "student" | "parent";
+export type SchoolSection = "francophone" | "anglophone" | "bilingual";
 
 export interface pagination {
   total: number;
@@ -14,6 +15,9 @@ export interface user {
   role: UserRole;
   studentClass?: Class;
   teacherSubjects?: subject[];
+  parentLanguagePreference?: "fr" | "en";
+  schoolSection?: SchoolSection;
+  uiLanguagePreference?: "fr" | "en";
 }
 
 export interface academicYear {
@@ -40,6 +44,7 @@ export interface subject {
   name: string; // "Mathematics"
   code: string; // "MATH101"
   teacher?: user[]; // Default teacher for this subject
+  coefficient?: number; // Used for report cards / bulletins
   teacherCount?: number; // Calculated from users assigned to this subject
   isActive: boolean; // Indicates if the subject is currently active
 }

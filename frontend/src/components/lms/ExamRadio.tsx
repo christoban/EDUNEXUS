@@ -1,5 +1,5 @@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import type { question, Submission } from "@/type";
+import type { question, Submission } from "@/types";
 import type { Dispatch, SetStateAction } from "react";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle } from "lucide-react";
@@ -17,7 +17,7 @@ const ExamRadio = ({
 }) => {
   // 1. Get the student's answer for this specific question (if submitted)
   const studentAnswer = submission?.answers.find(
-    (a) => a.questionId === q._id,
+    (a: any) => a.questionId === q._id,
   )?.answer;
 
   return (
@@ -30,7 +30,7 @@ const ExamRadio = ({
       value={submission ? studentAnswer : answers[q._id]}
       disabled={!!submission}
     >
-      {q.options.map((opt, i) => {
+      {q.options.map((opt: any, i: any) => {
         // 2. Logic Variables per Option
         const isThisOptionCorrect = opt === q.correctAnswer;
         const isThisOptionSelected = opt === studentAnswer;

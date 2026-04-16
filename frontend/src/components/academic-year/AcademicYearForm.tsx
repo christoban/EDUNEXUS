@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/AuthProvider";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,7 @@ const AcademicYearForm = ({
   initialData,
   onSuccess,
 }: Props) => {
+  const { setYear } = useAuth();
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -81,6 +83,9 @@ const AcademicYearForm = ({
         await api.post("/academic-years/create", data);
         toast.success("Academic year created");
       }
+      // After creating/updating, fetch the current academic year
+      const { data: currentYear } = await api.get("/academic-years/current");
+      setYear(currentYear);
       onSuccess();
       onOpenChange(false);
     } catch (error) {

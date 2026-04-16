@@ -8,7 +8,7 @@ import {
   getChildTimetable,
 } from "../controllers/parent.ts";
 import { validate } from "../middleware/validate.ts";
-import { idParamSchema } from "../validation/schemas.ts";
+import { studentIdParamSchema } from "../validation/schemas.ts";
 
 const parentRouter = express.Router();
 
@@ -27,7 +27,7 @@ parentRouter.get("/children", getMyChildren);
  */
 parentRouter.get(
   "/children/:studentId/exams",
-  validate({ params: idParamSchema }),
+  validate({ params: studentIdParamSchema }),
   getChildExams
 );
 
@@ -37,7 +37,7 @@ parentRouter.get(
  */
 parentRouter.get(
   "/children/:studentId/report-card",
-  validate({ params: idParamSchema }),
+  validate({ params: studentIdParamSchema }),
   getChildReportCard
 );
 
@@ -48,7 +48,7 @@ parentRouter.get(
  */
 parentRouter.get(
   "/children/:studentId/attendance",
-  validate({ params: idParamSchema }),
+  validate({ params: studentIdParamSchema }),
   getChildAttendance
 );
 
@@ -58,7 +58,7 @@ parentRouter.get(
  */
 parentRouter.get(
   "/children/:studentId/timetable",
-  validate({ params: idParamSchema }),
+  validate({ params: studentIdParamSchema }),
   getChildTimetable
 );
 

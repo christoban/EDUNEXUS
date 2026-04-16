@@ -10,6 +10,7 @@ import {
   triggerReportCardGeneration,
   getMyReportCards,
   getReportCards,
+  downloadReportCardPdf,
 } from "../controllers/reportCard.ts";
 
 const reportCardRouter = express.Router();
@@ -37,6 +38,13 @@ reportCardRouter.get(
   authorize(["admin", "teacher"]),
   validate({ query: reportCardsQuerySchema }),
   getReportCards
+);
+
+reportCardRouter.get(
+  "/:id/pdf",
+  protect,
+  authorize(["admin", "teacher", "student", "parent"]),
+  downloadReportCardPdf
 );
 
 export default reportCardRouter;

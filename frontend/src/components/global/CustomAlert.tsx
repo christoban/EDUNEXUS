@@ -8,6 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Props {
   isOpen: boolean;
@@ -24,6 +26,8 @@ const CustomAlert = ({
   title,
   description,
 }: Props) => {
+  const language = useUILanguage();
+
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogContent>
@@ -32,12 +36,12 @@ const CustomAlert = ({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel", language)}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             className="bg-red-600 hover:bg-red-700"
           >
-            Delete
+            {t("common.delete", language)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

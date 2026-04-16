@@ -6,7 +6,7 @@ import {
   GraduationCap,
   Users,
   LayoutDashboard,
-  type LucideIcon,
+  Wallet,
   LogOut,
 } from "lucide-react";
 
@@ -25,138 +25,23 @@ import {
 import type { UserRole } from "@/types";
 import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/AuthProvider";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToogle } from "./ThemeToogle";
+import { SIDEBAR_NAV_POLICY, canAccessPath } from "@/lib/accessPolicy";
+import { useUILanguage } from "@/hooks/useUILanguage";
+import { t } from "@/lib/i18n";
 
-export interface NavItem {
-  title: string;
-  url: string; // Used for linking and active state matching
-  icon?: LucideIcon;
-  isActive?: boolean; // Default open state for collapsibles
-  roles?: UserRole[]; // Who can see this section? (undefined = everyone)
-  items?: {
-    title: string;
-    url: string;
-    roles?: UserRole[]; // Who can see this specific link?
-  }[];
-}
-
-// This is sample data.
-export const sidebardata = {
-  teams: [
-    {
-      name: "Springfield High",
-      logo: School,
-    },
-  ],
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-      isActive: true,
-      roles: ["admin", "teacher", "student", "parent"],
-      items: [
-        {
-          title: "Dashboard",
-          url: "/dashboard",
-          roles: ["admin", "teacher", "student", "parent"],
-        },
-        {
-          title: "Activities Log",
-          url: "/activities-log",
-          roles: ["admin"], // Restricted to Admin
-        },
-      ],
-    },
-    {
-      title: "Academics",
-      url: "#", // Parent item, no link
-      icon: School,
-      roles: ["admin", "teacher", "student", "parent"],
-      items: [
-        {
-          title: "Classes",
-          url: "/classes",
-          roles: ["admin", "teacher"],
-        },
-        {
-          title: "Subjects",
-          url: "/subjects",
-          roles: ["admin", "teacher"],
-        },
-        {
-          title: "Timetable",
-          url: "/timetable",
-          // Everyone needs to see the schedule
-        },
-        {
-          title: "Attendance",
-          url: "/attendance",
-          roles: ["admin", "teacher", "student", "parent"],
-        },
-      ],
-    },
-    {
-      title: "Learning (LMS)",
-      url: "#",
-      icon: GraduationCap,
-      roles: ["teacher", "student", "admin"], // Parents usually don't need deep LMS access
-      items: [
-        { title: "Exams", url: "/lms/exams" },
-        { title: "Report Cards", url: "/lms/report-cards" },
-      ],
-    },
-    {
-      title: "People",
-      url: "#",
-      icon: Users,
-      roles: ["admin", "teacher"],
-      items: [
-        { title: "Students", url: "/users/students" },
-        {
-          title: "Teachers",
-          url: "/users/teachers",
-          roles: ["admin"], // Only Admin can see other Admins
-        },
-        {
-          title: "Parents",
-          url: "/users/parents",
-          roles: ["admin"], // Only Admin can see other Admins
-        },
-        {
-          title: "Admins",
-          url: "/users/admins",
-          roles: ["admin"], // Only Admin can see other Admins
-        },
-      ],
-    },
-    {
-      title: "System",
-      url: "#",
-      icon: Settings2,
-      roles: ["admin"],
-      items: [
-        { title: "School Settings", url: "/settings/general" }, // Added to match router
-        { title: "Academic Years", url: "/settings/academic-years" },
-        { title: "Email History", url: "/settings/email-history" },
-        { title: "Roles & Permissions", url: "/settings/roles" },
-      ],
-    },
-    {
-      title: "Parent Portal",
-      url: "/parent/dashboard",
-      icon: LayoutDashboard,
-      roles: ["parent"],
-      items: [
-        { title: "My Children", url: "/parent/dashboard", roles: ["parent"] },
-      ],
-    },
-  ] as NavItem[],
+const ICON_MAP = {
+  LayoutDashboard,
+  School,
+  GraduationCap,
+  Users,
+  Settings2,
+  Wallet,
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -166,6 +51,40 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const navigate = useNavigate();
+  const language = useUILanguage();
+  const [schoolBrand, setSchoolBrand] = useState({
+    schoolName: "EDUNEXUS Education",
+    schoolLogoUrl: "",
+  });
+
+  useEffect(() => {
+    const loadSchoolBrand = async () => {
+      try {
+        const { data } = await api.get("/school-settings");
+        setSchoolBrand({
+          schoolName: data?.schoolName || "EDUNEXUS Education",
+          schoolLogoUrl: data?.schoolLogoUrl || "",
+        });
+      } catch {
+        // Keep fallback branding when settings cannot be loaded.
+      }
+    };
+
+    const handleBrandUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ schoolName?: string; schoolLogoUrl?: string }>;
+      setSchoolBrand({
+        schoolName: customEvent.detail?.schoolName || "EDUNEXUS Education",
+        schoolLogoUrl: customEvent.detail?.schoolLogoUrl || "",
+      });
+    };
+
+    loadSchoolBrand();
+    window.addEventListener("school-settings-updated", handleBrandUpdated);
+
+    return () => {
+      window.removeEventListener("school-settings-updated", handleBrandUpdated);
+    };
+  }, []);
 
   const userData = {
     name: user?.name || "User",
@@ -174,44 +93,99 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const userRole = (user?.role || "student") as UserRole;
+  const teams = useMemo(
+    () => [
+      {
+        name: schoolBrand.schoolName || "EDUNEXUS Education",
+        logo: School,
+        logoUrl: schoolBrand.schoolLogoUrl || undefined,
+      },
+    ],
+    [schoolBrand.schoolLogoUrl, schoolBrand.schoolName]
+  );
 
   const filteredNav = useMemo(() => {
-    return sidebardata.navMain
-      .filter((item) => !item.roles || item.roles.includes(userRole))
-      .map((item) => {
-        const isChildActive = item.items?.some((sub) => sub.url === pathname);
-        const isMainActive = item.url === pathname;
+    const sectionTitleMap: Record<string, string> = {
+      Dashboard: "nav.section.dashboard",
+      Academics: "nav.section.academics",
+      "Learning (LMS)": "nav.section.learning",
+      People: "nav.section.people",
+      System: "nav.section.system",
+      Finance: "nav.section.finance",
+      "Parent Portal": "nav.section.parentPortal",
+    };
+
+    const itemTitleMap: Record<string, string> = {
+      Dashboard: "nav.item.dashboard",
+      "Activities Log": "nav.item.activitiesLog",
+      Classes: "nav.item.classes",
+      Subjects: "nav.item.subjects",
+      Timetable: "nav.item.timetable",
+      Attendance: "nav.item.attendance",
+      Exams: "nav.item.exams",
+      "Report Cards": "nav.item.reportCards",
+      Students: "nav.item.students",
+      Teachers: "nav.item.teachers",
+      Parents: "nav.item.parents",
+      Admins: "nav.item.admins",
+      "School Settings": "nav.item.schoolSettings",
+      "Manage Subjects": "nav.item.manageSubjects",
+      "Academic Years": "nav.item.academicYears",
+      "Email History": "nav.item.emailHistory",
+      "Roles & Permissions": "nav.item.rolesPermissions",
+      "Plans de Frais": "nav.item.feePlans",
+      Facturation: "nav.item.invoices",
+      Paiements: "nav.item.payments",
+      Depenses: "nav.item.expenses",
+      Relances: "nav.item.reminders",
+      "My Children": "nav.item.myChildren",
+      Settings: "nav.item.settings",
+    };
+
+    return SIDEBAR_NAV_POLICY
+      .map((section) => {
+        const visibleItems = section.items.filter((subItem) =>
+          canAccessPath(userRole, subItem.url)
+        );
+
+        if (visibleItems.length === 0) {
+          return null;
+        }
+
+        const isChildActive = visibleItems.some((sub) => sub.url === pathname);
+
         return {
-          ...item,
-          isActive: isMainActive || isChildActive,
-          items: item.items
-            ?.filter(
-              (subItem) => !subItem.roles || subItem.roles.includes(userRole),
-            )
-            .map((subItem) => ({
-              ...subItem,
-              isActive: subItem.url === pathname,
-            })),
+          title: t(sectionTitleMap[section.title] || section.title, language),
+          url: visibleItems[0]?.url || "#",
+          icon: ICON_MAP[section.icon],
+          isActive: isChildActive,
+          items: visibleItems.map((subItem) => ({
+            ...subItem,
+            title: t(itemTitleMap[subItem.title] || subItem.title, language),
+            isActive: subItem.url === pathname,
+          })),
         };
-      });
-  }, [pathname, userRole]);
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }, [pathname, userRole, language]);
 
   const logout = async () => {
     try {
       await api.post("/users/logout").finally(() => {
         setUser(null);
+        localStorage.removeItem("token");
         navigate("/login");
-        toast.success("Logged out successfully");
+        toast.success(t("nav.logout.success", language));
       });
     } catch (error) {
       console.error("Logout failed:", error);
-      toast.error("Logout failed. Please try again.");
+      toast.error(t("nav.logout.error", language));
     }
   };
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={sidebardata.teams} yearName={year?.name!} />
+        <TeamSwitcher teams={teams} yearName={year?.name || t("nav.yearNotSet", language)} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={filteredNav} />
@@ -223,7 +197,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             isCollapsed ? "flex-row space-y-2" : "flex justify-between",
           )}
         >
-          <SidebarMenuItem title="Logout">
+          <SidebarMenuItem title={t("nav.logout", language)}>
             <Button onClick={logout} variant={"ghost"} size="icon-sm">
               <LogOut />
             </Button>

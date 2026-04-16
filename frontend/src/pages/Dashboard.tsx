@@ -23,13 +23,6 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
-  // Redirect parent users to parent dashboard
-  useEffect(() => {
-    if (user?.role === "parent") {
-      navigate("/parent/dashboard");
-    }
-  }, [user, navigate]);
 
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState<any>({});

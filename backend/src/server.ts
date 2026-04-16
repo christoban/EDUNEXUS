@@ -32,6 +32,9 @@ import searchRouter from "./routes/search.ts";
 import reportCardRouter from "./routes/reportCard.ts";
 import emailLogRouter from "./routes/emailLog.ts";
 import parentRouter from "./routes/parent.ts";
+import financeRouter from "./routes/finance.ts";
+import aiRouter from "./routes/ai.ts";
+import schoolSettingsRouter from "./routes/schoolSettings.ts";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -42,8 +45,8 @@ const PORT = process.env.PORT || 5000;
 // next add security middlewares/headers + make sure to listen on *root file* for changes
 
 app.use(helmet()); // Security middleware to set various HTTP headers for app security
-app.use(express.json()); // Middleware to parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded bodies
+app.use(express.json({ limit: "5mb" })); // Parse JSON payloads (logo uploads are base64)
+app.use(express.urlencoded({ extended: true, limit: "5mb" })); // Middleware to parse URL-encoded bodies
 app.use(cookieParser()); // Middleware to parse cookies
 
 // log http requests to console
@@ -80,6 +83,9 @@ app.use("/api/search", searchRouter);
 app.use("/api/report-cards", reportCardRouter);
 app.use("/api/email-logs", emailLogRouter);
 app.use("/api/parent", parentRouter);
+app.use("/api/finance", financeRouter);
+app.use("/api/ai", aiRouter);
+app.use("/api/school-settings", schoolSettingsRouter);
 app.use(
   "/api/inngest",
   serve({

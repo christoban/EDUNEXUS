@@ -24,6 +24,8 @@ import {
 import { Button } from "@/components/ui/button";
 import type { user } from "@/types";
 import CustomPagination from "@/components/global/CustomPagination";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 // ?page=${pageNum}&limit=10
 interface Props {
@@ -51,6 +53,8 @@ const UserTable = ({
   users,
   totalPages,
 }: Props) => {
+  const language = useUILanguage();
+
   const handleEdit = (user: user) => {
     setEditingUser(user);
     setIsFormOpen(true);
@@ -68,12 +72,12 @@ const UserTable = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            {role === "teacher" && <TableHead>Subjects</TableHead>}
+            <TableHead>{t("users.table.name", language)}</TableHead>
+            <TableHead>{t("users.table.email", language)}</TableHead>
+            {role === "teacher" && <TableHead>{t("users.table.subjects", language)}</TableHead>}
             {/* Show Class only for students */}
-            {role === "student" && <TableHead>Class</TableHead>}
-            <TableHead className="text-right">Actions</TableHead>
+            {role === "student" && <TableHead>{t("users.table.class", language)}</TableHead>}
+            <TableHead className="text-right">{t("common.actions", language)}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -89,7 +93,7 @@ const UserTable = ({
                 colSpan={4}
                 className="h-24 text-center text-muted-foreground"
               >
-                No {role}s found.
+                {t("users.table.empty", language, { role: t(`users.role.${role}s`, language) })}
               </TableCell>
             </TableRow>
           ) : (
@@ -114,7 +118,7 @@ const UserTable = ({
                       </div>
                     ) : (
                       <span className="text-muted-foreground italic text-sm">
-                        Unassigned
+                        {t("common.unassigned", language)}
                       </span>
                     )}
                   </TableCell>
@@ -127,7 +131,7 @@ const UserTable = ({
                       </Badge>
                     ) : (
                       <span className="text-muted-foreground italic text-sm">
-                        Unassigned
+                        {t("common.unassigned", language)}
                       </span>
                     )}
                   </TableCell>
@@ -140,9 +144,9 @@ const UserTable = ({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuLabel>{t("common.actions", language)}</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => handleEdit(user)}>
-                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                        <Pencil className="mr-2 h-4 w-4" /> {t("common.edit", language)}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-red-600"
@@ -151,7 +155,7 @@ const UserTable = ({
                           setIsDeleteOpen(true);
                         }}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete", language)}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

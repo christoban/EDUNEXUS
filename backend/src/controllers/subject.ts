@@ -44,7 +44,7 @@ export const createSubject = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Only admins can create subjects" });
     }
 
-    const { name, code, teacher, isActive } = req.body; // Expecting teacher to be ["ID1", "ID2"]
+    const { name, code, teacher, coefficient, appreciation, isActive } = req.body; // Expecting teacher to be ["ID1", "ID2"]
     const subjectExists = await subject.findOne({ code });
     if (subjectExists) {
       return res.status(400).json({ message: "Subject code already exists" });
@@ -53,6 +53,8 @@ export const createSubject = async (req: Request, res: Response) => {
       name,
       code,
       isActive,
+      coefficient,
+      appreciation,
       teacher: Array.isArray(teacher) ? teacher : [],
     });
 
@@ -175,7 +177,7 @@ export const updateSubject = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Only admins can update subjects" });
     }
 
-    const { name, code, teacher, isActive } = req.body;
+    const { name, code, teacher, coefficient, appreciation, isActive } = req.body;
 
     const existingSubject = await subject.findById(req.params.id);
     if (!existingSubject) {
@@ -187,14 +189,17 @@ export const updateSubject = async (req: Request, res: Response) => {
       ? toIdStrings(teacher)
       : [];
 
+    const updatePayload: any = {};
+    if (name !== undefined) updatePayload.name = name;
+    if (code !== undefined) updatePayload.code = code;
+    if (isActive !== undefined) updatePayload.isActive = isActive;
+    if (coefficient !== undefined) updatePayload.coefficient = coefficient;
+    if (appreciation !== undefined) updatePayload.appreciation = appreciation;
+    if (Array.isArray(teacher)) updatePayload.teacher = teacher;
+
     const updatedSubject = await subject.findByIdAndUpdate(
       req.params.id,
-      {
-        name,
-        code,
-        isActive,
-        teacher: Array.isArray(teacher) ? teacher : [],
-      },
+      updatePayload,
       { new: true, runValidators: true }
     );
 

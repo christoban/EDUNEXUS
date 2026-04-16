@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import CustomPagination from "@/components/global/CustomPagination";
 import type { subject } from "@/types";
+import { t } from "@/lib/i18n";
+import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Props {
   data: subject[];
@@ -47,16 +49,18 @@ export function SubjectTable({
   totalPages,
   canManage = true,
 }: Props) {
+  const language = useUILanguage();
+
   return (
     <div className="border rounded-md">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Subject Name</TableHead>
-            <TableHead>Teachers</TableHead>
-            <TableHead>Status</TableHead>
-            {canManage && <TableHead className="text-right">Actions</TableHead>}
+            <TableHead>{t("subjects.table.code", language)}</TableHead>
+            <TableHead>{t("subjects.table.name", language)}</TableHead>
+            <TableHead>{t("subjects.table.teachers", language)}</TableHead>
+            <TableHead>{t("subjects.table.status", language)}</TableHead>
+            {canManage && <TableHead className="text-right">{t("common.actions", language)}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -72,7 +76,7 @@ export function SubjectTable({
                 colSpan={canManage ? 6 : 4}
                 className="h-24 text-center text-muted-foreground"
               >
-                No subjects found.
+                {t("subjects.table.empty", language)}
               </TableCell>
             </TableRow>
           ) : (
@@ -87,10 +91,10 @@ export function SubjectTable({
                 <TableCell>
                   {item.isActive ? (
                     <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                      Active
+                      {t("exams.active", language)}
                     </Badge>
                   ) : (
-                    <Badge variant="secondary">Archived</Badge>
+                    <Badge variant="secondary">{t("status.archived", language)}</Badge>
                   )}
                 </TableCell>
                 {canManage && (
@@ -102,15 +106,15 @@ export function SubjectTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{t("common.actions", language)}</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => onEdit(item)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Edit Details
+                          <Pencil className="mr-2 h-4 w-4" /> {t("common.editDetails", language)}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"
                           onClick={() => onDelete(item._id)}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete", language)}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

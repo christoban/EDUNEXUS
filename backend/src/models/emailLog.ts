@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export type EmailEventType = "exam_result" | "report_card_available";
+export type EmailEventType = "exam_result" | "report_card_available" | "payment_reminder";
 export type EmailStatus = "sent" | "failed";
 
 export interface IEmailLog extends Document {
@@ -31,7 +31,7 @@ const emailLogSchema = new Schema<IEmailLog>(
     template: { type: String, required: true },
     eventType: {
       type: String,
-      enum: ["exam_result", "report_card_available"],
+      enum: ["exam_result", "report_card_available", "payment_reminder"],
       required: true,
       index: true,
     },

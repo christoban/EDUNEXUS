@@ -3,10 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Clock, User as UserIcon } from "lucide-react";
 import type { schedule } from "@/types";
+import { t } from "@/lib/i18n";
+import type { UILanguage } from "@/hooks/useUILanguage";
 
 interface Props {
   schedule: schedule[];
   isLoading: boolean;
+  language: UILanguage;
 }
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -16,7 +19,7 @@ const toMinutes = (time: string) => {
   return (hours || 0) * 60 + (minutes || 0);
 };
 
-const TimetableGrid = ({ schedule, isLoading }: Props) => {
+const TimetableGrid = ({ schedule, isLoading, language }: Props) => {
   const timeSlots = useMemo(() => {
     if (!schedule?.length) return [];
 
@@ -52,7 +55,7 @@ const TimetableGrid = ({ schedule, isLoading }: Props) => {
       <div className="h-125 w-full flex items-center justify-center border rounded-lg bg-card">
         <div className="flex flex-col items-center gap-2">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground text-sm">Loading schedule...</p>
+          <p className="text-muted-foreground text-sm">{t("timetable.grid.loading", language)}</p>
         </div>
       </div>
     );
@@ -63,9 +66,9 @@ const TimetableGrid = ({ schedule, isLoading }: Props) => {
     return (
       <div className="h-100 w-full flex flex-col items-center justify-center border rounded-lg border-dashed bg-card">
         <Clock className="h-10 w-10 text-muted-foreground mb-3" />
-        <h3 className="font-semibold text-lg">No Timetable Generated</h3>
+        <h3 className="font-semibold text-lg">{t("timetable.grid.none", language)}</h3>
         <p className="text-muted-foreground text-sm max-w-sm text-center">
-          Select a class and academic year to view the schedule.
+          {t("timetable.grid.noneDescription", language)}
         </p>
       </div>
     );
@@ -77,14 +80,14 @@ const TimetableGrid = ({ schedule, isLoading }: Props) => {
         {/* header row */}
         <div className="flex border-b bg-muted/50">
           <div className="w-32 shrink-0 border-r p-4 font-medium text-muted-foreground flex items-center justify-center">
-            Time
+            {t("timetable.grid.time", language)}
           </div>
           {DAYS.map((day) => (
             <div
               key={day}
               className="flex-1 min-w-50 border-r p-4 font-semibold text-center last:border-r-0"
             >
-              {day}
+              {t(`weekday.${day}`, language)}
             </div>
           ))}
         </div>
@@ -109,7 +112,7 @@ const TimetableGrid = ({ schedule, isLoading }: Props) => {
                   {period?.kind === "break" ? (
                     <div className="h-full w-full rounded-md border border-amber-800 bg-amber-900 flex items-center justify-center dark:border-amber-300 dark:bg-amber-100">
                       <span className="text-xs font-semibold text-amber-100 dark:text-amber-900">
-                        Pause
+                        {t("timetable.grid.break", language)}
                       </span>
                     </div>
                   ) : period && period.subject && period.teacher ? (
@@ -145,7 +148,7 @@ const TimetableGrid = ({ schedule, isLoading }: Props) => {
                   ) : (
                     <div className="h-full w-full rounded-md border border-dashed border-primary/40 bg-primary/15 dark:border-primary/80 dark:bg-primary/35 flex items-center justify-center">
                       <span className="text-xs text-primary-foreground/90 dark:text-primary font-semibold">
-                        Free Period
+                        {t("timetable.grid.freePeriod", language)}
                       </span>
                     </div>
                   )}
