@@ -8,8 +8,26 @@ import Exam from "../models/exam.ts";
 import Submission from "../models/submission.ts";
 import Grade from "../models/grade.ts";
 import ReportCard from "../models/reportCard.ts";
+import Invoice from "../models/invoice.ts";
+import Subject from "../models/subject.ts";
 import AcademicYear from "../models/academicYear.ts";
-import { getMentionFromAverage, getPeriodDateRange, type ReportPeriod } from "../utils/reporting.ts";
+import AcademicPeriod from "../models/academicPeriod.ts";
+import Attendance from "../models/attendance.ts";
+import {
+  getAcademicPeriodCode,
+  getAcademicPeriodLabel,
+  getMentionFromAverage,
+  getPeriodDateRange,
+  type ReportPeriod,
+} from "../utils/reporting.ts";
+import {
+  calculateAverageScoreOn20,
+  formatGradeLabel,
+  normalizePassThresholdOn20,
+  normalizeScoreOn20,
+  scoreOn20ToPercentage,
+} from "../utils/gradingEngine.ts";
+import { resolveBulletinTemplateType } from "../utils/reportCardTemplates.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
 import {
   buildExamResultTemplate,
@@ -17,6 +35,7 @@ import {
 } from "../utils/emailTemplates.ts";
 import { resolveUserLanguage } from "../utils/languageHelper.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
+import { calculateCouncilDecision, resolveBulletinPolicy } from "../utils/bulletinPolicy.ts";
 
 import { NonRetriableError } from "inngest";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -588,9 +607,10 @@ export const handleExamSubmission = inngest.createFunction(
 export const generateReportCards = inngest.createFunction(
   { id: "Generate-Report-Cards", triggers: [{ event: "reportcard/generate" }] },
   async ({ event, step }) => {
-    const { yearId, period, classId, studentId } = event.data as {
+    const { yearId, period, periodId, classId, studentId } = event.data as {
       yearId: string;
-      period: ReportPeriod;
+      period?: ReportPeriod;
+      periodId?: string | null;
       classId?: string | null;
       studentId?: string | null;
     };
@@ -603,7 +623,45 @@ export const generateReportCards = inngest.createFunction(
       return data;
     });
 
-    const { start, end } = getPeriodDateRange(year, period);
+    const selectedAcademicPeriod: {
+      _id: any;
+      type: "SEQUENCE" | "TERM" | "MONTH";
+      number: number;
+      startDate: Date;
+      endDate: Date;
+      isBulletinPeriod: boolean;
+      isCouncilPeriod: boolean;
+    } | null = await step.run("resolve-academic-period", async () => {
+      if (!periodId) return null;
+      const found = await AcademicPeriod.findOne({
+        _id: periodId,
+        academicYear: yearId,
+      })
+        .select("_id type number startDate endDate isBulletinPeriod isCouncilPeriod")
+        .lean();
+
+      if (!found) {
+        throw new NonRetriableError("Academic period not found for selected year");
+      }
+
+      if (!found.isBulletinPeriod) {
+        throw new NonRetriableError("Selected academic period is not configured for bulletins");
+      }
+
+      return found as any;
+    });
+
+    const resolvedPeriod = (period || "term1") as ReportPeriod;
+    const { start, end } = selectedAcademicPeriod
+      ? { start: new Date(selectedAcademicPeriod.startDate), end: new Date(selectedAcademicPeriod.endDate) }
+      : getPeriodDateRange(year, resolvedPeriod);
+
+    const periodCode = selectedAcademicPeriod
+      ? getAcademicPeriodCode(selectedAcademicPeriod.type, Number(selectedAcademicPeriod.number))
+      : String(resolvedPeriod);
+    const periodLabel = selectedAcademicPeriod
+      ? getAcademicPeriodLabel(selectedAcademicPeriod.type, Number(selectedAcademicPeriod.number), "fr")
+      : String(resolvedPeriod).toUpperCase();
 
     const exams = await step.run("fetch-exams-for-period", async () => {
       const examQuery: any = {
@@ -646,6 +704,65 @@ export const generateReportCards = inngest.createFunction(
       examMap.set(String(exam._id), exam);
     }
 
+    const classIds = Array.from(
+      new Set((exams as any[]).map((exam) => String(exam.class)).filter(Boolean))
+    );
+    const subjectIds = Array.from(
+      new Set((exams as any[]).map((exam) => String(exam.subject)).filter(Boolean))
+    );
+
+    const [classContexts, subjects] = await Promise.all([
+      step.run("fetch-class-grading-context", async () => {
+        if (!classIds.length) return [];
+        return Class.find({ _id: { $in: classIds } })
+          .populate({
+            path: "section",
+            select: "name subSystem cycle language",
+            populate: {
+              path: "subSystem",
+              select: "code gradingScale passThreshold hasCoefficientBySubject bulletinTemplate",
+            },
+          })
+          .populate("classTeacher", "name")
+          .select("_id section classTeacher")
+          .lean();
+      }),
+      step.run("fetch-subject-coefficients", async () => {
+        if (!subjectIds.length) return [];
+        return Subject.find({ _id: { $in: subjectIds } })
+          .select("_id coefficient")
+          .lean();
+      }),
+    ]);
+
+    const classContextMap = new Map<string, any>();
+    for (const cls of classContexts as any[]) {
+      const subSystem = (cls as any)?.section?.subSystem;
+      classContextMap.set(String((cls as any)._id), {
+        gradingScale: subSystem?.gradingScale || "OVER_20",
+        passThresholdOn20: normalizePassThresholdOn20(
+          Number(subSystem?.passThreshold ?? 10),
+          subSystem?.gradingScale || "OVER_20"
+        ),
+        hasCoefficientBySubject: Boolean(subSystem?.hasCoefficientBySubject),
+        templateType: resolveBulletinTemplateType(
+          subSystem?.code,
+          (cls as any)?.section?.cycle,
+          (cls as any)?.section?.language,
+          subSystem?.bulletinTemplate
+        ),
+        classTeacherName: (cls as any)?.classTeacher?.name || "________________",
+      });
+    }
+
+    const subjectCoefficientMap = new Map<string, number>();
+    for (const subject of subjects as any[]) {
+      subjectCoefficientMap.set(
+        String(subject._id),
+        Math.max(1, Number(subject.coefficient) || 1)
+      );
+    }
+
     const gradeIdsByStudent = new Map<string, string[]>();
 
     await step.run("upsert-grades", async () => {
@@ -662,24 +779,42 @@ export const generateReportCards = inngest.createFunction(
 
         if (!maxScore) continue;
 
-        const percentage = Number(((Number(submission.score) / maxScore) * 100).toFixed(2));
+        const gradingContext = classContextMap.get(String(exam.class)) || {
+          gradingScale: "OVER_20",
+          passThresholdOn20: 10,
+          hasCoefficientBySubject: false,
+        };
+
+        const rawScore = Number(submission.score) || 0;
+        const scoreOn20 = normalizeScoreOn20({ rawScore, maxScore });
+        const percentage = scoreOn20ToPercentage(scoreOn20);
+        const coefficient = gradingContext.hasCoefficientBySubject
+          ? subjectCoefficientMap.get(String(exam.subject)) || 1
+          : 1;
+        const gradeLabel = formatGradeLabel(scoreOn20, gradingContext.gradingScale);
 
         const grade = await Grade.findOneAndUpdate(
           {
             exam: exam._id,
             student: submission.student,
             year: yearId,
-            period,
+            period: periodCode,
           },
           {
             exam: exam._id,
             student: submission.student,
-            score: Number(submission.score) || 0,
+            score: rawScore,
             maxScore,
             percentage,
+            scoreOn20,
+            coefficient,
+            gradeLabel,
+            gradingScale: gradingContext.gradingScale,
+            hasCoefficientBySubjectAtSource: gradingContext.hasCoefficientBySubject,
+            passThresholdOn20AtSource: gradingContext.passThresholdOn20,
             subject: exam.subject,
             year: yearId,
-            period,
+            period: periodCode,
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
@@ -692,45 +827,235 @@ export const generateReportCards = inngest.createFunction(
     });
 
     const generatedStudents: string[] = [];
+    const schoolSettings = await getEffectiveSchoolSettings();
+    const bulletinPolicy = resolveBulletinPolicy(schoolSettings);
 
     await step.run("upsert-report-cards", async () => {
+      const studentKeys = Array.from(gradeIdsByStudent.keys());
+      const students = await User.find({ _id: { $in: studentKeys } })
+        .select("_id studentClass")
+        .lean();
+
+      const studentClassMap = new Map<string, string>();
+      for (const student of students as any[]) {
+        if (student?.studentClass) {
+          studentClassMap.set(String(student._id), String(student.studentClass));
+        }
+      }
+
+      const summaries = new Map<
+        string,
+        {
+          gradeIds: string[];
+          classId: string;
+          averagePercentage: number;
+          averageScoreOn20: number;
+          totalExams: number;
+          passedExams: number;
+          failedExams: number;
+          highestPercentage: number;
+          lowestPercentage: number;
+          templateType: "FR" | "EN" | "PRIMARY" | "KINDERGARTEN";
+          classTeacherName: string;
+        }
+      >();
+      const classAverages = new Map<string, Array<{ studentId: string; average: number }>>();
+
       for (const [studentKey, gradeIds] of gradeIdsByStudent.entries()) {
         const grades = await Grade.find({ _id: { $in: gradeIds } })
-          .select("percentage")
+          .select("scoreOn20 percentage coefficient hasCoefficientBySubjectAtSource passThresholdOn20AtSource")
           .lean();
 
         if (!grades.length) continue;
 
-        const percentages = grades.map((grade: any) => Number(grade.percentage) || 0);
-        const totalExams = percentages.length;
-        const average = Number(
-          (percentages.reduce((sum, value) => sum + value, 0) / totalExams).toFixed(2)
+        const classId = studentClassMap.get(studentKey);
+        if (!classId) continue;
+
+        const classContext = classContextMap.get(classId) || {
+          hasCoefficientBySubject: false,
+          passThresholdOn20: 10,
+          templateType: "FR",
+          classTeacherName: "________________",
+        };
+
+        const gradeInputs = grades.map((grade: any) => ({
+          scoreOn20: Number(grade.scoreOn20 ?? 0),
+          percentage: Number(grade.percentage ?? 0),
+          coefficient: Number(grade.coefficient ?? 1),
+        }));
+
+        const averageScoreOn20 = calculateAverageScoreOn20(
+          gradeInputs,
+          Boolean(classContext.hasCoefficientBySubject)
         );
-        const passedExams = percentages.filter((value) => value >= 50).length;
+        const averagePercentage = scoreOn20ToPercentage(averageScoreOn20);
+        const percentages = gradeInputs.map((grade: any) => grade.percentage);
+        const totalExams = percentages.length;
+        const passedExams = gradeInputs.filter(
+          (grade: any) => Number(grade.scoreOn20) >= Number(classContext.passThresholdOn20)
+        ).length;
         const failedExams = totalExams - passedExams;
         const highestPercentage = Math.max(...percentages);
         const lowestPercentage = Math.min(...percentages);
+
+        summaries.set(studentKey, {
+          gradeIds,
+          classId,
+          averagePercentage,
+          averageScoreOn20,
+          totalExams,
+          passedExams,
+          failedExams,
+          highestPercentage,
+          lowestPercentage,
+          templateType: classContext.templateType,
+          classTeacherName: classContext.classTeacherName,
+        });
+
+        const existingClassAverages = classAverages.get(classId) || [];
+        existingClassAverages.push({ studentId: studentKey, average: averagePercentage });
+        classAverages.set(classId, existingClassAverages);
+      }
+
+      const classStatsMap = new Map<
+        string,
+        {
+          classSize: number;
+          classAverage: number;
+          classHighest: number;
+          classLowest: number;
+          rankByStudent: Map<string, number>;
+        }
+      >();
+
+      for (const [classId, values] of classAverages.entries()) {
+        const sorted = [...values].sort((a, b) => b.average - a.average);
+        const rankByStudent = new Map<string, number>();
+        let previousAverage = Number.NaN;
+        let currentRank = 1;
+
+        sorted.forEach((item, index) => {
+          if (index === 0 || item.average !== previousAverage) {
+            currentRank = index + 1;
+            previousAverage = item.average;
+          }
+          rankByStudent.set(item.studentId, currentRank);
+        });
+
+        const statsValues = values.map((item) => item.average);
+        const classSize = statsValues.length || 1;
+        const classAverage = Number(
+          (statsValues.reduce((sum, value) => sum + value, 0) / classSize).toFixed(2)
+        );
+        const classHighest = Number(Math.max(...statsValues).toFixed(2));
+        const classLowest = Number(Math.min(...statsValues).toFixed(2));
+
+        classStatsMap.set(classId, {
+          classSize,
+          classAverage,
+          classHighest,
+          classLowest,
+          rankByStudent,
+        });
+      }
+
+      const attendanceStatuses: Array<"absent" | "late" | "excused"> = ["absent", "late"];
+      if (bulletinPolicy.attendanceExcusedCountsAsAbsence) {
+        attendanceStatuses.push("excused");
+      }
+
+      const attendanceRows = await Attendance.find({
+        student: { $in: Array.from(summaries.keys()) },
+        date: { $gte: start, $lte: end },
+        status: { $in: attendanceStatuses },
+      })
+        .select("student status")
+        .lean();
+
+      const attendanceMap = new Map<string, { absences: number; lateCount: number; excusedCount: number }>();
+      for (const row of attendanceRows as any[]) {
+        const key = String(row.student);
+        const current = attendanceMap.get(key) || { absences: 0, lateCount: 0, excusedCount: 0 };
+        if (row.status === "absent") current.absences += 1;
+        if (row.status === "late") current.lateCount += 1;
+        if (row.status === "excused") current.excusedCount += 1;
+        attendanceMap.set(key, current);
+      }
+
+      for (const [studentKey, summary] of summaries.entries()) {
+        const stats = classStatsMap.get(summary.classId);
+        const attendance = attendanceMap.get(studentKey) || { absences: 0, lateCount: 0, excusedCount: 0 };
+        const effectiveAbsences =
+          attendance.absences +
+          (bulletinPolicy.attendanceLateAsAbsence ? attendance.lateCount : 0) +
+          (bulletinPolicy.attendanceExcusedCountsAsAbsence ? attendance.excusedCount : 0);
+
+        const classInvoices = await Invoice.find({
+          student: studentKey,
+          class: summary.classId,
+          academicYear: yearId,
+          balance: { $gt: bulletinPolicy.bulletinAllowedOutstandingBalance },
+          status: { $in: ["issued", "partially_paid", "overdue"] },
+        })
+          .select("balance status invoiceNumber")
+          .lean();
+
+        const outstandingBalance = classInvoices.reduce((sum, invoice) => sum + Number(invoice.balance || 0), 0);
+        const shouldBlockBulletin =
+          bulletinPolicy.bulletinBlockOnUnpaidFees &&
+          outstandingBalance > bulletinPolicy.bulletinAllowedOutstandingBalance;
+
+        if (shouldBlockBulletin) {
+          continue;
+        }
+
+        const councilDecision = calculateCouncilDecision({
+          averagePercentage: summary.averagePercentage,
+          absences: effectiveAbsences,
+          lateCount: attendance.lateCount,
+          policy: bulletinPolicy,
+        });
 
         await ReportCard.findOneAndUpdate(
           {
             student: studentKey,
             year: yearId,
-            period,
+            periodCode,
           },
           {
             student: studentKey,
             year: yearId,
-            period,
-            grades: gradeIds,
+            period: periodCode,
+            periodCode,
+            periodLabel,
+            periodRef: selectedAcademicPeriod?._id || null,
+            councilPeriod: Boolean(selectedAcademicPeriod?.isCouncilPeriod),
+            templateType: summary.templateType,
+            grades: summary.gradeIds,
             aggregates: {
-              average,
-              totalExams,
-              passedExams,
-              failedExams,
-              highestPercentage,
-              lowestPercentage,
+              average: summary.averagePercentage,
+              averageScoreOn20: summary.averageScoreOn20,
+              totalExams: summary.totalExams,
+              passedExams: summary.passedExams,
+              failedExams: summary.failedExams,
+              highestPercentage: summary.highestPercentage,
+              lowestPercentage: summary.lowestPercentage,
             },
-            mention: getMentionFromAverage(average),
+            bulletinMeta: {
+              rank: stats?.rankByStudent.get(studentKey) || 1,
+              classSize: stats?.classSize || 1,
+              classAverage: stats?.classAverage || summary.averagePercentage,
+              classHighest: stats?.classHighest || summary.averagePercentage,
+              classLowest: stats?.classLowest || summary.averagePercentage,
+              absences: effectiveAbsences,
+              lateCount: attendance.lateCount,
+              councilDecision,
+              signatures: {
+                classTeacher: summary.classTeacherName || "________________",
+                principal: "________________",
+              },
+            },
+            mention: getMentionFromAverage(summary.averagePercentage),
           },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
@@ -747,11 +1072,11 @@ export const generateReportCards = inngest.createFunction(
       const reportCards = await ReportCard.find({
         student: { $in: generatedStudents },
         year: yearId,
-        period,
+        periodCode,
       })
         .populate("student", "name email parentId schoolSection uiLanguagePreference")
         .populate("year", "name")
-        .select("student year period aggregates mention")
+        .select("student year period periodCode periodLabel aggregates mention")
         .lean();
 
       const schoolSettings = await getEffectiveSchoolSettings();
@@ -810,7 +1135,7 @@ export const generateReportCards = inngest.createFunction(
 
           const template = buildReportCardTemplate({
             recipientName: student.name,
-            period,
+            period: reportCard.periodLabel || reportCard.periodCode || periodCode,
             yearName: reportCard.year?.name || "Academic Year",
             average: Number(reportCard.aggregates?.average || 0),
             mention: reportCard.mention,
@@ -830,7 +1155,7 @@ export const generateReportCards = inngest.createFunction(
             relatedEntityId: String(reportCard._id),
             metadata: {
               studentId: String(student._id),
-              period,
+              period: reportCard.periodCode || periodCode,
               average: Number(reportCard.aggregates?.average || 0),
               mention: reportCard.mention,
               language,
@@ -848,7 +1173,7 @@ export const generateReportCards = inngest.createFunction(
     return {
       message: "Report cards generated successfully",
       generated: generatedStudents.length,
-      period,
+      period: periodCode,
       yearId,
     };
   }

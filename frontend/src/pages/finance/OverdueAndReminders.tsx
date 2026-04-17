@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { Badge } from "@/components/ui/badge";
+import { useSmsDeliveryStatus, type SmsLiveStatus } from "@/hooks/useSmsDeliveryStatus";
 
 const formatXAF = (value: number) =>
   new Intl.NumberFormat("fr-CM", {
@@ -26,6 +28,10 @@ export default function OverdueAndRemindersPage() {
   const [overdueStudents, setOverdueStudents] = useState<any[]>([]);
   const [revenue, setRevenue] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [lastSmsMsgIdByStudent, setLastSmsMsgIdByStudent] = useState<Record<string, string>>({});
+  const [lastSmsPersistedStatusByStudent, setLastSmsPersistedStatusByStudent] =
+    useState<Record<string, SmsLiveStatus>>({});
+  const { statusByMsgId, startTracking } = useSmsDeliveryStatus();
 
   useEffect(() => {
     void fetchReports();
@@ -41,6 +47,33 @@ export default function OverdueAndRemindersPage() {
 
       setOverdueStudents(overdueRes.data?.overdueStudents || []);
       setRevenue(revenueRes.data?.summary || null);
+
+      const seededMsgIds: Record<string, string> = {};
+      const seededStatuses: Record<string, SmsLiveStatus> = {};
+
+      (overdueRes.data?.overdueStudents || []).forEach((item: any) => {
+        const msgId = item?.lastSms?.providerMessageId;
+        const persistedStatus = String(item?.lastSms?.status || "").toLowerCase();
+
+        if (msgId) {
+          seededMsgIds[item.studentId] = msgId;
+        }
+
+        if (persistedStatus === "delivered") {
+          seededStatuses[item.studentId] = "delivered";
+        } else if (persistedStatus === "failed") {
+          seededStatuses[item.studentId] = "failed";
+        } else if (persistedStatus === "sent") {
+          seededStatuses[item.studentId] = "sent";
+        }
+      });
+
+      setLastSmsMsgIdByStudent(seededMsgIds);
+      setLastSmsPersistedStatusByStudent(seededStatuses);
+
+      Object.entries(seededMsgIds).forEach(([, msgId]) => {
+        startTracking(msgId);
+      });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("finance.overdue.loadFail", language));
     } finally {
@@ -65,6 +98,20 @@ export default function OverdueAndRemindersPage() {
 
       const emailStatus = data?.result?.email?.status;
       const smsStatus = data?.result?.sms?.status;
+      const smsMsgId = data?.result?.sms?.providerMessageId as string | undefined;
+
+      if (smsMsgId) {
+        setLastSmsMsgIdByStudent((prev) => ({
+          ...prev,
+          [student.studentId]: smsMsgId,
+        }));
+        setLastSmsPersistedStatusByStudent((prev) => ({
+          ...prev,
+          [student.studentId]: "sent",
+        }));
+        startTracking(smsMsgId);
+      }
+
       toast.success(t("finance.overdue.reminderSuccess", language, {
         email: emailStatus || t("common.na", language),
         sms: smsStatus || t("common.na", language),
@@ -72,6 +119,30 @@ export default function OverdueAndRemindersPage() {
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("finance.overdue.reminderFail", language));
     }
+  };
+
+  const resolveSmsStatus = (studentId: string): SmsLiveStatus | "not_sent" => {
+    const msgId = lastSmsMsgIdByStudent[studentId];
+    if (!msgId) {
+      return lastSmsPersistedStatusByStudent[studentId] || "not_sent";
+    }
+    return statusByMsgId[msgId] || lastSmsPersistedStatusByStudent[studentId] || "sent";
+  };
+
+  const getSmsStatusLabel = (status: SmsLiveStatus | "not_sent") => {
+    if (status === "not_sent") return t("finance.overdue.sms.notSent", language);
+    if (status === "checking") return t("finance.overdue.sms.checking", language);
+    if (status === "delivered") return t("finance.overdue.sms.delivered", language);
+    if (status === "failed") return t("finance.overdue.sms.failed", language);
+    return t("finance.overdue.sms.sent", language);
+  };
+
+  const getSmsStatusClassName = (status: SmsLiveStatus | "not_sent") => {
+    if (status === "delivered") return "bg-green-100 text-green-700 border-green-200";
+    if (status === "failed") return "bg-red-100 text-red-700 border-red-200";
+    if (status === "checking") return "bg-amber-100 text-amber-700 border-amber-200";
+    if (status === "sent") return "bg-blue-100 text-blue-700 border-blue-200";
+    return "bg-muted text-muted-foreground border-border";
   };
 
   return (
@@ -130,11 +201,15 @@ export default function OverdueAndRemindersPage() {
                   <TableHead>{t("finance.overdue.table.amountDue", language)}</TableHead>
                   <TableHead>{t("finance.overdue.table.invoiceCount", language)}</TableHead>
                   <TableHead>{t("finance.overdue.table.latestDue", language)}</TableHead>
+                  <TableHead>{t("finance.overdue.table.bulletinStatus", language)}</TableHead>
+                  <TableHead>{t("finance.overdue.table.smsStatus", language)}</TableHead>
                   <TableHead>{t("finance.overdue.table.action", language)}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {overdueStudents.map((item) => (
+                {overdueStudents.map((item) => {
+                  const smsStatus = resolveSmsStatus(item.studentId);
+                  return (
                   <TableRow key={item.studentId}>
                     <TableCell>{item.studentName}</TableCell>
                     <TableCell>{item.studentEmail}</TableCell>
@@ -148,12 +223,31 @@ export default function OverdueAndRemindersPage() {
                         : "-"}
                     </TableCell>
                     <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          item.bulletinBlocked
+                            ? "bg-red-100 text-red-700 border-red-200"
+                            : "bg-green-100 text-green-700 border-green-200"
+                        }
+                      >
+                        {item.bulletinBlocked
+                          ? t("finance.overdue.bulletin.blocked", language)
+                          : t("finance.overdue.bulletin.eligible", language)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={getSmsStatusClassName(smsStatus)}>
+                        {getSmsStatusLabel(smsStatus)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Button variant="outline" size="sm" onClick={() => sendReminder(item)}>
                         {t("finance.overdue.remind", language)}
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
               </TableBody>
             </Table>
           )}

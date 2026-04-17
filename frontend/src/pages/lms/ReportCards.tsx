@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/AuthProvider";
 import type { ReportCard, ReportPeriod, pagination } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getPeriodLabel, t } from "@/lib/i18n";
 import { useUISchoolContext } from "@/hooks/useUILanguage";
@@ -21,6 +22,9 @@ export default function ReportCardsPage() {
   const [generating, setGenerating] = useState(false);
   const [search, setSearch] = useState("");
   const [reportCards, setReportCards] = useState<ReportCard[]>([]);
+  const [blockedStudents, setBlockedStudents] = useState<
+    Array<{ studentId: string; studentName: string; totalOutstanding: number }>
+  >([]);
   const [pagination, setPagination] = useState<pagination>({
     total: 0,
     page: 1,
@@ -75,6 +79,20 @@ export default function ReportCardsPage() {
     }
   };
 
+  const fetchBlockedStudents = async () => {
+    if (!isManager) return;
+
+    try {
+      const { data } = await api.get("/finance/reports/overdue-students");
+      const blocked = Array.isArray(data?.overdueStudents)
+        ? data.overdueStudents.filter((item: any) => Boolean(item?.bulletinBlocked))
+        : [];
+      setBlockedStudents(blocked);
+    } catch {
+      setBlockedStudents([]);
+    }
+  };
+
   const triggerGeneration = async () => {
     if (!activeYearId) {
       toast.error(t("timetable.error.selectClassYear", language));
@@ -91,6 +109,7 @@ export default function ReportCardsPage() {
 
       if (isManager) {
         fetchManagerReportCards(1);
+        fetchBlockedStudents();
       }
       if (isStudent) {
         fetchStudentReportCards();
@@ -112,8 +131,20 @@ export default function ReportCardsPage() {
 
     if (isManager) {
       fetchManagerReportCards(1);
+      fetchBlockedStudents();
     }
   }, [isStudent, isManager, period, activeYearId]);
+
+  const blockedByStudentId = useMemo(() => {
+    const map = new Map<string, { studentName: string; totalOutstanding: number }>();
+    blockedStudents.forEach((student) => {
+      map.set(String(student.studentId), {
+        studentName: student.studentName,
+        totalOutstanding: Number(student.totalOutstanding || 0),
+      });
+    });
+    return map;
+  }, [blockedStudents]);
 
   const headingDescription = useMemo(() => {
     if (isStudent) {
@@ -140,6 +171,12 @@ export default function ReportCardsPage() {
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("timetable.error.load", language));
     }
+  };
+
+  const formatNumber = (value: number | undefined, digits = 2) => {
+    const numeric = Number(value ?? 0);
+    if (!Number.isFinite(numeric)) return "0";
+    return Number(numeric.toFixed(digits)).toString();
   };
 
   return (
@@ -186,6 +223,24 @@ export default function ReportCardsPage() {
         </div>
       )}
 
+      {isManager && blockedStudents.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="font-semibold">
+            {t("reportCards.financeHold.title", language, {
+              count: String(blockedStudents.length),
+            })}
+          </div>
+          <div className="mt-1 text-amber-800">{t("reportCards.financeHold.subtitle", language)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {blockedStudents.slice(0, 6).map((item) => (
+              <Badge key={item.studentId} variant="outline" className="border-amber-300 bg-white text-amber-900">
+                {item.studentName}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="text-sm text-muted-foreground">{t("reportCards.loading", language)}</div>
       ) : reportCards.length === 0 ? (
@@ -196,6 +251,17 @@ export default function ReportCardsPage() {
         <div className="space-y-4">
           {reportCards.map((reportCard) => (
             <div key={reportCard._id} className="rounded-md border p-4 space-y-2">
+              {(() => {
+                const holdInfo = blockedByStudentId.get(String((reportCard.student as any)?._id || ""));
+                if (!holdInfo) return null;
+
+                return (
+                  <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    <span>{t("reportCards.financeHold.badge", language)}</span>
+                    <span>{holdInfo.totalOutstanding.toLocaleString(language === "fr" ? "fr-CM" : "en-GB")} XAF</span>
+                  </div>
+                );
+              })()}
               <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="font-semibold">
@@ -209,7 +275,8 @@ export default function ReportCardsPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-sm md:grid-cols-3 lg:grid-cols-6">
-                <div>{t("reportCards.average", language)}: {reportCard.aggregates.average}%</div>
+                <div>{t("reportCards.average", language)}: {formatNumber(reportCard.aggregates.average)}%</div>
+                <div>{t("reportCards.averageOn20", language)}: {formatNumber(reportCard.aggregates.averageScoreOn20)}</div>
                 <div>{t("reportCards.totalExams", language)}: {reportCard.aggregates.totalExams}</div>
                 <div>{t("reportCards.passed", language)}: {reportCard.aggregates.passedExams}</div>
                 <div>{t("reportCards.failed", language)}: {reportCard.aggregates.failedExams}</div>
@@ -226,6 +293,8 @@ export default function ReportCardsPage() {
                         <th className="px-3 py-2">{t("reportCards.teacher", language)}</th>
                         <th className="px-3 py-2">{t("reportCards.score", language)}</th>
                         <th className="px-3 py-2">{t("reportCards.max", language)}</th>
+                        <th className="px-3 py-2">{t("reportCards.scoreOn20", language)}</th>
+                        <th className="px-3 py-2">{t("reportCards.displayGrade", language)}</th>
                         <th className="px-3 py-2">%</th>
                         <th className="px-3 py-2">{t("reportCards.coef", language)}</th>
                       </tr>
@@ -234,7 +303,9 @@ export default function ReportCardsPage() {
                       {reportCard.grades.map((grade: any) => {
                         const subject = grade.subject || grade.exam?.subject;
                         const teacher = grade.exam?.teacher || subject?.teacher?.[0];
-                        const coefficient = Number(subject?.coefficient || 1);
+                        const coefficient = Number(grade.coefficient || subject?.coefficient || 1);
+                        const scoreOn20 = Number(grade.scoreOn20 ?? (Number(grade.percentage || 0) / 5));
+                        const gradeLabel = grade.gradeLabel || `${formatNumber(grade.percentage)}%`;
                         return (
                           <tr key={grade._id} className="border-t">
                             <td className="px-3 py-2">
@@ -244,7 +315,9 @@ export default function ReportCardsPage() {
                             <td className="px-3 py-2">{teacher?.name || "-"}</td>
                             <td className="px-3 py-2">{grade.score}</td>
                             <td className="px-3 py-2">{grade.maxScore}</td>
-                            <td className="px-3 py-2">{grade.percentage}%</td>
+                            <td className="px-3 py-2">{formatNumber(scoreOn20)}</td>
+                            <td className="px-3 py-2">{gradeLabel}</td>
+                            <td className="px-3 py-2">{formatNumber(grade.percentage)}%</td>
                             <td className="px-3 py-2">{coefficient}</td>
                           </tr>
                         );

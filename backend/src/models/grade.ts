@@ -7,6 +7,12 @@ export interface IGrade extends Document {
   score: number;
   maxScore: number;
   percentage: number;
+  scoreOn20: number;
+  coefficient: number;
+  gradeLabel?: string | null;
+  gradingScale?: "OVER_20" | "PERCENT" | "GRADES_AE" | "COMPETENCY_ANA";
+  hasCoefficientBySubjectAtSource?: boolean;
+  passThresholdOn20AtSource?: number;
   subject: mongoose.Types.ObjectId;
   year: mongoose.Types.ObjectId;
   period: ReportPeriod;
@@ -19,6 +25,16 @@ const gradeSchema = new Schema<IGrade>(
     score: { type: Number, required: true, min: 0 },
     maxScore: { type: Number, required: true, min: 1 },
     percentage: { type: Number, required: true, min: 0, max: 100 },
+    scoreOn20: { type: Number, required: true, min: 0, max: 20, index: true },
+    coefficient: { type: Number, required: true, min: 1, default: 1 },
+    gradeLabel: { type: String, default: null },
+    gradingScale: {
+      type: String,
+      enum: ["OVER_20", "PERCENT", "GRADES_AE", "COMPETENCY_ANA"],
+      default: "OVER_20",
+    },
+    hasCoefficientBySubjectAtSource: { type: Boolean, default: false },
+    passThresholdOn20AtSource: { type: Number, min: 0, max: 20, default: 10 },
     subject: { type: Schema.Types.ObjectId, ref: "Subject", required: true, index: true },
     year: {
       type: Schema.Types.ObjectId,
@@ -28,7 +44,6 @@ const gradeSchema = new Schema<IGrade>(
     },
     period: {
       type: String,
-      enum: ["term1", "term2", "term3", "annual"],
       required: true,
       index: true,
     },

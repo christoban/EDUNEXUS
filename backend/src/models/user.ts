@@ -17,6 +17,7 @@ export interface IUser extends Document {
   password: string;
   role: userRoles;
   isActive: boolean;
+  schoolId?: mongoose.Types.ObjectId | null; // ✅ MULTI-TENANT: School affiliation
   studentClass?: string | null;
   teacherSubject?: string[] | null;
   parentId?: string | null; // Parent reference for students
@@ -38,6 +39,12 @@ const userSchema: Schema<IUser> = new Schema(
       default: UserRole.STUDENT,
     },
     isActive: { type: Boolean, default: true },
+    schoolId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      default: null,
+      index: true,
+    },
     studentClass: { type: mongoose.Schema.Types.ObjectId, ref: "Class" },
     teacherSubject: [{ type: mongoose.Schema.Types.ObjectId, ref: "Subject" }],
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Reference to parent user

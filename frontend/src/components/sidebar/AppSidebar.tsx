@@ -128,7 +128,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       Teachers: "nav.item.teachers",
       Parents: "nav.item.parents",
       Admins: "nav.item.admins",
-      "School Settings": "nav.item.schoolSettings",
+      "School Configuration": "nav.item.schoolConfiguration",
       "Manage Subjects": "nav.item.manageSubjects",
       "Academic Years": "nav.item.academicYears",
       "Email History": "nav.item.emailHistory",

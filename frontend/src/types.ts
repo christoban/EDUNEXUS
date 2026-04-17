@@ -28,10 +28,73 @@ export interface academicYear {
   isCurrent: boolean; // true/false
 }
 
+export interface SchoolSettings {
+  schoolName: string;
+  schoolMotto: string;
+  schoolLogoUrl?: string;
+  academicCalendarType: "trimester" | "semester";
+  preferredLanguage: "fr" | "en";
+  schoolLanguageMode: "anglophone" | "francophone" | "bilingual";
+  mode: "simple_fr" | "simple_en" | "bilingual" | "complex";
+  cycles: Array<"maternelle" | "primaire" | "secondaire_1" | "secondaire_2" | "technique">;
+  hasMultipleCycles: boolean;
+  officialLanguages: Array<"fr" | "en">;
+  attendanceLateAsAbsence: boolean;
+  attendanceExcusedCountsAsAbsence: boolean;
+  councilDecisionMode: "manual" | "automatic";
+  councilPassAverageThreshold: number;
+  councilMaxAbsences: number;
+  bulletinBlockOnUnpaidFees: boolean;
+  bulletinAllowedOutstandingBalance: number;
+}
+
+export interface SubSystem {
+  _id: string;
+  code:
+    | "FR_GENERAL_SEC"
+    | "FR_PRIMAIRE"
+    | "FR_TECHNIQUE_SEC"
+    | "EN_GENERAL_SEC"
+    | "EN_PRIMAIRE"
+    | "EN_TECHNIQUE_SEC"
+    | "MATERNELLE";
+  name: string;
+  gradingScale: "OVER_20" | "PERCENT" | "GRADES_AE" | "COMPETENCY_ANA";
+  periodType: "SEQUENCES_6" | "TERMS_3" | "MONTHLY_9";
+  hasCoefficientBySubject: boolean;
+  passThreshold: number;
+  bulletinTemplate?: string | null;
+  isActive: boolean;
+}
+
+export interface Section {
+  _id: string;
+  schoolSettings?: string | null;
+  subSystem: SubSystem | string;
+  name: string;
+  language: "fr" | "en";
+  cycle: "maternelle" | "primaire" | "secondaire_1" | "secondaire_2" | "technique";
+  isActive: boolean;
+}
+
+export interface AcademicPeriod {
+  _id: string;
+  academicYear: academicYear | string;
+  section: Section | string;
+  type: "SEQUENCE" | "TERM" | "MONTH";
+  number: number;
+  trimester?: number | null;
+  startDate: string;
+  endDate: string;
+  isBulletinPeriod: boolean;
+  isCouncilPeriod: boolean;
+}
+
 export interface Class {
   _id: string;
   name: string; // e.g., "Grade 10"
   academicYear: academicYear; // Link to "2024-2025"
+  section?: Section | string | null;
   classTeacher: user; // The main teacher in charge
   subjects: subject[]; // List of subjects taught in this class
   students: user[]; // List of students enrolled
@@ -112,6 +175,10 @@ export interface Grade {
   score: number;
   maxScore: number;
   percentage: number;
+  scoreOn20?: number;
+  coefficient?: number;
+  gradeLabel?: string | null;
+  gradingScale?: "OVER_20" | "PERCENT" | "GRADES_AE" | "COMPETENCY_ANA";
   subject: string;
   year: string;
   period: ReportPeriod;
@@ -125,6 +192,7 @@ export interface ReportCard {
   grades: Grade[];
   aggregates: {
     average: number;
+    averageScoreOn20?: number;
     totalExams: number;
     passedExams: number;
     failedExams: number;

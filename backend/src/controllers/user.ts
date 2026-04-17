@@ -166,9 +166,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // check if user exists and password matches
     if (user && (await user.matchPassword(password))) {
-      // generate token
-      generateToken(user.id.toString(), res);
-      res.json(user);
+      // ✅ MULTI-TENANT: Generate token with schoolId
+      generateToken(user.id.toString(), res, user.schoolId?.toString());
+      
+      res.json({
+        ...user.toObject(),
+        schoolId: user.schoolId, // Include schoolId in response for frontend
+      });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
     }

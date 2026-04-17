@@ -16,17 +16,26 @@ import { logActivity } from "../utils/activitieslog.ts";
 export const getMyChildren = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
+    const sectionId = typeof req.query.sectionId === "string" ? req.query.sectionId : undefined;
+    const cycle = typeof req.query.cycle === "string" ? req.query.cycle : undefined;
 
     // Fetch all students where parentId = currentUser._id and role = "student"
-    const children = await User.find(
-      {
-        parentId: currentUser._id,
-        role: "student",
-        isActive: true,
-      },
-      "name email studentClass isActive"
-    )
-      .populate("studentClass", "name")
+    const childrenQuery: any = {
+      parentId: currentUser._id,
+      role: "student",
+      isActive: true,
+    };
+
+    const children = await User.find(childrenQuery, "name email studentClass isActive schoolSection")
+      .populate({
+        path: "studentClass",
+        select: "name section",
+        populate: {
+          path: "section",
+          select: "name language cycle subSystem",
+          populate: { path: "subSystem", select: "code name" },
+        },
+      })
       .lean();
 
     // Enrich with basic stats for each child
@@ -79,6 +88,8 @@ export const getMyChildren = async (req: Request, res: Response) => {
           name: child.name,
           email: child.email,
           class: child.studentClass,
+          schoolSection: child.schoolSection,
+          section: (child.studentClass as any)?.section || null,
           attendanceRate,
           latestGrade: latestReportCard?.mention || "N/A",
         };

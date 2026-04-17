@@ -41,6 +41,26 @@ const getStudentClassName = async (studentClass: unknown) => {
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
+    const sectionId = typeof req.query.sectionId === "string" ? req.query.sectionId : undefined;
+    const cycle = typeof req.query.cycle === "string" ? req.query.cycle : undefined;
+
+    const classesQuery: any = {};
+    if (sectionId) {
+      classesQuery.section = sectionId;
+    }
+    if (cycle) {
+      const matchingClasses = await Class.find({ ...classesQuery })
+        .populate("section", "cycle")
+        .select("_id section")
+        .lean();
+      const matchingClassIds = matchingClasses
+        .filter((schoolClass: any) => String(schoolClass.section?.cycle || "") === cycle)
+        .map((schoolClass) => schoolClass._id);
+      classesQuery._id = { $in: matchingClassIds.length ? matchingClassIds : ["__no_match__"] };
+    }
+
+    const filteredClasses = await Class.find(classesQuery).select("_id name section classTeacher").lean();
+    const filteredClassIds = filteredClasses.map((schoolClass) => schoolClass._id);
     let stats = {};
     // Get last 5 activities system-wide (Admin) or personal (Others)
     const activityQuery = user.role === "admin" ? {} : { user: user._id };
@@ -57,13 +77,30 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     );
 
     if (user.role === "admin") {
-      const totalStudents = await User.countDocuments({ role: "student" });
-      const totalTeachers = await User.countDocuments({ role: "teacher" });
-      const activeExams = await Exam.countDocuments({ isActive: true });
+      const totalStudents = filteredClassIds.length
+        ? await User.countDocuments({ role: "student", studentClass: { $in: filteredClassIds } } as any)
+        : 0;
+      const totalTeachers = filteredClassIds.length
+        ? new Set(
+            filteredClasses
+              .map((schoolClass: any) => String(schoolClass.classTeacher || ""))
+              .filter(Boolean)
+          ).size
+        : await User.countDocuments({ role: "teacher" });
+      const activeExams = filteredClassIds.length
+        ? await Exam.countDocuments({ isActive: true, class: { $in: filteredClassIds } })
+        : await Exam.countDocuments({ isActive: true });
 
       const [presentLikeAttendanceCount, totalAttendanceCount] = await Promise.all([
-        Attendance.countDocuments({ status: { $in: ["present", "late", "excused"] } }),
-        Attendance.countDocuments(),
+        filteredClassIds.length
+          ? Attendance.countDocuments({
+              class: { $in: filteredClassIds },
+              status: { $in: ["present", "late", "excused"] },
+            })
+          : Attendance.countDocuments({ status: { $in: ["present", "late", "excused"] } }),
+        filteredClassIds.length
+          ? Attendance.countDocuments({ class: { $in: filteredClassIds } })
+          : Attendance.countDocuments(),
       ]);
       const avgAttendance = formatPercent(
         presentLikeAttendanceCount,
@@ -86,6 +123,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         ? { subjects: { $in: teacherSubjectIds } }
         : { _id: { $exists: false } };
 
+      if (filteredClassIds.length) {
+        (classFilter as any)._id = { $in: filteredClassIds };
+      }
+
       // 1. Count classes assigned to teacher
       const myClasses = await Class.find(classFilter).select("name").lean();
 
@@ -102,6 +143,10 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             ],
           }
         : { teacher: user._id };
+
+      if (filteredClassIds.length) {
+        (examFilter as any).class = { $in: filteredClassIds };
+      }
 
       // 2. Submissions to review: total submissions on relevant exams.
       const myExams = await Exam.find(examFilter).select("_id");
@@ -200,10 +245,22 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       };
     } else if (user.role === "parent") {
       // Get parent's children (students)
-      const parentChildren = await User.find({
+      const parentChildrenQuery: any = {
         role: "student",
         parentId: user._id,
-      }).select("_id name studentClass");
+      };
+
+      if (filteredClassIds.length) {
+        parentChildrenQuery.studentClass = { $in: filteredClassIds };
+      }
+
+      const parentChildren = await User.find(parentChildrenQuery)
+        .select("_id name studentClass schoolSection")
+        .populate({
+          path: "studentClass",
+          select: "name section",
+          populate: { path: "section", select: "name language cycle subSystem", populate: { path: "subSystem", select: "code name" } },
+        });
 
       const childIds = parentChildren.map((child) => child._id);
 
@@ -243,6 +300,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         childrenCount: childIds.length,
         childrenAvgAttendance,
         childrenNames: parentChildren.map((c) => c.name),
+        childrenBySection: parentChildren.reduce((acc: Record<string, number>, child: any) => {
+          const sectionName = child.studentClass?.section?.name || child.schoolSection || "Unknown";
+          acc[sectionName] = (acc[sectionName] || 0) + 1;
+          return acc;
+        }, {}),
         upcomingExams: upcomingExams.map((e) => ({
           title: e.title,
           dueDate: new Date(e.dueDate).toLocaleDateString(),

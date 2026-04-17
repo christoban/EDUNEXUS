@@ -1,6 +1,24 @@
 import type { IAcademicYear } from "../models/academicYear.ts";
+import type { AcademicPeriodType } from "../models/academicPeriod.ts";
 
-export type ReportPeriod = "term1" | "term2" | "term3" | "annual";
+export type ReportPeriod = "term1" | "term2" | "term3" | "annual" | string;
+
+export const getAcademicPeriodCode = (type: AcademicPeriodType, number: number) =>
+  `${String(type).toLowerCase()}_${number}`;
+
+export const getAcademicPeriodLabel = (
+  type: AcademicPeriodType,
+  number: number,
+  language: "fr" | "en"
+) => {
+  const labels: Record<AcademicPeriodType, { fr: string; en: string }> = {
+    SEQUENCE: { fr: "Séquence", en: "Sequence" },
+    TERM: { fr: "Trimestre", en: "Term" },
+    MONTH: { fr: "Mois", en: "Month" },
+  };
+  const base = labels[type] || labels.TERM;
+  return `${language === "fr" ? base.fr : base.en} ${number}`;
+};
 
 export const getPeriodDateRange = (
   year: Pick<IAcademicYear, "fromYear" | "toYear">,

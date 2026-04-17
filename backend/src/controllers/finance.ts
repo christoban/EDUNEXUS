@@ -5,12 +5,14 @@ import Invoice from "../models/invoice.ts";
 import Payment from "../models/payment.ts";
 import Expense from "../models/expense.ts";
 import User from "../models/user.ts";
+import SmsLog from "../models/smsLog.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
-import { sendSms } from "../services/smsService.ts";
+import { getSmsDeliveryStatus, sendSms } from "../services/smsService.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { resolveUserLanguage } from "../utils/languageHelper.ts";
 import { buildPaymentReminderTemplate } from "../utils/emailTemplates.ts";
+import { emitSmsDelivered } from "../socket/io.ts";
 
 const asDate = (value?: string) => (value ? new Date(value) : undefined);
 
@@ -439,6 +441,12 @@ export const getExpenses = async (req: Request, res: Response) => {
 
 export const getOverdueStudents = async (req: Request, res: Response) => {
   try {
+    const schoolSettings = await getEffectiveSchoolSettings();
+    const bulletinPolicy = {
+      blockOnUnpaidFees: Boolean(schoolSettings.bulletinBlockOnUnpaidFees),
+      allowedOutstandingBalance: Number(schoolSettings.bulletinAllowedOutstandingBalance || 0),
+    };
+
     const query = ((req as any).validatedQuery || req.query) as any;
     const match: any = {
       status: { $in: ["issued", "partially_paid", "overdue"] },
@@ -481,7 +489,64 @@ export const getOverdueStudents = async (req: Request, res: Response) => {
       { $sort: { totalOutstanding: -1 } },
     ]);
 
-    return res.json({ overdueStudents: overdue, total: overdue.length });
+    if (!overdue.length) {
+      return res.json({ overdueStudents: [], total: 0 });
+    }
+
+    const studentIds = overdue
+      .map((item: any) => item.studentId)
+      .filter(Boolean);
+
+    const latestSmsLogs = await SmsLog.aggregate([
+      {
+        $match: {
+          eventType: "payment_reminder",
+          relatedEntityType: "Student",
+          relatedEntityId: { $in: studentIds },
+        },
+      },
+      { $sort: { sentAt: -1, createdAt: -1 } },
+      {
+        $group: {
+          _id: "$relatedEntityId",
+          smsLog: { $first: "$$ROOT" },
+        },
+      },
+    ]);
+
+    const smsByStudentId = new Map(
+      latestSmsLogs.map((entry: any) => [
+        String(entry._id),
+        {
+          smsLogId: String(entry.smsLog?._id || ""),
+          providerMessageId: entry.smsLog?.providerMessageId || null,
+          status: entry.smsLog?.status || "sent",
+          providerStatus: entry.smsLog?.providerStatus || null,
+          sentAt: entry.smsLog?.sentAt || null,
+        },
+      ])
+    );
+
+    const enrichedOverdue = overdue.map((item: any) => {
+      const outstanding = Number(item.totalOutstanding || 0);
+      const bulletinBlocked =
+        bulletinPolicy.blockOnUnpaidFees &&
+        outstanding > bulletinPolicy.allowedOutstandingBalance;
+
+      return {
+        ...item,
+        bulletinBlocked,
+        bulletinEligibility: bulletinBlocked ? "blocked" : "eligible",
+        bulletinAllowedOutstandingBalance: bulletinPolicy.allowedOutstandingBalance,
+        lastSms: smsByStudentId.get(String(item.studentId)) || null,
+      };
+    });
+
+    return res.json({
+      overdueStudents: enrichedOverdue,
+      total: enrichedOverdue.length,
+      bulletinPolicy,
+    });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server Error" });
   }
@@ -607,7 +672,14 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
 
     const result: any = {
       email: { attempted: false, status: "skipped", recipient: null as string | null, error: null as string | null },
-      sms: { attempted: false, status: "skipped", recipient: null as string | null, error: null as string | null },
+      sms: {
+        attempted: false,
+        status: "skipped",
+        recipient: null as string | null,
+        error: null as string | null,
+        providerMessageId: null as string | null,
+        smsLogId: null as string | null,
+      },
     };
 
     if (channels.includes("email")) {
@@ -692,6 +764,27 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
         const smsRes = await sendSms({ to: phoneNumber, message: smsMessage });
         result.sms.status = smsRes.status;
         result.sms.error = smsRes.error || null;
+        result.sms.providerMessageId = smsRes.providerMessageId || null;
+
+        const smsLog = await SmsLog.create({
+          recipientPhone: phoneNumber,
+          recipientUser: (student.parentId as any)?._id || student._id,
+          message: smsMessage,
+          eventType: "payment_reminder",
+          status: smsRes.status === "sent" ? "sent" : "failed",
+          providerMessageId: smsRes.providerMessageId || null,
+          errorMessage: smsRes.error || null,
+          metadata: {
+            studentId: String(student._id),
+            totalOutstanding,
+            invoiceCount: overdueInvoices.length,
+            language: recipientLanguage,
+          },
+          relatedEntityType: "Student",
+          relatedEntityId: student._id,
+        });
+
+        result.sms.smsLogId = String(smsLog._id);
       }
     }
 
@@ -706,6 +799,53 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
       totalOutstanding,
       invoiceCount: overdueInvoices.length,
       result,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+export const getSmsStatus = async (req: Request, res: Response) => {
+  try {
+    const msgId = String(req.params.msgId);
+
+    const statusRes = await getSmsDeliveryStatus(msgId);
+
+    if (statusRes.status !== "ok") {
+      return res.status(400).json(statusRes);
+    }
+
+    const providerStatusRaw = String(statusRes.providerStatus || "").toLowerCase();
+    const mappedStatus = providerStatusRaw.includes("deliv")
+      ? "delivered"
+      : providerStatusRaw.includes("fail") || providerStatusRaw.includes("error")
+        ? "failed"
+        : "sent";
+
+    const smsLog = await SmsLog.findOneAndUpdate(
+      { providerMessageId: msgId },
+      {
+        status: mappedStatus,
+        providerStatus: statusRes.providerStatus || null,
+        statusCheckedAt: new Date(),
+        lastProviderPayload: statusRes.raw || null,
+      },
+      { new: true }
+    );
+
+    if (mappedStatus === "delivered") {
+      emitSmsDelivered({
+        msgId,
+        smsLogId: smsLog ? String(smsLog._id) : undefined,
+      });
+    }
+
+    return res.json({
+      msgId,
+      providerStatus: statusRes.providerStatus,
+      mappedStatus,
+      smsLog,
+      raw: statusRes.raw,
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server Error" });

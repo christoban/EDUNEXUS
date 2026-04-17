@@ -23,7 +23,7 @@ import OverdueAndRemindersPage from "../finance/OverdueAndReminders";
 import InvoicesPage from "../finance/Invoices";
 import ExpensesPage from "../finance/Expenses";
 import SubjectsPage from "../settings/Subjects";
-import SchoolSettingsPage from "../settings/SchoolSettings";
+import SchoolConfigurationPage from "../settings/SchoolConfiguration";
 
 export const router = createBrowserRouter([
   {
@@ -180,10 +180,18 @@ export const router = createBrowserRouter([
             ),
           },
           {
+            path: "settings/configuration",
+            element: (
+              <RoleGuard path="/settings/configuration">
+                <SchoolConfigurationPage />
+              </RoleGuard>
+            ),
+          },
+          {
             path: "settings/school",
             element: (
               <RoleGuard path="/settings/school">
-                <SchoolSettingsPage />
+                <SchoolConfigurationPage />
               </RoleGuard>
             ),
           },

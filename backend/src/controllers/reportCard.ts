@@ -4,11 +4,10 @@ import ReportCard from "../models/reportCard.ts";
 import { inngest } from "../inngest/index.ts";
 import Class from "../models/class.ts";
 import User from "../models/user.ts";
-import Subject from "../models/subject.ts";
-import Exam from "../models/exam.ts";
 import Grade from "../models/grade.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { getLegalNotice, isOfficialBulletin, resolveUserLanguage } from "../utils/languageHelper.ts";
+import { getTemplateLabels } from "../utils/reportCardTemplates.ts";
 
 const getPeriodLabel = (
   period: string,
@@ -65,22 +64,16 @@ const mentionFromAverage = (average: number) => {
   return "Needs Improvement";
 };
 
-const formatXaf = (value: number) =>
-  new Intl.NumberFormat("fr-CM", {
-    style: "currency",
-    currency: "XAF",
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-
 export const triggerReportCardGeneration = async (req: Request, res: Response) => {
   try {
-    const { yearId, period, classId, studentId } = req.body;
+    const { yearId, period, periodId, classId, studentId } = req.body;
 
     await inngest.send({
       name: "reportcard/generate",
       data: {
         yearId,
-        period,
+        period: period || null,
+        periodId: periodId || null,
         classId: classId || null,
         studentId: studentId || null,
       },
@@ -89,7 +82,8 @@ export const triggerReportCardGeneration = async (req: Request, res: Response) =
     return res.status(202).json({
       message: "Report card generation queued",
       yearId,
-      period,
+      period: period || null,
+      periodId: periodId || null,
       classId: classId || null,
       studentId: studentId || null,
     });
@@ -104,10 +98,14 @@ export const getMyReportCards = async (req: Request, res: Response) => {
     const currentUser = (req as any).user;
     const yearId = req.query.yearId as string | undefined;
     const period = req.query.period as string | undefined;
+    const periodId = req.query.periodId as string | undefined;
 
     const query: any = { student: currentUser._id };
     if (yearId) query.year = yearId;
-    if (period) query.period = period;
+    if (period) {
+      query.$or = [{ periodCode: period }, { period }];
+    }
+    if (periodId) query.periodRef = periodId;
 
     const reportCards = await ReportCard.find(query)
       .populate("year", "name fromYear toYear")
@@ -142,12 +140,16 @@ export const getReportCards = async (req: Request, res: Response) => {
     const limit = Number(req.query.limit) || 10;
     const yearId = req.query.yearId as string | undefined;
     const period = req.query.period as string | undefined;
+    const periodId = req.query.periodId as string | undefined;
     const studentId = req.query.studentId as string | undefined;
     const search = String(req.query.search || "").trim();
 
     const query: any = {};
     if (yearId) query.year = yearId;
-    if (period) query.period = period;
+    if (period) {
+      query.$or = [{ periodCode: period }, { period }];
+    }
+    if (periodId) query.periodRef = periodId;
     if (studentId) query.student = studentId;
 
     // Teachers can only view report cards for students in their class scope
@@ -187,10 +189,18 @@ export const getReportCards = async (req: Request, res: Response) => {
     }
 
     if (search) {
-      query.$or = [
+      const searchFilters = [
         { mention: { $regex: search, $options: "i" } },
         { period: { $regex: search, $options: "i" } },
+        { periodCode: { $regex: search, $options: "i" } },
+        { periodLabel: { $regex: search, $options: "i" } },
       ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchFilters }];
+        delete query.$or;
+      } else {
+        query.$or = searchFilters;
+      }
     }
 
     const skip = (page - 1) * limit;
@@ -298,14 +308,17 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
       const subject = grade.subject as any;
       const exam = grade.exam as any;
       const coefficient = Number(subject?.coefficient || 1);
-      const weighted = Number(grade.percentage || 0) * coefficient;
+      const scoreOn20 = Number(grade.scoreOn20 ?? 0);
+      const weighted = scoreOn20 * coefficient;
       return {
         subjectName: subject?.name || "Subject",
         subjectCode: subject?.code || "-",
         coefficient,
         note: Number(grade.score || 0),
         maxScore: Number(grade.maxScore || 0),
+        scoreOn20,
         percentage: Number(grade.percentage || 0),
+        displayGrade: grade.gradeLabel || `${Number(grade.percentage || 0)}%`,
         weighted,
         appreciation: subject?.appreciation || "",
         teacherName: exam?.teacher?.name || subject?.teacher?.[0]?.name || "N/A",
@@ -314,8 +327,18 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
 
     const totalCoef = subjectRows.reduce((sum, row) => sum + row.coefficient, 0) || 1;
     const totalWeighted = subjectRows.reduce((sum, row) => sum + row.weighted, 0);
-    const average = Number((totalWeighted / totalCoef).toFixed(2));
+    const averageScoreOn20 = Number((totalWeighted / totalCoef).toFixed(2));
+    const averagePercentage = Number((averageScoreOn20 * 5).toFixed(2));
+    const average = Number((reportCard.aggregates?.average ?? averagePercentage).toFixed(2));
     const mention = mentionFromAverage(average);
+    const templateLabels = getTemplateLabels(
+      (reportCard as any).templateType || "FR",
+      bulletinLanguage
+    );
+    const periodText =
+      String((reportCard as any).periodLabel || "").trim() ||
+      getPeriodLabel(String((reportCard as any).period || ""), academicCalendarType, bulletinLanguage);
+    const bulletinMeta = (reportCard as any).bulletinMeta || {};
 
     const filename = `report-card-${(reportCard as any).student?.name || "student"}-${(reportCard as any).period}.pdf`
       .replace(/\s+/g, "-")
@@ -341,10 +364,10 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
 
     doc.moveDown(1.6);
     doc.fillColor("#0f172a").fontSize(18).text(
-      bulletinLanguage === "fr" ? "Bulletin Scolaire" : "Report Card",
+      templateLabels.title,
       { align: "center" }
     );
-    doc.fontSize(10).fillColor("#64748b").text(`Periode: ${getPeriodLabel(String((reportCard as any).period || ""), academicCalendarType, bulletinLanguage)}`, {
+    doc.fontSize(10).fillColor("#64748b").text(`Periode: ${periodText}`, {
       align: "center",
     });
 
@@ -356,12 +379,12 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
     doc.text(`Date d'edition: ${new Date().toLocaleDateString("fr-CM")}`);
 
     doc.moveDown(1);
-    doc.fontSize(12).fillColor("#0f172a").text("Détail par matière", { underline: true });
+    doc.fontSize(12).fillColor("#0f172a").text(templateLabels.detailTitle, { underline: true });
 
     const startY = doc.y + 8;
     const tableX = 36;
-    const widths = [150, 38, 52, 50, 70, 92, 90];
-    const headers = ["Matiere", "Coef.", "Note", "Max", "%", "Enseignant", "Total"].map(String);
+    const widths = [128, 36, 44, 44, 52, 60, 80, 98];
+    const headers = ["Matiere", "Coef.", "Note", "Max", "/20", "Aff.", "Enseignant", "Pondere"].map(String);
 
     let currentY = startY;
     doc.fontSize(9).fillColor("#ffffff");
@@ -387,9 +410,10 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
         String(row.coefficient),
         String(row.note),
         String(row.maxScore),
-        `${row.percentage}%`,
+        String(row.scoreOn20),
+        row.displayGrade,
         row.teacherName,
-        formatXaf(row.weighted),
+        String(Number(row.weighted.toFixed(2))),
       ];
       let cellX = tableX + 6;
       doc.fillColor("#0f172a").fontSize(8.5);
@@ -407,13 +431,36 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
     currentY += 14;
     doc.fontSize(11).fillColor("#0f172a");
     doc.text(`Total coefficients: ${totalCoef}`, tableX, currentY);
-    doc.text(`Somme ponderee: ${formatXaf(totalWeighted)}`, tableX + 180, currentY);
+    doc.text(`Somme ponderee (/20): ${Number(totalWeighted.toFixed(2))}`, tableX + 180, currentY);
     doc.text(`Moyenne generale: ${average}%`, tableX + 340, currentY);
 
     currentY += 24;
     doc.fontSize(11).text(`Mention: ${mention}`, tableX, currentY);
     doc.text(`Total examens: ${subjectRows.length}`, tableX + 180, currentY);
     doc.text(`Decisions: ${reportCard.aggregates?.passedExams || 0} reussis / ${reportCard.aggregates?.failedExams || 0} echec`, tableX + 340, currentY);
+
+    currentY += 24;
+    doc.fontSize(11).fillColor("#0f172a").text(templateLabels.classStats, tableX, currentY);
+    currentY += 14;
+    doc.fontSize(10)
+      .text(`${templateLabels.rank}: ${Number(bulletinMeta.rank || 1)} / ${Number(bulletinMeta.classSize || 1)}`, tableX, currentY)
+      .text(`${templateLabels.average}: ${Number((bulletinMeta.classAverage ?? average).toFixed(2))}%`, tableX + 180, currentY)
+      .text(`Max: ${Number((bulletinMeta.classHighest ?? average).toFixed(2))}%`, tableX + 340, currentY);
+    currentY += 16;
+    doc.fontSize(10)
+      .text(`Min: ${Number((bulletinMeta.classLowest ?? average).toFixed(2))}%`, tableX, currentY)
+      .text(`${templateLabels.absences}: ${Number(bulletinMeta.absences || 0)}`, tableX + 180, currentY)
+      .text(`${templateLabels.late}: ${Number(bulletinMeta.lateCount || 0)}`, tableX + 340, currentY);
+    if (bulletinMeta.councilDecision) {
+      currentY += 16;
+      doc.fontSize(10).text(
+        bulletinLanguage === "fr"
+          ? `Decision du conseil: ${bulletinMeta.councilDecision}`
+          : `Council decision: ${bulletinMeta.councilDecision}`,
+        tableX,
+        currentY
+      );
+    }
 
     currentY += 28;
     doc.fontSize(11).fillColor("#0f172a").text("Appréciations par matière", tableX, currentY);
@@ -433,12 +480,7 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
     currentY += 8;
     doc.fontSize(11).fillColor("#0f172a").text("Observations", tableX, currentY);
     currentY += 14;
-    doc.fontSize(10).fillColor("#334155").text(
-      `Moyenne calculée à partir des notes disponibles. Le bulletin officiel peut être enrichi avec un coefficient personnalisé par matière si votre établissement le souhaite.`,
-      tableX,
-      currentY,
-      { width: 520 }
-    );
+    doc.fontSize(10).fillColor("#334155").text(templateLabels.note, tableX, currentY, { width: 520 });
 
     // 🔑 Add legal notice for translated bulletins
     const legalNotice = getLegalNotice(isOfficial, bulletinLanguage);
@@ -450,8 +492,20 @@ export const downloadReportCardPdf = async (req: Request, res: Response) => {
       currentY += 48;
     }
 
-    doc.text("Signature enseignant principal: ____________________", tableX, currentY);
-    doc.text("Signature directeur: ____________________", tableX + 250, currentY);
+    doc.text(
+      `${templateLabels.teacherSignature}: ${
+        bulletinMeta?.signatures?.classTeacher || "________________"
+      }`,
+      tableX,
+      currentY
+    );
+    doc.text(
+      `${templateLabels.principalSignature}: ${
+        bulletinMeta?.signatures?.principal || "________________"
+      }`,
+      tableX + 250,
+      currentY
+    );
 
     doc.end();
   } catch (error: any) {

@@ -13,6 +13,7 @@ import {
   idParamSchema,
   invoiceQuerySchema,
   paymentQuerySchema,
+  smsMsgIdParamSchema,
   sendFinanceReminderBodySchema,
   updateFeePlanBodySchema,
 } from "../validation/schemas.ts";
@@ -30,6 +31,7 @@ import {
   getOverdueStudents,
   getPayments,
   getRevenueByPeriod,
+  getSmsStatus,
   recordPayment,
   sendPaymentReminder,
   updateFeePlan,
@@ -116,6 +118,11 @@ financeRouter.post(
   sensitiveWriteLimiter,
   validate({ body: sendFinanceReminderBodySchema }),
   sendPaymentReminder
+);
+financeRouter.get(
+  "/sms/status/:msgId",
+  validate({ params: smsMsgIdParamSchema }),
+  getSmsStatus
 );
 
 export default financeRouter;

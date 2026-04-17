@@ -1,6 +1,7 @@
 import { type Request, type Response } from "express";
 import Class from "../models/class.ts";
 import User from "../models/user.ts";
+import Section from "../models/section.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 
 // @desc    Create a new Class
@@ -12,19 +13,25 @@ export const createClass = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Only admins can create classes" });
     }
 
-    const { name, academicYear, classTeacher, capacity, subjects } = req.body;
+    const { name, academicYear, section, classTeacher, capacity, subjects } = req.body;
 
-    const existingClass = await Class.findOne({ name, academicYear });
+    const existingClass = await Class.findOne({
+      name,
+      academicYear,
+      section: section || null,
+    });
+
     if (existingClass) {
       return res.status(400).json({
         message:
-          "Class with this name already exists for the specified academic year.",
+          "Class with this name already exists for the specified academic year and section.",
       });
     }
 
     const newClass = await Class.create({
       name,
       academicYear,
+      section: section || null,
       classTeacher,
       capacity,
       subjects: Array.isArray(subjects) ? subjects : [],
@@ -48,11 +55,25 @@ export const getAllClasses = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
+    const sectionId = req.query.sectionId as string | undefined;
+    const cycle = req.query.cycle as string | undefined;
 
     // 2. Build Search Query (Case-insensitive regex on Name)
     const query: any = {};
     if (search) {
       query.name = { $regex: search, $options: "i" };
+    }
+
+    if (sectionId) {
+      query.section = sectionId;
+    }
+
+    if (cycle) {
+      const matchingSections = await Section.find({ cycle }).select("_id").lean();
+      const matchingSectionIds = matchingSections.map((section) => section._id);
+      query.section = query.section
+        ? { $in: [query.section].flat().filter(Boolean).filter((value: any) => matchingSectionIds.some((id) => String(id) === String(value))) }
+        : { $in: matchingSectionIds.length ? matchingSectionIds : ["__no_match__"] };
     }
 
     const currentUser = (req as any).user;
@@ -103,6 +124,11 @@ export const getAllClasses = async (req: Request, res: Response) => {
       Class.countDocuments(query),
       Class.find(query)
         .populate("academicYear", "name")
+        .populate({
+          path: "section",
+          select: "name language cycle subSystem",
+          populate: { path: "subSystem", select: "code name" },
+        })
         .populate("classTeacher", "name email")
         .populate("subjects", "name code")
         .sort({ createdAt: -1 })
@@ -165,6 +191,7 @@ export const updateClass = async (req: Request, res: Response) => {
       const existingClass = await Class.findOne({
         name,
         academicYear,
+        section: req.body.section || null,
         _id: { $ne: classId },
       });
 

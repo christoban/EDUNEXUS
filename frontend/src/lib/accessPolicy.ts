@@ -60,7 +60,7 @@ export const SIDEBAR_NAV_POLICY: SidebarNavSectionPolicy[] = [
     title: "System",
     icon: "Settings2",
     items: [
-      { title: "School Settings", url: "/settings/school" },
+      { title: "School Configuration", url: "/settings/configuration" },
       { title: "Manage Subjects", url: "/settings/subjects" },
       { title: "Academic Years", url: "/settings/academic-years" },
       { title: "Email History", url: "/settings/email-history" },
@@ -103,6 +103,7 @@ export const ROUTE_ROLE_POLICY: Array<{ path: string; roles: UserRole[] }> = [
   { path: "/lms/exams/:id", roles: ["admin", "teacher", "student"] },
   { path: "/lms/report-cards", roles: ["admin", "teacher", "student"] },
   { path: "/settings/school", roles: ["admin"] },
+  { path: "/settings/configuration", roles: ["admin"] },
   { path: "/settings/subjects", roles: ["admin"] },
   { path: "/settings/academic-years", roles: ["admin"] },
   { path: "/settings/email-history", roles: ["admin"] },

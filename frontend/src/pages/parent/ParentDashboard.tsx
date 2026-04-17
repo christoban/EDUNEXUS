@@ -1,15 +1,31 @@
-import { useState } from "react";
-import { ParentDashboardStats, ParentChildrenGrid } from "@/components/dashboard/parent-dashboard";
-import type { user } from "@/types";
+import { useEffect, useState } from "react";
+import { ParentDashboardStats, ParentChildrenGrid, type ChildWithStats } from "@/components/dashboard/parent-dashboard";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const ParentDashboard = () => {
-  const [children] = useState<user[]>([]);
+  const [children, setChildren] = useState<ChildWithStats[]>([]);
+  const [loading, setLoading] = useState(true);
   const language = useUILanguage();
 
-  // This is a simple wrapper page that will show the parent dashboard
-  // The actual data fetching happens in ParentChildrenGrid component
+  useEffect(() => {
+    const loadChildren = async () => {
+      try {
+        setLoading(true);
+        const { data } = await api.get("/parent/children");
+        setChildren(data?.children || []);
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || t("parent.dashboard.loadFail", language));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadChildren();
+  }, [language]);
 
   return (
     <div className="p-6 space-y-6">
@@ -21,13 +37,18 @@ const ParentDashboard = () => {
         </p>
       </div>
 
-      {/* Stats Section - Updated when children are loaded */}
-      <ParentDashboardStats children={children} />
+      {loading ? (
+        <div className="flex items-center justify-center rounded-lg border bg-card py-16">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : (
+        <ParentDashboardStats children={children} />
+      )}
 
       {/* Children Grid Section */}
       <div>
         <h2 className="text-xl font-bold mb-4">{t("parent.dashboard.childrenTitle", language)}</h2>
-        <ParentChildrenGrid />
+        <ParentChildrenGrid children={children} loading={loading} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IClass extends Document {
   name: string; // e.g., "Grade 10"
   academicYear: mongoose.Types.ObjectId; // Link to "2024-2025"
+  section?: mongoose.Types.ObjectId | null; // Link to FR/EN/Technical section
   classTeacher: mongoose.Types.ObjectId; // The main teacher in charge
   subjects: mongoose.Types.ObjectId[]; // List of subjects taught in this class
   students: mongoose.Types.ObjectId[]; // List of students enrolled
@@ -22,6 +23,12 @@ const classSchema = new Schema<IClass>(
       type: Schema.Types.ObjectId,
       ref: "AcademicYear",
       required: true,
+    },
+    section: {
+      type: Schema.Types.ObjectId,
+      ref: "Section",
+      default: null,
+      index: true,
     },
     // Reference to the User model (Teacher role)
     classTeacher: {
@@ -55,6 +62,6 @@ const classSchema = new Schema<IClass>(
 
 // Compound Index: Prevents creating duplicate classes
 // (e.g., You can't have two "Grade 10 - A" in the same Academic Year)
-classSchema.index({ name: 1, academicYear: 1 }, { unique: true });
+classSchema.index({ name: 1, academicYear: 1, section: 1 }, { unique: true });
 
 export default mongoose.model<IClass>("Class", classSchema);

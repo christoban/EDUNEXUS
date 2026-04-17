@@ -21,6 +21,10 @@ export const idParamSchema = z.object({
   id: objectId,
 });
 
+export const smsMsgIdParamSchema = z.object({
+  msgId: z.string().trim().min(1).max(200),
+});
+
 export const generationIdParamSchema = z.object({
   id: objectId,
 });
@@ -71,6 +75,7 @@ export const updateUserBodySchema = z
 export const createClassBodySchema = z.object({
   name: z.string().min(1).max(100),
   academicYear: objectId,
+  section: optionalObjectId,
   classTeacher: optionalObjectId,
   capacity: z.number().int().positive().max(500),
   subjects: z.array(objectId).optional(),
@@ -80,6 +85,7 @@ export const updateClassBodySchema = z
   .object({
     name: z.string().min(1).max(100).optional(),
     academicYear: objectId.optional(),
+    section: optionalObjectId,
     classTeacher: optionalObjectId,
     capacity: z.number().int().positive().max(500).optional(),
     subjects: z.array(objectId).optional(),
@@ -179,18 +185,25 @@ export const globalSearchQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).optional(),
 });
 
-const reportPeriodEnum = z.enum(["term1", "term2", "term3", "annual"]);
+const reportPeriodEnum = z.string().trim().min(1).max(40);
 
-export const generateReportCardsBodySchema = z.object({
-  yearId: objectId,
-  period: reportPeriodEnum,
-  classId: objectId.optional(),
-  studentId: objectId.optional(),
-});
+export const generateReportCardsBodySchema = z
+  .object({
+    yearId: objectId,
+    period: reportPeriodEnum.optional(),
+    periodId: objectId.optional(),
+    classId: objectId.optional(),
+    studentId: objectId.optional(),
+  })
+  .refine((data) => Boolean(data.period || data.periodId), {
+    message: "Provide period or periodId",
+    path: ["period"],
+  });
 
 export const reportCardsQuerySchema = z.object({
   yearId: objectId.optional(),
   period: reportPeriodEnum.optional(),
+  periodId: objectId.optional(),
   classId: objectId.optional(),
   studentId: objectId.optional(),
   search: z.string().trim().optional(),
@@ -355,4 +368,98 @@ export const sendFinanceReminderBodySchema = z.object({
   channels: z.array(z.enum(["email", "sms"])).min(1),
   phoneNumber: z.string().trim().min(8).max(30).optional(),
   customMessage: z.string().trim().min(3).max(500).optional(),
+});
+
+const cycleEnum = z.enum(["maternelle", "primaire", "secondaire_1", "secondaire_2", "technique"]);
+const gradingScaleEnum = z.enum(["OVER_20", "PERCENT", "GRADES_AE", "COMPETENCY_ANA"]);
+const periodTypeEnum = z.enum(["SEQUENCES_6", "TERMS_3", "MONTHLY_9"]);
+
+export const upsertSchoolSettingsBodySchema = z.object({
+  schoolName: z.string().min(2).max(160),
+  schoolMotto: z.string().min(2).max(240),
+  schoolLogoUrl: z.string().max(2_000_000).optional(),
+  academicCalendarType: z.enum(["trimester", "semester"]).optional(),
+  calendarType: z.enum(["trimester", "semester"]).optional(),
+  preferredLanguage: z.enum(["fr", "en"]).optional(),
+  schoolLanguageMode: z.enum(["anglophone", "francophone", "bilingual"]).optional(),
+  languageMode: z.enum(["anglophone", "francophone", "bilingual"]).optional(),
+  officialLanguages: z.array(z.enum(["fr", "en"])).min(1).optional(),
+  mode: z.enum(["simple_fr", "simple_en", "bilingual", "complex"]).optional(),
+  cycles: z.array(cycleEnum).min(1).optional(),
+  hasMultipleCycles: z.boolean().optional(),
+  attendanceLateAsAbsence: z.boolean().optional(),
+  attendanceExcusedCountsAsAbsence: z.boolean().optional(),
+  councilDecisionMode: z.enum(["manual", "automatic"]).optional(),
+  councilPassAverageThreshold: z.coerce.number().min(0).max(100).optional(),
+  councilMaxAbsences: z.coerce.number().min(0).optional(),
+  bulletinBlockOnUnpaidFees: z.boolean().optional(),
+  bulletinAllowedOutstandingBalance: z.coerce.number().min(0).optional(),
+});
+
+export const createSectionBodySchema = z.object({
+  subSystem: objectId.optional(),
+  subSystemId: objectId.optional(),
+  name: z.string().min(2).max(140),
+  language: z.enum(["fr", "en"]),
+  cycle: cycleEnum,
+  isActive: z.boolean().optional(),
+});
+
+export const updateSubSystemBodySchema = z
+  .object({
+    name: z.string().min(2).max(140).optional(),
+    gradingScale: gradingScaleEnum.optional(),
+    periodType: periodTypeEnum.optional(),
+    hasCoefficientBySubject: z.boolean().optional(),
+    passThreshold: z.coerce.number().min(0).max(20).optional(),
+    bulletinTemplate: z.string().trim().max(120).optional().nullable(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+export const updateSectionBodySchema = z
+  .object({
+    subSystem: objectId.optional(),
+    subSystemId: objectId.optional(),
+    name: z.string().min(2).max(140).optional(),
+    language: z.enum(["fr", "en"]).optional(),
+    cycle: cycleEnum.optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+export const createAcademicPeriodBodySchema = z.object({
+  academicYear: objectId,
+  section: objectId,
+  type: z.enum(["SEQUENCE", "TERM", "MONTH"]),
+  number: z.number().int().min(1).max(12),
+  trimester: z.number().int().min(1).max(3).optional().nullable(),
+  startDate: z.union([z.string().datetime(), z.date()]),
+  endDate: z.union([z.string().datetime(), z.date()]),
+  isBulletinPeriod: z.boolean().optional(),
+  isCouncilPeriod: z.boolean().optional(),
+});
+
+export const updateAcademicPeriodBodySchema = z
+  .object({
+    type: z.enum(["SEQUENCE", "TERM", "MONTH"]).optional(),
+    number: z.number().int().min(1).max(12).optional(),
+    trimester: z.number().int().min(1).max(3).optional().nullable(),
+    startDate: z.union([z.string().datetime(), z.date()]).optional(),
+    endDate: z.union([z.string().datetime(), z.date()]).optional(),
+    isBulletinPeriod: z.boolean().optional(),
+    isCouncilPeriod: z.boolean().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field must be provided",
+  });
+
+export const academicPeriodQuerySchema = z.object({
+  sectionId: objectId.optional(),
+  academicYearId: objectId.optional(),
+  type: z.enum(["SEQUENCE", "TERM", "MONTH"]).optional(),
 });

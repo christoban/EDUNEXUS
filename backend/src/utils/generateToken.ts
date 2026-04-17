@@ -1,8 +1,18 @@
 import jwt from "jsonwebtoken";
 import { type Response } from "express";
 
-export const generateToken = (userId: string, res: Response) => {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET as string, {
+export const generateToken = (
+  userId: string,
+  res: Response,
+  schoolId?: string | null
+) => {
+  // ✅ MULTI-TENANT: Include schoolId in JWT payload
+  const payload: any = { userId };
+  if (schoolId) {
+    payload.schoolId = schoolId;
+  }
+
+  const token = jwt.sign(payload, process.env.JWT_SECRET as string, {
     expiresIn: "30d",
     algorithm: "HS512",
   });

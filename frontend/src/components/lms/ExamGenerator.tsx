@@ -265,6 +265,10 @@ const ExamGenerator = ({ open, onOpenChange, onSuccess }: Props) => {
                         {classes.map((c) => (
                           <SelectItem key={c._id} value={c._id}>
                             {c.name}
+                            {(() => {
+                              const section = typeof c.section === "string" || !c.section ? null : c.section;
+                              return section ? ` • ${section.name}${section.cycle ? ` • ${section.cycle}` : ""}${section.subSystem && typeof section.subSystem !== "string" ? ` • ${section.subSystem.code}` : ""}` : "";
+                            })()}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -349,6 +353,9 @@ const ExamGenerator = ({ open, onOpenChange, onSuccess }: Props) => {
                 </>
               )}
             </Button>
+            <p className="text-xs text-muted-foreground">
+              Selected class context includes section and subsystem so generated exams stay aligned with the school structure.
+            </p>
           </FieldGroup>
         </form>
       </DialogContent>

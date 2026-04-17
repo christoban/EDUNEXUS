@@ -14,7 +14,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Calendar, FileText, CheckCircle2 } from "lucide-react";
+import { Calendar, FileText, CheckCircle2, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import type { Section } from "@/types";
+import { useUILanguage } from "@/hooks/useUILanguage";
+import { t } from "@/lib/i18n";
 
 // Custom Components
 import { AiInsightWidget } from "@/components/dashboard/ai-insight-widget";
@@ -23,9 +28,13 @@ import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const language = useUILanguage();
 
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState<any>({});
+  const [sections, setSections] = useState<Section[]>([]);
+  const [sectionId, setSectionId] = useState<string>("all");
+  const [cycle, setCycle] = useState<string>("all");
   const [globalQuery, setGlobalQuery] = useState("");
   const [debouncedGlobalQuery, setDebouncedGlobalQuery] = useState("");
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
@@ -44,7 +53,10 @@ export default function Dashboard() {
       try {
         setLoading(true);
         // THE REAL CALL
-        const { data } = await api.get("/dashboard/stats");
+        const params = new URLSearchParams();
+        if (sectionId !== "all") params.set("sectionId", sectionId);
+        if (cycle !== "all") params.set("cycle", cycle);
+        const { data } = await api.get(`/dashboard/stats${params.toString() ? `?${params.toString()}` : ""}`);
         setStatsData(data);
       } catch (error) {
         console.error("Failed to load dashboard", error);
@@ -54,7 +66,20 @@ export default function Dashboard() {
     };
 
     if (user) fetchDashboardData();
-  }, [user]);
+  }, [user, sectionId, cycle]);
+
+  useEffect(() => {
+    const fetchSections = async () => {
+      try {
+        const { data } = await api.get("/core-domain/sections");
+        setSections(data.sections || []);
+      } catch (error) {
+        console.error("Failed to load sections", error);
+      }
+    };
+
+    fetchSections();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -121,9 +146,9 @@ export default function Dashboard() {
       {/* --- HEADER --- */}
       <div className="flex items-center justify-between space-y-2">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <h2 className="text-3xl font-bold tracking-tight">{t("dashboard.title", language)}</h2>
           <p className="text-muted-foreground">
-            Welcome back, {user?.name}! Here is your daily academic overview.
+            {user?.name ? `${t("dashboard.welcome", language)}, ${user.name}!` : t("dashboard.welcome", language)}
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -140,6 +165,58 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-4 w-4" /> {t("dashboard.filter.title", language)}
+          </CardTitle>
+          <CardDescription>
+            {t("dashboard.filter.subtitle", language)}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("dashboard.filter.section", language)}</p>
+            <Select value={sectionId} onValueChange={setSectionId}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("dashboard.filter.allSections", language)} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("dashboard.filter.allSections", language)}</SelectItem>
+                {sections.map((section) => (
+                  <SelectItem key={section._id} value={section._id}>
+                    {section.name} · {section.cycle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("dashboard.filter.cycle", language)}</p>
+            <Select value={cycle} onValueChange={setCycle}>
+              <SelectTrigger>
+                <SelectValue placeholder={t("dashboard.filter.allCycles", language)} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("dashboard.filter.allCycles", language)}</SelectItem>
+                {(["maternelle", "primaire", "secondaire_1", "secondaire_2", "technique"] as const).map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("dashboard.filter.scope", language)}</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Badge variant="secondary">{sectionId === "all" ? t("dashboard.filter.allSections", language) : sections.find((section) => section._id === sectionId)?.name || t("dashboard.filter.section", language)}</Badge>
+              <Badge variant="outline">{cycle === "all" ? t("dashboard.filter.allCycles", language) : cycle}</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* --- TOP ROW: STATS --- */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
