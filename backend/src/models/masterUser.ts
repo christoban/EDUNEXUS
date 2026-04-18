@@ -64,6 +64,65 @@ const masterUserSchema = new Schema<IMasterUser>(
   { timestamps: true }
 );
 
+const OTP_FIELDS = [
+  "loginEmailOtpHash",
+  "loginEmailOtpExpiresAt",
+  "loginEmailOtpAttempts",
+  "loginEmailOtpSentAt",
+] as const;
+
+const hasOtpMutation = (update: any) => {
+  if (!update || typeof update !== "object") return false;
+
+  const directMutation = OTP_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(update, field));
+  if (directMutation) return true;
+
+  const setMutation =
+    update.$set && OTP_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(update.$set, field));
+  if (setMutation) return true;
+
+  const unsetMutation =
+    update.$unset && OTP_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(update.$unset, field));
+  if (unsetMutation) return true;
+
+  const incMutation =
+    update.$inc && OTP_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(update.$inc, field));
+  if (incMutation) return true;
+
+  return false;
+};
+
+const traceOtpMutation = function (this: any, op: string) {
+  if ((process.env.MASTER_DEBUG_OTP_MUTATIONS || "false").toLowerCase() !== "true") {
+    return;
+  }
+
+  const update = this.getUpdate?.();
+  if (!hasOtpMutation(update)) {
+    return;
+  }
+
+  const stack = new Error("OTP mutation trace").stack
+    ?.split("\n")
+    .slice(2, 8)
+    .join("\n");
+
+  console.warn("[MASTER USER][OTP MUTATION]", {
+    op,
+    query: this.getQuery?.(),
+    update,
+    stack,
+  });
+};
+
+masterUserSchema.pre("updateOne", function () {
+  traceOtpMutation.call(this, "updateOne");
+});
+
+masterUserSchema.pre("findOneAndUpdate", function () {
+  traceOtpMutation.call(this, "findOneAndUpdate");
+});
+
 // Hash password before save
 masterUserSchema.pre<IMasterUser>("save", async function () {
   if (!this.isModified("password")) return;

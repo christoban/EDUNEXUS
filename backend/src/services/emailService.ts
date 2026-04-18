@@ -93,7 +93,16 @@ export const sendTransactionalEmail = async (
   } catch (error: any) {
     status = "failed";
     errorMessage = error?.message || "Unknown email error";
-    console.error("Email send failed:", errorMessage);
+    console.error("Email send failed:", {
+      message: errorMessage,
+      code: error?.code,
+      responseCode: error?.responseCode,
+      response: error?.response,
+      command: error?.command,
+      recipientEmail: input.recipientEmail,
+      template: input.template,
+      eventType: input.eventType,
+    });
   }
 
   await EmailLog.create({

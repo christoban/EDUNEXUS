@@ -176,7 +176,7 @@ const SchoolOnboardingRequests = () => {
       return;
     }
 
-    try {
+    try { 
       setBusyRequestId(schoolId);
       await api.post(`/onboarding/requests/${schoolId}/${action}`, {
         sensitiveAuth: {

@@ -22,7 +22,37 @@ const masterJwtSecret = process.env.MASTER_JWT_SECRET || process.env.JWT_SECRET;
 const masterPreAuthTtl = process.env.MASTER_PREAUTH_TTL || "10m";
 const masterEmailOtpTtl = process.env.MASTER_EMAIL_OTP_TTL || "10m";
 const masterPasswordChangeOtpTtl = process.env.MASTER_PASSWORD_CHANGE_OTP_TTL || "10m";
-const authenticator = (otplib as any).authenticator;
+const getOtpLib = () => {
+  if (
+    typeof (otplib as any)?.verify !== "function" ||
+    typeof (otplib as any)?.generateSecret !== "function" ||
+    typeof (otplib as any)?.generateURI !== "function"
+  ) {
+    throw new Error("MFA authenticator is unavailable");
+  }
+
+  return otplib as any;
+};
+
+const buildOtpAuthUrl = (email: string, secret: string) => {
+  const otpLib = getOtpLib();
+  return otpLib.generateURI({
+    issuer: "EDUNEXUS Master",
+    label: email,
+    secret,
+  });
+};
+
+const verifyOtpToken = async (token: string, secret: string) => {
+  const otpLib = getOtpLib();
+  const result = await otpLib.verify({ token, secret });
+
+  if (typeof result === "boolean") {
+    return result;
+  }
+
+  return Boolean(result?.valid);
+};
 
 const parseDurationToMs = (value: string, fallbackMs: number) => {
   const normalized = String(value || "").trim().toLowerCase();
@@ -104,7 +134,7 @@ const verifyMfaOrRecoveryCode = async (
   recoveryCodeHashes: string[],
   allowRecoveryCode: boolean
 ) => {
-  const validTotp = authenticator.verify({ token: code, secret });
+  const validTotp = await verifyOtpToken(code, secret);
   if (validTotp) {
     return {
       valid: true,
@@ -196,6 +226,8 @@ const signMasterPreAuthToken = (payload: {
   id: string;
   email: string;
   role: string;
+  emailOtpHash?: string;
+  emailOtpExpiresAt?: string;
 }) => {
   if (!masterJwtSecret) {
     throw new Error("Master auth misconfigured");
@@ -207,6 +239,8 @@ const signMasterPreAuthToken = (payload: {
       email: payload.email,
       role: payload.role,
       tokenType: "master_preauth",
+      emailOtpHash: payload.emailOtpHash,
+      emailOtpExpiresAt: payload.emailOtpExpiresAt,
     },
     masterJwtSecret,
     { expiresIn: masterPreAuthTtl as any, algorithm: "HS512" }
@@ -323,7 +357,7 @@ export const masterLogin = async (req: Request, res: Response) => {
     const emailOtpHash = await bcrypt.hash(emailOtpCode, 10);
     const emailOtpExpiresAt = new Date(Date.now() + masterEmailOtpTtlMs);
 
-    await MasterUserModel.updateOne(
+    const otpPersistResult = await MasterUserModel.updateOne(
       { _id: masterUser._id },
       {
         $set: {
@@ -334,6 +368,60 @@ export const masterLogin = async (req: Request, res: Response) => {
         },
       }
     );
+
+    if (!otpPersistResult.matchedCount) {
+      console.error("[MASTER AUTH] OTP persist failed: user not matched", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+        dbName: masterConn.db?.databaseName,
+        collectionName: MasterUserModel.collection?.name,
+      });
+
+      void logMasterAuthAudit({
+        req,
+        outcome: "failure",
+        reason: "email_otp_persist_user_not_found",
+        email: masterUser.email,
+      });
+
+      return res.status(500).json({
+        message: "Unable to initialize email verification (persist failed)",
+      });
+    }
+
+    const otpStateAfterPersist = await MasterUserModel.findById(masterUser._id)
+      .select("_id loginEmailOtpHash loginEmailOtpExpiresAt loginEmailOtpSentAt")
+      .lean<{
+        _id: any;
+        loginEmailOtpHash?: string | null;
+        loginEmailOtpExpiresAt?: Date | string | null;
+        loginEmailOtpSentAt?: Date | string | null;
+      }>();
+
+    if (!otpStateAfterPersist?.loginEmailOtpHash || !otpStateAfterPersist?.loginEmailOtpExpiresAt) {
+      console.error("[MASTER AUTH] OTP fields missing immediately after persist", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+        matchedCount: otpPersistResult.matchedCount,
+        modifiedCount: otpPersistResult.modifiedCount,
+        hasHashAfterPersist: Boolean(otpStateAfterPersist?.loginEmailOtpHash),
+        hasExpiryAfterPersist: Boolean(otpStateAfterPersist?.loginEmailOtpExpiresAt),
+        hasSentAtAfterPersist: Boolean(otpStateAfterPersist?.loginEmailOtpSentAt),
+        dbName: masterConn.db?.databaseName,
+        collectionName: MasterUserModel.collection?.name,
+      });
+
+      void logMasterAuthAudit({
+        req,
+        outcome: "failure",
+        reason: "email_otp_persist_missing_fields",
+        email: masterUser.email,
+      });
+
+      return res.status(500).json({
+        message: "Unable to initialize email verification (missing OTP fields)",
+      });
+    }
 
     const otpEmail = buildMasterLoginOtpEmail(masterUser.name || masterUser.email, emailOtpCode);
     const emailResult = await sendTransactionalEmail({
@@ -375,10 +463,70 @@ export const masterLogin = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Unable to send the email verification code" });
     }
 
+    const otpStateAfterEmail = await MasterUserModel.findById(masterUser._id)
+      .select("_id loginEmailOtpHash loginEmailOtpExpiresAt loginEmailOtpSentAt")
+      .lean<{
+        _id: any;
+        loginEmailOtpHash?: string | null;
+        loginEmailOtpExpiresAt?: Date | string | null;
+        loginEmailOtpSentAt?: Date | string | null;
+      }>();
+
+    if (!otpStateAfterEmail?.loginEmailOtpHash || !otpStateAfterEmail?.loginEmailOtpExpiresAt) {
+      console.error("[MASTER AUTH] OTP fields disappeared after email send", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+        hasHashAfterEmail: Boolean(otpStateAfterEmail?.loginEmailOtpHash),
+        hasExpiryAfterEmail: Boolean(otpStateAfterEmail?.loginEmailOtpExpiresAt),
+        hasSentAtAfterEmail: Boolean(otpStateAfterEmail?.loginEmailOtpSentAt),
+        dbName: masterConn.db?.databaseName,
+        collectionName: MasterUserModel.collection?.name,
+      });
+
+      void logMasterAuthAudit({
+        req,
+        outcome: "failure",
+        reason: "email_otp_disappeared_after_send",
+        email: masterUser.email,
+      });
+
+      return res.status(500).json({
+        message: "Unable to initialize email verification (OTP state lost)",
+      });
+    }
+
+    const otpStateBeforeResponse = await MasterUserModel.collection.findOne(
+      { _id: masterUser._id },
+      {
+        projection: {
+          _id: 1,
+          email: 1,
+          loginEmailOtpHash: 1,
+          loginEmailOtpExpiresAt: 1,
+          loginEmailOtpAttempts: 1,
+          loginEmailOtpSentAt: 1,
+        },
+      }
+    );
+
+    console.info("[MASTER AUTH] OTP state before login response", {
+      userId: String(masterUser._id),
+      email: masterUser.email,
+      dbName: masterConn.db?.databaseName,
+      collectionName: MasterUserModel.collection?.name,
+      hasHashInRawDoc: Boolean(otpStateBeforeResponse?.loginEmailOtpHash),
+      hasExpiryInRawDoc: Boolean(otpStateBeforeResponse?.loginEmailOtpExpiresAt),
+      hasAttemptsInRawDoc:
+        typeof otpStateBeforeResponse?.loginEmailOtpAttempts === "number",
+      hasSentAtInRawDoc: Boolean(otpStateBeforeResponse?.loginEmailOtpSentAt),
+    });
+
     const preAuthToken = signMasterPreAuthToken({
       id: String(masterUser._id),
       email: masterUser.email,
       role: masterUser.role,
+      emailOtpHash: emailOtpHash,
+      emailOtpExpiresAt: emailOtpExpiresAt.toISOString(),
     });
 
     res.cookie("master_preauth", preAuthToken, {
@@ -441,7 +589,7 @@ const masterVerifyEmailCodeLegacy = async (req: Request, res: Response) => {
     const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
     const masterUser = await MasterUserModel.findById(decoded.id)
       .select(
-        "_id email role name isActive mfaEnabled mfaSecret mfaTempSecret loginEmailOtpHash loginEmailOtpExpiresAt loginEmailOtpAttempts"
+        "_id email role name isActive mfaEnabled mfaSecret mfaTempSecret +loginEmailOtpHash +loginEmailOtpExpiresAt +loginEmailOtpAttempts"
       )
       .lean<{
         _id: any;
@@ -467,7 +615,49 @@ const masterVerifyEmailCodeLegacy = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    if (!masterUser.loginEmailOtpHash || !masterUser.loginEmailOtpExpiresAt) {
+    const tokenOtpHash =
+      typeof decoded?.emailOtpHash === "string" && decoded.emailOtpHash.trim().length > 0
+        ? decoded.emailOtpHash
+        : null;
+    const tokenOtpExpiresAt =
+      typeof decoded?.emailOtpExpiresAt === "string"
+        ? decoded.emailOtpExpiresAt
+        : null;
+
+    const effectiveOtpHash = masterUser.loginEmailOtpHash || tokenOtpHash;
+    const effectiveOtpExpiresAt =
+      masterUser.loginEmailOtpExpiresAt || tokenOtpExpiresAt;
+    const usingTokenFallback =
+      !masterUser.loginEmailOtpHash && !masterUser.loginEmailOtpExpiresAt && !!tokenOtpHash;
+
+    if (!effectiveOtpHash || !effectiveOtpExpiresAt) {
+      const rawOtpState = await MasterUserModel.collection.findOne(
+        { _id: masterUser._id },
+        {
+          projection: {
+            _id: 1,
+            email: 1,
+            loginEmailOtpHash: 1,
+            loginEmailOtpExpiresAt: 1,
+            loginEmailOtpSentAt: 1,
+          },
+        }
+      );
+
+      console.error("[MASTER AUTH] Email OTP missing at verification", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+        dbName: masterConn.db?.databaseName,
+        collectionName: MasterUserModel.collection?.name,
+        hasHashInSelectedDoc: Boolean(masterUser.loginEmailOtpHash),
+        hasExpiryInSelectedDoc: Boolean(masterUser.loginEmailOtpExpiresAt),
+        hasHashInRawDoc: Boolean(rawOtpState?.loginEmailOtpHash),
+        hasExpiryInRawDoc: Boolean(rawOtpState?.loginEmailOtpExpiresAt),
+        hasSentAtInRawDoc: Boolean(rawOtpState?.loginEmailOtpSentAt),
+        hasHashInToken: Boolean(tokenOtpHash),
+        hasExpiryInToken: Boolean(tokenOtpExpiresAt),
+      });
+
       void logMasterAuthAudit({
         req,
         outcome: "failure",
@@ -477,7 +667,7 @@ const masterVerifyEmailCodeLegacy = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Email verification not initialized" });
     }
 
-    const expiresAt = new Date(masterUser.loginEmailOtpExpiresAt).getTime();
+    const expiresAt = new Date(effectiveOtpExpiresAt).getTime();
     if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
       await MasterUserModel.updateOne(
         { _id: masterUser._id },
@@ -523,7 +713,14 @@ const masterVerifyEmailCodeLegacy = async (req: Request, res: Response) => {
       return res.status(429).json({ message: "Too many email code attempts" });
     }
 
-    const isValidEmailCode = await bcrypt.compare(code, masterUser.loginEmailOtpHash);
+    if (usingTokenFallback) {
+      console.warn("[MASTER AUTH] Using preauth token OTP fallback", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+      });
+    }
+
+    const isValidEmailCode = await bcrypt.compare(code, effectiveOtpHash);
 
     if (!isValidEmailCode) {
       await MasterUserModel.updateOne(
@@ -569,8 +766,9 @@ const masterVerifyEmailCodeLegacy = async (req: Request, res: Response) => {
       });
     }
 
-    const setupSecret = masterUser.mfaTempSecret || authenticator.generateSecret();
-    const otpAuthUrl = authenticator.keyuri(masterUser.email, "EDUNEXUS Master", setupSecret);
+    const otpLib = getOtpLib();
+    const setupSecret = masterUser.mfaTempSecret || otpLib.generateSecret();
+    const otpAuthUrl = buildOtpAuthUrl(masterUser.email, setupSecret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
 
     await MasterUserModel.updateOne(
@@ -790,7 +988,7 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
     const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
     const masterUser = await MasterUserModel.findById(decoded.id)
       .select(
-        "_id email role name isActive mfaEnabled mfaSecret mfaTempSecret loginEmailOtpHash loginEmailOtpExpiresAt loginEmailOtpAttempts"
+        "_id email role name isActive mfaEnabled mfaSecret mfaTempSecret +loginEmailOtpHash +loginEmailOtpExpiresAt +loginEmailOtpAttempts"
       )
       .lean<{
         _id: any;
@@ -816,17 +1014,67 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    if (!masterUser.loginEmailOtpHash || !masterUser.loginEmailOtpExpiresAt) {
+    const tokenOtpHash =
+      typeof decoded?.emailOtpHash === "string" && decoded.emailOtpHash.trim().length > 0
+        ? decoded.emailOtpHash
+        : null;
+    const tokenOtpExpiresAt =
+      typeof decoded?.emailOtpExpiresAt === "string"
+        ? decoded.emailOtpExpiresAt
+        : null;
+
+    const effectiveOtpHash = masterUser.loginEmailOtpHash || tokenOtpHash;
+    const effectiveOtpExpiresAt =
+      masterUser.loginEmailOtpExpiresAt || tokenOtpExpiresAt;
+    const usingTokenFallback =
+      !masterUser.loginEmailOtpHash && !masterUser.loginEmailOtpExpiresAt && !!tokenOtpHash;
+
+    if (!effectiveOtpHash || !effectiveOtpExpiresAt) {
+      const rawOtpState = await MasterUserModel.collection.findOne(
+        { _id: masterUser._id },
+        {
+          projection: {
+            _id: 1,
+            email: 1,
+            loginEmailOtpHash: 1,
+            loginEmailOtpExpiresAt: 1,
+            loginEmailOtpSentAt: 1,
+          },
+        }
+      );
+
+      console.error("[MASTER AUTH] Email OTP missing at verification", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+        dbName: masterConn.db?.databaseName,
+        collectionName: MasterUserModel.collection?.name,
+        hasHashInSelectedDoc: Boolean(masterUser.loginEmailOtpHash),
+        hasExpiryInSelectedDoc: Boolean(masterUser.loginEmailOtpExpiresAt),
+        hasHashInRawDoc: Boolean(rawOtpState?.loginEmailOtpHash),
+        hasExpiryInRawDoc: Boolean(rawOtpState?.loginEmailOtpExpiresAt),
+        hasSentAtInRawDoc: Boolean(rawOtpState?.loginEmailOtpSentAt),
+        hasHashInToken: Boolean(tokenOtpHash),
+        hasExpiryInToken: Boolean(tokenOtpExpiresAt),
+      });
+
       void logMasterAuthAudit({
         req,
         outcome: "failure",
         reason: "email_otp_missing",
         email: masterUser.email,
       });
+
       return res.status(400).json({ message: "Email verification not initialized" });
     }
 
-    const expiresAt = new Date(masterUser.loginEmailOtpExpiresAt).getTime();
+    if (usingTokenFallback) {
+      console.warn("[MASTER AUTH] Using preauth token OTP fallback", {
+        userId: String(masterUser._id),
+        email: masterUser.email,
+      });
+    }
+
+    const expiresAt = new Date(effectiveOtpExpiresAt).getTime();
     if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
       await MasterUserModel.updateOne(
         { _id: masterUser._id },
@@ -872,7 +1120,7 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(429).json({ message: "Too many email code attempts" });
     }
 
-    const isValidEmailCode = await bcrypt.compare(code, masterUser.loginEmailOtpHash);
+    const isValidEmailCode = await bcrypt.compare(code, effectiveOtpHash);
 
     if (!isValidEmailCode) {
       await MasterUserModel.updateOne(
@@ -889,19 +1137,19 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email verification code" });
     }
 
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $unset: {
-          loginEmailOtpHash: 1,
-          loginEmailOtpExpiresAt: 1,
-          loginEmailOtpAttempts: 1,
-          loginEmailOtpSentAt: 1,
-        },
-      }
-    );
-
     if (masterUser.mfaEnabled && masterUser.mfaSecret) {
+      await MasterUserModel.updateOne(
+        { _id: masterUser._id },
+        {
+          $unset: {
+            loginEmailOtpHash: 1,
+            loginEmailOtpExpiresAt: 1,
+            loginEmailOtpAttempts: 1,
+            loginEmailOtpSentAt: 1,
+          },
+        }
+      );
+
       void logMasterAuthAudit({
         req,
         outcome: "success",
@@ -918,12 +1166,9 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       });
     }
 
-    const setupSecret = masterUser.mfaTempSecret || authenticator.generateSecret();
-    const otpAuthUrl = authenticator.keyuri(
-      masterUser.email,
-      "EDUNEXUS Master",
-      setupSecret
-    );
+    const otpLib = getOtpLib();
+    const setupSecret = masterUser.mfaTempSecret || otpLib.generateSecret();
+    const otpAuthUrl = buildOtpAuthUrl(masterUser.email, setupSecret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
     const { codes: recoveryCodes, hashes: recoveryCodeHashes } = await generateRecoveryCodes();
 
@@ -931,10 +1176,17 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       { _id: masterUser._id },
       {
         $set: {
+          // Keep MFA setup atomic with OTP cleanup to avoid losing challenge on setup errors.
           mfaTempSecret: setupSecret,
           mfaEnabled: false,
           mfaRecoveryCodeHashes: recoveryCodeHashes,
           mfaRecoveryCodeGeneratedAt: new Date(),
+        },
+        $unset: {
+          loginEmailOtpHash: 1,
+          loginEmailOtpExpiresAt: 1,
+          loginEmailOtpAttempts: 1,
+          loginEmailOtpSentAt: 1,
         },
       }
     );
@@ -1186,8 +1438,9 @@ export const beginMasterMfaEnable = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "MFA is already enabled" });
     }
 
-    const setupSecret = authenticator.generateSecret();
-    const otpAuthUrl = authenticator.keyuri(masterUser.email, "EDUNEXUS Master", setupSecret);
+    const otpLib = getOtpLib();
+    const setupSecret = otpLib.generateSecret();
+    const otpAuthUrl = buildOtpAuthUrl(masterUser.email, setupSecret);
     const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
     const { codes: recoveryCodes, hashes: recoveryCodeHashes } = await generateRecoveryCodes();
 
@@ -1243,7 +1496,7 @@ export const confirmMasterMfaEnable = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "MFA setup not initialized" });
     }
 
-    const isValidCode = authenticator.verify({ token: code, secret: masterUser.mfaTempSecret });
+    const isValidCode = await verifyOtpToken(code, masterUser.mfaTempSecret);
     if (!isValidCode) {
       void logMasterAuthAudit({
         req,

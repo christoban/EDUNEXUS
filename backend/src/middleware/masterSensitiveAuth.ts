@@ -6,7 +6,24 @@ import { dbRouter } from "../config/dbRouter.ts";
 import MasterUser from "../models/masterUser.ts";
 import { logMasterAuthAudit } from "../utils/masterAuthAudit.ts";
 
-const authenticator = (otplib as any).authenticator;
+const getOtpLib = () => {
+  if (typeof (otplib as any)?.verify !== "function") {
+    throw new Error("MFA authenticator is unavailable");
+  }
+
+  return otplib as any;
+};
+
+const verifyOtpToken = async (token: string, secret: string) => {
+  const otpLib = getOtpLib();
+  const result = await otpLib.verify({ token, secret });
+
+  if (typeof result === "boolean") {
+    return result;
+  }
+
+  return Boolean(result?.valid);
+};
 
 const normalizeRecoveryCode = (value: string) =>
   String(value || "")
@@ -120,7 +137,7 @@ export const requireMasterSensitiveAuth = async (
     }
 
     const totpValid = /^\d{6}$/.test(code)
-      ? authenticator.verify({ token: code, secret: masterUser.mfaSecret })
+      ? await verifyOtpToken(code, masterUser.mfaSecret)
       : false;
 
     let usedRecoveryCode = false;
