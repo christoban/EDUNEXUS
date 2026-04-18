@@ -1,6 +1,8 @@
 import { type Request, type Response } from "express";
 import User from "../models/user.ts";
 import Subject from "../models/subject.ts";
+import School from "../models/school.ts";
+import { dbRouter } from "../config/dbRouter.ts";
 import { generateToken } from "../utils/generateToken.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 import type { AuthRequest } from "../middleware/auth.ts";
@@ -15,6 +17,61 @@ const isValidSection = (value: unknown): value is "francophone" | "anglophone" |
 
 const isValidLanguage = (value: unknown): value is "fr" | "en" =>
   value === "fr" || value === "en";
+
+const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+
+const getScopedModels = async (schoolId?: unknown) => {
+  if (!schoolId || !objectIdRegex.test(String(schoolId))) {
+    return { UserModel: User, SubjectModel: Subject };
+  }
+
+  try {
+    const masterConn = dbRouter.getMasterConnection();
+    const SchoolModel: any = masterConn.model("School", School.schema);
+    const school: any = await SchoolModel.findById(String(schoolId))
+      .select("_id isActive dbConnectionString")
+      .lean();
+
+    if (!school || !school.isActive) {
+      return { UserModel: User, SubjectModel: Subject };
+    }
+
+    const schoolConn = await dbRouter.getSchoolConnection(
+      String(school._id),
+      String(school.dbConnectionString)
+    );
+
+    return {
+      UserModel: schoolConn.model("User", User.schema),
+      SubjectModel: schoolConn.model("Subject", Subject.schema),
+    };
+  } catch {
+    return { UserModel: User, SubjectModel: Subject };
+  }
+};
+
+const resolveSchoolFromIdentifier = async (schoolIdentifier?: string) => {
+  if (!schoolIdentifier || !schoolIdentifier.trim()) {
+    return null;
+  }
+
+  const rawValue = schoolIdentifier.trim();
+  const masterConn = dbRouter.getMasterConnection();
+  const SchoolModel: any = masterConn.model("School", School.schema);
+
+  if (objectIdRegex.test(rawValue)) {
+    return await SchoolModel.findById(rawValue)
+      .select("_id schoolName dbName isActive dbConnectionString onboardingStatus")
+      .lean();
+  }
+
+  const escaped = rawValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return await SchoolModel.findOne({
+    $or: [{ dbName: rawValue }, { schoolName: { $regex: `^${escaped}$`, $options: "i" } }],
+  })
+    .select("_id schoolName dbName isActive dbConnectionString onboardingStatus")
+    .lean();
+};
 
 const syncTeacherSubjects = async (
   teacherId: string,
@@ -63,10 +120,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       uiLanguagePreference,
     } = req.body;
 
+    const currentSchoolId = (req as any)?.user?.schoolId;
+    const { UserModel, SubjectModel } = await getScopedModels(currentSchoolId);
+
     const resolvedTeacherSubjects = teacherSubjects ?? teacherSubject;
 
     // check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await UserModel.findOne({ email });
 
     if (existingUser) {
       res.status(400).json({ message: "User already exists" });
@@ -85,7 +145,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     // create user
-    const newUser = await User.create({
+    const newUser = await UserModel.create({
       name,
       email,
       password,
@@ -114,14 +174,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             : undefined
           : undefined,
       isActive,
+      schoolId: currentSchoolId || null,
     });
 
     if (newUser.role === "teacher") {
-      await syncTeacherSubjects(
-        newUser._id.toString(),
-        [],
-        toIdStrings(resolvedTeacherSubjects)
-      );
+      const teacherId = newUser._id.toString();
+      const subjectIdsToAssign = toIdStrings(resolvedTeacherSubjects);
+      if (subjectIdsToAssign.length > 0) {
+        await SubjectModel.updateMany(
+          { _id: { $in: subjectIdsToAssign } },
+          { $addToSet: { teacher: teacherId } }
+        );
+      }
     }
 
     if (newUser) {
@@ -161,17 +225,47 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 // @access  Public
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const { email, password, schoolIdentifier } = req.body;
+
+    const selectedSchool: any = await resolveSchoolFromIdentifier(schoolIdentifier);
+    if (schoolIdentifier && !selectedSchool) {
+      res.status(404).json({ message: "School not found" });
+      return;
+    }
+
+    if (selectedSchool && !selectedSchool.isActive) {
+      res.status(403).json({ message: "School is not active yet" });
+      return;
+    }
+
+    const { UserModel } = selectedSchool
+      ? await getScopedModels(selectedSchool._id)
+      : { UserModel: User };
+
+    const query: any = { email };
+    if (selectedSchool?._id) {
+      query.schoolId = selectedSchool._id;
+    }
+
+    const user = await UserModel.findOne(query);
 
     // check if user exists and password matches
     if (user && (await user.matchPassword(password))) {
       // ✅ MULTI-TENANT: Generate token with schoolId
-      generateToken(user.id.toString(), res, user.schoolId?.toString());
+      const effectiveSchoolId = user.schoolId?.toString() || selectedSchool?._id?.toString() || null;
+      generateToken(user.id.toString(), res, effectiveSchoolId);
       
       res.json({
         ...user.toObject(),
-        schoolId: user.schoolId, // Include schoolId in response for frontend
+        schoolId: effectiveSchoolId,
+        school: selectedSchool
+          ? {
+              _id: selectedSchool._id,
+              schoolName: selectedSchool.schoolName,
+              dbName: selectedSchool.dbName,
+              onboardingStatus: selectedSchool.onboardingStatus,
+            }
+          : undefined,
       });
     } else {
       res.status(401).json({ message: "Invalid email or password" });
@@ -190,6 +284,7 @@ export const updateUser = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
     const targetUserId = req.params.id;
+    const { UserModel, SubjectModel } = await getScopedModels(currentUser?.schoolId);
     
     // Check authorization: must be admin or updating own profile
     const isAdmin = currentUser.role === "admin";
@@ -199,7 +294,7 @@ export const updateUser = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized to update this user" });
     }
 
-    const user = await User.findById(targetUserId);
+    const user = await UserModel.findById(targetUserId);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -290,11 +385,26 @@ export const updateUser = async (req: Request, res: Response) => {
           : toIdStrings(updatedUser.teacherSubject)
         : [];
 
-    await syncTeacherSubjects(
-      updatedUser._id.toString(),
-      previousTeacherSubjectIds,
-      nextTeacherSubjectIds
-    );
+    const teacherId = updatedUser._id.toString();
+    const previousSet = new Set(previousTeacherSubjectIds);
+    const nextSet = new Set(nextTeacherSubjectIds);
+    const subjectIdsToAdd = nextTeacherSubjectIds.filter((id) => !previousSet.has(id));
+    const subjectIdsToRemove = previousTeacherSubjectIds.filter((id) => !nextSet.has(id));
+
+    await Promise.all([
+      subjectIdsToAdd.length
+        ? SubjectModel.updateMany(
+            { _id: { $in: subjectIdsToAdd } },
+            { $addToSet: { teacher: teacherId } }
+          )
+        : Promise.resolve(),
+      subjectIdsToRemove.length
+        ? SubjectModel.updateMany(
+            { _id: { $in: subjectIdsToRemove } },
+            { $pull: { teacher: teacherId } }
+          )
+        : Promise.resolve(),
+    ]);
     
     if (currentUser) {
       await logActivity({
@@ -331,6 +441,7 @@ export const updateUser = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { UserModel } = await getScopedModels((req as any)?.user?.schoolId);
     // 1. Parse Query Params safely
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -354,8 +465,8 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     }
     // 3. Fetch Users with Pagination & Filtering
     const [total, users] = await Promise.all([
-      User.countDocuments(filter), // Get total count for pagination logic
-      User.find(filter)
+      UserModel.countDocuments(filter), // Get total count for pagination logic
+      UserModel.find(filter)
         .select("-password")
         .populate("studentClass", "_id name")
         .populate("teacherSubject", "_id name code")
@@ -391,7 +502,8 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 // @access  Private/Admin
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.params.id);
+    const { UserModel } = await getScopedModels((req as any)?.user?.schoolId);
+    const user = await UserModel.findById(req.params.id);
     if (user) {
       await user.deleteOne();
       if ((req as any).user) {
@@ -422,7 +534,9 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const user = await User.findById(req.user._id)
+    const { UserModel } = await getScopedModels(req.user.schoolId);
+
+    const user = await UserModel.findById(req.user._id)
       .select("-password")
       .populate("studentClass", "_id name")
       .populate("teacherSubject", "_id name code");

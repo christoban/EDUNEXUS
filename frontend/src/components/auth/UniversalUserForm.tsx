@@ -20,6 +20,7 @@ import { CustomMultiSelect } from "@/components/global/CustomMultiSelect";
 import { useNavigate } from "react-router";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { CustomAutocompleteSelect } from "@/components/global/CustomAutocompleteSelect";
 
 export type FormType = "login" | "create" | "update";
 interface Props {
@@ -36,6 +37,10 @@ const createSchema = (type: FormType) => {
         type === "login"
           ? z.string().optional()
           : z.string().min(2, "Name is required"),
+      schoolIdentifier:
+        type === "login"
+          ? z.string().optional()
+          : z.string().optional(),
       classId: z.string().optional(),
       subjectIds: z.array(z.string()).optional(),
       email: z.email("Invalid email address"),
@@ -106,6 +111,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [subjects, setSubjects] = useState<subject[]>([]);
   const [serverError, setServerError] = useState("");
+  const [schoolOptions, setSchoolOptions] = useState<Array<{ label: string; value: string }>>([]);
+  const [loadingSchools, setLoadingSchools] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createSchema(type)),
@@ -114,6 +121,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       email: "",
       role: role,
       password: "",
+      schoolIdentifier: "",
       classId: undefined,
       subjectIds: [],
       schoolSection: undefined,
@@ -169,6 +177,31 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
     };
     fetchSubjects();
   }, [isLogin, type]);
+
+  useEffect(() => {
+    if (!isLogin) return;
+
+    const fetchSchools = async () => {
+      try {
+        setLoadingSchools(true);
+        const { data } = await api.get("/onboarding/schools/active");
+        const schools = Array.isArray(data?.schools) ? data.schools : [];
+        const options = schools.map((school: any) => ({
+          value: school.dbName,
+          label: `${school.schoolName} (${school.dbName})`,
+        }));
+
+        setSchoolOptions(options);
+      } catch (error) {
+        console.log(error);
+        toast.error("Impossible de charger la liste des etablissements.");
+      } finally {
+        setLoadingSchools(false);
+      }
+    };
+
+    fetchSchools();
+  }, [isLogin]);
 
   // Populate form for Update mode
   useEffect(() => {
@@ -229,6 +262,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         await api.post("/users/login", {
           email: data.email,
           password: data.password,
+          schoolIdentifier: data.schoolIdentifier?.trim() || undefined,
         });
 
         const { data: profile } = await api.get("/users/profile");
@@ -328,51 +362,72 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
               disabled={pending}
             />
           )}
-          <div className="col-span-2 space-y-2">
-            {/* class */}
-            {showClassSelector && (
-              <CustomSelect
+          {!isLogin && (
+            <div className="col-span-2 space-y-2">
+              {/* class */}
+              {showClassSelector && (
+                <CustomSelect
+                  control={form.control}
+                  name="classId"
+                  label={t("users.form.class", language)}
+                  placeholder={t("users.form.selectClass", language)}
+                  options={classOptions}
+                  disabled={pending}
+                  loading={loading}
+                />
+              )}
+              {/* subjects(multiple select is need here) */}
+              {showSubjectSelector && (
+                <CustomMultiSelect
+                  control={form.control}
+                  name="subjectIds"
+                  label={t("users.form.subjects", language)}
+                  placeholder={t("users.form.selectSubjects", language)}
+                  options={subjectOptions}
+                  loading={loadingOptions}
+                  disabled={pending}
+                />
+              )}
+              {showSectionSelector && (
+                <CustomSelect
+                  control={form.control}
+                  name="schoolSection"
+                  label={t("users.form.schoolSection", language)}
+                  placeholder={t("users.form.selectSchoolSection", language)}
+                  options={sectionOptions}
+                  disabled={pending}
+                />
+              )}
+              {showUiLanguagePreference && (
+                <CustomSelect
+                  control={form.control}
+                  name="uiLanguagePreference"
+                  label={t("users.form.uiLanguagePreference", language)}
+                  placeholder={t("users.form.selectUiLanguagePreference", language)}
+                  options={uiLanguageOptions}
+                  disabled={pending}
+                />
+              )}
+            </div>
+          )}
+
+          {isLogin && (
+            <div className="col-span-2">
+              <CustomAutocompleteSelect
                 control={form.control}
-                name="classId"
-                label={t("users.form.class", language)}
-                placeholder={t("users.form.selectClass", language)}
-                options={classOptions}
+                name="schoolIdentifier"
+                label="Etablissement"
+                placeholder="Selectionne ton etablissement"
+                options={schoolOptions}
                 disabled={pending}
-                loading={loading}
+                loading={loadingSchools}
+                searchPlaceholder="Rechercher un etablissement..."
+                emptyMessage="Aucun etablissement trouve"
               />
-            )}
-            {/* subjects(multiple select is need here) */}
-            {showSubjectSelector && (
-              <CustomMultiSelect
-                control={form.control}
-                name="subjectIds"
-                label={t("users.form.subjects", language)}
-                placeholder={t("users.form.selectSubjects", language)}
-                options={subjectOptions}
-                loading={loadingOptions}
-                disabled={pending}
-              />
-            )}
-            {showSectionSelector && (
-              <CustomSelect
-                control={form.control}
-                name="schoolSection"
-                label={t("users.form.schoolSection", language)}
-                placeholder={t("users.form.selectSchoolSection", language)}
-                options={sectionOptions}
-                disabled={pending}
-              />
-            )}
-            {showUiLanguagePreference && (
-              <CustomSelect
-                control={form.control}
-                name="uiLanguagePreference"
-                label={t("users.form.uiLanguagePreference", language)}
-                placeholder={t("users.form.selectUiLanguagePreference", language)}
-                options={uiLanguageOptions}
-                disabled={pending}
-              />
-            )}
+            </div>
+          )}
+
+          <div className="col-span-2">
             <CustomInput
               control={form.control}
               name="email"

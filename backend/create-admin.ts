@@ -3,6 +3,15 @@ import bcrypt from "bcryptjs";
 
 // Connect to MASTER DB
 const MASTER_DB_URL = process.env.MASTER_MONGO_URL || "mongodb://localhost:27017/edunexus_master";
+const MASTER_ADMIN_EMAIL = String(process.env.MASTER_ADMIN_EMAIL || "").trim().toLowerCase();
+const MASTER_ADMIN_PASSWORD = String(process.env.MASTER_ADMIN_PASSWORD || "");
+const MASTER_ADMIN_NAME = String(process.env.MASTER_ADMIN_NAME || "").trim();
+
+if (!MASTER_ADMIN_EMAIL || !MASTER_ADMIN_PASSWORD || !MASTER_ADMIN_NAME) {
+  throw new Error(
+    "MASTER_ADMIN_EMAIL, MASTER_ADMIN_PASSWORD and MASTER_ADMIN_NAME are required"
+  );
+}
 
 await mongoose.connect(MASTER_DB_URL);
 console.log("✓ Connected to MASTER DB");
@@ -22,19 +31,19 @@ const MasterUser = mongoose.model("MasterUser", masterUserSchema);
 // Create or update super_admin
 console.log("Creating super_admin...");
 try {
-  await MasterUser.deleteOne({ email: "admin@edunexus.fr" });
-  const hashedPassword = await bcrypt.hash("SecurePassword123!", 10);
+  await MasterUser.deleteOne({ email: MASTER_ADMIN_EMAIL });
+  const hashedPassword = await bcrypt.hash(MASTER_ADMIN_PASSWORD, 10);
   const adminUser = new MasterUser({
-    name: "Platform Administrator",
-    email: "admin@edunexus.fr",
+    name: MASTER_ADMIN_NAME,
+    email: MASTER_ADMIN_EMAIL,
     password: hashedPassword,
     role: "super_admin",
     isActive: true,
   });
   await adminUser.save();
   console.log("✅ Super Admin created:");
-  console.log(`   Email: admin@edunexus.fr`);
-  console.log(`   Password: SecurePassword123!`);
+  console.log(`   Email: ${MASTER_ADMIN_EMAIL}`);
+  console.log(`   Password: ${MASTER_ADMIN_PASSWORD}`);
   console.log(`   Role: super_admin`);
 } catch (error: any) {
   console.error("❌ Error creating super_admin:", error.message);

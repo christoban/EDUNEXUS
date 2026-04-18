@@ -1,4 +1,5 @@
 import axios from "axios";
+import { MASTER_LOGIN_PATH } from "@/lib/masterRoutes";
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
@@ -38,10 +39,20 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      // Token expired or invalid. Avoid hard-reload loop if already on login.
-      localStorage.removeItem("token");
-      if (window.location.pathname !== "/login") {
-        window.location.replace("/login");
+      // Token expired or invalid. Avoid hard-reload loop if already on the right login page.
+      const isMasterPage =
+        window.location.pathname.startsWith("/master") ||
+        window.location.pathname.startsWith(MASTER_LOGIN_PATH);
+
+      if (isMasterPage) {
+        if (!window.location.pathname.startsWith(MASTER_LOGIN_PATH)) {
+          window.location.replace(MASTER_LOGIN_PATH);
+        }
+      } else {
+        localStorage.removeItem("token");
+        if (window.location.pathname !== "/login") {
+          window.location.replace("/login");
+        }
       }
     }
     return Promise.reject(error);

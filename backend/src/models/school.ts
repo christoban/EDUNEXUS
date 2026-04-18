@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type SchoolSystemType = "francophone" | "anglophone" | "bilingual";
 export type SchoolStructure = "simple" | "complex"; // simple=une seule école, complex=complexe scolaire avec campus
+export type SchoolOnboardingStatus = "draft" | "pending" | "approved" | "provisioning" | "active" | "rejected";
 
 export interface ISchool extends Document {
   // Identité
@@ -26,6 +27,10 @@ export interface ISchool extends Document {
   // État
   isActive: boolean;
   isPilot: boolean; // Phase 8 pilot flag
+  onboardingStatus?: SchoolOnboardingStatus;
+  templateKey?: string | null;
+  requestedAdminName?: string | null;
+  requestedAdminEmail?: string | null;
   
   // Audit
   createdBy?: mongoose.Types.ObjectId | null; // ref: MasterUser
@@ -69,6 +74,15 @@ const schoolSchema = new Schema<ISchool>(
     },
     isActive: { type: Boolean, default: true, index: true },
     isPilot: { type: Boolean, default: false, index: true },
+    onboardingStatus: {
+      type: String,
+      enum: ["draft", "pending", "approved", "provisioning", "active", "rejected"],
+      default: "active",
+      index: true,
+    },
+    templateKey: { type: String, default: null },
+    requestedAdminName: { type: String, default: null },
+    requestedAdminEmail: { type: String, default: null },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "MasterUser",

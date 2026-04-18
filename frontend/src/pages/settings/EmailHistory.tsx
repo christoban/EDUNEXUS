@@ -14,6 +14,10 @@ type EmailLogsResponse = {
 
 const eventTypeLabel = (type: EmailEventType) => {
   if (type === "exam_result") return "Exam Result";
+  if (type === "payment_reminder") return "Payment Reminder";
+  if (type === "school_invite") return "School Invite";
+  if (type === "master_login_otp") return "Master Login OTP";
+  if (type === "master_password_change_otp") return "Master Password Change OTP";
   return "Report Card Available";
 };
 
@@ -100,6 +104,10 @@ export default function EmailHistoryPage() {
           <option value="">All event types</option>
           <option value="exam_result">Exam result</option>
           <option value="report_card_available">Report card available</option>
+          <option value="payment_reminder">Payment reminder</option>
+          <option value="school_invite">School invite</option>
+          <option value="master_login_otp">Master login OTP</option>
+          <option value="master_password_change_otp">Master password change OTP</option>
         </select>
 
         <Button variant="outline" onClick={() => fetchLogs()}>

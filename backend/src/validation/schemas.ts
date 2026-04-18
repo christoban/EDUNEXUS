@@ -51,6 +51,7 @@ export const registerBodySchema = z.object({
 export const loginBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  schoolIdentifier: z.string().trim().min(1).max(120).optional(),
 });
 
 export const updateUserBodySchema = z
@@ -214,7 +215,7 @@ export const reportCardsQuerySchema = z.object({
 export const emailLogsQuerySchema = z.object({
   search: z.string().trim().optional(),
   status: z.enum(["sent", "failed"]).optional(),
-  eventType: z.enum(["exam_result", "report_card_available", "payment_reminder"]).optional(),
+  eventType: z.enum(["exam_result", "report_card_available", "payment_reminder", "school_invite"]).optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });

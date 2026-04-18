@@ -14,6 +14,19 @@ export interface IMasterUser extends Document {
   assignedSchools: mongoose.Types.ObjectId[]; // ref: School (pour school_manager)
   
   isActive: boolean;
+  mfaEnabled: boolean;
+  mfaSecret?: string | null;
+  mfaTempSecret?: string | null;
+  mfaRecoveryCodeHashes?: string[];
+  mfaRecoveryCodeGeneratedAt?: Date | null;
+  loginEmailOtpHash?: string | null;
+  loginEmailOtpExpiresAt?: Date | null;
+  loginEmailOtpAttempts?: number;
+  loginEmailOtpSentAt?: Date | null;
+  passwordChangeEmailOtpHash?: string | null;
+  passwordChangeEmailOtpExpiresAt?: Date | null;
+  passwordChangeEmailOtpAttempts?: number;
+  passwordChangeEmailOtpSentAt?: Date | null;
   matchPassword: (enteredPassword: string) => Promise<boolean>;
 }
 
@@ -34,6 +47,19 @@ const masterUserSchema = new Schema<IMasterUser>(
       },
     ],
     isActive: { type: Boolean, default: true, index: true },
+    mfaEnabled: { type: Boolean, default: false, index: true },
+    mfaSecret: { type: String, default: null, select: false },
+    mfaTempSecret: { type: String, default: null, select: false },
+    mfaRecoveryCodeHashes: { type: [String], default: [], select: false },
+    mfaRecoveryCodeGeneratedAt: { type: Date, default: null, select: false },
+    loginEmailOtpHash: { type: String, default: null, select: false },
+    loginEmailOtpExpiresAt: { type: Date, default: null, select: false, index: true },
+    loginEmailOtpAttempts: { type: Number, default: 0, select: false },
+    loginEmailOtpSentAt: { type: Date, default: null, select: false },
+    passwordChangeEmailOtpHash: { type: String, default: null, select: false },
+    passwordChangeEmailOtpExpiresAt: { type: Date, default: null, select: false, index: true },
+    passwordChangeEmailOtpAttempts: { type: Number, default: 0, select: false },
+    passwordChangeEmailOtpSentAt: { type: Date, default: null, select: false },
   },
   { timestamps: true }
 );

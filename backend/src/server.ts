@@ -15,6 +15,7 @@ import { connectDB } from "./config/db.ts";
 import { dbRouter } from "./config/dbRouter.ts";
 import userRoutes from "./routes/user.ts";
 import masterAdminRouter from "./routes/masterAdmin.ts";
+import schoolOnboardingRouter from "./routes/schoolOnboarding.ts";
 import LogsRouter from "./routes/activitieslog.ts";
 import academicYearRouter from "./routes/academicYear.ts";
 import classRouter from "./routes/class.ts";
@@ -48,6 +49,10 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const httpServer = createServer(app);
 
+if (["1", "true"].includes((process.env.TRUST_PROXY || "").toLowerCase())) {
+  app.set("trust proxy", 1);
+}
+
 // next add security middlewares/headers + make sure to listen on *root file* for changes
 
 app.use(helmet()); // Security middleware to set various HTTP headers for app security
@@ -77,6 +82,7 @@ app.get("/", (req: Request, res: Response) => {
 
 // ✅ MULTI-TENANT: Master Admin routes (before other routes)
 app.use("/api/master", masterAdminRouter);
+app.use("/api/onboarding", schoolOnboardingRouter);
 
 // import user routes
 app.use("/api/users", userRoutes);

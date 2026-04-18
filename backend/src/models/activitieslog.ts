@@ -4,6 +4,7 @@ export interface IActivityLog extends Document {
   user: string; // Who did it?
   action: string; // "Created Exam", "Registered Student"
   details?: string; // optional additional details
+  school?: mongoose.Types.ObjectId | null;
   createdAt: Date;
 }
 
@@ -13,6 +14,12 @@ const activitiesLogSchema = new Schema(
     user: { type: Schema.Types.ObjectId, required: true, ref: "User" },
     action: { type: String, required: true },
     details: { type: String },
+    school: {
+      type: Schema.Types.ObjectId,
+      ref: "School",
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

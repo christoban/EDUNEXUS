@@ -3,6 +3,7 @@ import Hero from "@/components/home/Hero";
 import Stats from "@/components/home/Stats";
 import Programs from "@/components/home/Programs";
 import Footer from "@/components/home/Footer";
+import { Link } from "react-router";
 
 const Home = () => {
   return (
@@ -80,12 +81,18 @@ const Home = () => {
                 the first step towards a boundary-breaking career today.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <button className="bg-[#3ecf8e] text-black px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#34b27b] transition-all transform hover:scale-105 shadow-lg shadow-[#3ecf8e]/20">
+                <Link
+                  to="/onboarding/school"
+                  className="bg-[#3ecf8e] text-black px-10 py-5 rounded-xl font-bold text-lg hover:bg-[#34b27b] transition-all transform hover:scale-105 shadow-lg shadow-[#3ecf8e]/20 inline-flex items-center justify-center"
+                >
                   Apply Now
-                </button>
-                <button className="bg-transparent border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-10 py-5 rounded-xl font-bold text-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+                </Link>
+                <a
+                  href="#contact"
+                  className="bg-transparent border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white px-10 py-5 rounded-xl font-bold text-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all inline-flex items-center justify-center"
+                >
                   Contact Admissions
-                </button>
+                </a>
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 export type UserRole = "admin" | "teacher" | "student" | "parent";
 export type SchoolSection = "francophone" | "anglophone" | "bilingual";
+export type SchoolOnboardingStatus = "draft" | "pending" | "approved" | "provisioning" | "active" | "rejected";
 
 export interface pagination {
   total: number;
@@ -13,11 +14,100 @@ export interface user {
   name: string;
   email: string;
   role: UserRole;
+  schoolId?: string | null;
   studentClass?: Class;
   teacherSubjects?: subject[];
   parentLanguagePreference?: "fr" | "en";
   schoolSection?: SchoolSection;
   uiLanguagePreference?: "fr" | "en";
+}
+
+export interface SchoolTemplate {
+  key: string;
+  label: string;
+  description: string;
+  systemType: "francophone" | "anglophone" | "bilingual";
+  structure: "simple" | "complex";
+  schoolMotto: string;
+  gradingSystem: "over_20" | "percent" | "grades_ae" | "competency_ana";
+  passingGrade: number;
+  termsType: "sequences_6" | "terms_3" | "monthly_9" | "trimesters_3";
+  bulletinFormat: "standard" | "detailed" | "compact";
+  includeRankings: boolean;
+}
+
+export interface SchoolInviteSummary {
+  token: string;
+  requestedAdminName: string;
+  requestedAdminEmail: string;
+  status: "pending" | "accepted" | "expired";
+  expiresAt: string;
+  acceptedAt?: string | null;
+}
+
+export interface SchoolOnboardingInviteSummary {
+  token: string;
+  status: "pending" | "accepted" | "expired";
+  expiresAt: string;
+  acceptedAt?: string | null;
+  requestedAdminName: string;
+  requestedAdminEmail: string;
+  createdAt?: string;
+}
+
+export interface SchoolOnboardingRequestSummary {
+  _id: string;
+  schoolName: string;
+  dbName: string;
+  systemType: "francophone" | "anglophone" | "bilingual";
+  structure: "simple" | "complex";
+  isActive: boolean;
+  onboardingStatus: SchoolOnboardingStatus;
+  templateKey?: string | null;
+  requestedAdminName?: string | null;
+  requestedAdminEmail?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  latestInvite?: SchoolOnboardingInviteSummary | null;
+}
+
+export interface SchoolOnboardingRequestsResponse {
+  requests: SchoolOnboardingRequestSummary[];
+  pagination: pagination;
+  filters: {
+    status: SchoolOnboardingStatus | null;
+    search: string | null;
+  };
+}
+
+export interface MasterSchoolSummary {
+  _id: string;
+  schoolName: string;
+  schoolMotto: string;
+  systemType: "francophone" | "anglophone" | "bilingual";
+  structure: "simple" | "complex";
+  dbName: string;
+  foundedYear?: number | null;
+  location?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  isActive: boolean;
+  isPilot: boolean;
+  onboardingStatus: SchoolOnboardingStatus;
+  templateKey?: string | null;
+  requestedAdminName?: string | null;
+  requestedAdminEmail?: string | null;
+  parentComplex?: { complexName?: string | null } | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MasterSchoolDetail extends MasterSchoolSummary {
+  dbConnectionString: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  foundedYear?: number | null;
+  location?: string | null;
 }
 
 export interface academicYear {
@@ -202,7 +292,7 @@ export interface ReportCard {
   mention: string;
 }
 
-export type EmailEventType = "exam_result" | "report_card_available";
+export type EmailEventType = "exam_result" | "report_card_available" | "payment_reminder" | "school_invite" | "master_login_otp" | "master_password_change_otp";
 export type EmailStatus = "sent" | "failed";
 
 export interface EmailLog {
@@ -217,4 +307,31 @@ export interface EmailLog {
   errorMessage?: string | null;
   sentAt: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface MasterSchoolActivityLog {
+  _id: string;
+  user: {
+    _id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string | null;
+  } | string;
+  action: string;
+  details?: string | null;
+  createdAt: string;
+}
+
+export interface MasterSchoolActivityLogsResponse {
+  logs: MasterSchoolActivityLog[];
+  pagination: pagination;
+}
+
+export interface MasterSchoolInviteEmailStatus {
+  recipientEmail: string;
+  status: "sent" | "failed";
+  sentAt: string;
+  providerMessageId?: string | null;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown> | null;
 }

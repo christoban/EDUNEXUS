@@ -24,6 +24,16 @@ import InvoicesPage from "../finance/Invoices";
 import ExpensesPage from "../finance/Expenses";
 import SubjectsPage from "../settings/Subjects";
 import SchoolConfigurationPage from "../settings/SchoolConfiguration";
+import SchoolOnboardingPage from "../onboarding/SchoolOnboarding";
+import SchoolInvitePage from "../onboarding/SchoolInvite";
+import SchoolOnboardingRequestsPage from "../onboarding/SchoolOnboardingRequests";
+import MasterLoginPage from "../master/MasterLogin";
+import MasterSchoolsPage from "../master/MasterSchools";
+import MasterSchoolDetailPage from "../master/MasterSchoolDetail";
+import MasterEmailHistoryPage from "../master/MasterEmailHistory";
+import MasterDecoyPage from "../master/MasterDecoy";
+import MasterSecurityPage from "../master/MasterSecurity";
+import { MASTER_LOGIN_ROUTE_PATH } from "@/lib/masterRoutes";
 
 export const router = createBrowserRouter([
   {
@@ -31,6 +41,15 @@ export const router = createBrowserRouter([
       // public routes
       { index: true, element: <Home /> },
       { path: "login", element: <Login /> },
+      { path: "onboarding/school", element: <SchoolOnboardingPage /> },
+      { path: "onboarding/invite/:token", element: <SchoolInvitePage /> },
+      { path: "master/login", element: <MasterDecoyPage /> },
+      { path: MASTER_LOGIN_ROUTE_PATH, element: <MasterLoginPage /> },
+      { path: "master/onboarding/requests", element: <SchoolOnboardingRequestsPage /> },
+      { path: "master/schools", element: <MasterSchoolsPage /> },
+      { path: "master/schools/:schoolId", element: <MasterSchoolDetailPage /> },
+      { path: "master/email-history", element: <MasterEmailHistoryPage /> },
+      { path: "master/security", element: <MasterSecurityPage /> },
       // protected routes would go here
       {
         element: <PrivateRoutes />, // Assuming PrivateRoutes is imported

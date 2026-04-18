@@ -23,8 +23,9 @@ class DatabaseRouter {
     }
 
     try {
-      const masterConn = await mongoose.createConnection(masterUrl);
-      console.log(`[MASTER DB] Connected: ${masterConn.host}`);
+      const masterConn = mongoose.createConnection(masterUrl);
+      await masterConn.asPromise();
+      console.log(`[MASTER DB] Connected: ${masterConn.db?.databaseName || "unknown"}`);
       this.masterConnection = masterConn;
       return masterConn;
     } catch (error) {
@@ -64,8 +65,11 @@ class DatabaseRouter {
     }
 
     try {
-      const schoolConn = await mongoose.createConnection(dbConnectionString);
-      console.log(`[SCHOOL DB] Connected for school ${schoolId}: ${schoolConn.host}`);
+      const schoolConn = mongoose.createConnection(dbConnectionString);
+      await schoolConn.asPromise();
+      console.log(
+        `[SCHOOL DB] Connected for school ${schoolId}: ${schoolConn.db?.databaseName || "unknown"}`
+      );
       this.schoolConnections[schoolId] = schoolConn;
       return schoolConn;
     } catch (error) {
