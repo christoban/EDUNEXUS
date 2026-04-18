@@ -38,7 +38,19 @@ api.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401) {
+    // Check if we're on a public onboarding page
+    const publicOnboardingPaths = ["/onboarding/school", "/onboarding/invite"];
+    const isOnboardingPage = publicOnboardingPaths.some((path) => 
+      window.location.pathname.startsWith(path)
+    );
+
+    // For onboarding pages, just reject the error without redirecting
+    if (isOnboardingPage) {
+      return Promise.reject(error);
+    }
+
+    // Handle auth errors (401) or network errors for protected pages
+    if (error.response?.status === 401 || isNetworkError) {
       // Token expired or invalid. Avoid hard-reload loop if already on the right login page.
       const isMasterPage =
         window.location.pathname.startsWith("/master") ||
