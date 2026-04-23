@@ -33,6 +33,10 @@ import MasterSchoolDetailPage from "../master/MasterSchoolDetail";
 import MasterEmailHistoryPage from "../master/MasterEmailHistory";
 import MasterDecoyPage from "../master/MasterDecoy";
 import MasterSecurityPage from "../master/MasterSecurity";
+import DashboardSuperAdminPage from "../superadmin/DashboardSuperAdmin";
+import ProtectedSuperAdminPage from "../superadmin/ProtectedSuperAdmin";
+import SchoolsTablePage from "../superadmin/SchoolsTable";
+import InviteSchoolFormPage from "../superadmin/InviteSchoolForm";
 import { MASTER_LOGIN_ROUTE_PATH } from "@/lib/masterRoutes";
 
 export const router = createBrowserRouter([
@@ -50,6 +54,10 @@ export const router = createBrowserRouter([
       { path: "master/schools/:schoolId", element: <MasterSchoolDetailPage /> },
       { path: "master/email-history", element: <MasterEmailHistoryPage /> },
       { path: "master/security", element: <MasterSecurityPage /> },
+      { path: "superadmin", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
+      { path: "superadmin/dashboard", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
+      { path: "superadmin/schools", element: <ProtectedSuperAdminPage><SchoolsTablePage /></ProtectedSuperAdminPage> },
+      { path: "superadmin/invite", element: <ProtectedSuperAdminPage><InviteSchoolFormPage /></ProtectedSuperAdminPage> },
       // protected routes would go here
       {
         element: <PrivateRoutes />, // Assuming PrivateRoutes is imported

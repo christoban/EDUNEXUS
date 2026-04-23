@@ -6,46 +6,58 @@
   background: var(--accent-bg);
   border: 2px solid transparent;
   transition: border-color 0.3s;
+  /* --- Super Admin Dashboard Styles --- */
+  .superadmin-dashboard {
   margin-bottom: 24px;
 
   &:hover {
     border-color: var(--accent-border);
   }
+  .superadmin-dashboard header {
   &:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 }
 
+  .superadmin-dashboard h1 {
 .hero {
   position: relative;
 
   .base,
+  .superadmin-dashboard p {
   .framework,
   .vite {
     inset-inline: 0;
+  .schools-table-container {
     margin: 0 auto;
   }
 
   .base {
     width: 170px;
     position: relative;
+  .schools-table {
     z-index: 0;
   }
 
   .framework,
+  .schools-table th, .schools-table td {
   .vite {
     position: absolute;
   }
+  .schools-table th {
 
   .framework {
     z-index: 1;
     top: 34px;
     height: 28px;
+  .schools-table tr {
     transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
       scale(1.4);
+  .schools-table tr:last-child {
   }
 
+  .status-badge {
   .vite {
     z-index: 0;
     top: 107px;
@@ -54,6 +66,7 @@
     transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
       scale(0.8);
   }
+  .action-btn {
 }
 
 #center {
@@ -62,8 +75,14 @@
   gap: 25px;
   place-content: center;
   place-items: center;
+  .action-btn.approve { background: #45aaf2; color: #fff; }
+  .action-btn.reject { background: #eb3b5a; color: #fff; }
+  .action-btn.suspend { background: #f7b731; color: #fff; }
+  .action-btn.delete { background: #636e72; color: #fff; }
+  .action-btn:hover { opacity: 0.85; }
   flex-grow: 1;
 
+  .invite-school-form {
   @media (max-width: 1024px) {
     padding: 32px 20px 24px;
     gap: 18px;
@@ -71,15 +90,18 @@
 }
 
 #next-steps {
+  .invite-school-form h2 {
   display: flex;
   border-top: 1px solid var(--border);
   text-align: left;
 
+  .invite-school-form label {
   & > div {
     flex: 1 1 0;
     padding: 32px;
     @media (max-width: 1024px) {
       padding: 24px 20px;
+  .invite-school-form input[type="email"] {
     }
   }
 
@@ -87,6 +109,7 @@
     margin-bottom: 16px;
     width: 22px;
     height: 22px;
+  .invite-school-form button {
   }
 
   @media (max-width: 1024px) {
@@ -96,16 +119,19 @@
 }
 
 #docs {
+  .invite-school-form button:hover {
   border-right: 1px solid var(--border);
 
   @media (max-width: 1024px) {
     border-right: none;
+  .audit-log {
     border-bottom: 1px solid var(--border);
   }
 }
 
 #next-steps ul {
   list-style: none;
+  .audit-log h2 {
   padding: 0;
   display: flex;
   gap: 8px;

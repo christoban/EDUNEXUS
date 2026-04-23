@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { Building2, Copy, Eye, Loader2, RefreshCcw, Search, ShieldCheck, Sparkles } from "lucide-react";
+import { Building2, Copy, Eye, Loader2, RefreshCcw, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";

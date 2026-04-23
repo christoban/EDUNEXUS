@@ -27,7 +27,7 @@ const MasterLogin = () => {
     const bootstrap = async () => {
       try {
         await api.get("/master/auth/me");
-        navigate("/master/onboarding/requests", { replace: true });
+        navigate("/superadmin", { replace: true });
       } catch {
         // Stay on login form when no master session exists.
       } finally {
@@ -58,7 +58,7 @@ const MasterLogin = () => {
       }
 
       toast.success("Connexion master réussie.");
-      navigate("/master/onboarding/requests", { replace: true });
+      navigate("/superadmin", { replace: true });
     } catch (requestError: any) {
       const message = requestError?.response?.data?.message || "Impossible de se connecter au portail master.";
       setError(message);
@@ -87,7 +87,7 @@ const MasterLogin = () => {
       }
 
       toast.success("Validation email réussie.");
-      navigate("/master/onboarding/requests", { replace: true });
+      navigate("/superadmin", { replace: true });
     } catch (requestError: any) {
       const message = requestError?.response?.data?.message || "Code email invalide.";
       setError(message);
@@ -104,7 +104,7 @@ const MasterLogin = () => {
       setError("");
       await api.post("/master/auth/verify-mfa", { code: mfaCode.trim() });
       toast.success("Connexion master sécurisée réussie.");
-      navigate("/master/onboarding/requests", { replace: true });
+      navigate("/superadmin", { replace: true });
     } catch (requestError: any) {
       const message = requestError?.response?.data?.message || "Code MFA invalide.";
       setError(message);
