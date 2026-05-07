@@ -1,5 +1,5 @@
-import type { SectionCycle } from "../models/section.ts";
-import type { SubSystemCode } from "../models/subSystem.ts";
+export type SectionCycle = "maternelle" | "primaire" | "secondaire_1" | "secondaire_2" | "technique";
+export type SubSystemCode = "MATERNELLE" | "FR_PRIMAIRE" | "EN_PRIMAIRE" | "FR_SECONDARY" | "EN_SECONDARY";
 
 export type BulletinTemplateType = "FR" | "EN" | "PRIMARY" | "KINDERGARTEN";
 

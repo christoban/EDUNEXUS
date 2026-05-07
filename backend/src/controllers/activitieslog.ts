@@ -1,5 +1,5 @@
 import { type Request, type Response } from "express";
-import ActivityLog from "../models/activitieslog.ts";
+import { prisma } from "../config/prisma.ts";
 
 // @desc    Get System Activity Logs(including pagination)
 // @route   GET /api/activity
@@ -15,23 +15,29 @@ export const getAllActivities = async (
     const search = String(req.query.search || "").trim();
     const skip = (page - 1) * limit;
 
-    const query: any = {};
+    const schoolId = currentUser?.schoolId;
+    const where: any = {
+      ...(schoolId ? { schoolId } : {}),
+      ...(currentUser?.role === "teacher" ? { userId: currentUser.userId } : {}),
+      ...(search
+        ? {
+            OR: [
+              { action: { contains: search, mode: "insensitive" } },
+              { description: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
 
-    if (currentUser?.role === "teacher") {
-      query.user = currentUser._id;
-    }
-
-    if (search) {
-      query.$or = [{ action: { $regex: search, $options: "i" } }, { details: { $regex: search, $options: "i" } }];
-    }
-
-    const count = await ActivityLog.countDocuments(query);
-
-    const logs = await ActivityLog.find(query)
-      .populate("user", "name email role") // populate user details
-      .sort({ createdAt: -1 }) // latest first
-      .skip(skip)
-      .limit(limit);
+    const [count, logs] = await Promise.all([
+      prisma.activitiesLog.count({ where }),
+      prisma.activitiesLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
 
     res.json({
       logs,

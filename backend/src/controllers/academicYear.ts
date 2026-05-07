@@ -1,5 +1,5 @@
 import { type Request, type Response } from "express";
-import AcademicYear from "../models/academicYear.ts";
+import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 
 // @desc    Create a new Academic Year
@@ -11,29 +11,38 @@ export const createAcademicYear = async (
 ): Promise<void> => {
   try {
     const { name, fromYear, toYear, isCurrent } = req.body;
+    const schoolId = (req as any).user?.schoolId;
 
-    const existingYear = await AcademicYear.findOne({ fromYear, toYear });
+    if (!schoolId) {
+      res.status(403).json({ message: "Aucun établissement associé" });
+      return;
+    }
+
+    const existingYear = await prisma.academicYear.findFirst({
+      where: { schoolId, name },
+    });
     if (existingYear) {
       res.status(400).json({ message: "Academic Year already exists" });
       return;
     }
-    // If isCurrent is true, set all other academic years to false
     if (isCurrent) {
-      // the issue is here
-      await AcademicYear.updateMany(
-        { _id: { $ne: null } },
-        { isCurrent: false }
-      );
-      // we should no use return since we want the function to continue
+      await prisma.academicYear.updateMany({
+        where: { schoolId },
+        data: { isCurrent: false },
+      });
     }
-    const academicYear = await AcademicYear.create({
-      name,
-      fromYear,
-      toYear,
-      isCurrent: isCurrent || false,
+    const academicYear = await prisma.academicYear.create({
+      data: {
+        schoolId,
+        name,
+        startDate: new Date(fromYear),
+        endDate: new Date(toYear),
+        isCurrent: Boolean(isCurrent),
+      },
     });
     await logActivity({
-      userId: (req as any).user._id,
+      userId: (req as any).user.userId,
+      schoolId,
       action: `Created academic year ${name}`,
     });
     res.status(201).json(academicYear);
@@ -53,18 +62,20 @@ export const getAllAcademicYears = async (
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
+    const schoolId = (req as any).user?.schoolId;
 
-    // Build Search Query (Search by Name)
-    const query: any = {};
-    if (search) {
-      query.name = { $regex: search, $options: "i" };
-    }
+    const where: any = {
+      ...(schoolId ? { schoolId } : {}),
+      ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
+    };
     const [total, years] = await Promise.all([
-      AcademicYear.countDocuments(query),
-      AcademicYear.find(query)
-        .sort({ createdAt: -1 }) // Newest first
-        .skip((page - 1) * limit)
-        .limit(limit),
+      prisma.academicYear.count({ where }),
+      prisma.academicYear.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
     ]);
 
     res.json({
@@ -88,7 +99,13 @@ export const getCurrentAcademicYear = async (
   res: Response
 ): Promise<void> => {
   try {
-    const currentYear = await AcademicYear.findOne({ isCurrent: true });
+    const schoolId = (req as any).user?.schoolId;
+    const currentYear = await prisma.academicYear.findFirst({
+      where: {
+        ...(schoolId ? { schoolId } : {}),
+        isCurrent: true,
+      },
+    });
     if (!currentYear) {
       res.status(404).json({ message: "No current academic year found" });
       return;
@@ -109,22 +126,33 @@ export const updateAcademicYear = async (
 ): Promise<void> => {
   try {
     const { isCurrent } = req.body;
+    const schoolId = (req as any).user?.schoolId;
+    const academicYearId = String(req.params.id);
     if (isCurrent) {
-      await AcademicYear.updateMany(
-        { _id: { $ne: req.params.id } },
-        { isCurrent: false }
-      );
+      await prisma.academicYear.updateMany({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          id: { not: academicYearId },
+        },
+        data: { isCurrent: false },
+      });
     }
-    const updatedYear = await AcademicYear.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true } // Return the updated version
-    );
+    const updatedYear = await prisma.academicYear.update({
+      where: { id: academicYearId },
+      data: {
+        ...(req.body.name !== undefined ? { name: req.body.name } : {}),
+        ...(req.body.fromYear !== undefined ? { startDate: new Date(req.body.fromYear) } : {}),
+        ...(req.body.toYear !== undefined ? { endDate: new Date(req.body.toYear) } : {}),
+        ...(isCurrent !== undefined ? { isCurrent: Boolean(isCurrent) } : {}),
+      },
+    });
     if (!updatedYear) {
       res.status(404).json({ message: "Academic Year not found" });
+      return;
     }
     await logActivity({
-      userId: (req as any).user._id,
+      userId: (req as any).user.userId,
+      schoolId,
       action: `Created academic year ${updatedYear?.name}`,
     });
     res.status(200).json(updatedYear);
@@ -141,7 +169,14 @@ export const deleteAcademicYear = async (
   res: Response
 ): Promise<void> => {
   try {
-    const year = await AcademicYear.findById(req.params.id);
+    const schoolId = (req as any).user?.schoolId;
+    const academicYearId = String(req.params.id);
+    const year = await prisma.academicYear.findFirst({
+      where: {
+        id: academicYearId,
+        ...(schoolId ? { schoolId } : {}),
+      },
+    });
     if (!year) {
       res.status(404).json({ message: "Academic Year not found" });
       return;
@@ -155,10 +190,11 @@ export const deleteAcademicYear = async (
         return;
       }
     }
-    await year.deleteOne();
+    await prisma.academicYear.delete({ where: { id: year.id } });
 
     await logActivity({
-      userId: (req as any).user._id,
+      userId: (req as any).user.userId,
+      schoolId,
       action: `Deleted academic year ${year.name}`,
     });
     res.status(200).json({ message: "Academic Year deleted successfully" });

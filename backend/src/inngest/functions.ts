@@ -1,18 +1,5 @@
 import { inngest } from "./index.ts";
-import Class from "../models/class.ts";
-import User from "../models/user.ts";
-import Timetable from "../models/timetable.ts";
-import TimetableGeneration from "../models/timetableGeneration.ts";
-import ExamGeneration from "../models/examGeneration.ts";
-import Exam from "../models/exam.ts";
-import Submission from "../models/submission.ts";
-import Grade from "../models/grade.ts";
-import ReportCard from "../models/reportCard.ts";
-import Invoice from "../models/invoice.ts";
-import Subject from "../models/subject.ts";
-import AcademicYear from "../models/academicYear.ts";
-import AcademicPeriod from "../models/academicPeriod.ts";
-import Attendance from "../models/attendance.ts";
+import { prisma } from "../config/prisma.ts";
 import {
   getAcademicPeriodCode,
   getAcademicPeriodLabel,
@@ -178,10 +165,13 @@ export const generateTimeTable = inngest.createFunction(
       timetableId?: string
     ) => {
       if (!event.data.generationId) return;
-      await TimetableGeneration.findByIdAndUpdate(event.data.generationId, {
-        status,
-        message,
-        timetable: timetableId || null,
+      await prisma.timetableGeneration.update({
+        where: { id: event.data.generationId },
+        data: {
+          status,
+          message,
+          timetableId: timetableId || null,
+        },
       });
     };
 
@@ -189,33 +179,36 @@ export const generateTimeTable = inngest.createFunction(
       await updateGenerationStatus("running", "Generation started");
 
       const contextData = await step.run("fetch-class-context", async () => {
-        // fetch class
-        const classData = await Class.findById(classId).populate("subjects");
+        // fetch class with subjects
+        const classData = await prisma.class.findUnique({
+          where: { id: classId },
+          include: { subjects: true },
+        });
         if (!classData) throw new NonRetriableError("Class not found");
 
         // fetch teachers
-        const allTeacher = await User.find({ role: "teacher" });
+        const allTeachers = await prisma.user.findMany({
+          where: { role: "teacher" },
+        });
 
         // filter qualified teachers for class subjects
-        const classSubjectsIds = classData.subjects.map((sub) =>
-          sub._id.toString()
-        );
+        const classSubjectsIds = classData.subjects.map((sub) => sub.id);
 
-        const qualifiedTeachers = allTeacher
+        const qualifiedTeachers = allTeachers
           .filter((teacher) => {
             if (!teacher.teacherSubject) return false;
             return teacher.teacherSubject.some((subId) =>
-              classSubjectsIds.includes(subId.toString())
+              classSubjectsIds.includes(subId)
             );
           })
           .map((tea) => ({
-            id: tea._id,
+            id: tea.id,
             name: tea.name,
             subjects: tea.teacherSubject,
           }));
 
-        const subjectsPayload = classData.subjects.map((sub: any) => ({
-          id: sub._id,
+        const subjectsPayload = classData.subjects.map((sub) => ({
+          id: sub.id,
           name: sub.name,
           code: sub.code,
         }));
@@ -240,8 +233,8 @@ export const generateTimeTable = inngest.createFunction(
         throw new NonRetriableError("GOOGLE_GENERATIVE_AI_API_KEY is missing");
       }
 
-      const allTimetables = await Timetable.find({
-        academicYear: academicYearId,
+      const allTimetables = await prisma.timetable.findMany({
+        where: { academicYearId },
       });
 
       const prompt = `
@@ -301,15 +294,18 @@ export const generateTimeTable = inngest.createFunction(
       // now let save
       const savedTimetable = await step.run("save-timetable", async () => {
         // Delete existing to avoid duplicates
-        // we should also delete any timetable assigned or generate for these class
-        await Timetable.findOneAndDelete({
-          class: classId,
-          academicYear: academicYearId,
+        await prisma.timetable.deleteMany({
+          where: {
+            classId,
+            academicYearId,
+          },
         });
-        const timetable = await Timetable.create({
-          class: classId,
-          academicYear: academicYearId,
-          schedule: aiSchedule.schedule,
+        const timetable = await prisma.timetable.create({
+          data: {
+            classId,
+            academicYearId,
+            schedule: aiSchedule.schedule,
+          },
         });
 
         return timetable;
@@ -318,7 +314,7 @@ export const generateTimeTable = inngest.createFunction(
       await updateGenerationStatus(
         "completed",
         "Timetable generated successfully",
-        savedTimetable._id.toString()
+        savedTimetable.id
       );
       return { message: "Timetable generated successfully" };
     } catch (error: any) {
@@ -343,9 +339,12 @@ export const generateExam = inngest.createFunction(
       message?: string
     ) => {
       if (!generationId) return;
-      await ExamGeneration.findByIdAndUpdate(generationId, {
-        status,
-        message,
+      await prisma.examGeneration.update({
+        where: { id: generationId },
+        data: {
+          status,
+          message,
+        },
       });
     };
 
@@ -443,18 +442,20 @@ export const handleExamSubmission = inngest.createFunction(
 
     await step.run("process-exam-submission", async () => {
       // 1. Check if already submitted
-      const existingSubmission = await Submission.findOne({
-        exam: examId,
-        student: studentId,
+      const existingSubmission = await prisma.submission.findFirst({
+        where: {
+          examId,
+          studentId,
+        },
       });
       if (existingSubmission) {
         throw new NonRetriableError("Exam already submitted");
       }
 
       // 2. Fetch full exam (with answers)
-      const exam = await Exam.findById(examId).select(
-        "+questions.correctAnswer"
-      );
+      const exam = await prisma.exam.findUnique({
+        where: { id: examId },
+      });
       if (!exam) {
         throw new NonRetriableError(`Exam ${examId} not found`);
       }
@@ -463,10 +464,11 @@ export const handleExamSubmission = inngest.createFunction(
       let score = 0;
       let totalPoints = 0;
 
-      exam.questions.forEach((question) => {
+      const questions = exam.questions as any[];
+      questions.forEach((question) => {
         totalPoints += question.points;
         const studentAns = answers.find(
-          (a: any) => a.questionId === question._id.toString()
+          (a: any) => a.questionId === question.id
         );
         if (studentAns && studentAns.answer === question.correctAnswer) {
           score += question.points;
@@ -474,39 +476,44 @@ export const handleExamSubmission = inngest.createFunction(
       });
 
       // 4. Save Submission
-      await Submission.create({
-        exam: examId,
-        student: studentId,
-        answers,
-        score,
+      await prisma.submission.create({
+        data: {
+          examId,
+          studentId,
+          answers,
+          score,
+        },
       });
     });
 
     await step.run("send-exam-result-notification", async () => {
-      const submission = await Submission.findOne({
-        exam: examId,
-        student: studentId,
-      })
-        .select("score")
-        .lean();
+      const submission = await prisma.submission.findFirst({
+        where: {
+          examId,
+          studentId,
+        },
+        select: { score: true },
+      });
 
       if (!submission) return { sent: 0, failed: 0 };
 
-      const exam = await Exam.findById(examId)
-        .populate("subject", "name")
-        .select("title subject questions")
-        .lean();
+      const exam = await prisma.exam.findUnique({
+        where: { id: examId },
+        include: { subject: true },
+      });
 
       if (!exam) return { sent: 0, failed: 0 };
 
-      const student = await User.findById(studentId)
-        .select("name email parentId schoolSection uiLanguagePreference")
-        .lean();
+      const student = await prisma.user.findUnique({
+        where: { id: studentId },
+        select: { name: true, email: true, parentId: true, schoolSection: true, uiLanguagePreference: true },
+      });
 
       if (!student?.email) return { sent: 0, failed: 0 };
 
-      const maxScore = Array.isArray((exam as any).questions)
-        ? (exam as any).questions.reduce(
+      const questions = exam.questions as any[];
+      const maxScore = Array.isArray(questions)
+        ? questions.reduce(
             (sum: number, question: any) => sum + (Number(question.points) || 1),
             0
           )
@@ -527,27 +534,26 @@ export const handleExamSubmission = inngest.createFunction(
       }> = [
         {
           email: student.email,
-          userId: String(student._id),
+          userId: student.id,
           role: "student",
-          schoolSection: (student as any).schoolSection,
-          uiLanguagePreference: (student as any).uiLanguagePreference,
+          schoolSection: student.schoolSection,
+          uiLanguagePreference: student.uiLanguagePreference,
         },
       ];
 
       if (student.parentId) {
-        const parent = await User.findById(student.parentId)
-          .select("email parentLanguagePreference schoolSection uiLanguagePreference")
-          .lean();
+        const parent = await prisma.user.findUnique({
+          where: { id: student.parentId },
+          select: { email: true, parentLanguagePreference: true, schoolSection: true, uiLanguagePreference: true },
+        });
         if (parent?.email) {
           recipients.push({
             email: parent.email,
-            userId: String(parent._id),
+            userId: parent.id,
             role: "parent",
-            parentLanguagePreference:
-              ((parent as any).parentLanguagePreference as "fr" | "en" | undefined) ||
-              undefined,
-            schoolSection: (parent as any).schoolSection,
-            uiLanguagePreference: (parent as any).uiLanguagePreference,
+            parentLanguagePreference: parent.parentLanguagePreference || undefined,
+            schoolSection: parent.schoolSection,
+            uiLanguagePreference: parent.uiLanguagePreference,
           });
         }
       }
@@ -566,8 +572,8 @@ export const handleExamSubmission = inngest.createFunction(
 
         const template = buildExamResultTemplate({
           recipientName: student.name,
-          examTitle: (exam as any).title,
-          subjectName: (exam as any).subject?.name || "Subject",
+          examTitle: exam.title,
+          subjectName: exam.subject?.name || "Subject",
           score: Number(submission.score) || 0,
           maxScore,
           percentage,
@@ -583,9 +589,9 @@ export const handleExamSubmission = inngest.createFunction(
           template: "exam_result",
           eventType: "exam_result",
           relatedEntityType: "exam",
-          relatedEntityId: String(examId),
+          relatedEntityId: examId,
           metadata: {
-            studentId: String(student._id),
+            studentId: student.id,
             score: Number(submission.score) || 0,
             maxScore,
             percentage,
@@ -616,7 +622,9 @@ export const generateReportCards = inngest.createFunction(
     };
 
     const year = await step.run("fetch-academic-year", async () => {
-      const data = await AcademicYear.findById(yearId);
+      const data = await prisma.academicYear.findUnique({
+        where: { id: yearId },
+      });
       if (!data) {
         throw new NonRetriableError("Academic year not found");
       }
@@ -624,7 +632,7 @@ export const generateReportCards = inngest.createFunction(
     });
 
     const selectedAcademicPeriod: {
-      _id: any;
+      id: string;
       type: "SEQUENCE" | "TERM" | "MONTH";
       number: number;
       startDate: Date;
@@ -633,12 +641,21 @@ export const generateReportCards = inngest.createFunction(
       isCouncilPeriod: boolean;
     } | null = await step.run("resolve-academic-period", async () => {
       if (!periodId) return null;
-      const found = await AcademicPeriod.findOne({
-        _id: periodId,
-        academicYear: yearId,
-      })
-        .select("_id type number startDate endDate isBulletinPeriod isCouncilPeriod")
-        .lean();
+      const found = await prisma.academicPeriod.findFirst({
+        where: {
+          id: periodId,
+          academicYearId: yearId,
+        },
+        select: {
+          id: true,
+          type: true,
+          number: true,
+          startDate: true,
+          endDate: true,
+          isBulletinPeriod: true,
+          isCouncilPeriod: true,
+        },
+      });
 
       if (!found) {
         throw new NonRetriableError("Academic period not found for selected year");
@@ -648,7 +665,7 @@ export const generateReportCards = inngest.createFunction(
         throw new NonRetriableError("Selected academic period is not configured for bulletins");
       }
 
-      return found as any;
+      return found;
     });
 
     const resolvedPeriod = (period || "term1") as ReportPeriod;
@@ -664,17 +681,18 @@ export const generateReportCards = inngest.createFunction(
       : String(resolvedPeriod).toUpperCase();
 
     const exams = await step.run("fetch-exams-for-period", async () => {
-      const examQuery: any = {
-        dueDate: { $gte: start, $lte: end },
+      const examWhere: any = {
+        dueDate: { gte: start, lte: end },
       };
 
       if (classId) {
-        examQuery.class = classId;
+        examWhere.classId = classId;
       }
 
-      const found = await Exam.find(examQuery)
-        .select("_id subject questions class dueDate")
-        .lean();
+      const found = await prisma.exam.findMany({
+        where: examWhere,
+        select: { id: true, subjectId: true, questions: true, classId: true, dueDate: true },
+      });
 
       return found;
     });
@@ -686,59 +704,70 @@ export const generateReportCards = inngest.createFunction(
     const examIds = exams.map((exam: any) => exam._id);
 
     const submissions = await step.run("fetch-submissions", async () => {
-      const submissionQuery: any = {
-        exam: { $in: examIds },
+      const submissionWhere: any = {
+        examId: { in: examIds },
       };
 
       if (studentId) {
-        submissionQuery.student = studentId;
+        submissionWhere.studentId = studentId;
       }
 
-      return Submission.find(submissionQuery)
-        .select("exam student score")
-        .lean();
+      return prisma.submission.findMany({
+        where: submissionWhere,
+        select: { examId: true, studentId: true, score: true },
+      });
     });
 
     const examMap = new Map<string, any>();
     for (const exam of exams as any[]) {
-      examMap.set(String(exam._id), exam);
+      examMap.set(exam.id, exam);
     }
 
     const classIds = Array.from(
-      new Set((exams as any[]).map((exam) => String(exam.class)).filter(Boolean))
+      new Set((exams as any[]).map((exam: any) => exam.classId).filter(Boolean))
     );
     const subjectIds = Array.from(
-      new Set((exams as any[]).map((exam) => String(exam.subject)).filter(Boolean))
+      new Set((exams as any[]).map((exam: any) => exam.subjectId).filter(Boolean))
     );
 
     const [classContexts, subjects] = await Promise.all([
       step.run("fetch-class-grading-context", async () => {
         if (!classIds.length) return [];
-        return Class.find({ _id: { $in: classIds } })
-          .populate({
-            path: "section",
-            select: "name subSystem cycle language",
-            populate: {
-              path: "subSystem",
-              select: "code gradingScale passThreshold hasCoefficientBySubject bulletinTemplate",
+        return prisma.class.findMany({
+          where: { id: { in: classIds } },
+          include: {
+            section: {
+              include: {
+                subSystem: {
+                  select: {
+                    code: true,
+                    gradingScale: true,
+                    passThreshold: true,
+                    hasCoefficientBySubject: true,
+                    bulletinTemplate: true,
+                  },
+                },
+              },
             },
-          })
-          .populate("classTeacher", "name")
-          .select("_id section classTeacher")
-          .lean();
+            classTeacher: {
+              select: { name: true },
+            },
+          },
+        });
       }),
       step.run("fetch-subject-coefficients", async () => {
         if (!subjectIds.length) return [];
-        return Subject.find({ _id: { $in: subjectIds } })
-          .select("_id coefficient")
-          .lean();
+        return prisma.subject.findMany({
+          where: { id: { in: subjectIds } },
+          select: { id: true, coefficient: true },
+        });
       }),
     ]);
 
     const classContextMap = new Map<string, any>();
     for (const cls of classContexts as any[]) {
-      const subSystem = (cls as any)?.section?.subSystem;
-      classContextMap.set(String((cls as any)._id), {
+      const subSystem = cls?.section?.subSystem;
+      classContextMap.set(cls.id, {
         gradingScale: subSystem?.gradingScale || "OVER_20",
         passThresholdOn20: normalizePassThresholdOn20(
           Number(subSystem?.passThreshold ?? 10),
@@ -747,18 +776,18 @@ export const generateReportCards = inngest.createFunction(
         hasCoefficientBySubject: Boolean(subSystem?.hasCoefficientBySubject),
         templateType: resolveBulletinTemplateType(
           subSystem?.code,
-          (cls as any)?.section?.cycle,
-          (cls as any)?.section?.language,
+          cls?.section?.cycle,
+          cls?.section?.language,
           subSystem?.bulletinTemplate
         ),
-        classTeacherName: (cls as any)?.classTeacher?.name || "________________",
+        classTeacherName: cls?.classTeacher?.name || "________________",
       });
     }
 
     const subjectCoefficientMap = new Map<string, number>();
     for (const subject of subjects as any[]) {
       subjectCoefficientMap.set(
-        String(subject._id),
+        subject.id,
         Math.max(1, Number(subject.coefficient) || 1)
       );
     }
@@ -767,11 +796,12 @@ export const generateReportCards = inngest.createFunction(
 
     await step.run("upsert-grades", async () => {
       for (const submission of submissions as any[]) {
-        const exam = examMap.get(String(submission.exam));
+        const exam = examMap.get(submission.examId);
         if (!exam) continue;
 
-        const maxScore = Array.isArray(exam.questions)
-          ? exam.questions.reduce(
+        const questions = exam.questions as any[];
+        const maxScore = Array.isArray(questions)
+          ? questions.reduce(
               (sum: number, question: any) => sum + (Number(question.points) || 1),
               0
             )
@@ -779,7 +809,7 @@ export const generateReportCards = inngest.createFunction(
 
         if (!maxScore) continue;
 
-        const gradingContext = classContextMap.get(String(exam.class)) || {
+        const gradingContext = classContextMap.get(exam.classId) || {
           gradingScale: "OVER_20",
           passThresholdOn20: 10,
           hasCoefficientBySubject: false,
@@ -789,20 +819,20 @@ export const generateReportCards = inngest.createFunction(
         const scoreOn20 = normalizeScoreOn20({ rawScore, maxScore });
         const percentage = scoreOn20ToPercentage(scoreOn20);
         const coefficient = gradingContext.hasCoefficientBySubject
-          ? subjectCoefficientMap.get(String(exam.subject)) || 1
+          ? subjectCoefficientMap.get(exam.subjectId) || 1
           : 1;
         const gradeLabel = formatGradeLabel(scoreOn20, gradingContext.gradingScale);
 
-        const grade = await Grade.findOneAndUpdate(
-          {
-            exam: exam._id,
-            student: submission.student,
-            year: yearId,
-            period: periodCode,
+        const grade = await prisma.grade.upsert({
+          where: {
+            examId_studentId_year_period: {
+              examId: exam.id,
+              studentId: submission.studentId,
+              year: yearId,
+              period: periodCode,
+            },
           },
-          {
-            exam: exam._id,
-            student: submission.student,
+          update: {
             score: rawScore,
             maxScore,
             percentage,
@@ -812,16 +842,29 @@ export const generateReportCards = inngest.createFunction(
             gradingScale: gradingContext.gradingScale,
             hasCoefficientBySubjectAtSource: gradingContext.hasCoefficientBySubject,
             passThresholdOn20AtSource: gradingContext.passThresholdOn20,
-            subject: exam.subject,
+            subjectId: exam.subjectId,
+          },
+          create: {
+            examId: exam.id,
+            studentId: submission.studentId,
+            score: rawScore,
+            maxScore,
+            percentage,
+            scoreOn20,
+            coefficient,
+            gradeLabel,
+            gradingScale: gradingContext.gradingScale,
+            hasCoefficientBySubjectAtSource: gradingContext.hasCoefficientBySubject,
+            passThresholdOn20AtSource: gradingContext.passThresholdOn20,
+            subjectId: exam.subjectId,
             year: yearId,
             period: periodCode,
           },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        });
 
-        const studentKey = String(submission.student);
+        const studentKey = submission.studentId;
         const existing = gradeIdsByStudent.get(studentKey) || [];
-        existing.push(String(grade._id));
+        existing.push(grade.id);
         gradeIdsByStudent.set(studentKey, existing);
       }
     });
@@ -832,14 +875,15 @@ export const generateReportCards = inngest.createFunction(
 
     await step.run("upsert-report-cards", async () => {
       const studentKeys = Array.from(gradeIdsByStudent.keys());
-      const students = await User.find({ _id: { $in: studentKeys } })
-        .select("_id studentClass")
-        .lean();
+      const students = await prisma.user.findMany({
+        where: { id: { in: studentKeys } },
+        select: { id: true, studentClassId: true },
+      });
 
       const studentClassMap = new Map<string, string>();
       for (const student of students as any[]) {
-        if (student?.studentClass) {
-          studentClassMap.set(String(student._id), String(student.studentClass));
+        if (student?.studentClassId) {
+          studentClassMap.set(student.id, student.studentClassId);
         }
       }
 
@@ -862,9 +906,10 @@ export const generateReportCards = inngest.createFunction(
       const classAverages = new Map<string, Array<{ studentId: string; average: number }>>();
 
       for (const [studentKey, gradeIds] of gradeIdsByStudent.entries()) {
-        const grades = await Grade.find({ _id: { $in: gradeIds } })
-          .select("scoreOn20 percentage coefficient hasCoefficientBySubjectAtSource passThresholdOn20AtSource")
-          .lean();
+        const grades = await prisma.grade.findMany({
+          where: { id: { in: gradeIds } },
+          select: { scoreOn20: true, percentage: true, coefficient: true, hasCoefficientBySubjectAtSource: true, passThresholdOn20AtSource: true },
+        });
 
         if (!grades.length) continue;
 
@@ -964,17 +1009,18 @@ export const generateReportCards = inngest.createFunction(
         attendanceStatuses.push("excused");
       }
 
-      const attendanceRows = await Attendance.find({
-        student: { $in: Array.from(summaries.keys()) },
-        date: { $gte: start, $lte: end },
-        status: { $in: attendanceStatuses },
-      })
-        .select("student status")
-        .lean();
+      const attendanceRows = await prisma.attendance.findMany({
+        where: {
+          studentId: { in: Array.from(summaries.keys()) },
+          date: { gte: start, lte: end },
+          status: { in: attendanceStatuses },
+        },
+        select: { studentId: true, status: true },
+      });
 
       const attendanceMap = new Map<string, { absences: number; lateCount: number; excusedCount: number }>();
       for (const row of attendanceRows as any[]) {
-        const key = String(row.student);
+        const key = row.studentId;
         const current = attendanceMap.get(key) || { absences: 0, lateCount: 0, excusedCount: 0 };
         if (row.status === "absent") current.absences += 1;
         if (row.status === "late") current.lateCount += 1;
@@ -990,15 +1036,16 @@ export const generateReportCards = inngest.createFunction(
           (bulletinPolicy.attendanceLateAsAbsence ? attendance.lateCount : 0) +
           (bulletinPolicy.attendanceExcusedCountsAsAbsence ? attendance.excusedCount : 0);
 
-        const classInvoices = await Invoice.find({
-          student: studentKey,
-          class: summary.classId,
-          academicYear: yearId,
-          balance: { $gt: bulletinPolicy.bulletinAllowedOutstandingBalance },
-          status: { $in: ["issued", "partially_paid", "overdue"] },
-        })
-          .select("balance status invoiceNumber")
-          .lean();
+        const classInvoices = await prisma.invoice.findMany({
+          where: {
+            studentId: studentKey,
+            classId: summary.classId,
+            academicYearId: yearId,
+            balance: { gt: bulletinPolicy.bulletinAllowedOutstandingBalance },
+            status: { in: ["issued", "partially_paid", "overdue"] },
+          },
+          select: { balance: true, status: true, invoiceNumber: true },
+        });
 
         const outstandingBalance = classInvoices.reduce((sum, invoice) => sum + Number(invoice.balance || 0), 0);
         const shouldBlockBulletin =
@@ -1016,19 +1063,18 @@ export const generateReportCards = inngest.createFunction(
           policy: bulletinPolicy,
         });
 
-        await ReportCard.findOneAndUpdate(
-          {
-            student: studentKey,
-            year: yearId,
-            periodCode,
+        await prisma.reportCard.upsert({
+          where: {
+            studentId_year_periodCode: {
+              studentId: studentKey,
+              year: yearId,
+              periodCode,
+            },
           },
-          {
-            student: studentKey,
-            year: yearId,
+          update: {
             period: periodCode,
-            periodCode,
             periodLabel,
-            periodRef: selectedAcademicPeriod?._id || null,
+            periodRef: selectedAcademicPeriod?.id || null,
             councilPeriod: Boolean(selectedAcademicPeriod?.isCouncilPeriod),
             templateType: summary.templateType,
             grades: summary.gradeIds,
@@ -1057,8 +1103,42 @@ export const generateReportCards = inngest.createFunction(
             },
             mention: getMentionFromAverage(summary.averagePercentage),
           },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+          create: {
+            studentId: studentKey,
+            year: yearId,
+            period: periodCode,
+            periodCode,
+            periodLabel,
+            periodRef: selectedAcademicPeriod?.id || null,
+            councilPeriod: Boolean(selectedAcademicPeriod?.isCouncilPeriod),
+            templateType: summary.templateType,
+            grades: summary.gradeIds,
+            aggregates: {
+              average: summary.averagePercentage,
+              averageScoreOn20: summary.averageScoreOn20,
+              totalExams: summary.totalExams,
+              passedExams: summary.passedExams,
+              failedExams: summary.failedExams,
+              highestPercentage: summary.highestPercentage,
+              lowestPercentage: summary.lowestPercentage,
+            },
+            bulletinMeta: {
+              rank: stats?.rankByStudent.get(studentKey) || 1,
+              classSize: stats?.classSize || 1,
+              classAverage: stats?.classAverage || summary.averagePercentage,
+              classHighest: stats?.classHighest || summary.averagePercentage,
+              classLowest: stats?.classLowest || summary.averagePercentage,
+              absences: effectiveAbsences,
+              lateCount: attendance.lateCount,
+              councilDecision,
+              signatures: {
+                classTeacher: summary.classTeacherName || "________________",
+                principal: "________________",
+              },
+            },
+            mention: getMentionFromAverage(summary.averagePercentage),
+          },
+        });
 
         generatedStudents.push(studentKey);
       }

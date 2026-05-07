@@ -1,27 +1,154 @@
 import { type Request, type Response } from "express";
+import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { dbRouter } from "../config/dbRouter.ts";
-import School from "../models/school.ts";
-import SchoolConfig from "../models/schoolConfig.ts";
-import SchoolInvite from "../models/schoolInvite.ts";
-import User from "../models/user.ts";
-import { getSchoolTemplate, SCHOOL_ONBOARDING_TEMPLATES, buildSchoolConnectionString, buildSchoolDbName } from "../utils/schoolOnboarding.ts";
+import {
+  InviteStatus,
+  PlanType,
+  SchoolStatus,
+  UserRole,
+  type School,
+  type SchoolInvite,
+} from "@prisma/client";
+import { prisma } from "../config/prisma.ts";
+import {
+  getSchoolTemplate,
+  SCHOOL_ONBOARDING_TEMPLATES,
+  buildSchoolDbName,
+} from "../utils/schoolOnboarding.ts";
+import { sendTransactionalEmail } from "../services/emailService.ts";
+import { logActivity } from "../utils/activitieslog.ts";
+import { buildSchoolInviteTemplate } from "../utils/emailTemplates.ts";
 
-const ALLOWED_ONBOARDING_STATUSES = ["draft", "pending", "approved", "provisioning", "active", "rejected"] as const;
+const ALLOWED_ONBOARDING_STATUSES = [
+  "draft",
+  "pending",
+  "approved",
+  "provisioning",
+  "active",
+  "rejected",
+] as const;
 
-const getMasterSchoolModel = () => {
-  const masterConn = dbRouter.getMasterConnection();
-  return masterConn.model("School", School.schema);
+const statusFromQuery = (status: string): SchoolStatus | null => {
+  const normalized = status.trim().toLowerCase();
+  if (normalized === "pending" || normalized === "draft" || normalized === "provisioning") {
+    return SchoolStatus.PENDING;
+  }
+  if (normalized === "approved") return SchoolStatus.APPROVED;
+  if (normalized === "active") return SchoolStatus.ACTIVE;
+  if (normalized === "rejected") return SchoolStatus.REJECTED;
+  return null;
 };
 
-const getMasterSchoolConfigModel = () => {
-  const masterConn = dbRouter.getMasterConnection();
-  return masterConn.model("SchoolConfig", SchoolConfig.schema);
+const statusToLegacy = (status: SchoolStatus): string => {
+  if (status === SchoolStatus.PENDING) return "pending";
+  if (status === SchoolStatus.APPROVED) return "approved";
+  if (status === SchoolStatus.ACTIVE) return "active";
+  if (status === SchoolStatus.REJECTED) return "rejected";
+  return "rejected";
 };
 
-const getMasterSchoolInviteModel = () => {
-  const masterConn = dbRouter.getMasterConnection();
-  return masterConn.model("SchoolInvite", SchoolInvite.schema);
+const inviteStatusToLegacy = (status: InviteStatus): "pending" | "accepted" | "expired" => {
+  if (status === InviteStatus.PENDING) return "pending";
+  if (status === InviteStatus.USED) return "accepted";
+  return "expired";
+};
+
+const planFromInput = (plan: string | undefined): PlanType => {
+  const normalized = String(plan || "").trim().toLowerCase();
+  if (normalized === "premium") return PlanType.PREMIUM;
+  if (normalized === "standard") return PlanType.STANDARD;
+  return PlanType.DISCOVERY;
+};
+
+const planToLegacy = (plan: PlanType): "decouverte" | "standard" | "premium" => {
+  if (plan === PlanType.PREMIUM) return "premium";
+  if (plan === PlanType.STANDARD) return "standard";
+  return "decouverte";
+};
+
+const splitName = (fullName: string) => {
+  const trimmed = fullName.trim();
+  if (!trimmed) return { firstName: "Admin", lastName: "School" };
+
+  const parts = trimmed.split(/\s+/);
+  const firstName = parts[0] || "Admin";
+  const lastName = parts.slice(1).join(" ") || "School";
+  return { firstName, lastName };
+};
+
+const toLegacySchool = (school: School) => ({
+  _id: school.id,
+  schoolName: school.name,
+  schoolMotto: "",
+  systemType: school.system,
+  structure: "simple",
+  onboardingStatus: statusToLegacy(school.status),
+  dbName: school.subdomain,
+  requestedAdminEmail: school.email,
+  requestedAdminName: null,
+  isActive: school.status === SchoolStatus.ACTIVE,
+  createdAt: school.createdAt,
+  updatedAt: school.updatedAt,
+});
+
+const ensureUniqueSubdomain = async (schoolName: string) => {
+  const base = buildSchoolDbName(schoolName)
+    .replace(/^edunexus_/, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "school";
+
+  let candidate = base;
+  let suffix = 1;
+
+  while (true) {
+    const existing = await prisma.school.findUnique({ where: { subdomain: candidate } });
+    if (!existing) {
+      return candidate;
+    }
+    suffix += 1;
+    candidate = `${base}-${suffix}`;
+  }
+};
+
+const createOrReuseInvite = async (
+  school: School,
+  fallbackAdminEmail?: string | null,
+  fallbackSchoolName?: string | null,
+  plan?: PlanType
+) => {
+  const existingInvite = await prisma.schoolInvite.findFirst({
+    where: { schoolId: school.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const now = new Date();
+  if (
+    existingInvite &&
+    existingInvite.status === InviteStatus.PENDING &&
+    existingInvite.expiresAt.getTime() >= now.getTime()
+  ) {
+    return existingInvite;
+  }
+
+  if (existingInvite && existingInvite.status === InviteStatus.PENDING) {
+    await prisma.schoolInvite.update({
+      where: { id: existingInvite.id },
+      data: { status: InviteStatus.EXPIRED },
+    });
+  }
+
+  return prisma.schoolInvite.create({
+    data: {
+      token: crypto.randomUUID(),
+      email: String(fallbackAdminEmail || school.email || "").toLowerCase(),
+      schoolName: fallbackSchoolName || school.name,
+      plan: plan || school.plan,
+      status: InviteStatus.PENDING,
+      expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      schoolId: school.id,
+    },
+  });
 };
 
 export const getSchoolOnboardingTemplates = async (_req: Request, res: Response) => {
@@ -30,18 +157,25 @@ export const getSchoolOnboardingTemplates = async (_req: Request, res: Response)
 
 export const getActiveSchoolsForLogin = async (_req: Request, res: Response) => {
   try {
-    const SchoolModel = getMasterSchoolModel();
-
-    const schools = await SchoolModel.find({
-      isActive: true,
-      onboardingStatus: "active",
-    })
-      .select("_id schoolName dbName systemType structure")
-      .sort({ schoolName: 1 })
-      .lean();
+    const schools = await prisma.school.findMany({
+      where: { status: { in: [SchoolStatus.APPROVED, SchoolStatus.ACTIVE] } },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        subdomain: true,
+        system: true,
+      },
+    });
 
     return res.json({
-      schools,
+      schools: schools.map((school) => ({
+        _id: school.id,
+        schoolName: school.name,
+        dbName: school.subdomain,
+        systemType: school.system,
+        structure: "simple",
+      })),
       total: schools.length,
     });
   } catch (error: any) {
@@ -51,9 +185,6 @@ export const getActiveSchoolsForLogin = async (_req: Request, res: Response) => 
 
 export const getSchoolOnboardingRequests = async (req: Request, res: Response) => {
   try {
-    const SchoolModel = getMasterSchoolModel();
-    const SchoolInviteModel = getMasterSchoolInviteModel();
-
     const rawPage = Number(req.query.page || 1);
     const rawLimit = Number(req.query.limit || 20);
     const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
@@ -63,61 +194,52 @@ export const getSchoolOnboardingRequests = async (req: Request, res: Response) =
     const status = String(req.query.status || "").trim();
     const search = String(req.query.search || "").trim();
 
-    const query: Record<string, any> = {};
-    if (status) {
-      if (!ALLOWED_ONBOARDING_STATUSES.includes(status as any)) {
-        return res.status(400).json({ message: "Invalid onboarding status filter" });
-      }
-      query.onboardingStatus = status;
+    if (status && !ALLOWED_ONBOARDING_STATUSES.includes(status as (typeof ALLOWED_ONBOARDING_STATUSES)[number])) {
+      return res.status(400).json({ message: "Invalid onboarding status filter" });
     }
 
-    if (search) {
-      query.$or = [
-        { schoolName: { $regex: search, $options: "i" } },
-        { dbName: { $regex: search, $options: "i" } },
-        { requestedAdminName: { $regex: search, $options: "i" } },
-        { requestedAdminEmail: { $regex: search, $options: "i" } },
-      ];
-    }
+    const prismaStatus = status ? statusFromQuery(status) : null;
+    const where = {
+      ...(prismaStatus ? { status: prismaStatus } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { subdomain: { contains: search, mode: "insensitive" as const } },
+              { email: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
 
     const [total, schools] = await Promise.all([
-      SchoolModel.countDocuments(query),
-      SchoolModel.find(query)
-        .select("_id schoolName dbName systemType structure isActive onboardingStatus templateKey requestedAdminName requestedAdminEmail createdAt updatedAt")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      prisma.school.count({ where }),
+      prisma.school.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          invites: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      }),
     ]);
 
-    const schoolIds = schools.map((school: any) => school._id);
-    const invites = schoolIds.length
-      ? await SchoolInviteModel.find({ school: { $in: schoolIds } })
-          .select("school token status expiresAt acceptedAt requestedAdminName requestedAdminEmail createdAt")
-          .sort({ createdAt: -1 })
-          .lean()
-      : [];
-
-    const latestInviteBySchool = new Map<string, any>();
-    for (const invite of invites as any[]) {
-      const schoolId = String(invite.school);
-      if (!latestInviteBySchool.has(schoolId)) {
-        latestInviteBySchool.set(schoolId, invite);
-      }
-    }
-
-    const requests = (schools as any[]).map((school) => {
-      const latestInvite = latestInviteBySchool.get(String(school._id)) || null;
+    const requests = schools.map((school) => {
+      const latestInvite = school.invites[0] || null;
       return {
-        ...school,
+        ...toLegacySchool(school),
         latestInvite: latestInvite
           ? {
               token: latestInvite.token,
-              status: latestInvite.status,
+              status: inviteStatusToLegacy(latestInvite.status),
               expiresAt: latestInvite.expiresAt,
-              acceptedAt: latestInvite.acceptedAt,
-              requestedAdminName: latestInvite.requestedAdminName,
-              requestedAdminEmail: latestInvite.requestedAdminEmail,
+              acceptedAt: latestInvite.status === InviteStatus.USED ? latestInvite.createdAt : null,
+              requestedAdminName: school.name,
+              requestedAdminEmail: latestInvite.email,
               createdAt: latestInvite.createdAt,
             }
           : null,
@@ -142,60 +264,46 @@ export const getSchoolOnboardingRequests = async (req: Request, res: Response) =
   }
 };
 
-const createOrReuseInvite = async (
-  school: any,
-  SchoolInviteModel: any,
-  fallbackAdminName?: string | null,
-  fallbackAdminEmail?: string | null
-) => {
-  const existingInvite = await SchoolInviteModel.findOne({ school: school._id }).sort({ createdAt: -1 });
-  const inviteIsReusable = existingInvite && existingInvite.status === "pending" && new Date(existingInvite.expiresAt).getTime() >= Date.now();
-
-  if (inviteIsReusable) {
-    return existingInvite;
-  }
-
-  const token = crypto.randomUUID();
-  return SchoolInviteModel.create({
-    school: school._id,
-    token,
-    requestedAdminName: fallbackAdminName || school.requestedAdminName || school.schoolName,
-    requestedAdminEmail: fallbackAdminEmail || school.requestedAdminEmail || "",
-    status: "pending",
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    metadata: { approvedAt: new Date().toISOString() },
-  });
-};
-
 export const approveSchoolOnboardingRequest = async (req: Request, res: Response) => {
   try {
-    const SchoolModel = getMasterSchoolModel();
-    const SchoolInviteModel = getMasterSchoolInviteModel();
-
-    const school = await SchoolModel.findById(req.params.schoolId);
+    const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    school.onboardingStatus = "approved";
-    await school.save();
+    const updatedSchool = await prisma.school.update({
+      where: { id: school.id },
+      data: { status: SchoolStatus.APPROVED },
+    });
 
-    const invite = await createOrReuseInvite(
-      school,
-      SchoolInviteModel,
-      school.requestedAdminName,
-      school.requestedAdminEmail
-    );
+    const invite = await createOrReuseInvite(updatedSchool, updatedSchool.email, updatedSchool.name, updatedSchool.plan);
+
+    if (updatedSchool.email) {
+      try {
+        const loginUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/login`;
+        await sendTransactionalEmail({
+          recipientEmail: updatedSchool.email,
+          subject: "Votre établissement a été approuvé !",
+          html: `<p>Bonjour,<br><br>Votre demande d'inscription pour l'établissement <b>${updatedSchool.name}</b> a été validée par le super administrateur.<br>Vous pouvez maintenant vous connecter à la plateforme en cliquant sur le lien ci-dessous :<br><a href="${loginUrl}">${loginUrl}</a><br><br>Bienvenue !</p>`,
+          text: `Bonjour,\n\nVotre demande d'inscription pour l'établissement ${updatedSchool.name} a été validée par le super administrateur.\nVous pouvez maintenant vous connecter à la plateforme : ${loginUrl}\n\nBienvenue !`,
+          template: "school_approved",
+          eventType: "school_approved",
+          metadata: { schoolId: updatedSchool.id },
+        });
+      } catch (err) {
+        console.error("Erreur lors de l'envoi de l'email d'approbation à l'admin école:", err);
+      }
+    }
 
     return res.json({
       message: "School onboarding approved",
-      school,
+      school: toLegacySchool(updatedSchool),
       invite: {
         token: invite.token,
-        status: invite.status,
+        status: inviteStatusToLegacy(invite.status),
         expiresAt: invite.expiresAt,
-        requestedAdminName: invite.requestedAdminName,
-        requestedAdminEmail: invite.requestedAdminEmail,
+        requestedAdminName: updatedSchool.name,
+        requestedAdminEmail: invite.email,
       },
     });
   } catch (error: any) {
@@ -205,26 +313,24 @@ export const approveSchoolOnboardingRequest = async (req: Request, res: Response
 
 export const rejectSchoolOnboardingRequest = async (req: Request, res: Response) => {
   try {
-    const SchoolModel = getMasterSchoolModel();
-    const SchoolInviteModel = getMasterSchoolInviteModel();
-
-    const school = await SchoolModel.findById(req.params.schoolId);
+    const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    school.onboardingStatus = "rejected";
-    school.isActive = false;
-    await school.save();
+    const updatedSchool = await prisma.school.update({
+      where: { id: school.id },
+      data: { status: SchoolStatus.REJECTED },
+    });
 
-    await SchoolInviteModel.updateMany(
-      { school: school._id, status: "pending" },
-      { $set: { status: "expired" } }
-    );
+    await prisma.schoolInvite.updateMany({
+      where: { schoolId: school.id, status: InviteStatus.PENDING },
+      data: { status: InviteStatus.EXPIRED },
+    });
 
     return res.json({
       message: "School onboarding rejected",
-      school,
+      school: toLegacySchool(updatedSchool),
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server error" });
@@ -235,18 +341,19 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
   try {
     const {
       schoolName,
-      schoolMotto,
       templateKey,
-      foundedYear,
       location,
       contactEmail,
       contactPhone,
       requestedAdminName,
       requestedAdminEmail,
+      plan,
     } = req.body ?? {};
 
-    if (!schoolName || !schoolMotto || !templateKey || !requestedAdminName || !requestedAdminEmail) {
-      return res.status(400).json({ message: "schoolName, schoolMotto, templateKey, requestedAdminName and requestedAdminEmail are required" });
+    if (!schoolName || !templateKey || !requestedAdminName || !requestedAdminEmail) {
+      return res.status(400).json({
+        message: "schoolName, templateKey, requestedAdminName and requestedAdminEmail are required",
+      });
     }
 
     const template = getSchoolTemplate(String(templateKey));
@@ -254,78 +361,109 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
       return res.status(400).json({ message: "Invalid templateKey" });
     }
 
-    const SchoolModel = getMasterSchoolModel();
-    const SchoolConfigModel = getMasterSchoolConfigModel();
-    const SchoolInviteModel = getMasterSchoolInviteModel();
+    const normalizedEmail = String(requestedAdminEmail).trim().toLowerCase();
+    const existingUser = await prisma.user.findFirst({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
 
-    const dbName = buildSchoolDbName(String(schoolName));
-    const masterBaseUrl = process.env.MONGO_URL || "mongodb://localhost:27017/edunexus_school_1";
-    const dbConnectionString = buildSchoolConnectionString(masterBaseUrl, dbName);
-
-    const existingSchool = await SchoolModel.findOne({ $or: [{ schoolName }, { dbName }] }).lean();
-    if (existingSchool) {
-      return res.status(409).json({ message: "A school with the same name or database already exists" });
+    if (existingUser) {
+      return res.status(409).json({ message: "An account with this admin email already exists" });
     }
 
-    const school = await SchoolModel.create({
-      schoolName,
-      schoolMotto,
-      systemType: template.systemType,
-      structure: template.structure,
-      dbName,
-      dbConnectionString,
-      foundedYear,
-      location,
-      contactEmail,
-      contactPhone,
-      parentComplex: null,
-      isActive: false,
-      isPilot: false,
-      onboardingStatus: "pending",
-      templateKey: template.key,
-      requestedAdminName,
-      requestedAdminEmail,
-      createdBy: req.masterUser?._id || req.masterUser?.id || null,
+    const subdomain = await ensureUniqueSubdomain(String(schoolName));
+    const school = await prisma.school.create({
+      data: {
+        name: String(schoolName).trim(),
+        subdomain,
+        status: SchoolStatus.PENDING,
+        email: contactEmail ? String(contactEmail).trim().toLowerCase() : normalizedEmail,
+        phone: contactPhone ? String(contactPhone).trim() : null,
+        city: location ? String(location).trim() : null,
+        system: template.systemType,
+        plan: planFromInput(plan),
+      },
     });
 
-    await SchoolConfigModel.findOneAndUpdate(
-      { school: school._id },
-      {
-        school: school._id,
-        ...template.schoolConfig,
-        metadata: {
-          ...template.schoolConfig.metadata,
-          onboarding: {
-            templateKey: template.key,
-            requestedAdminName,
-            requestedAdminEmail,
-          },
-        },
+    await prisma.schoolConfig.upsert({
+      where: { schoolId: school.id },
+      create: {
+        schoolId: school.id,
+        termsPerYear: template.schoolConfig.termsNames.length || 3,
+        passMark: Number(template.schoolConfig.passingGrade || 10),
       },
-      { new: true, upsert: true }
-    );
+      update: {
+        termsPerYear: template.schoolConfig.termsNames.length || 3,
+        passMark: Number(template.schoolConfig.passingGrade || 10),
+      },
+    });
 
     const token = crypto.randomUUID();
-    const invite = await SchoolInviteModel.create({
-      school: school._id,
-      token,
-      requestedAdminName,
-      requestedAdminEmail,
-      status: "pending",
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      metadata: { templateKey: template.key },
+    const invite = await prisma.schoolInvite.create({
+      data: {
+        schoolId: school.id,
+        token,
+        email: normalizedEmail,
+        schoolName: String(schoolName).trim(),
+        plan: planFromInput(plan),
+        status: InviteStatus.PENDING,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
     });
 
-    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/invite/${token}`;
+    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${token}`;
+
+    let emailSent = true;
+    try {
+      const inviteTemplate = buildSchoolInviteTemplate({
+        schoolName: String(schoolName),
+        requestedAdminName: String(requestedAdminName),
+        activationUrl,
+        language: "fr",
+      });
+
+      const emailResult = await sendTransactionalEmail({
+        recipientEmail: normalizedEmail,
+        subject: inviteTemplate.subject,
+        html: inviteTemplate.html,
+        text: inviteTemplate.text,
+        template: "school_invite",
+        eventType: "school_invite",
+        metadata: { token, templateKey: template.key, schoolId: school.id },
+      });
+
+      if (emailResult.status === "failed") {
+        emailSent = false;
+      }
+    } catch {
+      emailSent = false;
+    }
+
+    try {
+      await logActivity({
+        userId: String(req.masterUser?._id || req.masterUser?.id || ""),
+        action: "Created school onboarding request",
+        details: `${schoolName} → ${normalizedEmail} (template: ${template.key})`,
+      });
+    } catch {
+      // Non-blocking logging.
+    }
 
     return res.status(201).json({
-      message: "School onboarding request created",
-      school,
+      message: emailSent
+        ? "School onboarding request created. Invitation email sent."
+        : "School onboarding request created. Email sending failed, but invitation is valid.",
+      school: {
+        _id: school.id,
+        schoolName: school.name,
+        onboardingStatus: statusToLegacy(school.status),
+      },
       invite: {
         token: invite.token,
         expiresAt: invite.expiresAt,
         activationUrl,
       },
+      emailSent,
       template,
     });
   } catch (error: any) {
@@ -335,35 +473,58 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
 
 export const getSchoolOnboardingInvite = async (req: Request, res: Response) => {
   try {
-    const SchoolInviteModel = getMasterSchoolInviteModel();
-    const SchoolModel = getMasterSchoolModel();
+    const invite = await prisma.schoolInvite.findUnique({
+      where: { token: req.params.token },
+      include: { school: true },
+    });
 
-    const invite: any = await SchoolInviteModel.findOne({ token: req.params.token }).lean();
     if (!invite) {
       return res.status(404).json({ message: "Invite not found" });
     }
 
-    const school: any = await SchoolModel.findById(invite.school).lean();
-    if (!school) {
-      return res.status(404).json({ message: "Associated school not found" });
+    const isExpired = invite.expiresAt.getTime() < Date.now();
+    if (isExpired && invite.status === InviteStatus.PENDING) {
+      await prisma.schoolInvite.update({
+        where: { id: invite.id },
+        data: { status: InviteStatus.EXPIRED },
+      });
     }
 
-    const isExpired = new Date(invite.expiresAt).getTime() < Date.now();
-    if (isExpired && invite.status === "pending") {
-      await SchoolInviteModel.updateOne({ token: req.params.token }, { $set: { status: "expired" } });
-    }
+    const effectiveStatus =
+      isExpired && invite.status === InviteStatus.PENDING
+        ? InviteStatus.EXPIRED
+        : invite.status;
 
-    return res.json({
+    const response: {
+      invite: {
+        token: string;
+        requestedAdminName: string;
+        requestedAdminEmail: string;
+        schoolName: string;
+        templateKey: string;
+        status: "pending" | "accepted" | "expired";
+        expiresAt: Date;
+        acceptedAt: Date | null;
+      };
+      school?: ReturnType<typeof toLegacySchool>;
+    } = {
       invite: {
         token: invite.token,
-        requestedAdminName: invite.requestedAdminName,
-        requestedAdminEmail: invite.requestedAdminEmail,
-        status: isExpired && invite.status === "pending" ? "expired" : invite.status,
+        requestedAdminName: invite.schoolName || "",
+        requestedAdminEmail: invite.email,
+        schoolName: invite.schoolName || "",
+        templateKey: "fr_secondary",
+        status: inviteStatusToLegacy(effectiveStatus),
         expiresAt: invite.expiresAt,
-        acceptedAt: invite.acceptedAt || null,
+        acceptedAt: effectiveStatus === InviteStatus.USED ? invite.createdAt : null,
       },
-      school,
-    });
+    };
+
+    if (invite.school) {
+      response.school = toLegacySchool(invite.school);
+    }
+
+    return res.json(response);
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server error" });
   }
@@ -377,90 +538,120 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
       return res.status(400).json({ message: "adminPassword is required and must be at least 6 characters" });
     }
 
-    const SchoolInviteModel = getMasterSchoolInviteModel();
-    const SchoolModel = getMasterSchoolModel();
+    const invite = await prisma.schoolInvite.findUnique({
+      where: { token: req.params.token },
+      include: { school: true },
+    });
 
-    const invite: any = await SchoolInviteModel.findOne({ token: req.params.token });
     if (!invite) {
       return res.status(404).json({ message: "Invite not found" });
     }
 
-    if (invite.status === "accepted") {
+    if (invite.status === InviteStatus.USED) {
       return res.status(200).json({ message: "Invite already accepted" });
     }
 
-    if (new Date(invite.expiresAt).getTime() < Date.now()) {
-      await SchoolInviteModel.updateOne({ token: req.params.token }, { $set: { status: "expired" } });
+    if (invite.expiresAt.getTime() < Date.now()) {
+      await prisma.schoolInvite.update({
+        where: { id: invite.id },
+        data: { status: InviteStatus.EXPIRED },
+      });
       return res.status(410).json({ message: "Invite expired" });
     }
 
-    const school = await SchoolModel.findById(invite.school);
-    if (!school) {
-      return res.status(404).json({ message: "Associated school not found" });
-    }
-
-    if (school.onboardingStatus !== "approved") {
-      return res.status(409).json({ message: "School must be approved before activation" });
-    }
-
-    school.onboardingStatus = "provisioning";
-    await school.save();
-
-    const resolvedAdminEmail = String(adminEmail || invite.requestedAdminEmail || "").trim().toLowerCase();
-    const resolvedAdminName = String(adminName || invite.requestedAdminName || "").trim();
+    const resolvedAdminEmail = String(adminEmail || invite.email || "").trim().toLowerCase();
+    const resolvedAdminName = String(adminName || invite.schoolName || "").trim();
 
     if (!resolvedAdminEmail || !resolvedAdminName) {
       return res.status(400).json({ message: "adminName and adminEmail are required" });
     }
 
-    const existingUser = await User.findOne({ email: resolvedAdminEmail }).lean();
+    let school = invite.school;
+    if (!school) {
+      const fallbackName = String(invite.schoolName || "Nouvelle école").trim();
+      const subdomain = await ensureUniqueSubdomain(fallbackName);
+      school = await prisma.school.create({
+        data: {
+          name: fallbackName,
+          subdomain,
+          status: SchoolStatus.PENDING,
+          email: resolvedAdminEmail,
+        },
+      });
+
+      await prisma.schoolInvite.update({
+        where: { id: invite.id },
+        data: { schoolId: school.id },
+      });
+    }
+
+    if (![SchoolStatus.PENDING, SchoolStatus.APPROVED].includes(school.status)) {
+      return res.status(409).json({
+        message: `School onboarding status is "${statusToLegacy(school.status)}", cannot proceed`,
+      });
+    }
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        schoolId: school.id,
+        email: resolvedAdminEmail,
+      },
+      select: { id: true },
+    });
+
     if (existingUser) {
-      school.onboardingStatus = "pending";
-      await school.save();
       return res.status(409).json({ message: "An account with this admin email already exists" });
     }
 
-    const createdAdmin = await User.create({
-      name: resolvedAdminName,
-      email: resolvedAdminEmail,
-      password: String(adminPassword),
-      role: "admin",
-      isActive: true,
-      schoolId: school._id,
-      schoolSection: school.systemType,
+    const { firstName, lastName } = splitName(resolvedAdminName);
+    const passwordHash = await bcrypt.hash(String(adminPassword), 10);
+
+    const createdAdmin = await prisma.user.create({
+      data: {
+        schoolId: school.id,
+        role: UserRole.ADMIN,
+        email: resolvedAdminEmail,
+        passwordHash,
+        firstName,
+        lastName,
+        isActive: true,
+      },
     });
 
-    school.isActive = true;
-    school.onboardingStatus = "active";
-    school.requestedAdminName = resolvedAdminName;
-    school.requestedAdminEmail = resolvedAdminEmail;
-    await school.save();
+    const updatedSchool = await prisma.school.update({
+      where: { id: school.id },
+      data: {
+        status: SchoolStatus.PENDING,
+        email: resolvedAdminEmail,
+      },
+    });
 
-    invite.status = "accepted";
-    invite.acceptedAt = new Date();
-    invite.requestedAdminName = resolvedAdminName;
-    invite.requestedAdminEmail = resolvedAdminEmail;
-    invite.metadata = {
-      ...(invite.metadata || {}),
-      adminUserId: String(createdAdmin._id),
-    };
-    await invite.save();
+    const updatedInvite = await prisma.schoolInvite.update({
+      where: { id: invite.id },
+      data: {
+        status: InviteStatus.USED,
+        email: resolvedAdminEmail,
+        schoolName: updatedSchool.name,
+      },
+    });
 
     return res.json({
       message: "School onboarding activated",
-      school,
+      school: toLegacySchool(updatedSchool),
       admin: {
-        id: createdAdmin._id,
+        id: createdAdmin.id,
         email: createdAdmin.email,
         role: createdAdmin.role,
       },
       invite: {
-        token: invite.token,
-        status: invite.status,
-        acceptedAt: invite.acceptedAt,
+        token: updatedInvite.token,
+        status: inviteStatusToLegacy(updatedInvite.status),
+        acceptedAt: updatedInvite.createdAt,
       },
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server error" });
   }
 };
+
+export const activateSchool = acceptSchoolOnboardingInvite;

@@ -33,7 +33,7 @@ const SchoolInvite = () => {
 
       try {
         setLoading(true);
-        const { data } = await api.get(`/onboarding/invites/${token}`);
+        const { data } = await api.get(`/onboarding/join/${token}`);
         setInvite(data?.invite || null);
         setSchool(data?.school || null);
         setAdminName(data?.invite?.requestedAdminName || "");
@@ -69,7 +69,7 @@ const SchoolInvite = () => {
 
     try {
       setSubmitting(true);
-      await api.post(`/onboarding/invites/${token}/accept`, {
+      await api.post(`/onboarding/join/${token}`, {
         adminName,
         adminEmail,
         adminPassword,

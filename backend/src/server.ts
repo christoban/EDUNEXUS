@@ -4,15 +4,16 @@ import express, {
   type Application,
   type Request,
   type Response,
+  type NextFunction,
 } from "express";
 import { createServer } from "http";
+import { readFileSync, existsSync } from "fs";
+import { join, extname } from "path";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import cors from "cors";
 
-import { connectDB } from "./config/db.ts";
-import { dbRouter } from "./config/dbRouter.ts";
 import userRoutes from "./routes/user.ts";
 import masterAdminRouter from "./routes/masterAdmin.ts";
 import schoolOnboardingRouter from "./routes/schoolOnboarding.ts";
@@ -40,6 +41,7 @@ import financeRouter from "./routes/finance.ts";
 import aiRouter from "./routes/ai.ts";
 import schoolSettingsRouter from "./routes/schoolSettings.ts";
 import coreDomainRouter from "./routes/coreDomain.ts";
+import publicRouter from "./routes/public.ts";
 import { initSocket } from "./socket/io.ts";
 
 // Load environment variables from .env file
@@ -48,6 +50,7 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 const httpServer = createServer(app);
+const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
 if (["1", "true"].includes((process.env.TRUST_PROXY || "").toLowerCase())) {
   app.set("trust proxy", 1);
@@ -67,18 +70,48 @@ if (process.env.STAGE === "development") {
 }
 
 // cross-origin resource sharing (CORS) middleware
-// credentials: true allows cookies to be sent with requests
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-  })
-);
+
+app.use(cors({
+  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+}));
 
 // health check route
 app.get("/", (req: Request, res: Response) => {
+  res.setHeader("ngrok-skip-browser-warning", "true");
   res.status(200).json({ status: "OK", message: "Server is healthy" });
 });
+
+// SPA Fallback: serve index.html for all non-API routes (enables SPA routing on direct links)
+// Note: Build frontend first (cd frontend && bun run build), then use NODE_ENV=production
+const staticPath = process.env.STATIC_PATH || join(process.cwd(), "..", "frontend", "dist");
+const enableFallback = process.env.NODE_ENV === "production" || process.env.ENABLE_SPA_FALLBACK === "true";
+
+if (enableFallback && existsSync(staticPath)) {
+  app.use(express.static(staticPath, {
+    setHeaders: (res) => {
+      res.setHeader("ngrok-skip-browser-warning", "true");
+    },
+  }));
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/socket.io") && !req.path.includes(".")) {
+      const indexPath = join(staticPath, "index.html");
+      if (existsSync(indexPath)) {
+        res.setHeader("Content-Type", "text/html");
+        res.setHeader("ngrok-skip-browser-warning", "true");
+        res.send(readFileSync(indexPath, "utf-8"));
+        return;
+      }
+    }
+    next();
+  });
+}
+
+// ✅ Routes publiques (sans auth)
+app.use("/api/public", publicRouter);
 
 // ✅ MULTI-TENANT: Master Admin routes (before other routes)
 app.use("/api/master", masterAdminRouter);
@@ -125,37 +158,14 @@ app.use((err: Error, req: Request, res: Response, next: Function) => {
   });
 });
 
-// ✅ MULTI-TENANT: Initialize both MASTER DB and default DB
-const initDatabases = async () => {
-  try {
-    // Initialize MASTER DB (central)
-    const masterUrl =
-      process.env.MASTER_MONGO_URL || process.env.MONGO_URL || "mongodb://localhost:27017/edunexus_master";
-    await dbRouter.initMasterDB(masterUrl);
-    console.log("✓ MASTER DB initialized");
-  } catch (error) {
-    console.error("[ERROR] Failed to initialize MASTER DB:", error);
-    throw error;
-  }
-};
+app.use((req, res, next) => {
+  res.setHeader("ngrok-skip-browser-warning", "true");
+  next();
+});
 
-connectDB().then(() => {
-  initDatabases()
-    .then(() => {
-      initSocket(httpServer, process.env.CLIENT_URL || "http://localhost:5173");
-
-      httpServer.listen(PORT, () => {
-        console.log("Server is running on port 5000");
-        console.log("✓ Multi-tenant architecture enabled");
-      });
-    })
-    .catch((error) => {
-      console.error("[ERROR] Database initialization failed:", error);
-      process.exit(1);
-    });
-}).catch((error) => {
-  console.error("[ERROR] Default DB connection failed:", error);
-  process.exit(1);
+initSocket(httpServer, clientUrl);
+httpServer.listen(PORT, () => {
+  console.log("Server is running on port 5000");
 });
 // you can use any of these scripts in your package.json to run the server with nodemon or bun
 //    "dev" : "nodemon --exec bun run index.ts",

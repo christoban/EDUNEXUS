@@ -1,13 +1,29 @@
 import { type Request, type Response } from "express";
-import User from "../models/user.ts";
-import Exam from "../models/exam.ts";
-import ReportCard from "../models/reportCard.ts";
-import AttendanceRecord from "../models/attendance.ts";
-import Timetable from "../models/timetable.ts";
-import Class from "../models/class.ts";
-import Subject from "../models/subject.ts";
-import Grade from "../models/grade.ts";
+import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
+
+/**
+ * Verify that studentId belongs to current parent
+ */
+const verifyParentChildRelation = async (
+  parentUserId: string,
+  studentId: string,
+  schoolId?: string
+) => {
+  const parentProfile = await prisma.parentProfile.findUnique({
+    where: { userId: parentUserId },
+    include: { children: { include: { studentProfile: true } },
+  });
+
+  const childEntry = (parentProfile?.children || []).find(
+    (child) => child.studentProfile?.userId === studentId
+  );
+
+  if (!childEntry) {
+    throw new Error("Not authorized to view this student");
+  }
+  return childEntry.studentProfile;
+};
 
 /**
  * Get all children of the current parent user
@@ -16,89 +32,78 @@ import { logActivity } from "../utils/activitieslog.ts";
 export const getMyChildren = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    const sectionId = typeof req.query.sectionId === "string" ? req.query.sectionId : undefined;
-    const cycle = typeof req.query.cycle === "string" ? req.query.cycle : undefined;
+    const schoolId = currentUser?.schoolId;
 
-    // Fetch all students where parentId = currentUser._id and role = "student"
-    const childrenQuery: any = {
-      parentId: currentUser._id,
-      role: "student",
-      isActive: true,
-    };
-
-    const children = await User.find(childrenQuery, "name email studentClass isActive schoolSection")
-      .populate({
-        path: "studentClass",
-        select: "name section",
-        populate: {
-          path: "section",
-          select: "name language cycle subSystem",
-          populate: { path: "subSystem", select: "code name" },
-        },
-      })
-      .lean();
-
-    // Enrich with basic stats for each child
-    const enrichedChildren = await Promise.all(
-      children.map(async (child) => {
-        // Attendance rate
-        const attendanceStats = await AttendanceRecord.aggregate([
-          {
-            $match: {
-              student: child._id,
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              totalDays: { $sum: 1 },
-              presentDays: {
-                $sum: {
-                  $cond: [
-                    {
-                      $in: ["$status", ["present", "late"]],
-                    },
-                    1,
-                    0,
-                  ],
-                },
+    const parentProfile = await prisma.parentProfile.findUnique({
+      where: { userId: currentUser.userId },
+      include: {
+        children: {
+          include: {
+            studentProfile: {
+              include: {
+                class: { select: { id: true, name: true } },
               },
             },
           },
+        },
+      },
+    });
+
+    const childProfiles = (parentProfile?.children || [])
+      .map((child) => child.studentProfile)
+      .filter((profile): profile is NonNullable<typeof profile> => Boolean(profile));
+
+    const enrichedChildren = await Promise.all(
+      childProfiles.map(async (studentProfile) => {
+        const studentId = studentProfile.userId;
+
+        // Attendance rate
+        const [presentRecords, totalRecords] = await Promise.all([
+          prisma.attendance.count({
+            where: {
+              ...(schoolId ? { schoolId } : {}),
+              studentId,
+              status: { in: ["PRESENT", "LATE"] },
+            },
+          }),
+          prisma.attendance.count({
+            where: {
+              ...(schoolId ? { schoolId } : {}),
+              studentId,
+            },
+          }),
         ]);
 
-        const attendanceRate =
-          attendanceStats.length > 0 && attendanceStats[0].totalDays > 0
-            ? Math.round(
-                (attendanceStats[0].presentDays / attendanceStats[0].totalDays) *
-                  100
-              )
-            : 0;
+        const attendanceRate = totalRecords > 0 ? Math.round((presentRecords / totalRecords) * 100) : 0;
 
         // Latest report card
-        const latestReportCard = await ReportCard.findOne(
-          { student: child._id },
-          "year period aggregates mention"
-        )
-          .sort({ createdAt: -1 })
-          .lean();
+        const latestReportCard = await prisma.reportCard.findFirst({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            studentId,
+          },
+          orderBy: { createdAt: "desc" },
+          select: { mention: true },
+        });
 
         return {
-          _id: child._id,
-          name: child.name,
-          email: child.email,
-          class: child.studentClass,
-          schoolSection: child.schoolSection,
-          section: (child.studentClass as any)?.section || null,
+          id: studentProfile.userId,
+          name: `${studentProfile.user?.firstName || ""} ${studentProfile.user?.lastName || ""}`.trim(),
+          email: studentProfile.user?.email || "",
+          class: studentProfile.class
+            ? { id: studentProfile.class.id, name: studentProfile.class.name }
+            : null,
+          schoolSection: currentUser.schoolSection,
           attendanceRate,
           latestGrade: latestReportCard?.mention || "N/A",
         };
       })
     );
 
-    const userId = (req as any).user._id;
+    const userId = currentUser.userId;
     await logActivity({
       userId,
+      schoolId,
       action: `Viewed children list (${enrichedChildren.length} children)`,
     });
 
@@ -109,25 +114,6 @@ export const getMyChildren = async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
-};
-
-/**
- * Verify that studentId belongs to current parent
- * Returns studentId if valid, otherwise throws error
- */
-const verifyParentChildRelation = async (
-  parentId: string,
-  studentId: string
-) => {
-  const student = await User.findById(studentId).select("parentId role");
-  if (
-    !student ||
-    student.role !== "student" ||
-    student.parentId?.toString() !== parentId
-  ) {
-    throw new Error("Not authorized to view this student");
-  }
-  return student;
 };
 
 /**
@@ -144,54 +130,50 @@ export const getChildExams = async (req: Request, res: Response) => {
     }
 
     // Verify parentship
-    const student = await verifyParentChildRelation(
-      currentUser._id.toString(),
+    const studentProfile = await verifyParentChildRelation(
+      currentUser.userId,
       studentId
     );
 
-    // Fetch student's class
-    const studentUser = await User.findById(studentId).select("studentClass");
-    if (!studentUser?.studentClass) {
-      return res.status(404).json({ message: "Student class not found" });
-    }
-
     // Get exams for student's class
-    const exams = await Exam.find({
-      class: studentUser.studentClass,
-      isActive: true,
-    })
-      .populate("subject", "name code")
-      .populate("teacher", "name")
-      .select("title subject teacher duration dueDate isActive createdAt")
-      .sort({ dueDate: -1 })
-      .lean();
-
-    // Fetch grades for this student (if any submitted)
-    const grades = await Grade.find({
-      student: studentId,
-    }).lean();
-
-    const gradeMap = new Map();
-    grades.forEach((g) => {
-      gradeMap.set(g.exam.toString(), {
-        score: g.score,
-        maxScore: g.maxScore,
-        percentage: g.percentage,
-      });
+    const exams = await prisma.exam.findMany({
+      where: {
+        ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
+        classId: studentProfile.classId!,
+        isAiGenerated: false,
+      },
+      include: {
+        subject: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: { scheduledAt: "desc" },
     });
+
+    // Fetch grades for this student
+    const grades = await prisma.grade.findMany({
+      where: {
+        ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
+        studentId,
+      },
+      select: { examId: true, value: true, maxValue: true },
+    });
+
+    const gradeMap = new Map(
+      grades.map((g) => [g.examId, { score: g.value, maxScore: g.maxValue }])
+    );
 
     // Enrich exams with grade info
     const enrichedExams = exams.map((exam) => {
-      const grade = gradeMap.get(exam._id.toString());
+      const grade = gradeMap.get(exam.id);
       return {
         ...exam,
         grade: grade || null,
       };
     });
 
-    const userId = (req as any).user._id;
+    const userId = currentUser.userId;
     await logActivity({
       userId,
+      schoolId: currentUser?.schoolId,
       action: `Viewed child exams for student ${studentId}`,
     });
 
@@ -219,22 +201,25 @@ export const getChildReportCard = async (req: Request, res: Response) => {
     }
 
     // Verify parentship
-    await verifyParentChildRelation(
-      currentUser._id.toString(),
-      studentId
-    );
+    await verifyParentChildRelation(currentUser.userId, studentId);
 
     // Fetch all report cards for this student
-    const reportCards = await ReportCard.find({
-      student: studentId,
-    })
-      .populate("year", "name")
-      .populate("period")
-      .populate("grades", "score maxScore percentage subject", Grade)
-      .sort({ createdAt: -1 })
-      .lean();
+    const reportCards = await prisma.reportCard.findMany({
+      where: {
+        ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
+        studentId,
+      },
+      include: {
+        academicYear: true,
+        grades: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    // If no report cards, return empty
     if (reportCards.length === 0) {
       return res.json({
         reportCards: [],
@@ -242,9 +227,10 @@ export const getChildReportCard = async (req: Request, res: Response) => {
       });
     }
 
-    const userId = (req as any).user._id;
+    const userId = currentUser.userId;
     await logActivity({
       userId,
+      schoolId: currentUser?.schoolId,
       action: `Viewed child report card(s) for student ${studentId}`,
     });
 
@@ -272,46 +258,46 @@ export const getChildAttendance = async (req: Request, res: Response) => {
     }
 
     // Verify parentship
-    const student = await verifyParentChildRelation(
-      currentUser._id.toString(),
-      studentId
-    );
+    await verifyParentChildRelation(currentUser.userId, studentId);
 
     const { year, month } = req.query;
     const filter: any = {
-      student: studentId,
+      ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
+      studentId,
     };
 
     if (year) {
       const yearStart = new Date(`${year}-01-01`);
       const yearEnd = new Date(`${year}-12-31`);
-      filter.date = { $gte: yearStart, $lte: yearEnd };
+      filter.date = { gte: yearStart, lte: yearEnd };
     } else if (month) {
-      // Current month if no year specified
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), parseInt(month as string) - 1, 1);
       const monthEnd = new Date(now.getFullYear(), parseInt(month as string), 0);
-      filter.date = { $gte: monthStart, $lte: monthEnd };
+      filter.date = { gte: monthStart, lte: monthEnd };
     }
 
-    const records = await AttendanceRecord.find(filter)
-      .populate("student", "name")
-      .populate("class", "name")
-      .sort({ date: -1 })
-      .lean();
+    const records = await prisma.attendance.findMany({
+      where: filter,
+      include: {
+        class: { select: { id: true, name: true } },
+      },
+      orderBy: { date: "desc" },
+    });
 
     // Calculate summary stats
     const stats = {
       total: records.length,
-      present: records.filter((r) => r.status === "present").length,
-      absent: records.filter((r) => r.status === "absent").length,
-      late: records.filter((r) => r.status === "late").length,
-      excused: records.filter((r) => r.status === "excused").length,
+      present: records.filter((r) => r.status === "PRESENT").length,
+      absent: records.filter((r) => r.status === "ABSENT").length,
+      late: records.filter((r) => r.status === "LATE").length,
+      excused: records.filter((r) => r.status === "EXCUSED").length,
     };
 
-    const userId = (req as any).user._id;
+    const userId = currentUser.userId;
     await logActivity({
       userId,
+      schoolId: currentUser?.schoolId,
       action: `Viewed child attendance for student ${studentId}`,
     });
 
@@ -340,34 +326,38 @@ export const getChildTimetable = async (req: Request, res: Response) => {
     }
 
     // Verify parentship
-    const student = await verifyParentChildRelation(
-      currentUser._id.toString(),
+    const studentProfile = await verifyParentChildRelation(
+      currentUser.userId,
       studentId
     );
 
-    // Get student's class
-    const studentUser = await User.findById(studentId).select(
-      "studentClass"
-    );
-    if (!studentUser?.studentClass) {
+    if (!studentProfile.classId) {
       return res.status(404).json({ message: "Student class not found" });
     }
 
     // Fetch timetable for that class
-    const timetable = await Timetable.findOne({
-      class: studentUser.studentClass,
-    })
-      .populate("schedule.periods.subject", "name code")
-      .populate("schedule.periods.teacher", "name email")
-      .lean();
+    const timetable = await prisma.timetable.findFirst({
+      where: {
+        ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
+        classId: studentProfile.classId,
+      },
+      include: {
+        slots: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+    });
 
     if (!timetable) {
       return res.status(404).json({ message: "Timetable not found" });
     }
 
-    const userId = (req as any).user._id;
+    const userId = currentUser.userId;
     await logActivity({
       userId,
+      schoolId: currentUser?.schoolId,
       action: `Viewed child timetable for student ${studentId}`,
     });
 

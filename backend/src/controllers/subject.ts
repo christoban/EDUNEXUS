@@ -1,38 +1,35 @@
 import { type Request, type Response } from "express";
+import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
-import subject from "../models/subject.ts";
-import User from "../models/user.ts";
 
 const toIdStrings = (value: unknown) =>
-  Array.isArray(value)
-    ? value.filter(Boolean).map((item) => String(item))
-    : [];
+  Array.isArray(value) ? value.filter(Boolean).map((item) => String(item)) : [];
 
 const syncSubjectTeachers = async (
   subjectId: string,
   previousTeacherIds: string[],
   nextTeacherIds: string[]
 ) => {
-  const previousSet = new Set(previousTeacherIds);
-  const nextSet = new Set(nextTeacherIds);
+  await prisma.teacherSubject.deleteMany({ where: { subjectId } });
 
-  const teacherIdsToAdd = nextTeacherIds.filter((id) => !previousSet.has(id));
-  const teacherIdsToRemove = previousTeacherIds.filter((id) => !nextSet.has(id));
+  if (!nextTeacherIds.length) {
+    return;
+  }
 
-  await Promise.all([
-    teacherIdsToAdd.length
-      ? User.updateMany(
-          { _id: { $in: teacherIdsToAdd } },
-          { $addToSet: { teacherSubject: subjectId } }
-        )
-      : Promise.resolve(),
-    teacherIdsToRemove.length
-      ? User.updateMany(
-          { _id: { $in: teacherIdsToRemove } },
-          { $pull: { teacherSubject: subjectId } }
-        )
-      : Promise.resolve(),
-  ]);
+  const teacherProfiles = await prisma.teacherProfile.findMany({
+    where: {
+      userId: { in: nextTeacherIds },
+    },
+    select: { id: true, userId: true },
+  });
+
+  await prisma.teacherSubject.createMany({
+    data: teacherProfiles.map((teacherProfile) => ({
+      teacherProfileId: teacherProfile.id,
+      subjectId,
+    })),
+    skipDuplicates: true,
+  });
 };
 
 // @desc    Create a new Subject
@@ -40,34 +37,42 @@ const syncSubjectTeachers = async (
 // @access  Private/Admin
 export const createSubject = async (req: Request, res: Response) => {
   try {
-    if ((req as any).user?.role !== "admin") {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "admin") {
       return res.status(403).json({ message: "Only admins can create subjects" });
     }
 
-    const { name, code, teacher, coefficient, appreciation, isActive } = req.body; // Expecting teacher to be ["ID1", "ID2"]
-    const subjectExists = await subject.findOne({ code });
+    const schoolId = currentUser?.schoolId;
+    if (!schoolId) {
+      return res.status(403).json({ message: "Aucun établissement associé" });
+    }
+
+    const { name, code, teacher, coefficient } = req.body;
+    const subjectExists = await prisma.subject.findFirst({
+      where: {
+        schoolId,
+        ...(code ? { code } : {}),
+      },
+    });
     if (subjectExists) {
       return res.status(400).json({ message: "Subject code already exists" });
     }
-    const newSubject = await subject.create({
-      name,
-      code,
-      isActive,
-      coefficient,
-      appreciation,
-      teacher: Array.isArray(teacher) ? teacher : [],
+    const newSubject = await prisma.subject.create({
+      data: {
+        schoolId,
+        name,
+        code: code || null,
+        coefficient: Number(coefficient) || 1,
+        hoursPerWeek: Number(req.body?.hoursPerWeek) || 2,
+      },
     });
 
-    await syncSubjectTeachers(
-      newSubject._id.toString(),
-      [],
-      toIdStrings(newSubject.teacher)
-    );
+    await syncSubjectTeachers(newSubject.id, [], toIdStrings(teacher));
 
     if (newSubject) {
-      const userId = (req as any).user._id;
       await logActivity({
-        userId,
+        userId: currentUser.userId,
+        schoolId,
         action: `Created subject: ${newSubject.name}`,
       });
       res.status(201).json(newSubject);
@@ -82,23 +87,24 @@ export const createSubject = async (req: Request, res: Response) => {
 // @access  Private
 export const getAllSubjects = async (req: Request, res: Response) => {
   try {
-    // 1. Parse Query Parameters
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
 
-    // 2. Build Search Query (Search by Name OR Code)
     const query: any = {};
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { code: { $regex: search, $options: "i" } },
-      ];
+    if (schoolId) {
+      query.schoolId = schoolId;
     }
 
-    const currentUser = (req as any).user;
     if (currentUser?.role === "teacher") {
-      const teacherSubjectIds = toIdStrings(currentUser.teacherSubject);
+      const teacherProfile = await prisma.teacherProfile.findUnique({
+        where: { userId: currentUser.userId },
+        include: { teacherSubjects: true },
+      });
+
+      const teacherSubjectIds = (teacherProfile?.teacherSubjects || []).map((item) => item.subjectId);
       if (!teacherSubjectIds.length) {
         return res.json({
           subjects: [],
@@ -109,52 +115,52 @@ export const getAllSubjects = async (req: Request, res: Response) => {
           },
         });
       }
-      query._id = { $in: teacherSubjectIds };
+      query.id = { in: teacherSubjectIds };
     }
-    // 3. Execute Query (Count & Find)
+
+    if (search) {
+      query.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { code: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     const [total, subjects] = await Promise.all([
-      subject.countDocuments(query),
-      subject
-        .find(query)
-        .populate("teacher", "name email")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
+      prisma.subject.count({ where: query }),
+      prisma.subject.findMany({
+        where: query,
+        include: {
+          teacherSubjects: {
+            include: {
+              teacherProfile: {
+                include: {
+                  user: { select: { id: true, firstName: true, lastName: true, email: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
     ]);
 
-    const subjectIds = subjects.map((item) => item._id);
-    const teacherCountRows = await User.aggregate([
-      {
-        $match: {
-          role: "teacher",
-          teacherSubject: { $in: subjectIds },
-        },
-      },
-      {
-        $unwind: "$teacherSubject",
-      },
-      {
-        $match: {
-          teacherSubject: { $in: subjectIds },
-        },
-      },
-      {
-        $group: {
-          _id: "$teacherSubject",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
+    const teacherCountRows = await prisma.teacherSubject.groupBy({
+      by: ["subjectId"],
+      _count: { subjectId: true },
+      where: { subjectId: { in: subjects.map((item) => item.id) } },
+    });
 
-    const teacherCountMap = new Map<string, number>();
-    for (const row of teacherCountRows) {
-      teacherCountMap.set(String(row._id), row.count);
-    }
-    // 4. Return Data + Pagination Meta
+    const teacherCountMap = new Map(
+      teacherCountRows.map((row) => [row.subjectId, row._count.subjectId])
+    );
+
     res.json({
       subjects: subjects.map((item) => ({
-        ...item.toObject(),
-        teacherCount: teacherCountMap.get(String(item._id)) ?? 0,
+        ...item,
+        teachers: item.teacherSubjects.map((relation) => relation.teacherProfile.user),
+        teacherCount: teacherCountMap.get(item.id) ?? 0,
       })),
       pagination: {
         total,
@@ -173,45 +179,48 @@ export const getAllSubjects = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const updateSubject = async (req: Request, res: Response) => {
   try {
-    if ((req as any).user?.role !== "admin") {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "admin") {
       return res.status(403).json({ message: "Only admins can update subjects" });
     }
 
-    const { name, code, teacher, coefficient, appreciation, isActive } = req.body;
+    const schoolId = currentUser?.schoolId;
+    const { name, code, teacher, coefficient } = req.body;
 
-    const existingSubject = await subject.findById(req.params.id);
+    const existingSubject = await prisma.subject.findFirst({
+      where: {
+        id: req.params.id,
+        ...(schoolId ? { schoolId } : {}),
+      },
+      include: {
+        teacherSubjects: true,
+      },
+    });
     if (!existingSubject) {
       return res.status(404).json({ message: "Subject not found" });
     }
 
-    const previousTeacherIds = toIdStrings(existingSubject.teacher);
-    const nextTeacherIds = Array.isArray(teacher)
-      ? toIdStrings(teacher)
-      : [];
+    const nextTeacherIds = Array.isArray(teacher) ? toIdStrings(teacher) : [];
 
-    const updatePayload: any = {};
-    if (name !== undefined) updatePayload.name = name;
-    if (code !== undefined) updatePayload.code = code;
-    if (isActive !== undefined) updatePayload.isActive = isActive;
-    if (coefficient !== undefined) updatePayload.coefficient = coefficient;
-    if (appreciation !== undefined) updatePayload.appreciation = appreciation;
-    if (Array.isArray(teacher)) updatePayload.teacher = teacher;
-
-    const updatedSubject = await subject.findByIdAndUpdate(
-      req.params.id,
-      updatePayload,
-      { new: true, runValidators: true }
-    );
+    const updatedSubject = await prisma.subject.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name !== undefined ? { name } : {}),
+        ...(code !== undefined ? { code: code || null } : {}),
+        ...(coefficient !== undefined ? { coefficient: Number(coefficient) || 1 } : {}),
+        ...(req.body.hoursPerWeek !== undefined ? { hoursPerWeek: Number(req.body.hoursPerWeek) || 2 } : {}),
+      },
+    });
 
     await syncSubjectTeachers(
-      updatedSubject!._id.toString(),
-      previousTeacherIds,
+      updatedSubject.id,
+      existingSubject.teacherSubjects.map((relation) => relation.teacherProfileId),
       nextTeacherIds
     );
 
-    const userId = (req as any).user._id;
     await logActivity({
-      userId,
+      userId: currentUser.userId,
+      schoolId,
       action: `Updated subject: ${updatedSubject?.name}`,
     });
 
@@ -226,23 +235,22 @@ export const updateSubject = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const deleteSubject = async (req: Request, res: Response) => {
   try {
-    if ((req as any).user?.role !== "admin") {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "admin") {
       return res.status(403).json({ message: "Only admins can delete subjects" });
     }
 
-    const deletedSubject = await subject.findByIdAndDelete(req.params.id);
+    const schoolId = currentUser?.schoolId;
+    const deletedSubject = await prisma.subject.delete({ where: { id: req.params.id } });
     if (!deletedSubject) {
       return res.status(404).json({ message: "Subject not found" });
     }
 
-    await User.updateMany(
-      { teacherSubject: { $in: [deletedSubject._id.toString()] } },
-      { $pull: { teacherSubject: deletedSubject._id.toString() } }
-    );
+    await prisma.teacherSubject.deleteMany({ where: { subjectId: deletedSubject.id } });
 
-    const userId = (req as any).user._id;
     await logActivity({
-      userId,
+      userId: currentUser.userId,
+      schoolId,
       action: `Updated subject: ${deletedSubject?.name}`,
     });
     res.json({ message: "Subject deleted successfully" });

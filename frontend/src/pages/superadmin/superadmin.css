@@ -1,199 +1,67 @@
-/* Super Admin Dashboard Styles */
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
 
-.superadmin-dashboard {
-  margin-bottom: 24px;
+/* Scrollbar personnalisée pour le dashboard super admin */
+.superadmin-root ::-webkit-scrollbar {
+  width: 6px;
+}
+.superadmin-root ::-webkit-scrollbar-track {
+  background: #080c18;
+}
+.superadmin-root ::-webkit-scrollbar-thumb {
+  background: #223050;
+  border-radius: 3px;
+}
+.superadmin-root ::-webkit-scrollbar-thumb:hover {
+  background: #2d3f55;
 }
 
-.superadmin-dashboard header {
-  text-align: center;
-  padding: 24px;
+/* Police monospace pour les badges de type */
+.sa-mono {
+  font-family: 'DM Mono', monospace;
 }
 
-.superadmin-dashboard h1 {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #1a1a2e;
+/* Transition universelle pour les boutons d'action */
+.sa-action-btn {
+  transition: filter 0.15s;
+}
+.sa-action-btn:hover {
+  filter: brightness(1.12);
+}
+.sa-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.superadmin-dashboard p {
-  font-size: 16px;
-  color: #666;
-}
-
-/* Invite School Form */
-.invite-school-form {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 32px;
-}
-
-.invite-school-form h2 {
-  font-size: 20px;
-  margin-bottom: 16px;
-  color: #1a1a2e;
-}
-
-.invite-school-form label {
-  display: block;
-  margin-bottom: 12px;
-}
-
-.invite-school-form label > div {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.invite-school-form input[type="email"],
-.invite-school-form input[type="text"],
-.invite-school-form select {
-  width: 100%;
+/* Supprime le style par défaut des inputs dans la modale */
+.sa-input {
+  background: #080c18;
+  border: 1px solid #223050;
+  border-radius: 8px;
   padding: 10px 14px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-}
-
-.invite-school-form input:focus {
+  color: #f1f5f9;
+  font-size: 13px;
   outline: none;
-  border-color: #45aaf2;
-}
-
-.invite-school-form button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.invite-school-form button:hover {
-  opacity: 0.85;
-}
-
-/* Schools Table */
-.schools-table-container {
-  max-width: 1000px;
-  margin: 24px auto;
-  overflow-x: auto;
-}
-
-.schools-table {
   width: 100%;
-  border-collapse: collapse;
+  box-sizing: border-box;
+  font-family: 'DM Sans', Arial, sans-serif;
 }
-
-.schools-table th,
-.schools-table td {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
+.sa-input:focus {
+  border-color: #2563eb;
 }
-
-.schools-table th {
-  background: #f8f9fa;
-  font-weight: 600;
-  color: #333;
-}
-
-.schools-table tr:hover {
-  background: #f8f9fa;
-}
-
-/* Status Badges */
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-badge.Pending {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status-badge.Active {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-badge.Approved {
-  background: #cce5ff;
-  color: #004085;
-}
-
-.status-badge.Rejected {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.status-badge.Suspended {
-  background: #fff3cd;
-  color: #856404;
-}
-
-/* Action Buttons */
-.action-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
+.sa-select {
+  background: #080c18;
+  border: 1px solid #223050;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #f1f5f9;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
   cursor: pointer;
-  margin-right: 4px;
+  font-family: 'DM Sans', Arial, sans-serif;
 }
-
-.action-btn.approve {
-  background: #45aaf2;
-  color: #fff;
-}
-
-.action-btn.reject {
-  background: #eb3b5a;
-  color: #fff;
-}
-
-.action-btn.suspend {
-  background: #f7b731;
-  color: #fff;
-}
-
-.action-btn.delete {
-  background: #636e72;
-  color: #fff;
-}
-
-.action-btn:hover {
-  opacity: 0.85;
-}
-
-/* Audit Log */
-.audit-log {
-  max-width: 800px;
-  margin: 24px auto;
-  padding: 16px;
-}
-
-.audit-log h2 {
-  font-size: 18px;
-  margin-bottom: 12px;
-}
-
-.audit-log ul {
-  list-style: none;
-}
-
-.audit-log li {
-  padding: 8px 12px;
-  border-bottom: 1px solid #eee;
-  font-size: 14px;
-  color: #333;
-}
-
-.audit-log li:first-child {
-  font-weight: 500;
-  color: #45aaf2;
+.sa-select:focus {
+  border-color: #2563eb;
 }

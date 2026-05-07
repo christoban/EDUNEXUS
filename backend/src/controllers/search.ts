@@ -1,9 +1,5 @@
 import { type Request, type Response } from "express";
-import User from "../models/user.ts";
-import Class from "../models/class.ts";
-import Subject from "../models/subject.ts";
-import Exam from "../models/exam.ts";
-import ActivityLog from "../models/activitieslog.ts";
+import { prisma } from "../config/prisma.ts";
 
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -24,6 +20,7 @@ export const globalSearch = async (req: Request, res: Response) => {
     const page = Number(req.query.page) || 1;
     const limit = Math.min(Number(req.query.limit) || 10, 50);
     const q = String(req.query.q || "").trim();
+    const schoolId = (req as any).user?.schoolId;
 
     if (!q) {
       return res.json({
@@ -45,74 +42,80 @@ export const globalSearch = async (req: Request, res: Response) => {
       });
     }
 
-    const regex = new RegExp(escapeRegex(q), "i");
+    const userWhere = {
+      ...(schoolId ? { schoolId } : {}),
+      OR: [
+        { firstName: { contains: q, mode: "insensitive" } },
+        { lastName: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    };
 
-    const [users, classes, subjects, exams, activities] = await Promise.all([
-      User.find({
-        $or: [{ name: regex }, { email: regex }, { role: regex }],
-      })
-        .select("name email role createdAt")
-        .limit(100)
-        .lean(),
-      Class.find({ name: regex })
-        .select("name createdAt")
-        .limit(100)
-        .lean(),
-      Subject.find({
-        $or: [{ name: regex }, { code: regex }],
-      })
-        .select("name code createdAt")
-        .limit(100)
-        .lean(),
-      Exam.find({ title: regex })
-        .select("title dueDate createdAt")
-        .populate("subject", "name code")
-        .populate("class", "name")
-        .limit(100)
-        .lean(),
-      ActivityLog.find({
-        $or: [{ action: regex }, { details: regex }],
-      })
-        .select("action details createdAt")
-        .populate("user", "name email role")
-        .limit(100)
-        .lean(),
+    const [users, classes, subjects, activities] = await Promise.all([
+      prisma.user.findMany({
+        where: userWhere,
+        select: { id: true, firstName: true, lastName: true, email: true, role: true, createdAt: true },
+        take: 100,
+      }),
+      prisma.class.findMany({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          name: { contains: q, mode: "insensitive" },
+        },
+        select: { id: true, name: true, createdAt: true },
+        take: 100,
+      }),
+      prisma.subject.findMany({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { code: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true, name: true, code: true, createdAt: true },
+        take: 100,
+      }),
+      prisma.activitiesLog.findMany({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          OR: [
+            { action: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        select: { id: true, action: true, description: true, createdAt: true },
+        take: 100,
+      }),
     ]);
 
     const merged: SearchResultItem[] = [
       ...users.map((u: any) => ({
-        id: String(u._id),
+        id: String(u.id),
         type: "user" as const,
-        title: u.name,
+        title: `${u.firstName} ${u.lastName}`.trim(),
         subtitle: `${u.email} (${u.role})`,
         createdAt: u.createdAt,
       })),
       ...classes.map((c: any) => ({
-        id: String(c._id),
+        id: String(c.id),
         type: "class" as const,
         title: c.name,
         subtitle: "Class",
         createdAt: c.createdAt,
       })),
       ...subjects.map((s: any) => ({
-        id: String(s._id),
+        id: String(s.id),
         type: "subject" as const,
         title: s.name,
         subtitle: s.code,
         createdAt: s.createdAt,
       })),
-      ...exams.map((e: any) => ({
-        id: String(e._id),
-        type: "exam" as const,
-        title: e.title,
-        subtitle: `${e.subject?.name || "Subject"} - ${e.class?.name || "Class"}`,
-        createdAt: e.createdAt,
-      })),
       ...activities.map((a: any) => ({
-        id: String(a._id),
+        id: String(a.id),
         type: "activity" as const,
         title: a.action,
-        subtitle: `${a.user?.name || "User"}${a.details ? ` - ${a.details}` : ""}`,
+        subtitle: a.description || undefined,
         createdAt: a.createdAt,
       })),
     ].sort(
@@ -138,7 +141,7 @@ export const globalSearch = async (req: Request, res: Response) => {
         users: users.length,
         classes: classes.length,
         subjects: subjects.length,
-        exams: exams.length,
+        exams: 0,
         activities: activities.length,
       },
     });

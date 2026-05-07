@@ -2,7 +2,7 @@ import axios from "axios";
 import { MASTER_LOGIN_PATH } from "@/lib/masterRoutes";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+  baseURL: "/api", // ⭐ IMPORTANT: plus de localhost ici
   withCredentials: true,
   timeout: 15000,
 });
@@ -11,16 +11,18 @@ const RETRY_COUNT = 2;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Add token to all requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+  const masterToken = localStorage.getItem("master_token");
+  
+  if (masterToken && config.url?.includes("/master")) {
+    config.headers.Authorization = `Bearer ${masterToken}`;
+  } else if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Handle response errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -38,23 +40,39 @@ api.interceptors.response.use(
       }
     }
 
-    // Check if we're on a public onboarding page
-    const publicOnboardingPaths = ["/onboarding/school", "/onboarding/invite"];
-    const isOnboardingPage = publicOnboardingPaths.some((path) => 
-      window.location.pathname.startsWith(path)
-    );
+  const publicOnboardingPaths = ["/onboarding/school", "/onboarding/join", "/onboarding/activate"];
+  const isOnboardingPage = publicOnboardingPaths.some((path) => 
+    window.location.pathname.startsWith(path)
+  );
 
-    // For onboarding pages, just reject the error without redirecting
-    if (isOnboardingPage) {
-      return Promise.reject(error);
-    }
+  if (isOnboardingPage) {
+    return Promise.reject(error);
+  }
 
-    // Handle auth errors (401) or network errors for protected pages
+  const PUBLIC_PATHS = [
+    "/",
+    "/login",
+    "/onboarding/school",
+    "/onboarding/join",
+    "/onboarding/activate",
+    "/master",
+  ];
+
+    const isPublicPath = (pathname: string) => {
+      return PUBLIC_PATHS.some(
+        (publicPath) =>
+          pathname === publicPath || pathname.startsWith(publicPath + "/")
+      );
+    };
+
     if (error.response?.status === 401 || isNetworkError) {
-      // Token expired or invalid. Avoid hard-reload loop if already on the right login page.
       const isMasterPage =
         window.location.pathname.startsWith("/master") ||
         window.location.pathname.startsWith(MASTER_LOGIN_PATH);
+
+      if (isPublicPath(window.location.pathname)) {
+        return Promise.reject(error);
+      }
 
       if (isMasterPage) {
         if (!window.location.pathname.startsWith(MASTER_LOGIN_PATH)) {

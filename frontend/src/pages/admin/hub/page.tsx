@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Topbar from "../components/Topbar";
 import StatCard from "./components/StatCard";
 import SearchBar from "./components/SearchBar";
-import EtablissementTable from "./components/EtablissementTable";
+import EtablissementTable, { type Etablissement } from "./components/EtablissementTable";
 
 const HUB_STATUSES = [
   { key: "pending", label: "PENDING" },
@@ -13,7 +13,7 @@ const HUB_STATUSES = [
 
 type StatusKey = typeof HUB_STATUSES[number]["key"];
 
-const mockEtablissements = [
+const mockEtablissements: Etablissement[] = [
   { id: "1", name: "Lycée Condorcet de Douala", type: "Secondaire francophone", plan: "Premium", users: 120, lastLogin: "il y a 2h", status: "active" },
   { id: "2", name: "Collège Espoir Yaoundé", type: "Secondaire anglophone", plan: "Standard", users: 80, lastLogin: "il y a 1h", status: "pending" },
   { id: "3", name: "École Bilingue Bonapriso", type: "Bilingue", plan: "Premium", users: 60, lastLogin: "il y a 3h", status: "approved" },

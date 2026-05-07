@@ -1,10 +1,7 @@
 import { type Request, type Response } from "express";
+import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 import { inngest } from "../inngest/index.ts";
-import Timetable from "../models/timetable.ts";
-import Class from "../models/class.ts";
-import User from "../models/user.ts";
-import TimetableGeneration from "../models/timetableGeneration.ts";
 
 const DEFAULT_TEACHING_DAYS = [
   "Monday",
@@ -75,6 +72,7 @@ const normalizeSettings = (settings: any) => {
     periodDuration,
   };
 };
+};
 
 // @desc    Generate a Timetable using AI
 // @route   POST /api/timetables/generate
@@ -83,38 +81,42 @@ export const generateTimetable = async (req: Request, res: Response) => {
   try {
     const { classId, academicYearId, settings } = req.body;
     const normalizedSettings = normalizeSettings(settings);
+    const schoolId = (req as any).user?.schoolId;
 
-    const classData = await Class.findById(classId).populate("subjects");
+    const classData = await prisma.class.findFirst({
+      where: { id: classId, ...(schoolId ? { schoolId } : {}) },
+      include: { subjects: { include: { subject: true } } },
+    });
     if (!classData) {
       return res.status(404).json({ message: "Class not found" });
     }
 
-    const subjectIds = classData.subjects.map((subject) => subject._id.toString());
+    const subjectIds = classData.subjects.map((s) => s.subjectId);
     if (subjectIds.length === 0) {
       return res.status(400).json({
         message: "No subjects assigned to this class",
       });
     }
 
-    const teachers = await User.find({ role: "teacher" }).select("teacherSubject");
-    const qualifiedTeachers = teachers.filter((teacher) => {
-      if (!teacher.teacherSubject) return false;
-      return teacher.teacherSubject.some((subjectId) =>
-        subjectIds.includes(subjectId.toString())
-      );
+    const teacherProfiles = await prisma.teacherProfile.findMany({
+      where: { teacherSubjects: { some: { subjectId: { in: subjectIds } } },
+      include: { teacherSubjects: true, user: { select: { id: true, firstName: true, lastName: true } } },
     });
 
-    if (qualifiedTeachers.length === 0) {
+    if (teacherProfiles.length === 0) {
       return res.status(400).json({
         message: "No teachers assigned to these class subjects",
       });
     }
 
-    const generation = await TimetableGeneration.create({
-      class: classId,
-      academicYear: academicYearId,
-      status: "queued",
-      message: "Generation queued",
+    const generation = await prisma.timetable.create({
+      data: {
+        schoolId: schoolId || "",
+        classId,
+        academicYearId,
+        status: "DRAFT",
+        generatedByAI: true,
+      },
     });
 
     await inngest.send({
@@ -123,17 +125,18 @@ export const generateTimetable = async (req: Request, res: Response) => {
         classId,
         academicYearId,
         settings: normalizedSettings,
-        generationId: generation._id.toString(),
+        generationId: generation.id,
       },
     });
-    const userId = (req as any).user._id;
+    const userId = (req as any).user.userId;
     await logActivity({
       userId,
+      schoolId,
       action: `Requested timetable generation for class ID: ${classId}`,
     });
     res.status(200).json({
       message: "Timetable generation initiated",
-      generationId: generation._id,
+      generationId: generation.id,
       status: generation.status,
       settings: normalizedSettings,
     });
@@ -154,9 +157,16 @@ export const generateTimetable = async (req: Request, res: Response) => {
 // @route   GET /api/timetables/:classId
 export const getTimetable = async (req: Request, res: Response) => {
   try {
-    const timetable = await Timetable.findOne({ class: req.params.classId })
-      .populate("schedule.periods.subject", "name code")
-      .populate("schedule.periods.teacher", "name email");
+    const timetable = await prisma.timetable.findFirst({
+      where: { classId: req.params.classId },
+      include: {
+        slots: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
+    });
 
     if (!timetable)
       return res.status(404).json({ message: "Timetable not found" });
@@ -169,9 +179,13 @@ export const getTimetable = async (req: Request, res: Response) => {
 
 export const getTimetableGeneration = async (req: Request, res: Response) => {
   try {
-    const generation = await TimetableGeneration.findById(req.params.id)
-      .populate("class", "name")
-      .populate("academicYear", "name");
+    const generation = await prisma.timetable.findFirst({
+      where: { id: req.params.id },
+      include: {
+        class: { select: { id: true, name: true } },
+        academicYear: { select: { id: true, name: true } },
+      },
+    });
 
     if (!generation) {
       return res.status(404).json({ message: "Generation not found" });

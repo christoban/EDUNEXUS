@@ -1,11 +1,12 @@
 import { type Request, type Response } from "express";
-import SchoolSettings from "../models/schoolSettings.ts";
+import { prisma } from "../config/prisma.ts";
 import { DEFAULT_SCHOOL_SETTINGS, getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 
 export const getSchoolSettings = async (_req: Request, res: Response) => {
   try {
-    const settings = await getEffectiveSchoolSettings();
+    const schoolId = (_req as any).user?.schoolId;
+    const settings = await getEffectiveSchoolSettings(schoolId);
     return res.json(settings);
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server Error" });
@@ -14,6 +15,11 @@ export const getSchoolSettings = async (_req: Request, res: Response) => {
 
 export const upsertSchoolSettings = async (req: Request, res: Response) => {
   try {
+    const schoolId = (req as any).user?.schoolId;
+    if (!schoolId) {
+      return res.status(403).json({ message: "Aucun établissement associé" });
+    }
+
     const schoolName = String(req.body?.schoolName || "").trim();
     const schoolMotto = String(req.body?.schoolMotto || "").trim();
     const schoolLogoUrl = String(req.body?.schoolLogoUrl || "").trim();
@@ -103,76 +109,75 @@ export const upsertSchoolSettings = async (req: Request, res: Response) => {
         ? req.body.hasMultipleCycles
         : resolvedCycles.length > 1;
 
-    const settings =
-      (await SchoolSettings.findOne()) ||
-      new SchoolSettings({
-        schoolName: DEFAULT_SCHOOL_SETTINGS.schoolName,
-        schoolMotto: DEFAULT_SCHOOL_SETTINGS.schoolMotto,
-        schoolLogoUrl: DEFAULT_SCHOOL_SETTINGS.schoolLogoUrl,
-        academicCalendarType: DEFAULT_SCHOOL_SETTINGS.academicCalendarType,
-        preferredLanguage: DEFAULT_SCHOOL_SETTINGS.preferredLanguage,
-        schoolLanguageMode: DEFAULT_SCHOOL_SETTINGS.schoolLanguageMode,
-        mode: DEFAULT_SCHOOL_SETTINGS.mode,
-        cycles: DEFAULT_SCHOOL_SETTINGS.cycles,
-        hasMultipleCycles: DEFAULT_SCHOOL_SETTINGS.hasMultipleCycles,
-        officialLanguages: DEFAULT_SCHOOL_SETTINGS.officialLanguages,
-        attendanceLateAsAbsence: DEFAULT_SCHOOL_SETTINGS.attendanceLateAsAbsence,
-        attendanceExcusedCountsAsAbsence: DEFAULT_SCHOOL_SETTINGS.attendanceExcusedCountsAsAbsence,
-        councilDecisionMode: DEFAULT_SCHOOL_SETTINGS.councilDecisionMode,
-        councilPassAverageThreshold: DEFAULT_SCHOOL_SETTINGS.councilPassAverageThreshold,
-        councilMaxAbsences: DEFAULT_SCHOOL_SETTINGS.councilMaxAbsences,
-        bulletinBlockOnUnpaidFees: DEFAULT_SCHOOL_SETTINGS.bulletinBlockOnUnpaidFees,
-        bulletinAllowedOutstandingBalance: DEFAULT_SCHOOL_SETTINGS.bulletinAllowedOutstandingBalance,
-      });
+    const settings = await prisma.schoolSettings.upsert({
+      where: { schoolId },
+      create: {
+        schoolId,
+        timezone: req.body?.timezone || "Africa/Douala",
+        locale: preferredLanguage === "en" ? "en-US" : "fr-CM",
+        currency: req.body?.currency || "XAF",
+      },
+      update: {
+        timezone: req.body?.timezone || undefined,
+        locale: preferredLanguage === "en" ? "en-US" : "fr-CM",
+        currency: req.body?.currency || undefined,
+      },
+    });
 
-    settings.schoolName = schoolName;
-    settings.schoolMotto = schoolMotto;
-    settings.schoolLogoUrl = schoolLogoUrl;
-    settings.academicCalendarType = academicCalendarType as "trimester" | "semester";
-    settings.preferredLanguage = preferredLanguage as "fr" | "en";
-    settings.schoolLanguageMode =
-      schoolLanguageMode as "anglophone" | "francophone" | "bilingual";
-    settings.mode = resolvedMode;
-    settings.cycles = resolvedCycles;
-    settings.hasMultipleCycles = hasMultipleCycles;
-    settings.officialLanguages = officialLanguages;
-    settings.attendanceLateAsAbsence = attendanceLateAsAbsence;
-    settings.attendanceExcusedCountsAsAbsence = attendanceExcusedCountsAsAbsence;
-    settings.councilDecisionMode = councilDecisionMode;
-    settings.councilPassAverageThreshold = councilPassAverageThreshold;
-    settings.councilMaxAbsences = councilMaxAbsences;
-    settings.bulletinBlockOnUnpaidFees = bulletinBlockOnUnpaidFees;
-    settings.bulletinAllowedOutstandingBalance = bulletinAllowedOutstandingBalance;
-
-    await settings.save();
+    await prisma.schoolConfig.upsert({
+      where: { schoolId },
+      create: {
+        schoolId,
+        gradesPerTerm: 3,
+        termsPerYear: 3,
+        passMark: Number(req.body?.passMark ?? 10),
+        maxAbsences: councilMaxAbsences,
+        smsEnabled: Boolean(req.body?.smsEnabled ?? false),
+        offlineModeEnabled: Boolean(req.body?.offlineModeEnabled ?? true),
+        aiAlertsEnabled: Boolean(req.body?.aiAlertsEnabled ?? true),
+        messageModeration: Boolean(req.body?.messageModeration ?? false),
+      },
+      update: {
+        passMark: Number(req.body?.passMark ?? 10),
+        maxAbsences: councilMaxAbsences,
+        smsEnabled: Boolean(req.body?.smsEnabled ?? false),
+        offlineModeEnabled: Boolean(req.body?.offlineModeEnabled ?? true),
+        aiAlertsEnabled: Boolean(req.body?.aiAlertsEnabled ?? true),
+        messageModeration: Boolean(req.body?.messageModeration ?? false),
+      },
+    });
 
     const user = (req as any).user;
-    if (user?._id) {
+    if (user?.userId) {
       await logActivity({
-        userId: String(user._id),
+        userId: String(user.userId),
+        schoolId,
         action: "Updated school settings",
-        details: `calendar=${settings.academicCalendarType}, language=${settings.preferredLanguage}, mode=${settings.schoolLanguageMode}`,
+        details: `locale=${settings.locale}, currency=${settings.currency}`,
       });
     }
 
     return res.json({
-      schoolName: settings.schoolName,
-      schoolMotto: settings.schoolMotto,
-      schoolLogoUrl: settings.schoolLogoUrl || "",
-      academicCalendarType: settings.academicCalendarType,
-      preferredLanguage: settings.preferredLanguage,
-      schoolLanguageMode: settings.schoolLanguageMode,
-      mode: settings.mode,
-      cycles: settings.cycles,
-      hasMultipleCycles: settings.hasMultipleCycles,
-      officialLanguages: settings.officialLanguages,
-      attendanceLateAsAbsence: settings.attendanceLateAsAbsence,
-      attendanceExcusedCountsAsAbsence: settings.attendanceExcusedCountsAsAbsence,
-      councilDecisionMode: settings.councilDecisionMode,
-      councilPassAverageThreshold: settings.councilPassAverageThreshold,
-      councilMaxAbsences: settings.councilMaxAbsences,
-      bulletinBlockOnUnpaidFees: settings.bulletinBlockOnUnpaidFees,
-      bulletinAllowedOutstandingBalance: settings.bulletinAllowedOutstandingBalance,
+      schoolName,
+      schoolMotto,
+      schoolLogoUrl,
+      academicCalendarType,
+      preferredLanguage,
+      schoolLanguageMode,
+      mode: resolvedMode,
+      cycles: resolvedCycles,
+      hasMultipleCycles,
+      officialLanguages,
+      attendanceLateAsAbsence,
+      attendanceExcusedCountsAsAbsence,
+      councilDecisionMode,
+      councilPassAverageThreshold,
+      councilMaxAbsences,
+      bulletinBlockOnUnpaidFees,
+      bulletinAllowedOutstandingBalance,
+      timezone: settings.timezone,
+      locale: settings.locale,
+      currency: settings.currency,
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server Error" });

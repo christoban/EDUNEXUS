@@ -4,13 +4,9 @@ import { type Response } from "express";
 export const generateToken = (
   userId: string,
   res: Response,
-  schoolId?: string | null
+  schoolId: string
 ) => {
-  // ✅ MULTI-TENANT: Include schoolId in JWT payload
-  const payload: any = { userId };
-  if (schoolId) {
-    payload.schoolId = schoolId;
-  }
+  const payload = { userId, schoolId };
 
   const token = jwt.sign(payload, process.env.JWT_SECRET as string, {
     expiresIn: "30d",
@@ -18,11 +14,11 @@ export const generateToken = (
   });
 
   // attach token to http-only cookie
-  res.cookie("jwt", token, {
+  res.cookie("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    path: "/", // cookie valid for entire site
+    path: "/",
   });
 };

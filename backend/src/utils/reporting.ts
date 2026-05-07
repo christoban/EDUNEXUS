@@ -1,5 +1,9 @@
-import type { IAcademicYear } from "../models/academicYear.ts";
-import type { AcademicPeriodType } from "../models/academicPeriod.ts";
+export type AcademicPeriodType = "SEQUENCE" | "TERM" | "MONTH";
+
+export type IAcademicYear = {
+  fromYear: string | Date;
+  toYear: string | Date;
+};
 
 export type ReportPeriod = "term1" | "term2" | "term3" | "annual" | string;
 

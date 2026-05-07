@@ -1,377 +1,358 @@
 import { type Request, type Response } from "express";
+import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
-import Exam from "../models/exam.ts";
-import ExamGeneration from "../models/examGeneration.ts";
-import Class from "../models/class.ts";
-import Subject from "../models/subject.ts";
-import Submission from "../models/submission.ts";
 import { inngest } from "../inngest/index.ts";
 
-const getTeacherSubjectIds = (user: any) =>
-  Array.isArray(user?.teacherSubject)
-    ? user.teacherSubject.map((subjectId: any) => subjectId.toString())
-    : [];
+const getTeacherSubjectIds = async (userId: string) => {
+  const teacherProfile = await prisma.teacherProfile.findUnique({
+    where: { userId },
+    include: { teacherSubjects: true },
+  });
 
-const canTeacherAccessSubject = (user: any, subjectId: any) => {
-  if (user?.role === "admin") return true;
-  const teacherSubjectIds = getTeacherSubjectIds(user);
-  return teacherSubjectIds.includes(subjectId?.toString());
+  return (teacherProfile?.teacherSubjects || []).map((item) => item.subjectId);
 };
 
-// @desc    Trigger AI Exam Generation
-// @route   POST /api/exams/generate
+const canTeacherAccessSubject = async (user: any, subjectId: string) => {
+  if (user?.role === "admin") return true;
+  const teacherSubjectIds = await getTeacherSubjectIds(user?.userId || "");
+  return teacherSubjectIds.includes(subjectId);
+};
+
+const isPublished = (exam: any) => Boolean(exam?.content?.status !== "draft");
+
 export const triggerExamGeneration = async (req: Request, res: Response) => {
   try {
-    const {
-      title,
-      subject,
-      class: classId,
-      duration,
-      dueDate,
-      topic,
-      difficulty,
-      count,
-    } = req.body;
-    const subjectDoc = await Subject.findById(subject);
-    if (!subjectDoc)
-      return res.status(404).json({ message: "Subject not found" });
+    const { title, subject, class: classId, academicYearId, duration, dueDate, topic, difficulty, count } = req.body;
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
 
-    const user = (req as any).user;
-    if (user.role === "teacher" && !canTeacherAccessSubject(user, subjectDoc._id)) {
-      return res.status(403).json({
-        message: "Not authorized to create exams for this subject",
-      });
+    const subjectDoc = await prisma.subject.findFirst({
+      where: {
+        id: subject,
+        ...(schoolId ? { schoolId } : {}),
+      },
+    });
+
+    if (!subjectDoc) {
+      return res.status(404).json({ message: "Subject not found" });
     }
 
-    const teacherId = user._id;
-    const draftExam = await Exam.create({
-      title: title || `Auto-Generated: ${topic}`,
-      subject,
-      class: classId,
-      teacher: teacherId,
-      duration: duration || 60,
-      dueDate: dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 1 week
-      isActive: false, // Draft mode
-      questions: [], // Empty for now, Inngest will fill this
+    if (currentUser.role === "teacher" && !(await canTeacherAccessSubject(currentUser, subjectDoc.id))) {
+      return res.status(403).json({ message: "Not authorized to create exams for this subject" });
+    }
+
+    const draftExam = await prisma.exam.create({
+      data: {
+        schoolId,
+        title: title || `Auto-Generated: ${topic}`,
+        subjectId: subjectDoc.id,
+        classId,
+        academicYearId,
+        scheduledAt: dueDate ? new Date(dueDate) : null,
+        isAiGenerated: true,
+        content: {
+          status: "draft",
+          topic,
+          difficulty: difficulty || "Medium",
+          count: count || 10,
+          duration: duration || 60,
+        },
+      },
+      include: { subject: true, class: true },
     });
 
-    const userId = (req as any).user._id;
     await logActivity({
-      userId,
-      action: `User triggered exam generation: ${draftExam._id}`,
-    });
-
-    const generation = await ExamGeneration.create({
-      exam: draftExam._id,
-      status: "queued",
-      message: "Exam generation queued",
+      userId: currentUser.userId,
+      schoolId,
+      action: `User triggered exam generation: ${draftExam.id}`,
     });
 
     await inngest.send({
       name: "exam/generate",
       data: {
-        examId: draftExam._id,
-        generationId: generation._id,
+        examId: draftExam.id,
         topic,
         subjectName: subjectDoc.name,
         difficulty: difficulty || "Medium",
         count: count || 10,
       },
     });
-    res.status(202).json({
+
+    return res.status(202).json({
       message: "Exam generation started.",
-      examId: draftExam._id,
-      generationId: generation._id,
-      status: generation.status,
+      examId: draftExam.id,
+      status: (draftExam.content as any)?.status || "draft",
     });
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", error });
+  } catch (error: any) {
+    return res.status(500).json({ message: error.message || "Server Error" });
   }
 };
 
 export const getExamGeneration = async (req: Request, res: Response) => {
   try {
-    const generation = await ExamGeneration.findById(req.params.id).populate(
-      "exam",
-      "_id title isActive questions"
-    );
+    const exam = await prisma.exam.findFirst({
+      where: { id: req.params.id },
+      include: {
+        subject: true,
+        class: true,
+        academicYear: true,
+        submissions: true,
+      },
+    });
 
-    if (!generation) {
+    if (!exam) {
       return res.status(404).json({ message: "Generation not found" });
     }
 
-    return res.json({ generation });
+    return res.json({ generation: exam });
   } catch (error: any) {
     return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Create/Publish Exam we won't use it
-// @route   POST /api/exams
 export const createExam = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    if (user.role === "teacher") {
-      if (!req.body.subject || !canTeacherAccessSubject(user, req.body.subject)) {
-        return res.status(403).json({
-          message: "Not authorized to create exams for this subject",
-        });
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
+
+    if (currentUser.role === "teacher" && req.body.subject) {
+      if (!(await canTeacherAccessSubject(currentUser, req.body.subject))) {
+        return res.status(403).json({ message: "Not authorized to create exams for this subject" });
       }
     }
 
-    const exam = await Exam.create({
-      ...req.body,
-      teacher: user._id, // From Auth Middleware
+    const exam = await prisma.exam.create({
+      data: {
+        schoolId,
+        title: req.body.title,
+        subjectId: req.body.subject,
+        classId: req.body.class,
+        academicYearId: req.body.academicYearId,
+        scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : null,
+        isAiGenerated: Boolean(req.body.isAiGenerated),
+        content: {
+          ...(typeof req.body.content === "object" ? req.body.content : {}),
+          status: req.body.status || "published",
+        },
+      },
     });
-    const userId = user._id;
-    await logActivity({ userId, action: "User created a new exam" });
-    res.status(201).json(exam);
+
+    await logActivity({
+      userId: currentUser.userId,
+      schoolId,
+      action: "User created a new exam",
+    });
+
+    return res.status(201).json(exam);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get Exams (Student sees available, Teacher sees created)
-// @route   GET /api/exams
 export const getExams = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    let query: any = {};
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
 
-    if (user.role === "student") {
-      // Students see exams for their class only
-      query = { class: user.studentClass, isActive: true };
-    } else if (user.role === "teacher") {
-      const teacherSubjectIds = getTeacherSubjectIds(user);
+    const where: any = {
+      ...(schoolId ? { schoolId } : {}),
+    };
 
-      // Teachers can see only exams belonging to subjects they teach.
-      query = teacherSubjectIds.length
-        ? { subject: { $in: teacherSubjectIds } }
-        : { _id: { $exists: false } };
+    if (currentUser.role === "student") {
+      const studentProfile = await prisma.studentProfile.findFirst({ where: { userId: currentUser.userId } });
+      where.classId = studentProfile?.classId || "__no_match__";
+    } else if (currentUser.role === "teacher") {
+      const teacherSubjectIds = await getTeacherSubjectIds(currentUser.userId);
+      where.subjectId = teacherSubjectIds.length ? { in: teacherSubjectIds } : { in: ["__no_match__"] };
     }
 
-    const exams = await Exam.find(query)
-      .populate("subject", "name")
-      .populate("class", "name section")
-      .select("-questions.correctAnswer"); // Hide answers!
+    const exams = await prisma.exam.findMany({
+      where,
+      include: {
+        subject: true,
+        class: true,
+        academicYear: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    if (user.role === "student") {
-      const submittedExamIds = await Submission.find({ student: user._id })
-        .select("exam")
-        .lean();
-      const submittedSet = new Set(
-        submittedExamIds.map((submission) => submission.exam.toString())
-      );
+    if (currentUser.role === "student") {
+      const publishedExams = exams.filter(isPublished);
+      const submittedExamIds = await prisma.submission.findMany({
+        where: { studentId: currentUser.userId },
+        select: { examId: true },
+      });
+      const submittedSet = new Set(submittedExamIds.map((item) => item.examId));
 
       return res.json(
-        exams.map((exam) => ({
-          ...exam.toObject(),
-          hasSubmitted: submittedSet.has(exam._id.toString()),
+        publishedExams.map((exam) => ({
+          ...exam,
+          hasSubmitted: submittedSet.has(exam.id),
         }))
       );
     }
 
-    res.json(exams);
+    return res.json(exams);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get exam by id
-// @route   POST /api/exams/:id
 export const getExamById = async (req: Request, res: Response) => {
   try {
-    const examId = req.params.id;
-    const user = (req as any).user; // Assumes authMiddleware attaches user
+    const currentUser = (req as any).user;
+    const exam = await prisma.exam.findFirst({
+      where: { id: req.params.id, ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
+      include: {
+        subject: true,
+        class: true,
+        academicYear: true,
+      },
+    });
 
-    // 1. Initialize the query
-    let query = Exam.findById(examId)
-      .populate("subject", "name code")
-      .populate("class", "name section")
-      .populate("teacher", "name email");
-
-    // 2. Conditional Logic: Reveal answers for Teachers/Admins
-    // The '+' syntax forces selection of fields marked as { select: false } in Schema
-    if (user.role === "teacher" || user.role === "admin") {
-      // @ts-ignore
-      query = query.select("+questions.correctAnswer");
-    }
-
-    // 3. Execute Query
-    const exam = await query;
-
-    // 4. Handle Not Found
     if (!exam) {
       return res.status(404).json({ message: "Exam not found" });
     }
 
-    // 5. Security Check (Optional but recommended)
-    // Ensure student belongs to the class this exam is assigned to
-    if (user.role === "student") {
-      // Assuming user.studentClass is a string or ObjectId
-      // We compare it with the exam.class._id (which might be populated or an ID)
-      const examClassId = exam.class._id
-        ? exam.class._id.toString()
-        : exam.class.toString();
-      const userClassId = user.studentClass ? user.studentClass.toString() : "";
-
-      if (examClassId !== userClassId) {
-        return res
-          .status(403)
-          .json({ message: "You are not authorized to view this exam." });
-      }
-    } else if (user.role === "teacher") {
-      const teacherSubjectIds = getTeacherSubjectIds(user);
-      const examSubjectId = exam.subject._id
-        ? exam.subject._id.toString()
-        : exam.subject.toString();
-
-      const canViewExam = teacherSubjectIds.includes(examSubjectId);
-
-      if (!canViewExam) {
-        return res
-          .status(403)
-          .json({ message: "You are not authorized to view this exam." });
+    if (currentUser.role === "student") {
+      const studentProfile = await prisma.studentProfile.findFirst({ where: { userId: currentUser.userId } });
+      if (studentProfile?.classId !== exam.classId) {
+        return res.status(403).json({ message: "You are not authorized to view this exam." });
       }
     }
 
-    res.json(exam);
+    if (currentUser.role === "teacher") {
+      const allowed = await canTeacherAccessSubject(currentUser, exam.subjectId);
+      if (!allowed) {
+        return res.status(403).json({ message: "You are not authorized to view this exam." });
+      }
+    }
+
+    return res.json(exam);
   } catch (error: any) {
-    console.error(error);
-
-    // Handle Invalid ID format (CastError)
-    if (error.name === "CastError") {
-      return res.status(400).json({ message: "Invalid exam ID" });
-    }
-
-    // Handle other errors
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: error.message || "Internal server error" });
   }
 };
 
-// @desc    Toggle Exam Status (Active/Inactive)
-// @route   PATCH /api/exams/:id/status
-// @access  Private (Teacher/Admin)
 export const toggleExamStatus = async (req: Request, res: Response) => {
   try {
-    const examId = req.params.id;
-    const user = (req as any).user;
-
-    const exam = await Exam.findById(examId);
+    const currentUser = (req as any).user;
+    const exam = await prisma.exam.findFirst({
+      where: { id: req.params.id, ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
+    });
 
     if (!exam) {
       return res.status(404).json({ message: "Exam not found" });
     }
 
-    // Security Check: Teacher can modify only exams in subjects they teach.
-    if (user.role === "teacher") {
-      const canModifyExam = canTeacherAccessSubject(user, exam.subject);
-      if (!canModifyExam) {
-        return res
-          .status(403)
-          .json({ message: "Not authorized to modify this exam" });
-      }
-    } else if (user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to modify this exam" });
+    if (currentUser.role === "teacher" && !(await canTeacherAccessSubject(currentUser, exam.subjectId))) {
+      return res.status(403).json({ message: "Not authorized to modify this exam" });
     }
 
-    // Toggle the status
-    exam.isActive = !exam.isActive;
-    await exam.save();
-    const userId = (req as any).user._id;
-    await logActivity({ userId, action: "User toggled exam status" });
-    res.json({
-      message: `Exam is now ${exam.isActive ? "Active" : "Inactive"}`,
-      _id: exam._id,
-      isActive: exam.isActive,
+    const currentStatus = String((exam.content as any)?.status || "published");
+    const nextStatus = currentStatus === "draft" ? "published" : "draft";
+
+    const updatedExam = await prisma.exam.update({
+      where: { id: exam.id },
+      data: {
+        content: {
+          ...(typeof exam.content === "object" && exam.content ? (exam.content as any) : {}),
+          status: nextStatus,
+        },
+      },
+    });
+
+    await logActivity({
+      userId: currentUser.userId,
+      schoolId: currentUser?.schoolId,
+      action: "User toggled exam status",
+    });
+
+    return res.json({
+      message: `Exam is now ${nextStatus === "published" ? "Active" : "Inactive"}`,
+      id: updatedExam.id,
+      isActive: nextStatus === "published",
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Submit & Auto-Grade Exam let these happen inside inngest
-// @route   POST /api/exams/:id/submit
 export const submitExam = async (req: Request, res: Response) => {
   try {
+    const currentUser = (req as any).user;
     const { answers } = req.body;
-    const studentId = (req as any).user._id;
     const examId = req.params.id;
 
-    // Trigger Inngest function to handle submission
     await inngest.send({
       name: "exam/submit",
       data: {
         examId,
-        studentId,
+        studentId: currentUser.userId,
         answers,
       },
     });
 
-    const userId = (req as any).user._id;
-    await logActivity({ userId, action: "User submitted an exam" });
+    await logActivity({
+      userId: currentUser.userId,
+      schoolId: currentUser?.schoolId,
+      action: "User submitted an exam",
+    });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Exam submission received and is being processed.",
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get Exam Results (For Student)
-// @route   GET /api/exams/:id/result
 export const getExamResult = async (req: Request, res: Response) => {
   try {
-    const studentId = (req as any).user._id;
-    const examId = req.params.id;
-
-    const submission = await Submission.findOne({
-      exam: examId,
-      student: studentId,
-    }).populate({
-      path: "exam",
-      select: "title questions._id questions.correctAnswer", // <--- FORCE SELECT correct answers
+    const currentUser = (req as any).user;
+    const submission = await prisma.submission.findFirst({
+      where: {
+        examId: req.params.id,
+        studentId: currentUser.userId,
+      },
+      include: {
+        exam: {
+          include: { subject: true, class: true, academicYear: true },
+        },
+      },
     });
+
     if (!submission) {
       return res.status(404).json({ message: "No submission found" });
     }
 
-    res.json(submission);
+    return res.json(submission);
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Delete exam
-// @route   DELETE /api/exams/:id
-// @access  Private (Teacher/Admin)
 export const deleteExam = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    const exam = await Exam.findById(req.params.id);
+    const currentUser = (req as any).user;
+    const exam = await prisma.exam.findFirst({
+      where: { id: req.params.id, ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
+    });
 
     if (!exam) {
       return res.status(404).json({ message: "Exam not found" });
     }
 
-    // Non-admin users can delete only exams of their own subjects.
-    if (user.role === "teacher") {
-      const canDeleteExam = canTeacherAccessSubject(user, exam.subject);
-      if (!canDeleteExam) {
-        return res.status(403).json({ message: "Not authorized to delete this exam" });
-      }
-    } else if (user.role !== "admin") {
+    if (currentUser.role === "teacher" && !(await canTeacherAccessSubject(currentUser, exam.subjectId))) {
       return res.status(403).json({ message: "Not authorized to delete this exam" });
     }
 
-    await Submission.deleteMany({ exam: exam._id });
-    await exam.deleteOne();
+    await prisma.submission.deleteMany({ where: { examId: exam.id } });
+    await prisma.exam.delete({ where: { id: exam.id } });
 
     await logActivity({
-      userId: user._id,
+      userId: currentUser.userId,
+      schoolId: currentUser?.schoolId,
       action: `Deleted exam: ${exam.title}`,
     });
 

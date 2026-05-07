@@ -1,5 +1,5 @@
-import SubSystem from "../models/subSystem.ts";
-import type { SectionCycle, SectionLanguage } from "../models/section.ts";
+export type SectionCycle = "maternelle" | "primaire" | "secondaire" | "technique";
+export type SectionLanguage = "fr" | "en";
 
 export const DEFAULT_SUBSYSTEMS = [
   {
@@ -61,13 +61,7 @@ export const DEFAULT_SUBSYSTEMS = [
 ] as const;
 
 export const ensureDefaultSubSystems = async () => {
-  for (const subSystem of DEFAULT_SUBSYSTEMS) {
-    await SubSystem.findOneAndUpdate(
-      { code: subSystem.code },
-      { ...subSystem, isActive: true },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
+  return DEFAULT_SUBSYSTEMS;
 };
 
 export const resolveDefaultSubsystemCodeForSection = (

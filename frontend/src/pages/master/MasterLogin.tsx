@@ -7,9 +7,11 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useMasterAuth } from "@/hooks/useMasterAuth";
 
 const MasterLogin = () => {
   const navigate = useNavigate();
+  const { forceRefreshAuth } = useMasterAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<"credentials" | "email" | "mfa">("credentials");
@@ -27,16 +29,16 @@ const MasterLogin = () => {
     const bootstrap = async () => {
       try {
         await api.get("/master/auth/me");
+        await forceRefreshAuth();
         navigate("/superadmin", { replace: true });
       } catch {
-        // Stay on login form when no master session exists.
       } finally {
         setLoading(false);
       }
     };
 
     bootstrap();
-  }, [navigate]);
+  }, [navigate, forceRefreshAuth]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,6 +60,7 @@ const MasterLogin = () => {
       }
 
       toast.success("Connexion master réussie.");
+      await forceRefreshAuth();
       navigate("/superadmin", { replace: true });
     } catch (requestError: any) {
       const message = requestError?.response?.data?.message || "Impossible de se connecter au portail master.";
@@ -87,6 +90,7 @@ const MasterLogin = () => {
       }
 
       toast.success("Validation email réussie.");
+      await forceRefreshAuth();
       navigate("/superadmin", { replace: true });
     } catch (requestError: any) {
       const message = requestError?.response?.data?.message || "Code email invalide.";
@@ -104,6 +108,9 @@ const MasterLogin = () => {
       setError("");
       await api.post("/master/auth/verify-mfa", { code: mfaCode.trim() });
       toast.success("Connexion master sécurisée réussie.");
+      
+      // Force refresh auth and wait for session to be established
+      await forceRefreshAuth();
       navigate("/superadmin", { replace: true });
     } catch (requestError: any) {
       const message = requestError?.response?.data?.message || "Code MFA invalide.";

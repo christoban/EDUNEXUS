@@ -1,4 +1,4 @@
-import type { GradingScale } from "../models/subSystem.ts";
+export type GradingScale = "OVER_20" | "PERCENT" | "GRADES_AE" | "COMPETENCY_ANA";
 
 type GradeComputationInput = {
   rawScore: number;

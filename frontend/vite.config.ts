@@ -18,4 +18,19 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    host: true, // ⭐ IMPORTANT pour accès externe (ngrok)
+    allowedHosts: true, // ⭐ Autorise ngrok et autres hôtes externe
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
 })

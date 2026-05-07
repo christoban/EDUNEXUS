@@ -1,4 +1,6 @@
-import type { SchoolOnboardingStatus, SchoolStructure, SchoolSystemType } from "../models/school.ts";
+export type SchoolOnboardingStatus = "pending" | "approved" | "active" | "rejected";
+export type SchoolStructure = "simple" | "complex" | "multi";
+export type SchoolSystemType = "francophone" | "anglophone" | "bilingual";
 
 export type SchoolTemplateKey =
   | "fr_primary"

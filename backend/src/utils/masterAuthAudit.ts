@@ -1,6 +1,7 @@
 import { type Request } from "express";
-import { dbRouter } from "../config/dbRouter.ts";
-import MasterAuthAudit, { type MasterAuthOutcome } from "../models/masterAuthAudit.ts";
+import { prisma } from "../config/prisma.ts";
+
+export type MasterAuthOutcome = "success" | "failure";
 
 const normalizeIp = (value?: string | null) => {
   if (!value) return "unknown";
@@ -34,20 +35,12 @@ export const logMasterAuthAudit = async (params: {
   try {
     const { req, outcome, reason, email } = params;
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterAuthAuditModel = masterConn.model(
-      "MasterAuthAudit",
-      MasterAuthAudit.schema
-    );
-
-    await MasterAuthAuditModel.create({
-      email: email ? String(email).trim().toLowerCase() : null,
-      ip: resolveClientIp(req),
-      userAgent: req.headers["user-agent"] || null,
-      outcome,
-      reason,
-      path: req.originalUrl || req.url || "unknown",
-      method: req.method || "UNKNOWN",
+    await prisma.masterAuthAudit.create({
+      data: {
+        action: `${outcome}:${reason}`,
+        description: email ? String(email).trim().toLowerCase() : null,
+        ipAddress: resolveClientIp(req),
+      },
     });
   } catch (error) {
     // Keep this silent to avoid blocking auth flow in case of audit persistence issues.

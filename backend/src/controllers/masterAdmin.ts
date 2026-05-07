@@ -4,19 +4,23 @@ import * as otplib from "otplib";
 import QRCode from "qrcode";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomInt } from "crypto";
-import { dbRouter } from "../config/dbRouter.ts";
-import School from "../models/school.ts";
-import SchoolComplex from "../models/schoolComplex.ts";
-import SchoolConfig from "../models/schoolConfig.ts";
-import SchoolInvite from "../models/schoolInvite.ts";
-import EmailLog from "../models/emailLog.ts";
-import MasterUser from "../models/masterUser.ts";
-import ActivitiesLog from "../models/activitieslog.ts";
-import MasterAuthAudit from "../models/masterAuthAudit.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
 import { buildSchoolInviteTemplate } from "../utils/emailTemplates.ts";
 import { logMasterAuthAudit } from "../utils/masterAuthAudit.ts";
+import {
+  buildSchoolDbName,
+  buildSchoolConnectionString,
+  getSchoolTemplate,
+} from "../utils/schoolOnboarding.ts";
+import { prisma } from "../config/prisma.ts";
+import {
+  InviteStatus,
+  PlanType,
+  SchoolStatus,
+  SchoolType,
+  UserRole,
+} from "@prisma/client";
 
 const masterJwtSecret = process.env.MASTER_JWT_SECRET || process.env.JWT_SECRET;
 const masterPreAuthTtl = process.env.MASTER_PREAUTH_TTL || "10m";
@@ -199,765 +203,621 @@ const buildMasterPasswordChangeOtpEmail = (name: string, code: string) => {
     `,
     text: `Bonjour ${safeName},\n\nVotre code de confirmation de changement de mot de passe EDUNEXUS est: ${code}\n\nCe code expire dans quelques minutes. Si vous n'êtes pas à l'origine de cette action, sécurisez votre compte immédiatement.`,
   };
-};
 
-const signMasterSessionToken = (payload: {
-  id: string;
-  email: string;
-  role: string;
-}) => {
-  if (!masterJwtSecret) {
-    throw new Error("Master auth misconfigured");
-  }
+    const legacySchoolStatus = (status: SchoolStatus) => {
+      if (status === SchoolStatus.PENDING) return "pending";
+      if (status === SchoolStatus.APPROVED) return "approved";
+      if (status === SchoolStatus.ACTIVE) return "active";
+      if (status === SchoolStatus.SUSPENDED) return "active";
+      return "rejected";
+    };
 
-  return jwt.sign(
-    {
-      id: payload.id,
-      email: payload.email,
-      role: payload.role,
-      tokenType: "master",
-    },
-    masterJwtSecret,
-    { expiresIn: "30d", algorithm: "HS512" }
-  );
-};
+    const mapSystemTypeToSchoolType = (systemType?: string) => {
+      const value = String(systemType || "").toLowerCase();
+      if (value.includes("bilingual")) return SchoolType.BILINGUAL;
+      if (value.includes("technical")) return SchoolType.TECHNICAL;
+      return SchoolType.SECONDARY;
+    };
 
-const signMasterPreAuthToken = (payload: {
-  id: string;
-  email: string;
-  role: string;
-  emailOtpHash?: string;
-  emailOtpExpiresAt?: string;
-}) => {
-  if (!masterJwtSecret) {
-    throw new Error("Master auth misconfigured");
-  }
+    const planFromLegacy = (plan?: string | null) => {
+      const value = String(plan || "").toLowerCase();
+      if (value === "premium") return PlanType.PREMIUM;
+      if (value === "standard") return PlanType.STANDARD;
+      return PlanType.DISCOVERY;
+    };
 
-  return jwt.sign(
-    {
-      id: payload.id,
-      email: payload.email,
-      role: payload.role,
-      tokenType: "master_preauth",
-      emailOtpHash: payload.emailOtpHash,
-      emailOtpExpiresAt: payload.emailOtpExpiresAt,
-    },
-    masterJwtSecret,
-    { expiresIn: masterPreAuthTtl as any, algorithm: "HS512" }
-  );
-};
+    const planToLegacy = (plan: PlanType) => {
+      if (plan === PlanType.PREMIUM) return "premium";
+      if (plan === PlanType.STANDARD) return "standard";
+      return "decouverte";
+    };
 
-const signMasterPasswordChangeChallengeToken = (payload: {
-  id: string;
-  email: string;
-}) => {
-  if (!masterJwtSecret) {
-    throw new Error("Master auth misconfigured");
-  }
-
-  return jwt.sign(
-    {
-      id: payload.id,
-      email: payload.email,
-      tokenType: "master_password_change",
-    },
-    masterJwtSecret,
-    { expiresIn: masterPasswordChangeOtpTtl as any, algorithm: "HS512" }
-  );
-};
-
-const getAllowedMasterEmails = () => {
-  const raw = process.env.MASTER_ALLOWED_EMAILS?.trim();
-  if (!raw) return [];
-
-  return raw
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-};
-
-/**
- * AUTH MASTER
- */
-
-export const masterLogin = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "missing_credentials",
-        email,
-      });
-      return res.status(400).json({ message: "Email and password required" });
-    }
-
-    if (!masterJwtSecret) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "server_misconfigured",
-        email,
-      });
-      return res.status(500).json({ message: "Master auth misconfigured" });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const allowedMasterEmails = getAllowedMasterEmails();
-
-    if (allowedMasterEmails.length > 0 && !allowedMasterEmails.includes(normalizedEmail)) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_not_allowlisted",
-        email: normalizedEmail,
-      });
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-
-    const masterUser = await MasterUserModel.findOne({ email: normalizedEmail });
-
-    if (!masterUser) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "user_not_found",
-        email: normalizedEmail,
-      });
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    if (masterUser.isActive === false) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "inactive_account",
-        email: normalizedEmail,
-      });
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    const isMatch = await masterUser.matchPassword(password);
-    if (!isMatch) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "invalid_password",
-        email: normalizedEmail,
-      });
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    const emailOtpCode = generateLoginEmailCode();
-    const emailOtpHash = await bcrypt.hash(emailOtpCode, 10);
-    const emailOtpExpiresAt = new Date(Date.now() + masterEmailOtpTtlMs);
-
-    const otpPersistResult = await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          loginEmailOtpHash: emailOtpHash,
-          loginEmailOtpExpiresAt: emailOtpExpiresAt,
-          loginEmailOtpAttempts: 0,
-          loginEmailOtpSentAt: new Date(),
-        },
+    const toLegacySchool = (
+      school: {
+        id: string;
+        name: string;
+        subdomain: string;
+        type: SchoolType;
+        plan: PlanType;
+        status: SchoolStatus;
+        city: string | null;
+        region: string | null;
+        address: string | null;
+        phone: string | null;
+        email: string | null;
+        logoUrl: string | null;
+        language: string;
+        system: string;
+        createdAt: Date;
+        updatedAt: Date;
+        invites?: Array<{ token: string; email: string; status: InviteStatus; expiresAt: Date; createdAt: Date; plan: PlanType }>
       }
-    );
-
-    if (!otpPersistResult.matchedCount) {
-      console.error("[MASTER AUTH] OTP persist failed: user not matched", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-        dbName: masterConn.db?.databaseName,
-        collectionName: MasterUserModel.collection?.name,
-      });
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_persist_user_not_found",
-        email: masterUser.email,
-      });
-
-      return res.status(500).json({
-        message: "Unable to initialize email verification (persist failed)",
-      });
-    }
-
-    const otpStateAfterPersist = await MasterUserModel.findById(masterUser._id)
-      .select("_id loginEmailOtpHash loginEmailOtpExpiresAt loginEmailOtpSentAt")
-      .lean<{
-        _id: any;
-        loginEmailOtpHash?: string | null;
-        loginEmailOtpExpiresAt?: Date | string | null;
-        loginEmailOtpSentAt?: Date | string | null;
-      }>();
-
-    if (!otpStateAfterPersist?.loginEmailOtpHash || !otpStateAfterPersist?.loginEmailOtpExpiresAt) {
-      console.error("[MASTER AUTH] OTP fields missing immediately after persist", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-        matchedCount: otpPersistResult.matchedCount,
-        modifiedCount: otpPersistResult.modifiedCount,
-        hasHashAfterPersist: Boolean(otpStateAfterPersist?.loginEmailOtpHash),
-        hasExpiryAfterPersist: Boolean(otpStateAfterPersist?.loginEmailOtpExpiresAt),
-        hasSentAtAfterPersist: Boolean(otpStateAfterPersist?.loginEmailOtpSentAt),
-        dbName: masterConn.db?.databaseName,
-        collectionName: MasterUserModel.collection?.name,
-      });
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_persist_missing_fields",
-        email: masterUser.email,
-      });
-
-      return res.status(500).json({
-        message: "Unable to initialize email verification (missing OTP fields)",
-      });
-    }
-
-    const otpEmail = buildMasterLoginOtpEmail(masterUser.name || masterUser.email, emailOtpCode);
-    const emailResult = await sendTransactionalEmail({
-      recipientEmail: masterUser.email,
-      recipientUserId: masterUser._id,
-      subject: otpEmail.subject,
-      html: otpEmail.html,
-      text: otpEmail.text,
-      template: "master_login_otp",
-      eventType: "master_login_otp",
-      relatedEntityType: "MasterUser",
-      relatedEntityId: masterUser._id,
-      metadata: {
-        purpose: "master_login_email_otp",
-        ttlMs: masterEmailOtpTtlMs,
-      },
+    ) => ({
+      _id: school.id,
+      schoolName: school.name,
+      schoolMotto: "",
+      systemType: school.system,
+      structure: school.type === SchoolType.BILINGUAL ? "complex" : "simple",
+      dbName: school.subdomain,
+      dbConnectionString: null,
+      foundedYear: null,
+      location: school.city || school.address || "",
+      contactEmail: school.email || "",
+      contactPhone: school.phone || "",
+      parentComplex: null,
+      isActive: school.status === SchoolStatus.ACTIVE,
+      isPilot: false,
+      onboardingStatus: legacySchoolStatus(school.status),
+      templateKey: school.system || "fr_secondary",
+      requestedAdminName: null,
+      requestedAdminEmail: school.email || null,
+      createdAt: school.createdAt,
+      updatedAt: school.updatedAt,
+      plan: planToLegacy(school.plan),
+      latestInvite: school.invites?.[0]
+        ? {
+            token: school.invites[0].token,
+            status: school.invites[0].status === InviteStatus.USED ? "accepted" : school.invites[0].status === InviteStatus.EXPIRED ? "expired" : "pending",
+            expiresAt: school.invites[0].expiresAt,
+            requestedAdminName: school.name,
+            requestedAdminEmail: school.invites[0].email,
+            createdAt: school.invites[0].createdAt,
+            metadata: { plan: planToLegacy(school.invites[0].plan) },
+          }
+        : null,
     });
 
-    if (emailResult.status !== "sent") {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpAttempts: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
+    const toLegacyInvite = (invite: {
+      token: string;
+      email: string;
+      schoolName: string | null;
+      status: InviteStatus;
+      expiresAt: Date;
+      acceptedAt?: Date | null;
+      createdAt: Date;
+      plan: PlanType;
+    }) => ({
+      token: invite.token,
+      email: invite.email,
+      schoolName: invite.schoolName || "",
+      status: invite.status === InviteStatus.USED ? "accepted" : invite.status === InviteStatus.EXPIRED ? "expired" : "pending",
+      expiresAt: invite.expiresAt,
+      acceptedAt: invite.acceptedAt || null,
+      createdAt: invite.createdAt,
+      metadata: { plan: planToLegacy(invite.plan) },
+    });
 
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_send_failed",
-        email: masterUser.email,
+    const getSchoolById = async (schoolId: string) =>
+      prisma.school.findUnique({
+        where: { id: schoolId },
+        include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
       });
 
-      return res.status(500).json({ message: "Unable to send the email verification code" });
-    }
-
-    const otpStateAfterEmail = await MasterUserModel.findById(masterUser._id)
-      .select("_id loginEmailOtpHash loginEmailOtpExpiresAt loginEmailOtpSentAt")
-      .lean<{
-        _id: any;
-        loginEmailOtpHash?: string | null;
-        loginEmailOtpExpiresAt?: Date | string | null;
-        loginEmailOtpSentAt?: Date | string | null;
-      }>();
-
-    if (!otpStateAfterEmail?.loginEmailOtpHash || !otpStateAfterEmail?.loginEmailOtpExpiresAt) {
-      console.error("[MASTER AUTH] OTP fields disappeared after email send", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-        hasHashAfterEmail: Boolean(otpStateAfterEmail?.loginEmailOtpHash),
-        hasExpiryAfterEmail: Boolean(otpStateAfterEmail?.loginEmailOtpExpiresAt),
-        hasSentAtAfterEmail: Boolean(otpStateAfterEmail?.loginEmailOtpSentAt),
-        dbName: masterConn.db?.databaseName,
-        collectionName: MasterUserModel.collection?.name,
+    const getSchoolByInviteToken = async (token: string) =>
+      prisma.schoolInvite.findUnique({
+        where: { token },
+        include: { school: true },
       });
 
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_disappeared_after_send",
-        email: masterUser.email,
+    const createOrRotateSchoolInvite = async (schoolId: string, email?: string | null) => {
+      const existing = await prisma.schoolInvite.findFirst({
+        where: { schoolId },
+        orderBy: { createdAt: "desc" },
       });
 
-      return res.status(500).json({
-        message: "Unable to initialize email verification (OTP state lost)",
-      });
-    }
-
-    const otpStateBeforeResponse = await MasterUserModel.collection.findOne(
-      { _id: masterUser._id },
-      {
-        projection: {
-          _id: 1,
-          email: 1,
-          loginEmailOtpHash: 1,
-          loginEmailOtpExpiresAt: 1,
-          loginEmailOtpAttempts: 1,
-          loginEmailOtpSentAt: 1,
-        },
+      if (existing && existing.status === InviteStatus.PENDING && existing.expiresAt.getTime() > Date.now()) {
+        return existing;
       }
-    );
 
-    console.info("[MASTER AUTH] OTP state before login response", {
-      userId: String(masterUser._id),
-      email: masterUser.email,
-      dbName: masterConn.db?.databaseName,
-      collectionName: MasterUserModel.collection?.name,
-      hasHashInRawDoc: Boolean(otpStateBeforeResponse?.loginEmailOtpHash),
-      hasExpiryInRawDoc: Boolean(otpStateBeforeResponse?.loginEmailOtpExpiresAt),
-      hasAttemptsInRawDoc:
-        typeof otpStateBeforeResponse?.loginEmailOtpAttempts === "number",
-      hasSentAtInRawDoc: Boolean(otpStateBeforeResponse?.loginEmailOtpSentAt),
-    });
-
-    const preAuthToken = signMasterPreAuthToken({
-      id: String(masterUser._id),
-      email: masterUser.email,
-      role: masterUser.role,
-      emailOtpHash: emailOtpHash,
-      emailOtpExpiresAt: emailOtpExpiresAt.toISOString(),
-    });
-
-    res.cookie("master_preauth", preAuthToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 10 * 60 * 1000,
-    });
-
-    void logMasterAuthAudit({
-      req,
-      outcome: "success",
-      reason: "password_verified_email_otp_sent",
-      email: masterUser.email,
-    });
-
-    return res.json({
-      message: "Email verification code sent",
-      requiresEmailVerification: true,
-      role: masterUser.role,
-      email: masterUser.email,
-    });
-  } catch (error: any) {
-    void logMasterAuthAudit({
-      req,
-      outcome: "failure",
-      reason: "server_error",
-      email: req.body?.email,
-    });
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
-
-const masterVerifyEmailCodeLegacy = async (req: Request, res: Response) => {
-  try {
-    if (!masterJwtSecret) {
-      return res.status(500).json({ message: "Master auth misconfigured" });
-    }
-
-    const token = req.cookies?.master_preauth;
-    const code = String(req.body?.code || "").trim();
-
-    if (!token) {
-      return res.status(401).json({ message: "Email challenge missing" });
-    }
-
-    if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({ message: "Invalid email code format" });
-    }
-
-    const decoded = jwt.verify(token, masterJwtSecret, {
-      algorithms: ["HS512"],
-    }) as any;
-
-    if (decoded?.tokenType !== "master_preauth") {
-      return res.status(401).json({ message: "Invalid email challenge" });
-    }
-
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(decoded.id)
-      .select(
-        "_id email role name isActive mfaEnabled mfaSecret mfaTempSecret +loginEmailOtpHash +loginEmailOtpExpiresAt +loginEmailOtpAttempts"
-      )
-      .lean<{
-        _id: any;
-        email: string;
-        role: string;
-        name?: string | null;
-        isActive: boolean;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-        mfaTempSecret?: string | null;
-        loginEmailOtpHash?: string | null;
-        loginEmailOtpExpiresAt?: string | Date | null;
-        loginEmailOtpAttempts?: number | null;
-      }>();
-
-    if (!masterUser || masterUser.isActive === false) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_user_not_authorized",
-        email: decoded?.email,
-      });
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
-    const tokenOtpHash =
-      typeof decoded?.emailOtpHash === "string" && decoded.emailOtpHash.trim().length > 0
-        ? decoded.emailOtpHash
-        : null;
-    const tokenOtpExpiresAt =
-      typeof decoded?.emailOtpExpiresAt === "string"
-        ? decoded.emailOtpExpiresAt
-        : null;
-
-    const effectiveOtpHash = masterUser.loginEmailOtpHash || tokenOtpHash;
-    const effectiveOtpExpiresAt =
-      masterUser.loginEmailOtpExpiresAt || tokenOtpExpiresAt;
-    const usingTokenFallback =
-      !masterUser.loginEmailOtpHash && !masterUser.loginEmailOtpExpiresAt && !!tokenOtpHash;
-
-    if (!effectiveOtpHash || !effectiveOtpExpiresAt) {
-      const rawOtpState = await MasterUserModel.collection.findOne(
-        { _id: masterUser._id },
-        {
-          projection: {
-            _id: 1,
-            email: 1,
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
-      console.error("[MASTER AUTH] Email OTP missing at verification", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-        dbName: masterConn.db?.databaseName,
-        collectionName: MasterUserModel.collection?.name,
-        hasHashInSelectedDoc: Boolean(masterUser.loginEmailOtpHash),
-        hasExpiryInSelectedDoc: Boolean(masterUser.loginEmailOtpExpiresAt),
-        hasHashInRawDoc: Boolean(rawOtpState?.loginEmailOtpHash),
-        hasExpiryInRawDoc: Boolean(rawOtpState?.loginEmailOtpExpiresAt),
-        hasSentAtInRawDoc: Boolean(rawOtpState?.loginEmailOtpSentAt),
-        hasHashInToken: Boolean(tokenOtpHash),
-        hasExpiryInToken: Boolean(tokenOtpExpiresAt),
-      });
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_missing",
-        email: masterUser.email,
-      });
-      return res.status(400).json({ message: "Email verification not initialized" });
-    }
-
-    const expiresAt = new Date(effectiveOtpExpiresAt).getTime();
-    if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpAttempts: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_expired",
-        email: masterUser.email,
-      });
-      return res.status(401).json({ message: "Email code expired" });
-    }
-
-    const attempts = Number(masterUser.loginEmailOtpAttempts || 0);
-    if (attempts >= 5) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpAttempts: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_attempts_exceeded",
-        email: masterUser.email,
-      });
-      return res.status(429).json({ message: "Too many email code attempts" });
-    }
-
-    if (usingTokenFallback) {
-      console.warn("[MASTER AUTH] Using preauth token OTP fallback", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-      });
-    }
-
-    const isValidEmailCode = await bcrypt.compare(code, effectiveOtpHash);
-
-    if (!isValidEmailCode) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        { $inc: { loginEmailOtpAttempts: 1 } }
-      );
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_invalid",
-        email: masterUser.email,
-      });
-      return res.status(401).json({ message: "Invalid email verification code" });
-    }
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $unset: {
-          loginEmailOtpHash: 1,
-          loginEmailOtpExpiresAt: 1,
-          loginEmailOtpAttempts: 1,
-          loginEmailOtpSentAt: 1,
-        },
+      if (existing && existing.status === InviteStatus.PENDING) {
+        await prisma.schoolInvite.update({ where: { id: existing.id }, data: { status: InviteStatus.EXPIRED } });
       }
-    );
 
-    if (masterUser.mfaEnabled && masterUser.mfaSecret) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "success",
-        reason: "email_otp_verified_mfa_required",
-        email: masterUser.email,
-      });
-
-      return res.json({
-        requiresMfa: true,
-        mfaSetupRequired: false,
-        message: "MFA verification required",
-        email: masterUser.email,
-        role: masterUser.role,
-      });
-    }
-
-    const otpLib = getOtpLib();
-    const setupSecret = masterUser.mfaTempSecret || otpLib.generateSecret();
-    const otpAuthUrl = buildOtpAuthUrl(masterUser.email, setupSecret);
-    const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          mfaTempSecret: setupSecret,
-          mfaEnabled: false,
-        },
+      const school = await prisma.school.findUnique({ where: { id: schoolId } });
+      if (!school) {
+        throw new Error("School not found");
       }
-    );
 
-    void logMasterAuthAudit({
-      req,
-      outcome: "success",
-      reason: "email_otp_verified_mfa_setup_issued",
-      email: masterUser.email,
-    });
-
-    return res.json({
-      message: "MFA setup required",
-      requiresMfa: true,
-      mfaSetupRequired: true,
-      qrCodeDataUrl,
-      manualEntryKey: setupSecret,
-      email: masterUser.email,
-      role: masterUser.role,
-    });
-  } catch (error: any) {
-    void logMasterAuthAudit({
-      req,
-      outcome: "failure",
-      reason: "email_otp_verification_error",
-      email: req.body?.email,
-    });
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
-
-export const masterVerifyMfa = async (req: Request, res: Response) => {
-  try {
-    if (!masterJwtSecret) {
-      return res.status(500).json({ message: "Master auth misconfigured" });
-    }
-
-    const token = req.cookies?.master_preauth;
-    const code = String(req.body?.code || "").trim();
-
-    if (!token) {
-      return res.status(401).json({ message: "MFA challenge missing" });
-    }
-
-    if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({ message: "Invalid MFA code format" });
-    }
-
-    const decoded = jwt.verify(token, masterJwtSecret, {
-      algorithms: ["HS512"],
-    }) as any;
-
-    if (decoded?.tokenType !== "master_preauth") {
-      return res.status(401).json({ message: "Invalid MFA challenge" });
-    }
-
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(decoded.id)
-      .select("_id email role isActive mfaEnabled mfaSecret mfaTempSecret mfaRecoveryCodeHashes")
-      .lean<{
-        _id: any;
-        email: string;
-        role: string;
-        isActive: boolean;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-        mfaTempSecret?: string | null;
-        mfaRecoveryCodeHashes?: string[] | null;
-      }>();
-
-    if (!masterUser || masterUser.isActive === false) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "mfa_user_not_authorized",
-        email: decoded?.email,
+      return prisma.schoolInvite.create({
+        data: {
+          schoolId,
+          token: crypto.randomUUID(),
+          email: String(email || school.email || "").toLowerCase(),
+          schoolName: school.name,
+          plan: school.plan,
+          status: InviteStatus.PENDING,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
       });
-      return res.status(401).json({ message: "Not authorized" });
-    }
+    };
 
-    const isMfaSetupFlow = !masterUser.mfaEnabled;
-    const secret = isMfaSetupFlow ? masterUser.mfaTempSecret : masterUser.mfaSecret;
-    const recoveryCodeHashes = Array.isArray(masterUser.mfaRecoveryCodeHashes)
-      ? masterUser.mfaRecoveryCodeHashes
-      : [];
-
-    if (!secret) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "mfa_secret_missing",
-        email: masterUser.email,
-      });
-      return res.status(400).json({ message: "MFA not initialized" });
-    }
-
-    const verification = await verifyMfaOrRecoveryCode(
-      code,
-      secret,
-      recoveryCodeHashes,
-      !isMfaSetupFlow
-    );
-
-    if (!verification.valid) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "mfa_invalid_code",
-        email: masterUser.email,
-      });
-      return res.status(401).json({ message: "Invalid MFA code" });
-    }
-
-    if (verification.usedRecoveryCode) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $set: {
-            mfaRecoveryCodeHashes: verification.updatedRecoveryCodeHashes,
-          },
+    export const createSchool = async (req: Request, res: Response) => {
+      try {
+        if (req.masterUser?.role !== "super_admin") {
+          return res.status(403).json({ message: "Only super_admin can create schools" });
         }
-      );
-    }
 
-    if (isMfaSetupFlow) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $set: {
-            mfaEnabled: true,
-            mfaSecret: secret,
-          },
-          $unset: {
-            mfaTempSecret: 1,
-          },
+        const { schoolName, systemType, dbName, foundedYear, location, contactEmail, contactPhone, isPilot, plan } = req.body;
+
+        if (!schoolName || !systemType || !dbName) {
+          return res.status(400).json({ message: "Required fields missing" });
         }
-      );
-    }
 
-    const sessionToken = signMasterSessionToken({
-      id: String(masterUser._id),
-      email: masterUser.email,
-      role: masterUser.role,
-    });
+        const school = await prisma.school.create({
+          data: {
+            name: String(schoolName).trim(),
+            subdomain: String(dbName).trim(),
+            type: mapSystemTypeToSchoolType(systemType),
+            plan: planFromLegacy(plan),
+            status: isPilot ? SchoolStatus.PENDING : SchoolStatus.ACTIVE,
+            city: location ? String(location).trim() : null,
+            phone: contactPhone ? String(contactPhone).trim() : null,
+            email: contactEmail ? String(contactEmail).trim().toLowerCase() : null,
+            system: String(systemType),
+          },
+        });
 
-    res.cookie("master_jwt", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+        await prisma.schoolConfig.upsert({
+          where: { schoolId: school.id },
+          create: { schoolId: school.id, gradesPerTerm: 3, termsPerYear: 3, passMark: 10, maxAbsences: 10 },
+          update: {},
+        });
 
-    res.clearCookie("master_preauth", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+        return res.status(201).json({
+          message: "School created",
+          school: toLegacySchool({ ...school, invites: [] }),
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
 
-    void logMasterAuthAudit({
-      req,
-      outcome: "success",
-      reason: verification.usedRecoveryCode ? "mfa_recovery_code_used" : isMfaSetupFlow ? "mfa_setup_completed" : "mfa_verified",
-      email: masterUser.email,
-    });
+    export const inviteSchool = async (req: Request, res: Response) => {
+      try {
+        if (req.masterUser?.role !== "super_admin") {
+          return res.status(403).json({ message: "Only super_admin can invite schools" });
+        }
 
-    return res.json({
-      message: "Master login successful",
-      role: masterUser.role,
-      email: masterUser.email,
-    });
-  } catch (error: any) {
-    void logMasterAuthAudit({
-      req,
-      outcome: "failure",
-      reason: "mfa_verification_error",
-      email: req.body?.email,
-    });
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
+        const { requestedAdminEmail, schoolName, templateKey = "fr_secondary", plan = "standard" } = req.body ?? {};
+        if (!requestedAdminEmail || !schoolName) {
+          return res.status(400).json({ message: "L'email et le nom de l'établissement sont requis" });
+        }
+
+        const normalizedEmail = String(requestedAdminEmail).trim().toLowerCase();
+        const normalizedSchoolName = String(schoolName).trim();
+        const template = getSchoolTemplate(String(templateKey)) ?? getSchoolTemplate("fr_secondary")!;
+
+        const subdomain = String(normalizedSchoolName)
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "") || `school-${Date.now()}`;
+
+        const school = await prisma.school.create({
+          data: {
+            name: normalizedSchoolName,
+            subdomain,
+            type: mapSystemTypeToSchoolType(template.systemType),
+            plan: planFromLegacy(plan),
+            status: SchoolStatus.PENDING,
+            email: normalizedEmail,
+            system: template.systemType,
+            city: null,
+          },
+        });
+
+        const invite = await prisma.schoolInvite.create({
+          data: {
+            schoolId: school.id,
+            token: crypto.randomUUID(),
+            email: normalizedEmail,
+            schoolName: normalizedSchoolName,
+            plan: planFromLegacy(plan),
+            status: InviteStatus.PENDING,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
+        });
+
+        const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${invite.token}`;
+        const inviteTemplate = buildSchoolInviteTemplate({
+          schoolName: normalizedSchoolName,
+          requestedAdminName: "Administrateur",
+          activationUrl,
+          language: "fr",
+        });
+
+        await sendTransactionalEmail({
+          recipientEmail: normalizedEmail,
+          subject: inviteTemplate.subject,
+          html: inviteTemplate.html,
+          text: inviteTemplate.text,
+          template: "school_invite",
+          eventType: "school_invite",
+          metadata: { token: invite.token, templateKey: template.key, plan: String(plan).toLowerCase(), schoolId: school.id },
+        });
+
+        return res.status(201).json({
+          message: "Invitation envoyée",
+          invite: {
+            token: invite.token,
+            email: normalizedEmail,
+            schoolName: normalizedSchoolName,
+            templateKey: template.key,
+            plan: String(plan).toLowerCase(),
+          },
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const listSchools = async (req: Request, res: Response) => {
+      try {
+        if (!req.masterUser || !["super_admin", "platform_admin"].includes(req.masterUser.role)) {
+          return res.status(403).json({ message: "Not authorized" });
+        }
+
+        const schools = await prisma.school.findMany({
+          orderBy: { createdAt: "desc" },
+          include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
+        });
+
+        return res.json({ schools: schools.map((school) => toLegacySchool(school)), total: schools.length });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const getSchool = async (req: Request, res: Response) => {
+      try {
+        const school = await getSchoolById(req.params.schoolId);
+        if (!school) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        return res.json(toLegacySchool(school));
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const updateSchool = async (req: Request, res: Response) => {
+      try {
+        if (req.masterUser?.role !== "super_admin") {
+          return res.status(403).json({ message: "Only super_admin can update schools" });
+        }
+
+        const current = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+        if (!current) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        const updated = await prisma.school.update({
+          where: { id: current.id },
+          data: {
+            name: req.body.schoolName ?? current.name,
+            email: req.body.contactEmail ?? current.email,
+            phone: req.body.contactPhone ?? current.phone,
+            city: req.body.location ?? current.city,
+            plan: req.body.plan ? planFromLegacy(req.body.plan) : current.plan,
+            type: req.body.systemType ? mapSystemTypeToSchoolType(req.body.systemType) : current.type,
+            status: req.body.isActive === false ? SchoolStatus.SUSPENDED : current.status,
+          },
+          include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
+        });
+
+        return res.json({ message: "School updated", school: toLegacySchool(updated) });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const deleteSchool = async (req: Request, res: Response) => {
+      try {
+        if (req.masterUser?.role !== "super_admin") {
+          return res.status(403).json({ message: "Not authorized" });
+        }
+
+        const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+        if (!school) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        await prisma.school.delete({ where: { id: school.id } });
+
+        return res.json({ message: "School deleted", schoolId: school.id });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const suspendSchool = async (req: Request, res: Response) => {
+      try {
+        const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+        if (!school) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        const updated = await prisma.school.update({ where: { id: school.id }, data: { status: SchoolStatus.SUSPENDED } });
+        return res.json({ message: "School suspended", school: toLegacySchool({ ...updated, invites: [] }) });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const reactivateSchool = async (req: Request, res: Response) => {
+      try {
+        const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+        if (!school) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        const updated = await prisma.school.update({
+          where: { id: school.id },
+          data: { status: SchoolStatus.ACTIVE },
+        });
+        return res.json({ message: "School reactivated", school: toLegacySchool({ ...updated, invites: [] }) });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const regenerateSchoolInvite = async (req: Request, res: Response) => {
+      try {
+        const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+        if (!school) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        const invite = await createOrRotateSchoolInvite(school.id, school.email);
+        const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${invite.token}`;
+
+        if (school.email) {
+          const inviteTemplate = buildSchoolInviteTemplate({
+            schoolName: school.name,
+            requestedAdminName: school.name,
+            activationUrl,
+            language: "fr",
+          });
+
+          await sendTransactionalEmail({
+            recipientEmail: school.email,
+            subject: inviteTemplate.subject,
+            html: inviteTemplate.html,
+            text: inviteTemplate.text,
+            template: "school_invite",
+            eventType: "school_invite",
+            metadata: { schoolId: school.id, regenerated: true, token: invite.token },
+          });
+        }
+
+        return res.json({
+          message: "School invite regenerated",
+          invite: toLegacyInvite(invite),
+          activationUrl,
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const resendSchoolInviteEmail = async (req: Request, res: Response) => {
+      try {
+        const school = await prisma.school.findUnique({
+          where: { id: req.params.schoolId },
+          include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
+        });
+
+        if (!school) {
+          return res.status(404).json({ message: "School not found" });
+        }
+
+        const invite = school.invites[0];
+        if (!invite) {
+          return res.status(404).json({ message: "No invite found for this school" });
+        }
+
+        const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${invite.token}`;
+        const inviteTemplate = buildSchoolInviteTemplate({
+          schoolName: school.name,
+          requestedAdminName: school.name,
+          activationUrl,
+          language: "fr",
+        });
+
+        await sendTransactionalEmail({
+          recipientEmail: school.email || invite.email,
+          subject: inviteTemplate.subject,
+          html: inviteTemplate.html,
+          text: inviteTemplate.text,
+          template: "school_invite",
+          eventType: "school_invite",
+          metadata: { schoolId: school.id, resend: true, token: invite.token },
+        });
+
+        return res.json({ message: "Invite email resent", invite: toLegacyInvite(invite), activationUrl });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const getSchoolActivityLogs = async (req: Request, res: Response) => {
+      try {
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
+        const search = String(req.query.search || "").trim();
+        const skip = (page - 1) * limit;
+
+        const where: any = {
+          schoolId: req.params.schoolId,
+          ...(search
+            ? {
+                OR: [
+                  { action: { contains: search, mode: "insensitive" } },
+                  { description: { contains: search, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        };
+
+        const [total, logs] = await Promise.all([
+          prisma.activitiesLog.count({ where }),
+          prisma.activitiesLog.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: limit }),
+        ]);
+
+        return res.json({
+          logs,
+          pagination: { total, page, pages: Math.ceil(total / limit) || 1, limit },
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const getSchoolInviteEmailStatus = async (req: Request, res: Response) => {
+      try {
+        const school = await prisma.school.findUnique({
+          where: { id: req.params.schoolId },
+          include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
+        });
+
+        const lastEmail = await prisma.emailLog.findFirst({
+          where: { schoolId: req.params.schoolId },
+          orderBy: { createdAt: "desc" },
+        });
+
+        return res.json({
+          invite: school?.invites[0] ? toLegacyInvite(school.invites[0]) : null,
+          lastEmail: lastEmail || null,
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const getMasterEmailLogs = async (req: Request, res: Response) => {
+      try {
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 15));
+        const search = String(req.query.search || "").trim();
+        const status = String(req.query.status || "").trim();
+        const schoolId = String(req.query.schoolId || "").trim();
+        const skip = (page - 1) * limit;
+
+        const where: any = {
+          ...(status ? { status } : {}),
+          ...(schoolId ? { schoolId } : {}),
+          ...(search
+            ? {
+                OR: [
+                  { to: { contains: search, mode: "insensitive" } },
+                  { subject: { contains: search, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        };
+
+        const [total, logs] = await Promise.all([
+          prisma.emailLog.count({ where }),
+          prisma.emailLog.findMany({ where, orderBy: { createdAt: "desc" }, skip, take: limit }),
+        ]);
+
+        return res.json({
+          logs,
+          pagination: { total, page, pages: Math.ceil(total / limit) || 1, limit },
+          filters: { search: search || null, status: status || null, schoolId: schoolId || null },
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const getMasterAuthAuditLogs = async (req: Request, res: Response) => {
+      try {
+        if (req.masterUser?.role !== "super_admin") {
+          return res.status(403).json({ message: "Not authorized" });
+        }
+
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+        const page = Math.max(Number(req.query.page) || 1, 1);
+        const skip = (page - 1) * limit;
+
+        const [logs, total] = await Promise.all([
+          prisma.masterAuthAudit.findMany({ orderBy: { createdAt: "desc" }, skip, take: limit }),
+          prisma.masterAuthAudit.count(),
+        ]);
+
+        return res.json({
+          logs,
+          pagination: { total, page, pages: Math.ceil(total / limit) || 1, limit },
+        });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const setSchoolConfig = async (req: Request, res: Response) => {
+      try {
+        const config = await prisma.schoolConfig.upsert({
+          where: { schoolId: req.params.schoolId },
+          create: {
+            schoolId: req.params.schoolId,
+            gradesPerTerm: Number(req.body?.gradesPerTerm || 3),
+            termsPerYear: Number(req.body?.termsPerYear || 3),
+            passMark: Number(req.body?.passMark ?? 10),
+            maxAbsences: Number(req.body?.maxAbsences ?? 10),
+            smsEnabled: Boolean(req.body?.smsEnabled ?? false),
+            offlineModeEnabled: Boolean(req.body?.offlineModeEnabled ?? true),
+            aiAlertsEnabled: Boolean(req.body?.aiAlertsEnabled ?? true),
+            messageModeration: Boolean(req.body?.messageModeration ?? false),
+          },
+          update: {
+            gradesPerTerm: Number(req.body?.gradesPerTerm || 3),
+            termsPerYear: Number(req.body?.termsPerYear || 3),
+            passMark: Number(req.body?.passMark ?? 10),
+            maxAbsences: Number(req.body?.maxAbsences ?? 10),
+            smsEnabled: Boolean(req.body?.smsEnabled ?? false),
+            offlineModeEnabled: Boolean(req.body?.offlineModeEnabled ?? true),
+            aiAlertsEnabled: Boolean(req.body?.aiAlertsEnabled ?? true),
+            messageModeration: Boolean(req.body?.messageModeration ?? false),
+          },
+        });
+
+        return res.json({ message: "Config updated", config });
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
+
+    export const getSchoolConfig = async (req: Request, res: Response) => {
+      try {
+        const config = await prisma.schoolConfig.findUnique({ where: { schoolId: req.params.schoolId } });
+        return res.json(config || {});
+      } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Server error" });
+      }
+    };
 
 export const masterVerifyEmailCode = async (req: Request, res: Response) => {
   try {
@@ -984,27 +844,12 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email challenge" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(decoded.id)
-      .select(
-        "_id email role name isActive mfaEnabled mfaSecret mfaTempSecret +loginEmailOtpHash +loginEmailOtpExpiresAt +loginEmailOtpAttempts"
-      )
-      .lean<{
-        _id: any;
-        email: string;
-        role: string;
-        name?: string | null;
-        isActive: boolean;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-        mfaTempSecret?: string | null;
-        loginEmailOtpHash?: string | null;
-        loginEmailOtpExpiresAt?: string | Date | null;
-        loginEmailOtpAttempts?: number | null;
-      }>();
+    const masterUser = await prisma.masterUser.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, name: true, isSuperAdmin: true, passwordHash: true },
+    });
 
-    if (!masterUser || masterUser.isActive === false) {
+    if (!masterUser) {
       void logMasterAuthAudit({
         req,
         outcome: "failure",
@@ -1023,40 +868,10 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
         ? decoded.emailOtpExpiresAt
         : null;
 
-    const effectiveOtpHash = masterUser.loginEmailOtpHash || tokenOtpHash;
-    const effectiveOtpExpiresAt =
-      masterUser.loginEmailOtpExpiresAt || tokenOtpExpiresAt;
-    const usingTokenFallback =
-      !masterUser.loginEmailOtpHash && !masterUser.loginEmailOtpExpiresAt && !!tokenOtpHash;
+    const effectiveOtpHash = tokenOtpHash;
+    const effectiveOtpExpiresAt = tokenOtpExpiresAt;
 
     if (!effectiveOtpHash || !effectiveOtpExpiresAt) {
-      const rawOtpState = await MasterUserModel.collection.findOne(
-        { _id: masterUser._id },
-        {
-          projection: {
-            _id: 1,
-            email: 1,
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
-      console.error("[MASTER AUTH] Email OTP missing at verification", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-        dbName: masterConn.db?.databaseName,
-        collectionName: MasterUserModel.collection?.name,
-        hasHashInSelectedDoc: Boolean(masterUser.loginEmailOtpHash),
-        hasExpiryInSelectedDoc: Boolean(masterUser.loginEmailOtpExpiresAt),
-        hasHashInRawDoc: Boolean(rawOtpState?.loginEmailOtpHash),
-        hasExpiryInRawDoc: Boolean(rawOtpState?.loginEmailOtpExpiresAt),
-        hasSentAtInRawDoc: Boolean(rawOtpState?.loginEmailOtpSentAt),
-        hasHashInToken: Boolean(tokenOtpHash),
-        hasExpiryInToken: Boolean(tokenOtpExpiresAt),
-      });
-
       void logMasterAuthAudit({
         req,
         outcome: "failure",
@@ -1067,27 +882,8 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Email verification not initialized" });
     }
 
-    if (usingTokenFallback) {
-      console.warn("[MASTER AUTH] Using preauth token OTP fallback", {
-        userId: String(masterUser._id),
-        email: masterUser.email,
-      });
-    }
-
     const expiresAt = new Date(effectiveOtpExpiresAt).getTime();
     if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpAttempts: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
       void logMasterAuthAudit({
         req,
         outcome: "failure",
@@ -1097,37 +893,9 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Email code expired" });
     }
 
-    const attempts = Number(masterUser.loginEmailOtpAttempts || 0);
-    if (attempts >= 5) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpAttempts: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "email_otp_attempts_exceeded",
-        email: masterUser.email,
-      });
-      return res.status(429).json({ message: "Too many email code attempts" });
-    }
-
     const isValidEmailCode = await bcrypt.compare(code, effectiveOtpHash);
 
     if (!isValidEmailCode) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        { $inc: { loginEmailOtpAttempts: 1 } }
-      );
-
       void logMasterAuthAudit({
         req,
         outcome: "failure",
@@ -1137,76 +905,36 @@ export const masterVerifyEmailCode = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email verification code" });
     }
 
-    if (masterUser.mfaEnabled && masterUser.mfaSecret) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            loginEmailOtpHash: 1,
-            loginEmailOtpExpiresAt: 1,
-            loginEmailOtpAttempts: 1,
-            loginEmailOtpSentAt: 1,
-          },
-        }
-      );
-
-      void logMasterAuthAudit({
-        req,
-        outcome: "success",
-        reason: "email_otp_verified_mfa_required",
-        email: masterUser.email,
-      });
-
-      return res.json({
-        requiresMfa: true,
-        mfaSetupRequired: false,
-        message: "MFA verification required",
-        email: masterUser.email,
-        role: masterUser.role,
-      });
-    }
-
-    const otpLib = getOtpLib();
-    const setupSecret = masterUser.mfaTempSecret || otpLib.generateSecret();
-    const otpAuthUrl = buildOtpAuthUrl(masterUser.email, setupSecret);
-    const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
-    const { codes: recoveryCodes, hashes: recoveryCodeHashes } = await generateRecoveryCodes();
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          // Keep MFA setup atomic with OTP cleanup to avoid losing challenge on setup errors.
-          mfaTempSecret: setupSecret,
-          mfaEnabled: false,
-          mfaRecoveryCodeHashes: recoveryCodeHashes,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
-        $unset: {
-          loginEmailOtpHash: 1,
-          loginEmailOtpExpiresAt: 1,
-          loginEmailOtpAttempts: 1,
-          loginEmailOtpSentAt: 1,
-        },
-      }
-    );
-
     void logMasterAuthAudit({
       req,
       outcome: "success",
-      reason: "email_otp_verified_mfa_setup_issued",
+      reason: "email_otp_verified",
       email: masterUser.email,
     });
 
-    return res.json({
-      message: "MFA setup required",
-      requiresMfa: true,
-      mfaSetupRequired: true,
-      qrCodeDataUrl,
-      manualEntryKey: setupSecret,
-      recoveryCodes,
+    const sessionToken = signMasterSessionToken({
+      id: masterUser.id,
       email: masterUser.email,
-      role: masterUser.role,
+      role: masterUser.isSuperAdmin ? "super_admin" : "support",
+    });
+
+    res.cookie("master_jwt", sessionToken, {
+      httpOnly: false,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.clearCookie("master_preauth", {
+      httpOnly: false,
+      secure: false,
+      sameSite: "lax",
+    });
+
+    return res.json({
+      message: "Master login successful",
+      role: masterUser.isSuperAdmin ? "super_admin" : "support",
+      email: masterUser.email,
     });
   } catch (error: any) {
     void logMasterAuthAudit({
@@ -1230,23 +958,17 @@ export const getMasterAuthAuditLogs = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const filters: any = {};
-    if (req.query.outcome) filters.outcome = req.query.outcome;
-    if (req.query.reason) filters.reason = req.query.reason;
-    if (req.query.email) filters.email = String(req.query.email).trim().toLowerCase();
-
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterAuthAuditModel = masterConn.model(
-      "MasterAuthAudit",
-      MasterAuthAudit.schema
-    );
+    if (req.query.reason) filters.action = { contains: String(req.query.reason), mode: "insensitive" };
+    if (req.query.email) filters.description = { contains: String(req.query.email).trim().toLowerCase(), mode: "insensitive" };
 
     const [logs, total] = await Promise.all([
-      MasterAuthAuditModel.find(filters)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      MasterAuthAuditModel.countDocuments(filters),
+      prisma.masterAuthAudit.findMany({
+        where: filters,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.masterAuthAudit.count({ where: filters }),
     ]);
 
     return res.json({
@@ -1277,32 +999,20 @@ export const getMasterMfaStatus = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email mfaEnabled mfaSecret mfaTempSecret mfaRecoveryCodeHashes mfaRecoveryCodeGeneratedAt")
-      .lean<{
-        _id: any;
-        email: string;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-        mfaTempSecret?: string | null;
-        mfaRecoveryCodeHashes?: string[];
-        mfaRecoveryCodeGeneratedAt?: Date | string | null;
-      }>();
+    const masterUser = await prisma.masterUser.findUnique({
+      where: { id: req.masterUser.id },
+      select: { id: true },
+    });
 
     if (!masterUser) {
       return res.status(404).json({ message: "Master user not found" });
     }
 
     return res.json({
-      mfaEnabled: Boolean(masterUser.mfaEnabled && masterUser.mfaSecret),
-      hasPendingMfaSetup: Boolean(masterUser.mfaTempSecret),
-      recoveryCodesRemaining: Array.isArray(masterUser.mfaRecoveryCodeHashes)
-        ? masterUser.mfaRecoveryCodeHashes.length
-        : 0,
-      recoveryCodesGeneratedAt: masterUser.mfaRecoveryCodeGeneratedAt || null,
-      email: masterUser.email,
+      mfaEnabled: false,
+      hasPendingMfaSetup: false,
+      recoveryCodesRemaining: 0,
+      recoveryCodesGeneratedAt: null,
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server error" });
@@ -1315,50 +1025,7 @@ export const regenerateMasterRecoveryCodes = async (req: Request, res: Response)
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email mfaEnabled mfaSecret mfaRecoveryCodeHashes")
-      .lean<{
-        _id: any;
-        email: string;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-        mfaRecoveryCodeHashes?: string[];
-      }>();
-
-    if (!masterUser || !masterUser.mfaEnabled || !masterUser.mfaSecret) {
-      return res.status(400).json({ message: "MFA is not enabled" });
-    }
-
-    const { codes: recoveryCodes, hashes: recoveryCodeHashes } = await generateRecoveryCodes();
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          mfaRecoveryCodeHashes: recoveryCodeHashes,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
-      }
-    );
-
-    void logMasterAuthAudit({
-      req,
-      outcome: "success",
-      reason: "recovery_codes_regenerated",
-      email: masterUser.email,
-    });
-
-    return res.json({
-      message: "Recovery codes regenerated",
-      recoveryCodes,
-      recoveryCodesCount: recoveryCodes.length,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
+        return res.status(501).json({ message: "MFA management is not supported by the current Prisma schema" });
 
 export const disableMasterMfa = async (req: Request, res: Response) => {
   try {
@@ -1366,52 +1033,7 @@ export const disableMasterMfa = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email mfaEnabled mfaSecret mfaRecoveryCodeHashes")
-      .lean<{
-        _id: any;
-        email: string;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-        mfaRecoveryCodeHashes?: string[];
-      }>();
-
-    if (!masterUser || !masterUser.mfaEnabled || !masterUser.mfaSecret) {
-      return res.status(400).json({ message: "MFA is not enabled" });
-    }
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          mfaEnabled: false,
-        },
-        $unset: {
-          mfaSecret: 1,
-          mfaTempSecret: 1,
-          mfaRecoveryCodeHashes: 1,
-          mfaRecoveryCodeGeneratedAt: 1,
-        },
-      }
-    );
-
-    void logMasterAuthAudit({
-      req,
-      outcome: "success",
-      reason: "mfa_disabled",
-      email: masterUser.email,
-    });
-
-    return res.json({
-      message: "MFA disabled successfully",
-      mfaEnabled: false,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
+        return res.status(501).json({ message: "MFA management is not supported by the current Prisma schema" });
 
 export const beginMasterMfaEnable = async (req: Request, res: Response) => {
   try {
@@ -1419,57 +1041,7 @@ export const beginMasterMfaEnable = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email mfaEnabled mfaSecret")
-      .lean<{
-        _id: any;
-        email: string;
-        mfaEnabled?: boolean;
-        mfaSecret?: string | null;
-      }>();
-
-    if (!masterUser) {
-      return res.status(404).json({ message: "Master user not found" });
-    }
-
-    if (masterUser.mfaEnabled && masterUser.mfaSecret) {
-      return res.status(400).json({ message: "MFA is already enabled" });
-    }
-
-    const otpLib = getOtpLib();
-    const setupSecret = otpLib.generateSecret();
-    const otpAuthUrl = buildOtpAuthUrl(masterUser.email, setupSecret);
-    const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
-    const { codes: recoveryCodes, hashes: recoveryCodeHashes } = await generateRecoveryCodes();
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          mfaEnabled: false,
-          mfaTempSecret: setupSecret,
-          mfaRecoveryCodeHashes: recoveryCodeHashes,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
-        $unset: {
-          mfaSecret: 1,
-        },
-      }
-    );
-
-    return res.json({
-      message: "MFA setup initiated",
-      mfaSetupRequired: true,
-      qrCodeDataUrl,
-      manualEntryKey: setupSecret,
-      recoveryCodes,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
+        return res.status(501).json({ message: "MFA setup is not supported by the current Prisma schema" });
 
 export const confirmMasterMfaEnable = async (req: Request, res: Response) => {
   try {
@@ -1477,148 +1049,76 @@ export const confirmMasterMfaEnable = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const code = String(req.body?.code || "").trim();
-    if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({ message: "Invalid MFA code format" });
-    }
-
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email mfaTempSecret")
-      .lean<{
-        _id: any;
-        email: string;
-        mfaTempSecret?: string | null;
-      }>();
-
-    if (!masterUser || !masterUser.mfaTempSecret) {
-      return res.status(400).json({ message: "MFA setup not initialized" });
-    }
-
-    const isValidCode = await verifyOtpToken(code, masterUser.mfaTempSecret);
-    if (!isValidCode) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "mfa_enable_confirm_invalid_code",
-        email: masterUser.email,
-      });
-      return res.status(401).json({ message: "Invalid MFA code" });
-    }
-
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
-      {
-        $set: {
-          mfaEnabled: true,
-          mfaSecret: masterUser.mfaTempSecret,
-        },
-        $unset: {
-          mfaTempSecret: 1,
-        },
-      }
-    );
-
-    void logMasterAuthAudit({
-      req,
-      outcome: "success",
-      reason: "mfa_enabled_from_security_panel",
-      email: masterUser.email,
-    });
-
-    return res.json({
-      message: "MFA enabled successfully",
-      mfaEnabled: true,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
+        return res.status(501).json({ message: "MFA setup is not supported by the current Prisma schema" });
 
 export const startMasterPasswordChange = async (req: Request, res: Response) => {
   try {
+    if (!masterJwtSecret) {
+      return res.status(500).json({ message: "Master auth misconfigured" });
+    }
+
     if (!req.masterUser?.id) {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email name isActive")
-      .lean<{
-        _id: any;
-        email: string;
-        name?: string | null;
-        isActive: boolean;
-      }>();
+    // Fetch master user via Prisma
+    const masterUser = await prisma.masterUser.findUnique({
+      where: { id: req.masterUser.id },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+      },
+    });
 
     if (!masterUser || masterUser.isActive === false) {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const emailCode = generateLoginEmailCode();
-    const emailCodeHash = await bcrypt.hash(emailCode, 10);
-    const emailCodeExpiresAt = new Date(Date.now() + masterPasswordChangeOtpTtlMs);
+    // Generate 6-digit OTP code
+    const code = generateLoginEmailCode(); // Returns 6-digit string from utils
 
-    await MasterUserModel.updateOne(
-      { _id: masterUser._id },
+    // Hash the code with bcrypt
+    const emailOtpHash = await bcrypt.hash(code, 10);
+
+    // Define OTP TTL (15 minutes)
+    const masterPasswordChangeOtpTtlMs = 15 * 60 * 1000;
+    const emailOtpExpiresAt = new Date(Date.now() + masterPasswordChangeOtpTtlMs).toISOString();
+
+    // Create JWT token with embedded OTP hash and expiration
+    const masterPasswordChangeOtpTtl = "15m";
+    const challengeToken = jwt.sign(
       {
-        $set: {
-          passwordChangeEmailOtpHash: emailCodeHash,
-          passwordChangeEmailOtpExpiresAt: emailCodeExpiresAt,
-          passwordChangeEmailOtpAttempts: 0,
-          passwordChangeEmailOtpSentAt: new Date(),
-        },
-      }
-    );
-
-    const otpEmail = buildMasterPasswordChangeOtpEmail(
-      masterUser.name || masterUser.email,
-      emailCode
-    );
-
-    const emailResult = await sendTransactionalEmail({
-      recipientEmail: masterUser.email,
-      recipientUserId: masterUser._id,
-      subject: otpEmail.subject,
-      html: otpEmail.html,
-      text: otpEmail.text,
-      template: "master_password_change_otp",
-      eventType: "master_password_change_otp",
-      relatedEntityType: "MasterUser",
-      relatedEntityId: masterUser._id,
-      metadata: {
-        purpose: "master_password_change_email_otp",
-        ttlMs: masterPasswordChangeOtpTtlMs,
+        tokenType: "master_password_change",
+        id: masterUser.id,
+        email: masterUser.email,
+        emailOtpHash,
+        emailOtpExpiresAt,
       },
-    });
+      masterJwtSecret,
+      { algorithm: "HS512", expiresIn: masterPasswordChangeOtpTtl }
+    );
 
-    if (emailResult.status !== "sent") {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            passwordChangeEmailOtpHash: 1,
-            passwordChangeEmailOtpExpiresAt: 1,
-            passwordChangeEmailOtpAttempts: 1,
-            passwordChangeEmailOtpSentAt: 1,
-          },
-        }
-      );
-      return res.status(500).json({ message: "Unable to send password-change verification code" });
-    }
-
-    const challengeToken = signMasterPasswordChangeChallengeToken({
-      id: String(masterUser._id),
-      email: masterUser.email,
-    });
-
+    // Set cookie with challenge token
     res.cookie("master_pwd_change_challenge", challengeToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       maxAge: masterPasswordChangeOtpTtlMs,
+    });
+
+    // Send email with code
+    await sendTransactionalEmail({
+      to: masterUser.email,
+      template: "master_password_change_code",
+      subject: "Password Change Verification Code",
+      data: {
+        code,
+        expiresInMinutes: 15,
+      },
+    }).catch((emailError: any) => {
+      console.error("Email send error in startMasterPasswordChange:", emailError);
+      // Don't throw; let user know email failed
     });
 
     void logMasterAuthAudit({
@@ -1668,9 +1168,14 @@ export const confirmMasterPasswordChange = async (req: Request, res: Response) =
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    const decoded = jwt.verify(challengeToken, masterJwtSecret, {
-      algorithms: ["HS512"],
-    }) as any;
+    let decoded: any;
+    try {
+      decoded = jwt.verify(challengeToken, masterJwtSecret, {
+        algorithms: ["HS512"],
+      });
+    } catch (jwtError: any) {
+      return res.status(401).json({ message: "Password-change challenge expired or invalid" });
+    }
 
     if (decoded?.tokenType !== "master_password_change") {
       return res.status(401).json({ message: "Invalid password-change challenge" });
@@ -1680,85 +1185,54 @@ export const confirmMasterPasswordChange = async (req: Request, res: Response) =
       return res.status(401).json({ message: "Password-change challenge does not match current user" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const MasterUserModel = masterConn.model("MasterUser", MasterUser.schema);
-    const masterUser = await MasterUserModel.findById(req.masterUser.id)
-      .select("_id email password isActive passwordChangeEmailOtpHash passwordChangeEmailOtpExpiresAt passwordChangeEmailOtpAttempts passwordChangeEmailOtpSentAt")
-      .lean<{
-        _id: any;
-        email: string;
-        password: string;
-        isActive: boolean;
-        passwordChangeEmailOtpHash?: string | null;
-        passwordChangeEmailOtpExpiresAt?: Date | string | null;
-        passwordChangeEmailOtpAttempts?: number | null;
-      }>();
+    // Extract OTP hash from JWT token (Prisma approach: stored in JWT, not database)
+    const emailOtpHash = decoded.emailOtpHash;
+    const emailOtpExpiresAt = decoded.emailOtpExpiresAt;
+
+    if (!emailOtpHash || !emailOtpExpiresAt) {
+      return res.status(400).json({ message: "Password-change email verification is not initialized" });
+    }
+
+    const expiresAt = new Date(emailOtpExpiresAt).getTime();
+    if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
+      return res.status(401).json({ message: "Email code expired" });
+    }
+
+    // Verify email code against JWT-stored hash
+    const isValidEmailCode = await bcrypt.compare(emailCode, emailOtpHash);
+    if (!isValidEmailCode) {
+      return res.status(401).json({ message: "Invalid email verification code" });
+    }
+
+    // Fetch master user via Prisma
+    const masterUser = await prisma.masterUser.findUnique({
+      where: { id: req.masterUser.id },
+      select: {
+        id: true,
+        email: true,
+        passwordHash: true,
+        isActive: true,
+      },
+    });
 
     if (!masterUser || masterUser.isActive === false) {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    if (!masterUser.passwordChangeEmailOtpHash || !masterUser.passwordChangeEmailOtpExpiresAt) {
-      return res.status(400).json({ message: "Password-change email verification is not initialized" });
-    }
-
-    const expiresAt = new Date(masterUser.passwordChangeEmailOtpExpiresAt).getTime();
-    if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            passwordChangeEmailOtpHash: 1,
-            passwordChangeEmailOtpExpiresAt: 1,
-            passwordChangeEmailOtpAttempts: 1,
-            passwordChangeEmailOtpSentAt: 1,
-          },
-        }
-      );
-      return res.status(401).json({ message: "Email code expired" });
-    }
-
-    const attempts = Number(masterUser.passwordChangeEmailOtpAttempts || 0);
-    if (attempts >= 5) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        {
-          $unset: {
-            passwordChangeEmailOtpHash: 1,
-            passwordChangeEmailOtpExpiresAt: 1,
-            passwordChangeEmailOtpAttempts: 1,
-            passwordChangeEmailOtpSentAt: 1,
-          },
-        }
-      );
-      return res.status(429).json({ message: "Too many email code attempts" });
-    }
-
-    const isValidEmailCode = await bcrypt.compare(emailCode, masterUser.passwordChangeEmailOtpHash);
-    if (!isValidEmailCode) {
-      await MasterUserModel.updateOne(
-        { _id: masterUser._id },
-        { $inc: { passwordChangeEmailOtpAttempts: 1 } }
-      );
-      return res.status(401).json({ message: "Invalid email verification code" });
-    }
-
-    const fullMasterUser = await MasterUserModel.findById(masterUser._id);
-    if (!fullMasterUser) {
-      return res.status(404).json({ message: "Master user not found" });
-    }
-
-    const isSamePassword = await fullMasterUser.matchPassword(newPassword);
+    // Check if new password is different from current password
+    const isSamePassword = await bcrypt.compare(newPassword, masterUser.passwordHash);
     if (isSamePassword) {
       return res.status(400).json({ message: "New password must be different from current password" });
     }
 
-    fullMasterUser.password = newPassword;
-    fullMasterUser.set("passwordChangeEmailOtpHash", null);
-    fullMasterUser.set("passwordChangeEmailOtpExpiresAt", null);
-    fullMasterUser.set("passwordChangeEmailOtpAttempts", 0);
-    fullMasterUser.set("passwordChangeEmailOtpSentAt", null);
-    await fullMasterUser.save();
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password via Prisma
+    await prisma.masterUser.update({
+      where: { id: req.masterUser.id },
+      data: { passwordHash: hashedPassword },
+    });
 
     res.clearCookie("master_pwd_change_challenge", {
       httpOnly: true,
@@ -1770,7 +1244,7 @@ export const confirmMasterPasswordChange = async (req: Request, res: Response) =
       req,
       outcome: "success",
       reason: "password_changed_from_security_dashboard",
-      email: fullMasterUser.email,
+      email: masterUser.email,
     });
 
     return res.json({
@@ -1807,68 +1281,240 @@ export const masterLogout = async (_req: Request, res: Response) => {
  * SCHOOLS MANAGEMENT
  */
 
+const legacyPlanFromInput = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "premium") return PlanType.PREMIUM;
+  if (normalized === "standard") return PlanType.STANDARD;
+  return PlanType.DISCOVERY;
+};
+
+const legacySchoolTypeFromInput = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized.includes("bilingual")) return SchoolType.BILINGUAL;
+  if (normalized.includes("technical")) return SchoolType.TECHNICAL;
+  if (normalized.includes("university")) return SchoolType.UNIVERSITY;
+  if (normalized.includes("primary")) return SchoolType.PRIMARY;
+  if (normalized.includes("preschool") || normalized.includes("pre-school") || normalized.includes("nursery")) return SchoolType.PRESCHOOL;
+  return SchoolType.SECONDARY;
+};
+
+const legacySchoolStatusFromInput = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "pending") return SchoolStatus.PENDING;
+  if (normalized === "approved") return SchoolStatus.APPROVED;
+  if (normalized === "active") return SchoolStatus.ACTIVE;
+  if (normalized === "suspended") return SchoolStatus.SUSPENDED;
+  return SchoolStatus.REJECTED;
+};
+
+const normalizeSchoolSubdomain = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const readString = (...values: Array<unknown>) => {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return "";
+};
+
 export const createSchool = async (req: Request, res: Response) => {
   try {
-    // Vérifier que c'est un super_admin
     if (req.masterUser?.role !== "super_admin") {
       return res.status(403).json({ message: "Only super_admin can create schools" });
     }
 
-    const {
-      schoolName,
-      schoolMotto,
-      systemType,
-      structure,
-      dbName,
-      dbConnectionString,
-      foundedYear,
-      location,
-      contactEmail,
-      contactPhone,
-      parentComplex,
-      isPilot,
-    } = req.body;
+    const body = req.body ?? {};
+    const schoolName = String(body.schoolName || body.name || "").trim();
 
-    if (!schoolName || !schoolMotto || !systemType || !dbName || !dbConnectionString) {
-      return res
-        .status(400)
-        .json({ message: "Required fields missing" });
+    if (!schoolName) {
+      return res.status(400).json({ message: "Required fields missing" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const SchoolModel = masterConn.model("School", School.schema);
+    const subdomain = buildSchoolDbName(schoolName)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "");
 
-    const school = await SchoolModel.create({
-      schoolName,
-      schoolMotto,
-      systemType,
-      structure: structure || "simple",
-      dbName,
-      dbConnectionString,
-      foundedYear,
-      location,
-      contactEmail,
-      contactPhone,
-      parentComplex: parentComplex || null,
-      isActive: true,
-      isPilot: Boolean(isPilot),
-      createdBy: req.masterUser?._id || req.masterUser?.id || null,
+    if (!subdomain) {
+      return res.status(400).json({ message: "Invalid school subdomain" });
+    }
+
+    const school = await prisma.school.create({
+      data: {
+        name: schoolName,
+        subdomain,
+        type: legacySchoolStatusFromInput(String(body.systemType || body.type)) === SchoolStatus.REJECTED
+          ? SchoolType.SECONDARY
+          : legacySchoolTypeFromInput(String(body.systemType || body.type)),
+        plan: legacyPlanFromInput(String(body.plan)),
+        status: SchoolStatus.ACTIVE,
+        city: String(body.location || body.city || "").trim() || null,
+        region: String(body.region || "").trim() || null,
+        address: String(body.address || body.location || "").trim() || null,
+        phone: String(body.contactPhone || body.phone || "").trim() || null,
+        email: String(body.contactEmail || body.email || "").trim().toLowerCase() || null,
+        language: String(body.language || "fr").trim() || "fr",
+        system: String(body.system || body.systemType || "francophone").trim() || "francophone",
+        contractEnd: body.contractEnd ? new Date(body.contractEnd) : null,
+      },
     });
 
-    // TODO: Crée les collections de base dans la nouvelle DB
-    // - User (vide)
-    // - Classes (vide)
-    // - SchoolSettings (defaults)
-    // - etc.
+    await logActivity({
+      userId: String(req.masterUser?.id || ""),
+      action: "Created school",
+      details: `${school.name} (${school.subdomain})`,
+      schoolId: school.id,
+    });
 
     return res.status(201).json({
       message: "School created",
       school,
     });
   } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Server error" });
+    return res.status(500).json({ message: error.message || "Server error" });
+  }
+};
+
+/**
+ * POST /api/master/schools/invite
+ *
+ * Flux principal du dashboard super admin — modale "✉ Inviter une école" :
+ *   1. Super admin saisit l'email du responsable (+ nom et template optionnels)
+ *   2. Crée la School en statut "pending"
+ *   3. Génère un SchoolInvite avec token UUID sécurisé (expire 7j)
+ *   4. Envoie un email d'invitation à requestedAdminEmail
+ *   5. L'école apparaît dans l'onglet PENDING du Hub de Contrôle
+ *
+ * Body :
+ *   - requestedAdminEmail  (requis)
+ *   - schoolName           (optionnel — déduit de l'email si absent)
+ *   - templateKey          (optionnel — défaut: "fr_secondary")
+ *   - plan                 (optionnel — "premium" | "standard" | "decouverte", défaut: "standard")
+ *
+ * ⚠️  Route à placer AVANT /:schoolId dans masterAdmin.ts (routes) :
+ *     router.post("/schools/invite", protectMaster, authorizeMaster(["super_admin"]),
+ *       masterMfaLimiter, requireMasterSensitiveAuth, inviteSchool);
+ */
+export const inviteSchool = async (req: Request, res: Response) => {
+  try {
+    if (req.masterUser?.role !== "super_admin") {
+      return res.status(403).json({ message: "Only super_admin can invite schools" });
+    }
+
+    const body = req.body ?? {};
+    const requestedAdminEmail = readString(body.requestedAdminEmail, body.email).toLowerCase();
+    const schoolName = readString(body.schoolName, body.name);
+    const templateKey = readString(body.templateKey) || "fr_secondary";
+    const plan = legacyPlanFromInput(readString(body.plan, body.subscriptionPlan));
+
+    if (!requestedAdminEmail || !schoolName) {
+      return res.status(400).json({ message: "L'email et le nom de l'établissement sont requis" });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedAdminEmail)) {
+      return res.status(400).json({ message: "Email invalide" });
+    }
+
+    const template = getSchoolTemplate(templateKey) ?? getSchoolTemplate("fr_secondary")!;
+    const subdomain = normalizeSchoolSubdomain(buildSchoolDbName(schoolName));
+    const existingInvite = await prisma.schoolInvite.findFirst({
+      where: {
+        email: requestedAdminEmail,
+        status: InviteStatus.PENDING,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (existingInvite) {
+      await prisma.schoolInvite.updateMany({
+        where: { email: requestedAdminEmail, status: InviteStatus.PENDING },
+        data: { status: InviteStatus.EXPIRED },
+      });
+    }
+
+    const school = await prisma.school.create({
+      data: {
+        name: schoolName,
+        subdomain,
+        type: legacySchoolTypeFromInput(readString(body.systemType, body.type)),
+        plan,
+        status: SchoolStatus.PENDING,
+        email: requestedAdminEmail,
+        language: "fr",
+        system: "francophone",
+      },
+    });
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${token}`;
+
+    const invite = await prisma.schoolInvite.create({
+      data: {
+        email: requestedAdminEmail,
+        schoolName,
+        token,
+        plan,
+        status: InviteStatus.PENDING,
+        expiresAt,
+        schoolId: school.id,
+      },
+    });
+
+    const inviteTemplate = buildSchoolInviteTemplate({
+      schoolName,
+      requestedAdminName: "Administrateur",
+      activationUrl,
+      language: "fr",
+    });
+
+    await sendTransactionalEmail({
+      recipientEmail: requestedAdminEmail,
+      subject: inviteTemplate.subject,
+      html: inviteTemplate.html,
+      text: inviteTemplate.text,
+      template: "school_invite",
+      eventType: "school_invite",
+      relatedEntityType: "School",
+      relatedEntityId: school.id,
+      metadata: {
+        schoolId: school.id,
+        token,
+        templateKey,
+        plan: String(body.plan || "standard").toLowerCase(),
+      },
+    });
+
+    await logActivity({
+      userId: String(req.masterUser.id),
+      action: "Invited school",
+      details: `${schoolName} → ${requestedAdminEmail} (template: ${template.key}, plan: ${plan})`,
+      schoolId: school.id,
+    });
+
+    return res.status(201).json({
+      message: "Invitation envoyée",
+      invite: {
+        token: invite.token,
+        email: invite.email,
+        schoolName: invite.schoolName,
+        templateKey: template.key,
+        plan: invite.plan,
+      },
+      school,
+    });
+  } catch (error: any) {
+    console.error("[inviteSchool] Error:", error);
+    return res.status(500).json({ message: error.message || "Server error" });
   }
 };
 
@@ -1878,31 +1524,47 @@ export const listSchools = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    masterConn.model("SchoolComplex", SchoolComplex.schema);
-    const SchoolModel = masterConn.model("School", School.schema);
+    const schools = await prisma.school.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        schoolConfig: true,
+        schoolSettings: true,
+        invites: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
 
-    const schools = await SchoolModel.find({})
-      .populate("parentComplex", "complexName")
-      .lean();
-
-    return res.json({ schools, total: schools.length });
+    return res.json({
+      schools: schools.map((school) => ({
+        ...school,
+        latestInvite: school.invites[0] || null,
+      })),
+      total: schools.length,
+    });
   } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Server error" });
+    return res.status(500).json({ message: error.message || "Server error" });
   }
 };
 
 export const getSchool = async (req: Request, res: Response) => {
   try {
-    const masterConn = dbRouter.getMasterConnection();
-    masterConn.model("SchoolComplex", SchoolComplex.schema);
-    const SchoolModel = masterConn.model("School", School.schema);
-
-    const school = await SchoolModel.findById(req.params.schoolId)
-      .populate("parentComplex", "complexName")
-      .lean();
+    const school = await prisma.school.findUnique({
+      where: { id: req.params.schoolId },
+      include: {
+        schoolConfig: true,
+        schoolSettings: true,
+        invites: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
+        activitiesLogs: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        },
+      },
+    });
 
     if (!school) {
       return res.status(404).json({ message: "School not found" });
@@ -1910,9 +1572,7 @@ export const getSchool = async (req: Request, res: Response) => {
 
     return res.json(school);
   } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Server error" });
+    return res.status(500).json({ message: error.message || "Server error" });
   }
 };
 
@@ -1922,34 +1582,53 @@ export const updateSchool = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Only super_admin can update schools" });
     }
 
-    const masterConn = dbRouter.getMasterConnection();
-    const SchoolModel = masterConn.model("School", School.schema);
+    const body = req.body ?? {};
+    const data: Record<string, any> = {};
 
-    const school = await SchoolModel.findByIdAndUpdate(
-      req.params.schoolId,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    const name = readString(body.schoolName, body.name);
+    if (name) data.name = name;
 
-    if (!school) {
-      return res.status(404).json({ message: "School not found" });
+    const subdomain = readString(body.subdomain, body.dbName);
+    if (subdomain) data.subdomain = normalizeSchoolSubdomain(subdomain);
+
+    if (body.systemType || body.type) {
+      data.type = legacySchoolTypeFromInput(readString(body.systemType, body.type));
     }
+
+    if (body.plan) {
+      data.plan = legacyPlanFromInput(readString(body.plan));
+    }
+
+    if (body.status) {
+      data.status = legacySchoolStatusFromInput(readString(body.status));
+    }
+
+    if (body.city || body.location) data.city = readString(body.city, body.location) || null;
+    if (body.region) data.region = readString(body.region) || null;
+    if (body.address || body.location) data.address = readString(body.address, body.location) || null;
+    if (body.phone || body.contactPhone) data.phone = readString(body.phone, body.contactPhone) || null;
+    if (body.email || body.contactEmail) data.email = readString(body.email, body.contactEmail).toLowerCase() || null;
+    if (body.logoUrl) data.logoUrl = readString(body.logoUrl) || null;
+    if (body.language) data.language = readString(body.language) || null;
+    if (body.systemType || body.system) data.system = readString(body.systemType, body.system) || null;
+    if (body.contractEnd) data.contractEnd = toOptionalDate(body.contractEnd) || null;
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ message: "No updatable school fields provided" });
+    }
+
+    const school = await prisma.school.update({
+      where: { id: req.params.schoolId },
+      data,
+    });
 
     return res.json({ message: "School updated", school });
   } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Server error" });
+    if (error?.code === "P2025") {
+      return res.status(404).json({ message: "School not found" });
+    }
+    return res.status(500).json({ message: error.message || "Server error" });
   }
-};
-
-const getMasterSchoolModels = () => {
-  const masterConn = dbRouter.getMasterConnection();
-  masterConn.model("SchoolComplex", SchoolComplex.schema);
-  const SchoolModel = masterConn.model("School", School.schema);
-  const SchoolInviteModel = masterConn.model("SchoolInvite", SchoolInvite.schema);
-
-  return { SchoolModel, SchoolInviteModel };
 };
 
 export const getSchoolActivityLogs = async (req: Request, res: Response) => {
@@ -1960,22 +1639,22 @@ export const getSchoolActivityLogs = async (req: Request, res: Response) => {
     const search = String(req.query.search || "").trim();
     const skip = (page - 1) * limit;
 
-    const query: Record<string, any> = { school: schoolId };
+    const where: any = { schoolId };
     if (search) {
-      query.$or = [
-        { action: { $regex: search, $options: "i" } },
-        { details: { $regex: search, $options: "i" } },
+      where.OR = [
+        { action: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
       ];
     }
 
     const [total, logs] = await Promise.all([
-      ActivitiesLog.countDocuments(query),
-      ActivitiesLog.find(query)
-        .populate("user", "name email role")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      prisma.activitiesLog.count({ where }),
+      prisma.activitiesLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
     ]);
 
     return res.json({
@@ -1998,31 +1677,29 @@ export const suspendSchool = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const { SchoolModel, SchoolInviteModel } = getMasterSchoolModels();
-    const school = await SchoolModel.findById(req.params.schoolId);
     const reason = String(req.body?.reason || req.body?.motif || "").trim();
+    const school = await prisma.school.update({
+      where: { id: req.params.schoolId },
+      data: { status: SchoolStatus.SUSPENDED },
+    });
 
-    if (!school) {
-      return res.status(404).json({ message: "School not found" });
-    }
-
-    school.isActive = false;
-    await school.save();
-
-    await SchoolInviteModel.updateMany(
-      { school: school._id, status: "pending" },
-      { $set: { status: "expired" } }
-    );
+    await prisma.schoolInvite.updateMany({
+      where: { schoolId: school.id, status: InviteStatus.PENDING },
+      data: { status: InviteStatus.EXPIRED },
+    });
 
     await logActivity({
-      userId: String(req.masterUser._id || req.masterUser.id),
+      userId: String(req.masterUser.id),
       action: "Suspended school",
-      details: `${school.schoolName} (${school.dbName})${reason ? ` - ${reason}` : ""}`,
-      schoolId: String(school._id),
+      details: `${school.name}${reason ? ` - ${reason}` : ""}`,
+      schoolId: school.id,
     });
 
     return res.json({ message: "School suspended", school });
   } catch (error: any) {
+    if (error?.code === "P2025") {
+      return res.status(404).json({ message: "School not found" });
+    }
     return res.status(500).json({ message: error.message || "Server error" });
   }
 };
@@ -2033,28 +1710,57 @@ export const reactivateSchool = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const { SchoolModel } = getMasterSchoolModels();
-    const school = await SchoolModel.findById(req.params.schoolId);
+    const school = await prisma.school.update({
+      where: { id: req.params.schoolId },
+      data: { status: SchoolStatus.ACTIVE },
+    });
+
+    await logActivity({
+      userId: String(req.masterUser.id),
+      action: "Reactivated school",
+      details: school.name,
+      schoolId: school.id,
+    });
+
+    return res.json({ message: "School reactivated", school });
+  } catch (error: any) {
+    if (error?.code === "P2025") {
+      return res.status(404).json({ message: "School not found" });
+    }
+    return res.status(500).json({ message: error.message || "Server error" });
+  }
+};
+
+export const deleteSchool = async (req: Request, res: Response) => {
+  try {
+    if (req.masterUser?.role !== "super_admin") {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const school = await prisma.school.findUnique({
+      where: { id: req.params.schoolId },
+      select: { id: true, name: true, subdomain: true },
+    });
 
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    school.isActive = true;
-    if (school.onboardingStatus === "rejected") {
-      school.onboardingStatus = "approved";
-    }
-    await school.save();
+    await prisma.schoolInvite.deleteMany({ where: { schoolId: school.id } });
+    await prisma.school.delete({ where: { id: school.id } });
 
     await logActivity({
-      userId: String(req.masterUser._id || req.masterUser.id),
-      action: "Reactivated school",
-      details: `${school.schoolName} (${school.dbName})`,
-      schoolId: String(school._id),
+      userId: String(req.masterUser.id),
+      action: "Deleted school",
+      details: `${school.name} (${school.subdomain})`,
+      schoolId: school.id,
     });
 
-    return res.json({ message: "School reactivated", school });
+    return res.json({ message: "School deleted", schoolId: school.id });
   } catch (error: any) {
+    if (error?.code === "P2025") {
+      return res.status(404).json({ message: "School not found" });
+    }
     return res.status(500).json({ message: error.message || "Server error" });
   }
 };
@@ -2065,62 +1771,67 @@ export const regenerateSchoolInvite = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const { SchoolModel, SchoolInviteModel } = getMasterSchoolModels();
-    const school = await SchoolModel.findById(req.params.schoolId);
+    const school = await prisma.school.findUnique({
+      where: { id: req.params.schoolId },
+      include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
+    });
 
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    const currentInvite = await SchoolInviteModel.findOne({ school: school._id }).sort({ createdAt: -1 });
-    if (currentInvite && currentInvite.status === "pending") {
-      currentInvite.status = "expired";
-      await currentInvite.save();
-    }
-
-    const token = crypto.randomUUID();
-    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/invite/${token}`;
-    const inviteTemplate = buildSchoolInviteTemplate({
-      schoolName: school.schoolName,
-      requestedAdminName: school.requestedAdminName || school.schoolName,
-      activationUrl,
-      language: "fr",
-    });
-    const invite = await SchoolInviteModel.create({
-      school: school._id,
-      token,
-      requestedAdminName: school.requestedAdminName || school.schoolName,
-      requestedAdminEmail: school.requestedAdminEmail || "",
-      status: "pending",
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      metadata: {
-        regeneratedBy: req.masterUser._id || req.masterUser.id,
-      },
-    });
-
-    if (school.requestedAdminEmail) {
-      await sendTransactionalEmail({
-        recipientEmail: school.requestedAdminEmail,
-        subject: inviteTemplate.subject,
-        html: inviteTemplate.html,
-        text: inviteTemplate.text,
-        template: "school_invite",
-        eventType: "school_invite",
-        relatedEntityType: "School",
-        relatedEntityId: school._id,
-        metadata: {
-          schoolId: String(school._id),
-          dbName: school.dbName,
-          regenerated: true,
-        },
+    const currentInvite = school.invites[0] || null;
+    if (currentInvite?.status === InviteStatus.PENDING) {
+      await prisma.schoolInvite.update({
+        where: { id: currentInvite.id },
+        data: { status: InviteStatus.EXPIRED },
       });
     }
 
+    const recipientEmail = school.email || currentInvite?.email || null;
+    if (!recipientEmail) {
+      return res.status(400).json({ message: "No admin email configured for this school" });
+    }
+
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${token}`;
+    const inviteTemplate = buildSchoolInviteTemplate({
+      schoolName: school.name,
+      requestedAdminName: school.name,
+      activationUrl,
+      language: "fr",
+    });
+
+    const invite = await prisma.schoolInvite.create({
+      data: {
+        email: recipientEmail,
+        schoolName: school.name,
+        token,
+        status: InviteStatus.PENDING,
+        plan: school.plan,
+        expiresAt,
+        schoolId: school.id,
+      },
+    });
+
+    await sendTransactionalEmail({
+      recipientEmail,
+      subject: inviteTemplate.subject,
+      html: inviteTemplate.html,
+      text: inviteTemplate.text,
+      template: "school_invite",
+      eventType: "school_invite",
+      relatedEntityType: "School",
+      relatedEntityId: school.id,
+      metadata: { schoolId: school.id, token, regenerated: true },
+    });
+
     await logActivity({
-      userId: String(req.masterUser._id || req.masterUser.id),
+      userId: String(req.masterUser.id),
       action: "Regenerated school invite",
-      details: `${school.schoolName} (${school.dbName})`,
-      schoolId: String(school._id),
+      details: school.name,
+      schoolId: school.id,
     });
 
     return res.json({
@@ -2129,8 +1840,8 @@ export const regenerateSchoolInvite = async (req: Request, res: Response) => {
         token: invite.token,
         status: invite.status,
         expiresAt: invite.expiresAt,
-        requestedAdminName: invite.requestedAdminName,
-        requestedAdminEmail: invite.requestedAdminEmail,
+        requestedAdminName: invite.schoolName,
+        requestedAdminEmail: invite.email,
       },
       activationUrl,
     });
@@ -2145,61 +1856,55 @@ export const resendSchoolInviteEmail = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const { SchoolModel, SchoolInviteModel } = getMasterSchoolModels();
-    const school = await SchoolModel.findById(req.params.schoolId);
+    const school = await prisma.school.findUnique({
+      where: { id: req.params.schoolId },
+      include: { invites: { orderBy: { createdAt: "desc" }, take: 1 } },
+    });
 
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    if (!school.requestedAdminEmail) {
+    const invite = school.invites[0] || null;
+    const recipientEmail = school.email || invite?.email || null;
+
+    if (!recipientEmail) {
       return res.status(400).json({ message: "No admin email configured for this school" });
     }
 
-    const invite = await SchoolInviteModel.findOne({ school: school._id }).sort({ createdAt: -1 });
     if (!invite) {
       return res.status(404).json({ message: "No invite found for this school" });
     }
 
-    const isExpired = new Date(invite.expiresAt).getTime() < Date.now();
-    if (isExpired && invite.status === "pending") {
-      invite.status = "expired";
-      await invite.save();
-    }
-
-    if (invite.status !== "pending") {
+    if (invite.status !== InviteStatus.PENDING) {
       return res.status(409).json({ message: "No pending invite to resend. Please regenerate first." });
     }
 
-    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/invite/${invite.token}`;
+    const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${invite.token}`;
     const inviteTemplate = buildSchoolInviteTemplate({
-      schoolName: school.schoolName,
-      requestedAdminName: invite.requestedAdminName || school.requestedAdminName || school.schoolName,
+      schoolName: school.name,
+      requestedAdminName: invite.schoolName || school.name,
       activationUrl,
       language: "fr",
     });
 
     await sendTransactionalEmail({
-      recipientEmail: school.requestedAdminEmail,
+      recipientEmail,
       subject: inviteTemplate.subject,
       html: inviteTemplate.html,
       text: inviteTemplate.text,
       template: "school_invite",
       eventType: "school_invite",
       relatedEntityType: "School",
-      relatedEntityId: school._id,
-      metadata: {
-        schoolId: String(school._id),
-        dbName: school.dbName,
-        resend: true,
-      },
+      relatedEntityId: school.id,
+      metadata: { schoolId: school.id, resend: true },
     });
 
     await logActivity({
-      userId: String(req.masterUser._id || req.masterUser.id),
+      userId: String(req.masterUser.id),
       action: "Resent school invite email",
-      details: `${school.schoolName} (${school.dbName})`,
-      schoolId: String(school._id),
+      details: school.name,
+      schoolId: school.id,
     });
 
     return res.json({
@@ -2208,8 +1913,8 @@ export const resendSchoolInviteEmail = async (req: Request, res: Response) => {
         token: invite.token,
         status: invite.status,
         expiresAt: invite.expiresAt,
-        requestedAdminName: invite.requestedAdminName,
-        requestedAdminEmail: invite.requestedAdminEmail,
+        requestedAdminName: invite.schoolName,
+        requestedAdminEmail: invite.email,
       },
       activationUrl,
     });
@@ -2222,89 +1927,12 @@ export const getSchoolInviteEmailStatus = async (req: Request, res: Response) =>
   try {
     const { schoolId } = req.params;
 
-    const lastEmail = await EmailLog.findOne({
-      eventType: "school_invite",
-      relatedEntityType: "School",
-      relatedEntityId: schoolId,
-    })
-      .select("recipientEmail status sentAt providerMessageId errorMessage metadata")
-      .sort({ sentAt: -1 })
-      .lean();
-
-    return res.json({
-      lastEmail: lastEmail || null,
+    const lastEmail = await prisma.emailLog.findFirst({
+      where: { schoolId },
+      orderBy: { createdAt: "desc" },
     });
-  } catch (error: any) {
-    return res.status(500).json({ message: error.message || "Server error" });
-  }
-};
 
-export const getMasterEmailLogs = async (req: Request, res: Response) => {
-  try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 15));
-    const search = String(req.query.search || "").trim();
-    const status = String(req.query.status || "").trim();
-    const eventType = String(req.query.eventType || "").trim();
-    const schoolId = String(req.query.schoolId || "").trim();
-    const skip = (page - 1) * limit;
-
-    const query: Record<string, any> = {};
-
-    if (status) {
-      query.status = status;
-    }
-
-    if (eventType) {
-      query.eventType = eventType;
-    }
-
-    if (schoolId) {
-      query.$or = [
-        { relatedEntityType: "School", relatedEntityId: schoolId },
-        { "metadata.schoolId": schoolId },
-      ];
-    }
-
-    if (search) {
-      const searchClause = [
-        { recipientEmail: { $regex: search, $options: "i" } },
-        { subject: { $regex: search, $options: "i" } },
-      ];
-
-      if (query.$or) {
-        query.$and = [{ $or: query.$or }, { $or: searchClause }];
-        delete query.$or;
-      } else {
-        query.$or = searchClause;
-      }
-    }
-
-    const [total, logs] = await Promise.all([
-      EmailLog.countDocuments(query),
-      EmailLog.find(query)
-        .populate("recipientUser", "name email role")
-        .sort({ sentAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-    ]);
-
-    return res.json({
-      logs,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit) || 1,
-        limit,
-      },
-      filters: {
-        search: search || null,
-        status: status || null,
-        eventType: eventType || null,
-        schoolId: schoolId || null,
-      },
-    });
+    return res.json({ lastEmail: lastEmail || null });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server error" });
   }
@@ -2313,42 +1941,3 @@ export const getMasterEmailLogs = async (req: Request, res: Response) => {
 /**
  * SCHOOL CONFIGS
  */
-
-export const setSchoolConfig = async (req: Request, res: Response) => {
-  try {
-    const masterConn = dbRouter.getMasterConnection();
-    const SchoolConfigModel = masterConn.model("SchoolConfig", SchoolConfig.schema);
-
-    const config = await SchoolConfigModel.findOneAndUpdate(
-      { school: req.params.schoolId },
-      {
-        school: req.params.schoolId,
-        ...req.body,
-      },
-      { new: true, upsert: true }
-    );
-
-    return res.json({ message: "Config updated", config });
-  } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Server error" });
-  }
-};
-
-export const getSchoolConfig = async (req: Request, res: Response) => {
-  try {
-    const masterConn = dbRouter.getMasterConnection();
-    const SchoolConfigModel = masterConn.model("SchoolConfig", SchoolConfig.schema);
-
-    const config = await SchoolConfigModel.findOne({
-      school: req.params.schoolId,
-    }).lean();
-
-    return res.json(config || {});
-  } catch (error: any) {
-    return res
-      .status(500)
-      .json({ message: error.message || "Server error" });
-  }
-};

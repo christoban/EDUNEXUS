@@ -9,13 +9,13 @@ import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
-import type { user } from "@/types";
+import type { user, SchoolSection } from "@/types";
 
-export interface ChildWithStats extends user {
+export interface ChildWithStats extends Omit<user, "schoolSection"> {
   class?: { _id: string; name: string; section?: { name: string; language?: string; cycle?: string; subSystem?: { code: string; name: string } } | null };
   attendanceRate?: number;
   latestGrade?: string;
-  schoolSection?: string;
+  schoolSection?: SchoolSection;
   section?: { name: string; language?: string; cycle?: string; subSystem?: { code: string; name: string } } | null;
 }
 

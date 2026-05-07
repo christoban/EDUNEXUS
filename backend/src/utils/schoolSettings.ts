@@ -1,4 +1,4 @@
-import SchoolSettings from "../models/schoolSettings.ts";
+import { prisma } from "../config/prisma.ts";
 
 export const DEFAULT_SCHOOL_SETTINGS = {
   schoolName: "EDUNEXUS Education",
@@ -22,52 +22,37 @@ export const DEFAULT_SCHOOL_SETTINGS = {
   bulletinAllowedOutstandingBalance: 0,
 };
 
-export const getEffectiveSchoolSettings = async () => {
-  const settings = await SchoolSettings.findOne().lean();
+export const getEffectiveSchoolSettings = async (schoolId?: string | null) => {
+  const settings = schoolId
+    ? await prisma.schoolSettings.findFirst({ where: { schoolId } })
+    : await prisma.schoolSettings.findFirst();
+
+  const schoolConfig = schoolId
+    ? await prisma.schoolConfig.findFirst({ where: { schoolId } })
+    : await prisma.schoolConfig.findFirst();
 
   return {
-    schoolName: settings?.schoolName || DEFAULT_SCHOOL_SETTINGS.schoolName,
-    schoolMotto: settings?.schoolMotto || DEFAULT_SCHOOL_SETTINGS.schoolMotto,
-    schoolLogoUrl: settings?.schoolLogoUrl || DEFAULT_SCHOOL_SETTINGS.schoolLogoUrl,
-    academicCalendarType:
-      settings?.academicCalendarType || DEFAULT_SCHOOL_SETTINGS.academicCalendarType,
-    preferredLanguage:
-      settings?.preferredLanguage || DEFAULT_SCHOOL_SETTINGS.preferredLanguage,
-    schoolLanguageMode:
-      settings?.schoolLanguageMode || DEFAULT_SCHOOL_SETTINGS.schoolLanguageMode,
-    mode: settings?.mode || DEFAULT_SCHOOL_SETTINGS.mode,
-    cycles: settings?.cycles || DEFAULT_SCHOOL_SETTINGS.cycles,
-    hasMultipleCycles:
-      typeof settings?.hasMultipleCycles === "boolean"
-        ? settings.hasMultipleCycles
-        : DEFAULT_SCHOOL_SETTINGS.hasMultipleCycles,
-    officialLanguages:
-      settings?.officialLanguages || DEFAULT_SCHOOL_SETTINGS.officialLanguages,
-    attendanceLateAsAbsence:
-      typeof settings?.attendanceLateAsAbsence === "boolean"
-        ? settings.attendanceLateAsAbsence
-        : DEFAULT_SCHOOL_SETTINGS.attendanceLateAsAbsence,
-    attendanceExcusedCountsAsAbsence:
-      typeof settings?.attendanceExcusedCountsAsAbsence === "boolean"
-        ? settings.attendanceExcusedCountsAsAbsence
-        : DEFAULT_SCHOOL_SETTINGS.attendanceExcusedCountsAsAbsence,
-    councilDecisionMode:
-      settings?.councilDecisionMode || DEFAULT_SCHOOL_SETTINGS.councilDecisionMode,
-    councilPassAverageThreshold:
-      typeof settings?.councilPassAverageThreshold === "number"
-        ? settings.councilPassAverageThreshold
-        : DEFAULT_SCHOOL_SETTINGS.councilPassAverageThreshold,
-    councilMaxAbsences:
-      typeof settings?.councilMaxAbsences === "number"
-        ? settings.councilMaxAbsences
-        : DEFAULT_SCHOOL_SETTINGS.councilMaxAbsences,
-    bulletinBlockOnUnpaidFees:
-      typeof settings?.bulletinBlockOnUnpaidFees === "boolean"
-        ? settings.bulletinBlockOnUnpaidFees
-        : DEFAULT_SCHOOL_SETTINGS.bulletinBlockOnUnpaidFees,
-    bulletinAllowedOutstandingBalance:
-      typeof settings?.bulletinAllowedOutstandingBalance === "number"
-        ? settings.bulletinAllowedOutstandingBalance
-        : DEFAULT_SCHOOL_SETTINGS.bulletinAllowedOutstandingBalance,
+    schoolName: DEFAULT_SCHOOL_SETTINGS.schoolName,
+    schoolMotto: DEFAULT_SCHOOL_SETTINGS.schoolMotto,
+    schoolLogoUrl: DEFAULT_SCHOOL_SETTINGS.schoolLogoUrl,
+    academicCalendarType: DEFAULT_SCHOOL_SETTINGS.academicCalendarType,
+    preferredLanguage: DEFAULT_SCHOOL_SETTINGS.preferredLanguage,
+    schoolLanguageMode: DEFAULT_SCHOOL_SETTINGS.schoolLanguageMode,
+    mode: DEFAULT_SCHOOL_SETTINGS.mode,
+    cycles: DEFAULT_SCHOOL_SETTINGS.cycles,
+    hasMultipleCycles: DEFAULT_SCHOOL_SETTINGS.hasMultipleCycles,
+    officialLanguages: DEFAULT_SCHOOL_SETTINGS.officialLanguages,
+    attendanceLateAsAbsence: DEFAULT_SCHOOL_SETTINGS.attendanceLateAsAbsence,
+    attendanceExcusedCountsAsAbsence: DEFAULT_SCHOOL_SETTINGS.attendanceExcusedCountsAsAbsence,
+    councilDecisionMode: DEFAULT_SCHOOL_SETTINGS.councilDecisionMode,
+    councilPassAverageThreshold: DEFAULT_SCHOOL_SETTINGS.councilPassAverageThreshold,
+    councilMaxAbsences: DEFAULT_SCHOOL_SETTINGS.councilMaxAbsences,
+    bulletinBlockOnUnpaidFees: DEFAULT_SCHOOL_SETTINGS.bulletinBlockOnUnpaidFees,
+    bulletinAllowedOutstandingBalance: DEFAULT_SCHOOL_SETTINGS.bulletinAllowedOutstandingBalance,
+    timezone: settings?.timezone || "Africa/Douala",
+    locale: settings?.locale || "fr-CM",
+    currency: settings?.currency || "XAF",
+    maxAbsences: schoolConfig?.maxAbsences,
+    passMark: schoolConfig?.passMark,
   };
 };

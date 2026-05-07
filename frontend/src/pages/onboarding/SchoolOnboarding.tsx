@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Check, Copy, GraduationCap, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,7 +26,7 @@ const SchoolOnboarding = () => {
   const [templates, setTemplates] = useState<SchoolTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [activationUrl, setActivationUrl] = useState("");
+  // const [activationUrl, setActivationUrl] = useState("");
   const [selectedTemplateKey, setSelectedTemplateKey] = useState("");
   const [form, setForm] = useState(initialForm);
 
@@ -81,6 +81,7 @@ const SchoolOnboarding = () => {
     toast.success("Lien copié dans le presse-papiers.");
   };
 
+  const navigate = useNavigate();
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
@@ -89,10 +90,9 @@ const SchoolOnboarding = () => {
         ...form,
         foundedYear: form.foundedYear ? Number(form.foundedYear) : undefined,
       };
-      const { data } = await api.post("/onboarding/requests", payload);
-      const link = data?.invite?.activationUrl || "";
-      setActivationUrl(link);
+      await api.post("/onboarding/requests", payload);
       toast.success("Demande d'établissement créée.");
+      navigate("/onboarding/confirmation");
     } catch (error: any) {
       const message = error?.response?.data?.message || "La création de l'établissement a échoué.";
       toast.error(message);
@@ -325,21 +325,7 @@ const SchoolOnboarding = () => {
                 </Button>
               </form>
 
-              {activationUrl ? (
-                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-50">
-                  <p className="font-semibold">Lien d'activation généré</p>
-                  <p className="mt-2 break-all text-emerald-50/90">{activationUrl}</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Button type="button" variant="outline" onClick={copyActivationLink} className="border-emerald-300/40 bg-transparent text-emerald-50 hover:bg-emerald-400/15">
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copier le lien
-                    </Button>
-                    <Button asChild type="button" className="bg-white text-black hover:bg-slate-100">
-                      <Link to={activationUrl.replace(window.location.origin, "")}>Ouvrir la page</Link>
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
+              {/* Après soumission, on redirige vers la page de confirmation, donc plus de lien d'activation ici */}
             </CardContent>
           </Card>
         </section>

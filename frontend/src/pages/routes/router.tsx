@@ -26,8 +26,11 @@ import SubjectsPage from "../settings/Subjects";
 import SchoolConfigurationPage from "../settings/SchoolConfiguration";
 import SchoolOnboardingPage from "../onboarding/SchoolOnboarding";
 import SchoolInvitePage from "../onboarding/SchoolInvite";
+import SchoolJoinPage from "../onboarding/SchoolJoin";
+import SchoolActivatePage from "../onboarding/SchoolActivate";
 import SchoolOnboardingRequestsPage from "../onboarding/SchoolOnboardingRequests";
 import MasterLoginPage from "../master/MasterLogin";
+import MasterEntryPage from "../master/MasterEntry";
 import MasterSchoolsPage from "../master/MasterSchools";
 import MasterSchoolDetailPage from "../master/MasterSchoolDetail";
 import MasterEmailHistoryPage from "../master/MasterEmailHistory";
@@ -36,8 +39,8 @@ import MasterSecurityPage from "../master/MasterSecurity";
 import DashboardSuperAdminPage from "../superadmin/DashboardSuperAdmin";
 import ProtectedSuperAdminPage from "../superadmin/ProtectedSuperAdmin";
 import SchoolsTablePage from "../superadmin/SchoolsTable";
-import InviteSchoolFormPage from "../superadmin/InviteSchoolForm";
 import { MASTER_LOGIN_ROUTE_PATH } from "@/lib/masterRoutes";
+import OnboardingConfirmation from "../onboarding/OnboardingConfirmation";
 
 export const router = createBrowserRouter([
   {
@@ -46,9 +49,12 @@ export const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: "login", element: <Login /> },
       { path: "onboarding/school", element: <SchoolOnboardingPage /> },
+      { path: "onboarding/confirmation", element: <OnboardingConfirmation /> },
       { path: "onboarding/invite/:token", element: <SchoolInvitePage /> },
+      { path: "onboarding/join/:token", element: <SchoolJoinPage /> },
+      { path: "onboarding/activate/:token", element: <SchoolActivatePage /> },
       { path: "master/login", element: <MasterDecoyPage /> },
-      { path: MASTER_LOGIN_ROUTE_PATH, element: <MasterLoginPage /> },
+      { path: MASTER_LOGIN_ROUTE_PATH, element: <MasterEntryPage /> },
       { path: "master/onboarding/requests", element: <SchoolOnboardingRequestsPage /> },
       { path: "master/schools", element: <MasterSchoolsPage /> },
       { path: "master/schools/:schoolId", element: <MasterSchoolDetailPage /> },
@@ -57,7 +63,7 @@ export const router = createBrowserRouter([
       { path: "superadmin", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
       { path: "superadmin/dashboard", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
       { path: "superadmin/schools", element: <ProtectedSuperAdminPage><SchoolsTablePage /></ProtectedSuperAdminPage> },
-      { path: "superadmin/invite", element: <ProtectedSuperAdminPage><InviteSchoolFormPage /></ProtectedSuperAdminPage> },
+      { path: "superadmin/invite", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
       // protected routes would go here
       {
         element: <PrivateRoutes />, // Assuming PrivateRoutes is imported

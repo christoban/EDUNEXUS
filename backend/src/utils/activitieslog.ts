@@ -1,4 +1,4 @@
-import ActivitiesLog from "../models/activitieslog.ts";
+import prisma from "../config/prisma.ts";
 
 export const logActivity = async ({
   userId,
@@ -12,11 +12,13 @@ export const logActivity = async ({
   schoolId?: string | null;
 }) => {
   try {
-    await ActivitiesLog.create({
-      user: userId,
-      action,
-      details,
-      school: schoolId || null,
+    await prisma.activitiesLog.create({
+      data: {
+        userId,
+        action,
+        description: details,
+        schoolId,
+      },
     });
   } catch (error) {
     console.error("Failed to log activity:", error);

@@ -1,7 +1,5 @@
 import { type Request, type Response } from "express";
-import Class from "../models/class.ts";
-import User from "../models/user.ts";
-import Section from "../models/section.ts";
+import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 
 // @desc    Create a new Class
@@ -9,35 +7,42 @@ import { logActivity } from "../utils/activitieslog.ts";
 // @access  Private/Admin
 export const createClass = async (req: Request, res: Response) => {
   try {
-    if ((req as any).user?.role !== "admin") {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "admin") {
       return res.status(403).json({ message: "Only admins can create classes" });
     }
 
-    const { name, academicYear, section, classTeacher, capacity, subjects } = req.body;
+    const schoolId = currentUser?.schoolId;
+    if (!schoolId) {
+      return res.status(403).json({ message: "Aucun établissement associé" });
+    }
 
-    const existingClass = await Class.findOne({
-      name,
-      academicYear,
-      section: section || null,
+    const { name, level, capacity } = req.body;
+
+    const existingClass = await prisma.class.findFirst({
+      where: {
+        schoolId,
+        name,
+      },
     });
 
     if (existingClass) {
       return res.status(400).json({
-        message:
-          "Class with this name already exists for the specified academic year and section.",
+        message: "Class with this name already exists.",
       });
     }
 
-    const newClass = await Class.create({
-      name,
-      academicYear,
-      section: section || null,
-      classTeacher,
-      capacity,
-      subjects: Array.isArray(subjects) ? subjects : [],
+    const newClass = await prisma.class.create({
+      data: {
+        schoolId,
+        name,
+        level: level || null,
+        capacity: Number(capacity) || 40,
+      },
     });
     await logActivity({
-      userId: (req as any).user.id,
+      userId: currentUser.userId,
+      schoolId,
       action: `Created new class: ${newClass.name}`,
     });
     res.status(201).json(newClass);
@@ -51,117 +56,74 @@ export const createClass = async (req: Request, res: Response) => {
 // @access  Private
 export const getAllClasses = async (req: Request, res: Response) => {
   try {
-    // 1. Parse Query Parameters
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
-    const sectionId = req.query.sectionId as string | undefined;
-    const cycle = req.query.cycle as string | undefined;
+    const schoolId = (req as any).user?.schoolId;
 
-    // 2. Build Search Query (Case-insensitive regex on Name)
-    const query: any = {};
-    if (search) {
-      query.name = { $regex: search, $options: "i" };
-    }
-
-    if (sectionId) {
-      query.section = sectionId;
-    }
-
-    if (cycle) {
-      const matchingSections = await Section.find({ cycle }).select("_id").lean();
-      const matchingSectionIds = matchingSections.map((section) => section._id);
-      query.section = query.section
-        ? { $in: [query.section].flat().filter(Boolean).filter((value: any) => matchingSectionIds.some((id) => String(id) === String(value))) }
-        : { $in: matchingSectionIds.length ? matchingSectionIds : ["__no_match__"] };
-    }
+    const where: any = {
+      ...(schoolId ? { schoolId } : {}),
+      ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
+    };
 
     const currentUser = (req as any).user;
-    if (currentUser?.role === "teacher") {
-      const teacherSubjectIds = Array.isArray(currentUser.teacherSubject)
-        ? currentUser.teacherSubject.map((subjectId: any) => subjectId.toString())
-        : [];
-
-      if (!teacherSubjectIds.length) {
-        return res.json({
-          classes: [],
-          pagination: {
-            total: 0,
-            page,
-            pages: 0,
+    if (currentUser?.role === "parent") {
+      const parentProfile = await prisma.parentProfile.findUnique({
+        where: { userId: currentUser.userId },
+        include: {
+          children: {
+            include: { studentProfile: true },
           },
-        });
-      }
-
-      query.subjects = { $in: teacherSubjectIds };
-    } else if (currentUser?.role === "parent") {
-      // Parents can only see classes of their children (students with parentId === currentUser._id)
-      const parentStudents = await User.find({
-        role: "student",
-        parentId: currentUser._id,
+        },
       });
 
-      const studentClassIds = parentStudents
-        .map((student: any) => student.studentClass)
-        .filter(Boolean);
+      const classIds = Array.from(
+        new Set(
+          (parentProfile?.children || [])
+            .map((child) => child.studentProfile?.classId)
+            .filter((classId): classId is string => Boolean(classId))
+        )
+      );
 
-      if (!studentClassIds.length) {
+      if (!classIds.length) {
         return res.json({
           classes: [],
-          pagination: {
-            total: 0,
-            page,
-            pages: 0,
-          },
+          pagination: { total: 0, page, pages: 0 },
         });
       }
 
-      query._id = { $in: studentClassIds };
+      where.id = { in: classIds };
     }
 
-    // 3. Execute Query (Count & Find)
     const [total, classes] = await Promise.all([
-      Class.countDocuments(query),
-      Class.find(query)
-        .populate("academicYear", "name")
-        .populate({
-          path: "section",
-          select: "name language cycle subSystem",
-          populate: { path: "subSystem", select: "code name" },
-        })
-        .populate("classTeacher", "name email")
-        .populate("subjects", "name code")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
+      prisma.class.count({ where }),
+      prisma.class.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
     ]);
 
-    const classIds = classes.map((cls) => cls._id);
-    const studentCountRows = await User.aggregate([
-      {
-        $match: {
-          role: "student",
-          studentClass: { $in: classIds },
-        },
-      },
-      {
-        $group: {
-          _id: "$studentClass",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
+    const studentCounts = await Promise.all(
+      classes.map(async (schoolClass) => ({
+        classId: schoolClass.id,
+        count: await prisma.user.count({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            role: "STUDENT",
+            studentProfile: { is: { classId: schoolClass.id } },
+          },
+        }),
+      }))
+    );
 
-    const studentCountMap = new Map<string, number>();
-    for (const row of studentCountRows) {
-      studentCountMap.set(String(row._id), row.count);
-    }
+    const studentCountMap = new Map(studentCounts.map((entry) => [entry.classId, entry.count]));
 
-    // 4. Return Data + Pagination Meta
     res.json({
       classes: classes.map((cls) => ({
-        ...cls.toObject(),
-        studentCount: studentCountMap.get(String(cls._id)) ?? 0,
+        ...cls,
+        studentCount: studentCountMap.get(cls.id) ?? 0,
       })),
       pagination: {
         total,
@@ -179,33 +141,38 @@ export const getAllClasses = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const updateClass = async (req: Request, res: Response) => {
   try {
-    if ((req as any).user?.role !== "admin") {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "admin") {
       return res.status(403).json({ message: "Only admins can update classes" });
     }
 
     const classId = req.params.id;
-    const { name, academicYear } = req.body;
+    const schoolId = currentUser?.schoolId;
+    const { name, level, capacity } = req.body;
 
-    // Prevent duplicate class names for the same academic year on update.
-    if (name && academicYear) {
-      const existingClass = await Class.findOne({
-        name,
-        academicYear,
-        section: req.body.section || null,
-        _id: { $ne: classId },
+    if (name) {
+      const existingClass = await prisma.class.findFirst({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          name,
+          id: { not: classId },
+        },
       });
 
       if (existingClass) {
         return res.status(400).json({
-          message:
-            "Class with this name already exists for the specified academic year.",
+          message: "Class with this name already exists.",
         });
       }
     }
 
-    const updatedClass = await Class.findByIdAndUpdate(classId, req.body, {
-      new: true,
-      runValidators: true,
+    const updatedClass = await prisma.class.update({
+      where: { id: classId },
+      data: {
+        ...(name !== undefined ? { name } : {}),
+        ...(level !== undefined ? { level: level || null } : {}),
+        ...(capacity !== undefined ? { capacity: Number(capacity) || 40 } : {}),
+      },
     });
 
     if (!updatedClass) {
@@ -213,7 +180,8 @@ export const updateClass = async (req: Request, res: Response) => {
     }
 
     await logActivity({
-      userId: (req as any).user.id,
+      userId: currentUser.userId,
+      schoolId,
       action: `Updated class: ${updatedClass.name}`,
     });
 
@@ -228,14 +196,16 @@ export const updateClass = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const deleteClass = async (req: Request, res: Response) => {
   try {
-    if ((req as any).user?.role !== "admin") {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "admin") {
       return res.status(403).json({ message: "Only admins can delete classes" });
     }
 
-    const deletedClass = await Class.findByIdAndDelete(req.params.id);
-    const userId = (req as any).user._id;
+    const schoolId = currentUser?.schoolId;
+    const deletedClass = await prisma.class.delete({ where: { id: req.params.id } });
     await logActivity({
-      userId,
+      userId: currentUser.userId,
+      schoolId,
       action: `Deleted class: ${deletedClass?.name}`,
     });
     if (!deletedClass) {

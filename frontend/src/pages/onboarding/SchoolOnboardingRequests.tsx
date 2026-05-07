@@ -148,7 +148,7 @@ const SchoolOnboardingRequests = () => {
 
   const copyInviteLink = async (token?: string | null) => {
     if (!token) return;
-    const link = `${window.location.origin}/onboarding/invite/${token}`;
+    const link = `${window.location.origin}/onboarding/join/${token}`;
     await navigator.clipboard.writeText(link);
     toast.success("Lien d'invitation copié.");
   };
@@ -321,7 +321,13 @@ const SchoolOnboardingRequests = () => {
                     {requests.map((request) => {
                       const latestInvite = request.latestInvite || null;
                       const inviteToken = latestInvite?.token || null;
-                      const inviteUrl = inviteToken ? `${window.location.origin}/onboarding/invite/${inviteToken}` : null;
+                      // ✅ Le lien d'activation est différent du lien d'invitation
+                      // Si "approved" → lien d'activation, sinon lien d'invitation
+                      const inviteUrl = inviteToken 
+                        ? request.onboardingStatus === "approved"
+                          ? `${window.location.origin}/onboarding/activate/${inviteToken}`
+                          : `${window.location.origin}/onboarding/join/${inviteToken}`
+                        : null;
 
                       return (
                         <TableRow key={request._id}>

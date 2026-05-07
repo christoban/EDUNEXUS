@@ -1,5 +1,5 @@
 import { type Request, type Response } from "express";
-import EmailLog from "../models/emailLog.ts";
+import { prisma } from "../config/prisma.ts";
 
 export const getEmailLogs = async (req: Request, res: Response) => {
   try {
@@ -7,34 +7,33 @@ export const getEmailLogs = async (req: Request, res: Response) => {
     const limit = Number(req.query.limit) || 15;
     const search = String(req.query.search || "").trim();
     const status = String(req.query.status || "").trim();
-    const eventType = String(req.query.eventType || "").trim();
+    const schoolId = (req as any).user?.schoolId;
 
-    const query: any = {};
+    const where: any = {
+      ...(schoolId ? { schoolId } : {}),
+    };
 
     if (status) {
-      query.status = status;
-    }
-
-    if (eventType) {
-      query.eventType = eventType;
+      where.status = status;
     }
 
     if (search) {
-      query.$or = [
-        { recipientEmail: { $regex: search, $options: "i" } },
-        { subject: { $regex: search, $options: "i" } },
+      where.OR = [
+        { to: { contains: search, mode: "insensitive" } },
+        { subject: { contains: search, mode: "insensitive" } },
       ];
     }
 
     const skip = (page - 1) * limit;
 
     const [total, logs] = await Promise.all([
-      EmailLog.countDocuments(query),
-      EmailLog.find(query)
-        .populate("recipientUser", "name email role")
-        .sort({ sentAt: -1 })
-        .skip(skip)
-        .limit(limit),
+      prisma.emailLog.count({ where }),
+      prisma.emailLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
     ]);
 
     return res.json({

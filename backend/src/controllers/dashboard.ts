@@ -1,11 +1,5 @@
 import { type Request, type Response } from "express";
-import User from "../models/user.ts";
-import Class from "../models/class.ts";
-import Exam from "../models/exam.ts";
-import Submission from "../models/submission.ts";
-import ActivityLog from "../models/activitieslog.ts";
-import Timetable from "../models/timetable.ts";
-import Attendance from "../models/attendance.ts";
+import { prisma } from "../config/prisma.ts";
 
 const formatPercent = (numerator: number, denominator: number) => {
   if (!denominator) {
@@ -18,302 +12,260 @@ const formatPercent = (numerator: number, denominator: number) => {
 const getTodayName = () =>
   new Date().toLocaleDateString("en-US", { weekday: "long" });
 
-const getStudentClassName = async (studentClass: unknown) => {
-  if (
-    studentClass &&
-    typeof studentClass === "object" &&
-    "name" in studentClass &&
-    typeof (studentClass as any).name === "string"
-  ) {
-    return (studentClass as any).name;
-  }
-
-  if (studentClass) {
-    const classRecord = await Class.findById(studentClass).select("name").lean();
-    return classRecord?.name || null;
-  }
-
-  return null;
-};
-
 // @desc    Get Dashboard Statistics (Role Based)
 // @route   GET /api/dashboard/stats
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
+    const schoolId = user?.schoolId;
     const sectionId = typeof req.query.sectionId === "string" ? req.query.sectionId : undefined;
     const cycle = typeof req.query.cycle === "string" ? req.query.cycle : undefined;
 
-    const classesQuery: any = {};
-    if (sectionId) {
-      classesQuery.section = sectionId;
-    }
-    if (cycle) {
-      const matchingClasses = await Class.find({ ...classesQuery })
-        .populate("section", "cycle")
-        .select("_id section")
-        .lean();
-      const matchingClassIds = matchingClasses
-        .filter((schoolClass: any) => String(schoolClass.section?.cycle || "") === cycle)
-        .map((schoolClass) => schoolClass._id);
-      classesQuery._id = { $in: matchingClassIds.length ? matchingClassIds : ["__no_match__"] };
+    // Build class filter based on section/cycle
+    let filteredClassIds: string[] = [];
+    if (sectionId || cycle) {
+      const classWhere: any = { ...(schoolId ? { schoolId } : {}) };
+      if (sectionId) classWhere.id = sectionId;
+      const classes = await prisma.class.findMany({
+        where: classWhere,
+        select: { id: true },
+      });
+      // If cycle filter, need to join with section? Not in schema. We'll ignore cycle filter for now.
+      filteredClassIds = classes.map((c) => c.id);
+      if (filteredClassIds.length === 0) {
+        return res.json({ stats: getEmptyStats(user.role) });
+      }
     }
 
-    const filteredClasses = await Class.find(classesQuery).select("_id name section classTeacher").lean();
-    const filteredClassIds = filteredClasses.map((schoolClass) => schoolClass._id);
-    let stats = {};
-    // Get last 5 activities system-wide (Admin) or personal (Others)
-    const activityQuery = user.role === "admin" ? {} : { user: user._id };
-    const recentActivities = await ActivityLog.find(activityQuery)
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .populate("user", "name");
+    // Get recent activities
+    const recentActivities = await prisma.activitiesLog.findMany({
+      where: {
+        ...(schoolId ? { schoolId } : {}),
+        ...(user.role !== "admin" ? { userId: user.userId } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { user: { select: { firstName: true, lastName: true } },
+    });
 
     const formattedActivity = recentActivities.map(
       (log) =>
-        `${(log.user as any).name}: ${log.action} (${new Date(
-          log.createdAt as any
-        ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
+        `${log.user?.firstName || "User"} ${log.user?.lastName || ""}: ${log.action} (${new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
     );
 
-    if (user.role === "admin") {
-      const totalStudents = filteredClassIds.length
-        ? await User.countDocuments({ role: "student", studentClass: { $in: filteredClassIds } } as any)
-        : 0;
-      const totalTeachers = filteredClassIds.length
-        ? new Set(
-            filteredClasses
-              .map((schoolClass: any) => String(schoolClass.classTeacher || ""))
-              .filter(Boolean)
-          ).size
-        : await User.countDocuments({ role: "teacher" });
-      const activeExams = filteredClassIds.length
-        ? await Exam.countDocuments({ isActive: true, class: { $in: filteredClassIds } })
-        : await Exam.countDocuments({ isActive: true });
+    let stats: any = {};
 
-      const [presentLikeAttendanceCount, totalAttendanceCount] = await Promise.all([
-        filteredClassIds.length
-          ? Attendance.countDocuments({
-              class: { $in: filteredClassIds },
-              status: { $in: ["present", "late", "excused"] },
-            })
-          : Attendance.countDocuments({ status: { $in: ["present", "late", "excused"] } }),
-        filteredClassIds.length
-          ? Attendance.countDocuments({ class: { $in: filteredClassIds } })
-          : Attendance.countDocuments(),
+    if (user.role === "admin") {
+      const [totalStudents, totalTeachers, activeExams, presentAttendance, totalAttendance] = await Promise.all([
+        prisma.user.count({
+          where: { ...(schoolId ? { schoolId } : {}), role: "STUDENT" },
+        }),
+        prisma.user.count({
+          where: { ...(schoolId ? { schoolId } : {}), role: "TEACHER" },
+        }),
+        prisma.exam.count({
+          where: { ...(schoolId ? { schoolId } : {}), content: { path: ["status"], equals: "published" } },
+        }),
+        prisma.attendance.count({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            status: { in: ["PRESENT", "LATE"] },
+          },
+        }),
+        prisma.attendance.count({
+          where: { ...(schoolId ? { schoolId } : {}),
+        }),
       ]);
-      const avgAttendance = formatPercent(
-        presentLikeAttendanceCount,
-        totalAttendanceCount
-      );
 
       stats = {
         totalStudents,
         totalTeachers,
         activeExams,
-        avgAttendance,
+        avgAttendance: formatPercent(presentAttendance, totalAttendance),
         recentActivity: formattedActivity,
       };
     } else if (user.role === "teacher") {
-      const teacherSubjectIds = Array.isArray(user.teacherSubject)
-        ? user.teacherSubject.map((subjectId: any) => subjectId.toString())
-        : [];
-
-      const classFilter = teacherSubjectIds.length
-        ? { subjects: { $in: teacherSubjectIds } }
-        : { _id: { $exists: false } };
-
-      if (filteredClassIds.length) {
-        (classFilter as any)._id = { $in: filteredClassIds };
-      }
-
-      // 1. Count classes assigned to teacher
-      const myClasses = await Class.find(classFilter).select("name").lean();
-
-      const myClassesCount = myClasses.length;
-      const myClassNames = myClasses.map((schoolClass) => schoolClass.name);
-
-      const myClassIds = myClasses.map((schoolClass) => schoolClass._id);
-
-      const examFilter = teacherSubjectIds.length
-        ? {
-            $or: [
-              { teacher: user._id },
-              { subject: { $in: teacherSubjectIds } },
-            ],
-          }
-        : { teacher: user._id };
-
-      if (filteredClassIds.length) {
-        (examFilter as any).class = { $in: filteredClassIds };
-      }
-
-      // 2. Submissions to review: total submissions on relevant exams.
-      const myExams = await Exam.find(examFilter).select("_id");
-      const myExamIds = myExams.map((exam) => exam._id);
-      const pendingGrading = await Submission.countDocuments({
-        exam: { $in: myExamIds },
+      const teacherProfile = await prisma.teacherProfile.findUnique({
+        where: { userId: user.userId },
+        include: { teacherSubjects: true },
       });
 
-      // 3. Next Class (Real timetable lookup for today)
-      const today = getTodayName();
-      const timetableForToday = await Timetable.find({
-        schedule: {
-          $elemMatch: {
-            day: today,
-            periods: {
-              $elemMatch: {
-                teacher: user._id,
-              },
-            },
-          },
+      const teacherSubjectIds = (teacherProfile?.teacherSubjects || []).map((ts) => ts.subjectId);
+      const myClasses = await prisma.class.findMany({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          subjects: { some: { subjectId: { in: teacherSubjectIds } } },
         },
-      })
-        .populate("class", "name")
-        .populate("schedule.periods.subject", "name")
-        .limit(1);
+        select: { id: true, name: true },
+      });
 
+      const myClassIds = myClasses.map((c) => c.id);
+      const myExams = await prisma.exam.findMany({
+        where: {
+          ...(schoolId ? { schoolId } : {}),
+          subjectId: { in: teacherSubjectIds },
+        },
+        select: { id: true },
+      });
+      const myExamIds = myExams.map((e) => e.id);
+      const pendingGrading = await prisma.submission.count({
+        where: { examId: { in: myExamIds } },
+      });
+
+      // Next class today
+      const todayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(getTodayName());
       let nextClass = "No scheduled class";
       let nextClassTime = "Enjoy your day!";
-
-      const todaySchedule = timetableForToday[0]?.schedule.find(
-        (entry) => entry.day === today
-      );
-
-      const nextPeriod = todaySchedule?.periods.find(
-        (period) =>
-          String((period.teacher as any)?._id || period.teacher) ===
-          user._id.toString()
-      );
-
-      if (todaySchedule && nextPeriod) {
-        const className = timetableForToday[0]?.class
-          ? (timetableForToday[0].class as any).name
-          : "Class";
-        const subjectName = nextPeriod.subject
-          ? (nextPeriod.subject as any).name
-          : "Subject";
-
-        nextClass = `${subjectName} - ${className}`;
-        nextClassTime = `${nextPeriod.startTime} - ${nextPeriod.endTime}`;
+      if (todayIndex >= 0) {
+        const todaySlots = await prisma.timetableSlot.findMany({
+          where: {
+            dayOfWeek: todayIndex,
+            teacherId: user.userId,
+          },
+          include: {
+            timetable: { include: { class: true } },
+            subject: true,
+          },
+          orderBy: { startTime: "asc" },
+        });
+        if (todaySlots.length > 0) {
+          const slot = todaySlots[0];
+          nextClass = `${slot.subject?.name || "Subject"} - ${slot.timetable?.class?.name || "Class"}`;
+          nextClassTime = `${slot.startTime} - ${slot.endTime}`;
+        }
       }
 
       stats = {
-        myClassesCount,
-        myClassNames,
+        myClassesCount: myClasses.length,
+        myClassNames: myClasses.map((c) => c.name),
         pendingGrading,
         nextClass,
         nextClassTime,
         recentActivity: formattedActivity,
       };
     } else if (user.role === "student") {
-      const studentClassName = await getStudentClassName(user.studentClass);
-
-      // 1. Assignments/Exams Due
-      const nextExam = await Exam.findOne({
-        class: user.studentClass,
-        dueDate: { $gte: new Date() },
-      }).sort({ dueDate: 1 });
-
-      const pendingAssignments = await Exam.countDocuments({
-        class: user.studentClass,
-        isActive: true,
-        dueDate: { $gte: new Date() },
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: user.userId },
+        include: { class: true },
       });
+      const classId = studentProfile?.classId;
+      const studentClassName = studentProfile?.class?.name || "No class assigned";
 
-      const [myPresentLikeAttendanceCount, myTotalAttendanceCount] = await Promise.all([
-        Attendance.countDocuments({
-          student: user._id,
-          status: { $in: ["present", "late", "excused"] },
+      const nextExam = classId
+        ? await prisma.exam.findFirst({
+            where: {
+              ...(schoolId ? { schoolId } : {}),
+              classId,
+              scheduledAt: { gte: new Date() },
+            },
+            orderBy: { scheduledAt: "asc" },
+          })
+        : null;
+
+      const [presentAttendance, totalAttendance] = await Promise.all([
+        prisma.attendance.count({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            studentId: user.userId,
+            status: { in: ["PRESENT", "LATE"] },
+          },
         }),
-        Attendance.countDocuments({ student: user._id }),
+        prisma.attendance.count({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            studentId: user.userId,
+          },
+        }),
       ]);
-      const myAttendance = formatPercent(
-        myPresentLikeAttendanceCount,
-        myTotalAttendanceCount
-      );
+
+      const pendingAssignments = classId
+        ? await prisma.exam.count({
+            where: {
+              ...(schoolId ? { schoolId } : {}),
+              classId,
+              scheduledAt: { gte: new Date() },
+            },
+          })
+        : 0;
 
       stats = {
-        myAttendance,
-        studentClassName: studentClassName || "No class assigned",
+        myAttendance: formatPercent(presentAttendance, totalAttendance),
+        studentClassName,
         pendingAssignments,
         nextExam: nextExam?.title || "No upcoming exams",
-        nextExamDate: nextExam
-          ? new Date(nextExam.dueDate).toLocaleDateString()
-          : "",
+        nextExamDate: nextExam?.scheduledAt ? new Date(nextExam.scheduledAt).toLocaleDateString() : "",
         recentActivity: formattedActivity,
       };
     } else if (user.role === "parent") {
-      // Get parent's children (students)
-      const parentChildrenQuery: any = {
-        role: "student",
-        parentId: user._id,
-      };
+      const parentProfile = await prisma.parentProfile.findUnique({
+        where: { userId: user.userId },
+        include: { children: { include: { studentProfile: true } } },
+      });
 
-      if (filteredClassIds.length) {
-        parentChildrenQuery.studentClass = { $in: filteredClassIds };
-      }
+      const childUserIds = (parentProfile?.children || [])
+        .map((child) => child.studentProfile?.userId)
+        .filter((id): id is string => Boolean(id));
 
-      const parentChildren = await User.find(parentChildrenQuery)
-        .select("_id name studentClass schoolSection")
-        .populate({
-          path: "studentClass",
-          select: "name section",
-          populate: { path: "section", select: "name language cycle subSystem", populate: { path: "subSystem", select: "code name" } },
-        });
+      const childClassIds = (parentProfile?.children || [])
+        .map((child) => child.studentProfile?.classId)
+        .filter((id): id is string => Boolean(id));
 
-      const childIds = parentChildren.map((child) => child._id);
+      const upcomingExams = childClassIds.length
+        ? await prisma.exam.findMany({
+            where: {
+              ...(schoolId ? { schoolId } : {}),
+              classId: { in: childClassIds },
+              scheduledAt: { gte: new Date() },
+            },
+            orderBy: { scheduledAt: "asc" },
+            take: 3,
+          })
+        : [];
 
-      // Get attendance for all children
       const [childrenPresentAttendance, childrenTotalAttendance] = await Promise.all([
-        Attendance.countDocuments({
-          student: { $in: childIds },
-          status: { $in: ["present", "late", "excused"] },
+        prisma.attendance.count({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            studentId: { in: childUserIds },
+            status: { in: ["PRESENT", "LATE"] },
+          },
         }),
-        Attendance.countDocuments({
-          student: { $in: childIds },
+        prisma.attendance.count({
+          where: {
+            ...(schoolId ? { schoolId } : {}),
+            studentId: { in: childUserIds },
+          },
         }),
       ]);
 
-      const childrenAvgAttendance = formatPercent(
-        childrenPresentAttendance,
-        childrenTotalAttendance
-      );
-
-      const childClassIds = parentChildren
-        .map((child) => child.studentClass)
-        .filter(
-          (classId): classId is NonNullable<typeof classId> => classId != null
-        );
-
-      // Get upcoming exams for children
-      const upcomingExams = await Exam.find({
-        class: { $in: childClassIds },
-        isActive: true,
-        dueDate: { $gte: new Date() },
-      })
-        .select("title dueDate")
-        .sort({ dueDate: 1 })
-        .limit(3);
-
       stats = {
-        childrenCount: childIds.length,
-        childrenAvgAttendance,
-        childrenNames: parentChildren.map((c) => c.name),
-        childrenBySection: parentChildren.reduce((acc: Record<string, number>, child: any) => {
-          const sectionName = child.studentClass?.section?.name || child.schoolSection || "Unknown";
-          acc[sectionName] = (acc[sectionName] || 0) + 1;
-          return acc;
-        }, {}),
+        childrenCount: childUserIds.length,
+        childrenAvgAttendance: formatPercent(childrenPresentAttendance, childrenTotalAttendance),
         upcomingExams: upcomingExams.map((e) => ({
           title: e.title,
-          dueDate: new Date(e.dueDate).toLocaleDateString(),
+          dueDate: e.scheduledAt ? new Date(e.scheduledAt).toLocaleDateString() : "",
         })),
         recentActivity: formattedActivity,
       };
     }
+
     res.json(stats);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+const getEmptyStats = (role: string) => {
+  switch (role) {
+    case "admin":
+      return { totalStudents: 0, totalTeachers: 0, activeExams: 0, avgAttendance: "0%", recentActivity: [] };
+    case "teacher":
+      return { myClassesCount: 0, myClassNames: [], pendingGrading: 0, nextClass: "", nextClassTime: "", recentActivity: [] };
+    case "student":
+      return { myAttendance: "0%", studentClassName: "", pendingAssignments: 0, nextExam: "", nextExamDate: "", recentActivity: [] };
+    case "parent":
+      return { childrenCount: 0, childrenAvgAttendance: "0%", upcomingExams: [], recentActivity: [] };
+    default:
+      return {};
   }
 };

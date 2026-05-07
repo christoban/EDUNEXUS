@@ -12,10 +12,12 @@ import {
   confirmMasterPasswordChange,
   masterMe,
   masterLogout,
+  inviteSchool,
   createSchool,
   listSchools,
   getSchool,
   updateSchool,
+  deleteSchool,
   suspendSchool,
   reactivateSchool,
   regenerateSchoolInvite,
@@ -53,12 +55,43 @@ router.get("/email-logs", protectMaster, getMasterEmailLogs);
 router.get("/security/auth-audits", protectMaster, authorizeMaster(["super_admin"]), getMasterAuthAuditLogs);
 
 /**
- * SCHOOLS (admin)
+ * SCHOOLS
+ *
+ * ⚠️  ORDRE CRITIQUE : les routes statiques (/invite, /config) DOIVENT être
+ *     déclarées AVANT les routes paramétriques (/:schoolId) pour qu'Express
+ *     ne les confonde pas avec un schoolId.
  */
-router.post("/schools", protectMaster, authorizeMaster(["super_admin"]), masterMfaLimiter, requireMasterSensitiveAuth, createSchool);
+
+// ── Route invitation (statique, sans MFA car flux non-sensible côté état DB) ──
+// Note : requireMasterSensitiveAuth exige password + TOTP à chaque appel.
+// Pour "Inviter une école" depuis le dashboard, on garde le MFA limiter
+// mais on NE demande PAS la double auth sensitive (trop contraignant pour
+// une simple invitation). Adapter selon ta politique de sécurité.
+router.post(
+  "/schools/invite",
+  protectMaster,
+  authorizeMaster(["super_admin"]),
+  masterMfaLimiter,
+  inviteSchool
+);
+
+// ── Création directe (admin technique, avec double auth) ──────────────────────
+router.post(
+  "/schools",
+  protectMaster,
+  authorizeMaster(["super_admin"]),
+  masterMfaLimiter,
+  requireMasterSensitiveAuth,
+  createSchool
+);
+
+// ── Liste et détail ────────────────────────────────────────────────────────────
 router.get("/schools", protectMaster, authorizeMaster(["super_admin"]), listSchools);
+
+// ── Routes paramétriques (après toutes les statiques) ─────────────────────────
 router.get("/schools/:schoolId", protectMaster, authorizeMaster(["super_admin"]), getSchool);
 router.put("/schools/:schoolId", protectMaster, authorizeMaster(["super_admin"]), masterMfaLimiter, requireMasterSensitiveAuth, updateSchool);
+router.delete("/schools/:schoolId", protectMaster, authorizeMaster(["super_admin"]), masterMfaLimiter, requireMasterSensitiveAuth, deleteSchool);
 router.post("/schools/:schoolId/suspend", protectMaster, authorizeMaster(["super_admin"]), masterMfaLimiter, requireMasterSensitiveAuth, suspendSchool);
 router.post("/schools/:schoolId/reactivate", protectMaster, authorizeMaster(["super_admin"]), masterMfaLimiter, requireMasterSensitiveAuth, reactivateSchool);
 router.post("/schools/:schoolId/invite/regenerate", protectMaster, authorizeMaster(["super_admin"]), masterMfaLimiter, requireMasterSensitiveAuth, regenerateSchoolInvite);

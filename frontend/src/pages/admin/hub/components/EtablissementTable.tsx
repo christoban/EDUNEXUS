@@ -1,6 +1,6 @@
 import React from "react";
 
-interface Etablissement {
+export interface Etablissement {
   id: string;
   name: string;
   type: string;
