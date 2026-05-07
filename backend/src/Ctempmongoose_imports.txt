@@ -1,8 +1,0 @@
-controllers/parent.ts
-controllers/timetable.ts
-inngest/functions.ts
-middleware/masterSensitiveAuth.ts
-scripts/migrate-phase5.ts
-scripts/migrate-phase8.ts
-scripts/seed-week4.ts
-services/emailService.ts
