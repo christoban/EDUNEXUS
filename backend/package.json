@@ -11,6 +11,9 @@
     "test": "bun test",
     "test:rules": "bun test src/tests"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/bun": "latest",
@@ -25,7 +28,8 @@
     "@types/qrcode": "^1.5.6",
     "inngest-cli": "^1.17.9",
     "nodemon": "^3.1.14",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.22.0"
   },
   "peerDependencies": {
     "typescript": "^5"

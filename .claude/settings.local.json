@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bunx prisma *)",
+      "Bash(psql -U postgres -d edunexus -c \"SELECT id, checksum FROM _prisma_migrations ORDER BY started_at;\")",
+      "PowerShell($env:PGPASSWORD=\"\"; psql -U postgres -d edunexus -c \"SELECT id, finished_at FROM _prisma_migrations ORDER BY started_at;\" 2>&1)",
+      "Bash(2>&1)",
+      "Bash(bun run *)"
+    ]
+  }
+}
