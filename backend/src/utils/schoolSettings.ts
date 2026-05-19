@@ -53,6 +53,5 @@ export const getEffectiveSchoolSettings = async (schoolId?: string | null) => {
     locale: settings?.locale || "fr-CM",
     currency: settings?.currency || "XAF",
     maxAbsences: schoolConfig?.maxAbsences,
-    passMark: schoolConfig?.passMark,
   };
 };

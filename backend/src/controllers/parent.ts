@@ -12,7 +12,7 @@ const verifyParentChildRelation = async (
 ) => {
   const parentProfile = await prisma.parentProfile.findUnique({
     where: { userId: parentUserId },
-    include: { children: { include: { studentProfile: true } },
+    include: { children: { include: { studentProfile: true } } },
   });
 
   const childEntry = (parentProfile?.children || []).find(
@@ -42,6 +42,7 @@ export const getMyChildren = async (req: Request, res: Response) => {
             studentProfile: {
               include: {
                 class: { select: { id: true, name: true } },
+                user: { select: { firstName: true, lastName: true, email: true } },
               },
             },
           },
@@ -153,17 +154,18 @@ export const getChildExams = async (req: Request, res: Response) => {
       where: {
         ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
         studentId,
+        classId: studentProfile.classId!,
       },
-      select: { examId: true, value: true, maxValue: true },
+      select: { id: true, subjectId: true, sequenceAverage: true, maxValue: true },
     });
 
     const gradeMap = new Map(
-      grades.map((g) => [g.examId, { score: g.value, maxScore: g.maxValue }])
+      grades.map((g) => [g.subjectId, { score: g.sequenceAverage, maxScore: g.maxValue }])
     );
 
     // Enrich exams with grade info
     const enrichedExams = exams.map((exam) => {
-      const grade = gradeMap.get(exam.id);
+      const grade = gradeMap.get(exam.subjectId);
       return {
         ...exam,
         grade: grade || null,
@@ -211,7 +213,7 @@ export const getChildReportCard = async (req: Request, res: Response) => {
       },
       include: {
         academicYear: true,
-        grades: {
+        subjectLines: {
           include: {
             subject: { select: { id: true, name: true, code: true } },
           },
@@ -291,7 +293,7 @@ export const getChildAttendance = async (req: Request, res: Response) => {
       present: records.filter((r) => r.status === "PRESENT").length,
       absent: records.filter((r) => r.status === "ABSENT").length,
       late: records.filter((r) => r.status === "LATE").length,
-      excused: records.filter((r) => r.status === "EXCUSED").length,
+      excused: records.filter((r) => (r.status as string) === "EXCUSED").length,
     };
 
     const userId = currentUser.userId;
@@ -338,7 +340,7 @@ export const getChildTimetable = async (req: Request, res: Response) => {
     // Fetch timetable for that class
     const timetable = await prisma.timetable.findFirst({
       where: {
-        ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}),
+        schoolId: currentUser?.schoolId,
         classId: studentProfile.classId,
       },
       include: {

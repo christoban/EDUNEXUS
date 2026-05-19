@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router"; // Keeping your requested import
+import { createBrowserRouter, Navigate } from "react-router"; // Keeping your requested import
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import PrivateRoutes from "@/pages/routes/PrivateRoutes";
@@ -25,22 +25,38 @@ import ExpensesPage from "../finance/Expenses";
 import SubjectsPage from "../settings/Subjects";
 import SchoolConfigurationPage from "../settings/SchoolConfiguration";
 import SchoolOnboardingPage from "../onboarding/SchoolOnboarding";
-import SchoolInvitePage from "../onboarding/SchoolInvite";
-import SchoolJoinPage from "../onboarding/SchoolJoin";
-import SchoolActivatePage from "../onboarding/SchoolActivate";
-import SchoolOnboardingRequestsPage from "../onboarding/SchoolOnboardingRequests";
-import MasterLoginPage from "../master/MasterLogin";
 import MasterEntryPage from "../master/MasterEntry";
-import MasterSchoolsPage from "../master/MasterSchools";
-import MasterSchoolDetailPage from "../master/MasterSchoolDetail";
 import MasterEmailHistoryPage from "../master/MasterEmailHistory";
 import MasterDecoyPage from "../master/MasterDecoy";
-import MasterSecurityPage from "../master/MasterSecurity";
 import DashboardSuperAdminPage from "../superadmin/DashboardSuperAdmin";
 import ProtectedSuperAdminPage from "../superadmin/ProtectedSuperAdmin";
 import SchoolsTablePage from "../superadmin/SchoolsTable";
+import SuperAdminSecurity from "../superadmin/SuperAdminSecurity";
 import { MASTER_LOGIN_ROUTE_PATH } from "@/lib/masterRoutes";
 import OnboardingConfirmation from "../onboarding/OnboardingConfirmation";
+
+// Nouvelles pages Admin
+import AdminDashboard from "../admin/Dashboard";
+import AdminUsers from "../admin/Users";
+import AdminClasses from "../admin/Classes";
+import AdminSubjects from "../admin/Subjects";
+import AdminSettings from "../admin/Settings";
+import AdminGradeStatus from "../admin/GradeStatus";
+import AdminReportCards from "../admin/ReportCards";
+import AdminAbsences from "../admin/Absences";
+import AdminYearEnd from "../admin/YearEnd";
+
+// Nouvelles pages Teacher
+import TeacherGrades from "../teacher/Grades";
+import TeacherAttendance from "../teacher/Attendance";
+
+// Nouvelles pages Staff
+import TimetableEditor from "../staff/TimetableEditor";
+import ClassCouncil from "../staff/ClassCouncil";
+
+// Nouvelles pages Parent & Student
+import ParentReportCards from "../parent/ReportCards";
+import StudentReportCards from "../student/ReportCards";
 
 export const router = createBrowserRouter([
   {
@@ -50,20 +66,19 @@ export const router = createBrowserRouter([
       { path: "login", element: <Login /> },
       { path: "onboarding/school", element: <SchoolOnboardingPage /> },
       { path: "onboarding/confirmation", element: <OnboardingConfirmation /> },
-      { path: "onboarding/invite/:token", element: <SchoolInvitePage /> },
-      { path: "onboarding/join/:token", element: <SchoolJoinPage /> },
-      { path: "onboarding/activate/:token", element: <SchoolActivatePage /> },
+      { path: "onboarding/join/:token", element: <SchoolOnboardingPage /> },
       { path: "master/login", element: <MasterDecoyPage /> },
       { path: MASTER_LOGIN_ROUTE_PATH, element: <MasterEntryPage /> },
-      { path: "master/onboarding/requests", element: <SchoolOnboardingRequestsPage /> },
-      { path: "master/schools", element: <MasterSchoolsPage /> },
-      { path: "master/schools/:schoolId", element: <MasterSchoolDetailPage /> },
+      { path: "master/onboarding/requests", element: <Navigate to="/superadmin/requests" replace /> },
+      { path: "master/schools", element: <Navigate to="/superadmin" replace /> },
+      { path: "master/schools/:schoolId", element: <Navigate to="/superadmin" replace /> },
       { path: "master/email-history", element: <MasterEmailHistoryPage /> },
-      { path: "master/security", element: <MasterSecurityPage /> },
+      { path: "master/security", element: <Navigate to="/superadmin/security" replace /> },
       { path: "superadmin", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
       { path: "superadmin/dashboard", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
       { path: "superadmin/schools", element: <ProtectedSuperAdminPage><SchoolsTablePage /></ProtectedSuperAdminPage> },
       { path: "superadmin/invite", element: <ProtectedSuperAdminPage><DashboardSuperAdminPage /></ProtectedSuperAdminPage> },
+      { path: "superadmin/security", element: <ProtectedSuperAdminPage><SuperAdminSecurity /></ProtectedSuperAdminPage> },
       // protected routes would go here
       {
         element: <PrivateRoutes />, // Assuming PrivateRoutes is imported
@@ -291,6 +306,76 @@ export const router = createBrowserRouter([
                 <ChildDetails />
               </RoleGuard>
             ),
+          },
+
+          // ─── ADMIN ───────────────────────────────────────────────────
+          {
+            path: "admin/dashboard",
+            element: <RoleGuard path="/admin/dashboard"><AdminDashboard /></RoleGuard>,
+          },
+          {
+            path: "admin/users",
+            element: <RoleGuard path="/admin/users"><AdminUsers /></RoleGuard>,
+          },
+          {
+            path: "admin/classes",
+            element: <RoleGuard path="/admin/classes"><AdminClasses /></RoleGuard>,
+          },
+          {
+            path: "admin/subjects",
+            element: <RoleGuard path="/admin/subjects"><AdminSubjects /></RoleGuard>,
+          },
+          {
+            path: "admin/settings",
+            element: <RoleGuard path="/admin/settings"><AdminSettings /></RoleGuard>,
+          },
+          {
+            path: "admin/grades",
+            element: <RoleGuard path="/admin/grades"><AdminGradeStatus /></RoleGuard>,
+          },
+          {
+            path: "admin/report-cards",
+            element: <RoleGuard path="/admin/report-cards"><AdminReportCards /></RoleGuard>,
+          },
+          {
+            path: "admin/absences",
+            element: <RoleGuard path="/admin/absences"><AdminAbsences /></RoleGuard>,
+          },
+          {
+            path: "admin/year-end",
+            element: <RoleGuard path="/admin/year-end"><AdminYearEnd /></RoleGuard>,
+          },
+
+          // ─── TEACHER ─────────────────────────────────────────────────
+          {
+            path: "teacher/grades",
+            element: <RoleGuard path="/teacher/grades"><TeacherGrades /></RoleGuard>,
+          },
+          {
+            path: "teacher/attendance",
+            element: <RoleGuard path="/teacher/attendance"><TeacherAttendance /></RoleGuard>,
+          },
+
+          // ─── STAFF ───────────────────────────────────────────────────
+          {
+            path: "staff/timetable",
+            element: <RoleGuard path="/staff/timetable"><TimetableEditor /></RoleGuard>,
+          },
+          {
+            path: "staff/class-council",
+            element: <RoleGuard path="/staff/class-council"><ClassCouncil /></RoleGuard>,
+          },
+
+          // ─── PARENT ──────────────────────────────────────────────────
+          {
+            path: "parent/report-cards",
+            element: <RoleGuard path="/parent/report-cards"><ParentReportCards /></RoleGuard>,
+          },
+
+          // ─── STUDENT ─────────────────────────────────────────────────
+          {
+            path: "student/report-cards",
+            element: <RoleGuard path="/student/report-cards"><StudentReportCards /></RoleGuard>,
           },
         ],
       },

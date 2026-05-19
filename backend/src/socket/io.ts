@@ -20,7 +20,12 @@ export const initSocket = (httpServer: HttpServer, origin?: string) => {
 
 export const getIO = () => io;
 
-export const emitSmsDelivered = (payload: { msgId: string; smsLogId?: string }) => {
+export const emitSmsDelivered = (payload: {
+  smsLogId?: string;
+  msgId?: string;
+  to?: string;
+  status?: string;
+}) => {
   if (!io) return;
   io.emit("sms_delivered", payload);
 };

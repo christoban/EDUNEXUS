@@ -21,6 +21,7 @@ import LogsRouter from "./routes/activitieslog.ts";
 import academicYearRouter from "./routes/academicYear.ts";
 import classRouter from "./routes/class.ts";
 import subjectRouter from "./routes/subject.ts";
+import gradeRouter from "./routes/grade.ts";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest/index.ts";
 import {
@@ -28,6 +29,7 @@ import {
   generateExam,
   handleExamSubmission,
   generateReportCards,
+  handleGradeSubmitted,
 } from "./inngest/functions.ts";
 import timeRouter from "./routes/timetable.ts";
 import examRouter from "./routes/exam.ts";
@@ -35,6 +37,7 @@ import dashboardRouter from "./routes/dashboard.ts";
 import attendanceRouter from "./routes/attendance.ts";
 import searchRouter from "./routes/search.ts";
 import reportCardRouter from "./routes/reportCard.ts";
+import classCouncilRouter from "./routes/classCouncil.ts";
 import emailLogRouter from "./routes/emailLog.ts";
 import parentRouter from "./routes/parent.ts";
 import financeRouter from "./routes/finance.ts";
@@ -127,8 +130,10 @@ app.use("/api/timetables", timeRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/attendance", attendanceRouter);
+app.use("/api/grades", gradeRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/report-cards", reportCardRouter);
+app.use("/api/class-councils", classCouncilRouter);
 app.use("/api/email-logs", emailLogRouter);
 app.use("/api/parent", parentRouter);
 app.use("/api/finance", financeRouter);
@@ -144,6 +149,7 @@ app.use(
       generateExam,
       handleExamSubmission,
       generateReportCards,
+      handleGradeSubmitted,
     ],
   })
 );

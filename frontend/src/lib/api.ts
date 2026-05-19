@@ -11,17 +11,9 @@ const RETRY_COUNT = 2;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  const masterToken = localStorage.getItem("master_token");
-  
-  if (masterToken && config.url?.includes("/master")) {
-    config.headers.Authorization = `Bearer ${masterToken}`;
-  } else if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Les cookies httpOnly sont envoyés automatiquement via withCredentials: true
+// Aucun token ne doit être lu depuis localStorage
+api.interceptors.request.use((config) => config);
 
 api.interceptors.response.use(
   (response) => response,
@@ -79,7 +71,7 @@ api.interceptors.response.use(
           window.location.replace(MASTER_LOGIN_PATH);
         }
       } else {
-        localStorage.removeItem("token");
+        // Pas de localStorage à nettoyer — les cookies sont gérés par le serveur
         if (window.location.pathname !== "/login") {
           window.location.replace("/login");
         }

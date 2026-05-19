@@ -72,7 +72,6 @@ const normalizeSettings = (settings: any) => {
     periodDuration,
   };
 };
-};
 
 // @desc    Generate a Timetable using AI
 // @route   POST /api/timetables/generate
@@ -85,13 +84,13 @@ export const generateTimetable = async (req: Request, res: Response) => {
 
     const classData = await prisma.class.findFirst({
       where: { id: classId, ...(schoolId ? { schoolId } : {}) },
-      include: { subjects: { include: { subject: true } } },
     });
     if (!classData) {
       return res.status(404).json({ message: "Class not found" });
     }
 
-    const subjectIds = classData.subjects.map((s) => s.subjectId);
+    const subjectRows = await prisma.subject.findMany({ where: { schoolId: classData.schoolId } });
+    const subjectIds = subjectRows.map((s) => s.id);
     if (subjectIds.length === 0) {
       return res.status(400).json({
         message: "No subjects assigned to this class",
@@ -99,7 +98,7 @@ export const generateTimetable = async (req: Request, res: Response) => {
     }
 
     const teacherProfiles = await prisma.teacherProfile.findMany({
-      where: { teacherSubjects: { some: { subjectId: { in: subjectIds } } },
+      where: { teacherSubjects: { some: { subjectId: { in: subjectIds } } } },
       include: { teacherSubjects: true, user: { select: { id: true, firstName: true, lastName: true } } },
     });
 
@@ -158,7 +157,7 @@ export const generateTimetable = async (req: Request, res: Response) => {
 export const getTimetable = async (req: Request, res: Response) => {
   try {
     const timetable = await prisma.timetable.findFirst({
-      where: { classId: req.params.classId },
+      where: { classId: String(req.params.classId) },
       include: {
         slots: {
           include: {
@@ -180,7 +179,7 @@ export const getTimetable = async (req: Request, res: Response) => {
 export const getTimetableGeneration = async (req: Request, res: Response) => {
   try {
     const generation = await prisma.timetable.findFirst({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: {
         class: { select: { id: true, name: true } },
         academicYear: { select: { id: true, name: true } },
@@ -194,5 +193,392 @@ export const getTimetableGeneration = async (req: Request, res: Response) => {
     res.json({ generation });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────
+
+const getSchoolId = (req: Request): string => (req as any).user?.schoolId as string;
+const getUserId = (req: Request): string => (req as any).user?.userId as string;
+
+const detectTeacherConflict = async (
+  teacherId: string,
+  dayOfWeek: number,
+  startTime: string,
+  endTime: string,
+  excludeSlotId?: string
+): Promise<{ conflict: boolean; conflictWith?: string }> => {
+  const slots = await prisma.timetableSlot.findMany({
+    where: {
+      teacherId,
+      dayOfWeek,
+      ...(excludeSlotId ? { id: { not: excludeSlotId } } : {}),
+    },
+    include: { timetable: { select: { classId: true, class: { select: { name: true } } } } },
+  });
+
+  const startMinutes = toMinutes(startTime);
+  const endMinutes = toMinutes(endTime);
+
+  for (const slot of slots) {
+    const slotStart = toMinutes(slot.startTime);
+    const slotEnd = toMinutes(slot.endTime);
+    if (startMinutes < slotEnd && endMinutes > slotStart) {
+      return {
+        conflict: true,
+        conflictWith: (slot.timetable as any)?.class?.name ?? "une autre classe",
+      };
+    }
+  }
+  return { conflict: false };
+};
+
+const getWeeklyHours = async (teacherId: string): Promise<number> => {
+  const slots = await prisma.timetableSlot.findMany({
+    where: { teacherId, kind: "CLASS" },
+    select: { startTime: true, endTime: true },
+  });
+
+  const totalMinutes = slots.reduce((sum, slot) => {
+    return sum + (toMinutes(slot.endTime) - toMinutes(slot.startTime));
+  }, 0);
+
+  return totalMinutes / 60;
+};
+
+// ─── CRÉER UN EDT MANUEL ──────────────────────────────────────
+
+// @route   POST /api/timetables/manual
+// @access  Private (Admin, STAFF avec MANAGE_TIMETABLE)
+export const createManualTimetable = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const userId = getUserId(req);
+    const { classId, academicYearId } = req.body;
+
+    if (!classId || !academicYearId) {
+      return res.status(400).json({ message: "classId et academicYearId sont requis" });
+    }
+
+    const schoolClass = await prisma.class.findFirst({ where: { id: classId, schoolId } });
+    if (!schoolClass) {
+      return res.status(404).json({ message: "Classe introuvable" });
+    }
+
+    const existing = await prisma.timetable.findFirst({
+      where: { classId, academicYearId, schoolId },
+    });
+
+    if (existing) {
+      return res.json({ message: "EDT déjà existant", timetable: existing });
+    }
+
+    const timetable = await prisma.timetable.create({
+      data: {
+        schoolId,
+        classId,
+        academicYearId,
+        status: "DRAFT",
+        generatedByAI: false,
+      },
+    });
+
+    await logActivity({ userId, schoolId, action: "Manual timetable created", details: `Classe ${classId}` });
+
+    return res.status(201).json({ timetable });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─── AJOUTER UN CRÉNEAU ───────────────────────────────────────
+
+// @route   POST /api/timetables/:id/slots
+// @access  Private (Admin, STAFF avec MANAGE_TIMETABLE)
+export const addSlot = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const timetableId = String(req.params.id);
+    const {
+      subjectId,
+      teacherId,
+      dayOfWeek,
+      startTime,
+      endTime,
+      room,
+      kind = "CLASS",
+      subGroupId,
+    } = req.body;
+
+    if (!dayOfWeek && dayOfWeek !== 0) {
+      return res.status(400).json({ message: "dayOfWeek est requis (0=Lun, 1=Mar, ...)" });
+    }
+    if (!startTime || !endTime) {
+      return res.status(400).json({ message: "startTime et endTime sont requis" });
+    }
+
+    const timetable = await prisma.timetable.findFirst({
+      where: { id: timetableId, schoolId },
+    });
+    if (!timetable) {
+      return res.status(404).json({ message: "Emploi du temps introuvable" });
+    }
+
+    if (teacherId && kind === "CLASS") {
+      const { conflict, conflictWith } = await detectTeacherConflict(
+        teacherId,
+        Number(dayOfWeek),
+        startTime,
+        endTime
+      );
+      if (conflict) {
+        return res.status(409).json({
+          message: `Conflit détecté : cet enseignant a déjà un cours dans ${conflictWith} à ce créneau`,
+          conflict: true,
+        });
+      }
+
+      const teacher = await prisma.user.findUnique({
+        where: { id: teacherId },
+        include: { staffProfile: { include: { permissions: true } } },
+      });
+
+      const isAP = teacher?.staffProfile?.permissions.some(
+        (p) => p.permission === "SUPERVISE_TEACHERS" || p.permission === "SUPERVISE_DEPARTMENT_TEACHERS"
+      );
+
+      if (isAP) {
+        const currentHours = await getWeeklyHours(teacherId);
+        const newSlotMinutes = toMinutes(endTime) - toMinutes(startTime);
+        const newSlotHours = newSlotMinutes / 60;
+        if (currentHours + newSlotHours > 14) {
+          return res.status(409).json({
+            message: `Volume horaire AP dépassé : ${currentHours.toFixed(1)}h actuelles + ${newSlotHours.toFixed(1)}h > 14h/semaine (Circulaire 32/09/MINESEC/IGE)`,
+            conflict: true,
+          });
+        }
+      }
+    }
+
+    const slot = await prisma.timetableSlot.create({
+      data: {
+        timetableId,
+        subjectId: subjectId || null,
+        teacherId: teacherId || null,
+        dayOfWeek: Number(dayOfWeek),
+        startTime,
+        endTime,
+        room: room || null,
+        kind: kind as any,
+        subGroupId: subGroupId || null,
+      },
+      include: {
+        subject: { select: { id: true, name: true, code: true } },
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+        subGroup: { select: { id: true, name: true } },
+      },
+    });
+
+    return res.status(201).json({ slot });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─── MODIFIER UN CRÉNEAU ──────────────────────────────────────
+
+// @route   PUT /api/timetables/:id/slots/:slotId
+// @access  Private (Admin, STAFF avec MANAGE_TIMETABLE)
+export const updateSlot = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const timetableId = String(req.params.id);
+    const slotId = String(req.params.slotId);
+
+    const timetable = await prisma.timetable.findFirst({ where: { id: timetableId, schoolId } });
+    if (!timetable) {
+      return res.status(404).json({ message: "Emploi du temps introuvable" });
+    }
+
+    const slot = await prisma.timetableSlot.findFirst({ where: { id: slotId, timetableId } });
+    if (!slot) {
+      return res.status(404).json({ message: "Créneau introuvable" });
+    }
+
+    const { subjectId, teacherId, dayOfWeek, startTime, endTime, room, kind, subGroupId } = req.body;
+
+    const newTeacherId = teacherId !== undefined ? teacherId : slot.teacherId;
+    const newDayOfWeek = dayOfWeek !== undefined ? Number(dayOfWeek) : slot.dayOfWeek;
+    const newStartTime = startTime ?? slot.startTime;
+    const newEndTime = endTime ?? slot.endTime;
+    const newKind = kind ?? slot.kind;
+
+    if (newTeacherId && newKind === "CLASS") {
+      const { conflict, conflictWith } = await detectTeacherConflict(
+        newTeacherId,
+        newDayOfWeek,
+        newStartTime,
+        newEndTime,
+        slotId
+      );
+      if (conflict) {
+        return res.status(409).json({
+          message: `Conflit : cet enseignant a un cours dans ${conflictWith} à ce créneau`,
+          conflict: true,
+        });
+      }
+    }
+
+    const updated = await prisma.timetableSlot.update({
+      where: { id: slotId },
+      data: {
+        ...(subjectId !== undefined ? { subjectId: subjectId || null } : {}),
+        ...(teacherId !== undefined ? { teacherId: teacherId || null } : {}),
+        ...(dayOfWeek !== undefined ? { dayOfWeek: Number(dayOfWeek) } : {}),
+        ...(startTime !== undefined ? { startTime } : {}),
+        ...(endTime !== undefined ? { endTime } : {}),
+        ...(room !== undefined ? { room: room || null } : {}),
+        ...(kind !== undefined ? { kind: kind as any } : {}),
+        ...(subGroupId !== undefined ? { subGroupId: subGroupId || null } : {}),
+      },
+      include: {
+        subject: { select: { id: true, name: true, code: true } },
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    return res.json({ slot: updated });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─── SUPPRIMER UN CRÉNEAU ─────────────────────────────────────
+
+// @route   DELETE /api/timetables/:id/slots/:slotId
+// @access  Private (Admin, STAFF avec MANAGE_TIMETABLE)
+export const deleteSlot = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const timetableId = String(req.params.id);
+    const slotId = String(req.params.slotId);
+
+    const timetable = await prisma.timetable.findFirst({ where: { id: timetableId, schoolId } });
+    if (!timetable) {
+      return res.status(404).json({ message: "Emploi du temps introuvable" });
+    }
+
+    await prisma.timetableSlot.deleteMany({ where: { id: slotId, timetableId } });
+
+    return res.json({ message: "Créneau supprimé" });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─── PUBLIER UN EDT ───────────────────────────────────────────
+
+// @route   PUT /api/timetables/:id/publish
+// @access  Private (Admin, STAFF avec MANAGE_TIMETABLE)
+export const publishTimetable = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const userId = getUserId(req);
+    const timetableId = String(req.params.id);
+
+    const timetable = await prisma.timetable.findFirst({
+      where: { id: timetableId, schoolId },
+      include: { slots: true },
+    });
+    if (!timetable) {
+      return res.status(404).json({ message: "Emploi du temps introuvable" });
+    }
+
+    if (!timetable.slots.length) {
+      return res.status(400).json({ message: "Impossible de publier un EDT vide" });
+    }
+
+    const updated = await prisma.timetable.update({
+      where: { id: timetableId },
+      data: { status: "PUBLISHED" },
+    });
+
+    await logActivity({
+      userId,
+      schoolId,
+      action: "Timetable published",
+      details: `EDT ${timetableId} publié`,
+    });
+
+    return res.json({ message: "EDT publié", timetable: updated });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─── RÉCUPÉRER L'EDT AVEC CRÉNEAUX ────────────────────────────
+
+// @route   GET /api/timetables/:classId/full
+// @access  Private
+export const getTimetableFull = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const classId = String(req.params.classId);
+
+    const timetable = await prisma.timetable.findFirst({
+      where: { classId, schoolId },
+      include: {
+        slots: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+            teacher: { select: { id: true, firstName: true, lastName: true } },
+            subGroup: { select: { id: true, name: true } },
+          },
+          orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+        },
+        class: { select: { id: true, name: true } },
+        academicYear: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!timetable) {
+      return res.status(404).json({ message: "Emploi du temps introuvable" });
+    }
+
+    return res.json({ timetable });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+// ─── DEMANDE DE RATTRAPAGE ────────────────────────────────────
+
+// @route   POST /api/timetables/catchup-requests
+// @access  Private (Teacher, Admin)
+export const createCatchupRequest = async (req: Request, res: Response) => {
+  try {
+    const schoolId = getSchoolId(req);
+    const userId = getUserId(req);
+    const { classId, subjectId, proposedDate, proposedStartTime, proposedEndTime, reason } = req.body;
+
+    if (!classId || !proposedDate) {
+      return res.status(400).json({ message: "classId et proposedDate sont requis" });
+    }
+
+    await logActivity({
+      userId,
+      schoolId,
+      action: "Catchup request created",
+      details: `Classe ${classId} — ${proposedDate} ${proposedStartTime ?? ""}–${proposedEndTime ?? ""} — ${reason ?? ""}`,
+    });
+
+    await inngest.send({
+      name: "catchup/requested",
+      data: { schoolId, classId, subjectId, proposedDate, proposedStartTime, proposedEndTime, reason, requestedById: userId },
+    });
+
+    return res.status(201).json({ message: "Demande de rattrapage soumise", status: "pending" });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
   }
 };

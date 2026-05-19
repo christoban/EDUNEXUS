@@ -5,7 +5,11 @@
       "Bash(psql -U postgres -d edunexus -c \"SELECT id, checksum FROM _prisma_migrations ORDER BY started_at;\")",
       "PowerShell($env:PGPASSWORD=\"\"; psql -U postgres -d edunexus -c \"SELECT id, finished_at FROM _prisma_migrations ORDER BY started_at;\" 2>&1)",
       "Bash(2>&1)",
-      "Bash(bun run *)"
+      "Bash(bun run *)",
+      "Bash(bunx tsc *)",
+      "Bash(bun -e ' *)",
+      "Bash(timeout 12 bun src/server.ts)",
+      "Bash(Remove-Item \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSchools.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSchoolDetail.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSecurity.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterOnboardingRequests.tsx\")"
     ]
   }
 }

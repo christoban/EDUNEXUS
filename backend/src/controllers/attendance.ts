@@ -36,11 +36,11 @@ export const markAttendance = async (req: Request, res: Response) => {
     const { classId, date, records } = req.body;
     const schoolId = currentUser?.schoolId;
 
-    if (!["admin", "teacher"].includes(currentUser?.role)) {
+    if (!["ADMIN", "TEACHER", "admin", "teacher"].includes(currentUser?.role)) {
       return res.status(403).json({ message: "Not authorized to mark attendance" });
     }
 
-    if (currentUser.role === "teacher") {
+    if (currentUser.role === "teacher" || currentUser.role === "TEACHER") {
       const allowed = await teacherCanAccessClass(
         String(currentUser.userId),
         String(classId),
@@ -106,7 +106,8 @@ export const markAttendance = async (req: Request, res: Response) => {
         await prisma.attendance.update({
           where: { id: existing.id },
           data: {
-            status: record.status,
+            status: record.status as any,
+            period: (record.period ?? req.body.period ?? "MORNING") as any,
             recordedById: currentUser.userId,
           },
         });
@@ -117,7 +118,10 @@ export const markAttendance = async (req: Request, res: Response) => {
             studentId: String(record.studentId),
             classId: String(classId),
             date: normalizedDate,
-            status: record.status,
+            status: record.status as any,
+            period: (record.period ?? req.body.period ?? "MORNING") as any,
+            academicPeriodId: req.body.academicPeriodId ?? null,
+            subjectId: record.subjectId ?? null,
             recordedById: currentUser.userId,
           },
         });
@@ -256,5 +260,121 @@ export const getAttendance = async (req: Request, res: Response) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+export const justifyAbsence = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId as string;
+    const attendanceId = String(req.params.id);
+    const { justification } = req.body;
+
+    if (!["ADMIN", "admin", "STAFF", "staff"].includes(currentUser?.role)) {
+      return res.status(403).json({ message: "Seuls les administrateurs et le personnel peuvent justifier une absence" });
+    }
+
+    const record = await prisma.attendance.findFirst({ where: { id: attendanceId, schoolId } });
+    if (!record) return res.status(404).json({ message: "Enregistrement introuvable" });
+    if (record.status !== "ABSENT") return res.status(400).json({ message: "Seules les absences peuvent être justifiées" });
+
+    const updated = await prisma.attendance.update({
+      where: { id: attendanceId },
+      data: { status: "ABSENT" as any },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true } },
+        class: { select: { id: true, name: true } },
+      },
+    });
+
+    await logActivity({
+      userId: String(currentUser.userId),
+      schoolId,
+      action: "Absence justified",
+      details: `${updated.student.firstName} ${updated.student.lastName} — ${updated.class?.name} — ${justification || "Justification non précisée"}`,
+    });
+
+    return res.json({ message: "Absence justifiée", record: updated });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
+  }
+};
+
+export const getAttendanceStats = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId as string;
+    const classId = typeof req.query.classId === "string" ? req.query.classId : undefined;
+    const studentId = typeof req.query.studentId === "string" ? req.query.studentId : undefined;
+    const from = typeof req.query.from === "string" ? req.query.from : undefined;
+    const to = typeof req.query.to === "string" ? req.query.to : undefined;
+
+    if (currentUser?.role === "teacher" || currentUser?.role === "TEACHER") {
+      if (classId) {
+        const allowed = await teacherCanAccessClass(String(currentUser.userId), classId, schoolId);
+        if (!allowed) {
+          return res.status(403).json({ message: "Teacher can only view attendance for assigned classes" });
+        }
+      }
+    }
+
+    const where: any = {
+      ...(schoolId ? { schoolId } : {}),
+      ...(classId ? { classId } : {}),
+      ...(studentId ? { studentId } : {}),
+    };
+
+    if (from || to) {
+      where.date = {
+        ...(from ? { gte: startOfDayUtc(from) } : {}),
+        ...(to ? { lte: endOfDayUtc(to) } : {}),
+      };
+    }
+
+    if (currentUser?.role === "student" || currentUser?.role === "STUDENT") {
+      where.studentId = currentUser.userId;
+    } else if (currentUser?.role === "parent" || currentUser?.role === "PARENT") {
+      const parentProfile = await prisma.parentProfile.findUnique({
+        where: { userId: currentUser.userId },
+        include: { children: { include: { studentProfile: true } } },
+      });
+
+      const childIds = (parentProfile?.children || [])
+        .map((child) => child.studentProfile?.userId)
+        .filter((value): value is string => Boolean(value));
+
+      if (!childIds.length) {
+        return res.json({
+          stats: {
+            total: 0,
+            present: 0,
+            absent: 0,
+            late: 0,
+            attendanceRate: "0%",
+          },
+        });
+      }
+
+      where.studentId = { in: childIds };
+    }
+
+    const [total, present, absent, late] = await Promise.all([
+      prisma.attendance.count({ where }),
+      prisma.attendance.count({ where: { ...where, status: "PRESENT" } }),
+      prisma.attendance.count({ where: { ...where, status: "ABSENT" } }),
+      prisma.attendance.count({ where: { ...where, status: "LATE" } }),
+    ]);
+
+    return res.json({
+      stats: {
+        total,
+        present,
+        absent,
+        late,
+        attendanceRate: total ? `${Math.round(((present + late) / total) * 100)}%` : "0%",
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Erreur serveur", error });
   }
 };

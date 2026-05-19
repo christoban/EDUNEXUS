@@ -19,7 +19,7 @@ export const masterAuthLimiter = rateLimit({
   handler: (req, res, _next, options) => {
     void logMasterAuthAudit({
       req,
-      outcome: "blocked",
+      outcome: "failure",
       reason: "rate_limit_exceeded",
       email: req.body?.email,
     });

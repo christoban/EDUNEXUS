@@ -130,7 +130,6 @@ export const upsertSchoolSettings = async (req: Request, res: Response) => {
         schoolId,
         gradesPerTerm: 3,
         termsPerYear: 3,
-        passMark: Number(req.body?.passMark ?? 10),
         maxAbsences: councilMaxAbsences,
         smsEnabled: Boolean(req.body?.smsEnabled ?? false),
         offlineModeEnabled: Boolean(req.body?.offlineModeEnabled ?? true),
@@ -138,7 +137,6 @@ export const upsertSchoolSettings = async (req: Request, res: Response) => {
         messageModeration: Boolean(req.body?.messageModeration ?? false),
       },
       update: {
-        passMark: Number(req.body?.passMark ?? 10),
         maxAbsences: councilMaxAbsences,
         smsEnabled: Boolean(req.body?.smsEnabled ?? false),
         offlineModeEnabled: Boolean(req.body?.offlineModeEnabled ?? true),

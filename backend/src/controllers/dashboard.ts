@@ -45,12 +45,11 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       },
       orderBy: { createdAt: "desc" },
       take: 5,
-      include: { user: { select: { firstName: true, lastName: true } },
     });
 
     const formattedActivity = recentActivities.map(
       (log) =>
-        `${log.user?.firstName || "User"} ${log.user?.lastName || ""}: ${log.action} (${new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
+        `User: ${log.action} (${new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
     );
 
     let stats: any = {};
@@ -73,7 +72,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           },
         }),
         prisma.attendance.count({
-          where: { ...(schoolId ? { schoolId } : {}),
+          where: { ...(schoolId ? { schoolId } : {}) },
         }),
       ]);
 
@@ -94,7 +93,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       const myClasses = await prisma.class.findMany({
         where: {
           ...(schoolId ? { schoolId } : {}),
-          subjects: { some: { subjectId: { in: teacherSubjectIds } } },
         },
         select: { id: true, name: true },
       });

@@ -1,4 +1,5 @@
 import { type Request, type Response } from "express";
+import { PeriodType } from "@prisma/client";
 import { prisma } from "../config/prisma.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 import { DEFAULT_SUBSYSTEMS, ensureDefaultSubSystems } from "../utils/coreDomainDefaults.ts";
@@ -50,11 +51,11 @@ export const createAcademicPeriod = async (req: Request, res: Response) => {
       data: {
         academicYearId,
         name: String(req.body.name || "").trim(),
-        type: req.body.type || "TRIMESTER",
+        type: (req.body.type as PeriodType) || PeriodType.TRIMESTER,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
         isCurrent: Boolean(req.body.isCurrent),
-      },
+      } as any,
     });
 
     await logActivity({

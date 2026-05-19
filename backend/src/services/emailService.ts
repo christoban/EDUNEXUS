@@ -119,6 +119,11 @@ type SendEmailInput = {
   text?: string;
   template: string;
   eventType: EmailEventType;
+  attachments?: {
+    filename: string;
+    content: Buffer;
+    contentType: string;
+  }[];
   relatedEntityType?: string;
   relatedEntityId?: string | null;
   metadata?: Record<string, unknown>;

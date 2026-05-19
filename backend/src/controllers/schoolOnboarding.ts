@@ -3,9 +3,19 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import {
   InviteStatus,
+  AcademicYearStatus,
+  EducationType,
+  GradingSystem,
   PlanType,
   SchoolStatus,
+  SchoolLevel,
+  SchoolOwnership,
+  SchoolSubsystem,
   UserRole,
+  PeriodType,
+  SequenceType,
+  SectionLanguage,
+  SchoolType,
   type School,
   type SchoolInvite,
 } from "@prisma/client";
@@ -14,6 +24,7 @@ import {
   getSchoolTemplate,
   SCHOOL_ONBOARDING_TEMPLATES,
   buildSchoolDbName,
+  type SchoolTemplate,
 } from "../utils/schoolOnboarding.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
 import { logActivity } from "../utils/activitieslog.ts";
@@ -45,6 +56,105 @@ const statusToLegacy = (status: SchoolStatus): string => {
   if (status === SchoolStatus.ACTIVE) return "active";
   if (status === SchoolStatus.REJECTED) return "rejected";
   return "rejected";
+};
+
+const subsystemToLegacySystemType = (subsystem: SchoolSubsystem): "francophone" | "anglophone" | "bilingual" => {
+  if (subsystem === SchoolSubsystem.ANGLOPHONE) return "anglophone";
+  if (subsystem === SchoolSubsystem.BILINGUAL) return "bilingual";
+  return "francophone";
+};
+
+const schoolTypeToLegacyStructure = (type: SchoolType): "simple" | "complex" =>
+  type === SchoolType.MULTI ? "complex" : "simple";
+
+const schoolTypeFromTemplate = (template?: SchoolTemplate | null) => {
+  const templateKey = String(template?.key || "").toLowerCase();
+  if (templateKey.includes("bilingual")) return SchoolType.MULTI;
+  if (templateKey.includes("primary")) return SchoolType.PRIMARY;
+  if (templateKey.includes("technical")) return SchoolType.SECONDARY;
+  return SchoolType.SECONDARY;
+};
+
+const subsystemFromTemplate = (template?: SchoolTemplate | null) => {
+  if (template?.systemType === "anglophone") return SchoolSubsystem.ANGLOPHONE;
+  if (template?.systemType === "bilingual") return SchoolSubsystem.BILINGUAL;
+  return SchoolSubsystem.FRANCOPHONE;
+};
+
+const educationTypeFromTemplate = (template?: SchoolTemplate | null) => {
+  const templateKey = String(template?.key || "").toLowerCase();
+  if (templateKey.includes("technical")) return EducationType.TECHNICAL;
+  if (template?.systemType === "bilingual") return EducationType.MIXED;
+  return EducationType.GENERAL;
+};
+
+const schoolLevelFromTemplate = (template?: SchoolTemplate | null) => {
+  const templateKey = String(template?.key || "").toLowerCase();
+  if (templateKey.includes("primary")) return SchoolLevel.PRIMARY;
+  if (templateKey.includes("bilingual")) return SchoolLevel.MULTI;
+  if (templateKey.includes("technical")) return SchoolLevel.SECONDARY;
+  return SchoolLevel.SECONDARY;
+};
+
+const gradeSystemFromTemplate = (template?: SchoolTemplate | null) => {
+  const gradingSystem = String(template?.gradingSystem || "").toLowerCase();
+  return gradingSystem === "percent" ? GradingSystem.OUT_OF_100 : GradingSystem.OUT_OF_20;
+};
+
+const sectionLanguageFromSubsystem = (subsystem: SchoolSubsystem) =>
+  subsystem === SchoolSubsystem.ANGLOPHONE ? SectionLanguage.EN : SectionLanguage.FR;
+
+const schoolYearBounds = (referenceDate = new Date()) => {
+  const year = referenceDate.getMonth() >= 8 ? referenceDate.getFullYear() : referenceDate.getFullYear() - 1;
+  return {
+    startDate: new Date(year, 8, 1),
+    endDate: new Date(year + 1, 6, 31),
+    academicYearLabel: `${year}-${year + 1}`,
+  };
+};
+
+const addMonths = (date: Date, months: number) => {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+};
+
+const buildProvisioningBlueprint = (school: School, template?: SchoolTemplate | null) => {
+  const subsystem = school.subsystem || subsystemFromTemplate(template);
+  const sections =
+    subsystem === SchoolSubsystem.BILINGUAL
+      ? [
+          { name: "Section française", code: SectionLanguage.FR },
+          { name: "English Section", code: SectionLanguage.EN },
+        ]
+      : [
+          {
+            name: subsystem === SchoolSubsystem.ANGLOPHONE ? "English Section" : "Section francophone",
+            code: sectionLanguageFromSubsystem(subsystem),
+          },
+        ];
+
+  const classPrefix = subsystem === SchoolSubsystem.ANGLOPHONE ? "Class" : "Classe";
+  const { startDate, endDate, academicYearLabel } = schoolYearBounds();
+  const termsNames = template?.schoolConfig.termsNames?.length
+    ? template.schoolConfig.termsNames
+    : ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
+  const periodMonths = Math.max(1, Math.floor(12 / termsNames.length));
+
+  const periods = termsNames.map((name, index) => {
+    const periodStart = addMonths(startDate, index * periodMonths);
+    const periodEnd = index === termsNames.length - 1 ? endDate : addMonths(startDate, (index + 1) * periodMonths);
+    return { name, orderIndex: index + 1, startDate: periodStart, endDate: periodEnd };
+  });
+
+  return {
+    sections,
+    classPrefix,
+    academicYearLabel,
+    startDate,
+    endDate,
+    periods,
+  };
 };
 
 const inviteStatusToLegacy = (status: InviteStatus): "pending" | "accepted" | "expired" => {
@@ -79,14 +189,15 @@ const splitName = (fullName: string) => {
 const toLegacySchool = (school: School) => ({
   _id: school.id,
   schoolName: school.name,
-  schoolMotto: "",
-  systemType: school.system,
-  structure: "simple",
+  schoolMotto: getSchoolTemplate(school.templateCode || "")?.schoolMotto || "",
+  systemType: subsystemToLegacySystemType(school.subsystem),
+  structure: schoolTypeToLegacyStructure(school.type),
   onboardingStatus: statusToLegacy(school.status),
   dbName: school.subdomain,
   requestedAdminEmail: school.email,
   requestedAdminName: null,
   isActive: school.status === SchoolStatus.ACTIVE,
+  templateKey: school.templateCode || null,
   createdAt: school.createdAt,
   updatedAt: school.updatedAt,
 });
@@ -145,9 +256,240 @@ const createOrReuseInvite = async (
       schoolName: fallbackSchoolName || school.name,
       plan: plan || school.plan,
       status: InviteStatus.PENDING,
-      expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(now.getTime() + 72 * 60 * 60 * 1000),
       schoolId: school.id,
     },
+  });
+};
+
+const getInviteExpirationDate = () => new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+const getInviteFromSchool = async (school: School) => {
+  const existingInvite = await prisma.schoolInvite.findFirst({
+    where: { schoolId: school.id },
+    orderBy: { createdAt: "desc" },
+    include: { school: true },
+  });
+
+  if (existingInvite && existingInvite.status === InviteStatus.PENDING && existingInvite.expiresAt.getTime() >= Date.now()) {
+    return existingInvite;
+  }
+
+  if (existingInvite && existingInvite.status === InviteStatus.PENDING) {
+    await prisma.schoolInvite.update({
+      where: { id: existingInvite.id },
+      data: { status: InviteStatus.EXPIRED },
+    });
+  }
+
+  const createdInvite = await prisma.schoolInvite.create({
+    data: {
+      token: crypto.randomUUID(),
+      email: String(school.email || "").toLowerCase(),
+      schoolName: school.name,
+      plan: school.plan,
+      status: InviteStatus.PENDING,
+      expiresAt: getInviteExpirationDate(),
+      schoolId: school.id,
+    },
+  });
+
+  return prisma.schoolInvite.findUnique({
+    where: { id: createdInvite.id },
+    include: { school: true },
+  });
+};
+
+const provisionApprovedSchool = async (school: School) => {
+  const template = getSchoolTemplate(school.templateCode || "");
+  const blueprint = buildProvisioningBlueprint(school, template);
+  const subsystem = subsystemFromTemplate(template);
+  const schoolType = schoolTypeFromTemplate(template);
+  const educationType = educationTypeFromTemplate(template);
+  const level = schoolLevelFromTemplate(template);
+  const gradingSystem = gradeSystemFromTemplate(template);
+  const locale = subsystem === SchoolSubsystem.ANGLOPHONE ? "en-US" : "fr-CM";
+
+  return prisma.$transaction(async (tx) => {
+    const activeSchool = await tx.school.update({
+      where: { id: school.id },
+      data: {
+        status: SchoolStatus.ACTIVE,
+        subsystem,
+        type: schoolType,
+        educationType,
+        ownership: SchoolOwnership.PRIVATE_SECULAR,
+      },
+    });
+
+    await tx.schoolSettings.upsert({
+      where: { schoolId: school.id },
+      create: {
+        schoolId: school.id,
+        timezone: "Africa/Douala",
+        locale,
+        currency: "XAF",
+      },
+      update: {
+        timezone: "Africa/Douala",
+        locale,
+        currency: "XAF",
+      },
+    });
+
+    await tx.schoolConfig.upsert({
+      where: { schoolId: school.id },
+      create: {
+        schoolId: school.id,
+        gradesPerTerm: template?.schoolConfig.standardSubjects.length || 3,
+        termsPerYear: blueprint.periods.length,
+        maxAbsences: 10,
+        smsEnabled: false,
+        offlineModeEnabled: true,
+        aiAlertsEnabled: true,
+        messageModeration: false,
+      },
+      update: {
+        gradesPerTerm: template?.schoolConfig.standardSubjects.length || 3,
+        termsPerYear: blueprint.periods.length,
+        maxAbsences: 10,
+        smsEnabled: false,
+        offlineModeEnabled: true,
+        aiAlertsEnabled: true,
+        messageModeration: false,
+      },
+    });
+
+    const existingAcademicYear = await tx.academicYear.findFirst({
+      where: { schoolId: school.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const academicYear = existingAcademicYear ?? await tx.academicYear.create({
+      data: {
+        schoolId: school.id,
+        name: blueprint.academicYearLabel,
+        startDate: blueprint.startDate,
+        endDate: blueprint.endDate,
+        isCurrent: true,
+        status: AcademicYearStatus.ACTIVE,
+      },
+    });
+
+    const existingPeriods = await tx.academicPeriod.findMany({ where: { academicYearId: academicYear.id } });
+    if (existingPeriods.length === 0) {
+      for (const [index, period] of blueprint.periods.entries()) {
+        const createdPeriod = await tx.academicPeriod.create({
+          data: {
+            academicYearId: academicYear.id,
+            name: period.name,
+            type: blueprint.periods.length > 1 ? PeriodType.TRIMESTER : PeriodType.TERM,
+            orderIndex: period.orderIndex,
+            startDate: period.startDate,
+            endDate: period.endDate,
+            isCurrent: index === 0,
+          },
+        });
+
+        const sequenceBlueprints = [
+          { name: "DS", type: SequenceType.DS },
+          { name: "Class test", type: SequenceType.CLASS_TEST },
+          { name: "Composition", type: SequenceType.COMPOSITION },
+          { name: "Terminal exam", type: SequenceType.TERMINAL_EXAM },
+        ];
+
+        for (const [sequenceIndex, sequence] of sequenceBlueprints.entries()) {
+          await tx.academicSequence.create({
+            data: {
+              academicPeriodId: createdPeriod.id,
+              schoolId: school.id,
+              name: `${sequence.name} - ${period.name}`,
+              type: sequence.type,
+              orderIndex: sequenceIndex + 1,
+              startDate: period.startDate,
+              endDate: period.endDate,
+              isCurrent: index === 0 && sequenceIndex === 0,
+            },
+          });
+        }
+      }
+    }
+
+    const existingSections = await tx.section.findMany({ where: { schoolId: school.id } });
+    const sections =
+      existingSections.length > 0
+        ? existingSections
+        : await Promise.all(
+            blueprint.sections.map((sectionBlueprint) =>
+              tx.section.create({
+                data: {
+                  schoolId: school.id,
+                  name: sectionBlueprint.name,
+                  code: sectionBlueprint.code,
+                  gradingSystem,
+                  isActive: true,
+                  passmark: 10,
+                },
+              })
+            )
+          );
+
+    const existingClasses = await tx.class.findMany({ where: { schoolId: school.id } });
+    if (existingClasses.length === 0) {
+      for (const [index, section] of sections.entries()) {
+        await tx.class.create({
+          data: {
+            schoolId: school.id,
+            name: `${blueprint.classPrefix} ${index + 1}`,
+            level: level,
+            sectionId: section.id,
+            capacity: 40,
+          },
+        });
+      }
+    }
+
+    const existingGradeFormula = await tx.gradeFormula.findFirst({
+      where: { schoolId: school.id, isDefault: true },
+    });
+    if (!existingGradeFormula) {
+      await tx.gradeFormula.create({
+        data: {
+          schoolId: school.id,
+          label: `Default ${template?.label || "school"} formula`,
+          evaluations: {
+            gradingSystem: template?.gradingSystem || "over_20",
+            passingGrade: template?.passingGrade || 10,
+            terms: blueprint.periods.map((period) => period.name),
+          },
+          isDefault: true,
+        },
+      });
+    }
+
+    const existingMentionRule = await tx.mentionRule.findFirst({
+      where: { schoolId: school.id, isDefault: true },
+    });
+    if (!existingMentionRule) {
+      await tx.mentionRule.create({
+        data: {
+          schoolId: school.id,
+          rules: {
+            template: template?.key || "fr_secondary",
+            gradingSystem: template?.gradingSystem || "over_20",
+            mentionThresholds: {
+              excellent: 80,
+              veryGood: 70,
+              good: 60,
+              fair: 50,
+            },
+          },
+          isDefault: true,
+        },
+      });
+    }
+
+    return { school: activeSchool, academicYear, sections };
   });
 };
 
@@ -164,7 +506,8 @@ export const getActiveSchoolsForLogin = async (_req: Request, res: Response) => 
         id: true,
         name: true,
         subdomain: true,
-        system: true,
+        subsystem: true,
+        type: true,
       },
     });
 
@@ -173,8 +516,8 @@ export const getActiveSchoolsForLogin = async (_req: Request, res: Response) => 
         _id: school.id,
         schoolName: school.name,
         dbName: school.subdomain,
-        systemType: school.system,
-        structure: "simple",
+        systemType: subsystemToLegacySystemType(school.subsystem),
+        structure: schoolTypeToLegacyStructure(school.type),
       })),
       total: schools.length,
     });
@@ -266,26 +609,24 @@ export const getSchoolOnboardingRequests = async (req: Request, res: Response) =
 
 export const approveSchoolOnboardingRequest = async (req: Request, res: Response) => {
   try {
-    const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+    const requestId = String(req.params.requestId || req.params.schoolId || "").trim();
+    const school = await prisma.school.findUnique({ where: { id: requestId } });
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
 
-    const updatedSchool = await prisma.school.update({
-      where: { id: school.id },
-      data: { status: SchoolStatus.APPROVED },
-    });
+    const provisioned = await provisionApprovedSchool(school);
+    const updatedSchool = provisioned.school;
+    const invite: any = await getInviteFromSchool(updatedSchool);
 
-    const invite = await createOrReuseInvite(updatedSchool, updatedSchool.email, updatedSchool.name, updatedSchool.plan);
-
-    if (updatedSchool.email) {
+    if (invite.email || updatedSchool.email) {
       try {
-        const loginUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/login`;
+        const loginUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${invite.token}`;
         await sendTransactionalEmail({
-          recipientEmail: updatedSchool.email,
-          subject: "Votre établissement a été approuvé !",
-          html: `<p>Bonjour,<br><br>Votre demande d'inscription pour l'établissement <b>${updatedSchool.name}</b> a été validée par le super administrateur.<br>Vous pouvez maintenant vous connecter à la plateforme en cliquant sur le lien ci-dessous :<br><a href="${loginUrl}">${loginUrl}</a><br><br>Bienvenue !</p>`,
-          text: `Bonjour,\n\nVotre demande d'inscription pour l'établissement ${updatedSchool.name} a été validée par le super administrateur.\nVous pouvez maintenant vous connecter à la plateforme : ${loginUrl}\n\nBienvenue !`,
+          recipientEmail: invite.email || updatedSchool.email || "",
+          subject: `Bienvenue sur EDUNEXUS - ${updatedSchool.name}`,
+          html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><p>Bonjour,</p><p>Votre établissement <b>${updatedSchool.name}</b> a été approuvé et configuré.</p><p>Vous pouvez finaliser la création de votre compte administrateur via ce lien temporaire :</p><p><a href="${loginUrl}">${loginUrl}</a></p><p>Subdomain: <b>${updatedSchool.subdomain}</b></p><p>Instructions: ouvrez le lien, renseignez le nom, l'email et le mot de passe de l'administrateur, puis conservez vos codes de secours.</p></div>`,
+          text: `Bonjour,\n\nVotre établissement ${updatedSchool.name} a été approuvé et configuré.\n\nLien temporaire: ${loginUrl}\nSubdomain: ${updatedSchool.subdomain}\n\nOuvrez le lien, renseignez le nom, l'email et le mot de passe de l'administrateur, puis conservez vos codes de secours.`,
           template: "school_approved",
           eventType: "school_approved",
           metadata: { schoolId: updatedSchool.id },
@@ -313,10 +654,13 @@ export const approveSchoolOnboardingRequest = async (req: Request, res: Response
 
 export const rejectSchoolOnboardingRequest = async (req: Request, res: Response) => {
   try {
-    const school = await prisma.school.findUnique({ where: { id: req.params.schoolId } });
+    const requestId = String(req.params.requestId || req.params.schoolId || "").trim();
+    const school = await prisma.school.findUnique({ where: { id: requestId } });
     if (!school) {
       return res.status(404).json({ message: "School not found" });
     }
+
+    const reason = String(req.body?.reason || req.body?.motif || "").trim();
 
     const updatedSchool = await prisma.school.update({
       where: { id: school.id },
@@ -327,6 +671,22 @@ export const rejectSchoolOnboardingRequest = async (req: Request, res: Response)
       where: { schoolId: school.id, status: InviteStatus.PENDING },
       data: { status: InviteStatus.EXPIRED },
     });
+
+    if (school.email) {
+      try {
+        await sendTransactionalEmail({
+          recipientEmail: school.email,
+          subject: `Demande d'établissement refusée - ${school.name}`,
+          html: `<p>Bonjour,<br><br>La demande d'onboarding pour l'établissement <b>${school.name}</b> a été refusée.${reason ? `<br><br>Motif: ${reason}` : ""}</p>`,
+          text: `Bonjour,\n\nLa demande d'onboarding pour l'établissement ${school.name} a été refusée.${reason ? `\n\nMotif: ${reason}` : ""}`,
+          template: "school_rejected",
+          eventType: "school_invite",
+          metadata: { schoolId: school.id, reason },
+        });
+      } catch (error) {
+        console.error("Erreur lors de l'envoi de l'email de rejet à l'admin école:", error);
+      }
+    }
 
     return res.json({
       message: "School onboarding rejected",
@@ -380,21 +740,12 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
         email: contactEmail ? String(contactEmail).trim().toLowerCase() : normalizedEmail,
         phone: contactPhone ? String(contactPhone).trim() : null,
         city: location ? String(location).trim() : null,
-        system: template.systemType,
+        subsystem: subsystemFromTemplate(template),
+        type: schoolTypeFromTemplate(template),
+        educationType: educationTypeFromTemplate(template),
+        ownership: SchoolOwnership.PRIVATE_SECULAR,
+        templateCode: template.key,
         plan: planFromInput(plan),
-      },
-    });
-
-    await prisma.schoolConfig.upsert({
-      where: { schoolId: school.id },
-      create: {
-        schoolId: school.id,
-        termsPerYear: template.schoolConfig.termsNames.length || 3,
-        passMark: Number(template.schoolConfig.passingGrade || 10),
-      },
-      update: {
-        termsPerYear: template.schoolConfig.termsNames.length || 3,
-        passMark: Number(template.schoolConfig.passingGrade || 10),
       },
     });
 
@@ -407,41 +758,15 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
         schoolName: String(schoolName).trim(),
         plan: planFromInput(plan),
         status: InviteStatus.PENDING,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
       },
     });
 
     const activationUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${token}`;
 
-    let emailSent = true;
-    try {
-      const inviteTemplate = buildSchoolInviteTemplate({
-        schoolName: String(schoolName),
-        requestedAdminName: String(requestedAdminName),
-        activationUrl,
-        language: "fr",
-      });
-
-      const emailResult = await sendTransactionalEmail({
-        recipientEmail: normalizedEmail,
-        subject: inviteTemplate.subject,
-        html: inviteTemplate.html,
-        text: inviteTemplate.text,
-        template: "school_invite",
-        eventType: "school_invite",
-        metadata: { token, templateKey: template.key, schoolId: school.id },
-      });
-
-      if (emailResult.status === "failed") {
-        emailSent = false;
-      }
-    } catch {
-      emailSent = false;
-    }
-
     try {
       await logActivity({
-        userId: String(req.masterUser?._id || req.masterUser?.id || ""),
+        userId: String((req as any).masterUser?.id || (req as any).user?.userId || ""),
         action: "Created school onboarding request",
         details: `${schoolName} → ${normalizedEmail} (template: ${template.key})`,
       });
@@ -450,9 +775,7 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
     }
 
     return res.status(201).json({
-      message: emailSent
-        ? "School onboarding request created. Invitation email sent."
-        : "School onboarding request created. Email sending failed, but invitation is valid.",
+      message: "School onboarding request created.",
       school: {
         _id: school.id,
         schoolName: school.name,
@@ -463,7 +786,7 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
         expiresAt: invite.expiresAt,
         activationUrl,
       },
-      emailSent,
+      emailSent: false,
       template,
     });
   } catch (error: any) {
@@ -473,27 +796,28 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
 
 export const getSchoolOnboardingInvite = async (req: Request, res: Response) => {
   try {
+    const token = String(req.params.token || "").trim();
     const invite = await prisma.schoolInvite.findUnique({
-      where: { token: req.params.token },
+      where: { token },
       include: { school: true },
-    });
+    }) as any;
 
     if (!invite) {
       return res.status(404).json({ message: "Invite not found" });
     }
 
+    if (invite.status !== InviteStatus.PENDING) {
+      return res.status(410).json({ message: "Invite already used or expired" });
+    }
+
     const isExpired = invite.expiresAt.getTime() < Date.now();
-    if (isExpired && invite.status === InviteStatus.PENDING) {
+    if (isExpired) {
       await prisma.schoolInvite.update({
         where: { id: invite.id },
         data: { status: InviteStatus.EXPIRED },
       });
+      return res.status(410).json({ message: "Invite expired" });
     }
-
-    const effectiveStatus =
-      isExpired && invite.status === InviteStatus.PENDING
-        ? InviteStatus.EXPIRED
-        : invite.status;
 
     const response: {
       invite: {
@@ -513,10 +837,10 @@ export const getSchoolOnboardingInvite = async (req: Request, res: Response) => 
         requestedAdminName: invite.schoolName || "",
         requestedAdminEmail: invite.email,
         schoolName: invite.schoolName || "",
-        templateKey: "fr_secondary",
-        status: inviteStatusToLegacy(effectiveStatus),
+        templateKey: invite.school?.templateCode || "fr_secondary",
+        status: inviteStatusToLegacy(invite.status),
         expiresAt: invite.expiresAt,
-        acceptedAt: effectiveStatus === InviteStatus.USED ? invite.createdAt : null,
+        acceptedAt: null,
       },
     };
 
@@ -538,17 +862,18 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
       return res.status(400).json({ message: "adminPassword is required and must be at least 6 characters" });
     }
 
+    const token = String(req.params.token || "").trim();
     const invite = await prisma.schoolInvite.findUnique({
-      where: { token: req.params.token },
+      where: { token },
       include: { school: true },
-    });
+    }) as any;
 
     if (!invite) {
       return res.status(404).json({ message: "Invite not found" });
     }
 
-    if (invite.status === InviteStatus.USED) {
-      return res.status(200).json({ message: "Invite already accepted" });
+    if (invite.status !== InviteStatus.PENDING) {
+      return res.status(409).json({ message: "Invite is not available" });
     }
 
     if (invite.expiresAt.getTime() < Date.now()) {
@@ -557,6 +882,14 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
         data: { status: InviteStatus.EXPIRED },
       });
       return res.status(410).json({ message: "Invite expired" });
+    }
+
+    if (
+      invite.school?.status !== SchoolStatus.ACTIVE &&
+      invite.school?.status !== SchoolStatus.APPROVED &&
+      invite.school?.status !== SchoolStatus.PENDING
+    ) {
+      return res.status(409).json({ message: "School is not available for onboarding" });
     }
 
     const resolvedAdminEmail = String(adminEmail || invite.email || "").trim().toLowerCase();
@@ -576,6 +909,10 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
           subdomain,
           status: SchoolStatus.PENDING,
           email: resolvedAdminEmail,
+          subsystem: SchoolSubsystem.FRANCOPHONE,
+          type: SchoolType.SECONDARY,
+          educationType: EducationType.GENERAL,
+          ownership: SchoolOwnership.PRIVATE_SECULAR,
         },
       });
 
@@ -606,47 +943,56 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
     const { firstName, lastName } = splitName(resolvedAdminName);
     const passwordHash = await bcrypt.hash(String(adminPassword), 10);
 
-    const createdAdmin = await prisma.user.create({
-      data: {
-        schoolId: school.id,
-        role: UserRole.ADMIN,
-        email: resolvedAdminEmail,
-        passwordHash,
-        firstName,
-        lastName,
-        isActive: true,
-      },
-    });
+    const result = await prisma.$transaction(async (tx) => {
+      const inviteLock = await tx.schoolInvite.updateMany({
+        where: {
+          id: invite.id,
+          status: InviteStatus.PENDING,
+          expiresAt: { gt: new Date() },
+        },
+        data: { status: InviteStatus.USED },
+      });
 
-    const updatedSchool = await prisma.school.update({
-      where: { id: school.id },
-      data: {
-        status: SchoolStatus.PENDING,
-        email: resolvedAdminEmail,
-      },
-    });
+      if (inviteLock.count !== 1) {
+        throw new Error("Invite is not available");
+      }
 
-    const updatedInvite = await prisma.schoolInvite.update({
-      where: { id: invite.id },
-      data: {
-        status: InviteStatus.USED,
-        email: resolvedAdminEmail,
-        schoolName: updatedSchool.name,
-      },
+      const createdAdmin = await tx.user.create({
+        data: {
+          schoolId: school.id,
+          role: UserRole.ADMIN,
+          email: resolvedAdminEmail,
+          passwordHash,
+          firstName,
+          lastName,
+          isActive: true,
+        },
+      });
+
+      const updatedSchool = await tx.school.update({
+        where: { id: school.id },
+        data: {
+          email: resolvedAdminEmail,
+        },
+      });
+
+      const updatedInvite = await tx.schoolInvite.findUnique({ where: { id: invite.id } });
+
+      return { createdAdmin, updatedSchool, updatedInvite };
     });
 
     return res.json({
       message: "School onboarding activated",
-      school: toLegacySchool(updatedSchool),
+      school: toLegacySchool(result.updatedSchool),
       admin: {
-        id: createdAdmin.id,
-        email: createdAdmin.email,
-        role: createdAdmin.role,
+        id: result.createdAdmin.id,
+        email: result.createdAdmin.email,
+        role: result.createdAdmin.role,
       },
       invite: {
-        token: updatedInvite.token,
-        status: inviteStatusToLegacy(updatedInvite.status),
-        acceptedAt: updatedInvite.createdAt,
+        token: result.updatedInvite?.token || invite.token,
+        status: inviteStatusToLegacy(result.updatedInvite?.status || InviteStatus.USED),
+        acceptedAt: result.updatedInvite?.createdAt || invite.createdAt,
       },
     });
   } catch (error: any) {

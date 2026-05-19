@@ -1,5 +1,6 @@
 import { type Request, type Response } from "express";
 import { prisma } from "../config/prisma.ts";
+import { Prisma } from "@prisma/client";
 import { logActivity } from "../utils/activitieslog.ts";
 
 const toIdStrings = (value: unknown) =>
@@ -120,8 +121,8 @@ export const getAllSubjects = async (req: Request, res: Response) => {
 
     if (search) {
       query.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { code: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
+        { code: { contains: search, mode: Prisma.QueryMode.insensitive } },
       ];
     }
 
@@ -189,7 +190,7 @@ export const updateSubject = async (req: Request, res: Response) => {
 
     const existingSubject = await prisma.subject.findFirst({
       where: {
-        id: req.params.id,
+        id: String(req.params.id),
         ...(schoolId ? { schoolId } : {}),
       },
       include: {
@@ -203,7 +204,7 @@ export const updateSubject = async (req: Request, res: Response) => {
     const nextTeacherIds = Array.isArray(teacher) ? toIdStrings(teacher) : [];
 
     const updatedSubject = await prisma.subject.update({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       data: {
         ...(name !== undefined ? { name } : {}),
         ...(code !== undefined ? { code: code || null } : {}),
@@ -214,7 +215,7 @@ export const updateSubject = async (req: Request, res: Response) => {
 
     await syncSubjectTeachers(
       updatedSubject.id,
-      existingSubject.teacherSubjects.map((relation) => relation.teacherProfileId),
+      (existingSubject.teacherSubjects || []).map((relation: any) => relation.teacherProfileId),
       nextTeacherIds
     );
 
@@ -241,7 +242,7 @@ export const deleteSubject = async (req: Request, res: Response) => {
     }
 
     const schoolId = currentUser?.schoolId;
-    const deletedSubject = await prisma.subject.delete({ where: { id: req.params.id } });
+    const deletedSubject = await prisma.subject.delete({ where: { id: String(req.params.id) } });
     if (!deletedSubject) {
       return res.status(404).json({ message: "Subject not found" });
     }
@@ -254,6 +255,155 @@ export const deleteSubject = async (req: Request, res: Response) => {
       action: `Updated subject: ${deletedSubject?.name}`,
     });
     res.json({ message: "Subject deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Get subject coefficients by class level / serie
+// @route   GET /api/subjects/:id/coefficients
+// @access  Private
+export const getSubjectCoefficients = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
+    const subjectId = String(req.params.id);
+
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId } });
+    if (!subject) return res.status(404).json({ message: "Matière introuvable" });
+
+    const coefficients = await prisma.subjectCoefficient.findMany({
+      where: { schoolId, subjectId },
+      orderBy: [{ classLevel: "asc" }, { serieCode: "asc" }],
+    });
+
+    return res.json({ subjectId, coefficients });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Upsert subject coefficients (batch)
+// @route   POST /api/subjects/:id/coefficients
+// @access  Private/Admin
+export const upsertSubjectCoefficients = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only admins can set coefficients" });
+    }
+
+    const schoolId = currentUser?.schoolId;
+    const subjectId = String(req.params.id);
+
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId } });
+    if (!subject) return res.status(404).json({ message: "Matière introuvable" });
+
+    const entries: Array<{ classLevel: string; serieCode?: string | null; coefficient: number }> =
+      req.body.coefficients;
+
+    if (!Array.isArray(entries) || !entries.length) {
+      return res.status(400).json({ message: "Un tableau de coefficients est requis" });
+    }
+
+    const results = await Promise.all(
+      entries.map(async (entry) => {
+        const existing = await prisma.subjectCoefficient.findFirst({
+          where: {
+            schoolId,
+            subjectId,
+            classLevel: entry.classLevel,
+            serieCode: entry.serieCode ?? null,
+          },
+        });
+
+        if (existing) {
+          return prisma.subjectCoefficient.update({
+            where: { id: existing.id },
+            data: { coefficient: entry.coefficient },
+          });
+        }
+
+        return prisma.subjectCoefficient.create({
+          data: {
+            schoolId,
+            subjectId,
+            classLevel: entry.classLevel,
+            serieCode: entry.serieCode ?? null,
+            coefficient: entry.coefficient,
+          },
+        });
+      })
+    );
+
+    return res.json({ message: "Coefficients mis à jour", coefficients: results });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Assign a subject to a teacher
+// @route   POST /api/subjects/teachers/:teacherId/subjects
+// @access  Private/Admin
+export const assignSubjectToTeacher = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only admins can assign subjects to teachers" });
+    }
+
+    const schoolId = currentUser?.schoolId;
+    const teacherUserId = String(req.params.teacherId);
+    const { subjectId } = req.body;
+
+    if (!subjectId) return res.status(400).json({ message: "subjectId est requis" });
+
+    const [teacherProfile, subject] = await Promise.all([
+      prisma.teacherProfile.findFirst({ where: { userId: teacherUserId, user: { schoolId } } }),
+      prisma.subject.findFirst({ where: { id: subjectId, schoolId } }),
+    ]);
+
+    if (!teacherProfile) return res.status(404).json({ message: "Enseignant introuvable" });
+    if (!subject) return res.status(404).json({ message: "Matière introuvable" });
+
+    await prisma.teacherSubject.create({
+      data: { teacherProfileId: teacherProfile.id, subjectId },
+    });
+
+    return res.status(201).json({ message: "Matière assignée à l'enseignant", teacherProfileId: teacherProfile.id, subjectId });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(400).json({ message: "Cette matière est déjà assignée à cet enseignant" });
+    }
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Remove a subject from a teacher
+// @route   DELETE /api/subjects/teachers/:teacherId/subjects/:subjectId
+// @access  Private/Admin
+export const removeSubjectFromTeacher = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only admins can remove subjects from teachers" });
+    }
+
+    const schoolId = currentUser?.schoolId;
+    const teacherUserId = String(req.params.teacherId);
+    const subjectId = String(req.params.subjectId);
+
+    const teacherProfile = await prisma.teacherProfile.findFirst({
+      where: { userId: teacherUserId, user: { schoolId } },
+    });
+
+    if (!teacherProfile) return res.status(404).json({ message: "Enseignant introuvable" });
+
+    await prisma.teacherSubject.deleteMany({
+      where: { teacherProfileId: teacherProfile.id, subjectId },
+    });
+
+    return res.json({ message: "Matière retirée de l'enseignant" });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error });
   }

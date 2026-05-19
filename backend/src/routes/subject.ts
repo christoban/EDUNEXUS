@@ -5,6 +5,10 @@ import {
   getAllSubjects,
   updateSubject,
   deleteSubject,
+  upsertSubjectCoefficients,
+  getSubjectCoefficients,
+  assignSubjectToTeacher,
+  removeSubjectFromTeacher,
 } from "../controllers/subject.ts";
 import { validate } from "../middleware/validate.ts";
 import { sensitiveWriteLimiter } from "../middleware/rateLimit.ts";
@@ -45,5 +49,10 @@ subjectRouter
     validate({ params: idParamSchema, body: updateSubjectBodySchema }),
     updateSubject
   );
+
+subjectRouter.get("/:id/coefficients", protect, getSubjectCoefficients);
+subjectRouter.post("/:id/coefficients", sensitiveWriteLimiter, protect, upsertSubjectCoefficients);
+subjectRouter.post("/teachers/:teacherId/subjects", sensitiveWriteLimiter, protect, assignSubjectToTeacher);
+subjectRouter.delete("/teachers/:teacherId/subjects/:subjectId", sensitiveWriteLimiter, protect, removeSubjectFromTeacher);
 
 export default subjectRouter;

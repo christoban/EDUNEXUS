@@ -14,57 +14,131 @@ const prisma = new PrismaClient();
 //   serieA4/C/D/TI = 0 (non évaluée, pas null car champ non nullable)
 
 const bacCoefficients = [
+  // ── Mathématiques ─────────────────────────────────────────────────────────
+  // A4:2 (séries littéraires ont maths option), A3:2 confirmé terrain
   {
     subjectName: "Mathématiques",
-    serieA4: 3, serieC: 6, serieD: 4, serieTI: 5,
+    serieA4: 2, serieC: 6, serieD: 4, serieTI: 5,
     serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+    serieA1: null, serieA2: null, serieA3: 2, serieA5: null, serieSH: null, serieAC: null,
   },
+  // ── Français (matière générale A4 / technique) ────────────────────────────
   {
     subjectName: "Français",
     serieA4: 6, serieC: 4, serieD: 4, serieTI: 3,
     serieABI: null, serieE: null,
     serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
   },
+  // ── Physique-Chimie ───────────────────────────────────────────────────────
+  // A4:null confirmé : aucun coeff pour les séries littéraires (source CIOP)
   {
     subjectName: "Physique-Chimie",
-    serieA4: 2, serieC: 5, serieD: 3, serieTI: 4,
+    serieA4: null, serieC: 5, serieD: 3, serieTI: 4,
     serieABI: null, serieE: null,
     serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
   },
+  // ── SVT / Biologie (ancien nom) ───────────────────────────────────────────
   {
     subjectName: "SVT / Biologie",
     serieA4: 2, serieC: 2, serieD: 4, serieTI: 2,
     serieABI: null, serieE: null,
     serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
   },
+  // ── SVT (nom canonique terrain confirmé) ──────────────────────────────────
+  // A4:null pour séries littéraires — source enquête terrain Mai 2026
+  {
+    subjectName: "SVT",
+    serieA4: null, serieC: 2, serieD: 4, serieTI: 2,
+    serieABI: null, serieE: null,
+    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+  },
+  // ── Philosophie ───────────────────────────────────────────────────────────
+  // A4:4 (corrigé depuis 5), A1/A2/A3/A5 : 4/4/4/2 — source CIOP officielle
   {
     subjectName: "Philosophie",
-    serieA4: 5, serieC: 3, serieD: 3, serieTI: 2,
+    serieA4: 4, serieC: 3, serieD: 3, serieTI: 2,
     serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+    serieA1: 4, serieA2: 4, serieA3: 4, serieA5: 2, serieSH: null, serieAC: null,
   },
+  // ── Histoire-Géographie ───────────────────────────────────────────────────
+  // A4:2 (corrigé depuis 4) — même coeff dans toutes les séries littéraires
   {
     subjectName: "Histoire-Géographie",
-    serieA4: 4, serieC: 2, serieD: 2, serieTI: 2,
+    serieA4: 2, serieC: 2, serieD: 2, serieTI: 2,
     serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
   },
+  // ── Anglais ───────────────────────────────────────────────────────────────
+  // A5:4 (section Anglophone intensive, coeff renforcé)
   {
     subjectName: "Anglais",
     serieA4: 3, serieC: 2, serieD: 2, serieTI: 2,
     serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+    serieA1: 3, serieA2: 3, serieA3: 3, serieA5: 4, serieSH: null, serieAC: null,
   },
+  // ── Intensive English — ABI uniquement ────────────────────────────────────
+  // serieABI:5 confirmé terrain : Lycée Bilingue Garoua, 2nde ABI, bulletin T2 2020/2021
+  // Tous les autres champs null : matière exclusive à la série ABI
   {
     subjectName: "Intensive English",
-    // Matière exclusive à la série ABI
-    // serieA4/C/D/TI = 0 car non évaluée dans ces séries (champ Float non nullable)
-    // serieABI = 5 confirmé terrain : Lycée Bilingue Garoua, 2nde ABI, bulletin T2 2020/2021
-    serieA4: 0, serieC: 0, serieD: 0, serieTI: 0,
-    serieABI: 5,  // ← confirmé terrain
+    serieA4: null, serieC: null, serieD: null, serieTI: null,
+    serieABI: 5,
     serieE: null,
     serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+  },
+  // ── Langue Française ──────────────────────────────────────────────────────
+  // Matière des séries littéraires (A1-A5, A4) — absente de C/D/TI
+  {
+    subjectName: "Langue Française",
+    serieA4: 2, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
+  },
+  // ── Littérature / Culture générale ────────────────────────────────────────
+  {
+    subjectName: "Littérature / Culture générale",
+    serieA4: 2, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
+  },
+  // ── ECM (Éducation à la Citoyenneté et à la Morale) ──────────────────────
+  {
+    subjectName: "ECM",
+    serieA4: 2, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
+  },
+  // ── LV2 ───────────────────────────────────────────────────────────────────
+  // A5:3 (option renforcée en A5 bilingue), A2:2 confirmé terrain
+  {
+    subjectName: "LV2 (Allemand/Espagnol/Arabe)",
+    serieA4: 2, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: null, serieA2: 2, serieA3: null, serieA5: 3, serieSH: null, serieAC: null,
+  },
+  // ── Latin ─────────────────────────────────────────────────────────────────
+  // Option classique : A1/A2/A3 uniquement
+  {
+    subjectName: "Latin",
+    serieA4: null, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: null, serieSH: null, serieAC: null,
+  },
+  // ── Grec ──────────────────────────────────────────────────────────────────
+  // Option classique : A1 uniquement (très rare)
+  {
+    subjectName: "Grec",
+    serieA4: null, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: 2, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
+  },
+  // ── LV3 ───────────────────────────────────────────────────────────────────
+  // Option rare A5 : Italien / Russe
+  {
+    subjectName: "LV3 (Italien/Russe)",
+    serieA4: null, serieC: null, serieD: null, serieTI: null,
+    serieABI: null, serieE: null,
+    serieA1: null, serieA2: null, serieA3: null, serieA5: 2, serieSH: null, serieAC: null,
   },
 ];
 
@@ -826,19 +900,35 @@ async function main() {
   }
   console.log(`   → ${schoolTemplates.length} templates seeded`);
 
-  // 3. GradeFormulas et MentionRules par défaut
+  // 3. École système de référence pour les données globales
+  // Certains modèles exigent désormais un schoolId non nul au niveau DB.
+  const systemSchool = await prisma.school.upsert({
+    where: { subdomain: "system" },
+    update: {},
+    create: {
+      name: "École système EduNexus",
+      subdomain: "system",
+      templateCode: "LYCEE_FR",
+    },
+  });
+
+  console.log(`   ✓ School système ${systemSchool.id}`);
+
+  // 4. GradeFormulas et MentionRules par défaut
   console.log("\n📐 Seeding default GradeFormulas and MentionRules...");
 
   for (const formula of defaultGradeFormulas) {
     await prisma.gradeFormula.upsert({
       where:  { id: formula.id },
       update: {
+        schoolId:    systemSchool.id,
         label:       formula.label,
         evaluations: formula.evaluations as any,
         isDefault:   formula.isDefault,
       },
       create: {
         id:          formula.id,
+        schoolId:    systemSchool.id,
         label:       formula.label,
         evaluations: formula.evaluations as any,
         isDefault:   formula.isDefault,
@@ -851,11 +941,13 @@ async function main() {
     await prisma.mentionRule.upsert({
       where:  { id: rule.id },
       update: {
+        schoolId:  systemSchool.id,
         rules:     rule.rules as any,
         isDefault: rule.isDefault,
       },
       create: {
         id:        rule.id,
+        schoolId:  systemSchool.id,
         rules:     rule.rules as any,
         isDefault: rule.isDefault,
       },

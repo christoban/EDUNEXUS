@@ -41,6 +41,11 @@ const SchoolDetailPage: React.FC<SchoolDetailPageProps> = ({ school, onBack, onR
   const [deleteInput, setDeleteInput] = useState("");
   const [suspending, setSuspending] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sensitiveDialogOpen, setSensitiveDialogOpen] = useState(false);
+  const [sensitiveDialogAction, setSensitiveDialogAction] = useState<"suspend" | "reactivate" | "delete" | null>(null);
+  const [sensitivePassword, setSensitivePassword] = useState("");
+  const [sensitiveCode, setSensitiveCode] = useState("");
+  const [sensitiveError, setSensitiveError] = useState("");
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -58,58 +63,19 @@ const SchoolDetailPage: React.FC<SchoolDetailPageProps> = ({ school, onBack, onR
   }, [school._id]);
 
   const handleSuspend = async () => {
-    const password = window.prompt("Confirme ton mot de passe master:") || "";
-    if (!password.trim()) {
-      toast.error("Mot de passe requis.");
-      return;
-    }
-
-    const code = window.prompt("Entre ton code MFA:") || "";
-    if (!code.trim()) {
-      toast.error("Code MFA requis.");
-      return;
-    }
-
-    setSuspending(true);
-    try {
-      await api.post(`/master/schools/${school._id}/suspend`, {
-        sensitiveAuth: { password, code },
-      });
-      toast.success("École suspendue");
-      onRefresh();
-      onBack();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Action impossible.");
-    } finally {
-      setSuspending(false);
-    }
+    setSensitiveDialogAction("suspend");
+    setSensitiveError("");
+    setSensitivePassword("");
+    setSensitiveCode("");
+    setSensitiveDialogOpen(true);
   };
 
   const handleReactivate = async () => {
-    const password = window.prompt("Confirme ton mot de passe master:") || "";
-    if (!password.trim()) {
-      toast.error("Mot de passe requis.");
-      return;
-    }
-
-    const code = window.prompt("Entre ton code MFA:") || "";
-    if (!code.trim()) {
-      toast.error("Code MFA requis.");
-      return;
-    }
-
-    setSuspending(true);
-    try {
-      await api.post(`/master/schools/${school._id}/reactivate`, {
-        sensitiveAuth: { password, code },
-      });
-      toast.success("École réactivée");
-      onRefresh();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Action impossible.");
-    } finally {
-      setSuspending(false);
-    }
+    setSensitiveDialogAction("reactivate");
+    setSensitiveError("");
+    setSensitivePassword("");
+    setSensitiveCode("");
+    setSensitiveDialogOpen(true);
   };
 
   const handleDelete = async () => {
@@ -117,31 +83,43 @@ const SchoolDetailPage: React.FC<SchoolDetailPageProps> = ({ school, onBack, onR
       toast.error("Tapez SUPPRIMER pour confirmer.");
       return;
     }
+    setSensitiveDialogAction("delete");
+    setSensitiveError("");
+    setSensitivePassword("");
+    setSensitiveCode("");
+    setSensitiveDialogOpen(true);
+  };
 
-    const password = window.prompt("Confirme ton mot de passe master:") || "";
-    if (!password.trim()) {
-      toast.error("Mot de passe requis.");
-      return;
-    }
-
-    const code = window.prompt("Entre ton code MFA:") || "";
-    if (!code.trim()) {
-      toast.error("Code MFA requis.");
-      return;
-    }
-
-    setDeleting(true);
+  const performSensitiveAction = async (password: string, code: string) => {
+    if (!sensitiveDialogAction) return;
+    setSensitiveError("");
     try {
-      await api.delete(`/master/schools/${school._id}`, {
-        data: { sensitiveAuth: { password, code } },
-      });
-      toast.success("École supprimée");
-      onRefresh();
-      onBack();
+      if (sensitiveDialogAction === "suspend") {
+        setSuspending(true);
+        await api.post(`/master/schools/${school._id}/suspend`, { sensitiveAuth: { password, code } });
+        toast.success("École suspendue");
+        onRefresh();
+        onBack();
+      } else if (sensitiveDialogAction === "reactivate") {
+        setSuspending(true);
+        await api.post(`/master/schools/${school._id}/reactivate`, { sensitiveAuth: { password, code } });
+        toast.success("École réactivée");
+        onRefresh();
+      } else if (sensitiveDialogAction === "delete") {
+        setDeleting(true);
+        await api.delete(`/master/schools/${school._id}`, { data: { sensitiveAuth: { password, code } } });
+        toast.success("École supprimée");
+        onRefresh();
+        onBack();
+      }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Suppression impossible.");
+      const message = err?.response?.data?.message || "Action impossible.";
+      setSensitiveError(message);
+      toast.error(message);
     } finally {
+      setSuspending(false);
       setDeleting(false);
+      setSensitiveDialogOpen(false);
     }
   };
 
@@ -301,6 +279,23 @@ const SchoolDetailPage: React.FC<SchoolDetailPageProps> = ({ school, onBack, onR
             </div>
           </div>
         </div>
+        {sensitiveDialogOpen && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
+            <div style={{ width: 520, background: "#0b1220", borderRadius: 12, padding: 20, border: "1px solid #223047" }}>
+              <h3 style={{ color: "#f8fafc", fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{sensitiveDialogAction === "delete" ? "Confirmer la suppression" : sensitiveDialogAction === "suspend" ? "Confirmer la suspension" : "Confirmer l'action"}</h3>
+              <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 12 }}>Saisis ton mot de passe master et ton code MFA pour confirmer.</p>
+              <div style={{ display: "grid", gap: 10 }}>
+                <input type="password" value={sensitivePassword} onChange={(e) => setSensitivePassword(e.target.value)} placeholder="Mot de passe master" style={{ background: "#081226", border: "1px solid #223047", borderRadius: 8, padding: "10px 12px", color: "#f1f5f9" }} />
+                <input value={sensitiveCode} onChange={(e) => setSensitiveCode(e.target.value)} placeholder="Code MFA" style={{ background: "#081226", border: "1px solid #223047", borderRadius: 8, padding: "10px 12px", color: "#f1f5f9" }} />
+                {sensitiveError && <div style={{ color: "#fecaca", fontSize: 13 }}>{sensitiveError}</div>}
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
+                  <button onClick={() => { setSensitiveDialogOpen(false); setSensitiveError(""); }} style={{ background: "transparent", border: "1px solid #223047", color: "#94a3b8", padding: "8px 14px", borderRadius: 8 }}>Annuler</button>
+                  <button onClick={() => performSensitiveAction(sensitivePassword, sensitiveCode)} style={{ background: "#dc2626", color: "white", padding: "8px 14px", borderRadius: 8, border: "none" }}>{sensitiveDialogAction === "delete" ? "Supprimer" : "Confirmer"}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -85,7 +85,7 @@ export const MasterAuthProvider = ({ children }: { children: React.ReactNode }) 
         masterLoading, 
         masterLogout, 
         refetchMasterUser,
-        isMasterAuthenticated: Boolean(masterUser?.role === "super_admin"),
+        isMasterAuthenticated: !!masterUser && ["super_admin", "platform_admin", "support"].includes(masterUser.role),
         forceRefreshAuth
       }}
     >

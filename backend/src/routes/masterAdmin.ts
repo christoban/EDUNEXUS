@@ -2,7 +2,7 @@ import express from "express";
 import {
   masterLogin,
   masterVerifyEmailCode,
-  masterVerifyMfa,
+  verifyMasterMfaLogin,
   getMasterMfaStatus,
   regenerateMasterRecoveryCodes,
   disableMasterMfa,
@@ -41,7 +41,7 @@ const router = express.Router();
  */
 router.post("/auth/login", masterAuthLimiter, restrictMasterLoginByIp, masterLogin);
 router.post("/auth/verify-email-code", masterEmailOtpLimiter, restrictMasterLoginByIp, masterVerifyEmailCode);
-router.post("/auth/verify-mfa", masterMfaLimiter, restrictMasterLoginByIp, masterVerifyMfa);
+router.post("/auth/verify-mfa", masterMfaLimiter, restrictMasterLoginByIp, verifyMasterMfaLogin);
 router.get("/auth/me", protectMaster, masterMe);
 router.get("/auth/mfa-status", protectMaster, getMasterMfaStatus);
 router.post("/auth/mfa/recovery-codes/regenerate", protectMaster, masterMfaLimiter, requireMasterSensitiveAuth, regenerateMasterRecoveryCodes);
@@ -62,16 +62,13 @@ router.get("/security/auth-audits", protectMaster, authorizeMaster(["super_admin
  *     ne les confonde pas avec un schoolId.
  */
 
-// ── Route invitation (statique, sans MFA car flux non-sensible côté état DB) ──
-// Note : requireMasterSensitiveAuth exige password + TOTP à chaque appel.
-// Pour "Inviter une école" depuis le dashboard, on garde le MFA limiter
-// mais on NE demande PAS la double auth sensitive (trop contraignant pour
-// une simple invitation). Adapter selon ta politique de sécurité.
+// ── Route invitation (statique, protégée par double auth sensible) ───────────
 router.post(
   "/schools/invite",
   protectMaster,
   authorizeMaster(["super_admin"]),
   masterMfaLimiter,
+  requireMasterSensitiveAuth,
   inviteSchool
 );
 

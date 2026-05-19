@@ -112,7 +112,7 @@ export const getAllClasses = async (req: Request, res: Response) => {
           where: {
             ...(schoolId ? { schoolId } : {}),
             role: "STUDENT",
-            studentProfile: { is: { classId: schoolClass.id } },
+            studentProfile: { classId: schoolClass.id },
           },
         }),
       }))
@@ -146,7 +146,7 @@ export const updateClass = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Only admins can update classes" });
     }
 
-    const classId = req.params.id;
+    const classId = String(req.params.id);
     const schoolId = currentUser?.schoolId;
     const { name, level, capacity } = req.body;
 
@@ -202,7 +202,7 @@ export const deleteClass = async (req: Request, res: Response) => {
     }
 
     const schoolId = currentUser?.schoolId;
-    const deletedClass = await prisma.class.delete({ where: { id: req.params.id } });
+    const deletedClass = await prisma.class.delete({ where: { id: String(req.params.id) } });
     await logActivity({
       userId: currentUser.userId,
       schoolId,
@@ -214,5 +214,199 @@ export const deleteClass = async (req: Request, res: Response) => {
     res.json({ message: "Class removed" });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Set Professor Principal for a Class
+// @route   PATCH /api/classes/:id/professor-principal
+// @access  Private/Admin
+export const setProfessorPrincipal = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only admins can set professor principal" });
+    }
+
+    const schoolId = currentUser?.schoolId;
+    const classId = String(req.params.id);
+    const { teacherId } = req.body;
+
+    if (!teacherId) return res.status(400).json({ message: "teacherId est requis" });
+
+    const [existingClass, teacher] = await Promise.all([
+      prisma.class.findFirst({ where: { id: classId, schoolId } }),
+      prisma.user.findFirst({
+        where: { id: teacherId, schoolId, role: "TEACHER" },
+        select: { id: true, firstName: true, lastName: true },
+      }),
+    ]);
+
+    if (!existingClass) return res.status(404).json({ message: "Classe introuvable" });
+    if (!teacher) return res.status(404).json({ message: "Enseignant introuvable" });
+
+    await prisma.class.update({
+      where: { id: classId },
+      data: { professorPrincipalId: teacherId },
+    });
+
+    await logActivity({
+      userId: currentUser.userId,
+      schoolId,
+      action: `Professeur principal de ${existingClass.name}: ${teacher.firstName} ${teacher.lastName}`,
+    });
+
+    return res.status(200).json({ classId, teacher });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Get all students in a class
+// @route   GET /api/classes/:id/students
+// @access  Private
+export const getClassStudents = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
+    const classId = String(req.params.id);
+
+    const existingClass = await prisma.class.findFirst({ where: { id: classId, schoolId } });
+    if (!existingClass) return res.status(404).json({ message: "Classe introuvable" });
+
+    const students = await prisma.user.findMany({
+      where: { schoolId, role: "STUDENT", studentProfile: { classId } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        isActive: true,
+        studentProfile: {
+          select: {
+            id: true,
+            matricule: true,
+            dateOfBirth: true,
+            gender: true,
+            studentStatus: true,
+          },
+        },
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+
+    return res.json({ classId, total: students.length, students });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Get sub-groups of a class
+// @route   GET /api/classes/:id/subgroups
+// @access  Private
+export const getSubGroups = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId;
+    const classId = String(req.params.id);
+
+    const existingClass = await prisma.class.findFirst({ where: { id: classId, schoolId } });
+    if (!existingClass) return res.status(404).json({ message: "Classe introuvable" });
+
+    const subGroups = await prisma.classSubGroup.findMany({
+      where: { classId },
+      include: {
+        studentAssignments: {
+          include: {
+            studentProfile: {
+              include: {
+                user: { select: { id: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return res.json({ classId, subGroups });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Create a sub-group in a class
+// @route   POST /api/classes/:id/subgroups
+// @access  Private/Admin
+export const createSubGroup = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only admins can create sub-groups" });
+    }
+
+    const schoolId = currentUser?.schoolId;
+    const classId = String(req.params.id);
+    const { name } = req.body;
+
+    if (!name) return res.status(400).json({ message: "Le nom du sous-groupe est requis" });
+
+    const existingClass = await prisma.class.findFirst({ where: { id: classId, schoolId } });
+    if (!existingClass) return res.status(404).json({ message: "Classe introuvable" });
+
+    const subGroup = await prisma.classSubGroup.create({ data: { classId, name } });
+
+    await logActivity({
+      userId: currentUser.userId,
+      schoolId,
+      action: `Sous-groupe créé: ${name} dans ${existingClass.name}`,
+    });
+
+    return res.status(201).json(subGroup);
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(400).json({ message: "Un sous-groupe avec ce nom existe déjà dans cette classe" });
+    }
+    res.status(500).json({ message: "Server Error", error });
+  }
+};
+
+// @desc    Assign students to a sub-group
+// @route   POST /api/classes/subgroups/:subGroupId/students
+// @access  Private/Admin
+export const assignStudentsToSubGroup = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    if (currentUser?.role !== "ADMIN") {
+      return res.status(403).json({ message: "Only admins can assign students to sub-groups" });
+    }
+
+    const schoolId = currentUser?.schoolId;
+    const subGroupId = String(req.params.subGroupId);
+    const { studentProfileIds } = req.body;
+
+    if (!Array.isArray(studentProfileIds) || !studentProfileIds.length) {
+      return res.status(400).json({ message: "studentProfileIds (tableau) est requis" });
+    }
+
+    const subGroup = await prisma.classSubGroup.findUnique({
+      where: { id: subGroupId },
+      include: { class: { select: { schoolId: true, name: true } } },
+    });
+
+    if (!subGroup || subGroup.class.schoolId !== schoolId) {
+      return res.status(404).json({ message: "Sous-groupe introuvable" });
+    }
+
+    await prisma.studentSubGroupAssignment.createMany({
+      data: (studentProfileIds as string[]).map((studentProfileId) => ({
+        studentProfileId,
+        subGroupId,
+      })),
+      skipDuplicates: true,
+    });
+
+    return res.json({ message: "Élèves assignés au sous-groupe", subGroupId, count: studentProfileIds.length });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error });
   }
 };

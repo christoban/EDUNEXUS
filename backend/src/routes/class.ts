@@ -4,6 +4,11 @@ import {
   updateClass,
   deleteClass,
   getAllClasses,
+  setProfessorPrincipal,
+  createSubGroup,
+  getSubGroups,
+  assignStudentsToSubGroup,
+  getClassStudents,
 } from "../controllers/class.ts";
 import { authorize, protect } from "../middleware/auth.ts";
 import { validate } from "../middleware/validate.ts";
@@ -37,5 +42,11 @@ classRouter.delete(
   validate({ params: idParamSchema }),
   deleteClass
 );
+
+classRouter.patch("/:id/professor-principal", sensitiveWriteLimiter, protect, setProfessorPrincipal);
+classRouter.get("/:id/students", protect, getClassStudents);
+classRouter.get("/:id/subgroups", protect, getSubGroups);
+classRouter.post("/:id/subgroups", sensitiveWriteLimiter, protect, createSubGroup);
+classRouter.post("/subgroups/:subGroupId/students", sensitiveWriteLimiter, protect, assignStudentsToSubGroup);
 
 export default classRouter;

@@ -53,7 +53,7 @@ const getAcademicInsights = async (schoolId?: string) => {
     if (!subjectScores[subject]) {
       subjectScores[subject] = { total: 0, count: 0 };
     }
-    subjectScores[subject].total += Number(grade.value || 0);
+    subjectScores[subject].total += Number((grade as any).sequenceAverage || (grade as any).sequenceScore || 0);
     subjectScores[subject].count += 1;
   }
 
@@ -90,9 +90,9 @@ const getStudentSpecificInsights = async (userId: string, schoolId?: string) => 
     take: 10,
   });
 
-  const weakSubjects = recentGrades.filter((grade) => Number(grade.value || 0) < 50).map((grade) => grade.subject.name);
+  const weakSubjects = recentGrades.filter((grade) => Number((grade as any).sequenceAverage || 0) < 10).map((grade) => grade.subject.name);
   const averageScore = recentGrades.length
-    ? (recentGrades.reduce((sum, grade) => sum + Number(grade.value || 0), 0) / recentGrades.length).toFixed(1)
+    ? (recentGrades.reduce((sum, grade) => sum + Number((grade as any).sequenceAverage || 0), 0) / recentGrades.length).toFixed(1)
     : "N/A";
 
   return {
@@ -126,7 +126,7 @@ const getTeacherInsights = async (userId: string, schoolId?: string) => {
     if (!subjectPerformance[subject]) {
       subjectPerformance[subject] = [];
     }
-    subjectPerformance[subject].push(Number(grade.value || 0));
+    subjectPerformance[subject].push(Number((grade as any).sequenceAverage || (grade as any).sequenceScore || 0));
   }
 
   return Object.entries(subjectPerformance)

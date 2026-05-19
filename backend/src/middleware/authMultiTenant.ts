@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prisma.ts";
+import type { AuthPayload } from "./auth";
 
 const masterJwtSecret = process.env.MASTER_JWT_SECRET || process.env.JWT_SECRET;
 
@@ -23,6 +24,7 @@ declare global {
         name?: string;
         isActive?: boolean;
       };
+      user?: AuthPayload;
       schoolId?: string;
       schoolConnection?: unknown;
     }
@@ -37,9 +39,7 @@ export const protectMaster = async (req: Request, res: Response, next: NextFunct
       return res.status(500).json({ message: "Master auth misconfigured" });
     }
 
-    const cookieToken = normalizeToken(req.cookies?.master_jwt);
-    const bearerToken = normalizeToken(req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : "");
-    const token = cookieToken || bearerToken;
+    const token = normalizeToken(req.cookies?.master_jwt);
 
     if (!token) {
       return res.status(401).json({ message: "No token, not authorized" });
@@ -93,7 +93,7 @@ export const authorizeMaster = (roles: MasterUserRole[]) => {
 
 export const protectSchool = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = normalizeToken(req.cookies?.token || req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : "");
+    const token = normalizeToken(req.cookies?.access_token);
     if (!token) {
       return res.status(401).json({ message: "No token, not authorized" });
     }
@@ -111,12 +111,21 @@ export const protectSchool = async (req: Request, res: Response, next: NextFunct
 
 export const authorizeSchool = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const userRole = (req as any).user?.role;
-    if (!userRole) {
+    const user = req.user;
+    if (!user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    if (!roles.includes(userRole)) {
+    // roles may contain role names or permission checks prefixed with `perm:`
+    const allowed = roles.some((r) => {
+      if (r.startsWith("perm:")) {
+        const perm = r.slice(5);
+        return Array.isArray(user.permissions) && user.permissions.includes(perm);
+      }
+      return r === user.role;
+    });
+
+    if (!allowed) {
       return res.status(403).json({ message: "Not authorized for this action" });
     }
 

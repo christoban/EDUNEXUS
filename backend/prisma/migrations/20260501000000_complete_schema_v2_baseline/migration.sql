@@ -1,3 +1,60 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- CreateEnum
+CREATE TYPE "MasterUserRole" AS ENUM ('SUPER_ADMIN', 'PLATFORM_ADMIN', 'SCHOOL_MANAGER', 'SUPPORT');
+
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'STAFF', 'TEACHER', 'PARENT', 'STUDENT');
+
+-- CreateEnum
+CREATE TYPE "AcademicYearStatus" AS ENUM ('ACTIVE', 'ARCHIVED');
+
+-- CreateEnum
+CREATE TYPE "PeriodType" AS ENUM ('TRIMESTER', 'TERM');
+
+-- CreateEnum
+CREATE TYPE "SequenceType" AS ENUM ('DS', 'COMPOSITION', 'CLASS_TEST', 'TERMINAL_EXAM');
+
+-- CreateEnum
+CREATE TYPE "SectionLanguage" AS ENUM ('FR', 'EN');
+
+-- CreateEnum
+CREATE TYPE "StaffPermissionType" AS ENUM ('MANAGE_TIMETABLE', 'VALIDATE_GRADES', 'MANAGE_EXAMS', 'SUPERVISE_TEACHERS', 'MANAGE_ATTENDANCE', 'MANAGE_DISCIPLINE', 'MANAGE_INCIDENTS', 'MANAGE_FINANCE', 'VALIDATE_PAYMENTS', 'GENERATE_REPORTS', 'MANAGE_ATELIERS', 'MANAGE_PRACTICAL_GRADES', 'MANAGE_INTERNSHIPS', 'VIEW_DEPARTMENT_GRADES', 'SUPERVISE_DEPARTMENT_TEACHERS', 'VALIDATE_DEPARTMENT_TIMETABLE', 'GENERATE_DEPARTMENT_REPORTS', 'VIEW_SUPERVISED_GRADES', 'SUPERVISE_LESSON_PLANS', 'GENERATE_PEDAGOGICAL_REPORTS');
+
+-- CreateEnum
+CREATE TYPE "GradeValidationStatus" AS ENUM ('DRAFT', 'SUBMITTED', 'VALIDATED', 'LOCKED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "FeeType" AS ENUM ('TUITION', 'APEE_PTA', 'EXAM', 'UNIFORM', 'CAUTION', 'WORKSHOP', 'INSCRIPTION', 'DEVELOPMENT_LEVY', 'SPORTS_LEVY');
+
+-- CreateEnum
+CREATE TYPE "CautionStatus" AS ENUM ('HELD', 'REFUNDED', 'PERMANENTLY_HELD');
+
+-- CreateEnum
+CREATE TYPE "ModerationStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('ACADEMIC', 'ATTENDANCE', 'COMMUNICATION', 'FINANCIAL', 'AI_ALERT', 'POSITIVE', 'SYSTEM');
+
+-- CreateEnum
+CREATE TYPE "NotificationChannel" AS ENUM ('PUSH', 'SMS', 'EMAIL', 'IN_APP');
+
+-- CreateEnum
+CREATE TYPE "DisciplineType" AS ENUM ('WARNING_ORAL', 'WARNING_WRITTEN', 'TEMP_EXCLUSION', 'COUNCIL_DECISION', 'PERMANENT_EXCLUSION');
+
+-- CreateEnum
+CREATE TYPE "DisciplineStatus" AS ENUM ('ACTIVE', 'LIFTED', 'APPEALED');
+
+-- CreateEnum
+CREATE TYPE "CouncilStatus" AS ENUM ('OPEN', 'VALIDATED', 'LOCKED');
+
+-- CreateEnum
+CREATE TYPE "CouncilDecision" AS ENUM ('PASS', 'REPEAT', 'DELIBERATION');
+
+-- CreateEnum
+CREATE TYPE "SyncStatus" AS ENUM ('PENDING', 'SYNCED', 'CONFLICT', 'REJECTED');
+
 -- CreateEnum
 CREATE TYPE "SchoolType" AS ENUM ('PRESCHOOL', 'PRIMARY', 'SECONDARY', 'TECHNICAL', 'BILINGUAL', 'UNIVERSITY');
 
@@ -9,12 +66,6 @@ CREATE TYPE "SchoolStatus" AS ENUM ('PENDING', 'APPROVED', 'ACTIVE', 'REJECTED',
 
 -- CreateEnum
 CREATE TYPE "InviteStatus" AS ENUM ('PENDING', 'USED', 'EXPIRED');
-
--- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT', 'STUDENT');
-
--- CreateEnum
-CREATE TYPE "PeriodType" AS ENUM ('TRIMESTER', 'SEMESTER');
 
 -- CreateEnum
 CREATE TYPE "AttendanceStatus" AS ENUM ('PRESENT', 'ABSENT', 'LATE');
@@ -40,13 +91,47 @@ CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED')
 -- CreateEnum
 CREATE TYPE "ConversationType" AS ENUM ('PRIVATE', 'CLASS_CHANNEL', 'PARENT_CHANNEL', 'SYSTEM');
 
+-- CreateEnum
+CREATE TYPE "SchoolSubsystem" AS ENUM ('FRANCOPHONE', 'ANGLOPHONE', 'BILINGUAL');
+
+-- CreateEnum
+CREATE TYPE "EducationType" AS ENUM ('GENERAL', 'TECHNICAL', 'PROFESSIONAL', 'MIXED');
+
+-- CreateEnum
+CREATE TYPE "SchoolOwnership" AS ENUM ('PUBLIC', 'PRIVATE_SECULAR', 'PRIVATE_FAITH');
+
+-- CreateEnum
+CREATE TYPE "GradingSystem" AS ENUM ('OUT_OF_20', 'OUT_OF_100');
+
+-- CreateEnum
+CREATE TYPE "SchoolLevel" AS ENUM ('PRESCHOOL', 'PRIMARY', 'SECONDARY', 'MULTI');
+
+-- CreateEnum
+CREATE TYPE "BulletinTemplate" AS ENUM ('FR_SECONDARY', 'EN_SECONDARY', 'TECHNICAL_FR', 'PRIMARY');
+
 -- CreateTable
 CREATE TABLE "MasterUser" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "role" "MasterUserRole" NOT NULL DEFAULT 'SUPPORT',
+    "assignedSchoolIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isSuperAdmin" BOOLEAN NOT NULL DEFAULT false,
+    "mfaEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "mfaSecret" TEXT,
+    "mfaTempSecret" TEXT,
+    "mfaRecoveryCodeHashes" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "mfaRecoveryCodeGeneratedAt" TIMESTAMP(3),
+    "loginEmailOtpHash" TEXT,
+    "loginEmailOtpExpiresAt" TIMESTAMP(3),
+    "loginEmailOtpAttempts" INTEGER NOT NULL DEFAULT 0,
+    "loginEmailOtpSentAt" TIMESTAMP(3),
+    "passwordChangeEmailOtpHash" TEXT,
+    "passwordChangeEmailOtpExpiresAt" TIMESTAMP(3),
+    "passwordChangeEmailOtpAttempts" INTEGER NOT NULL DEFAULT 0,
+    "passwordChangeEmailOtpSentAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -69,6 +154,13 @@ CREATE TABLE "School" (
     "logoUrl" TEXT,
     "language" TEXT NOT NULL DEFAULT 'fr',
     "system" TEXT NOT NULL DEFAULT 'francophone',
+    "templateType" TEXT,
+    "subsystem" "SchoolSubsystem" NOT NULL DEFAULT 'FRANCOPHONE',
+    "educationType" "EducationType" NOT NULL DEFAULT 'GENERAL',
+    "ownership" "SchoolOwnership" NOT NULL DEFAULT 'PRIVATE_SECULAR',
+    "features" JSONB NOT NULL DEFAULT '{}',
+    "gradingSystem" "GradingSystem" NOT NULL DEFAULT 'OUT_OF_20',
+    "saturdaySchedule" BOOLEAN NOT NULL DEFAULT true,
     "contractEnd" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -95,6 +187,14 @@ CREATE TABLE "SchoolInvite" (
 CREATE TABLE "SchoolConfig" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
+    "ds1Weight" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "ds2Weight" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "compositionWeight" DOUBLE PRECISION NOT NULL DEFAULT 2,
+    "classTestWeight" DOUBLE PRECISION NOT NULL DEFAULT 30,
+    "terminalExamWeight" DOUBLE PRECISION NOT NULL DEFAULT 70,
+    "moderatorUserId" TEXT,
+    "aiRiskThreshold" INTEGER NOT NULL DEFAULT 50,
+    "bulletinTemplate" "BulletinTemplate" NOT NULL DEFAULT 'FR_SECONDARY',
     "gradesPerTerm" INTEGER NOT NULL DEFAULT 3,
     "termsPerYear" INTEGER NOT NULL DEFAULT 3,
     "passMark" DOUBLE PRECISION NOT NULL DEFAULT 10,
@@ -184,6 +284,7 @@ CREATE TABLE "AcademicYear" (
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3) NOT NULL,
     "isCurrent" BOOLEAN NOT NULL DEFAULT false,
+    "status" "AcademicYearStatus" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AcademicYear_pkey" PRIMARY KEY ("id")
@@ -195,6 +296,7 @@ CREATE TABLE "AcademicPeriod" (
     "academicYearId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "type" "PeriodType" NOT NULL DEFAULT 'TRIMESTER',
+    "orderIndex" INTEGER NOT NULL,
     "startDate" TIMESTAMP(3) NOT NULL,
     "endDate" TIMESTAMP(3) NOT NULL,
     "isCurrent" BOOLEAN NOT NULL DEFAULT false,
@@ -203,11 +305,27 @@ CREATE TABLE "AcademicPeriod" (
 );
 
 -- CreateTable
+CREATE TABLE "AcademicSequence" (
+    "id" TEXT NOT NULL,
+    "academicPeriodId" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" "SequenceType" NOT NULL,
+    "orderIndex" INTEGER NOT NULL,
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
+    "isCurrent" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "AcademicSequence_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Class" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "level" TEXT,
+    "sectionId" TEXT,
     "capacity" INTEGER NOT NULL DEFAULT 40,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -236,6 +354,74 @@ CREATE TABLE "TeacherSubject" (
 );
 
 -- CreateTable
+CREATE TABLE "Section" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "language" "SectionLanguage" NOT NULL,
+
+    CONSTRAINT "Section_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StaffProfile" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "sectionId" TEXT,
+
+    CONSTRAINT "StaffProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StaffPermission" (
+    "id" TEXT NOT NULL,
+    "staffProfileId" TEXT NOT NULL,
+    "permission" "StaffPermissionType" NOT NULL,
+
+    CONSTRAINT "StaffPermission_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SubjectCoefficient" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "classLevel" TEXT NOT NULL,
+    "serieCode" TEXT,
+    "coefficient" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "SubjectCoefficient_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BacCoefficient" (
+    "id" TEXT NOT NULL,
+    "subjectName" TEXT NOT NULL,
+    "serieA" DOUBLE PRECISION NOT NULL,
+    "serieC" DOUBLE PRECISION NOT NULL,
+    "serieD" DOUBLE PRECISION NOT NULL,
+    "serieTI" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "BacCoefficient_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SchoolTemplate" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "subsystem" "SchoolSubsystem" NOT NULL,
+    "educationType" "EducationType" NOT NULL,
+    "level" "SchoolLevel" NOT NULL,
+    "config" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SchoolTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Attendance" (
     "id" TEXT NOT NULL,
     "schoolId" TEXT NOT NULL,
@@ -260,12 +446,20 @@ CREATE TABLE "Grade" (
     "subjectId" TEXT NOT NULL,
     "classId" TEXT NOT NULL,
     "academicYearId" TEXT NOT NULL,
-    "academicPeriodId" TEXT,
-    "value" DOUBLE PRECISION NOT NULL,
-    "maxValue" DOUBLE PRECISION NOT NULL DEFAULT 20,
-    "gradeType" "GradeType" NOT NULL DEFAULT 'EXAM',
+    "sequenceId" TEXT NOT NULL,
+    "sequenceScore" DOUBLE PRECISION,
+    "classTestScore" DOUBLE PRECISION,
+    "terminalExamScore" DOUBLE PRECISION,
+    "theoreticalScore" DOUBLE PRECISION,
+    "practicalScore" DOUBLE PRECISION,
+    "professionalAttitude" DOUBLE PRECISION,
     "coefficient" DOUBLE PRECISION NOT NULL DEFAULT 1,
-    "comment" TEXT,
+    "maxValue" DOUBLE PRECISION NOT NULL DEFAULT 20,
+    "sequenceAverage" DOUBLE PRECISION,
+    "validationStatus" "GradeValidationStatus" NOT NULL DEFAULT 'DRAFT',
+    "validatedById" TEXT,
+    "validatedAt" TIMESTAMP(3),
+    "rejectionReason" TEXT,
     "isOfflineSync" BOOLEAN NOT NULL DEFAULT false,
     "syncedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -390,6 +584,8 @@ CREATE TABLE "Payment" (
     "transactionId" TEXT,
     "receiptUrl" TEXT,
     "paidAt" TIMESTAMP(3),
+    "feeType" "FeeType" NOT NULL DEFAULT 'TUITION',
+    "cautionStatus" "CautionStatus",
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
@@ -428,6 +624,9 @@ CREATE TABLE "Message" (
     "senderId" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "fileUrl" TEXT,
+    "moderationStatus" "ModerationStatus" NOT NULL DEFAULT 'APPROVED',
+    "moderatedById" TEXT,
+    "moderationReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
@@ -440,6 +639,102 @@ CREATE TABLE "MessageReadStatus" (
     "readAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "MessageReadStatus_pkey" PRIMARY KEY ("messageId","userId")
+);
+
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "metadata" JSONB,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "channel" "NotificationChannel" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NotificationPreference" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "push" BOOLEAN NOT NULL DEFAULT true,
+    "sms" BOOLEAN NOT NULL DEFAULT true,
+    "email" BOOLEAN NOT NULL DEFAULT true,
+    "aiAlerts" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "NotificationPreference_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DisciplineRecord" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "type" "DisciplineType" NOT NULL,
+    "reason" TEXT NOT NULL,
+    "decidedById" TEXT NOT NULL,
+    "startDate" TIMESTAMP(3),
+    "endDate" TIMESTAMP(3),
+    "status" "DisciplineStatus" NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DisciplineRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClassCouncilSession" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "classId" TEXT NOT NULL,
+    "academicPeriodId" TEXT NOT NULL,
+    "presidedById" TEXT NOT NULL,
+    "status" "CouncilStatus" NOT NULL DEFAULT 'OPEN',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validatedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ClassCouncilSession_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClassCouncilDecision" (
+    "id" TEXT NOT NULL,
+    "sessionId" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "decision" "CouncilDecision" NOT NULL,
+    "observations" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClassCouncilDecision_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ClassPromotion" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "fromClassId" TEXT NOT NULL,
+    "toClassId" TEXT NOT NULL,
+    "academicYearId" TEXT NOT NULL,
+
+    CONSTRAINT "ClassPromotion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OfflineQueue" (
+    "id" TEXT NOT NULL,
+    "schoolId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "entityData" JSONB NOT NULL,
+    "status" "SyncStatus" NOT NULL DEFAULT 'PENDING',
+    "conflictReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "syncedAt" TIMESTAMP(3),
+
+    CONSTRAINT "OfflineQueue_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -498,6 +793,12 @@ CREATE TABLE "MasterAuthAudit" (
 CREATE UNIQUE INDEX "MasterUser_email_key" ON "MasterUser"("email");
 
 -- CreateIndex
+CREATE INDEX "MasterUser_loginEmailOtpExpiresAt_idx" ON "MasterUser"("loginEmailOtpExpiresAt");
+
+-- CreateIndex
+CREATE INDEX "MasterUser_passwordChangeEmailOtpExpiresAt_idx" ON "MasterUser"("passwordChangeEmailOtpExpiresAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "School_subdomain_key" ON "School"("subdomain");
 
 -- CreateIndex
@@ -531,10 +832,40 @@ CREATE UNIQUE INDEX "ParentProfile_userId_key" ON "ParentProfile"("userId");
 CREATE INDEX "AcademicYear_schoolId_idx" ON "AcademicYear"("schoolId");
 
 -- CreateIndex
+CREATE INDEX "AcademicSequence_schoolId_idx" ON "AcademicSequence"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AcademicSequence_academicPeriodId_orderIndex_key" ON "AcademicSequence"("academicPeriodId", "orderIndex");
+
+-- CreateIndex
 CREATE INDEX "Class_schoolId_idx" ON "Class"("schoolId");
 
 -- CreateIndex
 CREATE INDEX "Subject_schoolId_idx" ON "Subject"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Section_schoolId_language_key" ON "Section"("schoolId", "language");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StaffProfile_userId_key" ON "StaffProfile"("userId");
+
+-- CreateIndex
+CREATE INDEX "StaffProfile_schoolId_idx" ON "StaffProfile"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StaffPermission_staffProfileId_permission_key" ON "StaffPermission"("staffProfileId", "permission");
+
+-- CreateIndex
+CREATE INDEX "SubjectCoefficient_schoolId_idx" ON "SubjectCoefficient"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SubjectCoefficient_schoolId_subjectId_classLevel_serieCode_key" ON "SubjectCoefficient"("schoolId", "subjectId", "classLevel", "serieCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BacCoefficient_subjectName_key" ON "BacCoefficient"("subjectName");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SchoolTemplate_code_key" ON "SchoolTemplate"("code");
 
 -- CreateIndex
 CREATE INDEX "Attendance_schoolId_classId_date_idx" ON "Attendance"("schoolId", "classId", "date");
@@ -543,10 +874,13 @@ CREATE INDEX "Attendance_schoolId_classId_date_idx" ON "Attendance"("schoolId", 
 CREATE INDEX "Attendance_schoolId_studentId_idx" ON "Attendance"("schoolId", "studentId");
 
 -- CreateIndex
-CREATE INDEX "Grade_schoolId_studentId_subjectId_idx" ON "Grade"("schoolId", "studentId", "subjectId");
+CREATE INDEX "Grade_schoolId_classId_sequenceId_idx" ON "Grade"("schoolId", "classId", "sequenceId");
 
 -- CreateIndex
-CREATE INDEX "Grade_schoolId_classId_academicPeriodId_idx" ON "Grade"("schoolId", "classId", "academicPeriodId");
+CREATE INDEX "Grade_schoolId_studentId_idx" ON "Grade"("schoolId", "studentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Grade_studentId_subjectId_sequenceId_key" ON "Grade"("studentId", "subjectId", "sequenceId");
 
 -- CreateIndex
 CREATE INDEX "ReportCard_schoolId_studentId_idx" ON "ReportCard"("schoolId", "studentId");
@@ -568,6 +902,33 @@ CREATE INDEX "Payment_schoolId_studentId_idx" ON "Payment"("schoolId", "studentI
 
 -- CreateIndex
 CREATE INDEX "Conversation_schoolId_idx" ON "Conversation"("schoolId");
+
+-- CreateIndex
+CREATE INDEX "Notification_schoolId_userId_isRead_idx" ON "Notification"("schoolId", "userId", "isRead");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NotificationPreference_userId_key" ON "NotificationPreference"("userId");
+
+-- CreateIndex
+CREATE INDEX "DisciplineRecord_schoolId_studentId_idx" ON "DisciplineRecord"("schoolId", "studentId");
+
+-- CreateIndex
+CREATE INDEX "ClassCouncilSession_schoolId_idx" ON "ClassCouncilSession"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClassCouncilSession_classId_academicPeriodId_key" ON "ClassCouncilSession"("classId", "academicPeriodId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClassCouncilDecision_sessionId_studentId_key" ON "ClassCouncilDecision"("sessionId", "studentId");
+
+-- CreateIndex
+CREATE INDEX "ClassPromotion_schoolId_idx" ON "ClassPromotion"("schoolId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClassPromotion_schoolId_fromClassId_academicYearId_key" ON "ClassPromotion"("schoolId", "fromClassId", "academicYearId");
+
+-- CreateIndex
+CREATE INDEX "OfflineQueue_schoolId_userId_status_idx" ON "OfflineQueue"("schoolId", "userId", "status");
 
 -- CreateIndex
 CREATE INDEX "ActivitiesLog_schoolId_idx" ON "ActivitiesLog"("schoolId");
@@ -609,7 +970,16 @@ ALTER TABLE "AcademicYear" ADD CONSTRAINT "AcademicYear_schoolId_fkey" FOREIGN K
 ALTER TABLE "AcademicPeriod" ADD CONSTRAINT "AcademicPeriod_academicYearId_fkey" FOREIGN KEY ("academicYearId") REFERENCES "AcademicYear"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AcademicSequence" ADD CONSTRAINT "AcademicSequence_academicPeriodId_fkey" FOREIGN KEY ("academicPeriodId") REFERENCES "AcademicPeriod"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AcademicSequence" ADD CONSTRAINT "AcademicSequence_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Class" ADD CONSTRAINT "Class_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Class" ADD CONSTRAINT "Class_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Subject" ADD CONSTRAINT "Subject_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -619,6 +989,27 @@ ALTER TABLE "TeacherSubject" ADD CONSTRAINT "TeacherSubject_teacherProfileId_fke
 
 -- AddForeignKey
 ALTER TABLE "TeacherSubject" ADD CONSTRAINT "TeacherSubject_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Section" ADD CONSTRAINT "Section_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StaffProfile" ADD CONSTRAINT "StaffProfile_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StaffProfile" ADD CONSTRAINT "StaffProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StaffProfile" ADD CONSTRAINT "StaffProfile_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StaffPermission" ADD CONSTRAINT "StaffPermission_staffProfileId_fkey" FOREIGN KEY ("staffProfileId") REFERENCES "StaffProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SubjectCoefficient" ADD CONSTRAINT "SubjectCoefficient_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SubjectCoefficient" ADD CONSTRAINT "SubjectCoefficient_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Attendance" ADD CONSTRAINT "Attendance_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -642,7 +1033,7 @@ ALTER TABLE "Grade" ADD CONSTRAINT "Grade_classId_fkey" FOREIGN KEY ("classId") 
 ALTER TABLE "Grade" ADD CONSTRAINT "Grade_academicYearId_fkey" FOREIGN KEY ("academicYearId") REFERENCES "AcademicYear"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Grade" ADD CONSTRAINT "Grade_academicPeriodId_fkey" FOREIGN KEY ("academicPeriodId") REFERENCES "AcademicPeriod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Grade" ADD CONSTRAINT "Grade_sequenceId_fkey" FOREIGN KEY ("sequenceId") REFERENCES "AcademicSequence"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ReportCard" ADD CONSTRAINT "ReportCard_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -699,6 +1090,9 @@ ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invo
 ALTER TABLE "Expense" ADD CONSTRAINT "Expense_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -711,6 +1105,30 @@ ALTER TABLE "MessageReadStatus" ADD CONSTRAINT "MessageReadStatus_messageId_fkey
 ALTER TABLE "MessageReadStatus" ADD CONSTRAINT "MessageReadStatus_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DisciplineRecord" ADD CONSTRAINT "DisciplineRecord_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassCouncilSession" ADD CONSTRAINT "ClassCouncilSession_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassCouncilSession" ADD CONSTRAINT "ClassCouncilSession_classId_fkey" FOREIGN KEY ("classId") REFERENCES "Class"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassCouncilSession" ADD CONSTRAINT "ClassCouncilSession_academicPeriodId_fkey" FOREIGN KEY ("academicPeriodId") REFERENCES "AcademicPeriod"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassCouncilDecision" ADD CONSTRAINT "ClassCouncilDecision_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ClassCouncilSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClassPromotion" ADD CONSTRAINT "ClassPromotion_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OfflineQueue" ADD CONSTRAINT "OfflineQueue_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -721,3 +1139,4 @@ ALTER TABLE "ActivitiesLog" ADD CONSTRAINT "ActivitiesLog_schoolId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "MasterAuthAudit" ADD CONSTRAINT "MasterAuthAudit_masterUserId_fkey" FOREIGN KEY ("masterUserId") REFERENCES "MasterUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

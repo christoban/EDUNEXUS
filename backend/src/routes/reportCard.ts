@@ -1,50 +1,39 @@
 import express from "express";
-import { protect, authorize } from "../middleware/auth.ts";
-import { validate } from "../middleware/validate.ts";
+import { protect, requireRole } from "../middleware/auth.ts";
 import { sensitiveWriteLimiter } from "../middleware/rateLimit.ts";
 import {
-  generateReportCardsBodySchema,
-  reportCardsQuerySchema,
-} from "../validation/schemas.ts";
-import {
-  triggerReportCardGeneration,
-  getMyReportCards,
-  getReportCards,
+  checkReportCardReadiness,
+  generateReportCardsForClass,
   downloadReportCardPdf,
+  exportReportCardsZip,
+  sendReportCardsToParents,
+  getReportCards,
+  getMyReportCards,
+  triggerReportCardGeneration,
 } from "../controllers/reportCard.ts";
 
 const reportCardRouter = express.Router();
 
-reportCardRouter.post(
-  "/generate",
-  sensitiveWriteLimiter,
-  protect,
-  authorize(["admin", "teacher"]),
-  validate({ body: generateReportCardsBodySchema }),
-  triggerReportCardGeneration
-);
+// Vérification pré-génération
+reportCardRouter.get("/check/:classId", protect, checkReportCardReadiness);
 
-reportCardRouter.get(
-  "/my",
-  protect,
-  authorize(["student"]),
-  validate({ query: reportCardsQuerySchema }),
-  getMyReportCards
-);
+// Génération synchrone par classe
+reportCardRouter.post("/generate/:classId", sensitiveWriteLimiter, protect, generateReportCardsForClass);
 
-reportCardRouter.get(
-  "/",
-  protect,
-  authorize(["admin", "teacher"]),
-  validate({ query: reportCardsQuerySchema }),
-  getReportCards
-);
+// Export ZIP masse
+reportCardRouter.post("/export/:classId", sensitiveWriteLimiter, protect, exportReportCardsZip);
 
-reportCardRouter.get(
-  "/:id/pdf",
-  protect,
-  authorize(["admin", "teacher", "student", "parent"]),
-  downloadReportCardPdf
-);
+// Envoi emails parents
+reportCardRouter.post("/send/:classId", sensitiveWriteLimiter, protect, sendReportCardsToParents);
+
+// Trigger Inngest (async)
+reportCardRouter.post("/generate", sensitiveWriteLimiter, protect, triggerReportCardGeneration);
+
+// Historique bulletins
+reportCardRouter.get("/my", protect, getMyReportCards);
+reportCardRouter.get("/", protect, getReportCards);
+
+// Téléchargement PDF individuel
+reportCardRouter.get("/:id/pdf", protect, downloadReportCardPdf);
 
 export default reportCardRouter;

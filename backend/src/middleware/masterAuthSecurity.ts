@@ -52,7 +52,7 @@ export const restrictMasterLoginByIp = (
   if (!clientIp || !allowedIps.includes(clientIp)) {
     void logMasterAuthAudit({
       req,
-      outcome: "blocked",
+      outcome: "failure",
       reason: "ip_not_allowlisted",
       email: req.body?.email,
     });

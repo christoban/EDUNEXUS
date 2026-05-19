@@ -91,7 +91,7 @@ export const triggerExamGeneration = async (req: Request, res: Response) => {
 export const getExamGeneration = async (req: Request, res: Response) => {
   try {
     const exam = await prisma.exam.findFirst({
-      where: { id: req.params.id },
+      where: { id: String(req.params.id) },
       include: {
         subject: true,
         class: true,
@@ -202,7 +202,7 @@ export const getExamById = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
     const exam = await prisma.exam.findFirst({
-      where: { id: req.params.id, ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
+      where: { id: String(req.params.id), ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
       include: {
         subject: true,
         class: true,
@@ -238,7 +238,7 @@ export const toggleExamStatus = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
     const exam = await prisma.exam.findFirst({
-      where: { id: req.params.id, ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
+      where: { id: String(req.params.id), ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
     });
 
     if (!exam) {
@@ -282,7 +282,7 @@ export const submitExam = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
     const { answers } = req.body;
-    const examId = req.params.id;
+    const examId = String(req.params.id);
 
     await inngest.send({
       name: "exam/submit",
@@ -312,7 +312,7 @@ export const getExamResult = async (req: Request, res: Response) => {
     const currentUser = (req as any).user;
     const submission = await prisma.submission.findFirst({
       where: {
-        examId: req.params.id,
+        examId: String(req.params.id),
         studentId: currentUser.userId,
       },
       include: {
@@ -336,7 +336,7 @@ export const deleteExam = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
     const exam = await prisma.exam.findFirst({
-      where: { id: req.params.id, ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
+      where: { id: String(req.params.id), ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
     });
 
     if (!exam) {

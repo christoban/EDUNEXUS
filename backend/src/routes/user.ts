@@ -2,8 +2,8 @@
 
 const userRoutes = express.Router();
 
-import { register, login, updateUser, deleteUser, logoutUser, getUserProfile, getUsers } from "../controllers/user.ts";
-import { protect, authorize } from "../middleware/auth.ts";
+import { register, login, updateUser, deleteUser, logoutUser, getUserProfile, getUsers, refreshToken, importUsers, exportUsers, transferStudent } from "../controllers/user.ts";
+import { requireAuth as protect, requireRole as authorize } from "../middleware/auth.ts";
 import { validate } from "../middleware/validate.ts";
 import { authLimiter, sensitiveWriteLimiter } from "../middleware/rateLimit.ts";
 import { loginBodySchema, registerBodySchema, updateUserBodySchema, userIdParamSchema } from "../validation/schemas.ts";
@@ -13,21 +13,22 @@ userRoutes.post(
   "/register",
   authLimiter,
   protect,
-  authorize(["admin"]),
+  authorize("admin"),
   validate({ body: registerBodySchema }),
   register
 );
 userRoutes.post("/login", authLimiter, validate({ body: loginBodySchema }), login);
 userRoutes.post("/logout", sensitiveWriteLimiter, logoutUser);
+userRoutes.post("/refresh-token", authLimiter, refreshToken);
 userRoutes.get("/profile", protect, getUserProfile); // Get User Profile
 // teacher should be able to fetch all students
-userRoutes.get("/", protect, authorize(["admin", "teacher"]), getUsers);
+userRoutes.get("/", protect, authorize("admin", "teacher"), getUsers);
 // here you can use either put or patch
 userRoutes.put(
   "/update/:id",
   sensitiveWriteLimiter,
   protect,
-  authorize(["admin"]),
+  authorize("admin"),
   validate({ params: userIdParamSchema, body: updateUserBodySchema }),
   updateUser
 );
@@ -43,10 +44,14 @@ userRoutes.delete(
   "/delete/:id",
   sensitiveWriteLimiter,
   protect,
-  authorize(["admin"]),
+  authorize("admin"),
   validate({ params: userIdParamSchema }),
   deleteUser
 );
+
+userRoutes.post("/import", sensitiveWriteLimiter, protect, importUsers);
+userRoutes.get("/export", protect, exportUsers);
+userRoutes.post("/students/:id/transfer", sensitiveWriteLimiter, protect, transferStudent);
 
 export default userRoutes;
 

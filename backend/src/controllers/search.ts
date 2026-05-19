@@ -1,5 +1,6 @@
 import { type Request, type Response } from "express";
 import { prisma } from "../config/prisma.ts";
+import { Prisma } from "@prisma/client";
 
 const escapeRegex = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -45,9 +46,9 @@ export const globalSearch = async (req: Request, res: Response) => {
     const userWhere = {
       ...(schoolId ? { schoolId } : {}),
       OR: [
-        { firstName: { contains: q, mode: "insensitive" } },
-        { lastName: { contains: q, mode: "insensitive" } },
-        { email: { contains: q, mode: "insensitive" } },
+        { firstName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+        { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } },
+        { email: { contains: q, mode: Prisma.QueryMode.insensitive } },
       ],
     };
 
@@ -60,7 +61,7 @@ export const globalSearch = async (req: Request, res: Response) => {
       prisma.class.findMany({
         where: {
           ...(schoolId ? { schoolId } : {}),
-          name: { contains: q, mode: "insensitive" },
+          name: { contains: q, mode: Prisma.QueryMode.insensitive },
         },
         select: { id: true, name: true, createdAt: true },
         take: 100,
@@ -69,8 +70,8 @@ export const globalSearch = async (req: Request, res: Response) => {
         where: {
           ...(schoolId ? { schoolId } : {}),
           OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { code: { contains: q, mode: "insensitive" } },
+            { name: { contains: q, mode: Prisma.QueryMode.insensitive } },
+            { code: { contains: q, mode: Prisma.QueryMode.insensitive } },
           ],
         },
         select: { id: true, name: true, code: true, createdAt: true },
@@ -80,8 +81,8 @@ export const globalSearch = async (req: Request, res: Response) => {
         where: {
           ...(schoolId ? { schoolId } : {}),
           OR: [
-            { action: { contains: q, mode: "insensitive" } },
-            { description: { contains: q, mode: "insensitive" } },
+            { action: { contains: q, mode: Prisma.QueryMode.insensitive } },
+            { description: { contains: q, mode: Prisma.QueryMode.insensitive } },
           ],
         },
         select: { id: true, action: true, description: true, createdAt: true },

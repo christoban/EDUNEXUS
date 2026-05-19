@@ -123,6 +123,29 @@ export const createInvoice = async (req: Request, res: Response) => {
     const amount = Number(req.body.amount || 0);
     const dueDate = asDate(req.body.dueDate);
 
+    // Vérification seuil légal Art. 48 — frais de scolarité TUITION uniquement
+    if (req.body.feePlanId) {
+      const feePlan = await prisma.feePlan.findFirst({
+        where: { id: String(req.body.feePlanId), schoolId },
+        select: { feeType: true, amount: true, name: true },
+      });
+      if (feePlan?.feeType === "TUITION") {
+        const config = await prisma.schoolConfig.findUnique({
+          where: { schoolId },
+          select: { legalMaxContributionSecondCycle: true },
+        });
+        const legalMax = config?.legalMaxContributionSecondCycle ?? 10000;
+        if (amount > legalMax) {
+          await logActivity({
+            userId: (req as any).user.userId,
+            schoolId,
+            action: "LEGAL_THRESHOLD_EXCEEDED",
+            details: `Frais scolarité ${amount} FCFA > seuil légal Art. 48 (${legalMax} FCFA) — plan: ${feePlan.name}`,
+          });
+        }
+      }
+    }
+
     const invoice = await prisma.invoice.create({
       data: {
         schoolId,
@@ -151,10 +174,27 @@ export const createInvoicesFromFeePlan = async (req: Request, res: Response) => 
     const feePlan = await prisma.feePlan.findFirst({ where: { id: String(feePlanId), schoolId } });
     if (!feePlan) return res.status(404).json({ message: "Fee plan not found" });
 
+    // Vérification seuil légal Art. 48 — frais de scolarité TUITION uniquement
+    if (feePlan.feeType === "TUITION") {
+      const config = await prisma.schoolConfig.findUnique({
+        where: { schoolId },
+        select: { legalMaxContributionSecondCycle: true },
+      });
+      const legalMax = config?.legalMaxContributionSecondCycle ?? 10000;
+      if (feePlan.amount > legalMax) {
+        await logActivity({
+          userId: (req as any).user.userId,
+          schoolId,
+          action: "LEGAL_THRESHOLD_EXCEEDED",
+          details: `Frais scolarité ${feePlan.amount} FCFA > seuil légal Art. 48 (${legalMax} FCFA) — plan: ${feePlan.name}`,
+        });
+      }
+    }
+
     const students = await prisma.user.findMany({
       where: {
         schoolId,
-        role: "student",
+        role: "STUDENT",
         isActive: true,
         ...(studentId ? { id: String(studentId) } : {}),
         ...(classId ? { studentProfile: { classId: String(classId) } } : {}),
@@ -359,10 +399,10 @@ export const getOverdueStudents = async (req: Request, res: Response) => {
     }
 
     const studentIds = [...studentMap.keys()];
-    const students = await prisma.user.findMany({ where: { schoolId, id: { in: studentIds } }, select: { id: true, name: true, email: true } });
+    const students = await prisma.user.findMany({ where: { schoolId, id: { in: studentIds } }, select: { id: true, firstName: true, lastName: true, email: true } });
     const results = students.map((student) => {
       const stats = studentMap.get(student.id)!;
-      return { student, ...stats, balance: Math.max(stats.totalDue - stats.totalPaid, 0) };
+      return { student: { ...student, name: `${student.firstName} ${student.lastName}`.trim() }, ...stats, balance: Math.max(stats.totalDue - stats.totalPaid, 0) };
     });
 
     return res.json({ students: results, total: results.length });
@@ -425,36 +465,47 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
     const invoice = await prisma.invoice.findFirst({ where: { id: String(req.params.invoiceId || req.body.invoiceId), schoolId }, include: { payments: true } });
     if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
-    const student = await prisma.user.findFirst({ where: { id: invoice.studentId, schoolId }, include: { parentProfile: true } });
+    const student = await prisma.user.findFirst({
+      where: { id: invoice.studentId, schoolId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+      }
+    });
     if (!student) return res.status(404).json({ message: "Student not found" });
+    const studentName = student ? `${student.firstName} ${student.lastName}`.trim() : "Élève";
 
     const effectiveSettings = await getEffectiveSchoolSettings(schoolId);
-    const language = resolveUserLanguage(student, effectiveSettings);
+    const language = resolveUserLanguage({ role: "student", schoolLanguageMode: effectiveSettings.schoolLanguageMode as any, schoolPreferredLanguage: effectiveSettings.preferredLanguage });
     const dueAmount = Math.max(Number(invoice.amount || 0) - invoice.payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0), 0);
-    const reminder = buildPaymentReminderTemplate({ studentName: student.name, amountDue: dueAmount, dueDate: invoice.dueDate?.toISOString(), language });
+    const reminder = buildPaymentReminderTemplate({ studentName, totalOutstanding: dueAmount, language });
 
     let smsLogId: string | undefined;
-    if (student.phoneNumber) {
-      const smsResult = await sendSms(student.phoneNumber, reminder.sms);
+    if (student.phone) {
+      const smsResult = await sendSms({ to: student.phone, message: reminder.sms });
       const smsLog = await prisma.smsLog.create({
         data: {
           schoolId,
-          to: student.phoneNumber,
+          to: student.phone,
           content: reminder.sms,
-          status: smsResult.success ? "sent" : "failed",
-          provider: smsResult.provider || null,
+          status: smsResult.status,
         },
       });
       smsLogId = smsLog.id;
-      emitSmsDelivered({ smsLogId, to: student.phoneNumber, status: smsResult.success ? "sent" : "failed" });
+      emitSmsDelivered({ smsLogId, to: student.phone ?? undefined, status: smsResult.status });
     }
 
     if (student.email) {
       await sendTransactionalEmail({
-        to: student.email,
-        subject: reminder.email.subject,
-        html: reminder.email.html,
-        text: reminder.email.text,
+        recipientEmail: student.email,
+        subject: reminder.subject,
+        html: reminder.html,
+        text: reminder.text,
+        template: "payment_reminder",
+        eventType: "payment_reminder",
       });
     }
 

@@ -125,8 +125,11 @@ model SchoolConfig {
   moderator             User?            @relation("SchoolModerator", fields: [moderatorUserId], references: [id])
   aiRiskThreshold       Int              @default(50)
   bulletinTemplate      BulletinTemplate @default(FR_SECONDARY)
-  gradesPerTerm         Int              @default(3)
-  termsPerYear          Int              @default(3)
+  gradesPerTerm                    Int              @default(3)
+  sequenceCalculationMode          String           @default("single")
+  legalMaxContributionFirstCycle   Int              @default(7500)
+  legalMaxContributionSecondCycle  Int              @default(10000)
+  termsPerYear                     Int              @default(3)
   maxAbsences           Int              @default(10)
   smsEnabled            Boolean          @default(false)
   offlineModeEnabled    Boolean          @default(true)
@@ -190,6 +193,7 @@ model User {
   lastName             String
   avatarUrl            String?
   isActive             Boolean                @default(true)
+  refreshTokenVersion  Int                    @default(0)
   lastLogin            DateTime?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
@@ -223,8 +227,9 @@ model User {
   notificationPreference NotificationPreference?
   offlineQueueItems      OfflineQueue[]      @relation("UserOfflineQueue")
   timetableSlots         TimetableSlot[]     @relation("TeacherSlots")
-  promotionsAsStudent    StudentPromotion[]  @relation("PromotedStudent")
-  promotionsDecided      StudentPromotion[]  @relation("PromotionDecidedBy")
+  promotionsAsStudent       StudentPromotion[]  @relation("PromotedStudent")
+  promotionsDecided         StudentPromotion[]  @relation("PromotionDecidedBy")
+  classesProfessorPrincipal Class[]             @relation("ClassProfessorPrincipal")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -412,18 +417,20 @@ model AcademicSequence {
 }
 
 model Class {
-  id                   String                @id @default(cuid())
-  schoolId             String
-  name                 String
-  level                String?
-  sectionId            String?
-  capacity             Int                   @default(40)
-  createdAt            DateTime              @default(now())
-  filiere              String?
-  serie                String?
+  id                    String                @id @default(cuid())
+  schoolId              String
+  name                  String
+  level                 String?
+  sectionId             String?
+  capacity              Int                   @default(40)
+  createdAt             DateTime              @default(now())
+  filiere               String?
+  serie                 String?
+  professorPrincipalId  String?
   attendances           Attendance[]
   school                School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   section               Section?              @relation(fields: [sectionId], references: [id])
+  professorPrincipal    User?                 @relation("ClassProfessorPrincipal", fields: [professorPrincipalId], references: [id])
   classCouncilSessions  ClassCouncilSession[]
   subGroups             ClassSubGroup[]
   exams                 Exam[]
