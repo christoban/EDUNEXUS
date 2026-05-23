@@ -139,7 +139,7 @@ const AdminReportCards = () => {
           <CardHeader><CardTitle className="text-base">Sélection</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Année scolaire" />
               </SelectTrigger>
               <SelectContent>
@@ -148,7 +148,7 @@ const AdminReportCards = () => {
             </Select>
 
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Trimestre / Période" />
               </SelectTrigger>
               <SelectContent>
@@ -157,7 +157,7 @@ const AdminReportCards = () => {
             </Select>
 
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Classe" />
               </SelectTrigger>
               <SelectContent>

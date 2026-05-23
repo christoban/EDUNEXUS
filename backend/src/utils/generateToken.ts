@@ -52,7 +52,7 @@ export const generateTokens = (
   const cookieBase = {
     httpOnly: true,
     secure:   isProduction,
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     path:     "/",
   };
 
@@ -70,7 +70,7 @@ export const clearTokens = (res: Response): void => {
   const cookieBase = {
     httpOnly: true,
     secure:   process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     path:     "/",
   };
   res.cookie("access_token",  "", { ...cookieBase, expires: new Date(0) });

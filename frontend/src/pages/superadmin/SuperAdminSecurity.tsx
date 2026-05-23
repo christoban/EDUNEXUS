@@ -112,6 +112,7 @@ const SuperAdminSecurity: React.FC = () => {
     try {
       await api.post("/master/auth/password/change/confirm", {
         newPassword: newPw,
+        confirmNewPassword: confirmPw,
         emailOtp,
       });
       toast.success("Mot de passe changé avec succès !");
@@ -318,13 +319,19 @@ const SuperAdminSecurity: React.FC = () => {
                     {showPw ? "🙈" : "👁"}
                   </button>
                 </div>
-                <input
-                  value={confirmPw}
-                  onChange={(e) => setConfirmPw(e.target.value)}
-                  type="password"
-                  placeholder="Confirmer le nouveau mot de passe"
-                  style={inputStyle}
-                />
+                <div style={{ position: "relative" }}>
+                  <input
+                    value={confirmPw}
+                    onChange={(e) => setConfirmPw(e.target.value)}
+                    type={showPw ? "text" : "password"}
+                    placeholder="Confirmer le nouveau mot de passe"
+                    style={inputStyle}
+                  />
+                  <button onClick={() => setShowPw(!showPw)}
+                    style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#64748b", cursor: "pointer" }}>
+                    {showPw ? "🙈" : "👁"}
+                  </button>
+                </div>
                 <input
                   value={emailOtp}
                   onChange={(e) => setEmailOtp(e.target.value)}

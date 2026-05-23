@@ -254,7 +254,7 @@ export const generateTimeTable = inngest.createFunction(
       });
 
       // I will show you how to get one if these does not work for you
-      const activeModel = google("gemini-1.5-flash");
+      const activeModel = google("gemini-flash-latest");
 
       const { text } = await generateText({
         prompt,
@@ -361,7 +361,7 @@ export const generateExam = inngest.createFunction(
         });
 
         // I will show you how to get one if these does not work for you
-        const activeModel = google("gemini-1.5-flash");
+        const activeModel = google("gemini-flash-latest");
 
         const { text } = await generateText({
           prompt,
@@ -841,6 +841,234 @@ export const generateReportCards = inngest.createFunction(
     });
 
     return { message: "Report cards generated", generated: generatedStudents.length };
+  }
+);
+
+export const computeStudentHealthScores = inngest.createFunction(
+  { id: "compute-student-health-scores", name: "Calcul indice santé scolaire", triggers: [{ cron: "0 2 * * *" }] },
+  async ({ step }) => {
+    await step.run("compute-all-schools", async () => {
+      const schools = await prisma.school.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true },
+      });
+
+      for (const school of schools) {
+        const students = await prisma.studentProfile.findMany({
+          where: { user: { schoolId: school.id } },
+          select: { id: true, userId: true },
+        });
+
+        for (const student of students) {
+          try {
+            // 1. Moyenne générale (40%)
+            const grades = await prisma.grade.findMany({
+              where: {
+                schoolId: school.id,
+                studentId: student.userId,
+                validationStatus: { in: ["VALIDATED", "LOCKED"] },
+              },
+              select: { sequenceAverage: true, coefficient: true },
+            });
+            let avgScore = 0;
+            if (grades.length > 0) {
+              const weighted = grades.reduce((s, g) => s + (g.sequenceAverage ?? 0) * (g.coefficient ?? 1), 0);
+              const totalCoeff = grades.reduce((s, g) => s + (g.coefficient ?? 1), 0);
+              const avg = totalCoeff > 0 ? weighted / totalCoeff : 0;
+              avgScore = Math.min(100, (avg / 20) * 100);
+            }
+
+            // 2. Taux de présence (25%)
+            const totalAttendance = await prisma.attendance.count({
+              where: { schoolId: school.id, studentId: student.userId },
+            });
+            const presentAttendance = await prisma.attendance.count({
+              where: { schoolId: school.id, studentId: student.userId, status: { in: ["PRESENT", "LATE"] } },
+            });
+            const attendanceScore = totalAttendance > 0 ? (presentAttendance / totalAttendance) * 100 : 100;
+
+            // 3. Tendance (15%) — comparaison avec 30 jours avant
+            const recentGrades = await prisma.grade.findMany({
+              where: {
+                schoolId: school.id, studentId: student.userId,
+                createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+                validationStatus: { in: ["VALIDATED", "LOCKED"] },
+              },
+              select: { sequenceAverage: true },
+            });
+            const olderGrades = await prisma.grade.findMany({
+              where: {
+                schoolId: school.id, studentId: student.userId,
+                createdAt: {
+                  gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+                  lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                },
+                validationStatus: { in: ["VALIDATED", "LOCKED"] },
+              },
+              select: { sequenceAverage: true },
+            });
+            const recentAvg = recentGrades.length > 0
+              ? recentGrades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / recentGrades.length
+              : 0;
+            const olderAvg = olderGrades.length > 0
+              ? olderGrades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / olderGrades.length
+              : recentAvg;
+            const trend = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
+            const trendScore = Math.min(100, Math.max(0, 50 + trend * 2.5));
+
+            // 4. Comportement (10%) — 100 par défaut (pas encore de table incidents)
+            const behaviorScore = 100;
+
+            // 5. Paiements (10%)
+            const overdueInvoices = await prisma.invoice.count({
+              where: {
+                schoolId: school.id, studentId: student.userId,
+                status: { in: ["PENDING", "PARTIAL"] },
+                dueDate: { lt: new Date() },
+              },
+            }).catch(() => 0);
+            const paymentScore = overdueInvoices === 0 ? 100 : Math.max(0, 100 - overdueInvoices * 20);
+
+            const healthScore = Math.round(
+              avgScore * 0.40 +
+              attendanceScore * 0.25 +
+              trendScore * 0.15 +
+              behaviorScore * 0.10 +
+              paymentScore * 0.10
+            );
+
+            await prisma.studentProfile.update({
+              where: { id: student.id },
+              data: { healthScore },
+            });
+
+            if (healthScore <= 30) {
+              await inngest.send({
+                name: "ai/alert.critical",
+                data: { studentId: student.userId, schoolId: school.id, healthScore, type: "SMS" },
+              });
+            } else if (healthScore <= 50) {
+              await inngest.send({
+                name: "ai/alert.warning",
+                data: { studentId: student.userId, schoolId: school.id, healthScore, type: "APP" },
+              });
+            }
+
+            if (trend >= 2) {
+              await inngest.send({
+                name: "ai/alert.positive",
+                data: { studentId: student.userId, schoolId: school.id, healthScore, trend },
+              });
+            }
+          } catch (err) {
+            console.error(`Health score error for student ${student.userId}:`, err);
+          }
+        }
+      }
+    });
+
+    return { computed: true };
+  }
+);
+
+export const sendPaymentReminders = inngest.createFunction(
+  { id: "send-payment-reminders", name: "Relances paiement automatiques", triggers: [{ cron: "0 8 * * *" }] },
+  async ({ step }) => {
+    return await step.run("find-and-remind", async () => {
+      const today = new Date();
+      const in7days = new Date(today);
+      in7days.setDate(today.getDate() + 7);
+
+      const overdueInvoices = await prisma.invoice.findMany({
+        where: {
+          status: { in: ["PENDING", "PARTIAL"] },
+          dueDate: { lte: in7days },
+        },
+        include: {
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              studentProfile: {
+                include: {
+                  parents: {
+                    include: {
+                      parentProfile: {
+                        include: { user: { select: { email: true } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          school: { select: { name: true } },
+          feePlan: { select: { name: true } },
+        },
+      });
+
+      let processed = 0;
+
+      for (const invoice of overdueInvoices) {
+        if (!invoice.dueDate) continue;
+
+        const parentEmails = invoice.student?.studentProfile?.parents
+          .map((p) => p.parentProfile?.user?.email)
+          .filter((e): e is string => Boolean(e)) ?? [];
+
+        if (!invoice.student?.email && parentEmails.length === 0) continue;
+
+        const daysUntilDue = Math.ceil(
+          (new Date(invoice.dueDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        let subject = "";
+        if (daysUntilDue === 7) subject = "Rappel : Paiement dû dans 7 jours";
+        else if (daysUntilDue === 3) subject = "Urgent : Paiement dû dans 3 jours";
+        else if (daysUntilDue === 0) subject = "Aujourd'hui : Dernier délai de paiement";
+        else if (daysUntilDue < 0) subject = `Retard de paiement — ${Math.abs(daysUntilDue)} jour(s)`;
+        else continue;
+
+        const label = invoice.feePlan?.name || invoice.description || "Facture";
+        const amountFormatted = new Intl.NumberFormat("fr-CM", {
+          style: "currency",
+          currency: "XAF",
+          maximumFractionDigits: 0,
+        }).format(invoice.amount);
+        const dueDateFormatted = new Date(invoice.dueDate).toLocaleDateString("fr-FR");
+        const schoolName = invoice.school?.name ?? "EduNexus";
+
+        const allEmails = [
+          ...(invoice.student?.email ? [invoice.student.email] : []),
+          ...parentEmails,
+        ];
+
+        for (const email of [...new Set(allEmails)]) {
+          try {
+            await sendTransactionalEmail({
+              recipientEmail: email,
+              subject: `${subject} — ${schoolName}`,
+              html: `
+                <p>Bonjour,</p>
+                <p>Facture : <b>${label}</b></p>
+                <p>Montant : <b>${amountFormatted}</b></p>
+                <p>Échéance : <b>${dueDateFormatted}</b></p>
+                <p>Connectez-vous sur EduNexus pour payer en ligne.</p>
+              `,
+              text: `Facture ${label} - ${invoice.amount} XAF - Échéance ${dueDateFormatted}`,
+              template: "payment_reminder",
+              eventType: "payment_reminder",
+            });
+            processed++;
+          } catch (err) {
+            console.error("Reminder email error:", err);
+          }
+        }
+      }
+
+      return { processed };
+    });
   }
 );
 

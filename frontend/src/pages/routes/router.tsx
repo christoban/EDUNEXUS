@@ -34,6 +34,7 @@ import SchoolsTablePage from "../superadmin/SchoolsTable";
 import SuperAdminSecurity from "../superadmin/SuperAdminSecurity";
 import { MASTER_LOGIN_ROUTE_PATH } from "@/lib/masterRoutes";
 import OnboardingConfirmation from "../onboarding/OnboardingConfirmation";
+import OfflinePage from "../Offline";
 
 // Nouvelles pages Admin
 import AdminDashboard from "../admin/Dashboard";
@@ -53,10 +54,18 @@ import TeacherAttendance from "../teacher/Attendance";
 // Nouvelles pages Staff
 import TimetableEditor from "../staff/TimetableEditor";
 import ClassCouncil from "../staff/ClassCouncil";
+import GradeValidation from "../staff/GradeValidation";
+import StaffFinance from "../staff/Finance";
+import StaffCautions from "../staff/Cautions";
+
+// Nouvelles pages IA
+import TeacherAIInsights from "../teacher/AIInsights";
 
 // Nouvelles pages Parent & Student
 import ParentReportCards from "../parent/ReportCards";
+import ParentPayments from "../parent/Payments";
 import StudentReportCards from "../student/ReportCards";
+
 
 export const router = createBrowserRouter([
   {
@@ -64,6 +73,7 @@ export const router = createBrowserRouter([
       // public routes
       { index: true, element: <Home /> },
       { path: "login", element: <Login /> },
+      { path: "offline", element: <OfflinePage /> },
       { path: "onboarding/school", element: <SchoolOnboardingPage /> },
       { path: "onboarding/confirmation", element: <OnboardingConfirmation /> },
       { path: "onboarding/join/:token", element: <SchoolOnboardingPage /> },
@@ -131,6 +141,18 @@ export const router = createBrowserRouter([
                   role="parent"
                   title="Parents"
                   description="Manage Parents."
+                />
+              </RoleGuard>
+            ),
+          },
+          {
+            path: "users/staff",
+            element: (
+              <RoleGuard path="/users/staff">
+                <UserManagementPage
+                  role="staff"
+                  title="Personnel"
+                  description="Manage staff accounts and responsibilities."
                 />
               </RoleGuard>
             ),
@@ -311,71 +333,93 @@ export const router = createBrowserRouter([
           // ─── ADMIN ───────────────────────────────────────────────────
           {
             path: "admin/dashboard",
-            element: <RoleGuard path="/admin/dashboard"><AdminDashboard /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminDashboard /></RoleGuard>,
           },
           {
             path: "admin/users",
-            element: <RoleGuard path="/admin/users"><AdminUsers /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminUsers /></RoleGuard>,
           },
           {
             path: "admin/classes",
-            element: <RoleGuard path="/admin/classes"><AdminClasses /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminClasses /></RoleGuard>,
           },
           {
             path: "admin/subjects",
-            element: <RoleGuard path="/admin/subjects"><AdminSubjects /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminSubjects /></RoleGuard>,
           },
           {
             path: "admin/settings",
-            element: <RoleGuard path="/admin/settings"><AdminSettings /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminSettings /></RoleGuard>,
           },
           {
             path: "admin/grades",
-            element: <RoleGuard path="/admin/grades"><AdminGradeStatus /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminGradeStatus /></RoleGuard>,
           },
           {
             path: "admin/report-cards",
-            element: <RoleGuard path="/admin/report-cards"><AdminReportCards /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminReportCards /></RoleGuard>,
           },
           {
             path: "admin/absences",
-            element: <RoleGuard path="/admin/absences"><AdminAbsences /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminAbsences /></RoleGuard>,
           },
           {
             path: "admin/year-end",
-            element: <RoleGuard path="/admin/year-end"><AdminYearEnd /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["admin"]}><AdminYearEnd /></RoleGuard>,
           },
 
           // ─── TEACHER ─────────────────────────────────────────────────
           {
             path: "teacher/grades",
-            element: <RoleGuard path="/teacher/grades"><TeacherGrades /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["teacher", "admin"]}><TeacherGrades /></RoleGuard>,
           },
           {
             path: "teacher/attendance",
-            element: <RoleGuard path="/teacher/attendance"><TeacherAttendance /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["teacher", "admin"]}><TeacherAttendance /></RoleGuard>,
+          },
+          {
+            path: "teacher/ai-insights",
+            element: <RoleGuard allowedRoles={["teacher", "admin"]}><TeacherAIInsights /></RoleGuard>,
           },
 
           // ─── STAFF ───────────────────────────────────────────────────
           {
             path: "staff/timetable",
-            element: <RoleGuard path="/staff/timetable"><TimetableEditor /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["staff", "admin"]}><TimetableEditor /></RoleGuard>,
           },
           {
             path: "staff/class-council",
-            element: <RoleGuard path="/staff/class-council"><ClassCouncil /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["staff", "admin"]}><ClassCouncil /></RoleGuard>,
+          },
+          {
+            path: "staff/grade-validation",
+            element: <RoleGuard allowedRoles={["staff", "admin"]}><GradeValidation /></RoleGuard>,
+          },
+
+          // ─── STAFF FINANCE ───────────────────────────────────────────
+          {
+            path: "staff/finance",
+            element: <RoleGuard allowedRoles={["admin", "staff"]}><StaffFinance /></RoleGuard>,
+          },
+          {
+            path: "staff/cautions",
+            element: <RoleGuard allowedRoles={["admin", "staff"]}><StaffCautions /></RoleGuard>,
           },
 
           // ─── PARENT ──────────────────────────────────────────────────
           {
             path: "parent/report-cards",
-            element: <RoleGuard path="/parent/report-cards"><ParentReportCards /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["parent"]}><ParentReportCards /></RoleGuard>,
+          },
+          {
+            path: "parent/payments",
+            element: <RoleGuard allowedRoles={["parent"]}><ParentPayments /></RoleGuard>,
           },
 
           // ─── STUDENT ─────────────────────────────────────────────────
           {
             path: "student/report-cards",
-            element: <RoleGuard path="/student/report-cards"><StudentReportCards /></RoleGuard>,
+            element: <RoleGuard allowedRoles={["student"]}><StudentReportCards /></RoleGuard>,
           },
         ],
       },

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 const formatXAF = (value: number) =>
   new Intl.NumberFormat("fr-CM", {
@@ -45,7 +46,7 @@ export default function PaymentsPage() {
   }, []);
 
   const selectedInvoice = useMemo(
-    () => invoices.find((item) => item._id === form.invoiceId),
+    () => invoices.find((item) => getId(item) === form.invoiceId),
     [invoices, form.invoiceId]
   );
 
@@ -145,7 +146,7 @@ export default function PaymentsPage() {
             >
               <option value="">{t("finance.payments.form.invoice", language)}</option>
               {invoices.map((invoice) => (
-                <option key={invoice._id} value={invoice._id}>
+                <option key={getId(invoice)} value={getId(invoice)}>
                   {invoice.invoiceNumber} - {invoice.student?.name || t("common.na", language)} ({formatXAF(Number(invoice.balance))})
                 </option>
               ))}
@@ -231,7 +232,7 @@ export default function PaymentsPage() {
               </TableHeader>
               <TableBody>
                 {payments.map((payment) => (
-                  <TableRow key={payment._id}>
+                  <TableRow key={getId(payment)}>
                     <TableCell>{payment.receiptNumber}</TableCell>
                     <TableCell>{payment.invoice?.invoiceNumber || t("common.na", language)}</TableCell>
                     <TableCell>{payment.student?.name || t("common.na", language)}</TableCell>
@@ -247,7 +248,7 @@ export default function PaymentsPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => downloadReceipt(payment._id, payment.receiptNumber)}
+                        onClick={() => downloadReceipt(getId(payment), payment.receiptNumber)}
                       >
                         {t("finance.payments.receiptPdf", language)}
                       </Button>

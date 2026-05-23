@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 type WizardStep = "token" | "school" | "questions" | "admin" | "review";
 
 const STEPS: WizardStep[] = ["token", "school", "questions", "admin", "review"];
+const ONBOARDING_DRAFT_KEY = "edunexus:onboarding-draft";
 
 type WizardState = {
   step: WizardStep;
@@ -127,6 +128,8 @@ const SchoolOnboarding = () => {
     logoUrl: "",
   });
 
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [schoolErrors, setSchoolErrors] = useState<Record<string, string>>({});
 
   const [answers, setAnswers] = useState({
@@ -156,6 +159,85 @@ const SchoolOnboarding = () => {
   const regionRef = useRef<HTMLInputElement | null>(null);
   const adminFirstRef = useRef<HTMLInputElement | null>(null);
   const adminEmailRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const rawDraft = window.sessionStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (!rawDraft) return;
+
+      const draft = JSON.parse(rawDraft) as {
+        wizardStep?: WizardStep;
+        schoolInfo?: Partial<typeof schoolInfo>;
+        answers?: Partial<typeof answers>;
+        admin?: Partial<typeof admin>;
+        logoPreview?: string | null;
+      };
+
+      if (draft.wizardStep && STEPS.includes(draft.wizardStep)) {
+        dispatch({ type: "GOTO", step: draft.wizardStep });
+      }
+
+      if (draft.schoolInfo) {
+        setSchoolInfo((current) => ({ ...current, ...draft.schoolInfo }));
+      }
+
+      if (draft.answers) {
+        setAnswers((current) => ({ ...current, ...draft.answers } as typeof current));
+      }
+
+      if (draft.admin) {
+        setAdmin((current) => ({ ...current, ...draft.admin }));
+      }
+
+      if (typeof draft.logoPreview === "string") {
+        setLogoPreview(draft.logoPreview);
+      }
+    } catch {
+      // Ignore malformed draft data and continue with a clean form.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        ONBOARDING_DRAFT_KEY,
+        JSON.stringify({
+          wizardStep: wizard.step,
+          schoolInfo,
+          answers,
+          admin,
+          logoPreview,
+        })
+      );
+    } catch {
+      // Ignore storage quota or privacy mode failures.
+    }
+  }, [wizard.step, schoolInfo, answers, admin, logoPreview]);
+
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file is image
+    if (!file.type.startsWith('image/')) {
+      toast.error('Le fichier doit être une image.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La taille du fichier doit être inférieure à 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setLogoPreview(dataUrl);
+      setSchoolInfo((s) => ({ ...s, logoUrl: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+  };
 
   const schoolValid = useMemo(() => schoolInfoSchema.safeParse(schoolInfo).success, [schoolInfo]);
   const adminValid = useMemo(() => adminSchema.safeParse(admin).success, [admin]);
@@ -286,6 +368,11 @@ const SchoolOnboarding = () => {
         questionnaire: answers,
         detectedTemplate,
       });
+      try {
+        window.sessionStorage.removeItem(ONBOARDING_DRAFT_KEY);
+      } catch {
+        // Ignore cleanup failures.
+      }
       toast.success("Soumission effectuée. L'établissement passe en attente de finalisation.");
       navigate("/onboarding/confirmation");
     } catch (error: any) {
@@ -368,7 +455,52 @@ const SchoolOnboarding = () => {
                   <Input className={schoolErrors.email ? 'border-red-400' : ''} value={schoolInfo.email} onChange={(event) => setSchoolInfo((s) => ({ ...s, email: event.target.value }))} placeholder="Email" type="email" aria-invalid={!!schoolErrors.email} />
                   {schoolErrors.email && <p className="text-xs text-red-300">{schoolErrors.email}</p>}
                 </div>
-                <Input value={schoolInfo.logoUrl} onChange={(event) => setSchoolInfo((s) => ({ ...s, logoUrl: event.target.value }))} placeholder="https://.../logo.png (optionnel)" />
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Logo de l'école (optionnel)</label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          Sélectionner un logo
+                        </Button>
+                      </div>
+                      {logoPreview && (
+                        <img
+                          src={logoPreview}
+                          alt="Aperçu du logo"
+                          className="h-16 w-16 rounded-lg object-cover border border-white/10"
+                        />
+                      )}
+                    </div>
+                    {logoPreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setLogoPreview(null);
+                          setSchoolInfo((s) => ({ ...s, logoUrl: "" }));
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="mt-2 text-red-400 hover:text-red-300"
+                      >
+                        Supprimer le logo
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 {schoolErrors.logoUrl && <p className="text-xs text-red-300">{schoolErrors.logoUrl}</p>}
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => dispatch({ type: "BACK" })}>Retour</Button>

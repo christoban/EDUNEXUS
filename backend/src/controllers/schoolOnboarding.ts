@@ -36,24 +36,27 @@ const ALLOWED_ONBOARDING_STATUSES = [
   "approved",
   "provisioning",
   "active",
+  "suspended",
   "rejected",
 ] as const;
 
 const statusFromQuery = (status: string): SchoolStatus | null => {
   const normalized = status.trim().toLowerCase();
-  if (normalized === "pending" || normalized === "draft" || normalized === "provisioning") {
-    return SchoolStatus.PENDING;
-  }
+  if (normalized === "draft") return SchoolStatus.DRAFT;
+  if (normalized === "pending" || normalized === "provisioning") return SchoolStatus.PENDING;
   if (normalized === "approved") return SchoolStatus.APPROVED;
   if (normalized === "active") return SchoolStatus.ACTIVE;
+  if (normalized === "suspended") return SchoolStatus.SUSPENDED;
   if (normalized === "rejected") return SchoolStatus.REJECTED;
   return null;
 };
 
 const statusToLegacy = (status: SchoolStatus): string => {
+  if (status === SchoolStatus.DRAFT) return "draft";
   if (status === SchoolStatus.PENDING) return "pending";
   if (status === SchoolStatus.APPROVED) return "approved";
   if (status === SchoolStatus.ACTIVE) return "active";
+  if (status === SchoolStatus.SUSPENDED) return "suspended";
   if (status === SchoolStatus.REJECTED) return "rejected";
   return "rejected";
 };
@@ -314,7 +317,7 @@ const provisionApprovedSchool = async (school: School) => {
     const activeSchool = await tx.school.update({
       where: { id: school.id },
       data: {
-        status: SchoolStatus.ACTIVE,
+        status: SchoolStatus.APPROVED,
         subsystem,
         type: schoolType,
         educationType,
@@ -621,12 +624,31 @@ export const approveSchoolOnboardingRequest = async (req: Request, res: Response
 
     if (invite.email || updatedSchool.email) {
       try {
-        const loginUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/onboarding/join/${invite.token}`;
+        const loginUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/login`;
         await sendTransactionalEmail({
           recipientEmail: invite.email || updatedSchool.email || "",
-          subject: `Bienvenue sur EDUNEXUS - ${updatedSchool.name}`,
-          html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a"><p>Bonjour,</p><p>Votre établissement <b>${updatedSchool.name}</b> a été approuvé et configuré.</p><p>Vous pouvez finaliser la création de votre compte administrateur via ce lien temporaire :</p><p><a href="${loginUrl}">${loginUrl}</a></p><p>Subdomain: <b>${updatedSchool.subdomain}</b></p><p>Instructions: ouvrez le lien, renseignez le nom, l'email et le mot de passe de l'administrateur, puis conservez vos codes de secours.</p></div>`,
-          text: `Bonjour,\n\nVotre établissement ${updatedSchool.name} a été approuvé et configuré.\n\nLien temporaire: ${loginUrl}\nSubdomain: ${updatedSchool.subdomain}\n\nOuvrez le lien, renseignez le nom, l'email et le mot de passe de l'administrateur, puis conservez vos codes de secours.`,
+          subject: `✅ ${updatedSchool.name} — Votre établissement est approuvé sur EduNexus`,
+          html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a;max-width:600px">
+        <h2 style="color:#16a34a">🎉 Félicitations — Votre établissement est approuvé !</h2>
+        <p>Bonjour,</p>
+        <p>L'établissement <b>${updatedSchool.name}</b> a été validé et configuré sur la plateforme EduNexus.</p>
+        <p>Votre compte administrateur est prêt. Connectez-vous dès maintenant :</p>
+        <p style="text-align:center;margin:24px 0">
+          <a href="${loginUrl}" style="background:#2563eb;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
+            Se connecter →
+          </a>
+        </p>
+        <p><b>Votre identifiant :</b> ${invite.email || updatedSchool.email}</p>
+        <p><b>Subdomain :</b> ${updatedSchool.subdomain}</p>
+        <hr style="border:1px solid #e2e8f0;margin:24px 0"/>
+        <p style="color:#64748b;font-size:13px">
+          Si vous avez des questions, contactez le support EduNexus.<br>
+          Cet email est envoyé automatiquement par la plateforme EduNexus Cameroun.
+        </p>
+      </div>
+    `,
+          text: `Félicitations ! L'établissement ${updatedSchool.name} est approuvé.\n\nConnectez-vous sur : ${loginUrl}\nIdentifiant : ${invite.email || updatedSchool.email}`,
           template: "school_approved",
           eventType: "school_approved",
           metadata: { schoolId: updatedSchool.id },
@@ -736,7 +758,7 @@ export const createSchoolOnboardingRequest = async (req: Request, res: Response)
       data: {
         name: String(schoolName).trim(),
         subdomain,
-        status: SchoolStatus.PENDING,
+        status: SchoolStatus.DRAFT,
         email: contactEmail ? String(contactEmail).trim().toLowerCase() : normalizedEmail,
         phone: contactPhone ? String(contactPhone).trim() : null,
         city: location ? String(location).trim() : null,
@@ -856,7 +878,7 @@ export const getSchoolOnboardingInvite = async (req: Request, res: Response) => 
 
 export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) => {
   try {
-    const { adminPassword, adminName, adminEmail } = req.body ?? {};
+    const { adminPassword, adminName, adminEmail, schoolInfo } = req.body ?? {};
 
     if (!adminPassword || String(adminPassword).length < 6) {
       return res.status(400).json({ message: "adminPassword is required and must be at least 6 characters" });
@@ -885,9 +907,9 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
     }
 
     if (
-      invite.school?.status !== SchoolStatus.ACTIVE &&
-      invite.school?.status !== SchoolStatus.APPROVED &&
-      invite.school?.status !== SchoolStatus.PENDING
+      invite.school?.status !== SchoolStatus.DRAFT &&
+      invite.school?.status !== SchoolStatus.PENDING &&
+      invite.school?.status !== SchoolStatus.APPROVED
     ) {
       return res.status(409).json({ message: "School is not available for onboarding" });
     }
@@ -922,7 +944,7 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
       });
     }
 
-    if (![SchoolStatus.PENDING, SchoolStatus.APPROVED].includes(school.status)) {
+    if (![SchoolStatus.DRAFT, SchoolStatus.PENDING, SchoolStatus.APPROVED].includes(school.status)) {
       return res.status(409).json({
         message: `School onboarding status is "${statusToLegacy(school.status)}", cannot proceed`,
       });
@@ -969,11 +991,24 @@ export const acceptSchoolOnboardingInvite = async (req: Request, res: Response) 
         },
       });
 
+      const schoolUpdateData: any = {
+        status: SchoolStatus.PENDING,
+        email: resolvedAdminEmail,
+      };
+
+      if (schoolInfo) {
+        if (schoolInfo.schoolName) schoolUpdateData.name = String(schoolInfo.schoolName).trim();
+        if (schoolInfo.address) schoolUpdateData.address = String(schoolInfo.address).trim();
+        if (schoolInfo.city) schoolUpdateData.city = String(schoolInfo.city).trim();
+        if (schoolInfo.region) schoolUpdateData.region = String(schoolInfo.region).trim();
+        if (schoolInfo.phone) schoolUpdateData.phone = String(schoolInfo.phone).trim();
+        if (schoolInfo.email) schoolUpdateData.email = String(schoolInfo.email).trim().toLowerCase();
+        if (schoolInfo.logoUrl) schoolUpdateData.logoUrl = String(schoolInfo.logoUrl).trim();
+      }
+
       const updatedSchool = await tx.school.update({
         where: { id: school.id },
-        data: {
-          email: resolvedAdminEmail,
-        },
+        data: schoolUpdateData,
       });
 
       const updatedInvite = await tx.schoolInvite.findUnique({ where: { id: invite.id } });

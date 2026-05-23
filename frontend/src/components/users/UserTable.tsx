@@ -26,6 +26,7 @@ import type { user } from "@/types";
 import CustomPagination from "@/components/global/CustomPagination";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 // ?page=${pageNum}&limit=10
 interface Props {
@@ -98,7 +99,7 @@ const UserTable = ({
             </TableRow>
           ) : (
             users.map((user) => (
-              <TableRow key={user._id}>
+              <TableRow key={getId(user)}>
                 <TableCell className="font-medium flex items-center gap-2">
                   <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
                     <UserIcon className="h-4 w-4 text-slate-500" />
@@ -111,7 +112,7 @@ const UserTable = ({
                     {user.teacherSubjects?.length ? (
                       <div className="flex gap-1">
                         {user.teacherSubjects.map((subject) => (
-                          <Badge variant="outline" key={subject._id}>
+                          <Badge variant="outline" key={getId(subject)}>
                             {subject.name}
                           </Badge>
                         ))}
@@ -151,7 +152,7 @@ const UserTable = ({
                       <DropdownMenuItem
                         className="text-red-600"
                         onClick={() => {
-                          setDeleteId(user._id);
+                          setDeleteId(getId(user));
                           setIsDeleteOpen(true);
                         }}
                       >

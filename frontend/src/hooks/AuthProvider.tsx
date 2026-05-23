@@ -32,7 +32,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       ]);
 
       if (profileResult.status === "fulfilled") {
-        setUser(profileResult.value.data.user);
+        const raw = profileResult.value.data.user;
+        setUser({ ...raw, role: raw.role?.toLowerCase() });
       } else {
         setUser(null);
       }

@@ -30,6 +30,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import type { Class, subject } from "@/types";
+import { getId } from "@/lib/utils";
 
 const schema = z.object({
   subject: z.string().min(1, "Subject is required"),
@@ -241,7 +242,7 @@ const ExamGenerator = ({ open, onOpenChange, onSuccess }: Props) => {
                       </SelectTrigger>
                       <SelectContent>
                         {subjects.map((s) => (
-                          <SelectItem key={s._id} value={s._id}>
+                          <SelectItem key={getId(s)} value={getId(s)}>
                             {s.name}
                           </SelectItem>
                         ))}
@@ -263,7 +264,7 @@ const ExamGenerator = ({ open, onOpenChange, onSuccess }: Props) => {
                       </SelectTrigger>
                       <SelectContent>
                         {classes.map((c) => (
-                          <SelectItem key={c._id} value={c._id}>
+                          <SelectItem key={getId(c)} value={getId(c)}>
                             {c.name}
                             {(() => {
                               const section = typeof c.section === "string" || !c.section ? null : c.section;

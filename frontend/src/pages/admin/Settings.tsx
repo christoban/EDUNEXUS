@@ -33,6 +33,12 @@ const AdminSettings = () => {
     setSaving(true);
     try {
       await api.put("/school-settings", settings);
+      // Notify other parts of the app (sidebar, header) to refresh branding
+      try {
+        window.dispatchEvent(new CustomEvent("school-settings-updated", { detail: { schoolName: settings.schoolName, schoolLogoUrl: settings.schoolLogoUrl } }));
+      } catch (e) {
+        // ignore in environments where window isn't present
+      }
       toast.success("Paramètres enregistrés");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Erreur");
@@ -46,7 +52,7 @@ const AdminSettings = () => {
         type={type}
         value={settings[key] ?? ""}
         onChange={(e) => setSettings((s) => ({ ...s, [key]: e.target.value }))}
-        className="border-white/10 bg-white/5 text-white"
+        className="border-border bg-background text-foreground"
       />
     </div>
   );
@@ -68,7 +74,42 @@ const AdminSettings = () => {
               <CardContent className="grid gap-4">
                 {field("Nom de l'établissement", "schoolName")}
                 {field("Devise / Motto", "schoolMotto")}
-                {field("URL du logo", "schoolLogoUrl", "url")}
+                <div className="space-y-1">
+                  <label className="text-xs uppercase tracking-widest text-slate-400">Logo de l'établissement</label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-md overflow-hidden bg-white/5 flex items-center justify-center">
+                      {settings.schoolLogoUrl ? (
+                        <img src={settings.schoolLogoUrl} alt="logo" className="object-contain w-full h-full" />
+                      ) : (
+                        <div className="text-xs text-slate-400">Aperçu</div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files && e.target.files[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const result = String(reader.result || "");
+                            setSettings((s) => ({ ...s, schoolLogoUrl: result }));
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          onClick={() => setSettings((s) => ({ ...s, schoolLogoUrl: "" }))}
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -78,7 +119,7 @@ const AdminSettings = () => {
                 <div className="space-y-1">
                   <label className="text-xs uppercase tracking-widest text-slate-400">Calendrier académique</label>
                   <select
-                    className="w-full rounded-md border border-white/10 bg-white/5 p-3 text-white"
+                    className="w-full rounded-md border border-border bg-background p-3 text-foreground"
                     value={settings.academicCalendarType ?? "trimester"}
                     onChange={(e) => setSettings((s) => ({ ...s, academicCalendarType: e.target.value }))}
                   >
@@ -89,7 +130,7 @@ const AdminSettings = () => {
                 <div className="space-y-1">
                   <label className="text-xs uppercase tracking-widest text-slate-400">Langue préférée</label>
                   <select
-                    className="w-full rounded-md border border-white/10 bg-white/5 p-3 text-white"
+                    className="w-full rounded-md border border-border bg-background p-3 text-foreground"
                     value={settings.preferredLanguage ?? "fr"}
                     onChange={(e) => setSettings((s) => ({ ...s, preferredLanguage: e.target.value }))}
                   >
@@ -100,7 +141,7 @@ const AdminSettings = () => {
                 <div className="space-y-1">
                   <label className="text-xs uppercase tracking-widest text-slate-400">Sous-système</label>
                   <select
-                    className="w-full rounded-md border border-white/10 bg-white/5 p-3 text-white"
+                    className="w-full rounded-md border border-border bg-background p-3 text-foreground"
                     value={settings.schoolLanguageMode ?? "francophone"}
                     onChange={(e) => setSettings((s) => ({ ...s, schoolLanguageMode: e.target.value }))}
                   >

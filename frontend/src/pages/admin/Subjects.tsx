@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { FieldLabel } from "@/components/ui/field";
 
 type Subject = {
   id: string;
@@ -132,18 +133,59 @@ const AdminSubjects = () => {
       <Dialog open={createDialog} onOpenChange={setCreateDialog}>
         <DialogContent className="border-white/10 bg-slate-900 text-white">
           <DialogHeader><DialogTitle>Nouvelle matière</DialogTitle></DialogHeader>
-          <div className="grid gap-3 py-2">
-            <Input placeholder="Nom (ex: Mathématiques)" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-            <Input placeholder="Code (ex: MATH)" value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-            <div className="grid grid-cols-2 gap-3">
-              <Input type="number" placeholder="Coefficient" value={form.coefficient} onChange={(e) => setForm((f) => ({ ...f, coefficient: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-              <Input type="number" placeholder="Heures/semaine" value={form.hoursPerWeek} onChange={(e) => setForm((f) => ({ ...f, hoursPerWeek: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+          <div className="grid gap-4 py-2">
+            <div className="space-y-1.5">
+              <FieldLabel>Nom de la matière</FieldLabel>
+              <Input
+                placeholder="Nom (ex: Mathématiques)"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
+              />
             </div>
-            <select className="rounded-md border border-white/10 bg-white/5 p-3 text-white" value={form.subjectType} onChange={(e) => setForm((f) => ({ ...f, subjectType: e.target.value }))}>
-              <option value="THEORETICAL">Théorique</option>
-              <option value="PRACTICAL">Pratique</option>
-              <option value="MIXED">Mixte</option>
-            </select>
+            <div className="space-y-1.5">
+              <FieldLabel>Code</FieldLabel>
+              <Input
+                placeholder="Code (ex: MATH)"
+                value={form.code}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <FieldLabel>Coefficient</FieldLabel>
+                <Input
+                  type="number"
+                  placeholder="Coefficient"
+                  value={form.coefficient}
+                  onChange={(e) => setForm((f) => ({ ...f, coefficient: e.target.value }))}
+                  className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Heures / semaine</FieldLabel>
+                <Input
+                  type="number"
+                  placeholder="Heures/semaine"
+                  value={form.hoursPerWeek}
+                  onChange={(e) => setForm((f) => ({ ...f, hoursPerWeek: e.target.value }))}
+                  className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Type</FieldLabel>
+              <select
+                className="rounded-md border border-white/10 bg-slate-950 p-3 text-white outline-none"
+                value={form.subjectType}
+                onChange={(e) => setForm((f) => ({ ...f, subjectType: e.target.value }))}
+              >
+                <option value="THEORETICAL">Théorique</option>
+                <option value="PRACTICAL">Pratique</option>
+                <option value="MIXED">Mixte</option>
+              </select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" className="border-white/10 bg-transparent text-white" onClick={() => setCreateDialog(false)}>Annuler</Button>

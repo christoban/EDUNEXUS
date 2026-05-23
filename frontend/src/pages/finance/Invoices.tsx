@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 const formatXAF = (value: number) =>
   new Intl.NumberFormat("fr-CM", {
@@ -110,7 +111,7 @@ export default function InvoicesPage() {
             >
               <option value="">{t("finance.invoices.form.selectPlan", language)}</option>
               {feePlans.map((plan) => (
-                <option key={plan._id} value={plan._id}>
+                <option key={getId(plan)} value={getId(plan)}>
                   {plan.name} - {formatXAF(Number(plan.amount))}
                 </option>
               ))}
@@ -153,7 +154,7 @@ export default function InvoicesPage() {
               </TableHeader>
               <TableBody>
                 {invoices.map((invoice) => (
-                  <TableRow key={invoice._id}>
+                  <TableRow key={getId(invoice)}>
                     <TableCell>{invoice.invoiceNumber}</TableCell>
                     <TableCell>{invoice.student?.name || t("common.na", language)}</TableCell>
                     <TableCell>{invoice.class?.name || t("common.na", language)}</TableCell>

@@ -92,6 +92,21 @@ export const markAttendance = async (req: Request, res: Response) => {
 
     const normalizedDate = startOfDayUtc(date);
 
+    const STATUS_VALUES = new Set(["PRESENT", "ABSENT", "LATE"]);
+    const PERIOD_VALUES = new Set(["MORNING", "AFTERNOON"]);
+
+    const normalizeStatus = (s: any) => {
+      if (s === null || s === undefined) return "PRESENT";
+      const str = String(s).toUpperCase();
+      return STATUS_VALUES.has(str) ? str : "PRESENT";
+    };
+
+    const normalizePeriod = (p: any) => {
+      if (p === null || p === undefined) return "MORNING";
+      const str = String(p).toUpperCase();
+      return PERIOD_VALUES.has(str) ? str : "MORNING";
+    };
+
     for (const record of records) {
       const existing = await prisma.attendance.findFirst({
         where: {
@@ -102,12 +117,15 @@ export const markAttendance = async (req: Request, res: Response) => {
         },
       });
 
+      const normalizedStatus = normalizeStatus(record.status ?? req.body.status);
+      const normalizedPeriod = normalizePeriod(record.period ?? req.body.period);
+
       if (existing) {
         await prisma.attendance.update({
           where: { id: existing.id },
           data: {
-            status: record.status as any,
-            period: (record.period ?? req.body.period ?? "MORNING") as any,
+            status: normalizedStatus as any,
+            period: normalizedPeriod as any,
             recordedById: currentUser.userId,
           },
         });
@@ -118,8 +136,8 @@ export const markAttendance = async (req: Request, res: Response) => {
             studentId: String(record.studentId),
             classId: String(classId),
             date: normalizedDate,
-            status: record.status as any,
-            period: (record.period ?? req.body.period ?? "MORNING") as any,
+            status: normalizedStatus as any,
+            period: normalizedPeriod as any,
             academicPeriodId: req.body.academicPeriodId ?? null,
             subjectId: record.subjectId ?? null,
             recordedById: currentUser.userId,
@@ -242,8 +260,14 @@ export const getAttendance = async (req: Request, res: Response) => {
         : Promise.resolve([]),
     ]);
 
-    const studentMap = new Map(students.map((student) => [student.id, student]));
-    const recorderMap = new Map(recorders.map((user) => [user.id, user]));
+    const studentMap = new Map(students.map((student) => [
+      student.id,
+      { ...student, name: `${student.firstName || ""} ${student.lastName || ""}`.trim() },
+    ]));
+    const recorderMap = new Map(recorders.map((user) => [
+      user.id,
+      { ...user, name: `${user.firstName || ""} ${user.lastName || ""}`.trim() },
+    ]));
 
     return res.json({
       records: records.map((record) => ({

@@ -25,7 +25,13 @@ export const createAcademicYear = async (
       res.status(400).json({ message: "Academic Year already exists" });
       return;
     }
-    if (isCurrent) {
+    const currentYearExists = await prisma.academicYear.findFirst({
+      where: { schoolId, isCurrent: true },
+      select: { id: true },
+    });
+    const shouldBeCurrent = Boolean(isCurrent) || !currentYearExists;
+
+    if (shouldBeCurrent) {
       await prisma.academicYear.updateMany({
         where: { schoolId },
         data: { isCurrent: false },
@@ -37,7 +43,7 @@ export const createAcademicYear = async (
         name,
         startDate: new Date(fromYear),
         endDate: new Date(toYear),
-        isCurrent: Boolean(isCurrent),
+        isCurrent: shouldBeCurrent,
       },
     });
     await logActivity({

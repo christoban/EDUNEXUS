@@ -30,6 +30,8 @@ import {
   handleExamSubmission,
   generateReportCards,
   handleGradeSubmitted,
+  sendPaymentReminders,
+  computeStudentHealthScores,
 } from "./inngest/functions.ts";
 import timeRouter from "./routes/timetable.ts";
 import examRouter from "./routes/exam.ts";
@@ -40,11 +42,12 @@ import reportCardRouter from "./routes/reportCard.ts";
 import classCouncilRouter from "./routes/classCouncil.ts";
 import emailLogRouter from "./routes/emailLog.ts";
 import parentRouter from "./routes/parent.ts";
-import financeRouter from "./routes/finance.ts";
+import financeRouter, { publicFinanceRouter } from "./routes/finance.ts";
 import aiRouter from "./routes/ai.ts";
 import schoolSettingsRouter from "./routes/schoolSettings.ts";
 import coreDomainRouter from "./routes/coreDomain.ts";
 import publicRouter from "./routes/public.ts";
+import smsRouter from "./routes/sms.ts";
 import { initSocket } from "./socket/io.ts";
 
 // Load environment variables from .env file
@@ -74,8 +77,24 @@ if (process.env.STAGE === "development") {
 
 // cross-origin resource sharing (CORS) middleware
 
+// CORS: allow the configured client origin plus common local dev hosts
+const rawClientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+const allowedOrigins = Array.from(new Set([
+  rawClientUrl,
+  // also allow 127.0.0.1 variant used by some dev setups / Playwright
+  rawClientUrl.replace("localhost", "127.0.0.1"),
+  // ensure localhost is present
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]));
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: (origin, callback) => {
+    // allow non-browser callers (curl, server-side) or undefined origin
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -136,10 +155,12 @@ app.use("/api/report-cards", reportCardRouter);
 app.use("/api/class-councils", classCouncilRouter);
 app.use("/api/email-logs", emailLogRouter);
 app.use("/api/parent", parentRouter);
+app.use("/api/finance", publicFinanceRouter);
 app.use("/api/finance", financeRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/school-settings", schoolSettingsRouter);
 app.use("/api/core-domain", coreDomainRouter);
+app.use("/api/sms", smsRouter);
 app.use(
   "/api/inngest",
   serve({
@@ -150,6 +171,8 @@ app.use(
       handleExamSubmission,
       generateReportCards,
       handleGradeSubmitted,
+      sendPaymentReminders,
+      computeStudentHealthScores,
     ],
   })
 );

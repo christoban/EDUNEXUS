@@ -8,10 +8,6 @@ import { logActivity } from "../utils/activitieslog.ts";
 export const createClass = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    if (currentUser?.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can create classes" });
-    }
-
     const schoolId = currentUser?.schoolId;
     if (!schoolId) {
       return res.status(403).json({ message: "Aucun établissement associé" });
@@ -142,10 +138,6 @@ export const getAllClasses = async (req: Request, res: Response) => {
 export const updateClass = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    if (currentUser?.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can update classes" });
-    }
-
     const classId = String(req.params.id);
     const schoolId = currentUser?.schoolId;
     const { name, level, capacity } = req.body;
@@ -197,12 +189,86 @@ export const updateClass = async (req: Request, res: Response) => {
 export const deleteClass = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    if (currentUser?.role !== "admin") {
-      return res.status(403).json({ message: "Only admins can delete classes" });
-    }
-
     const schoolId = currentUser?.schoolId;
-    const deletedClass = await prisma.class.delete({ where: { id: String(req.params.id) } });
+
+    const classId = String(req.params.id);
+
+    const deletedClass = await prisma.$transaction(async (tx) => {
+      await tx.attendance.deleteMany({
+        where: {
+          schoolId,
+          classId,
+        },
+      });
+
+      await tx.grade.deleteMany({
+        where: {
+          schoolId,
+          classId,
+        },
+      });
+
+      const exams = await tx.exam.findMany({
+        where: {
+          schoolId,
+          classId,
+        },
+        select: { id: true },
+      });
+
+      if (exams.length > 0) {
+        await tx.submission.deleteMany({
+          where: {
+            examId: { in: exams.map((exam) => exam.id) },
+          },
+        });
+
+        await tx.exam.deleteMany({
+          where: {
+            id: { in: exams.map((exam) => exam.id) },
+          },
+        });
+      }
+
+      await tx.classCouncilSession.deleteMany({
+        where: {
+          schoolId,
+          classId,
+        },
+      });
+
+      await tx.timetable.deleteMany({
+        where: {
+          schoolId,
+          classId,
+        },
+      });
+
+      await tx.classPromotion.deleteMany({
+        where: {
+          schoolId,
+          OR: [{ fromClassId: classId }, { toClassId: classId }],
+        },
+      });
+
+      await tx.studentPromotion.deleteMany({
+        where: {
+          schoolId,
+          OR: [{ fromClassId: classId }, { toClassId: classId }],
+        },
+      });
+
+      await tx.studentProfile.updateMany({
+        where: {
+          classId,
+          user: { schoolId },
+        },
+        data: { classId: null },
+      });
+
+      return tx.class.delete({ where: { id: classId } });
+    });
+
     await logActivity({
       userId: currentUser.userId,
       schoolId,

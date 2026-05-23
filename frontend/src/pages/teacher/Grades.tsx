@@ -236,7 +236,7 @@ const TeacherGrades = () => {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Année scolaire" />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +247,7 @@ const TeacherGrades = () => {
             </Select>
 
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Trimestre / Term" />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +258,7 @@ const TeacherGrades = () => {
             </Select>
 
             <Select value={selectedSequence} onValueChange={setSelectedSequence}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Séquence" />
               </SelectTrigger>
               <SelectContent>
@@ -269,7 +269,7 @@ const TeacherGrades = () => {
             </Select>
 
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Classe" />
               </SelectTrigger>
               <SelectContent>
@@ -280,7 +280,7 @@ const TeacherGrades = () => {
             </Select>
 
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Matière" />
               </SelectTrigger>
               <SelectContent>
@@ -353,7 +353,7 @@ const TeacherGrades = () => {
                                   : (grade?.sequenceScore ?? "")
                               }
                               onChange={(e) => handleScoreChange(student.id, "sequenceScore", e.target.value)}
-                              className="mx-auto w-24 border-white/10 bg-white/5 text-center text-white disabled:opacity-50"
+                              className="mx-auto w-24 border-border bg-background text-center text-foreground disabled:opacity-50"
                               placeholder="—"
                             />
                           </td>

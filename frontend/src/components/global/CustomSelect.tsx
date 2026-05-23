@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 
 export interface SelectOption {
   label: string;
@@ -22,6 +22,7 @@ interface CustomSelectProps<T extends FieldValues> {
   control: Control<T>;
   name: Path<T>;
   label: string;
+  description?: string;
   placeholder?: string;
   options: SelectOption[];
   disabled?: boolean;
@@ -32,6 +33,7 @@ export function CustomSelect<T extends FieldValues>({
   control,
   name,
   label,
+  description,
   placeholder = "Select...",
   options,
   disabled,
@@ -44,6 +46,7 @@ export function CustomSelect<T extends FieldValues>({
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
           <FieldLabel htmlFor={name}>{label}</FieldLabel>
+          {description ? <FieldDescription>{description}</FieldDescription> : null}
           <Select
             onValueChange={field.onChange}
             // Handle empty strings gracefully so placeholder shows

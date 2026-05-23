@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
+import { getId } from "@/lib/utils";
 import { useAuth } from "@/hooks/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -241,7 +242,7 @@ const Exam = () => {
       {/* questions list */}
       <div className="space-y-6">
         {exam.questions.map((q, index) => (
-          <Card key={q._id}>
+          <Card key={getId(q)}>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-medium flex gap-2">
                 <span className="text-muted-foreground">{index + 1}.</span>

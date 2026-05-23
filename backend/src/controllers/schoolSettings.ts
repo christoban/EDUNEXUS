@@ -124,6 +124,31 @@ export const upsertSchoolSettings = async (req: Request, res: Response) => {
       },
     });
 
+    // If a schoolName was provided, persist it on the main `school` record
+    if (schoolName) {
+      try {
+        await prisma.school.update({
+          where: { id: schoolId },
+          data: { name: schoolName },
+        });
+      } catch (err) {
+        // Don't fail the whole request for a non-critical update, but log for visibility
+        console.error("Failed to update school.name from schoolSettings upsert:", err);
+      }
+    }
+
+    // If a schoolLogoUrl was provided, persist it on the main `school` record as well
+    if (schoolLogoUrl) {
+      try {
+        await prisma.school.update({
+          where: { id: schoolId },
+          data: { logoUrl: schoolLogoUrl },
+        });
+      } catch (err) {
+        console.error("Failed to update school.logoUrl from schoolSettings upsert:", err);
+      }
+    }
+
     await prisma.schoolConfig.upsert({
       where: { schoolId },
       create: {
@@ -155,13 +180,10 @@ export const upsertSchoolSettings = async (req: Request, res: Response) => {
       });
     }
 
+    const effective = await getEffectiveSchoolSettings(schoolId);
     return res.json({
-      schoolName,
+      ...effective,
       schoolMotto,
-      schoolLogoUrl,
-      academicCalendarType,
-      preferredLanguage,
-      schoolLanguageMode,
       mode: resolvedMode,
       cycles: resolvedCycles,
       hasMultipleCycles,
@@ -173,9 +195,6 @@ export const upsertSchoolSettings = async (req: Request, res: Response) => {
       councilMaxAbsences,
       bulletinBlockOnUnpaidFees,
       bulletinAllowedOutstandingBalance,
-      timezone: settings.timezone,
-      locale: settings.locale,
-      currency: settings.currency,
     });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server Error" });

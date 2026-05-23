@@ -7,6 +7,9 @@ import { router } from "@/pages/routes/router.tsx";
 import { AuthProvider } from "@/hooks/AuthProvider";
 import { MasterAuthProvider } from "@/hooks/useMasterAuth";
 import { ThemeProvider } from "@/components/provider/theme";
+import { registerSW } from "virtual:pwa-register";
+
+registerSW({ immediate: true });
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">

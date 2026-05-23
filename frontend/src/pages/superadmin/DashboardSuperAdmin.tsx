@@ -11,7 +11,7 @@ const SchoolDetailPageLazy = lazy(() =>
 
 // ─── Types ────────────────────────────────────────────────────
 
-type FilterStatus = "all" | "pending" | "rejected" | "approved" | "active" | "suspended";
+type FilterStatus = "all" | "draft" | "pending" | "rejected" | "approved" | "active" | "suspended";
 
 type School = {
   _id: string;
@@ -45,7 +45,8 @@ const SensitiveDialog: React.FC<{
   onConfirm: (password: string, code: string) => void;
   onCancel: () => void;
   loading: boolean;
-}> = ({ title, onConfirm, onCancel, loading }) => {
+  mfaEnabled?: boolean;
+}> = ({ title, onConfirm, onCancel, loading, mfaEnabled = false }) => {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
 
@@ -60,14 +61,32 @@ const SensitiveDialog: React.FC<{
       <div style={{ width: 480, background: "#0b1220", borderRadius: 12, padding: 24, border: "1px solid #223047", boxShadow: "0 24px 60px rgba(0,0,0,.6)" }}>
         <h3 style={{ color: "#f8fafc", fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{title}</h3>
         <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 16 }}>
-          Saisis ton mot de passe master et ton code MFA pour confirmer cette action.
+          {mfaEnabled === true ? "Saisis ton mot de passe master et ton code MFA pour confirmer cette action." : "Saisis ton mot de passe master pour confirmer cette action."}
         </p>
         <div style={{ display: "grid", gap: 10 }}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mot de passe master" style={inputStyle} autoFocus />
-          <input value={code} onChange={(e) => setCode(e.target.value)}
-            placeholder="Code MFA (6 chiffres) ou recovery code"
-            style={{ ...inputStyle, letterSpacing: 4, textAlign: "center" }} />
+          <input type="text" name="__autocomplete_username" style={{ display: "none" }} />
+          <input type="password" name="__autocomplete_password" style={{ display: "none" }} />
+          <input
+            type="password"
+            name="master_auth_password"
+            autoComplete="new-password"
+            autoCorrect="off"
+            spellCheck={false}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mot de passe master"
+            style={inputStyle}
+            autoFocus
+          />
+          {mfaEnabled === true && (
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Code MFA (6 chiffres) ou recovery code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              style={{ ...inputStyle, letterSpacing: 4, textAlign: "center" }} />
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
             <button onClick={onCancel}
               style={{ background: "transparent", border: "1px solid #223047", color: "#94a3b8", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
@@ -75,8 +94,8 @@ const SensitiveDialog: React.FC<{
             </button>
             <button
               onClick={() => onConfirm(password, code)}
-              disabled={loading || !password.trim() || !code.trim()}
-              style={{ background: "#2563eb", color: "white", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (loading || !password.trim() || !code.trim()) ? 0.5 : 1 }}>
+              disabled={loading || !password.trim() || (mfaEnabled === true && !code.trim())}
+              style={{ background: "#2563eb", color: "white", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (loading || !password.trim() || (mfaEnabled === true && !code.trim())) ? 0.5 : 1 }}>
               {loading ? "..." : "Confirmer"}
             </button>
           </div>
@@ -92,6 +111,7 @@ const DashboardSuperAdmin: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterStatus>("all");
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [activePage, setActivePage] = useState<"hub" | "detail">("hub");
@@ -115,14 +135,21 @@ const DashboardSuperAdmin: React.FC = () => {
 
   useEffect(() => { fetchSchools(); }, [fetchSchools]);
 
+  useEffect(() => {
+    api.get("/master/auth/mfa-status")
+      .then(({ data }) => setMfaEnabled(Boolean(data.mfaEnabled)))
+      .catch(() => setMfaEnabled(false));
+  }, []);
+
   // ─── Compteurs ────────────────────────────────────────────
   const counts = useMemo(() => ({
     all: schools.length,
+    draft: schools.filter((s) => s.onboardingStatus === "draft").length,
     pending: schools.filter((s) => s.onboardingStatus === "pending").length,
     rejected: schools.filter((s) => s.onboardingStatus === "rejected").length,
     approved: schools.filter((s) => s.onboardingStatus === "approved").length,
-    active: schools.filter((s) => s.onboardingStatus === "active" && s.isActive).length,
-    suspended: schools.filter((s) => s.onboardingStatus === "active" && !s.isActive).length,
+    active: schools.filter((s) => s.onboardingStatus === "active").length,
+    suspended: schools.filter((s) => s.onboardingStatus === "suspended").length,
   }), [schools]);
 
   // ─── Filtrage ─────────────────────────────────────────────
@@ -130,9 +157,11 @@ const DashboardSuperAdmin: React.FC = () => {
     let filtered = schools;
 
     if (activeFilter === "active") {
-      filtered = filtered.filter((s) => s.onboardingStatus === "active" && s.isActive);
+      filtered = filtered.filter((s) => s.onboardingStatus === "active");
     } else if (activeFilter === "suspended") {
-      filtered = filtered.filter((s) => s.onboardingStatus === "active" && !s.isActive);
+      filtered = filtered.filter((s) => s.onboardingStatus === "suspended");
+    } else if (activeFilter === "draft") {
+      filtered = filtered.filter((s) => s.onboardingStatus === "draft");
     } else if (activeFilter !== "all") {
       filtered = filtered.filter((s) => s.onboardingStatus === activeFilter);
     }
@@ -158,6 +187,7 @@ const DashboardSuperAdmin: React.FC = () => {
       reactivate: "Confirmer la réactivation",
       suspend: "Confirmer la suspension",
       relaunch: "Relancer l'invitation",
+      delete: "⚠️ Supprimer définitivement cet établissement",
     };
     if (action === "manage") {
       const school = schools.find((s) => s._id === schoolId);
@@ -172,7 +202,12 @@ const DashboardSuperAdmin: React.FC = () => {
     setSensitiveLoading(true);
     try {
       const { action, schoolId } = sensitiveDialog;
-      const auth = { sensitiveAuth: { password, code } };
+      const auth = {
+        sensitiveAuth: {
+          password,
+          ...(mfaEnabled && { code }),
+        },
+      };
       if (action === "approve") {
         await api.post(`/onboarding/requests/${schoolId}/approve`, auth);
         toast.success("Établissement approuvé ✓");
@@ -188,6 +223,11 @@ const DashboardSuperAdmin: React.FC = () => {
       } else if (action === "relaunch") {
         await api.post(`/master/schools/${schoolId}/invite/resend`, auth);
         toast.success("Invitation relancée ✓");
+      } else if (action === "delete") {
+        await api.delete(`/master/schools/${schoolId}`, {
+          data: { sensitiveAuth: { password, code } },
+        });
+        toast.success("Établissement supprimé définitivement");
       }
       setSensitiveDialog(null);
       await fetchSchools();
@@ -206,7 +246,8 @@ const DashboardSuperAdmin: React.FC = () => {
 
   // ─── Styles ───────────────────────────────────────────────
   const filterConfig: Record<FilterStatus, { label: string; color: string; bg: string; border: string; activeBorder: string; glow: string; badgeBg: string }> = {
-    all:       { label: "Tous",      color: "#94a3b8", bg: "#0d1122", border: "#1e293b", activeBorder: "#475569", glow: "rgba(71,85,105,.15)", badgeBg: "#1e293b" },
+    all:       { label: "Tous",      color: "#94a3b8", bg: "#0d1122", border: "#1e293b", activeBorder: "#475569", glow: "rgba(71,85,105,.15)",  badgeBg: "#1e293b" },
+    draft:     { label: "Draft",     color: "#818cf8", bg: "#0d0f2a", border: "#312e81", activeBorder: "#6366f1", glow: "rgba(99,102,241,.15)", badgeBg: "#1e1b4b" },
     pending:   { label: "Pending",   color: "#fb923c", bg: "#160f04", border: "#92400e", activeBorder: "#f97316", glow: "rgba(249,115,22,.15)", badgeBg: "#7c2d12" },
     approved:  { label: "Approved",  color: "#60a5fa", bg: "#04091a", border: "#1e3a6e", activeBorder: "#3b82f6", glow: "rgba(59,130,246,.15)", badgeBg: "#1e3a8a" },
     active:    { label: "Active",    color: "#4ade80", bg: "#041208", border: "#166534", activeBorder: "#22c55e", glow: "rgba(34,197,94,.15)",  badgeBg: "#14532d" },
@@ -260,14 +301,14 @@ const DashboardSuperAdmin: React.FC = () => {
           </div>
 
           {/* Filtres / KPIs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10, marginBottom: 24 }}>
             {(Object.keys(filterConfig) as FilterStatus[]).map((status) => {
               const cfg = filterConfig[status];
               const isSelected = activeFilter === status;
               return (
                 <div key={status} onClick={() => setActiveFilter(status)}
                   style={{
-                    padding: "18px 20px", borderRadius: 12, cursor: "pointer",
+                    padding: "16px 14px", borderRadius: 12, cursor: "pointer",
                     transition: "border-color .15s, box-shadow .15s",
                     border: isSelected ? `2px solid ${cfg.activeBorder}` : `2px solid ${cfg.border}`,
                     background: cfg.bg,
@@ -281,6 +322,7 @@ const DashboardSuperAdmin: React.FC = () => {
                   </div>
                   <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
                     {status === "all" && "établissements total"}
+                    {status === "draft" && "invitations créées"}
                     {status === "pending" && "en attente de décision"}
                     {status === "approved" && "en attente d'activation"}
                     {status === "active" && "écoles opérationnelles"}
@@ -338,7 +380,7 @@ const DashboardSuperAdmin: React.FC = () => {
                   const rawStatus = school.onboardingStatus === "active" && !school.isActive
                     ? "suspended"
                     : school.onboardingStatus;
-                  const status = (rawStatus in filterConfig ? rawStatus : "all") as FilterStatus;
+                  const status = (rawStatus in filterConfig ? rawStatus : "pending") as FilterStatus;
                   const cfg = filterConfig[status];
                   const plan = school.latestInvite?.metadata?.plan;
                   const planStyle = getPlanStyle(plan);
@@ -405,6 +447,20 @@ const DashboardSuperAdmin: React.FC = () => {
                       <td style={{ padding: "18px 20px" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 
+                          {/* DRAFT → Relancer invitation + Supprimer */}
+                          {school.onboardingStatus === "draft" && (
+                            <>
+                              <button onClick={() => openAction("relaunch", school._id)}
+                                style={{ background: "#6366f1", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                                Relancer invitation
+                              </button>
+                              <button onClick={() => openAction("delete", school._id)}
+                                style={{ background: "transparent", color: "#f87171", border: "1px solid rgba(239,68,68,.4)", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                                Supprimer
+                              </button>
+                            </>
+                          )}
+
                           {/* PENDING → Approuver + Rejeter */}
                           {school.onboardingStatus === "pending" && (
                             <>
@@ -419,32 +475,36 @@ const DashboardSuperAdmin: React.FC = () => {
                             </>
                           )}
 
-                          {/* DRAFT → Approuver */}
-                          {school.onboardingStatus === "draft" && (
-                            <button onClick={() => openAction("approve", school._id)}
-                              style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                              Valider →
-                            </button>
-                          )}
-
                           {/* APPROVED → Relancer invitation */}
                           {school.onboardingStatus === "approved" && (
-                            <button onClick={() => openAction("relaunch", school._id)}
-                              style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                              Relancer invitation
-                            </button>
+                            <>
+                              <button onClick={() => openAction("manage", school._id)}
+                                style={{ background: "#0d7a56", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                                Gérer →
+                              </button>
+                              <button onClick={() => openAction("relaunch", school._id)}
+                                style={{ background: "#2563eb", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                                Relancer invitation
+                              </button>
+                            </>
                           )}
 
-                          {/* REJECTED → Réexaminer (reactivate) */}
+                          {/* REJECTED → Réexaminer + Supprimer */}
                           {school.onboardingStatus === "rejected" && (
-                            <button onClick={() => openAction("reactivate", school._id)}
-                              style={{ background: "#d97706", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                              Réexaminer
-                            </button>
+                            <>
+                              <button onClick={() => openAction("reactivate", school._id)}
+                                style={{ background: "#d97706", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                                Réexaminer
+                              </button>
+                              <button onClick={() => openAction("delete", school._id)}
+                                style={{ background: "transparent", color: "#f87171", border: "1px solid rgba(239,68,68,.4)", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                                Supprimer
+                              </button>
+                            </>
                           )}
 
                           {/* ACTIVE → Gérer + Suspendre */}
-                          {school.onboardingStatus === "active" && school.isActive && (
+                          {school.onboardingStatus === "active" && (
                             <>
                               <button onClick={() => openAction("manage", school._id)}
                                 style={{ background: "#0d7a56", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
@@ -458,7 +518,7 @@ const DashboardSuperAdmin: React.FC = () => {
                           )}
 
                           {/* SUSPENDED → Réactiver */}
-                          {school.onboardingStatus === "active" && !school.isActive && (
+                          {school.onboardingStatus === "suspended" && (
                             <button onClick={() => openAction("reactivate", school._id)}
                               style={{ background: "#16a34a", color: "white", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                               Réactiver
@@ -493,6 +553,7 @@ const DashboardSuperAdmin: React.FC = () => {
           onConfirm={confirmAction}
           onCancel={() => setSensitiveDialog(null)}
           loading={sensitiveLoading}
+          mfaEnabled={mfaEnabled}
         />
       )}
     </div>

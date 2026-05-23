@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import ExamGenerator from "@/components/lms/ExamGenerator";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 
 const Exams = () => {
   const { user } = useAuth();
@@ -78,7 +79,7 @@ const Exams = () => {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {exams.map((exam) => (
-          <Card className="hover:shadow-md transition-shadow" key={exam._id}>
+          <Card className="hover:shadow-md transition-shadow" key={getId(exam)}>
             <CardHeader>
               <div className="pb-2">
                 <Badge>
@@ -110,7 +111,7 @@ const Exams = () => {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/lms/exams/${exam._id}`)}
+                onClick={() => navigate(`/lms/exams/${getId(exam)}`)}
               >
                 {isTeacher
                   ? t("exams.manageQuestions", language)

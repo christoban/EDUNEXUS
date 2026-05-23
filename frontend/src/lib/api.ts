@@ -1,5 +1,12 @@
 import axios from "axios";
 import { MASTER_LOGIN_PATH } from "@/lib/masterRoutes";
+import {
+  cacheApiResponse,
+  getCachedApiResponse,
+  queueOfflineMutation,
+  shouldCacheApiResponse,
+  shouldQueueOfflineMutation,
+} from "@/lib/offlineSync";
 
 export const api = axios.create({
   baseURL: "/api", // ⭐ IMPORTANT: plus de localhost ici
@@ -16,11 +23,51 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 api.interceptors.request.use((config) => config);
 
 api.interceptors.response.use(
-  (response) => response,
+  async (response) => {
+    const requestConfig = response.config as any;
+    if (requestConfig?.method === "get" && shouldCacheApiResponse(requestConfig.url || "")) {
+      await cacheApiResponse(requestConfig.url || "", requestConfig.params, response.data);
+    }
+
+    return response;
+  },
   async (error) => {
     const config = error?.config as any;
     const isNetworkError = !error?.response;
     const isServerError = Number(error?.response?.status) >= 500;
+
+    if (config?.method === "get" && (isNetworkError || isServerError) && shouldCacheApiResponse(config.url || "")) {
+      const cached = await getCachedApiResponse(config.url || "", config.params);
+      if (cached) {
+        return {
+          data: cached,
+          status: 200,
+          statusText: "OK (offline cache)",
+          headers: {},
+          config,
+          request: null,
+        };
+      }
+    }
+
+    if (config && shouldQueueOfflineMutation(config.url || "", config.method || "get") && (isNetworkError || !navigator.onLine)) {
+      await queueOfflineMutation({
+        url: config.url || "",
+        method: String(config.method || "post").toUpperCase(),
+        data: config.data,
+        params: config.params,
+        headers: config.headers,
+      });
+
+      return {
+        data: { offlineQueued: true },
+        status: 202,
+        statusText: "Accepted (queued offline)",
+        headers: {},
+        config,
+        request: null,
+      };
+    }
 
     if (config && (isNetworkError || isServerError)) {
       config.__retryCount = config.__retryCount || 0;
@@ -32,23 +79,24 @@ api.interceptors.response.use(
       }
     }
 
-  const publicOnboardingPaths = ["/onboarding/school", "/onboarding/join", "/onboarding/activate"];
-  const isOnboardingPage = publicOnboardingPaths.some((path) => 
-    window.location.pathname.startsWith(path)
-  );
+    const publicOnboardingPaths = ["/onboarding/school", "/onboarding/join", "/onboarding/activate"];
+    const isOnboardingPage = publicOnboardingPaths.some((path) =>
+      window.location.pathname.startsWith(path)
+    );
 
-  if (isOnboardingPage) {
-    return Promise.reject(error);
-  }
+    if (isOnboardingPage) {
+      return Promise.reject(error);
+    }
 
-  const PUBLIC_PATHS = [
-    "/",
-    "/login",
-    "/onboarding/school",
-    "/onboarding/join",
-    "/onboarding/activate",
-    "/master",
-  ];
+    const PUBLIC_PATHS = [
+      "/",
+      "/login",
+      "/offline",
+      "/onboarding/school",
+      "/onboarding/join",
+      "/onboarding/activate",
+      "/master",
+    ];
 
     const isPublicPath = (pathname: string) => {
       return PUBLIC_PATHS.some(

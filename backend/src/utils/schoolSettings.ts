@@ -31,10 +31,12 @@ export const getEffectiveSchoolSettings = async (schoolId?: string | null) => {
     ? await prisma.schoolConfig.findFirst({ where: { schoolId } })
     : await prisma.schoolConfig.findFirst();
 
+  const school = schoolId ? await prisma.school.findUnique({ where: { id: schoolId } }) : undefined;
+
   return {
-    schoolName: DEFAULT_SCHOOL_SETTINGS.schoolName,
+    schoolName: school?.name || DEFAULT_SCHOOL_SETTINGS.schoolName,
     schoolMotto: DEFAULT_SCHOOL_SETTINGS.schoolMotto,
-    schoolLogoUrl: DEFAULT_SCHOOL_SETTINGS.schoolLogoUrl,
+    schoolLogoUrl: school?.logoUrl || DEFAULT_SCHOOL_SETTINGS.schoolLogoUrl,
     academicCalendarType: DEFAULT_SCHOOL_SETTINGS.academicCalendarType,
     preferredLanguage: DEFAULT_SCHOOL_SETTINGS.preferredLanguage,
     schoolLanguageMode: DEFAULT_SCHOOL_SETTINGS.schoolLanguageMode,

@@ -157,7 +157,7 @@ const GradeValidation = () => {
         <Card className="border-white/10 bg-slate-900/90 text-white">
           <CardContent className="flex flex-wrap gap-3 pt-6">
             <Select value={selectedSequence} onValueChange={setSelectedSequence}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="w-48 border-border bg-background text-foreground">
                 <SelectValue placeholder="Séquence" />
               </SelectTrigger>
               <SelectContent>
@@ -168,7 +168,7 @@ const GradeValidation = () => {
             </Select>
 
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="w-48 border-border bg-background text-foreground">
                 <SelectValue placeholder="Toutes les classes" />
               </SelectTrigger>
               <SelectContent>
@@ -180,7 +180,7 @@ const GradeValidation = () => {
             </Select>
 
             <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="w-48 border-border bg-background text-foreground">
                 <SelectValue placeholder="Toutes les matières" />
               </SelectTrigger>
               <SelectContent>
@@ -308,7 +308,7 @@ const GradeValidation = () => {
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="Ex: Note manquante pour l'élève X"
-              className="border-white/10 bg-white/5 text-white"
+              className="border-border bg-background text-foreground"
               autoFocus
             />
           </div>

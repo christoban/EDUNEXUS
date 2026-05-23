@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { getId } from "@/lib/utils";
 import type { EmailEventType, EmailLog, EmailStatus, pagination } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -142,7 +143,7 @@ export default function EmailHistoryPage() {
               </tr>
             ) : (
               logs.map((log) => (
-                <tr key={log._id} className="border-t">
+                <tr key={getId(log)} className="border-t">
                   <td className="px-4 py-3 whitespace-nowrap">
                     {new Date(log.sentAt).toLocaleString()}
                   </td>

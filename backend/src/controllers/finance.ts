@@ -8,6 +8,7 @@ import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { resolveUserLanguage } from "../utils/languageHelper.ts";
 import { buildPaymentReminderTemplate } from "../utils/emailTemplates.ts";
 import { emitSmsDelivered } from "../socket/io.ts";
+import { initiatePayment, checkPaymentStatus, detectOperator } from "../services/campay.ts";
 
 const asDate = (value?: string) => (value ? new Date(value) : undefined);
 
@@ -526,6 +527,171 @@ export const getSmsStatus = async (req: Request, res: Response) => {
     return res.json({ smsLog, status });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server Error" });
+  }
+};
+
+// ─── PAIEMENT MOBILE MONEY ───────────────────────────────────────────────────
+
+export const initiateMobilePayment = async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const schoolId = currentUser?.schoolId as string;
+    const { invoiceId, phoneNumber } = req.body;
+
+    if (!invoiceId || !phoneNumber) {
+      return res.status(400).json({ message: "invoiceId et phoneNumber sont requis" });
+    }
+
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: String(invoiceId), schoolId },
+      include: {
+        student: { select: { firstName: true, lastName: true } },
+        feePlan: { select: { name: true } },
+      },
+    });
+
+    if (!invoice) return res.status(404).json({ message: "Facture introuvable" });
+    if (invoice.status === "PAID") return res.status(400).json({ message: "Cette facture est déjà payée" });
+
+    const normalizedPhone = String(phoneNumber).replace(/\s+/g, "").replace(/^\+/, "");
+    const phone = normalizedPhone.startsWith("237") ? normalizedPhone : `237${normalizedPhone}`;
+
+    const operator = detectOperator(phone);
+    if (operator === "UNKNOWN") {
+      return res.status(400).json({
+        message: "Numéro non reconnu. Utilisez un numéro MTN (67X, 68X, 65X) ou Orange (69X, 65X)",
+      });
+    }
+
+    const label = invoice.feePlan?.name || invoice.description || "Frais scolaires";
+    const studentName = invoice.student ? `${invoice.student.firstName} ${invoice.student.lastName}`.trim() : "";
+
+    const campayResponse = await initiatePayment({
+      amount: invoice.amount,
+      from: phone,
+      description: `[${operator}] ${label} - ${studentName}`.trim(),
+      externalReference: invoice.id,
+    });
+
+    await prisma.payment.create({
+      data: {
+        schoolId,
+        invoiceId: invoice.id,
+        studentId: invoice.studentId,
+        amount: invoice.amount,
+        method: operator === "MTN" ? "MTN_MOMO" : "ORANGE_MONEY",
+        status: "PENDING",
+        campayRef: campayResponse.reference,
+        campayStatus: campayResponse.status,
+        phoneNumber: phone,
+      },
+    });
+
+    await logActivity({
+      userId: currentUser.userId,
+      schoolId,
+      action: "Mobile payment initiated",
+      details: `Facture ${invoiceId} — ${phone} — ${operator} — Ref: ${campayResponse.reference}`,
+    });
+
+    return res.json({
+      message: "Paiement initié. Validez sur votre téléphone.",
+      reference: campayResponse.reference,
+      ussdCode: campayResponse.ussd_code,
+      operator,
+      phone,
+    });
+  } catch (error: any) {
+    console.error("Campay initiate error:", error?.response?.data || error.message);
+    return res.status(500).json({
+      message: "Erreur lors de l'initiation du paiement",
+      detail: error?.response?.data?.message || error.message,
+    });
+  }
+};
+
+export const campayWebhook = async (req: Request, res: Response) => {
+  try {
+    const { reference, status, amount, operator } = req.body;
+
+    console.log("Campay webhook:", { reference, status, amount, operator });
+
+    if (status !== "SUCCESSFUL") {
+      await prisma.payment.updateMany({
+        where: { campayRef: String(reference), status: "PENDING" },
+        data: { status: "FAILED", campayStatus: status },
+      });
+      return res.json({ message: "Webhook received — payment not successful" });
+    }
+
+    const payment = await prisma.payment.findFirst({
+      where: { campayRef: String(reference) },
+    });
+
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: { status: "SUCCESS", campayStatus: status, paidAt: new Date() },
+      });
+
+      if (!payment.invoiceId) return;
+
+      const invoice = await tx.invoice.findUnique({
+        where: { id: payment.invoiceId },
+        select: { id: true, amount: true },
+      });
+
+      if (!invoice) return;
+
+      const totalPaid = await tx.payment.aggregate({
+        where: { invoiceId: invoice.id, status: "SUCCESS" },
+        _sum: { amount: true },
+      });
+
+      const paid = totalPaid._sum.amount ?? 0;
+      const newStatus = paid >= invoice.amount ? "PAID" : "PARTIAL";
+
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: { status: newStatus },
+      });
+    });
+
+    return res.json({ message: "Webhook processed successfully" });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return res.status(500).json({ message: "Webhook processing error" });
+  }
+};
+
+export const checkMobilePaymentStatus = async (req: Request, res: Response) => {
+  try {
+    const reference = String(req.params.reference);
+
+    const campayData = await checkPaymentStatus(reference);
+
+    if (campayData.status === "SUCCESSFUL") {
+      await prisma.payment.updateMany({
+        where: { campayRef: reference, status: "PENDING" },
+        data: { status: "SUCCESS", campayStatus: campayData.status, paidAt: new Date() },
+      });
+    } else if (campayData.status === "FAILED") {
+      await prisma.payment.updateMany({
+        where: { campayRef: reference, status: "PENDING" },
+        data: { status: "FAILED", campayStatus: campayData.status },
+      });
+    }
+
+    return res.json({
+      reference,
+      status: campayData.status,
+      amount: campayData.amount,
+      operator: campayData.operator,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ message: "Erreur vérification statut", detail: error.message });
   }
 };
 

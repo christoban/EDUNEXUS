@@ -36,10 +36,33 @@ import {
   sendPaymentReminder,
   updateFeePlan,
   deleteFeePlan,
+  initiateMobilePayment,
+  campayWebhook,
+  checkMobilePaymentStatus,
 } from "../controllers/finance.ts";
+
+// ─── Route publique webhook Campay (sans auth) ────────────────────────────────
+export const publicFinanceRouter = express.Router();
+publicFinanceRouter.post("/payments/webhook", campayWebhook);
 
 const financeRouter = express.Router();
 
+// ─── Routes Mobile Money (admin + parent + staff) ─────────────────────────────
+financeRouter.post(
+  "/payments/mobile/initiate",
+  protect,
+  authorize(["admin", "parent", "staff"]),
+  sensitiveWriteLimiter,
+  initiateMobilePayment
+);
+financeRouter.get(
+  "/payments/mobile/:reference/status",
+  protect,
+  authorize(["admin", "parent", "staff"]),
+  checkMobilePaymentStatus
+);
+
+// ─── Routes admin uniquement ──────────────────────────────────────────────────
 financeRouter.use(protect, authorize(["admin"]));
 
 financeRouter.post(

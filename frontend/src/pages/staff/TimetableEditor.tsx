@@ -240,7 +240,7 @@ const TimetableEditor = () => {
         <Card className="border-white/10 bg-slate-900/90 text-white">
           <CardContent className="flex flex-wrap gap-3 pt-6">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="w-48 border-border bg-background text-foreground">
                 <SelectValue placeholder="Année scolaire" />
               </SelectTrigger>
               <SelectContent>
@@ -249,7 +249,7 @@ const TimetableEditor = () => {
             </Select>
 
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="w-48 border-border bg-background text-foreground">
                 <SelectValue placeholder="Classe" />
               </SelectTrigger>
               <SelectContent>
@@ -344,7 +344,7 @@ const TimetableEditor = () => {
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">Jour</label>
                 <Select value={slotForm.dayOfWeek} onValueChange={(v) => setSlotForm((f) => ({ ...f, dayOfWeek: v }))}>
-                  <SelectTrigger className="border-white/10 bg-white/5 text-white">
+                  <SelectTrigger className="border-border bg-background text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -355,7 +355,7 @@ const TimetableEditor = () => {
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">Type</label>
                 <Select value={slotForm.kind} onValueChange={(v) => setSlotForm((f) => ({ ...f, kind: v }))}>
-                  <SelectTrigger className="border-white/10 bg-white/5 text-white">
+                  <SelectTrigger className="border-border bg-background text-foreground">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -371,11 +371,11 @@ const TimetableEditor = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">Début</label>
-                <Input type="time" value={slotForm.startTime} onChange={(e) => setSlotForm((f) => ({ ...f, startTime: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+                <Input type="time" value={slotForm.startTime} onChange={(e) => setSlotForm((f) => ({ ...f, startTime: e.target.value }))} className="border-border bg-background text-foreground" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-slate-400">Fin</label>
-                <Input type="time" value={slotForm.endTime} onChange={(e) => setSlotForm((f) => ({ ...f, endTime: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+                <Input type="time" value={slotForm.endTime} onChange={(e) => setSlotForm((f) => ({ ...f, endTime: e.target.value }))} className="border-border bg-background text-foreground" />
               </div>
             </div>
 
@@ -384,7 +384,7 @@ const TimetableEditor = () => {
                 <div className="space-y-1">
                   <label className="text-xs text-slate-400">Matière</label>
                   <Select value={slotForm.subjectId} onValueChange={(v) => setSlotForm((f) => ({ ...f, subjectId: v }))}>
-                    <SelectTrigger className="border-white/10 bg-white/5 text-white">
+                    <SelectTrigger className="border-border bg-background text-foreground">
                       <SelectValue placeholder="Sélectionner une matière" />
                     </SelectTrigger>
                     <SelectContent>
@@ -396,7 +396,7 @@ const TimetableEditor = () => {
                 <div className="space-y-1">
                   <label className="text-xs text-slate-400">Enseignant</label>
                   <Select value={slotForm.teacherId} onValueChange={(v) => setSlotForm((f) => ({ ...f, teacherId: v }))}>
-                    <SelectTrigger className="border-white/10 bg-white/5 text-white">
+                    <SelectTrigger className="border-border bg-background text-foreground">
                       <SelectValue placeholder="Sélectionner un enseignant" />
                     </SelectTrigger>
                     <SelectContent>
@@ -415,7 +415,7 @@ const TimetableEditor = () => {
               placeholder="Salle (optionnel)"
               value={slotForm.room}
               onChange={(e) => setSlotForm((f) => ({ ...f, room: e.target.value }))}
-              className="border-white/10 bg-white/5 text-white"
+              className="border-border bg-background text-foreground"
             />
           </div>
           <DialogFooter>

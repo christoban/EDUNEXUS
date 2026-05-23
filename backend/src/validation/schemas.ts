@@ -1,9 +1,8 @@
 import { z } from "zod";
 
-const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-const objectId = z.string().regex(objectIdRegex, "Invalid ObjectId format");
+const objectId = z.string().min(1, "ID requis");
 
-const optionalObjectId = objectId.optional().nullable();
+const optionalObjectId = z.string().optional().nullable();
 
 const dayEnum = z.enum([
   "Monday",
@@ -18,7 +17,7 @@ const hhmm = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time forma
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format. Use YYYY-MM-DD");
 
 export const idParamSchema = z.object({
-  id: objectId,
+  id: z.string().min(1),
 });
 
 export const smsMsgIdParamSchema = z.object({
@@ -33,16 +32,31 @@ export const userIdParamSchema = z.object({
   id: objectId,
 });
 
+const userRoleSchema = z
+  .union([
+    z.enum(["ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT"]),
+    z.enum(["admin", "staff", "teacher", "student", "parent"]),
+  ])
+  .transform((value) => value.toUpperCase());
+
 export const registerBodySchema = z.object({
-  name: z.string().min(2).max(100),
+  firstName: z.string().trim().min(1).max(100).optional(),
+  lastName: z.string().trim().min(1).max(100).optional(),
+  name: z.string().trim().min(2).max(200).optional(),
   email: z.string().email(),
+  phone: z.string().trim().max(30).optional(),
   password: z.string().min(6).max(128),
-  role: z.enum(["admin", "teacher", "student", "parent"]),
+  role: userRoleSchema,
   isActive: z.boolean().optional(),
+  studentClassId: optionalObjectId,
   studentClass: optionalObjectId,
+  teacherSubjectIds: z.array(objectId).optional(),
   teacherSubject: z.array(objectId).optional(),
   teacherSubjects: z.array(objectId).optional(),
+  parentUserId: optionalObjectId,
   parentId: optionalObjectId,
+  title: z.string().trim().min(1).max(100).optional(),
+  sectionId: optionalObjectId,
   schoolSection: z.enum(["francophone", "anglophone", "bilingual"]).optional(),
   uiLanguagePreference: z.enum(["fr", "en"]).optional(),
   parentLanguagePreference: z.enum(["fr", "en"]).optional(),
@@ -56,15 +70,25 @@ export const loginBodySchema = z.object({
 
 export const updateUserBodySchema = z
   .object({
-    name: z.string().min(2).max(100).optional(),
+    firstName: z.string().trim().min(1).max(100).optional(),
+    lastName: z.string().trim().min(1).max(100).optional(),
+    name: z.string().trim().min(2).max(200).optional(),
     email: z.string().email().optional(),
     password: z.string().min(6).max(128).optional(),
-    role: z.enum(["admin", "teacher", "student", "parent"]).optional(),
+    role: z.union([
+      z.enum(["ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT"]),
+      z.enum(["admin", "staff", "teacher", "student", "parent"]),
+    ]).optional(),
     isActive: z.boolean().optional(),
+    studentClassId: optionalObjectId,
     studentClass: optionalObjectId,
+    teacherSubjectIds: z.array(objectId).optional(),
     teacherSubject: z.array(objectId).optional(),
     teacherSubjects: z.array(objectId).optional(),
+    parentUserId: optionalObjectId,
     parentId: optionalObjectId,
+    title: z.string().trim().min(1).max(100).optional(),
+    sectionId: optionalObjectId,
     parentLanguagePreference: z.enum(["fr", "en"]).optional(),
     schoolSection: z.enum(["francophone", "anglophone", "bilingual"]).optional(),
     uiLanguagePreference: z.enum(["fr", "en"]).optional(),
@@ -75,31 +99,33 @@ export const updateUserBodySchema = z
 
 export const createClassBodySchema = z.object({
   name: z.string().min(1).max(100),
-  academicYear: objectId,
-  section: optionalObjectId,
-  classTeacher: optionalObjectId,
-  capacity: z.number().int().positive().max(500),
-  subjects: z.array(objectId).optional(),
+  academicYear: z.string().nullish(),
+  section: z.string().nullish(),
+  classTeacher: z.string().nullish(),
+  capacity: z.coerce.number().int().positive().max(500).optional().default(40),
+  level: z.string().nullish(),
+  subjects: z.array(z.string()).optional(),
 });
 
-export const updateClassBodySchema = z
-  .object({
-    name: z.string().min(1).max(100).optional(),
-    academicYear: objectId.optional(),
-    section: optionalObjectId,
-    classTeacher: optionalObjectId,
-    capacity: z.number().int().positive().max(500).optional(),
-    subjects: z.array(objectId).optional(),
-  })
-  .refine((data) => Object.keys(data).length > 0, {
-    message: "At least one field must be provided",
-  });
+export const updateClassBodySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  academicYear: z.string().nullish(),
+  section: z.string().nullish(),
+  classTeacher: z.string().nullish(),
+  capacity: z.coerce.number().int().positive().max(500).optional(),
+  level: z.string().nullish(),
+  subjects: z.array(z.string()).optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: "At least one field must be provided",
+});
 
 export const createSubjectBodySchema = z.object({
   name: z.string().min(1).max(100),
   code: z.string().min(1).max(50),
   teacher: z.array(objectId).optional(),
   coefficient: z.coerce.number().int().min(1).max(20).optional(),
+  hoursPerWeek: z.coerce.number().int().min(1).max(40).optional(),
+  subjectType: z.enum(["THEORETICAL", "PRACTICAL", "MIXED"]).optional(),
   appreciation: z.string().max(500).optional(),
   isActive: z.boolean().optional(),
 });
@@ -110,6 +136,8 @@ export const updateSubjectBodySchema = z
     code: z.string().min(1).max(50).optional(),
     teacher: z.array(objectId).optional(),
     coefficient: z.coerce.number().int().min(1).max(20).optional(),
+    hoursPerWeek: z.coerce.number().int().min(1).max(40).optional(),
+    subjectType: z.enum(["THEORETICAL", "PRACTICAL", "MIXED"]).optional(),
     appreciation: z.string().max(500).optional(),
     isActive: z.boolean().optional(),
   })
@@ -152,7 +180,7 @@ export const generateTimetableBodySchema = z.object({
 });
 
 export const classIdParamSchema = z.object({
-  classId: objectId,
+  classId: z.string().min(1),
 });
 
 export const studentIdParamSchema = z.object({

@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CustomPagination from "@/components/global/CustomPagination";
+import { getId } from "@/lib/utils";
 
 interface Props {
   data: academicYear[];
@@ -70,10 +71,18 @@ const AcademicYearTable = ({
             </TableRow>
           ) : (
             data.map((year) => (
-              <TableRow key={year._id}>
+              <TableRow key={getId(year)}>
                 <TableCell className="font-medium">{year.name}</TableCell>
-                <TableCell>{format(new Date(year.fromYear), "PPP")}</TableCell>
-                <TableCell>{format(new Date(year.toYear), "PPP")}</TableCell>
+                <TableCell>
+                  {year.startDate && !isNaN(new Date(year.startDate).getTime())
+                    ? format(new Date(year.startDate), "PPP")
+                    : "—"}
+                </TableCell>
+                <TableCell>
+                  {year.endDate && !isNaN(new Date(year.endDate).getTime())
+                    ? format(new Date(year.endDate), "PPP")
+                    : "—"}
+                </TableCell>
                 <TableCell>
                   {year.isCurrent ? (
                     <Badge className="bg-green-600 hover:bg-green-700">
@@ -98,7 +107,7 @@ const AcademicYearTable = ({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-red-400 dark:hover:text-red-600 hover:text-red-600"
-                        onClick={() => onDelete(year._id)}
+                        onClick={() => onDelete(getId(year))}
                       >
                         <Trash2 className="mr-2 size-4 text-red-400 dark:hover:text-red-600 hover:text-red-600" />{" "}
                         Delete

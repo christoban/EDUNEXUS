@@ -102,9 +102,9 @@ const AdminClasses = () => {
         <DialogContent className="border-white/10 bg-slate-900 text-white">
           <DialogHeader><DialogTitle>Nouvelle classe</DialogTitle></DialogHeader>
           <div className="grid gap-3 py-2">
-            <Input placeholder='Nom (ex: "6e A", "Form 1", "CAP1 MAEL")' value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-            <Input placeholder="Niveau (optionnel)" value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-            <Input type="number" placeholder="Capacité" value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+            <Input placeholder='Nom (ex: "6e A", "Form 1", "CAP1 MAEL")' value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="border-border bg-background text-foreground" />
+            <Input placeholder="Niveau (optionnel)" value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))} className="border-border bg-background text-foreground" />
+            <Input type="number" placeholder="Capacité" value={form.capacity} onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))} className="border-border bg-background text-foreground" />
           </div>
           <DialogFooter>
             <Button variant="outline" className="border-white/10 bg-transparent text-white" onClick={() => setCreateDialog(false)}>Annuler</Button>

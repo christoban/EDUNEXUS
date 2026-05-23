@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getPeriodLabel, t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 import { useUISchoolContext } from "@/hooks/useUILanguage";
 
 const periodOptions: ReportPeriod[] = ["term1", "term2", "term3", "annual"];
@@ -32,7 +33,7 @@ export default function ReportCardsPage() {
     limit: 15,
   });
 
-  const activeYearId = year?._id;
+  const activeYearId = year ? getId(year) : undefined;
 
   const fetchStudentReportCards = async () => {
     if (!activeYearId) return;
@@ -250,9 +251,9 @@ export default function ReportCardsPage() {
       ) : (
         <div className="space-y-4">
           {reportCards.map((reportCard) => (
-            <div key={reportCard._id} className="rounded-md border p-4 space-y-2">
+            <div key={getId(reportCard)} className="rounded-md border p-4 space-y-2">
               {(() => {
-                const holdInfo = blockedByStudentId.get(String((reportCard.student as any)?._id || ""));
+                const holdInfo = blockedByStudentId.get(getId((reportCard.student as any)));
                 if (!holdInfo) return null;
 
                 return (
@@ -307,7 +308,7 @@ export default function ReportCardsPage() {
                         const scoreOn20 = Number(grade.scoreOn20 ?? (Number(grade.percentage || 0) / 5));
                         const gradeLabel = grade.gradeLabel || `${formatNumber(grade.percentage)}%`;
                         return (
-                          <tr key={grade._id} className="border-t">
+                          <tr key={getId(grade)} className="border-t">
                             <td className="px-3 py-2">
                               <div className="font-medium">{subject?.name || t("reportCards.subject", language)}</div>
                               <div className="text-xs text-muted-foreground">{subject?.code || ""}</div>
@@ -331,7 +332,7 @@ export default function ReportCardsPage() {
                 <Button
                   variant="outline"
                   onClick={() =>
-                    downloadPdf(reportCard._id, reportCard.student?.name || "report-card")
+                    downloadPdf(getId(reportCard), reportCard.student?.name || "report-card")
                   }
                 >
                   {t("reportCards.downloadPdf", language)}

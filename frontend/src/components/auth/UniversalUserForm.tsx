@@ -13,6 +13,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { CustomInput } from "@/components/global/CustomInput";
 import { api } from "@/lib/api";
+import { getId } from "@/lib/utils";
 import { CustomSelect } from "@/components/global/CustomSelect";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/AuthProvider";
@@ -103,7 +104,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   const language = useUILanguage();
   const isUpdate = type === "update";
   const isLogin = type === "login";
-  const { setUser } = useAuth();
+  const { setUser, setYear } = useAuth();
   const navigate = useNavigate();
 
   const [classes, setClasses] = useState<Class[]>([]);
@@ -208,7 +209,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
     if (initialData && isUpdate) {
       const existingClassId =
         typeof initialData.studentClass === "object"
-          ? initialData.studentClass?._id
+          ? getId(initialData.studentClass)
           : initialData.studentClass;
 
       form.reset({
@@ -217,7 +218,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         role: initialData.role || "student",
         password: "",
         classId: existingClassId || "",
-        subjectIds: initialData.teacherSubjects?.map((s) => s._id) || [],
+        subjectIds: initialData.teacherSubjects?.map((s) => getId(s)) || [],
         schoolSection: initialData.schoolSection,
         uiLanguagePreference: initialData.uiLanguagePreference,
       });
@@ -234,11 +235,11 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       };
 
       if (data.classId) {
-        payload.studentClass = data.classId;
+        payload.studentClassId = data.classId;
       }
 
       if (Array.isArray(data.subjectIds)) {
-        payload.teacherSubjects = data.subjectIds;
+        payload.teacherSubjectIds = data.subjectIds;
       }
 
       if (data.schoolSection) {
@@ -266,15 +267,24 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
         });
 
         const { data: profile } = await api.get("/users/profile");
-        setUser(profile.user);
+        const raw = profile.user;
+        setUser({ ...raw, role: raw.role?.toLowerCase() });
+
+        try {
+          const { data: yearData } = await api.get("/academic-years/current");
+          setYear(yearData);
+        } catch {
+          setYear(null);
+        }
+
         toast.success(t("users.form.loginSuccess", language));
         navigate("/dashboard", { replace: true });
       } else if (type === "create") {
         await api.post("/users/register", payload);
         toast.success(t("users.form.created", language));
         if (onSuccess) onSuccess();
-      } else if (type === "update" && initialData?._id) {
-        await api.put(`/users/update/${initialData._id}`, payload);
+      } else if (type === "update" && getId(initialData)) {
+        await api.put(`/users/update/${getId(initialData)}`, payload);
         toast.success(t("users.form.updated", language));
         if (onSuccess) onSuccess();
       }
@@ -308,11 +318,11 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   const classOptions = Array.isArray(classes)
     ? classes.map((c) => ({
         label: c.name,
-        value: c._id,
+        value: getId(c),
       }))
     : [];
   const subjectOptions = Array.isArray(subjects)
-    ? subjects.map((s) => ({ label: s.name, value: s._id }))
+    ? subjects.map((s) => ({ label: s.name, value: getId(s) }))
     : [];
   const roleOptions = role ? [{ label: role, value: role }] : [];
   const sectionOptions = [
@@ -328,6 +338,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
   const selectedSection = form.watch("schoolSection");
 
   const pending = form.formState.isSubmitting;
+  const inputClass = "placeholder:text-muted-foreground/60";
   const showRoleSelector = !isLogin;
   // you can also include teacher is needed
   const showClassSelector = !isLogin && selectedRole === "student";
@@ -339,7 +350,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
       (selectedRole === "teacher" && selectedSection === "bilingual"));
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
+    <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
       <FieldGroup>
         <div className="grid grid-cols-2 gap-4 w-full">
           {!isLogin && (
@@ -349,6 +360,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
               label={t("users.form.fullName", language)}
               placeholder="Jane Doe"
               disabled={pending}
+              className="placeholder:text-muted-foreground/60"
             />
           )}
           {/* role selector */}
@@ -423,6 +435,7 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
                 loading={loadingSchools}
                 searchPlaceholder="Rechercher un etablissement..."
                 emptyMessage="Aucun etablissement trouve"
+                className={undefined}
               />
             </div>
           )}
@@ -435,6 +448,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
               type="email"
               placeholder="m@example.com"
               disabled={pending}
+              autoComplete={isLogin ? "off" : "email"}
+              className={inputClass}
             />
           </div>
           <div className="col-span-2">
@@ -447,6 +462,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
                 isUpdate ? t("users.form.newPasswordOptional", language) : t("users.form.password", language)
               }
               disabled={pending}
+              autoComplete="new-password"
+              className={inputClass}
             />
           </div>
           {type === "create" && (
@@ -458,6 +475,8 @@ const UniversalUserForm = ({ type, initialData, onSuccess, role }: Props) => {
                 type="password"
                 placeholder={t("users.form.confirmPassword", language)}
                 disabled={pending}
+                autoComplete="new-password"
+                className="placeholder:text-muted-foreground/60"
               />
             </div>
           )}

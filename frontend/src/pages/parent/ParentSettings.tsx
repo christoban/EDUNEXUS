@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 
 export function ParentSettings() {
   const { user, setUser } = useAuth();
@@ -32,7 +33,7 @@ export function ParentSettings() {
       setLoading(true);
       setSaved(false);
 
-      const response = await api.patch(`/users/${user?._id}`, {
+      const response = await api.patch(`/users/${getId(user)}`, {
         parentLanguagePreference: language,
       });
 

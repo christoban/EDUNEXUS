@@ -20,6 +20,7 @@ import type { Class } from "@/types";
 import CustomPagination from "@/components/global/CustomPagination";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 interface Props {
   data: Class[];
@@ -73,7 +74,7 @@ const ClassTable = ({
             </TableRow>
           ) : (
             data.map((cls) => (
-              <TableRow key={cls._id}>
+              <TableRow key={getId(cls)}>
                 <TableCell className="font-medium">{cls.name}</TableCell>
                 <TableCell>{cls.academicYear?.name || t("common.na", language)}</TableCell>
                 <TableCell>
@@ -108,7 +109,7 @@ const ClassTable = ({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-400 dark:hover:text-red-600 hover:text-red-600"
-                          onClick={() => onDelete(cls._id)}
+                          onClick={() => onDelete(getId(cls))}
                         >
                           <Trash2 className="mr-2 size-4 text-red-400 dark:hover:text-red-600 hover:text-red-600" />{" "}
                           {t("classes.delete.title", language)}

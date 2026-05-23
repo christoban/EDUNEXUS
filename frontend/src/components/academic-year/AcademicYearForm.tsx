@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/AuthProvider";
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/field";
 import { CustomInput } from "@/components/global/CustomInput";
 import { api } from "@/lib/api";
+import { getId } from "@/lib/utils";
 import { formSchema, type FormValues } from "./schema";
 import type { academicYear } from "@/types";
 
@@ -58,10 +59,15 @@ const AcademicYearForm = ({
   // Reset form when dialog opens or data changes
   useEffect(() => {
     if (initialData) {
+      const toSafeDate = (val: unknown) => {
+        if (!val) return undefined;
+        const d = new Date(val as string);
+        return isValid(d) ? d : undefined;
+      };
       form.reset({
         name: initialData.name,
-        fromYear: new Date(initialData.fromYear),
-        toYear: new Date(initialData.toYear),
+        fromYear: toSafeDate((initialData as any).startDate),
+        toYear: toSafeDate((initialData as any).endDate),
         isCurrent: initialData.isCurrent,
       });
     } else {
@@ -77,7 +83,7 @@ const AcademicYearForm = ({
   const onSubmit = async (data: FormValues) => {
     try {
       if (initialData) {
-        await api.patch(`/academic-years/update/${initialData._id}`, data);
+        await api.patch(`/academic-years/update/${getId(initialData)}`, data);
         toast.success("Academic year updated");
       } else {
         await api.post("/academic-years/create", data);
@@ -135,7 +141,7 @@ const AcademicYearForm = ({
                             !field.value && "text-muted-foreground"
                           )}
                         >
-                          {field.value ? (
+                          {field.value && isValid(field.value) ? (
                             format(field.value, "PPP")
                           ) : (
                             <span>Pick a date</span>
@@ -174,7 +180,7 @@ const AcademicYearForm = ({
                             !field.value && "text-muted-foreground"
                           )}
                         >
-                          {field.value ? (
+                          {field.value && isValid(field.value) ? (
                             format(field.value, "PPP")
                           ) : (
                             <span>Pick a date</span>

@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
+import { getId } from "@/lib/utils";
 import { subjectFormSchema, type SubjectFormValues } from "./schema";
 
 // UI Imports
@@ -18,7 +19,8 @@ import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Option {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
 }
 
@@ -73,7 +75,7 @@ export function SubjectForm({
       // FIX: Map the array of teacher objects to an array of IDs (strings)
       const teacherIds = initialData.teacher
         ? initialData.teacher.map((t: any) =>
-            typeof t === "object" ? t._id : t
+            typeof t === "object" ? getId(t) : t
           )
         : [];
 
@@ -106,7 +108,7 @@ export function SubjectForm({
       };
 
       if (initialData) {
-        await api.patch(`/subjects/update/${initialData._id}`, payload);
+        await api.patch(`/subjects/update/${getId(initialData)}`, payload);
         toast.success(t("subjects.form.updated", language));
       } else {
         await api.post("/subjects/create", payload);
@@ -136,7 +138,7 @@ export function SubjectForm({
   const pending = form.formState.isSubmitting;
   const teachersOptions = teachers.map((teacher) => ({
     label: teacher.name,
-    value: teacher._id,
+    value: getId(teacher),
   }));
 
   return (

@@ -5,9 +5,10 @@ interface SensitiveDialogProps {
   onConfirm: (password: string, code: string) => void;
   onCancel: () => void;
   loading: boolean;
+  mfaEnabled?: boolean;
 }
 
-const SensitiveDialog: React.FC<SensitiveDialogProps> = ({ title, onConfirm, onCancel, loading }) => {
+const SensitiveDialog: React.FC<SensitiveDialogProps> = ({ title, onConfirm, onCancel, loading, mfaEnabled = false }) => {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
 
@@ -21,18 +22,42 @@ const SensitiveDialog: React.FC<SensitiveDialogProps> = ({ title, onConfirm, onC
     <div style={{ position: "fixed", inset: 0, background: "rgba(2,6,23,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
       <div style={{ width: 480, background: "#0b1220", borderRadius: 12, padding: 24, border: "1px solid #223047" }}>
         <h3 style={{ color: "#f8fafc", fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{title}</h3>
-        <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 16 }}>Saisis ton mot de passe master et ton code MFA pour confirmer.</p>
+        <p style={{ color: "#94a3b8", fontSize: 13, marginBottom: 16 }}>
+          {mfaEnabled === true ? "Saisis ton mot de passe master et ton code MFA pour confirmer." : "Saisis ton mot de passe master pour confirmer."}
+        </p>
         <div style={{ display: "grid", gap: 10 }}>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe master" style={inputStyle} />
-          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Code MFA (6 chiffres) ou recovery code" style={{ ...inputStyle, letterSpacing: 4 }} />
+          {/* Hidden dummy fields to prevent browser autofill */}
+          <input type="text" name="__autocomplete_username" style={{ display: "none" }} />
+          <input type="password" name="__autocomplete_password" style={{ display: "none" }} />
+          <input
+            type="password"
+            name="master_auth_password"
+            autoComplete="new-password"
+            autoCorrect="off"
+            spellCheck={false}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mot de passe master"
+            style={inputStyle}
+          />
+          {mfaEnabled === true && (
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Code MFA (6 chiffres) ou recovery code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              style={{ ...inputStyle, letterSpacing: 4 }}
+            />
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 6 }}>
             <button onClick={onCancel} style={{ background: "transparent", border: "1px solid #223047", color: "#94a3b8", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>
               Annuler
             </button>
             <button
               onClick={() => onConfirm(password, code)}
-              disabled={loading || !password || !code}
-              style={{ background: "#2563eb", color: "white", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (!password || !code) ? 0.5 : 1 }}
+              disabled={loading || !password || (mfaEnabled === true && !code)}
+              style={{ background: "#2563eb", color: "white", border: "none", padding: "8px 16px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (!password || (mfaEnabled === true && !code)) ? 0.5 : 1 }}
             >
               {loading ? "..." : "Confirmer"}
             </button>

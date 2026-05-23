@@ -3,6 +3,7 @@ import type { question, Submission } from "@/types";
 import type { Dispatch, SetStateAction } from "react";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { getId } from "@/lib/utils";
 
 const ExamRadio = ({
   question: q,
@@ -16,18 +17,19 @@ const ExamRadio = ({
   answers: Record<string, string>;
 }) => {
   // 1. Get the student's answer for this specific question (if submitted)
+  const qId = getId(q);
   const studentAnswer = submission?.answers.find(
-    (a: any) => a.questionId === q._id,
+    (a: any) => a.questionId === qId,
   )?.answer;
 
   return (
     <RadioGroup
       onValueChange={(val) => {
         if (submission) return;
-        setAnswers((prev) => ({ ...prev, [q._id]: val }));
+        setAnswers((prev) => ({ ...prev, [qId]: val }));
       }}
       // If submitted, show what the student picked. If not, show current selection state.
-      value={submission ? studentAnswer : answers[q._id]}
+      value={submission ? studentAnswer : answers[qId]}
       disabled={!!submission}
     >
       {q.options.map((opt: any, i: any) => {
@@ -67,7 +69,7 @@ const ExamRadio = ({
         } else {
           // Normal state (Taking exam)
           containerStyle +=
-            answers[q._id] === opt
+            answers[qId] === opt
               ? "border-primary bg-primary/5"
               : "border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800";
         }
@@ -76,7 +78,7 @@ const ExamRadio = ({
           <div key={i} className={containerStyle}>
             <RadioGroupItem
               value={opt}
-              id={`${q._id}-${i}`}
+              id={`${qId}-${i}`}
               className={
                 submission && isThisOptionCorrect
                   ? "text-green-600 border-green-600"
@@ -85,7 +87,7 @@ const ExamRadio = ({
             />
 
             <Label
-              htmlFor={`${q._id}-${i}`}
+              htmlFor={`${qId}-${i}`}
               className="cursor-pointer w-full py-1 font-normal flex items-center justify-between"
             >
               <span>{opt}</span>

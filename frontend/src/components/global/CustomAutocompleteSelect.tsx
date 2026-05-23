@@ -29,6 +29,7 @@ interface CustomAutocompleteSelectProps<T extends FieldValues> {
   disabled?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  className?: string;
 }
 
 export function CustomAutocompleteSelect<T extends FieldValues>({
@@ -41,6 +42,7 @@ export function CustomAutocompleteSelect<T extends FieldValues>({
   disabled,
   searchPlaceholder = "Search...",
   emptyMessage = "No options found",
+  className,
 }: CustomAutocompleteSelectProps<T>) {
   return (
     <Controller
@@ -59,7 +61,7 @@ export function CustomAutocompleteSelect<T extends FieldValues>({
             >
               <MultiSelectTrigger
                 id={name}
-                className="w-full"
+                className={`w-full${className ? ` ${className}` : ""}`}
                 disabled={disabled || loading}
               >
                 <MultiSelectValue placeholder={placeholder} clickToRemove={false} />

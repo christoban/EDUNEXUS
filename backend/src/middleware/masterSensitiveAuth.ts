@@ -56,14 +56,14 @@ export const requireMasterSensitiveAuth = async (
 
     const { password, code } = extractSensitiveAuthPayload(req);
 
-    if (!password || !code) {
+    if (!password) {
       void logMasterAuthAudit({
         req,
         outcome: "failure",
         reason: "sensitive_auth_missing_factors",
         email: req.masterUser?.email,
       });
-      return res.status(400).json({ message: "Password and MFA/recovery code are required" });
+      return res.status(400).json({ message: "Password is required" });
     }
 
     const masterUser = await prisma.masterUser.findUnique({
@@ -100,6 +100,16 @@ export const requireMasterSensitiveAuth = async (
     }
 
     if (masterUser.mfaEnabled && masterUser.mfaSecret) {
+      if (!code) {
+        void logMasterAuthAudit({
+          req,
+          outcome: "failure",
+          reason: "sensitive_auth_missing_factors",
+          email: masterUser.email,
+        });
+        return res.status(400).json({ message: "Password and MFA/recovery code are required" });
+      }
+
       const totpValid = verifyTotpCode(code, masterUser.mfaSecret);
       if (totpValid) {
         void logMasterAuthAudit({
@@ -139,16 +149,6 @@ export const requireMasterSensitiveAuth = async (
         email: masterUser.email,
       });
       return res.status(401).json({ message: "Invalid MFA code" });
-    }
-
-    if (!isSixDigitCode(code)) {
-      void logMasterAuthAudit({
-        req,
-        outcome: "failure",
-        reason: "sensitive_auth_invalid_code_format",
-        email: masterUser.email,
-      });
-      return res.status(401).json({ message: "Invalid security verification" });
     }
 
     void logMasterAuthAudit({

@@ -7,6 +7,7 @@ import {
   Users,
   LayoutDashboard,
   Wallet,
+  Brain,
   LogOut,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ const ICON_MAP = {
   Users,
   Settings2,
   Wallet,
+  Brain,
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -108,38 +110,59 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const sectionTitleMap: Record<string, string> = {
       Dashboard: "nav.section.dashboard",
       Academics: "nav.section.academics",
+      "Académique": "nav.section.academics",
       "Learning (LMS)": "nav.section.learning",
+      "Notes & Bulletins": "nav.section.notes",
       People: "nav.section.people",
+      "Personnes": "nav.section.people",
       System: "nav.section.system",
+      "Système": "nav.section.system",
       Finance: "nav.section.finance",
       "Parent Portal": "nav.section.parentPortal",
     };
 
     const itemTitleMap: Record<string, string> = {
       Dashboard: "nav.item.dashboard",
+      "Tableau de bord": "nav.item.dashboard",
       "Activities Log": "nav.item.activitiesLog",
+      "Journal d'activités": "nav.item.activitiesLog",
       Classes: "nav.item.classes",
       Subjects: "nav.item.subjects",
+      "Matières": "nav.item.subjects",
       Timetable: "nav.item.timetable",
+      "Emploi du temps": "nav.item.timetable",
       Attendance: "nav.item.attendance",
+      "Présence": "nav.item.attendance",
       Exams: "nav.item.exams",
       "Report Cards": "nav.item.reportCards",
+      "Bulletins scolaires": "nav.item.reportCards",
+      "Statut des notes": "nav.item.gradeStatus",
+      "Validation des notes": "nav.item.gradeValidation",
+      "Conseil de classe": "nav.item.classCouncil",
       Students: "nav.item.students",
+      "Élèves": "nav.item.students",
       Teachers: "nav.item.teachers",
+      "Enseignants": "nav.item.teachers",
       Parents: "nav.item.parents",
       Admins: "nav.item.admins",
+      "Personnel": "nav.item.staff",
       "School Configuration": "nav.item.schoolConfiguration",
       "Manage Subjects": "nav.item.manageSubjects",
       "Academic Years": "nav.item.academicYears",
+      "Années scolaires": "nav.item.academicYears",
       "Email History": "nav.item.emailHistory",
       "Roles & Permissions": "nav.item.rolesPermissions",
       "Plans de Frais": "nav.item.feePlans",
+      "Plans de frais": "nav.item.feePlans",
       Facturation: "nav.item.invoices",
       Paiements: "nav.item.payments",
       Depenses: "nav.item.expenses",
+      "Dépenses": "nav.item.expenses",
       Relances: "nav.item.reminders",
       "My Children": "nav.item.myChildren",
       Settings: "nav.item.settings",
+      "Paramètres école": "nav.item.schoolSettings",
+      "Fin d'année": "nav.item.yearEnd",
     };
 
     return SIDEBAR_NAV_POLICY

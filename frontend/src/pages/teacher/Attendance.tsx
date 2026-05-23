@@ -135,7 +135,7 @@ const TeacherAttendance = () => {
         <Card className="border-white/10 bg-slate-900/90 text-white">
           <CardContent className="grid gap-3 pt-6 md:grid-cols-2 lg:grid-cols-4">
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Classe" />
               </SelectTrigger>
               <SelectContent>
@@ -147,11 +147,11 @@ const TeacherAttendance = () => {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="rounded-md border border-white/10 bg-white/5 p-2.5 text-white"
+              className="rounded-md border border-border bg-background p-2.5 text-foreground"
             />
 
             <Select value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as any)}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

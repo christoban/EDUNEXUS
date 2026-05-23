@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import type { AcademicPeriod, SchoolSettings, Section, SubSystem, academicYear } from "@/types";
+import { getId } from "@/lib/utils";
 
 const cycleOptions = ["maternelle", "primaire", "secondaire_1", "secondaire_2", "technique"] as const;
 const gradingScales = ["OVER_20", "PERCENT", "GRADES_AE", "COMPETENCY_ANA"] as const;
@@ -294,8 +295,8 @@ export default function SchoolConfigurationPage() {
 
       const sectionInitials: Record<string, SectionDraft> = {};
       for (const section of loadedSections as Section[]) {
-        sectionInitials[section._id] = {
-          subSystem: typeof section.subSystem === "string" ? section.subSystem : section.subSystem?._id || "",
+        sectionInitials[getId(section)] = {
+          subSystem: typeof section.subSystem === "string" ? section.subSystem : getId(section.subSystem) || "",
           name: section.name,
           language: section.language,
           cycle: section.cycle,
@@ -306,7 +307,7 @@ export default function SchoolConfigurationPage() {
 
       const subsystemInitials: Record<string, SubSystemDraft> = {};
       for (const subsystem of loadedSubsystems as SubSystem[]) {
-        subsystemInitials[subsystem._id] = {
+        subsystemInitials[getId(subsystem)] = {
           name: subsystem.name,
           gradingScale: subsystem.gradingScale,
           periodType: subsystem.periodType,
@@ -342,7 +343,7 @@ export default function SchoolConfigurationPage() {
         cycles: data.cycles || ["secondaire_1", "secondaire_2"],
         officialLanguages: data.officialLanguages || ["fr"],
       });
-      window.dispatchEvent(new CustomEvent("school-settings-updated"));
+      window.dispatchEvent(new CustomEvent("school-settings-updated", { detail: { schoolName: data.schoolName, schoolLogoUrl: data.schoolLogoUrl } }));
       toast.success(labels.saved);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || labels.saved);
@@ -431,10 +432,10 @@ export default function SchoolConfigurationPage() {
   };
 
   const startEditPeriod = (period: AcademicPeriod) => {
-    setEditingPeriodId(period._id);
+    setEditingPeriodId(getId(period));
     setPeriodDraft({
-      academicYear: typeof period.academicYear === "string" ? period.academicYear : period.academicYear?._id || "",
-      section: typeof period.section === "string" ? period.section : period.section?._id || "",
+      academicYear: typeof period.academicYear === "string" ? period.academicYear : getId(period.academicYear) || "",
+      section: typeof period.section === "string" ? period.section : getId(period.section) || "",
       type: period.type,
       number: period.number,
       trimester: period.trimester ?? null,
@@ -480,7 +481,36 @@ export default function SchoolConfigurationPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">{labels.logo}</label>
-                  <Input value={schoolSettings.schoolLogoUrl || ""} onChange={(e) => setSchoolSettings({ ...schoolSettings, schoolLogoUrl: e.target.value })} placeholder="https://..." />
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-md overflow-hidden bg-white/5 flex items-center justify-center">
+                      {schoolSettings.schoolLogoUrl ? (
+                        <img src={schoolSettings.schoolLogoUrl} alt="logo" className="object-contain w-full h-full" />
+                      ) : (
+                        <div className="text-xs text-slate-400">Aperçu</div>
+                      )}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files && e.target.files[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const result = String(reader.result || "");
+                            setSchoolSettings((s) => ({ ...s, schoolLogoUrl: result }));
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                      <div className="flex gap-2">
+                        <Button variant="ghost" onClick={() => setSchoolSettings((s) => ({ ...s, schoolLogoUrl: "" }))}>
+                          Supprimer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -623,7 +653,7 @@ export default function SchoolConfigurationPage() {
               <select className="h-10 rounded-md border bg-background px-3 text-sm" value={sectionDraft.subSystem} onChange={(e) => setSectionDraft({ ...sectionDraft, subSystem: e.target.value })}>
                 <option value="">{labels.subsystems}</option>
                 {subsystems.map((subsystem) => (
-                  <option key={subsystem._id} value={subsystem._id}>{subsystem.code} - {subsystem.name}</option>
+                  <option key={getId(subsystem)} value={getId(subsystem)}>{subsystem.code} - {subsystem.name}</option>
                 ))}
               </select>
               <select className="h-10 rounded-md border bg-background px-3 text-sm" value={sectionDraft.language} onChange={(e) => setSectionDraft({ ...sectionDraft, language: e.target.value as "fr" | "en" })}>
@@ -639,34 +669,35 @@ export default function SchoolConfigurationPage() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             {sections.map((section) => {
-              const draft = sectionDrafts[section._id] || blankSectionDraft;
+              const sId = getId(section);
+              const draft = sectionDrafts[sId] || blankSectionDraft;
               return (
-                <Card key={section._id}>
+                <Card key={sId}>
                   <CardHeader>
                     <CardTitle>{section.name}</CardTitle>
                     <CardDescription>{section.cycle} · {section.language} · {(typeof section.subSystem === "string" ? section.subSystem : section.subSystem?.code) || "-"}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Input value={draft.name} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [section._id]: { ...draft, name: e.target.value } }))} />
+                    <Input value={draft.name} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [sId]: { ...draft, name: e.target.value } }))} />
                     <div className="grid gap-3 md:grid-cols-3">
-                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.subSystem} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [section._id]: { ...draft, subSystem: e.target.value } }))}>
+                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.subSystem} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [sId]: { ...draft, subSystem: e.target.value } }))}>
                         {subsystems.map((subsystem) => (
-                          <option key={subsystem._id} value={subsystem._id}>{subsystem.code}</option>
+                          <option key={getId(subsystem)} value={getId(subsystem)}>{subsystem.code}</option>
                         ))}
                       </select>
-                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.language} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [section._id]: { ...draft, language: e.target.value as "fr" | "en" } }))}>
+                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.language} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [sId]: { ...draft, language: e.target.value as "fr" | "en" } }))}>
                         <option value="fr">FR</option>
                         <option value="en">EN</option>
                       </select>
-                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.cycle} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [section._id]: { ...draft, cycle: e.target.value as SectionDraft["cycle"] } }))}>
+                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.cycle} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [sId]: { ...draft, cycle: e.target.value as SectionDraft["cycle"] } }))}>
                         {cycleOptions.map((cycle) => <option key={cycle} value={cycle}>{cycle}</option>)}
                       </select>
                     </div>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={draft.isActive} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [section._id]: { ...draft, isActive: e.target.checked } }))} />
+                      <input type="checkbox" checked={draft.isActive} onChange={(e) => setSectionDrafts((prev) => ({ ...prev, [sId]: { ...draft, isActive: e.target.checked } }))} />
                       {labels.active}
                     </label>
-                    <Button onClick={() => handleUpdateSection(section._id)} disabled={savingSectionId === section._id}>{savingSectionId === section._id ? labels.saving : labels.editSection}</Button>
+                    <Button onClick={() => handleUpdateSection(sId)} disabled={savingSectionId === sId}>{savingSectionId === sId ? labels.saving : labels.editSection}</Button>
                   </CardContent>
                 </Card>
               );
@@ -688,7 +719,8 @@ export default function SchoolConfigurationPage() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             {subsystems.map((subsystem) => {
-              const draft = subsystemDrafts[subsystem._id] || {
+              const ssId = getId(subsystem);
+              const draft = subsystemDrafts[ssId] || {
                 name: subsystem.name,
                 gradingScale: subsystem.gradingScale,
                 periodType: subsystem.periodType,
@@ -698,32 +730,32 @@ export default function SchoolConfigurationPage() {
                 isActive: subsystem.isActive,
               };
               return (
-                <Card key={subsystem._id}>
+                <Card key={ssId}>
                   <CardHeader>
                     <CardTitle>{subsystem.code}</CardTitle>
                     <CardDescription>{subsystem.name}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Input value={draft.name} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, name: e.target.value } }))} />
+                    <Input value={draft.name} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, name: e.target.value } }))} />
                     <div className="grid gap-3 md:grid-cols-2">
-                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.gradingScale} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, gradingScale: e.target.value as SubSystemDraft["gradingScale"] } }))}>
+                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.gradingScale} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, gradingScale: e.target.value as SubSystemDraft["gradingScale"] } }))}>
                         {gradingScales.map((scale) => <option key={scale} value={scale}>{scale}</option>)}
                       </select>
-                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.periodType} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, periodType: e.target.value as SubSystemDraft["periodType"] } }))}>
+                      <select className="h-10 rounded-md border bg-background px-3 text-sm" value={draft.periodType} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, periodType: e.target.value as SubSystemDraft["periodType"] } }))}>
                         {periodTypes.map((periodType) => <option key={periodType} value={periodType}>{periodType}</option>)}
                       </select>
                     </div>
-                    <Input type="number" min={0} max={20} value={draft.passThreshold} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, passThreshold: Number(e.target.value) } }))} />
-                    <Input placeholder={labels.bulletinTemplate} value={draft.bulletinTemplate} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, bulletinTemplate: e.target.value } }))} />
+                    <Input type="number" min={0} max={20} value={draft.passThreshold} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, passThreshold: Number(e.target.value) } }))} />
+                    <Input placeholder={labels.bulletinTemplate} value={draft.bulletinTemplate} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, bulletinTemplate: e.target.value } }))} />
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={draft.hasCoefficientBySubject} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, hasCoefficientBySubject: e.target.checked } }))} />
+                      <input type="checkbox" checked={draft.hasCoefficientBySubject} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, hasCoefficientBySubject: e.target.checked } }))} />
                       {labels.coefficientMode}
                     </label>
                     <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={draft.isActive} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [subsystem._id]: { ...draft, isActive: e.target.checked } }))} />
+                      <input type="checkbox" checked={draft.isActive} onChange={(e) => setSubsystemDrafts((prev) => ({ ...prev, [ssId]: { ...draft, isActive: e.target.checked } }))} />
                       {labels.active}
                     </label>
-                    <Button onClick={() => handleUpdateSubsystem(subsystem._id)} disabled={savingSubsystemId === subsystem._id}>{savingSubsystemId === subsystem._id ? labels.saving : labels.editSubsystem}</Button>
+                    <Button onClick={() => handleUpdateSubsystem(ssId)} disabled={savingSubsystemId === ssId}>{savingSubsystemId === ssId ? labels.saving : labels.editSubsystem}</Button>
                   </CardContent>
                 </Card>
               );
@@ -739,22 +771,34 @@ export default function SchoolConfigurationPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={periodDraft.academicYear} onChange={(e) => setPeriodDraft({ ...periodDraft, academicYear: e.target.value })}>
-                  <option value="">{labels.academicYear}</option>
-                  {academicYears.map((year) => (
-                    <option key={year._id} value={year._id}>{year.name}</option>
-                  ))}
-                </select>
-                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={periodDraft.section} onChange={(e) => setPeriodDraft({ ...periodDraft, section: e.target.value })}>
-                  <option value="">{labels.section}</option>
-                  {sections.map((section) => (
-                    <option key={section._id} value={section._id}>{section.name}</option>
-                  ))}
-                </select>
-                <select className="h-10 rounded-md border bg-background px-3 text-sm" value={periodDraft.type} onChange={(e) => setPeriodDraft({ ...periodDraft, type: e.target.value as PeriodDraft["type"] })}>
-                  {periodKindOptions.map((type) => <option key={type} value={type}>{type}</option>)}
-                </select>
-                <Input type="number" min={1} max={12} value={periodDraft.number} onChange={(e) => setPeriodDraft({ ...periodDraft, number: Number(e.target.value) })} />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{labels.academicYear}</label>
+                  <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={periodDraft.academicYear} onChange={(e) => setPeriodDraft({ ...periodDraft, academicYear: e.target.value })}>
+                    <option value="">{labels.academicYear}</option>
+                    {academicYears.map((year) => (
+                      <option key={getId(year)} value={getId(year)}>{year.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{labels.section}</label>
+                  <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={periodDraft.section} onChange={(e) => setPeriodDraft({ ...periodDraft, section: e.target.value })}>
+                    <option value="">{labels.section}</option>
+                    {sections.map((section) => (
+                      <option key={getId(section)} value={getId(section)}>{section.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{labels.type}</label>
+                  <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={periodDraft.type} onChange={(e) => setPeriodDraft({ ...periodDraft, type: e.target.value as PeriodDraft["type"] })}>
+                    {periodKindOptions.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{labels.number}</label>
+                  <Input type="number" min={1} max={12} value={periodDraft.number} onChange={(e) => setPeriodDraft({ ...periodDraft, number: Number(e.target.value) })} />
+                </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Input type="date" value={periodDraft.startDate} onChange={(e) => setPeriodDraft({ ...periodDraft, startDate: e.target.value })} />
@@ -788,7 +832,7 @@ export default function SchoolConfigurationPage() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             {periods.map((period) => (
-              <Card key={period._id}>
+              <Card key={getId(period)}>
                 <CardHeader>
                   <CardTitle>{period.type} {period.number}</CardTitle>
                   <CardDescription>

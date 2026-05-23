@@ -18,10 +18,27 @@ type StudentStats = {
   rate: number;
 };
 
+type AttendanceSummary = {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  attendanceRate: string;
+};
+
+type AttendanceRow = {
+  studentId: string;
+  status: "PRESENT" | "ABSENT" | "LATE";
+  student?: {
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+};
+
 const AdminAbsences = () => {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
-  const [stats, setStats] = useState<{ summary: any; byStudent: StudentStats[] } | null>(null);
+  const [stats, setStats] = useState<{ summary: AttendanceSummary; byStudent: StudentStats[] } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -31,8 +48,49 @@ const AdminAbsences = () => {
   useEffect(() => {
     if (!selectedClass) return;
     setLoading(true);
-    api.get("/attendance/stats", { params: { classId: selectedClass } })
-      .then(({ data }) => setStats(data))
+    Promise.all([
+      api.get("/attendance/stats", { params: { classId: selectedClass } }),
+      api.get("/attendance", { params: { classId: selectedClass, limit: 500 } }),
+    ])
+      .then(([summaryResponse, recordsResponse]) => {
+        const summaryData = summaryResponse.data?.stats ?? summaryResponse.data ?? {};
+        const attendanceRecords: AttendanceRow[] = recordsResponse.data?.records ?? [];
+
+        const byStudentMap = new Map<string, StudentStats>();
+
+        attendanceRecords.forEach((record) => {
+          const studentId = String(record.studentId);
+          const studentName = [record.student?.firstName, record.student?.lastName].filter(Boolean).join(" ").trim() || "Élève";
+          const existing = byStudentMap.get(studentId) ?? {
+            studentId,
+            studentName,
+            total: 0,
+            present: 0,
+            absent: 0,
+            late: 0,
+            rate: 0,
+          };
+
+          existing.total += 1;
+          if (record.status === "PRESENT") existing.present += 1;
+          if (record.status === "ABSENT") existing.absent += 1;
+          if (record.status === "LATE") existing.late += 1;
+          existing.rate = existing.total ? Math.round(((existing.present + existing.late) / existing.total) * 100) : 0;
+
+          byStudentMap.set(studentId, existing);
+        });
+
+        setStats({
+          summary: {
+            total: Number(summaryData.total ?? 0),
+            present: Number(summaryData.present ?? 0),
+            absent: Number(summaryData.absent ?? 0),
+            late: Number(summaryData.late ?? 0),
+            attendanceRate: String(summaryData.attendanceRate ?? "0%"),
+          },
+          byStudent: Array.from(byStudentMap.values()).sort((left, right) => left.studentName.localeCompare(right.studentName)),
+        });
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [selectedClass]);
@@ -46,7 +104,7 @@ const AdminAbsences = () => {
         </div>
 
         <Select value={selectedClass} onValueChange={setSelectedClass}>
-          <SelectTrigger className="w-64 border-white/10 bg-white/5 text-white">
+          <SelectTrigger className="w-64 border-border bg-background text-foreground">
             <SelectValue placeholder="Sélectionner une classe" />
           </SelectTrigger>
           <SelectContent>
@@ -69,7 +127,7 @@ const AdminAbsences = () => {
                 { label: "Total appels", value: stats.summary.total, color: "text-white" },
                 { label: "Présences", value: stats.summary.present, color: "text-emerald-300" },
                 { label: "Absences", value: stats.summary.absent, color: "text-red-300" },
-                { label: "Taux présence", value: `${stats.summary.attendanceRate}%`, color: "text-sky-300" },
+                { label: "Taux présence", value: stats.summary.attendanceRate, color: "text-sky-300" },
               ].map((item) => (
                 <Card key={item.label} className="border-white/10 bg-slate-900 text-white">
                   <CardContent className="p-4">

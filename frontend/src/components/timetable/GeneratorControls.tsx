@@ -25,6 +25,7 @@ import type { academicYear, Class } from "@/types";
 import { useAuth } from "@/hooks/AuthProvider";
 import { t } from "@/lib/i18n";
 import type { UILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 export interface GenSettings {
   startTime: string;
@@ -117,7 +118,8 @@ const GeneratorControls = ({
           : [yearRes.data];
         const current = currentYears.find((y: academicYear) => y.isCurrent);
 
-        if (current?._id) setSelectedYear(current._id);
+        const currentId = getId(current);
+        if (currentId) setSelectedYear(currentId);
       } catch (error) {
         toast.error(t("timetable.error.loadSelection", language));
       } finally {
@@ -201,7 +203,7 @@ const GeneratorControls = ({
               </SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
-                  <SelectItem key={y._id} value={y._id}>
+                  <SelectItem key={getId(y)} value={getId(y)}>
                     {y.name}
                   </SelectItem>
                 ))}
@@ -220,7 +222,7 @@ const GeneratorControls = ({
               </SelectTrigger>
               <SelectContent>
                 {classes.map((c) => (
-                  <SelectItem key={c._id} value={c._id}>
+                  <SelectItem key={getId(c)} value={getId(c)}>
                     {c.name}
                   </SelectItem>
                 ))}

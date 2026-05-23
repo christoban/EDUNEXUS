@@ -78,7 +78,9 @@ export default function UserManagementPage({
         setUsers([]);
       }
     } catch (error: any) {
-      console.log(error);
+      if (error?.response?.status === 401) {
+        return;
+      }
       toast.error(
         error?.response?.data?.message || t("users.loadFail", language, { role: t(`users.role.${role}s`, language) })
       );
@@ -105,8 +107,10 @@ export default function UserManagementPage({
       toast.success(t("users.deleteSuccess", language));
       fetchUsers();
     } catch (error) {
-      toast.error(t("users.deleteFail", language));
-      console.log(error);
+      const status = (error as any)?.response?.status;
+      if (status !== 401) {
+        toast.error(t("users.deleteFail", language));
+      }
     } finally {
       setIsDeleteOpen(false);
       setDeleteId(null);

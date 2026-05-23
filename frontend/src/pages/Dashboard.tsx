@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Section } from "@/types";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 
 // Custom Components
 import { AiInsightWidget } from "@/components/dashboard/ai-insight-widget";
@@ -185,7 +186,7 @@ export default function Dashboard() {
               <SelectContent>
                 <SelectItem value="all">{t("dashboard.filter.allSections", language)}</SelectItem>
                 {sections.map((section) => (
-                  <SelectItem key={section._id} value={section._id}>
+                  <SelectItem key={getId(section)} value={getId(section)}>
                     {section.name} · {section.cycle}
                   </SelectItem>
                 ))}
@@ -211,7 +212,7 @@ export default function Dashboard() {
           <div className="space-y-2">
             <p className="text-sm font-medium">{t("dashboard.filter.scope", language)}</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <Badge variant="secondary">{sectionId === "all" ? t("dashboard.filter.allSections", language) : sections.find((section) => section._id === sectionId)?.name || t("dashboard.filter.section", language)}</Badge>
+              <Badge variant="secondary">{sectionId === "all" ? t("dashboard.filter.allSections", language) : sections.find((section) => getId(section) === sectionId)?.name || t("dashboard.filter.section", language)}</Badge>
               <Badge variant="outline">{cycle === "all" ? t("dashboard.filter.allCycles", language) : cycle}</Badge>
             </div>
           </div>

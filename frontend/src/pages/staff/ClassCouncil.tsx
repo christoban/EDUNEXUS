@@ -179,11 +179,11 @@ const ClassCouncil = () => {
         <Card className="border-white/10 bg-slate-900/90 text-white">
           <CardContent className="flex flex-wrap gap-3 pt-6">
             <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white"><SelectValue placeholder="Classe" /></SelectTrigger>
+              <SelectTrigger className="w-48 border-border bg-background text-foreground"><SelectValue placeholder="Classe" /></SelectTrigger>
               <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white"><SelectValue placeholder="Période" /></SelectTrigger>
+              <SelectTrigger className="w-48 border-border bg-background text-foreground"><SelectValue placeholder="Période" /></SelectTrigger>
               <SelectContent>{periods.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
             </Select>
           </CardContent>
@@ -233,7 +233,7 @@ const ClassCouncil = () => {
                         </div>
                         <input type="text" disabled={isLocked} value={observations[student.id] ?? ""}
                           onChange={(e) => setObservations((prev) => ({ ...prev, [student.id]: e.target.value }))}
-                          placeholder="Observations..." className="w-44 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white placeholder:text-slate-600 disabled:opacity-50" />
+                          placeholder="Observations..." className="w-44 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground disabled:opacity-50" />
                       </div>
                     );
                   })}

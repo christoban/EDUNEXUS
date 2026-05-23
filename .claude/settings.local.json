@@ -9,7 +9,18 @@
       "Bash(bunx tsc *)",
       "Bash(bun -e ' *)",
       "Bash(timeout 12 bun src/server.ts)",
-      "Bash(Remove-Item \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSchools.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSchoolDetail.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSecurity.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterOnboardingRequests.tsx\")"
+      "Bash(Remove-Item \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSchools.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSchoolDetail.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterSecurity.tsx\", \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\\\\master\\\\MasterOnboardingRequests.tsx\")",
+      "Bash(powershell -Command \"\\(Get-Content src\\\\lib\\\\i18n.ts\\).Count\")",
+      "Bash(powershell -Command \"Select-String -Path src\\\\lib\\\\i18n.ts -Pattern 'nav\\\\.section\\\\.' | Select-Object LineNumber, Line | Format-Table -AutoSize\")",
+      "Bash(powershell -Command \"Select-String -Path src\\\\pages\\\\staff\\\\ClassCouncil.tsx,src\\\\pages\\\\staff\\\\TimetableEditor.tsx,src\\\\pages\\\\teacher\\\\Grades.tsx,src\\\\pages\\\\teacher\\\\Attendance.tsx,src\\\\pages\\\\admin\\\\ReportCards.tsx,src\\\\pages\\\\admin\\\\Absences.tsx,src\\\\pages\\\\admin\\\\GradeStatus.tsx -Pattern 'bg-white|text-white|border-white' | Select-Object Filename, LineNumber, Line\")",
+      "Bash(powershell -Command \"Select-String -Path src\\\\pages\\\\staff\\\\ClassCouncil.tsx,src\\\\pages\\\\staff\\\\TimetableEditor.tsx,src\\\\pages\\\\teacher\\\\Grades.tsx,src\\\\pages\\\\teacher\\\\Attendance.tsx,src\\\\pages\\\\admin\\\\ReportCards.tsx,src\\\\pages\\\\admin\\\\Absences.tsx,src\\\\pages\\\\admin\\\\GradeStatus.tsx -Pattern 'bg-white/5 text-white' | Select-Object Filename, LineNumber, Line\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path src -Recurse -Filter 'CustomAutocompleteSelect*' | Select-Object -ExpandProperty FullName\")",
+      "Bash(powershell -Command \"Select-String -Path src\\\\components\\\\ui\\\\field.tsx -Pattern 'FieldLabel|text-' | Select-Object LineNumber, Line | Select-Object -First 15\")",
+      "Bash(powershell -Command \"Select-String -Path src\\\\types\\\\index.ts -Pattern 'academicYear' -Context 0,10 | Select-Object -First 1 | Format-List\")",
+      "Bash(Get-ChildItem -Path \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\" -Recurse -Filter \"*.tsx\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(node_modules/.bin/inngest --version)",
+      "Bash(bun add *)"
     ]
   }
 }

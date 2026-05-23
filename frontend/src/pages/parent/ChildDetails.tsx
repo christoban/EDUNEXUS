@@ -23,16 +23,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useUISchoolContext } from "@/hooks/useUILanguage";
 import { getPeriodLabel, t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 
 interface ChildData {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   email: string;
   class?: { name: string };
 }
 
 interface ExamData {
-  _id: string;
+  _id?: string;
+  id?: string;
   title: string;
   subject: { name: string; code: string };
   teacher: { name: string };
@@ -42,7 +45,8 @@ interface ExamData {
 }
 
 interface ReportCardData {
-  _id: string;
+  _id?: string;
+  id?: string;
   year: { name: string };
   period: string;
   aggregates: {
@@ -191,7 +195,7 @@ const ChildDetails = () => {
                 <div className="space-y-3">
                   {exams.map((exam) => (
                     <div
-                      key={exam._id}
+                      key={getId(exam)}
                       className="flex justify-between items-start p-3 border rounded-lg"
                     >
                       <div className="flex-1">
@@ -235,7 +239,7 @@ const ChildDetails = () => {
               ) : (
                 <div className="space-y-4">
                   {reportCards.map((rc) => (
-                    <div key={rc._id} className="border rounded-lg p-4">
+                    <div key={getId(rc)} className="border rounded-lg p-4">
                       <div className="flex justify-between items-center mb-3">
                         <div>
                           <h3 className="font-medium">{rc.year.name}</h3>
@@ -296,21 +300,21 @@ const ChildDetails = () => {
                     </TableHeader>
                     <TableBody>
                       {attendance.slice(0, 20).map((record) => (
-                        <TableRow key={record._id}>
+                        <TableRow key={getId(record)}>
                           <TableCell>
                             {new Date(record.date).toLocaleDateString(dateLocale)}
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant={
-                                record.status === "present"
+                                record.status.toLowerCase() === "present"
                                   ? "default"
-                                  : record.status === "absent"
+                                  : record.status.toLowerCase() === "absent"
                                     ? "destructive"
                                     : "outline"
                               }
                             >
-                                {t(`status.${record.status}`, language)}
+                                {t(`status.${record.status.toLowerCase()}`, language)}
                             </Badge>
                           </TableCell>
                           <TableCell>{record.class.name}</TableCell>

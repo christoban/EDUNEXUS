@@ -1,4 +1,196 @@
-type SendSmsInput = {
+import axios from "axios";
+
+const BASE_URL = process.env.TECHSOFT_BASE_URL || "https://app.techsoft-web-agency.com/sms/api";
+const API_KEY = process.env.TECHSOFT_API_KEY || "";
+const SENDER_ID = process.env.TECHSOFT_SENDER_ID || "TECHSOF-SMS";
+
+// ─── ENVOYER UN SMS ──────────────────────────────────────────
+export const sendSMS = async (to: string, message: string): Promise<{ success: boolean; msgId?: string; error?: string }> => {
+  try {
+    const phone = to.replace(/\s+/g, "").replace(/^\+/, "");
+    const normalized = phone.startsWith("237") ? phone : `237${phone}`;
+
+    const params = new URLSearchParams({
+      action: "send-sms",
+      api_key: API_KEY,
+      to: normalized,
+      from: SENDER_ID,
+      sms: message,
+    });
+
+    const response = await axios.get(`${BASE_URL}?${params.toString()}`);
+    const data = response.data;
+
+    if (data.code === "ok") {
+      return { success: true, msgId: data.msgId };
+    }
+
+    return { success: false, error: data.message || "Erreur inconnue" };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+};
+
+// ─── ENVOYER SMS EN MASSE (max 100 numéros) ──────────────────
+export const sendBulkSMS = async (numbers: string[], message: string): Promise<{ success: number; failed: number }> => {
+  const chunks: string[][] = [];
+  for (let index = 0; index < numbers.length; index += 100) {
+    chunks.push(numbers.slice(index, index + 100));
+  }
+
+  let success = 0;
+  let failed = 0;
+
+  for (const chunk of chunks) {
+    const normalized = chunk
+      .map((n) => n.replace(/\s+/g, "").replace(/^\+/, ""))
+      .map((n) => (n.startsWith("237") ? n : `237${n}`))
+      .join(",");
+
+    const params = new URLSearchParams({
+      action: "send-sms",
+      api_key: API_KEY,
+      to: normalized,
+      from: SENDER_ID,
+      sms: message,
+    });
+
+    try {
+      const response = await axios.get(`${BASE_URL}?${params.toString()}`);
+      const results = Array.isArray(response.data) ? response.data : [response.data];
+      results.forEach((result: any) => {
+        if (result.code === "ok") success += 1;
+        else failed += 1;
+      });
+    } catch {
+      failed += chunk.length;
+    }
+  }
+
+  return { success, failed };
+};
+
+// ─── PARSER SMS PRÉSENCES ────────────────────────────────────
+export type ParsedAttendance = {
+  className: string;
+  phoneNumber: string;
+  records: { index: number; status: "PRESENT" | "ABSENT" }[];
+  rawMessage: string;
+};
+
+export const parseSMSAttendance = (message: string, senderPhone: string): ParsedAttendance | null => {
+  try {
+    const parts = message.trim().toUpperCase().split("#");
+    if (parts.length < 3 || parts[0] !== "PRES") return null;
+
+    const className = parts[1];
+    const statusList = parts[2].split(",");
+
+    const records = statusList.map((status, index) => ({
+      index,
+      status: status.trim() === "1" ? "PRESENT" as const : "ABSENT" as const,
+    }));
+
+    return {
+      className,
+      phoneNumber: senderPhone,
+      records,
+      rawMessage: message,
+    };
+  } catch {
+    return null;
+  }
+};
+
+// ─── TRAITEMENT SMS ENTRANT ──────────────────────────────────
+export const processSMSAttendance = async (
+  message: string,
+  senderPhone: string,
+  schoolId: string,
+  prisma: any
+): Promise<{ success: boolean; message: string }> => {
+  const parsed = parseSMSAttendance(message, senderPhone);
+
+  if (!parsed) {
+    return { success: false, message: "Format SMS invalide. Utilisez: PRES#CLASSE#1,0,1,..." };
+  }
+
+  const cls = await prisma.class.findFirst({
+    where: {
+      schoolId,
+      name: { contains: parsed.className, mode: "insensitive" },
+    },
+    include: {
+      students: {
+        include: { user: true },
+        orderBy: { user: { lastName: "asc" } },
+      },
+    },
+  });
+
+  if (!cls) {
+    return { success: false, message: `Classe "${parsed.className}" introuvable` };
+  }
+
+  const students = cls.students;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const teacher = await prisma.user.findFirst({
+    where: { schoolId, phone: { contains: senderPhone.replace("237", "") } },
+  });
+
+  const attendanceRecords = parsed.records
+    .filter((record) => record.index < students.length)
+    .map((record) => ({
+      schoolId,
+      studentId: students[record.index].userId,
+      classId: cls.id,
+      date: today,
+      status: record.status,
+      period: "MORNING" as const,
+      recordedById: teacher?.id,
+      isOfflineSync: false,
+    }));
+
+  for (const record of attendanceRecords) {
+    const existing = await prisma.attendance.findFirst({
+      where: {
+        schoolId,
+        studentId: record.studentId,
+        classId: record.classId,
+        date: today,
+        period: record.period,
+      },
+    });
+
+    if (existing) {
+      await prisma.attendance.update({
+        where: { id: existing.id },
+        data: {
+          status: record.status,
+          recordedById: record.recordedById,
+          teacherId: teacher?.id ?? null,
+        },
+      });
+    } else {
+      await prisma.attendance.create({
+        data: {
+          ...record,
+          academicPeriodId: null,
+          subjectId: null,
+          teacherId: teacher?.id ?? null,
+          syncedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  return {
+    success: true,
+    message: `✅ ${attendanceRecords.length} présences enregistrées pour ${cls.name}`,
+  };
+};type SendSmsInput = {
   to: string;
   message: string;
 };

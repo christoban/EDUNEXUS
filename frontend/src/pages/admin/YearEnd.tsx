@@ -87,7 +87,7 @@ const AdminYearEnd = () => {
             <Card className="border-white/10 bg-slate-900/90 text-white">
               <CardContent className="flex flex-wrap gap-3 pt-6">
                 <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); setCheckResult(null); }}>
-                  <SelectTrigger className="w-64 border-white/10 bg-white/5 text-white">
+                  <SelectTrigger className="w-64 border-border bg-background text-foreground">
                     <SelectValue placeholder="Année scolaire" />
                   </SelectTrigger>
                   <SelectContent>

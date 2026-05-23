@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma.ts";
 import { generateTokens, clearTokens } from "../utils/generateToken.ts";
 import { logActivity } from "../utils/activitieslog.ts";
 import bcrypt from "bcryptjs";
+import { SchoolStatus } from "@prisma/client";
 
 // ─── HELPERS ─────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const {
       firstName,
       lastName,
+      name,
       email,
       phone,
       password,
@@ -38,6 +40,22 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       uiLanguagePreference,
       parentLanguagePreference,
     } = req.body;
+
+    const normalizedRole = String(role || "").trim().toUpperCase();
+    const normalizedName = String(name || "").trim();
+    const nameParts = normalizedName ? normalizedName.split(/\s+/).filter(Boolean) : [];
+    const resolvedFirstName = String(firstName || nameParts[0] || "").trim();
+    const resolvedLastName = String(lastName || nameParts.slice(1).join(" ") || nameParts[0] || "").trim();
+
+    if (!resolvedFirstName || !resolvedLastName) {
+      res.status(400).json({ message: "Le prénom et le nom sont requis" });
+      return;
+    }
+
+    if (!["ADMIN", "STAFF", "TEACHER", "STUDENT", "PARENT"].includes(normalizedRole)) {
+      res.status(400).json({ message: "Rôle utilisateur invalide" });
+      return;
+    }
 
     const schoolId = (req as any).user?.schoolId;
     if (!schoolId) {
@@ -55,35 +73,24 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Validations par rôle
-    if (role === "STUDENT" && !studentClassId) {
-      res.status(400).json({ message: "Un élève doit être assigné à une classe" });
-      return;
-    }
-
-    if (role === "TEACHER" && (!teacherSubjectIds || teacherSubjectIds.length === 0)) {
-      res.status(400).json({ message: "Un enseignant doit avoir au moins une matière" });
-      return;
-    }
-
     const passwordHash = await hashPassword(password);
 
     // Créer l'utilisateur de base
     const newUser = await prisma.user.create({
       data: {
         schoolId,
-        role,
+        role: normalizedRole as any,
         email,
         phone,
         passwordHash,
-        firstName,
-        lastName,
+        firstName: resolvedFirstName,
+        lastName: resolvedLastName,
         isActive: isActive ?? true,
       },
     });
 
     // Créer le profil selon le rôle
-    if (role === "STUDENT") {
+    if (normalizedRole === "STUDENT") {
       await prisma.studentProfile.create({
         data: {
           userId: newUser.id,
@@ -107,7 +114,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    if (role === "TEACHER") {
+    if (normalizedRole === "TEACHER") {
       const teacherProfile = await prisma.teacherProfile.create({
         data: {
           userId: newUser.id,
@@ -127,13 +134,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    if (role === "PARENT") {
+    if (normalizedRole === "PARENT") {
       await prisma.parentProfile.create({
         data: { userId: newUser.id },
       });
     }
 
-    if (role === "STAFF") {
+    if (normalizedRole === "STAFF") {
       const title = String(req.body.title || "Staff").trim();
       const sectionId = req.body.sectionId ? String(req.body.sectionId) : null;
       const permissions: string[] = Array.isArray(req.body.permissions) ? req.body.permissions : [];
@@ -182,7 +189,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         userId: (req as any).user.userId,
         schoolId,
         action: "Registered User",
-        details: `Utilisateur créé : ${newUser.email} en tant que ${role}`,
+        details: `Utilisateur créé : ${newUser.email} en tant que ${normalizedRole}`,
       });
     }
 
@@ -226,7 +233,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         return;
       }
 
-      if (school.status !== "ACTIVE") {
+      if (school.status !== SchoolStatus.ACTIVE && school.status !== SchoolStatus.APPROVED) {
         res.status(403).json({ message: "Cet établissement n'est pas encore actif" });
         return;
       }
@@ -279,6 +286,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Générer access token (15min) + refresh token (7j) dans les cookies httpOnly
     generateTokens(user.id, user.schoolId, user.role, permissions, updatedUser.refreshTokenVersion, res);
 
+    // Si l'utilisateur est ADMIN et que l'école est en statut APPROVED → passer en ACTIVE
+    if (user.role === "ADMIN" && user.schoolId) {
+      const currentSchool = await prisma.school.findUnique({
+        where: { id: user.schoolId },
+        select: { status: true },
+      });
+
+      if (currentSchool?.status === SchoolStatus.APPROVED) {
+        await prisma.school.update({
+          where: { id: user.schoolId },
+          data: { status: SchoolStatus.ACTIVE },
+        });
+      }
+    }
+
     res.json({
       id:        user.id,
       firstName: user.firstName,
@@ -306,13 +328,15 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    const role = req.query.role as string;
+    const role = typeof req.query.role === "string" ? req.query.role.trim().toUpperCase() : "";
     const search = req.query.search as string;
     const skip = (page - 1) * limit;
 
     const where: any = { schoolId };
 
-    if (role && role !== "all") {
+    const allowedRoles = new Set(["ADMIN", "STAFF", "TEACHER", "PARENT", "STUDENT"]);
+
+    if (role && role !== "ALL" && allowedRoles.has(role)) {
       where.role = role;
     }
 
@@ -359,8 +383,15 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       }),
     ]);
 
+    const mappedUsers = users.map((u: any) => ({
+      ...u,
+      name: `${u.firstName || ""} ${u.lastName || ""}`.trim(),
+      studentClass: u.studentProfile?.class ?? undefined,
+      teacherSubjects: u.teacherProfile?.teacherSubjects?.map((ts: any) => ts.subject) ?? undefined,
+    }));
+
     res.json({
-      users,
+      users: mappedUsers,
       pagination: {
         total,
         page,
@@ -443,7 +474,14 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    res.json({ user });
+    const mappedUser = {
+      ...user,
+      name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+      studentClass: (user as any).studentProfile?.class ?? undefined,
+      teacherSubjects: (user as any).teacherProfile?.teacherSubjects?.map((ts: any) => ts.subject) ?? undefined,
+    };
+
+    res.json({ user: mappedUser });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error });
   }
@@ -569,7 +607,61 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    await prisma.user.delete({ where: { id: user.id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.attendance.deleteMany({
+        where: {
+          schoolId,
+          OR: [
+            { studentId: user.id },
+            { recordedById: user.id },
+            { teacherId: user.id },
+          ],
+        },
+      });
+
+      await tx.grade.deleteMany({
+        where: {
+          schoolId,
+          OR: [
+            { studentId: user.id },
+            { recordedById: user.id },
+            { validatedById: user.id },
+          ],
+        },
+      });
+
+      await tx.reportCard.deleteMany({
+        where: {
+          schoolId,
+          studentId: user.id,
+        },
+      });
+
+      const [studentProfile, teacherProfile, parentProfile, staffProfile] = await Promise.all([
+        tx.studentProfile.findUnique({ where: { userId: user.id }, select: { id: true } }),
+        tx.teacherProfile.findUnique({ where: { userId: user.id }, select: { id: true } }),
+        tx.parentProfile.findUnique({ where: { userId: user.id }, select: { id: true } }),
+        tx.staffProfile.findUnique({ where: { userId: user.id }, select: { id: true } }),
+      ]);
+
+      if (parentProfile) {
+        await tx.parentStudent.deleteMany({ where: { parentProfileId: parentProfile.id } });
+      }
+
+      if (studentProfile) {
+        await tx.parentStudent.deleteMany({ where: { studentProfileId: studentProfile.id } });
+      }
+
+      if (teacherProfile) {
+        await tx.teacherSubject.deleteMany({ where: { teacherProfileId: teacherProfile.id } });
+      }
+
+      if (staffProfile) {
+        await tx.staffPermission.deleteMany({ where: { staffProfileId: staffProfile.id } });
+      }
+
+      await tx.user.delete({ where: { id: user.id } });
+    });
 
     await logActivity({
       userId: (req as any).user.userId,

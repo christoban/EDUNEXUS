@@ -25,6 +25,7 @@ type Request = {
 const SuperAdminRequests: React.FC = () => {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
   const [filter, setFilter] = useState("pending");
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<{ action: string; schoolId: string } | null>(null);
@@ -40,6 +41,12 @@ const SuperAdminRequests: React.FC = () => {
   };
 
   useEffect(() => { fetchRequests(); }, []);
+
+  useEffect(() => {
+    api.get("/master/auth/mfa-status")
+      .then(({ data }) => setMfaEnabled(Boolean(data.mfaEnabled)))
+      .catch(() => setMfaEnabled(false));
+  }, []);
 
   const filtered = useMemo(() => {
     return requests
@@ -194,6 +201,7 @@ const SuperAdminRequests: React.FC = () => {
           onConfirm={confirmAction}
           onCancel={() => setDialog(null)}
           loading={actionLoading}
+            mfaEnabled={mfaEnabled}
         />
       )}
     </div>

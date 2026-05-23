@@ -1,6 +1,6 @@
 import { type Request, type Response } from "express";
 import { prisma } from "../config/prisma.ts";
-import { Prisma } from "@prisma/client";
+import { Prisma, type SubjectType } from "@prisma/client";
 import { logActivity } from "../utils/activitieslog.ts";
 
 const toIdStrings = (value: unknown) =>
@@ -39,7 +39,8 @@ const syncSubjectTeachers = async (
 export const createSubject = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    if (currentUser?.role !== "admin") {
+    const currentRole = String(currentUser?.role || "").toLowerCase();
+    if (currentRole !== "admin") {
       return res.status(403).json({ message: "Only admins can create subjects" });
     }
 
@@ -49,6 +50,7 @@ export const createSubject = async (req: Request, res: Response) => {
     }
 
     const { name, code, teacher, coefficient } = req.body;
+    const subjectType = String(req.body?.subjectType || "THEORETICAL").toUpperCase() as SubjectType;
     const subjectExists = await prisma.subject.findFirst({
       where: {
         schoolId,
@@ -65,6 +67,7 @@ export const createSubject = async (req: Request, res: Response) => {
         code: code || null,
         coefficient: Number(coefficient) || 1,
         hoursPerWeek: Number(req.body?.hoursPerWeek) || 2,
+        subjectType,
       },
     });
 
@@ -181,12 +184,14 @@ export const getAllSubjects = async (req: Request, res: Response) => {
 export const updateSubject = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    if (currentUser?.role !== "admin") {
+    const currentRole = String(currentUser?.role || "").toLowerCase();
+    if (currentRole !== "admin") {
       return res.status(403).json({ message: "Only admins can update subjects" });
     }
 
     const schoolId = currentUser?.schoolId;
     const { name, code, teacher, coefficient } = req.body;
+    const subjectType = req.body?.subjectType ? String(req.body.subjectType).toUpperCase() as SubjectType : undefined;
 
     const existingSubject = await prisma.subject.findFirst({
       where: {
@@ -210,6 +215,7 @@ export const updateSubject = async (req: Request, res: Response) => {
         ...(code !== undefined ? { code: code || null } : {}),
         ...(coefficient !== undefined ? { coefficient: Number(coefficient) || 1 } : {}),
         ...(req.body.hoursPerWeek !== undefined ? { hoursPerWeek: Number(req.body.hoursPerWeek) || 2 } : {}),
+        ...(subjectType ? { subjectType } : {}),
       },
     });
 
@@ -237,7 +243,8 @@ export const updateSubject = async (req: Request, res: Response) => {
 export const deleteSubject = async (req: Request, res: Response) => {
   try {
     const currentUser = (req as any).user;
-    if (currentUser?.role !== "admin") {
+    const currentRole = String(currentUser?.role || "").toLowerCase();
+    if (currentRole !== "admin") {
       return res.status(403).json({ message: "Only admins can delete subjects" });
     }
 

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
 import type { user, SchoolSection } from "@/types";
+import { getId } from "@/lib/utils";
 
 export interface ChildWithStats extends Omit<user, "schoolSection"> {
   class?: { _id: string; name: string; section?: { name: string; language?: string; cycle?: string; subSystem?: { code: string; name: string } } | null };
@@ -80,9 +81,9 @@ export function ParentChildrenGrid({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {effectiveChildren.map((child) => (
         <Card
-          key={child._id}
+          key={getId(child)}
           className="cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => navigate(`/parent/children/${child._id}`)}
+          onClick={() => navigate(`/parent/children/${getId(child)}`)}
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">
@@ -117,7 +118,7 @@ export function ParentChildrenGrid({
                 className="w-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/parent/children/${child._id}`);
+                  navigate(`/parent/children/${getId(child)}`);
                 }}
               >
                 {t("parent.dashboard.viewDetails", language)}

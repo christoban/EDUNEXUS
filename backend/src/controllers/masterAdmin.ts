@@ -1016,7 +1016,7 @@ export const confirmMasterPasswordChange = async (req: Request, res: Response) =
       return res.status(401).json({ message: "Password-change challenge missing" });
     }
 
-    const emailCode = String(req.body?.emailCode || "").trim();
+    const emailCode = String(req.body?.emailCode || req.body?.emailOtp || "").trim();
     const newPassword = String(req.body?.newPassword || "");
     const confirmNewPassword = String(req.body?.confirmNewPassword || "");
 
@@ -1333,7 +1333,7 @@ export const inviteSchool = async (req: Request, res: Response) => {
         subdomain,
         type: legacySchoolTypeFromInput(readString(body.systemType, body.type)),
         plan,
-        status: SchoolStatus.PENDING,
+        status: SchoolStatus.DRAFT,
         email: requestedAdminEmail,
         subsystem: SchoolSubsystem.FRANCOPHONE,
       },
@@ -1421,13 +1421,50 @@ export const listSchools = async (req: Request, res: Response) => {
       },
     });
 
-    return res.json({
-      schools: schools.map((school) => ({
-        ...school,
-        latestInvite: school.invites[0] || null,
-      })),
-      total: schools.length,
+    // Normalize to legacy shape expected by frontend
+    const normalized = schools.map((s) => {
+      const latestInvite = (s as any).invites?.[0] || null;
+      const systemType = s.subsystem === SchoolSubsystem.ANGLOPHONE ? "anglophone" : s.subsystem === SchoolSubsystem.BILINGUAL ? "bilingual" : "francophone";
+      const onboardingStatus = s.status === SchoolStatus.DRAFT
+        ? "draft"
+        : s.status === SchoolStatus.PENDING
+        ? "pending"
+        : s.status === SchoolStatus.APPROVED
+          ? "approved"
+          : s.status === SchoolStatus.ACTIVE
+            ? "active"
+            : s.status === SchoolStatus.SUSPENDED
+              ? "suspended"
+              : "rejected";
+
+      return {
+        _id: s.id,
+        schoolName: s.name,
+        schoolMotto: getSchoolTemplate(s.templateCode || "")?.schoolMotto || "",
+        systemType,
+        structure: s.type === SchoolType.MULTI ? "complex" : "simple",
+        onboardingStatus,
+        dbName: s.subdomain,
+        requestedAdminEmail: s.email,
+        requestedAdminName: null,
+        isActive: s.status === SchoolStatus.ACTIVE,
+        templateKey: s.templateCode || null,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        latestInvite: latestInvite
+          ? {
+              token: latestInvite.token,
+              status: latestInvite.status === InviteStatus.PENDING ? "pending" : latestInvite.status === InviteStatus.USED ? "accepted" : "expired",
+              expiresAt: latestInvite.expiresAt,
+              requestedAdminEmail: latestInvite.email,
+              requestedAdminName: latestInvite.schoolName,
+              metadata: latestInvite.metadata || undefined,
+            }
+          : null,
+      };
     });
+
+    return res.json({ schools: normalized, total: normalized.length });
   } catch (error: any) {
     return res.status(500).json({ message: error.message || "Server error" });
   }
@@ -1593,14 +1630,29 @@ export const reactivateSchool = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    const school = await prisma.school.update({
+    const current = await prisma.school.findUnique({
       where: { id: String(req.params.schoolId) },
-      data: { status: SchoolStatus.ACTIVE },
+      select: { id: true, name: true, status: true },
+    });
+
+    if (!current) {
+      return res.status(404).json({ message: "School not found" });
+    }
+
+    // REJECTED → PENDING (réexaminer = remettre en file d'attente de décision)
+    // SUSPENDED (ou autre) → ACTIVE (réactiver = remettre en service)
+    const targetStatus = current.status === SchoolStatus.REJECTED
+      ? SchoolStatus.PENDING
+      : SchoolStatus.ACTIVE;
+
+    const school = await prisma.school.update({
+      where: { id: current.id },
+      data: { status: targetStatus },
     });
 
     await logActivity({
       userId: String(req.masterUser.id),
-      action: "Reactivated school",
+      action: current.status === SchoolStatus.REJECTED ? "Reexamined school (back to pending)" : "Reactivated school",
       details: school.name,
       schoolId: school.id,
     });

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 
 const statusOptions: AttendanceStatus[] = [
   "present",
@@ -36,12 +37,12 @@ const formatDateInput = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const prettyStatus = (status: AttendanceStatus, language: "fr" | "en") =>
-  t(`status.${status}`, language);
+const prettyStatus = (status: string, language: "fr" | "en") =>
+  t(`status.${status.toLowerCase()}`, language);
 
 const ensureString = (id: any): string => {
   if (typeof id === "string") return id;
-  if (typeof id === "object" && id?._id) return String(id._id);
+  if (typeof id === "object" && id) return String(id.id || id._id || "");
   return String(id || "");
 };
 
@@ -71,7 +72,7 @@ export default function AttendancePage() {
       const studentClassId =
         typeof student.studentClass === "string"
           ? student.studentClass
-          : (student.studentClass as any)?._id;
+          : getId(student.studentClass as any);
       return ensureString(studentClassId) === ensureString(selectedClassId);
     });
   }, [students, selectedClassId]);
@@ -86,7 +87,7 @@ export default function AttendancePage() {
       };
       setClasses(data.classes || []);
       if (!selectedClassId && data.classes?.length) {
-        setSelectedClassId(data.classes[0]._id);
+        setSelectedClassId(getId(data.classes[0]));
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || t("attendance.error.loadClasses", language));
@@ -134,11 +135,11 @@ export default function AttendancePage() {
       if (isManager && filteredStudents.length) {
         const nextMap: Record<string, AttendanceStatus> = {};
         for (const student of filteredStudents) {
-          const studentIdStr = ensureString(student._id);
+          const studentIdStr = getId(student);
           const existing = attendanceRecords.find(
-            (record) => ensureString(record.student?._id) === studentIdStr
+            (record) => getId(record.student) === studentIdStr
           );
-          nextMap[studentIdStr] = existing?.status || "present";
+          nextMap[studentIdStr] = ((existing?.status || "present").toLowerCase()) as AttendanceStatus;
         }
         setStatusByStudent(nextMap);
       }
@@ -170,11 +171,11 @@ export default function AttendancePage() {
 
     const nextMap: Record<string, AttendanceStatus> = {};
     for (const student of filteredStudents) {
-      const studentIdStr = ensureString(student._id);
+      const studentIdStr = getId(student);
       const existing = records.find(
-        (record) => ensureString(record.student?._id) === studentIdStr
+        (record) => getId(record.student) === studentIdStr
       );
-      nextMap[studentIdStr] = existing?.status || "present";
+      nextMap[studentIdStr] = ((existing?.status || "present").toLowerCase()) as AttendanceStatus;
     }
     setStatusByStudent(nextMap);
   }, [isManager, filteredStudents, records]);
@@ -196,7 +197,7 @@ export default function AttendancePage() {
         classId: ensureString(selectedClassId),
         date: selectedDate,
         records: filteredStudents.map((student) => {
-          const studentIdStr = ensureString(student._id);
+          const studentIdStr = getId(student);
           return {
             studentId: studentIdStr,
             status: statusByStudent[studentIdStr] || "present",
@@ -249,7 +250,7 @@ export default function AttendancePage() {
             >
               <option value="">-- {t("attendance.selectClass", language)} --</option>
               {classes.map((schoolClass) => (
-                <option key={schoolClass._id} value={schoolClass._id}>
+                <option key={getId(schoolClass)} value={getId(schoolClass)}>
                   {schoolClass.name}
                 </option>
               ))}
@@ -294,7 +295,7 @@ export default function AttendancePage() {
                 </TableRow>
               ) : (
                 filteredStudents.map((student) => {
-                  const studentIdStr = ensureString(student._id);
+                  const studentIdStr = getId(student);
                   return (
                     <TableRow key={studentIdStr}>
                       <TableCell className="font-medium">{student.name}</TableCell>
@@ -354,7 +355,7 @@ export default function AttendancePage() {
                 </TableRow>
               ) : (
                 records.map((record) => (
-                  <TableRow key={record._id}>
+                  <TableRow key={getId(record)}>
                     <TableCell>
                       {new Date(record.date).toLocaleDateString(dateLocale)}
                     </TableCell>

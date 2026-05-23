@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
+import { getId } from "@/lib/utils";
 import { classFormSchema, type ClassFormValues } from "./schema";
 
 // UI Imports
@@ -24,7 +25,8 @@ import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
 
 interface Option {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
 }
 
@@ -123,9 +125,9 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
       form.reset({
         name: initialData.name,
         capacity: initialData.capacity,
-        academicYear: initialData.academicYear?._id || "",
-        classTeacher: initialData.classTeacher?._id || "",
-        subjectIds: initialData.subjects.map((s) => s._id),
+        academicYear: getId(initialData.academicYear) || "",
+        classTeacher: getId(initialData.classTeacher) || "",
+        subjectIds: initialData.subjects.map((s) => getId(s)),
       });
     } else {
       form.reset({
@@ -149,7 +151,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
         subjects: data.subjectIds,
       };
       if (initialData) {
-        await api.patch(`/classes/update/${initialData._id}`, payload);
+        await api.patch(`/classes/update/${getId(initialData)}`, payload);
         toast.success(t("classes.form.updated", language));
       } else {
         await api.post("/classes/create", payload);
@@ -167,15 +169,15 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
 
   const yearOptions = years.map((year) => ({
     label: year.name,
-    value: year._id,
+    value: getId(year),
   }));
   const subjectOptions = subjects.map((subject) => ({
     label: subject.name,
-    value: subject._id,
+    value: getId(subject),
   }));
   const teachersOptions = teachers.map((teacher) => ({
     label: teacher.name,
-    value: teacher._id,
+    value: getId(teacher),
   }));
   return (
     <Modal
@@ -202,6 +204,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
               control={form.control}
               name="academicYear"
               label={t("classes.form.year", language)}
+              description={language === "fr" ? "Choisissez l'année scolaire à laquelle cette classe appartient." : "Choose the school year this class belongs to."}
               placeholder={t("classes.form.selectYear", language)}
               options={yearOptions}
               disabled={pending}
@@ -213,6 +216,7 @@ const ClassForm = ({ open, onOpenChange, initialData, onSuccess }: Props) => {
               control={form.control}
               name="classTeacher"
               label={t("classes.form.teacher", language)}
+              description={language === "fr" ? "Choisissez l'enseignant principal responsable de cette classe." : "Choose the main teacher responsible for this class."}
               placeholder={t("classes.form.selectTeacher", language)}
               options={teachersOptions}
               disabled={pending}

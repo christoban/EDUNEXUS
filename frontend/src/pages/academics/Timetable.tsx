@@ -11,6 +11,7 @@ import GeneratorControls, {
 import TimetableGrid from "@/components/timetable/TimetableGrid";
 import { useUILanguage } from "@/hooks/useUILanguage";
 import { t } from "@/lib/i18n";
+import { getId } from "@/lib/utils";
 
 const Timetable = () => {
   const { user } = useAuth();
@@ -31,7 +32,7 @@ const Timetable = () => {
   useEffect(() => {
     if (isStudent && user?.studentClass) {
       const classId =
-        typeof user.studentClass === "object" ? user.studentClass._id : user.studentClass;
+        typeof user.studentClass === "object" ? getId(user.studentClass) : user.studentClass;
       if (classId && classId !== selectedClass) {
         setSelectedClass(classId);
       }

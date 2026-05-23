@@ -27,6 +27,7 @@ import CustomPagination from "@/components/global/CustomPagination";
 import type { subject } from "@/types";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 interface Props {
   data: subject[];
@@ -81,7 +82,7 @@ export function SubjectTable({
             </TableRow>
           ) : (
             data.map((item) => (
-              <TableRow key={item._id}>
+              <TableRow key={getId(item)}>
                 <TableCell className="font-mono text-xs">{item.code}</TableCell>
                 <TableCell className="font-medium flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -112,7 +113,7 @@ export function SubjectTable({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-red-600"
-                          onClick={() => onDelete(item._id)}
+                          onClick={() => onDelete(getId(item))}
                         >
                           <Trash2 className="mr-2 h-4 w-4" /> {t("common.delete", language)}
                         </DropdownMenuItem>

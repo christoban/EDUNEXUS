@@ -106,7 +106,7 @@ const AdminUsers = () => {
     if (!confirm("Supprimer cet utilisateur définitivement ?")) return;
     setDeleting(userId);
     try {
-      await api.delete(`/users/${userId}`);
+      await api.delete(`/users/delete/${userId}`);
       toast.success("Utilisateur supprimé");
       await fetchUsers();
     } catch (err: any) {
@@ -145,6 +145,9 @@ const AdminUsers = () => {
             <Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/10" onClick={handleExport}>
               <Download className="h-4 w-4" />Export CSV
             </Button>
+            <Button variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/10" onClick={handleExport}>
+              <Download className="h-4 w-4" />Télécharger (auto)
+            </Button>
             <Button className="bg-emerald-400 text-black hover:bg-emerald-300" onClick={() => setCreateDialog(true)}>
               <Plus className="h-4 w-4" />Nouveau
             </Button>
@@ -159,7 +162,7 @@ const AdminUsers = () => {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 placeholder="Rechercher..."
-                className="border-white/10 bg-white/5 pl-9 text-white"
+                className="border-border bg-background pl-9 text-foreground"
               />
             </div>
             <Select value={selectedRole} onValueChange={(v) => { setSelectedRole(v); setPage(1); }}>
@@ -247,13 +250,13 @@ const AdminUsers = () => {
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="Prénom" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-              <Input placeholder="Nom" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+              <Input placeholder="Prénom" value={form.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} className="border-border bg-background text-foreground" />
+              <Input placeholder="Nom" value={form.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} className="border-border bg-background text-foreground" />
             </div>
-            <Input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
-            <Input placeholder="Téléphone (optionnel)" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+            <Input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="border-border bg-background text-foreground" />
+            <Input placeholder="Téléphone (optionnel)" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="border-border bg-background text-foreground" />
             <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v }))}>
-              <SelectTrigger className="border-white/10 bg-white/5 text-white">
+              <SelectTrigger className="border-border bg-background text-foreground">
                 <SelectValue placeholder="Rôle" />
               </SelectTrigger>
               <SelectContent>
@@ -263,9 +266,9 @@ const AdminUsers = () => {
               </SelectContent>
             </Select>
             {form.role === "STAFF" && (
-              <Input placeholder="Titre (ex: Censeur, Intendant...)" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+              <Input placeholder="Titre (ex: Censeur, Intendant...)" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} className="border-border bg-background text-foreground" />
             )}
-            <Input placeholder="Mot de passe" type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="border-white/10 bg-white/5 text-white" />
+            <Input placeholder="Mot de passe" type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} className="border-border bg-background text-foreground" />
           </div>
           <DialogFooter>
             <Button variant="outline" className="border-white/10 bg-transparent text-white" onClick={() => setCreateDialog(false)}>Annuler</Button>

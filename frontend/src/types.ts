@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "teacher" | "student" | "parent";
+export type UserRole = "admin" | "teacher" | "student" | "parent" | "staff";
 export type SchoolSection = "francophone" | "anglophone" | "bilingual";
 export type SchoolOnboardingStatus = "draft" | "pending" | "approved" | "provisioning" | "active" | "rejected";
 
@@ -10,8 +10,11 @@ export interface pagination {
 }
 
 export interface user {
-  _id: string;
-  name: string;
+  _id?: string;
+  id?: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: UserRole;
   schoolId?: string | null;
@@ -112,9 +115,10 @@ export interface MasterSchoolDetail extends MasterSchoolSummary {
 
 export interface academicYear {
   _id: string;
+  id?: string;
   name: string; // "2024-2025"
-  fromYear: Date; // "2024-09-01"
-  toYear: Date; // "2025-06-30"
+  startDate: Date; // "2024-09-01"
+  endDate: Date; // "2025-06-30"
   isCurrent: boolean; // true/false
 }
 
@@ -140,6 +144,7 @@ export interface SchoolSettings {
 
 export interface SubSystem {
   _id: string;
+  id?: string;
   code:
     | "FR_GENERAL_SEC"
     | "FR_PRIMAIRE"
@@ -159,6 +164,7 @@ export interface SubSystem {
 
 export interface Section {
   _id: string;
+  id?: string;
   schoolSettings?: string | null;
   subSystem: SubSystem | string;
   name: string;
@@ -169,6 +175,7 @@ export interface Section {
 
 export interface AcademicPeriod {
   _id: string;
+  id?: string;
   academicYear: academicYear | string;
   section: Section | string;
   type: "SEQUENCE" | "TERM" | "MONTH";
@@ -182,6 +189,7 @@ export interface AcademicPeriod {
 
 export interface Class {
   _id: string;
+  id?: string;
   name: string; // e.g., "Grade 10"
   academicYear: academicYear; // Link to "2024-2025"
   section?: Section | string | null;
@@ -194,6 +202,7 @@ export interface Class {
 
 export interface subject {
   _id: string;
+  id?: string;
   name: string; // "Mathematics"
   code: string; // "MATH101"
   teacher?: user[]; // Default teacher for this subject
@@ -204,6 +213,7 @@ export interface subject {
 
 export interface question {
   _id: string;
+  id?: string;
   questionText: string;
   type: string;
   options: string[]; // Array of strings e.g. ["A", "B", "C", "D"]
@@ -213,6 +223,7 @@ export interface question {
 
 export interface exam {
   _id: string;
+  id?: string;
   title: string;
   subject: subject;
   class: Class;
@@ -226,6 +237,7 @@ export interface exam {
 
 export interface Submission {
   _id: string;
+  id?: string;
   score: number;
   exam: exam; // The populated exam with answers
   answers: { questionId: string; answer: string }[];
@@ -249,6 +261,7 @@ export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 
 export interface AttendanceRecord {
   _id: string;
+  id?: string;
   student: user;
   class: { _id: string; name: string };
   date: string;
@@ -260,6 +273,7 @@ export type ReportPeriod = "term1" | "term2" | "term3" | "annual";
 
 export interface Grade {
   _id: string;
+  id?: string;
   exam: string;
   student: string;
   score: number;
@@ -276,6 +290,7 @@ export interface Grade {
 
 export interface ReportCard {
   _id: string;
+  id?: string;
   student: user;
   year: academicYear;
   period: ReportPeriod;
@@ -297,6 +312,7 @@ export type EmailStatus = "sent" | "failed";
 
 export interface EmailLog {
   _id: string;
+  id?: string;
   recipientEmail: string;
   recipientUser?: user;
   subject: string;

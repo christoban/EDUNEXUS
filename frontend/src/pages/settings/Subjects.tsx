@@ -27,11 +27,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Edit2, Trash2, Plus } from "lucide-react";
+import { getId } from "@/lib/utils";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { FieldLabel } from "@/components/ui/field";
 
 interface Subject {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   code: string;
   coefficient?: number;
@@ -86,7 +89,7 @@ export default function SubjectsPage() {
       appreciation: subject.appreciation || "",
       isActive: subject.isActive,
     });
-    setEditingId(subject._id);
+    setEditingId(getId(subject));
     setIsDialogOpen(true);
   };
 
@@ -182,7 +185,7 @@ export default function SubjectsPage() {
                 </TableHeader>
                 <TableBody>
                   {subjects.map((subject) => (
-                    <TableRow key={subject._id}>
+                    <TableRow key={getId(subject)}>
                       <TableCell className="font-medium">{subject.name}</TableCell>
                       <TableCell>{subject.code}</TableCell>
                       <TableCell>{subject.coefficient || 1}</TableCell>
@@ -213,7 +216,7 @@ export default function SubjectsPage() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleDelete(subject._id)}
+                          onClick={() => handleDelete(getId(subject))}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -228,7 +231,7 @@ export default function SubjectsPage() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] border-white/10 bg-slate-900 text-white">
           <DialogHeader>
             <DialogTitle>
               {editingId
@@ -243,28 +246,30 @@ export default function SubjectsPage() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">{t("settings.subjects.form.name", language)}</label>
+            <div className="space-y-1.5">
+              <FieldLabel>Nom de la matière</FieldLabel>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder={t("settings.subjects.form.namePlaceholder", language)}
                 required
+                className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium">{t("settings.subjects.form.code", language)}</label>
+            <div className="space-y-1.5">
+              <FieldLabel>Code</FieldLabel>
               <Input
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 placeholder={t("settings.subjects.form.codePlaceholder", language)}
                 required
+                className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium">{t("settings.subjects.form.coefficient", language)}</label>
+            <div className="space-y-1.5">
+              <FieldLabel>Coefficient</FieldLabel>
               <Input
                 type="number"
                 value={form.coefficient}
@@ -272,32 +277,35 @@ export default function SubjectsPage() {
                 min="1"
                 max="20"
                 placeholder="1"
+                className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium">{t("settings.subjects.form.appreciation", language)}</label>
+            <div className="space-y-1.5">
+              <FieldLabel>Appréciation</FieldLabel>
               <Input
                 value={form.appreciation}
                 onChange={(e) => setForm({ ...form, appreciation: e.target.value })}
                 placeholder={t("settings.subjects.form.appreciationPlaceholder", language)}
                 maxLength={500}
+                className="border-white/10 bg-slate-950 text-white placeholder:text-slate-500"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 {form.appreciation.length}/500
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={form.isActive}
-                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <label htmlFor="isActive" className="text-sm font-medium">
-                {t("settings.subjects.form.active", language)}
+            <div className="space-y-1.5">
+              <FieldLabel htmlFor="isActive">Statut</FieldLabel>
+              <label htmlFor="isActive" className="flex items-center gap-3 rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={form.isActive}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-400"
+                />
+                <span>{t("settings.subjects.form.active", language)}</span>
               </label>
             </div>
 

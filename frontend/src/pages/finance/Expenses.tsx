@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 const formatXAF = (value: number) =>
   new Intl.NumberFormat("fr-CM", {
@@ -199,7 +200,7 @@ export default function ExpensesPage() {
               </TableHeader>
               <TableBody>
                 {expenses.map((expense) => (
-                  <TableRow key={expense._id}>
+                  <TableRow key={getId(expense)}>
                     <TableCell>
                       {new Date(expense.expenseDate).toLocaleDateString(
                         language === "fr" ? "fr-CM" : "en-GB"

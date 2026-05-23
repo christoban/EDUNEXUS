@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { t } from "@/lib/i18n";
 import { useUILanguage } from "@/hooks/useUILanguage";
+import { getId } from "@/lib/utils";
 
 const formatXAF = (value: number) =>
   new Intl.NumberFormat("fr-CM", {
@@ -179,7 +180,7 @@ export default function FeePlansPage() {
             >
               <option value="">{t("finance.feePlans.form.academicYear", language)}</option>
               {years.map((year) => (
-                <option key={year._id} value={year._id}>
+                <option key={getId(year)} value={getId(year)}>
                   {year.name}
                 </option>
               ))}
@@ -193,7 +194,7 @@ export default function FeePlansPage() {
             >
               <option value="">{t("finance.feePlans.form.class", language)}</option>
               {classes.map((cls) => (
-                <option key={cls._id} value={cls._id}>
+                <option key={getId(cls)} value={getId(cls)}>
                   {cls.name}
                 </option>
               ))}
@@ -242,7 +243,7 @@ export default function FeePlansPage() {
               </TableHeader>
               <TableBody>
                 {feePlans.map((plan) => (
-                  <TableRow key={plan._id}>
+                  <TableRow key={getId(plan)}>
                     <TableCell>{plan.name}</TableCell>
                     <TableCell>{categoryLabelByValue[plan.category] || plan.category}</TableCell>
                     <TableCell>{frequencyLabelByValue[plan.frequency] || plan.frequency}</TableCell>

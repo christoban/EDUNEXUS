@@ -245,6 +245,7 @@ model StudentProfile {
   classId             String?
   exitYear            String?
   studentStatus       StudentStatus               @default(ACTIVE)
+  healthScore         Int?                        @default(75)
   parents             ParentStudent[]
   class               Class?                      @relation(fields: [classId], references: [id])
   user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1163,6 +1164,7 @@ enum PlanType {
 }
 
 enum SchoolStatus {
+  DRAFT
   PENDING
   APPROVED
   ACTIVE
