@@ -249,10 +249,12 @@ export const deleteSubject = async (req: Request, res: Response) => {
     }
 
     const schoolId = currentUser?.schoolId;
-    const deletedSubject = await prisma.subject.delete({ where: { id: String(req.params.id) } });
-    if (!deletedSubject) {
+    const existing = await prisma.subject.findFirst({ where: { id: String(req.params.id), schoolId } });
+    if (!existing) {
       return res.status(404).json({ message: "Subject not found" });
     }
+
+    const deletedSubject = await prisma.subject.delete({ where: { id: existing.id } });
 
     await prisma.teacherSubject.deleteMany({ where: { subjectId: deletedSubject.id } });
 

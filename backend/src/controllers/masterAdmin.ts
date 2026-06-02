@@ -1311,33 +1311,76 @@ export const inviteSchool = async (req: Request, res: Response) => {
     }
 
     const template = getSchoolTemplate(templateKey) ?? getSchoolTemplate("fr_secondary")!;
-    const subdomain = normalizeSchoolSubdomain(buildSchoolDbName(schoolName));
-    const existingInvite = await prisma.schoolInvite.findFirst({
+
+    const subdomainBase = normalizeSchoolSubdomain(buildSchoolDbName(schoolName));
+
+    // Réutiliser une école DRAFT existante (même email ou même subdomain de base)
+    // plutôt que d'en créer une doublon
+    let existingDraft = await prisma.school.findFirst({
       where: {
-        email: requestedAdminEmail,
-        status: InviteStatus.PENDING,
-        expiresAt: { gt: new Date() },
+        status: SchoolStatus.DRAFT,
+        OR: [
+          { email: requestedAdminEmail },
+          { subdomain: subdomainBase },
+        ],
       },
     });
 
-    if (existingInvite) {
-      await prisma.schoolInvite.updateMany({
-        where: { email: requestedAdminEmail, status: InviteStatus.PENDING },
-        data: { status: InviteStatus.EXPIRED },
+    // Si une école non-DRAFT existe déjà avec ce nom, bloquer
+    const activeConflict = await prisma.school.findFirst({
+      where: {
+        subdomain: subdomainBase,
+        status: { not: SchoolStatus.DRAFT },
+      },
+    });
+    if (activeConflict) {
+      return res.status(409).json({
+        message: `Un établissement avec ce nom existe déjà (statut: ${activeConflict.status.toLowerCase()})`,
       });
     }
 
-    const school = await prisma.school.create({
-      data: {
-        name: schoolName,
-        subdomain,
-        type: legacySchoolTypeFromInput(readString(body.systemType, body.type)),
-        plan,
-        status: SchoolStatus.DRAFT,
-        email: requestedAdminEmail,
-        subsystem: SchoolSubsystem.FRANCOPHONE,
-      },
+    // Expirer les anciennes invitations PENDING pour cet email
+    await prisma.schoolInvite.updateMany({
+      where: { email: requestedAdminEmail, status: InviteStatus.PENDING },
+      data: { status: InviteStatus.EXPIRED },
     });
+
+    let school: Awaited<ReturnType<typeof prisma.school.create>>;
+
+    if (existingDraft) {
+      // Mettre à jour l'école DRAFT existante avec les nouvelles infos
+      school = await prisma.school.update({
+        where: { id: existingDraft.id },
+        data: {
+          name: schoolName,
+          email: requestedAdminEmail,
+          plan,
+          templateCode: templateKey,
+          type: legacySchoolTypeFromInput(readString(body.systemType, body.type)),
+        },
+      });
+    } else {
+      // Générer un subdomain unique uniquement si nécessaire
+      let subdomain = subdomainBase;
+      let subdomainSuffix = 1;
+      while (await prisma.school.findUnique({ where: { subdomain } })) {
+        subdomainSuffix += 1;
+        subdomain = `${subdomainBase}-${subdomainSuffix}`;
+      }
+
+      school = await prisma.school.create({
+        data: {
+          name: schoolName,
+          subdomain,
+          type: legacySchoolTypeFromInput(readString(body.systemType, body.type)),
+          plan,
+          status: SchoolStatus.DRAFT,
+          email: requestedAdminEmail,
+          subsystem: SchoolSubsystem.FRANCOPHONE,
+          templateCode: templateKey,
+        },
+      });
+    }
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72h

@@ -20,7 +20,10 @@
       "Bash(Get-ChildItem -Path \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\frontend\\\\src\\\\pages\" -Recurse -Filter \"*.tsx\")",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(node_modules/.bin/inngest --version)",
-      "Bash(bun add *)"
+      "Bash(bun add *)",
+      "PowerShell(Get-Process -Id 5888)",
+      "Bash(bun test *)",
+      "Bash(bun tsc *)"
     ]
   }
 }

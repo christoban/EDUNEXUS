@@ -90,8 +90,9 @@ export const triggerExamGeneration = async (req: Request, res: Response) => {
 
 export const getExamGeneration = async (req: Request, res: Response) => {
   try {
+    const currentUser = (req as any).user;
     const exam = await prisma.exam.findFirst({
-      where: { id: String(req.params.id) },
+      where: { id: String(req.params.id), ...(currentUser?.schoolId ? { schoolId: currentUser.schoolId } : {}) },
       include: {
         subject: true,
         class: true,

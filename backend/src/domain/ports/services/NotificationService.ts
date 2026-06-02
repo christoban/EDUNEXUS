@@ -1,0 +1,28 @@
+/**
+ * DOMAIN LAYER — Port Service Notification
+ * Push (FCM), SMS, Email, In-App — selon les préférences utilisateur.
+ */
+import type { NotificationType, NotificationChannel } from '@domain/types/enums';
+
+export interface EnvoiNotificationOptions {
+  schoolId: string;
+  userId: string;
+  type: NotificationType;
+  titre: string;
+  corps: string;
+  canal: NotificationChannel;
+  metadata?: Record<string, unknown>;
+}
+
+export interface NotificationService {
+  envoyer(options: EnvoiNotificationOptions): Promise<void>;
+  envoyerAuRole(params: {
+    schoolId: string;
+    role: string;
+    type: NotificationType;
+    titre: string;
+    corps: string;
+    canal: NotificationChannel;
+  }): Promise<void>;
+  marquerLue(notificationId: string): Promise<void>;
+}

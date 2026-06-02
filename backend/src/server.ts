@@ -21,7 +21,6 @@ import LogsRouter from "./routes/activitieslog.ts";
 import academicYearRouter from "./routes/academicYear.ts";
 import classRouter from "./routes/class.ts";
 import subjectRouter from "./routes/subject.ts";
-import gradeRouter from "./routes/grade.ts";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest/index.ts";
 import {
@@ -36,10 +35,7 @@ import {
 import timeRouter from "./routes/timetable.ts";
 import examRouter from "./routes/exam.ts";
 import dashboardRouter from "./routes/dashboard.ts";
-import attendanceRouter from "./routes/attendance.ts";
 import searchRouter from "./routes/search.ts";
-import reportCardRouter from "./routes/reportCard.ts";
-import classCouncilRouter from "./routes/classCouncil.ts";
 import emailLogRouter from "./routes/emailLog.ts";
 import parentRouter from "./routes/parent.ts";
 import financeRouter, { publicFinanceRouter } from "./routes/finance.ts";
@@ -49,6 +45,7 @@ import coreDomainRouter from "./routes/coreDomain.ts";
 import publicRouter from "./routes/public.ts";
 import smsRouter from "./routes/sms.ts";
 import { initSocket } from "./socket/io.ts";
+import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -148,11 +145,7 @@ app.use("/api/subjects", subjectRouter);
 app.use("/api/timetables", timeRouter);
 app.use("/api/exams", examRouter);
 app.use("/api/dashboard", dashboardRouter);
-app.use("/api/attendance", attendanceRouter);
-app.use("/api/grades", gradeRouter);
 app.use("/api/search", searchRouter);
-app.use("/api/report-cards", reportCardRouter);
-app.use("/api/class-councils", classCouncilRouter);
 app.use("/api/email-logs", emailLogRouter);
 app.use("/api/parent", parentRouter);
 app.use("/api/finance", publicFinanceRouter);
@@ -192,6 +185,7 @@ app.use((req, res, next) => {
   next();
 });
 
+bootstrapHexagonal(app);
 initSocket(httpServer, clientUrl);
 httpServer.listen(PORT, () => {
   console.log("Server is running on port 5000");

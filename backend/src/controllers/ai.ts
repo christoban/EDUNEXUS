@@ -263,7 +263,7 @@ export const detectStudentRisk = async (req: Request, res: Response) => {
         select: { status: true },
       }),
       prisma.studentProfile.findFirst({
-        where: { userId: studentId },
+        where: { userId: studentId, user: { schoolId } },
         include: { user: { select: { firstName: true, lastName: true } } },
       }),
     ]);

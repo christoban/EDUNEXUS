@@ -207,6 +207,7 @@ export const sendTransactionalEmail = async (
           subject: input.subject,
           html: input.html,
           text: input.text,
+          ...(input.attachments && { attachments: input.attachments }),
         });
         status = "sent";
         messageId = sent.messageId;

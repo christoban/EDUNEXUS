@@ -1,0 +1,112 @@
+/**
+ * APPLICATION LAYER — Use Case : Enregistrer les présences d'une classe
+ * Enregistre la présence de tous les élèves d'une classe en une opération.
+ * Déclenche les alertes si le seuil d'absences est dépassé.
+ */
+import { Presence } from '@domain/entities/Presence';
+import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { NotificationService } from '@domain/ports/services/NotificationService';
+import type { AttendanceStatus, AttendancePeriod } from '@domain/types/enums';
+
+export interface PresenceEleve {
+  studentId: string;
+  statut: AttendanceStatus;
+}
+
+export interface EnregistrerPresenceCommande {
+  schoolId: string;
+  classId: string;
+  academicPeriodId: string;
+  subjectId?: string;
+  teacherId: string;
+  recordedById: string;
+  date: Date;
+  period: AttendancePeriod;
+  presences: PresenceEleve[];
+  isOfflineSync?: boolean;
+}
+
+export interface EnregistrerPresenceResultat {
+  enregistrees: number;
+  absents: string[];   // studentIds
+  retards: string[];   // studentIds
+}
+
+export class EnregistrerPresenceUseCase {
+  constructor(
+    private readonly presenceRepository: PresenceRepository,
+    private readonly userRepository: UserRepository,
+    private readonly notificationService: NotificationService,
+  ) {}
+
+  async execute(commande: EnregistrerPresenceCommande): Promise<EnregistrerPresenceResultat> {
+    // 1. Vérifier que l'enseignant existe
+    const enseignant = await this.userRepository.findById(commande.teacherId);
+    if (!enseignant || !enseignant.isActive) {
+      throw new Error('Enseignant introuvable ou inactif');
+    }
+
+    // 2. Vérifier qu'une présence n'existe pas déjà pour ce créneau
+    const dejaEnregistree = await this.presenceRepository.existeDeja(
+      commande.presences[0]?.studentId ?? '',
+      commande.date,
+      commande.period
+    );
+    if (dejaEnregistree) {
+      throw new Error(
+        `Les présences du ${commande.date.toLocaleDateString('fr-FR')} ` +
+        `(${commande.period}) ont déjà été enregistrées pour cette classe`
+      );
+    }
+
+    // 3. Créer les entités Presence
+    const presencesACreer: Presence[] = commande.presences.map(p =>
+      Presence.create({
+        schoolId: commande.schoolId,
+        studentId: p.studentId,
+        classId: commande.classId,
+        academicPeriodId: commande.academicPeriodId,
+        subjectId: commande.subjectId,
+        teacherId: commande.teacherId,
+        recordedById: commande.recordedById,
+        date: commande.date,
+        status: p.statut,
+        period: commande.period,
+        isOfflineSync: commande.isOfflineSync ?? false,
+      })
+    );
+
+    // 4. Sauvegarder en bloc
+    await this.presenceRepository.saveMany(presencesACreer);
+
+    // 5. Identifier absents et retardataires
+    const absents = commande.presences
+      .filter(p => p.statut === 'ABSENT')
+      .map(p => p.studentId);
+
+    const retards = commande.presences
+      .filter(p => p.statut === 'LATE')
+      .map(p => p.studentId);
+
+    // 6. Notifier les parents des absents (si pas hors ligne)
+    if (!commande.isOfflineSync) {
+      for (const studentId of absents) {
+        await this.notificationService.envoyer({
+          schoolId: commande.schoolId,
+          userId: studentId,
+          type: 'ABSENCE_ALERT',
+          titre: 'Absence enregistrée',
+          corps: `Votre enfant a été marqué absent le ${commande.date.toLocaleDateString('fr-FR')}`,
+          canal: 'SMS',
+        });
+      }
+    }
+
+    return {
+      enregistrees: presencesACreer.length,
+      absents,
+      retards,
+    };
+  }
+}

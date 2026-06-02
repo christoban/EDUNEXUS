@@ -158,6 +158,11 @@ export const updateClass = async (req: Request, res: Response) => {
       }
     }
 
+    const classToUpdate = await prisma.class.findFirst({ where: { id: classId, schoolId } });
+    if (!classToUpdate) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
     const updatedClass = await prisma.class.update({
       where: { id: classId },
       data: {
@@ -166,10 +171,6 @@ export const updateClass = async (req: Request, res: Response) => {
         ...(capacity !== undefined ? { capacity: Number(capacity) || 40 } : {}),
       },
     });
-
-    if (!updatedClass) {
-      return res.status(404).json({ message: "Class not found" });
-    }
 
     await logActivity({
       userId: currentUser.userId,
@@ -192,6 +193,11 @@ export const deleteClass = async (req: Request, res: Response) => {
     const schoolId = currentUser?.schoolId;
 
     const classId = String(req.params.id);
+
+    const classToDelete = await prisma.class.findFirst({ where: { id: classId, schoolId } });
+    if (!classToDelete) {
+      return res.status(404).json({ message: "Class not found" });
+    }
 
     const deletedClass = await prisma.$transaction(async (tx) => {
       await tx.attendance.deleteMany({

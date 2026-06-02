@@ -139,7 +139,7 @@ const buildProvisioningBlueprint = (school: School, template?: SchoolTemplate | 
 
   const classPrefix = subsystem === SchoolSubsystem.ANGLOPHONE ? "Class" : "Classe";
   const { startDate, endDate, academicYearLabel } = schoolYearBounds();
-  const termsNames = template?.schoolConfig.termsNames?.length
+  const termsNames = template?.schoolConfig?.termsNames?.length
     ? template.schoolConfig.termsNames
     : ["Trimestre 1", "Trimestre 2", "Trimestre 3"];
   const periodMonths = Math.max(1, Math.floor(12 / termsNames.length));
@@ -344,7 +344,7 @@ const provisionApprovedSchool = async (school: School) => {
       where: { schoolId: school.id },
       create: {
         schoolId: school.id,
-        gradesPerTerm: template?.schoolConfig.standardSubjects.length || 3,
+        gradesPerTerm: template?.schoolConfig?.standardSubjects?.length || 3,
         termsPerYear: blueprint.periods.length,
         maxAbsences: 10,
         smsEnabled: false,
@@ -353,7 +353,7 @@ const provisionApprovedSchool = async (school: School) => {
         messageModeration: false,
       },
       update: {
-        gradesPerTerm: template?.schoolConfig.standardSubjects.length || 3,
+        gradesPerTerm: template?.schoolConfig?.standardSubjects?.length || 3,
         termsPerYear: blueprint.periods.length,
         maxAbsences: 10,
         smsEnabled: false,

@@ -156,8 +156,9 @@ export const generateTimetable = async (req: Request, res: Response) => {
 // @route   GET /api/timetables/:classId
 export const getTimetable = async (req: Request, res: Response) => {
   try {
+    const schoolId = (req as any).user?.schoolId;
     const timetable = await prisma.timetable.findFirst({
-      where: { classId: String(req.params.classId) },
+      where: { classId: String(req.params.classId), ...(schoolId ? { schoolId } : {}) },
       include: {
         slots: {
           include: {
@@ -178,8 +179,9 @@ export const getTimetable = async (req: Request, res: Response) => {
 
 export const getTimetableGeneration = async (req: Request, res: Response) => {
   try {
+    const schoolId = (req as any).user?.schoolId;
     const generation = await prisma.timetable.findFirst({
-      where: { id: String(req.params.id) },
+      where: { id: String(req.params.id), ...(schoolId ? { schoolId } : {}) },
       include: {
         class: { select: { id: true, name: true } },
         academicYear: { select: { id: true, name: true } },
