@@ -10,6 +10,7 @@
     "migrate:phase8": "bun src/scripts/migrate-phase8.ts",
     "test": "bun test",
     "test:rules": "bun test src/tests",
+    "test:integration": "bun test --env-file .env.test src/infrastructure/persistence/prisma/__tests__/",
     "reset:master": "bun src/scripts/reset-master.ts"
   },
   "prisma": {

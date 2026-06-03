@@ -31,3 +31,11 @@ export type { FactureRepository, FactureEnRetard } from './FactureRepository';
 export type { PaiementRepository, RevenusParPeriode } from './PaiementRepository';
 export type { DepenseRepository } from './DepenseRepository';
 export type { SousGroupeRepository, SousGroupeProps } from './SousGroupeRepository';
+export type { TimetableRepository, CreneauConflitInfo } from './TimetableRepository';
+export type { ExamenRepository, ExamenProps, SoumissionProps } from './ExamenRepository';
+export type { SanteEleveRepository, DonneesSanteEleve } from './SanteEleveRepository';
+export type {
+  SchoolSettingsRepository,
+  SchoolSettingsComplets,
+} from './SchoolSettingsRepository';
+export type { ParentRepository, EnfantAvecStats } from './ParentRepository';

@@ -28,9 +28,34 @@ import { creerFinanceRoutes } from '@infrastructure/http/routes/finance.routes';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
 import { AcademicYearController } from '@infrastructure/http/controllers/AcademicYearController';
+import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
+import { ParentController } from '@infrastructure/http/controllers/ParentController';
+import { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
+import { creerTimetableRoutes } from '@infrastructure/http/routes/timetable.routes';
+import { creerParentRoutes } from '@infrastructure/http/routes/parent.routes';
+import { creerSchoolSettingsRoutes } from '@infrastructure/http/routes/schoolSettings.routes';
+import { ActivitiesLogController } from '@infrastructure/http/controllers/ActivitiesLogController';
+import { DashboardController } from '@infrastructure/http/controllers/DashboardController';
+import { EmailLogController } from '@infrastructure/http/controllers/EmailLogController';
+import { SearchController } from '@infrastructure/http/controllers/SearchController';
+import { AIController } from '@infrastructure/http/controllers/AIController';
+import { ExamController } from '@infrastructure/http/controllers/ExamController';
+import { CoreDomainController } from '@infrastructure/http/controllers/CoreDomainController';
+import { PublicController } from '@infrastructure/http/controllers/PublicController';
+import { SMSController } from '@infrastructure/http/controllers/SMSController';
+import { creerActivitiesRoutes } from '@infrastructure/http/routes/activities.routes';
+import { creerDashboardRoutes } from '@infrastructure/http/routes/dashboard.routes';
+import { creerEmailLogRoutes } from '@infrastructure/http/routes/emailLog.routes';
+import { creerSearchRoutes } from '@infrastructure/http/routes/search.routes';
+import { creerAIRoutes } from '@infrastructure/http/routes/ai.routes';
+import { creerExamRoutes } from '@infrastructure/http/routes/exam.routes';
+import { creerCoreDomainRoutes } from '@infrastructure/http/routes/coreDomain.routes';
+import { creerPublicRoutes } from '@infrastructure/http/routes/public.routes';
+import { creerSMSRoutes } from '@infrastructure/http/routes/sms.routes';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 
 export function bootstrapHexagonal(app: Application): void {
   const container = creerContainer();
@@ -128,6 +153,50 @@ export function bootstrapHexagonal(app: Application): void {
   );
 
   app.use('/api/v2/academic-years', creerAcademicYearRoutes(academicYearController));
+
+  const timetableController = new TimetableController(
+    container.timetable.creer,
+    container.timetable.ajouterCreneau,
+    container.timetable.modifierCreneau,
+    container.timetable.publier,
+    container.timetable.demanderRattrapage,
+  );
+
+  app.use('/api/v2/timetables', creerTimetableRoutes(timetableController));
+
+  const parentController = new ParentController(
+    container.parent.obtenirEnfants,
+    container.parent.verifierAcces,
+  );
+
+  const schoolSettingsController = new SchoolSettingsController(
+    container.schoolSettings.obtenir,
+    container.schoolSettings.mettreAJour,
+  );
+
+  app.use('/api/v2/parent', creerParentRoutes(parentController));
+  app.use('/api/v2/school-settings', creerSchoolSettingsRoutes(schoolSettingsController));
+
+  // ── Thin controllers (pas de use case — Prisma direct, aucune logique métier) ──
+  const activitiesController = new ActivitiesLogController(prisma);
+  const dashboardController  = new DashboardController(prisma);
+  const emailLogController   = new EmailLogController(prisma);
+  const searchController     = new SearchController(prisma);
+  const aiController         = new AIController(prisma);
+  const examController       = new ExamController(prisma);
+  const coreDomainController = new CoreDomainController(prisma);
+  const publicController     = new PublicController();
+  const smsController        = new SMSController(prisma);
+
+  app.use('/api/v2/activities',    creerActivitiesRoutes(activitiesController));
+  app.use('/api/v2/dashboard',     creerDashboardRoutes(dashboardController));
+  app.use('/api/v2/email-logs',    creerEmailLogRoutes(emailLogController));
+  app.use('/api/v2/search',        creerSearchRoutes(searchController));
+  app.use('/api/v2/ai',            creerAIRoutes(aiController));
+  app.use('/api/v2/exams',         creerExamRoutes(examController));
+  app.use('/api/v2/core-domain',   creerCoreDomainRoutes(coreDomainController));
+  app.use('/api/v2/public',        creerPublicRoutes(publicController));
+  app.use('/api/v2/sms',           creerSMSRoutes(smsController));
 
   // Master admin — approbation d'une école (hexagonale)
   app.post(

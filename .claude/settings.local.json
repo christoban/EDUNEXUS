@@ -23,7 +23,11 @@
       "Bash(bun add *)",
       "PowerShell(Get-Process -Id 5888)",
       "Bash(bun test *)",
-      "Bash(bun tsc *)"
+      "Bash(bun tsc *)",
+      "PowerShell(Set-Location \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\backend\"; $job = Start-Job -ScriptBlock { Set-Location \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\backend\"; bun run dev 2>&1 }; Start-Sleep -Seconds 5; Receive-Job $job; Stop-Job $job; Remove-Job $job)",
+      "PowerShell(Set-Location \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\backend\"; $proc = Start-Process -FilePath \"bun\" -ArgumentList \"src/server.ts\" -RedirectStandardOutput \"C:\\\\temp\\\\server_out.txt\" -RedirectStandardError \"C:\\\\temp\\\\server_err.txt\" -PassThru -NoNewWindow; Start-Sleep -Seconds 6; $out = Get-Content \"C:\\\\temp\\\\server_out.txt\" -ErrorAction SilentlyContinue; $err = Get-Content \"C:\\\\temp\\\\server_err.txt\" -ErrorAction SilentlyContinue; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; Write-Host \"=== STDOUT ===\"; $out; Write-Host \"=== STDERR ===\"; $err)",
+      "PowerShell(Set-Location \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\backend\"; Start-Job { Set-Location \"e:\\\\My long journey towards becoming the best programmer ever by God's Grace\\\\Personal matters\\\\EDUNEXUS\\\\backend\"; bun src/server.ts 2>&1 } | Out-Null; Start-Sleep -Seconds 7; Get-Job | Receive-Job 2>&1 | Select-Object -First 20; Get-Job | Stop-Job; Get-Job | Remove-Job)",
+      "Bash(bun src/server.ts)"
     ]
   }
 }

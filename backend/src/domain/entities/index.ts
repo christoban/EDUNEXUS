@@ -30,3 +30,9 @@ export type { PaiementProps, CreerPaiementProps } from './Paiement';
 
 export { Depense } from './Depense';
 export type { DepenseProps, CreerDepenseProps } from './Depense';
+
+export { EmploiDuTemps } from './EmploiDuTemps';
+export type { EmploiDuTempsProps, CreerEmploiDuTempsProps } from './EmploiDuTemps';
+
+export { CreneauHoraire } from './CreneauHoraire';
+export type { CreneauHoraireProps, CreerCreneauProps } from './CreneauHoraire';

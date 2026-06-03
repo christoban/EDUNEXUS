@@ -83,6 +83,42 @@ import { PrismaSousGroupeRepository } from '@infrastructure/persistence/prisma/P
 // --- Adapters Persistence AnneeAcademique + Promotion ---
 import { PrismaPromotionRepository } from '@infrastructure/persistence/prisma/PrismaPromotionRepository';
 
+// --- Adapters Persistence Timetable ---
+import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/PrismaTimetableRepository';
+
+// --- Adapters Persistence Exam + AI ---
+import { PrismaExamenRepository } from '@infrastructure/persistence/prisma/PrismaExamenRepository';
+import { PrismaSanteEleveRepository } from '@infrastructure/persistence/prisma/PrismaSanteEleveRepository';
+
+// --- Adapter Service IA ---
+import { GeminiIAService } from '@infrastructure/services/GeminiIAService';
+
+// --- Use Cases : Exam ---
+import { CreerExamenUseCase } from '@application/exam/CreerExamenUseCase';
+import { SoumettreReponseUseCase } from '@application/exam/SoumettreReponseUseCase';
+
+// --- Use Cases : AI ---
+import { CalculerIndiceSanteUseCase } from '@application/ai/CalculerIndiceSanteUseCase';
+
+// --- Adapters Persistence Parent + SchoolSettings ---
+import { PrismaParentRepository } from '@infrastructure/persistence/prisma/PrismaParentRepository';
+import { PrismaSchoolSettingsRepository } from '@infrastructure/persistence/prisma/PrismaSchoolSettingsRepository';
+
+// --- Use Cases : Parent ---
+import { ObtenirEnfantsUseCase } from '@application/parent/ObtenirEnfantsUseCase';
+import { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAccesEnfantUseCase';
+
+// --- Use Cases : SchoolSettings ---
+import { ObtenirParametresEcoleUseCase } from '@application/schoolSettings/ObtenirParametresEcoleUseCase';
+import { MettreAJourParametresEcoleUseCase } from '@application/schoolSettings/MettreAJourParametresEcoleUseCase';
+
+// --- Use Cases : Timetable ---
+import { CreerEmploiDuTempsUseCase } from '@application/timetable/CreerEmploiDuTempsUseCase';
+import { AjouterCreneauUseCase } from '@application/timetable/AjouterCreneauUseCase';
+import { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
+import { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
+import { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
+
 // --- Use Cases : AnneeAcademique ---
 import { CreerAnneeAcademiqueUseCase } from '@application/academicYear/CreerAnneeAcademiqueUseCase';
 import { DefinirPeriodeCouranteUseCase } from '@application/academicYear/DefinirPeriodeCouranteUseCase';
@@ -236,7 +272,19 @@ export function creerContainer() {
   );
   const definirCoefficientUseCase = new DefinirCoefficientUseCase(matiereRepository);
 
-  // 12. Use Cases — AnneeAcademique
+  // 12. Use Cases — Timetable
+  const timetableRepository = new PrismaTimetableRepository(prisma);
+
+  const creerEmploiDuTempsUseCase = new CreerEmploiDuTempsUseCase(timetableRepository);
+  const ajouterCreneauUseCase = new AjouterCreneauUseCase(timetableRepository);
+  const modifierCreneauUseCase = new ModifierCreneauUseCase(timetableRepository);
+  const publierEmploiDuTempsUseCase = new PublierEmploiDuTempsUseCase(timetableRepository);
+  const demanderRattrapageUseCase = new DemanderRattrapageUseCase(
+    userRepository,
+    notificationService,
+  );
+
+  // 13. Use Cases — AnneeAcademique
   const promotionRepository = new PrismaPromotionRepository(prisma);
 
   const creerAnneeUseCase = new CreerAnneeAcademiqueUseCase(anneeRepository);
@@ -245,7 +293,29 @@ export function creerContainer() {
   const cloturerAnneeUseCase = new CloturerAnneeUseCase(anneeRepository, promotionRepository);
   const mettreAJourCalendrierUseCase = new MettreAJourCalendrierUseCase(anneeRepository);
 
-  // 13. Use Cases — MasterAdmin
+  // 14. Use Cases — Exam + AI
+  const examenRepository = new PrismaExamenRepository(prisma);
+  const santeEleveRepository = new PrismaSanteEleveRepository(prisma);
+  const geminiIAService = new GeminiIAService();
+
+  const creerExamenUseCase = new CreerExamenUseCase(
+    examenRepository, matiereRepository, userRepository
+  );
+  const soumettreReponseUseCase = new SoumettreReponseUseCase(examenRepository);
+  const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
+    santeEleveRepository, geminiIAService
+  );
+
+  // 15. Use Cases — Parent + SchoolSettings
+  const parentRepository = new PrismaParentRepository(prisma);
+  const schoolSettingsRepository = new PrismaSchoolSettingsRepository(prisma);
+
+  const obtenirEnfantsUseCase = new ObtenirEnfantsUseCase(parentRepository);
+  const verifierAccesUseCase = new VerifierAccesEnfantUseCase(parentRepository);
+  const obtenirParametresUseCase = new ObtenirParametresEcoleUseCase(schoolSettingsRepository);
+  const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository);
+
+  // 16. Use Cases — MasterAdmin
   const inviterEcoleUseCase = new InviterEcoleUseCase(
     schoolRepository, invitationRepository, emailService
   );
@@ -308,6 +378,13 @@ export function creerContainer() {
       assignerEnseignant: assignerEnseignantUseCase,
       definirCoefficient: definirCoefficientUseCase,
     },
+    timetable: {
+      creer: creerEmploiDuTempsUseCase,
+      ajouterCreneau: ajouterCreneauUseCase,
+      modifierCreneau: modifierCreneauUseCase,
+      publier: publierEmploiDuTempsUseCase,
+      demanderRattrapage: demanderRattrapageUseCase,
+    },
     academicYear: {
       creer: creerAnneeUseCase,
       definirPeriode: definirPeriodeUseCase,
@@ -323,6 +400,21 @@ export function creerContainer() {
       traiterWebhook: traiterWebhookUseCase,
       rembourserCaution: rembourserCautionUseCase,
       enregistrerDepense: enregistrerDepenseUseCase,
+    },
+    exam: {
+      creer: creerExamenUseCase,
+      soumettre: soumettreReponseUseCase,
+    },
+    ai: {
+      calculerIndiceSante: calculerIndiceSanteUseCase,
+    },
+    parent: {
+      obtenirEnfants: obtenirEnfantsUseCase,
+      verifierAcces: verifierAccesUseCase,
+    },
+    schoolSettings: {
+      obtenir: obtenirParametresUseCase,
+      mettreAJour: mettreAJourParametresUseCase,
     },
   };
 }

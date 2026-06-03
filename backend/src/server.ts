@@ -8,19 +8,12 @@ import express, {
 } from "express";
 import { createServer } from "http";
 import { readFileSync, existsSync } from "fs";
-import { join, extname } from "path";
+import { join } from "path";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import cors from "cors";
 
-import userRoutes from "./routes/user.ts";
-import masterAdminRouter from "./routes/masterAdmin.ts";
-import schoolOnboardingRouter from "./routes/schoolOnboarding.ts";
-import LogsRouter from "./routes/activitieslog.ts";
-import academicYearRouter from "./routes/academicYear.ts";
-import classRouter from "./routes/class.ts";
-import subjectRouter from "./routes/subject.ts";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest/index.ts";
 import {
@@ -32,18 +25,6 @@ import {
   sendPaymentReminders,
   computeStudentHealthScores,
 } from "./inngest/functions.ts";
-import timeRouter from "./routes/timetable.ts";
-import examRouter from "./routes/exam.ts";
-import dashboardRouter from "./routes/dashboard.ts";
-import searchRouter from "./routes/search.ts";
-import emailLogRouter from "./routes/emailLog.ts";
-import parentRouter from "./routes/parent.ts";
-import financeRouter, { publicFinanceRouter } from "./routes/finance.ts";
-import aiRouter from "./routes/ai.ts";
-import schoolSettingsRouter from "./routes/schoolSettings.ts";
-import coreDomainRouter from "./routes/coreDomain.ts";
-import publicRouter from "./routes/public.ts";
-import smsRouter from "./routes/sms.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 
@@ -129,31 +110,6 @@ if (enableFallback && existsSync(staticPath)) {
   });
 }
 
-// ✅ Routes publiques (sans auth)
-app.use("/api/public", publicRouter);
-
-// ✅ MULTI-TENANT: Master Admin routes (before other routes)
-app.use("/api/master", masterAdminRouter);
-app.use("/api/onboarding", schoolOnboardingRouter);
-
-// import user routes
-app.use("/api/users", userRoutes);
-app.use("/api/activities", LogsRouter);
-app.use("/api/academic-years", academicYearRouter);
-app.use("/api/classes", classRouter);
-app.use("/api/subjects", subjectRouter);
-app.use("/api/timetables", timeRouter);
-app.use("/api/exams", examRouter);
-app.use("/api/dashboard", dashboardRouter);
-app.use("/api/search", searchRouter);
-app.use("/api/email-logs", emailLogRouter);
-app.use("/api/parent", parentRouter);
-app.use("/api/finance", publicFinanceRouter);
-app.use("/api/finance", financeRouter);
-app.use("/api/ai", aiRouter);
-app.use("/api/school-settings", schoolSettingsRouter);
-app.use("/api/core-domain", coreDomainRouter);
-app.use("/api/sms", smsRouter);
 app.use(
   "/api/inngest",
   serve({

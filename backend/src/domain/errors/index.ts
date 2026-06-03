@@ -8,3 +8,4 @@ export { BulletinBloqueError } from './BulletinBloqueError';
 export { ConseilBloqueError } from './ConseilBloqueError';
 export { NoteValideeSyncError } from './NoteValideeSyncError';
 export { VolumeHoraireAPError } from './VolumeHoraireAPError';
+export { ConflitHoraireError } from './ConflitHoraireError';
