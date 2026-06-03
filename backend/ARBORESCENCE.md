@@ -3,6 +3,7 @@
 ```
 backend/
 ├── .env
+├── .env.test
 ├── .gitignore
 ├── ARBORESCENCE.md
 ├── README.md
@@ -183,7 +184,11 @@ backend/
     │   ├── parent/
     │   │   ├── index.ts
     │   │   ├── ObtenirEnfantsUseCase.ts
-    │   │   └── VerifierAccesEnfantUseCase.ts
+    │   │   ├── VerifierAccesEnfantUseCase.ts
+    │   │   └── __tests__/
+    │   │       ├── ObtenirEnfantsUseCase.test.ts
+    │   │       └── helpers/
+    │   │           └── InMemoryParentRepository.ts
     │   │
     │   ├── reportCard/
     │   │   ├── .gitkeep
@@ -217,7 +222,11 @@ backend/
     │   ├── schoolSettings/
     │   │   ├── index.ts
     │   │   ├── MettreAJourParametresEcoleUseCase.ts
-    │   │   └── ObtenirParametresEcoleUseCase.ts
+    │   │   ├── ObtenirParametresEcoleUseCase.ts
+    │   │   └── __tests__/
+    │   │       ├── MettreAJourParametresEcoleUseCase.test.ts
+    │   │       └── helpers/
+    │   │           └── InMemorySchoolSettingsRepository.ts
     │   │
     │   ├── subject/
     │   │   ├── index.ts
@@ -373,14 +382,25 @@ backend/
     │   │   ├── controllers/
     │   │   │   ├── .gitkeep
     │   │   │   ├── AcademicYearController.ts
+    │   │   │   ├── ActivitiesLogController.ts
+    │   │   │   ├── AIController.ts
     │   │   │   ├── AttendanceController.ts
     │   │   │   ├── ClassCouncilController.ts
     │   │   │   ├── ClasseController.ts
+    │   │   │   ├── CoreDomainController.ts
+    │   │   │   ├── DashboardController.ts
+    │   │   │   ├── EmailLogController.ts
+    │   │   │   ├── ExamController.ts
     │   │   │   ├── FinanceController.ts
     │   │   │   ├── GradeController.ts
     │   │   │   ├── MasterAdminHexController.ts
+    │   │   │   ├── ParentController.ts
+    │   │   │   ├── PublicController.ts
     │   │   │   ├── ReportCardController.ts
     │   │   │   ├── SchoolOnboardingController.ts
+    │   │   │   ├── SchoolSettingsController.ts
+    │   │   │   ├── SearchController.ts
+    │   │   │   ├── SMSController.ts
     │   │   │   ├── SubjectController.ts
     │   │   │   ├── TimetableController.ts
     │   │   │   └── UserController.ts
@@ -396,14 +416,25 @@ backend/
     │   │   └── routes/
     │   │       ├── .gitkeep
     │   │       ├── academicYear.routes.ts
+    │   │       ├── activities.routes.ts
+    │   │       ├── ai.routes.ts
     │   │       ├── attendance.routes.ts
     │   │       ├── classCouncil.routes.ts
     │   │       ├── classe.routes.ts
+    │   │       ├── coreDomain.routes.ts
+    │   │       ├── dashboard.routes.ts
+    │   │       ├── emailLog.routes.ts
+    │   │       ├── exam.routes.ts
     │   │       ├── finance.routes.ts
     │   │       ├── grade.routes.ts
     │   │       ├── masterAdminHex.routes.ts
     │   │       ├── onboarding.routes.ts
+    │   │       ├── parent.routes.ts
+    │   │       ├── public.routes.ts
     │   │       ├── reportCard.routes.ts
+    │   │       ├── schoolSettings.routes.ts
+    │   │       ├── search.routes.ts
+    │   │       ├── sms.routes.ts
     │   │       ├── subject.routes.ts
     │   │       ├── timetable.routes.ts
     │   │       └── user.routes.ts
@@ -431,14 +462,24 @@ backend/
     │   │       ├── PrismaMatiereRepository.ts
     │   │       ├── PrismaNoteRepository.ts
     │   │       ├── PrismaPaiementRepository.ts
+    │   │       ├── PrismaParentRepository.ts
     │   │       ├── PrismaPlanFraisRepository.ts
     │   │       ├── PrismaPresenceRepository.ts
     │   │       ├── PrismaPromotionRepository.ts
     │   │       ├── PrismaSanteEleveRepository.ts
     │   │       ├── PrismaSchoolRepository.ts
+    │   │       ├── PrismaSchoolSettingsRepository.ts
     │   │       ├── PrismaSousGroupeRepository.ts
     │   │       ├── PrismaTimetableRepository.ts
     │   │       └── PrismaUserRepository.ts
+    │   │       │
+    │   │       └── __tests__/
+    │   │           ├── PrismaAnneeAcademiqueRepository.integration.test.ts
+    │   │           ├── PrismaFactureRepository.integration.test.ts
+    │   │           ├── PrismaUserRepository.integration.test.ts
+    │   │           └── helpers/
+    │   │               ├── dbFixtures.ts
+    │   │               └── prismaTestClient.ts
     │   │
     │   └── services/
     │       ├── .gitkeep
@@ -529,7 +570,7 @@ backend/
 
 ## Résumé
 
-- **Nombre de fichiers source `.ts`:** ~370 (hors node_modules, dist)
+- **Nombre de fichiers source `.ts`:** ~406 (hors node_modules, dist)
 - **Migrations Prisma:** 16 (5 legacy + 11 timestampées)
 - **Base de données:** PostgreSQL 15 avec Prisma ORM
 - **Architecture:** Hexagonale (Domain-Driven Design) + Controllers legacy

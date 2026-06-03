@@ -1,0 +1,27 @@
+/* EduNexus Super Admin Theme Variables */
+:root {
+  --bg:        #080c18;
+  --bg2:       #0d1225;
+  --bg3:       #101828;
+  --bg4:       #131f35;
+  --border:    #1a2840;
+  --border2:   #223050;
+  --text1:     #f1f5f9;
+  --text2:     #94a3b8;
+  --text3:     #4b6070;
+  --text4:     #2d3f55;
+  --blue:      #2563eb;
+  --blue-l:    #60a5fa;
+  --green:     #16a34a;
+  --green-l:   #4ade80;
+  --orange:    #d97706;
+  --orange-l:  #fb923c;
+  --red:       #dc2626;
+  --red-l:     #f87171;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text1);
+  font-family: 'DM Sans', Arial, sans-serif;
+}
