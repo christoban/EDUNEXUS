@@ -64,6 +64,9 @@ const allowedOrigins = Array.from(new Set([
   // ensure localhost is present
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  // Next.js dev server (proxy forwarding keeps Origin: localhost:3000)
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
 ]));
 
 app.use(cors({

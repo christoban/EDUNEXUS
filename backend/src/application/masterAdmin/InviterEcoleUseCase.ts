@@ -11,6 +11,7 @@ import type { SchoolRepository } from '@domain/ports/repositories/SchoolReposito
 import type { InvitationRepository, InvitationProps } from '@domain/ports/repositories/InvitationRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
 import type { PlanType } from '@domain/types/enums';
+import { buildSchoolInviteTemplate } from '../../utils/emailTemplates';
 
 export interface InviterEcoleCommande {
   email: string;
@@ -84,20 +85,22 @@ export class InviterEcoleUseCase {
     await this.invitationRepository.save(invitation);
 
     // 4. Envoyer l'email d'invitation
+    const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const activationUrl = `${frontendUrl}/onboarding/${invitation.token}`;
+    const inviteTemplate = buildSchoolInviteTemplate({
+      schoolName: commande.schoolName,
+      requestedAdminName: 'Administrateur',
+      activationUrl,
+      language: 'fr',
+    });
+
     await this.emailService.envoyer({
       destinataire: commande.email,
-      sujet: `Invitation EduNexus — ${commande.schoolName}`,
-      contenuHtml: `
-        <h2>Bienvenue sur EduNexus !</h2>
-        <p>Votre établissement <strong>${commande.schoolName}</strong>
-        a été invité à rejoindre la plateforme.</p>
-        <p>
-          <a href="${process.env.FRONTEND_URL}/onboarding/${invitation.token}">
-            Compléter mon inscription →
-          </a>
-        </p>
-        <p><small>Ce lien expire dans 72 heures.</small></p>
-      `,
+      sujet: inviteTemplate.subject,
+      contenuHtml: inviteTemplate.html,
+      contenuTexte: inviteTemplate.text,
+      eventType: 'school_invite',
+      metadata: { schoolId, token: invitation.token },
     });
 
     return {

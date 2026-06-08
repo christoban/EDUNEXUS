@@ -1,4 +1,5 @@
 import type { EmailService, EnvoiEmailOptions } from '@domain/ports/services/EmailService';
+import type { EmailEventType } from '../../types/email';
 import { sendTransactionalEmail } from '../../services/emailService';
 
 export class NodemailerEmailService implements EmailService {
@@ -8,8 +9,9 @@ export class NodemailerEmailService implements EmailService {
       subject: options.sujet,
       html: options.contenuHtml,
       text: options.contenuTexte,
-      template: 'domain-email',
-      eventType: 'school_approved',
+      template: options.eventType || 'domain-email',
+      eventType: (options.eventType || 'school_approved') as EmailEventType,
+      metadata: options.metadata,
       ...(options.pieceJointe && {
         attachments: [{
           filename: options.pieceJointe.nom,

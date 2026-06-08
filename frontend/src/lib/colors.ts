@@ -1,0 +1,24 @@
+/**
+ * Couleurs EduNexus — utilisées dans les composants dynamiques
+ * (avatars, badges colorés selon le rôle, etc.)
+ */
+export const BADGE_COLORS = {
+  green: 'bg-[#d1fae5] text-[#065f46]',
+  blue: 'bg-[#dbeafe] text-[#1e40af]',
+  teal: 'bg-[#ccfbf1] text-[#134e4a]',
+  amber: 'bg-[#fef3c7] text-[#92400e]',
+  red: 'bg-[#fee2e2] text-[#991b1b]',
+  purple: 'bg-[#ede9fe] text-[#5b21b6]',
+  orange: 'bg-[#ffedd5] text-[#9a3412]',
+  gray: 'bg-slate-100 text-slate-500',
+} as const
+
+export const ROLE_COLORS: Record<string, string> = {
+  ADMIN: 'from-[#d97706] to-[#dc2626]',
+  TEACHER: 'from-[#1d4ed8] to-[#7c3aed]',
+  STUDENT: 'from-[#059669] to-[#1d4ed8]',
+  PARENT: 'from-[#0d9488] to-[#059669]',
+  STAFF: 'from-[#7c3aed] to-[#db2777]',
+}
+
+export type BadgeColor = keyof typeof BADGE_COLORS

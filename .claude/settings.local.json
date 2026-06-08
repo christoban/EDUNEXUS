@@ -32,7 +32,8 @@
       "Bash(bun pm *)",
       "Bash(bun install *)",
       "Bash(grep -E \"^axios$|^socket|^lucide|^sonner$|^recharts$|^react-hook-form$|^zod$|^date-fns$\")",
-      "Bash(bunx shadcn@latest init -y --base-color neutral)"
+      "Bash(bunx shadcn@latest init -y --base-color neutral)",
+      "Bash(not exist *)"
     ]
   }
 }

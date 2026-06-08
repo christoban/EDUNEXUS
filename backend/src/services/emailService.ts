@@ -73,10 +73,12 @@ const getTransporter = () => {
     host: config.host,
     port: config.port,
     secure: config.secure,
+    requireTLS: !config.secure, // force STARTTLS sur port 587
     auth: {
       user: config.user,
       pass: config.pass,
     },
+    tls: { rejectUnauthorized: false },
   });
 
   return cachedTransporter;
@@ -162,24 +164,17 @@ export const sendTransactionalEmail = async (
       );
       status = "sent";
       messageId = result.messageId;
-      await prisma.emailLog.create({
-        data: {
-          schoolId: resolveSchoolId(input.metadata),
-          to: input.recipientEmail,
-          subject: input.subject,
-          status,
-          provider: "dev",
-        },
-      });
+      const schoolId = resolveSchoolId(input.metadata);
+      if (schoolId) {
+        await prisma.emailLog.create({
+          data: { schoolId, to: input.recipientEmail, subject: input.subject, status, provider: "dev" },
+        });
+      }
       return { status, messageId };
     }
 
-    // ✅ LOGIQUE OPTIMISÉE :
-    // - Super Admin (toi) : Essaie Resend d'abord, puis fallback SMTP
-    // - École (autre) : Passe DIRECTEMENT en SMTP (pas de tentative Resend inutile)
-
+    // Resend gratuit → seulement pour le Super Admin (seul destinataire autorisé)
     if (isForSuperAdmin && isResendConfigured()) {
-      // Cas 1 : Email pour le Super Admin → Essaie Resend
       try {
         const result = await sendViaResend(
           input.recipientEmail,
@@ -191,26 +186,37 @@ export const sendTransactionalEmail = async (
         messageId = result.messageId;
       } catch (resendError: any) {
         console.log(`Resend failed for ${recipientEmail}, falling back to SMTP:`, resendError?.message);
-        // Fall through to try SMTP
       }
     }
 
-    // Fallback to SMTP (soit Resend a échoué, soit c'est pour une école)
+    // SMTP pour tous les autres destinataires (écoles, etc.)
     if (status !== "sent") {
       const smtpConfig = getSmtpConfig();
+      console.log(`[Email] Tentative SMTP vers ${recipientEmail} via ${smtpConfig.host}:${smtpConfig.port} user=${smtpConfig.user}`);
       if (smtpConfig.host && smtpConfig.user && smtpConfig.pass) {
         const transporter = getTransporter();
         const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
-        const sent = await transporter.sendMail({
-          from: `${fromName} <${fromAddress}>`,
-          to: input.recipientEmail,
-          subject: input.subject,
-          html: input.html,
-          text: input.text,
-          ...(input.attachments && { attachments: input.attachments }),
-        });
-        status = "sent";
-        messageId = sent.messageId;
+        console.log(`[Email] Envoi avec from=${fromName} <${fromAddress}>`);
+        try {
+          const sent = await transporter.sendMail({
+            from: `${fromName} <${fromAddress}>`,
+            to: input.recipientEmail,
+            subject: input.subject,
+            html: input.html,
+            text: input.text,
+            ...(input.attachments && { attachments: input.attachments }),
+          });
+          status = "sent";
+          messageId = sent.messageId;
+          console.log(`[Email] SUCCÈS messageId=${sent.messageId}`);
+        } catch (smtpErr: any) {
+          console.error(`[Email] ERREUR SMTP:`, smtpErr?.message, smtpErr?.code, smtpErr?.response);
+          // Réinitialiser le transporter pour que le prochain appel crée une connexion fraîche
+          cachedTransporter = null;
+          throw smtpErr;
+        }
+      } else {
+        console.log(`[Email] SMTP non configuré: host=${!!smtpConfig.host} user=${!!smtpConfig.user} pass=${!!smtpConfig.pass}`);
       }
     }
 
@@ -229,15 +235,18 @@ export const sendTransactionalEmail = async (
     });
   }
 
-  await prisma.emailLog.create({
-    data: {
-      schoolId: resolveSchoolId(input.metadata),
-      to: input.recipientEmail,
-      subject: input.subject,
-      status,
-      provider: isForSuperAdmin && isResendConfigured() ? "resend" : "smtp",
-    },
-  });
+  const schoolId = resolveSchoolId(input.metadata);
+  if (schoolId) {
+    await prisma.emailLog.create({
+      data: {
+        schoolId,
+        to: input.recipientEmail,
+        subject: input.subject,
+        status,
+        provider: isForSuperAdmin && isResendConfigured() ? "resend" : "smtp",
+      },
+    });
+  }
 
   if (status === "failed") {
     return { status, error: errorMessage };

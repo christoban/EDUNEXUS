@@ -11,6 +11,8 @@ export interface EnvoiEmailOptions {
     contenu: Buffer;
     mimeType: string;
   };
+  metadata?: Record<string, unknown>;
+  eventType?: string;
 }
 
 export interface EmailService {

@@ -1,0 +1,47 @@
+import type { MasterUserDto, SchoolDto, AuditLogDto, SchoolDetailDto } from './_api'
+
+export type { MasterUserDto, SchoolDto, AuditLogDto, SchoolDetailDto }
+
+export type Section = 'overview' | 'schools' | 'logs'
+export type SchoolTab = 'all' | 'pending' | 'active' | 'suspended' | 'draft' | 'rejected'
+export type LogTab = 'emails' | 'auth' | 'security'
+export type ModalId =
+  | 'invite' | 'approve' | 'reject' | 'suspend' | 'delete'
+  | 'changePwd' | 'enableMfa' | 'disableMfa' | 'regenCodes' | 'recoveryCodes'
+  | null
+
+export interface Toast {
+  id: number
+  msg: string
+  type: 'success' | 'error' | 'info' | 'warning'
+}
+
+export interface SchoolRow {
+  id: string
+  name: string
+  subdomain: string
+  type: string
+  plan: 'deco' | 'std' | 'prem'
+  status: 'active' | 'pending' | 'suspended' | 'draft' | 'rejected'
+  adminEmail: string
+  inviteStatus: string
+  inviteExpiry?: string
+  createdAt: string
+}
+
+export interface KpiData {
+  activeSchools: number
+  pendingSchools: number
+  pendingInvites: number
+  newThisMonth: number
+  totalSchools: number
+  suspendedCount: number
+}
+
+export interface ActivityRow {
+  date: string
+  badge: 'active' | 'pending' | 'suspended' | 'approved' | 'rejected'
+  action: string
+  school: string
+  operator: string
+}

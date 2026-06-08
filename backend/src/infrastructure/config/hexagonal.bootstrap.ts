@@ -46,6 +46,7 @@ import { ExamController } from '@infrastructure/http/controllers/ExamController'
 import { CoreDomainController } from '@infrastructure/http/controllers/CoreDomainController';
 import { PublicController } from '@infrastructure/http/controllers/PublicController';
 import { SMSController } from '@infrastructure/http/controllers/SMSController';
+import { InviteOnboardingController } from '@infrastructure/http/controllers/InviteOnboardingController';
 import { creerActivitiesRoutes } from '@infrastructure/http/routes/activities.routes';
 import { creerDashboardRoutes } from '@infrastructure/http/routes/dashboard.routes';
 import { creerEmailLogRoutes } from '@infrastructure/http/routes/emailLog.routes';
@@ -56,6 +57,12 @@ import { creerCoreDomainRoutes } from '@infrastructure/http/routes/coreDomain.ro
 import { creerPublicRoutes } from '@infrastructure/http/routes/public.routes';
 import { creerSMSRoutes } from '@infrastructure/http/routes/sms.routes';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { LoginMasterUseCase } from '@application/masterAdmin/LoginMasterUseCase';
+import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
+import { MasterAuthController } from '@infrastructure/http/controllers/MasterAuthController';
+import { creerMasterAuthRoutes } from '@infrastructure/http/routes/masterAuth.routes';
+import { sendTransactionalEmail } from '../../services/emailService';
+import { requireAuth, requireRole } from '../../middleware/auth';
 
 export function bootstrapHexagonal(app: Application): void {
   const container = creerContainer();
@@ -84,6 +91,52 @@ export function bootstrapHexagonal(app: Application): void {
 
   const classCouncilController = new ClassCouncilController();
 
+  // ── Routes publiques d'onboarding par invitation (pas d'auth requise) ──
+  const inviteOnboardingController = new InviteOnboardingController(prisma);
+  app.get('/api/v2/onboarding/invite/:token', inviteOnboardingController.validateInvite);
+  app.post('/api/v2/onboarding/invite/:token/complete', inviteOnboardingController.completeOnboarding);
+
+  // ── Informations de l'école (utilisateurs authentifiés) ──────────────
+  app.get('/api/v2/school/me', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true },
+      });
+      if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
+      res.json({ success: true, data: school });
+    } catch (err) { next(err); }
+  });
+
+  // ── Mise à jour du logo (ADMIN uniquement) ────────────────────────────
+  app.patch('/api/v2/school/logo', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const { logoBase64 } = req.body as { logoBase64?: string };
+      // Suppression si chaîne vide
+      if (logoBase64 === '' || logoBase64 === null || logoBase64 === undefined) {
+        const school = await prisma.school.update({ where: { id: schoolId }, data: { logoUrl: null }, select: { logoUrl: true } });
+        res.json({ success: true, data: { logoUrl: school.logoUrl } });
+        return;
+      }
+      if (!logoBase64.startsWith('data:image/')) {
+        res.status(400).json({ success: false, message: 'Format de logo invalide. Envoyez une image en base64.' });
+        return;
+      }
+      if (logoBase64.length > 2_000_000) {
+        res.status(400).json({ success: false, message: 'Logo trop volumineux (max 1.5 MB).' });
+        return;
+      }
+      const school = await prisma.school.update({
+        where: { id: schoolId },
+        data: { logoUrl: logoBase64 },
+        select: { logoUrl: true },
+      });
+      res.json({ success: true, data: { logoUrl: school.logoUrl } });
+    } catch (err) { next(err); }
+  });
+
   app.use('/api/v2/grades', creerGradeRoutes(gradeController));
   app.use('/api/v2/attendance', creerAttendanceRoutes(attendanceController));
   app.use('/api/v2/onboarding', creerOnboardingRoutes(onboardingController));
@@ -108,9 +161,31 @@ export function bootstrapHexagonal(app: Application): void {
     container.masterAdmin.reactiver,
     container.masterAdmin.rejeter,
     container.masterAdmin.changerPlan,
+    prisma,
   );
 
   app.use('/api/v2/users', creerUserRoutes(userController));
+
+  // ── Master Auth (3FA) — monté AVANT /api/v2/master pour éviter protectMaster ──
+  const loginMasterUseCase = new LoginMasterUseCase(
+    prisma,
+    async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
+      const result = await sendTransactionalEmail({
+        recipientEmail,
+        subject: 'EduNexus — Code de vérification connexion administrateur',
+        html: `<p>Votre code de vérification est : <strong>${otp}</strong></p><p>Ce code expire dans 10 minutes.</p>`,
+        template: 'master-login-otp',
+        eventType: 'master_login_otp',
+      });
+      if (result.status === 'failed') {
+        throw new Error(result.error || "Échec d'envoi de l'email");
+      }
+    },
+  );
+  const verifyMfaUseCase = new VerifyMfaUseCase(prisma);
+  const masterAuthController = new MasterAuthController(loginMasterUseCase, verifyMfaUseCase);
+  app.use('/api/v2/master/auth', creerMasterAuthRoutes(masterAuthController));
+
   app.use('/api/v2/master', creerMasterAdminHexRoutes(masterAdminHexController));
 
   const financeController = new FinanceController(
@@ -203,6 +278,12 @@ export function bootstrapHexagonal(app: Application): void {
     '/api/master/schools/:id/approve',
     protectMaster,
     authorizeMaster(['super_admin']),
+    onboardingController.approuverEcole,
+  );
+  app.post(
+    '/api/v2/master/schools/:id/approve',
+    protectMaster,
+    authorizeMaster(['super_admin', 'platform_admin']),
     onboardingController.approuverEcole,
   );
 
