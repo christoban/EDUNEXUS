@@ -1,6 +1,6 @@
 import { type NextFunction, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import * as otplib from "otplib";
+import { verifySync } from "otplib";
 
 import { prisma } from "../config/prisma.ts";
 import { logMasterAuthAudit } from "../utils/masterAuthAudit.ts";
@@ -18,9 +18,7 @@ const isSixDigitCode = (value: string) => /^\d{6}$/.test(String(value || "").tri
 
 const verifyTotpCode = (token: string, secret: string): boolean => {
   try {
-    return (otplib as any).authenticator
-      ? (otplib as any).authenticator.verify({ token, secret })
-      : (otplib as any).verify({ token, secret });
+    return verifySync({ token, secret }).valid;
   } catch {
     return false;
   }

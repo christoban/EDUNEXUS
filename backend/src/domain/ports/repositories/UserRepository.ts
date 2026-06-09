@@ -24,7 +24,12 @@ export interface UserRepository {
 
   // Authentification — bcrypt.compare dans l'adapter Prisma
   // Retourne null si email introuvable OU mot de passe incorrect
-  authentifier(email: string, schoolId: string, plainPassword: string): Promise<User | null>;
+  // role optionnel : filtre sur le rôle exact si fourni
+  authentifier(email: string, schoolId: string, plainPassword: string, role?: string): Promise<User | null>;
+
+  // Retourne tous les rôles disponibles pour cet email+école SI le mot de passe est correct
+  // Utilisé pour détecter un mismatch multi-rôles sans exposer les rôles sans vérification
+  listerRolesAvecMotDePasse(email: string, schoolId: string, plainPassword: string): Promise<string[]>;
 
   // Création avec profil de rôle (student/teacher/parent/staff)
   saveAvecProfil(user: User, profilData: {

@@ -14,6 +14,7 @@ export type EmailEventType =
   | "master_login_otp"
   | "master_password_change_otp"
   | "contact_request"
-  | "school_approved";
+  | "school_approved"
+  | "school_pending_notification";
 
 export type EmailStatus = "sent" | "failed";

@@ -279,7 +279,9 @@ export default function OnboardingPage() {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30_000)
     try {
-      const res = await fetch(`/api/v2/onboarding/invite/${token}/complete`, {
+      const url = `/api/v2/onboarding/invite/${token}/complete`
+      console.log('[submit] token=', token, 'url=', url)
+      const res = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -304,7 +306,11 @@ export default function OnboardingPage() {
         }),
       })
       clearTimeout(timeout)
-      const data = await res.json()
+      console.log('[submit] HTTP status=', res.status)
+      const text = await res.text()
+      console.log('[submit] response body=', text.slice(0, 300))
+      let data: any
+      try { data = JSON.parse(text) } catch { throw new Error(`Réponse non-JSON (HTTP ${res.status}): ${text.slice(0, 100)}`) }
       if (!data.success) throw new Error(data.message || 'Erreur lors de la soumission.')
       setDone(true)
     } catch (e: any) {

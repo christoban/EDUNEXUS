@@ -63,6 +63,7 @@ import { MasterAuthController } from '@infrastructure/http/controllers/MasterAut
 import { creerMasterAuthRoutes } from '@infrastructure/http/routes/masterAuth.routes';
 import { sendTransactionalEmail } from '../../services/emailService';
 import { requireAuth, requireRole } from '../../middleware/auth';
+import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
 
 export function bootstrapHexagonal(app: Application): void {
   const container = creerContainer();
@@ -260,7 +261,7 @@ export function bootstrapHexagonal(app: Application): void {
   const aiController         = new AIController(prisma);
   const examController       = new ExamController(prisma);
   const coreDomainController = new CoreDomainController(prisma);
-  const publicController     = new PublicController();
+  const publicController     = new PublicController(prisma);
   const smsController        = new SMSController(prisma);
 
   app.use('/api/v2/activities',    creerActivitiesRoutes(activitiesController));
@@ -273,17 +274,19 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/public',        creerPublicRoutes(publicController));
   app.use('/api/v2/sms',           creerSMSRoutes(smsController));
 
-  // Master admin — approbation d'une école (hexagonale)
+  // Master admin — approbation d'une école (hexagonale) — vérification identité requise
   app.post(
     '/api/master/schools/:id/approve',
     protectMaster,
     authorizeMaster(['super_admin']),
+    requireMasterSensitiveAuth,
     onboardingController.approuverEcole,
   );
   app.post(
     '/api/v2/master/schools/:id/approve',
     protectMaster,
     authorizeMaster(['super_admin', 'platform_admin']),
+    requireMasterSensitiveAuth,
     onboardingController.approuverEcole,
   );
 

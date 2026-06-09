@@ -8,7 +8,17 @@ export type LogTab = 'emails' | 'auth' | 'security'
 export type ModalId =
   | 'invite' | 'approve' | 'reject' | 'suspend' | 'delete'
   | 'changePwd' | 'enableMfa' | 'disableMfa' | 'regenCodes' | 'recoveryCodes'
+  | 'confirmAction'
   | null
+
+export interface ConfirmActionTarget {
+  title: string
+  description: string
+  icon: string
+  danger?: boolean
+  execute: (sensitiveAuth: { password: string; code?: string }) => Promise<void>
+  successMsg: string
+}
 
 export interface Toast {
   id: number

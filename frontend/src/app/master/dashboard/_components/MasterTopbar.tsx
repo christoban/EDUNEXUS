@@ -7,7 +7,6 @@ interface Props {
   mfaEnabled: boolean
   onNav: (s: Section) => void
   onLogout: () => void
-  onChangePwd: () => void
 }
 
 const NAV: { id: Section; label: string; dotColor: string }[] = [
@@ -20,7 +19,7 @@ function initials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
 }
 
-export default function MasterTopbar({ user, currentSection, mfaEnabled, onNav, onLogout, onChangePwd }: Props) {
+export default function MasterTopbar({ user, currentSection, mfaEnabled, onNav, onLogout }: Props) {
   return (
     <header style={{
       height: 80, background: '#1a2e1e', display: 'flex', alignItems: 'center',
@@ -90,14 +89,6 @@ export default function MasterTopbar({ user, currentSection, mfaEnabled, onNav, 
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'white', fontWeight: 800, fontSize: 16
         }}>{user ? initials(user.name) : '?'}</div>
-
-        <button onClick={onChangePwd} style={{
-          padding: '8px 14px', borderRadius: 8,
-          border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.07)',
-          color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-          display: 'flex', alignItems: 'center', gap: 6
-        }}>🔑 Mot de passe</button>
 
         <button id="edu-logout-btn" onClick={onLogout} style={{
           padding: '8px 17px', borderRadius: 8,

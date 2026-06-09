@@ -53,16 +53,40 @@ export class ApprouverEcoleUseCase {
     await this.anneeAcademiqueRepository.save(annee);
 
     // 4. Notifier l'Admin de l'école
+    const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const loginUrl = `${clientUrl}/login?subdomain=${encodeURIComponent(school.subdomain)}`;
+
     const admins = await this.userRepository.findByRole(school.id, 'ADMIN');
     for (const admin of admins) {
       if (admin.email) {
         await this.emailService.envoyer({
           destinataire: admin.email,
-          sujet: `🎉 Bienvenue sur EduNexus — ${school.name}`,
+          sujet: `🎉 Votre établissement est approuvé — ${school.name}`,
           contenuHtml: `
-            <h2>Félicitations ${admin.nomComplet} !</h2>
-            <p>L'établissement <strong>${school.name}</strong> est maintenant actif sur EduNexus.</p>
-            <p>Connectez-vous sur : <strong>https://${school.subdomain}.edunexus.cm</strong></p>
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+              <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:24px;">🎓 EduNexus</h1>
+              </div>
+              <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
+                <h2 style="color:#1a1209;margin-top:0;">Félicitations ${admin.nomComplet} !</h2>
+                <p style="color:#6b5c45;font-size:16px;line-height:1.6;">
+                  La demande d'inscription de <strong>${school.name}</strong> a été <strong style="color:#059669;">approuvée</strong>.
+                  Votre espace est désormais actif sur EduNexus.
+                </p>
+                <div style="text-align:center;margin:32px 0;">
+                  <a href="${loginUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+                    🚀 Accéder à mon espace
+                  </a>
+                </div>
+                <p style="color:#a89478;font-size:13px;">
+                  Lien direct : <a href="${loginUrl}" style="color:#059669;">${loginUrl}</a>
+                </p>
+                <hr style="border:none;border-top:1px solid #e8e0d4;margin:24px 0;" />
+                <p style="color:#a89478;font-size:12px;margin:0;">
+                  EduNexus · Plateforme de gestion scolaire · Cameroun
+                </p>
+              </div>
+            </div>
           `,
         });
       }

@@ -18,6 +18,7 @@ export interface ConnecterUtilisateurCommande {
   email: string;
   plainPassword: string;
   schoolId: string; // Résolu depuis le subdomain dans l'adapter
+  role?: string;    // Rôle sélectionné par l'utilisateur sur le formulaire
 }
 
 export interface ConnecterUtilisateurResultat {
@@ -28,6 +29,7 @@ export interface ConnecterUtilisateurResultat {
   nomComplet: string;
   accessToken: string;
   refreshToken: string;
+  roleMismatch?: boolean; // true si le rôle sélectionné ≠ rôle réel (1 seul rôle dispo)
 }
 
 export class ConnecterUtilisateurUseCase {
@@ -49,11 +51,43 @@ export class ConnecterUtilisateurUseCase {
     }
 
     // 2. Charger et authentifier l'utilisateur (bcrypt dans l'adapter)
-    const user = await this.userRepository.authentifier(
+    let user = await this.userRepository.authentifier(
       commande.email,
       commande.schoolId,
-      commande.plainPassword
+      commande.plainPassword,
+      commande.role,
     );
+    let roleMismatch = false;
+
+    if (!user) {
+      // Rôle sélectionné incorrect — vérifier les rôles disponibles (mot de passe déjà validé par bcrypt)
+      const rolesDisponibles = await this.userRepository.listerRolesAvecMotDePasse(
+        commande.email,
+        commande.schoolId,
+        commande.plainPassword,
+      );
+
+      if (rolesDisponibles.length === 0) {
+        throw new Error('Email ou mot de passe incorrect');
+      }
+
+      if (rolesDisponibles.length > 1) {
+        // Plusieurs rôles dispo → le frontend doit demander lequel choisir
+        const err = new Error('ROLE_MISMATCH_MULTIPLE');
+        (err as any).availableRoles = rolesDisponibles;
+        throw err;
+      }
+
+      // Un seul rôle disponible (≠ sélectionné) → Option A : authentifier avec le bon rôle
+      user = await this.userRepository.authentifier(
+        commande.email,
+        commande.schoolId,
+        commande.plainPassword,
+        rolesDisponibles[0],
+      );
+      roleMismatch = true;
+    }
+
     if (!user || !user.isActive) {
       throw new Error('Email ou mot de passe incorrect');
     }
@@ -85,6 +119,7 @@ export class ConnecterUtilisateurUseCase {
       nomComplet: user.nomComplet,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+      roleMismatch,
     };
   }
 }

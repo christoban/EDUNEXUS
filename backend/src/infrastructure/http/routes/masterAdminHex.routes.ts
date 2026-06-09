@@ -9,17 +9,20 @@ export function creerMasterAdminHexRoutes(controller: MasterAdminHexController):
   router.use(protectMaster);
   router.use(authorizeMaster(['super_admin', 'platform_admin']));
 
-  router.get('/schools', controller.listerEcoles);
-  router.get('/schools/:id', controller.detailEcole);
-  router.post('/schools/invite', requireMasterSensitiveAuth, controller.inviterEcole);
-  router.post('/schools/:id/suspend', controller.suspendreEcole);
-  router.post('/schools/:id/reactivate', controller.reactiverEcole);
-  router.post('/schools/:id/reject',    controller.rejeterEcole);
-  router.post('/schools/:id/reexamine',     controller.reexaminerEcole);
-  router.post('/schools/:id/resend-invite', controller.renvoyerInvitation);
+  router.get('/schools',      controller.listerEcoles);
+  router.get('/schools/:id',  controller.detailEcole);
+  router.get('/auth/logs',    controller.listerLogs);
+  router.get('/email-logs',   controller.listerEmailLogs);
   router.patch('/schools/:id/plan', controller.changerPlanEcole);
-  router.delete('/schools/:id', controller.supprimerEcole);
-  router.get('/auth/logs', controller.listerLogs);
+
+  // ── Actions décisives — vérification identité obligatoire ──────────────
+  router.post('/schools/invite',            requireMasterSensitiveAuth, controller.inviterEcole);
+  router.post('/schools/:id/reject',        requireMasterSensitiveAuth, controller.rejeterEcole);
+  router.post('/schools/:id/suspend',       requireMasterSensitiveAuth, controller.suspendreEcole);
+  router.post('/schools/:id/reactivate',    requireMasterSensitiveAuth, controller.reactiverEcole);
+  router.post('/schools/:id/reexamine',     requireMasterSensitiveAuth, controller.reexaminerEcole);
+  router.post('/schools/:id/resend-invite', requireMasterSensitiveAuth, controller.renvoyerInvitation);
+  router.delete('/schools/:id',             requireMasterSensitiveAuth, controller.supprimerEcole);
 
   return router;
 }

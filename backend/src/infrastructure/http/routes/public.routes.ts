@@ -3,6 +3,7 @@ import type { PublicController } from '@infrastructure/http/controllers/PublicCo
 
 export function creerPublicRoutes(controller: PublicController): Router {
   const router = Router();
+  router.get('/schools', controller.listSchools);
   router.post('/contact-request', controller.contactRequest);
   return router;
 }

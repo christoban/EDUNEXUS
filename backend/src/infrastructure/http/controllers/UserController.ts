@@ -32,7 +32,7 @@ export class UserController {
   // POST /api/v2/auth/login
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { email, password, subdomain } = req.body;
+      const { email, password, subdomain, role } = req.body;
       if (!email || !password || !subdomain) {
         res.status(400).json({ success: false, message: 'email, password et subdomain requis' });
         return;
@@ -48,6 +48,7 @@ export class UserController {
         email,
         plainPassword: password,
         schoolId: school.id,
+        role: role || undefined,
       });
 
       res.cookie('access_token', resultat.accessToken, {
@@ -66,9 +67,20 @@ export class UserController {
           role: resultat.role,
           permissions: resultat.permissions,
           nomComplet: resultat.nomComplet,
+          roleMismatch: resultat.roleMismatch ?? false,
         },
       });
     } catch (error) {
+      // Cas multi-rôles : l'utilisateur doit choisir son rôle parmi les disponibles
+      if (error instanceof Error && error.message === 'ROLE_MISMATCH_MULTIPLE') {
+        res.status(422).json({
+          success: false,
+          code: 'ROLE_MISMATCH_MULTIPLE',
+          message: 'Le rôle sélectionné ne correspond à aucun compte dans cet établissement.',
+          availableRoles: (error as any).availableRoles as string[],
+        });
+        return;
+      }
       this.gererErreur(error, res, next);
     }
   };

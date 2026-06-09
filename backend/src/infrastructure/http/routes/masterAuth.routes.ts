@@ -12,9 +12,16 @@ export function creerMasterAuthRoutes(controller: MasterAuthController): Router 
   router.post('/verify-otp', masterEmailOtpLimiter,                              controller.verifyOtp);
   router.post('/verify-mfa', masterMfaLimiter,                                   controller.verifyMfa);
   router.post('/resend-otp', masterEmailOtpLimiter,                              controller.resendOtp);
-  router.post('/change-password', protectMaster, requireMasterSensitiveAuth,      controller.changePassword);
-  router.get('/me',          protectMaster,                                       controller.me);
-  router.get('/mfa-status',  protectMaster,                                       controller.mfaStatus);
+  // Changement de mot de passe — 2 étapes : vérification identité → OTP email → nouveau mdp
+  router.post('/password-change/initiate', protectMaster, requireMasterSensitiveAuth, controller.initiatePasswordChange);
+  router.post('/change-password',          protectMaster,                             controller.changePassword);
+  router.get('/me',                  protectMaster,                              controller.me);
+  router.get('/mfa-status',          protectMaster,                              controller.mfaStatus);
+  // MFA management
+  router.post('/mfa/setup',          protectMaster,                              controller.mfaSetup);
+  router.post('/mfa/enable',         protectMaster, requireMasterSensitiveAuth,  controller.mfaEnable);
+  router.post('/mfa/disable',        protectMaster, requireMasterSensitiveAuth,  controller.mfaDisable);
+  router.post('/mfa/regen-codes',    protectMaster, requireMasterSensitiveAuth,  controller.mfaRegenCodes);
   router.post('/logout',     protectMaster,                                       controller.logout);
 
   return router;

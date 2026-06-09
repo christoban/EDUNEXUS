@@ -49,17 +49,16 @@ export class InMemoryUserRepository implements UserRepository {
     return { user, refreshTokenVersion: 0 };
   }
 
-  async authentifier(
-    email: string,
-    schoolId: string,
-    _plainPassword: string
-  ): Promise<User | null> {
-    // InMemory : pas de bcrypt — on cherche simplement par email+schoolId
+  async authentifier(email: string, schoolId: string, _plainPassword: string, role?: string): Promise<User | null> {
     const user = [...this.store.values()].find(
-      u => u.email === email && u.schoolId === schoolId
+      u => u.email === email && u.schoolId === schoolId && (!role || u.role === role)
     );
     if (!user || !user.isActive) return null;
     return user;
+  }
+
+  async listerRolesAvecMotDePasse(email: string, schoolId: string, _plainPassword: string): Promise<string[]> {
+    return [...this.store.values()].filter(u => u.email === email && u.schoolId === schoolId && u.isActive).map(u => u.role);
   }
 
   async saveAvecProfil(user: User, _profilData: any): Promise<void> {

@@ -1,13 +1,14 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import type { ModalId } from '../_types'
-import { inviteSchool, suspendSchool, rejectSchool, deleteSchool, changeSchoolPlan, approveSchool, fetchMasterMfaStatus, changePassword } from '../_api'
+import type { ModalId, ConfirmActionTarget } from '../_types'
+import { inviteSchool, suspendSchool, rejectSchool, deleteSchool, changeSchoolPlan, approveSchool, fetchMasterMfaStatus, initiatePasswordChange, changePassword } from '../_api'
 
 interface Props {
   open: ModalId
   schoolId: string | null
   suspendTarget: { id: string; name: string; subdomain: string } | null
   deleteTarget: { id: string; name: string } | null
+  confirmActionTarget: ConfirmActionTarget | null
   mfaEnabled: boolean
   onClose: () => void
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -117,7 +118,33 @@ function WarningBox({ children }: { children: React.ReactNode }) {
 
 const PLAN_MAP: Record<string, string> = { deco: 'DISCOVERY', std: 'STANDARD', prem: 'PREMIUM' }
 
-export default function MasterModals({ open, schoolId, suspendTarget, deleteTarget, mfaEnabled, onClose, onToast, onActionDone }: Props) {
+// ── Champs d'authentification sensible réutilisables ─────────────────────────
+function SensitiveAuthFields({ mfaEnabled, password, onPassword, mfaCode, onMfaCode }: {
+  mfaEnabled: boolean
+  password: string
+  onPassword: (v: string) => void
+  mfaCode: string
+  onMfaCode: (v: string) => void
+}) {
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '14px 16px', marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+        🔐 Vérification d&apos;identité requise
+      </div>
+      <Field label="Votre mot de passe master *">
+        <FieldInput type="password" placeholder="••••••••••••" value={password} onChange={e => onPassword(e.target.value)} />
+      </Field>
+      {mfaEnabled && (
+        <Field label="Code TOTP ou code de récupération *" hint="Requis car le MFA est actif">
+          <FieldInput type="text" placeholder="123456" value={mfaCode} onChange={e => onMfaCode(e.target.value)}
+            style={{ textAlign: 'center', fontSize: 16, fontWeight: 900, letterSpacing: 4 }} />
+        </Field>
+      )}
+    </div>
+  )
+}
+
+export default function MasterModals({ open, schoolId, suspendTarget, deleteTarget, confirmActionTarget, mfaEnabled, onClose, onToast, onActionDone }: Props) {
   const [selectedPlan, setSelectedPlan] = useState<'deco' | 'std' | 'prem'>('std')
   const [suspendReason, setSuspendReason] = useState('')
   const [deleteInput, setDeleteInput] = useState('')
@@ -125,10 +152,25 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
   const [rejectFocused, setRejectFocused] = useState(false)
   const rejectRef = useRef<HTMLTextAreaElement>(null)
 
-  // changePwd state
+  // État d'authentification sensible — partagé entre tous les modals
+  const [authPwd, setAuthPwd] = useState('')
+  const [authMfa, setAuthMfa] = useState('')
+  const resetAuth = () => { setAuthPwd(''); setAuthMfa('') }
+  const buildAuth = () => ({
+    password: authPwd.trim(),
+    ...(mfaEnabled && authMfa.trim() ? { code: authMfa.trim() } : {}),
+  })
+  const validateAuth = (): string | null => {
+    if (!authPwd.trim()) return 'Le mot de passe master est requis.'
+    if (mfaEnabled && !authMfa.trim()) return 'Le code MFA est requis.'
+    return null
+  }
+
+  // changePwd state — 2 étapes : vérification identité → OTP email → nouveau mdp
   const [pwdStep, setPwdStep] = useState<1 | 2>(1)
   const [currentPwd, setCurrentPwd] = useState('')
   const [mfaCode, setMfaCode] = useState('')
+  const [emailOtp, setEmailOtp] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
   const [pwdLoading, setPwdLoading] = useState(false)
@@ -137,18 +179,24 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
     setPwdStep(1)
     setCurrentPwd('')
     setMfaCode('')
+    setEmailOtp('')
     setNewPwd('')
     setConfirmPwd('')
     setPwdLoading(false)
   }
 
-  const doAction = async (action: () => Promise<void>, successMsg: string, errMsg: string) => {
+  const doAction = async (action: () => Promise<void>, successMsg: string, errMsg: string, skipAuthCheck = false) => {
+    if (!skipAuthCheck) {
+      const authErr = validateAuth()
+      if (authErr) { onToast(authErr, 'error'); return }
+    }
     setLoading(true)
     try {
       await action()
       onToast(successMsg)
       onActionDone()
       onClose()
+      resetAuth()
     } catch (err: any) {
       onToast(err.message || errMsg, 'error')
     } finally {
@@ -177,16 +225,17 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
       )}
 
       {open === 'approve' && (
-        <Overlay onClose={onClose}>
+        <Overlay onClose={() => { onClose(); resetAuth() }}>
           <ModalWrap size="lg">
-            <ModalHeader title="Confirmer l'approbation" sub="Validation de l'école" onClose={onClose} />
-            <WarningBox>⚠️ Cette action va approuver l'établissement. Vérifiez que les informations sont complètes avant de confirmer.</WarningBox>
+            <ModalHeader title="Confirmer l'approbation" sub="Validation de l'école" onClose={() => { onClose(); resetAuth() }} />
+            <WarningBox>⚠️ Cette action va approuver l'établissement et activer son espace. L'admin recevra un email de bienvenue.</WarningBox>
+            <SensitiveAuthFields mfaEnabled={mfaEnabled} password={authPwd} onPassword={setAuthPwd} mfaCode={authMfa} onMfaCode={setAuthMfa} />
             <ModalFooter>
-              <BtnSecondary onClick={onClose}>Annuler</BtnSecondary>
+              <BtnSecondary onClick={() => { onClose(); resetAuth() }}>Annuler</BtnSecondary>
               <BtnPrimary disabled={loading} onClick={() => doAction(
                 async () => {
                   if (!schoolId) throw new Error('ID école manquant')
-                  await approveSchool(schoolId)
+                  await approveSchool(schoolId, buildAuth())
                 },
                 'École approuvée avec succès ! L\'admin a été notifié par email.',
                 'Erreur lors de l\'approbation'
@@ -199,10 +248,10 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
       )}
 
       {open === 'reject' && schoolId && (
-        <Overlay onClose={onClose}>
+        <Overlay onClose={() => { onClose(); resetAuth() }}>
           <ModalWrap size="sm">
-            <ModalHeader title="Rejeter la demande" sub="L'administrateur sera notifié du rejet par email" onClose={onClose} />
-            <Field label="Motif du rejet *" hint="Obligatoire — ce motif sera envoyé par email">
+            <ModalHeader title="Rejeter la demande" sub="L'administrateur sera notifié du rejet par email" onClose={() => { onClose(); resetAuth() }} />
+            <Field label="Motif du rejet *" hint="Obligatoire — ce motif sera envoyé par email à l'école">
               <textarea
                 ref={rejectRef}
                 placeholder="Ex: Documents incomplets, Informations insuffisantes..."
@@ -224,13 +273,14 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                   transition: 'background 0.2s, border 0.2s, box-shadow 0.2s',
                 }} />
             </Field>
+            <SensitiveAuthFields mfaEnabled={mfaEnabled} password={authPwd} onPassword={setAuthPwd} mfaCode={authMfa} onMfaCode={setAuthMfa} />
             <ModalFooter>
-              <BtnSecondary onClick={onClose}>Annuler</BtnSecondary>
+              <BtnSecondary onClick={() => { onClose(); resetAuth() }}>Annuler</BtnSecondary>
               <BtnPrimary disabled={loading} onClick={() => doAction(
                 async () => {
                   const motif = rejectRef.current?.value?.trim()
                   if (!motif) throw new Error('Un motif de rejet est requis')
-                  await rejectSchool(schoolId, motif)
+                  await rejectSchool(schoolId, motif, buildAuth())
                 },
                 'Demande rejetée',
                 'Erreur lors du rejet'
@@ -243,22 +293,23 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
       )}
 
       {open === 'suspend' && suspendTarget && (
-        <Overlay onClose={onClose}>
+        <Overlay onClose={() => { onClose(); resetAuth(); setSuspendReason('') }}>
           <ModalWrap size="sm">
-            <ModalHeader title="Suspendre l'établissement" sub={suspendTarget.name} onClose={onClose} />
+            <ModalHeader title="Suspendre l'établissement" sub={suspendTarget.name} onClose={() => { onClose(); resetAuth(); setSuspendReason('') }} />
             <SchoolSummary
               initials={suspendTarget.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               name={suspendTarget.name} meta={`${suspendTarget.subdomain}`} danger />
             <WarningBox>⚠️ La suspension bloque immédiatement l&apos;accès à tous les utilisateurs. Action réversible via &quot;Réactiver&quot;.</WarningBox>
-            <Field label="Motif de la suspension" hint="Sera enregistré dans les logs">
+            <Field label="Motif de la suspension" hint="Sera enregistré dans les logs d'audit">
               <textarea value={suspendReason} onChange={e => setSuspendReason(e.target.value)}
                 placeholder="Ex: Non-paiement, Violation des conditions..."
                 style={{ width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 10, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', resize: 'vertical', minHeight: 80 }} />
             </Field>
+            <SensitiveAuthFields mfaEnabled={mfaEnabled} password={authPwd} onPassword={setAuthPwd} mfaCode={authMfa} onMfaCode={setAuthMfa} />
             <ModalFooter>
-              <BtnSecondary onClick={onClose}>Annuler</BtnSecondary>
+              <BtnSecondary onClick={() => { onClose(); resetAuth(); setSuspendReason('') }}>Annuler</BtnSecondary>
               <BtnPrimary disabled={loading} onClick={() => doAction(
-                async () => { await suspendSchool(suspendTarget.id, suspendReason) },
+                async () => { await suspendSchool(suspendTarget.id, suspendReason, buildAuth()) },
                 `${suspendTarget.name} a été suspendue`,
                 'Erreur lors de la suspension'
               )}>
@@ -270,9 +321,9 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
       )}
 
       {open === 'delete' && deleteTarget && (
-        <Overlay onClose={onClose}>
+        <Overlay onClose={() => { onClose(); setDeleteInput(''); resetAuth() }}>
           <ModalWrap size="sm">
-            <ModalHeader title="⚠️ Supprimer l'établissement" sub={deleteTarget.name} onClose={onClose} danger />
+            <ModalHeader title="⚠️ Supprimer l'établissement" sub={deleteTarget.name} onClose={() => { onClose(); setDeleteInput(''); resetAuth() }} danger />
             <div style={{ background: '#1a1a1a', borderRadius: 12, padding: '16px 18px', marginBottom: 18, border: '2px solid #dc2626' }}>
               <div style={{ color: '#f87171', fontSize: 13, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>🚨 ACTION IRRÉVERSIBLE</div>
               <div style={{ color: '#fca5a5', fontSize: 12.5, fontWeight: 600, lineHeight: 1.6 }}>
@@ -280,20 +331,18 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
               </div>
             </div>
             <Field label="Confirmez en tapant le nom de l'école *"
-              hint={deleteInput === deleteTarget.name
-                ? '⚠️ Confirmation valide'
-                : 'Le nom doit correspondre exactement'}>
+              hint={deleteInput === deleteTarget.name ? '⚠️ Confirmation valide' : 'Le nom doit correspondre exactement'}>
               <input type="text" value={deleteInput} onChange={e => setDeleteInput(e.target.value)}
                 placeholder={`Tapez exactement : ${deleteTarget.name}`}
                 style={{ width: '100%', padding: '11px 14px', background: '#f0ebe3', border: `1.5px solid ${deleteInput === deleteTarget.name ? '#dc2626' : '#d4c8b8'}`, borderRadius: 10, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }} />
             </Field>
+            <SensitiveAuthFields mfaEnabled={mfaEnabled} password={authPwd} onPassword={setAuthPwd} mfaCode={authMfa} onMfaCode={setAuthMfa} />
             <ModalFooter>
-              <BtnSecondary onClick={() => { onClose(); setDeleteInput('') }}>Annuler</BtnSecondary>
-              <button
-                type="button"
+              <BtnSecondary onClick={() => { onClose(); setDeleteInput(''); resetAuth() }}>Annuler</BtnSecondary>
+              <button type="button"
                 disabled={deleteInput !== deleteTarget.name || loading}
                 onClick={() => doAction(
-                  async () => { await deleteSchool(deleteTarget.id) },
+                  async () => { await deleteSchool(deleteTarget.id, buildAuth()) },
                   `${deleteTarget.name} a été définitivement supprimée`,
                   'Erreur lors de la suppression'
                 )}
@@ -305,16 +354,41 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
         </Overlay>
       )}
 
+      {open === 'confirmAction' && confirmActionTarget && (
+        <Overlay onClose={() => { onClose(); resetAuth() }}>
+          <ModalWrap size="sm">
+            <ModalHeader
+              title={`${confirmActionTarget.icon} ${confirmActionTarget.title}`}
+              sub={confirmActionTarget.description}
+              onClose={() => { onClose(); resetAuth() }}
+              danger={confirmActionTarget.danger}
+            />
+            <SensitiveAuthFields mfaEnabled={mfaEnabled} password={authPwd} onPassword={setAuthPwd} mfaCode={authMfa} onMfaCode={setAuthMfa} />
+            <ModalFooter>
+              <BtnSecondary onClick={() => { onClose(); resetAuth() }}>Annuler</BtnSecondary>
+              <BtnPrimary disabled={loading} onClick={() => doAction(
+                async () => { await confirmActionTarget.execute(buildAuth()) },
+                confirmActionTarget.successMsg,
+                'Erreur lors de l\'action'
+              )}>
+                {loading ? '...' : `${confirmActionTarget.icon} Confirmer`}
+              </BtnPrimary>
+            </ModalFooter>
+          </ModalWrap>
+        </Overlay>
+      )}
+
       {open === 'changePwd' && (
         <Overlay onClose={() => { onClose(); resetPwdState() }}>
           <ModalWrap size="sm">
             <ModalHeader
               title="Changer le mot de passe"
-              sub={pwdStep === 1 ? 'Étape 1 / 2 — Vérification d\'identité' : 'Étape 2 / 2 — Nouveau mot de passe'}
+              sub={pwdStep === 1 ? 'Étape 1 / 2 — Vérification d\'identité' : 'Étape 2 / 2 — Code email + nouveau mot de passe'}
               onClose={() => { onClose(); resetPwdState() }}
             />
 
-            {pwdStep === 1 ? (
+            {/* ── Étape 1 : mot de passe actuel + MFA → déclenche l'envoi d'un OTP par email ── */}
+            {pwdStep === 1 && (
               <>
                 <Field label="Mot de passe actuel *">
                   <FieldInput type="password" placeholder="••••••••••••" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} />
@@ -332,17 +406,44 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                 )}
                 <ModalFooter>
                   <BtnSecondary onClick={() => { onClose(); resetPwdState() }}>Annuler</BtnSecondary>
-                  <BtnPrimary onClick={() => {
-                    if (!currentPwd.trim()) { onToast('Le mot de passe actuel est requis.', 'error'); return }
-                    if (mfaEnabled && !mfaCode.trim()) { onToast('Le code MFA est requis.', 'error'); return }
-                    setPwdStep(2)
-                  }}>
-                    Continuer →
+                  <BtnPrimary
+                    disabled={pwdLoading}
+                    onClick={async () => {
+                      if (!currentPwd.trim()) { onToast('Le mot de passe actuel est requis.', 'error'); return }
+                      if (mfaEnabled && !mfaCode.trim()) { onToast('Le code MFA est requis.', 'error'); return }
+                      setPwdLoading(true)
+                      try {
+                        await initiatePasswordChange({ currentPassword: currentPwd, mfaCode: mfaCode || undefined })
+                        onToast('Code de vérification envoyé par email.', 'info')
+                        setPwdStep(2)
+                      } catch (err: any) {
+                        onToast(err.message || 'Erreur de vérification', 'error')
+                      } finally {
+                        setPwdLoading(false)
+                      }
+                    }}
+                  >
+                    {pwdLoading ? '...' : 'Continuer →'}
                   </BtnPrimary>
                 </ModalFooter>
               </>
-            ) : (
+            )}
+
+            {/* ── Étape 2 : code OTP reçu par email + nouveau mot de passe ── */}
+            {pwdStep === 2 && (
               <>
+                <div style={{ padding: '11px 14px', background: '#eff6ff', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, marginBottom: 18, fontSize: 14, color: '#1e40af', fontWeight: 600 }}>
+                  📧 Un code de vérification a été envoyé à votre adresse email. Saisissez-le ci-dessous.
+                </div>
+                <Field label="Code de vérification email *" hint="Valable 15 minutes — vérifiez vos spams">
+                  <FieldInput
+                    type="text"
+                    placeholder="123456"
+                    value={emailOtp}
+                    onChange={e => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    style={{ textAlign: 'center', fontSize: 22, fontWeight: 900, letterSpacing: 8 }}
+                  />
+                </Field>
                 <Field label="Nouveau mot de passe *" hint="Minimum 12 caractères">
                   <FieldInput type="password" placeholder="Minimum 12 caractères" value={newPwd} onChange={e => setNewPwd(e.target.value)} />
                 </Field>
@@ -350,15 +451,16 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                   <FieldInput type="password" placeholder="Répétez le nouveau mot de passe" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} />
                 </Field>
                 <ModalFooter>
-                  <BtnSecondary onClick={() => setPwdStep(1)}>← Retour</BtnSecondary>
+                  <BtnSecondary onClick={() => { setPwdStep(1); setEmailOtp('') }}>← Retour</BtnSecondary>
                   <BtnPrimary
                     disabled={pwdLoading}
                     onClick={async () => {
+                      if (!emailOtp.trim() || emailOtp.length !== 6) { onToast('Code de vérification à 6 chiffres requis.', 'error'); return }
                       if (newPwd.length < 12) { onToast('Minimum 12 caractères requis.', 'error'); return }
                       if (newPwd !== confirmPwd) { onToast('Les mots de passe ne correspondent pas.', 'error'); return }
                       setPwdLoading(true)
                       try {
-                        await changePassword({ currentPassword: currentPwd, mfaCode: mfaCode || undefined, newPassword: newPwd })
+                        await changePassword({ otp: emailOtp.trim(), newPassword: newPwd })
                         onToast('Mot de passe modifié avec succès.')
                         onClose()
                         resetPwdState()

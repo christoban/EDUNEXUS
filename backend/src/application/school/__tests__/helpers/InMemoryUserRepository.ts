@@ -39,8 +39,12 @@ export class InMemoryUserRepository implements UserRepository {
     return { user, refreshTokenVersion: user.toObject().refreshTokenVersion };
   }
 
-  async authentifier(email: string, schoolId: string, _plainPassword: string): Promise<User | null> {
-    return [...this.store.values()].find(u => u.email === email && u.schoolId === schoolId) ?? null;
+  async authentifier(email: string, schoolId: string, _plainPassword: string, role?: string): Promise<User | null> {
+    return [...this.store.values()].find(u => u.email === email && u.schoolId === schoolId && (!role || u.role === role)) ?? null;
+  }
+
+  async listerRolesAvecMotDePasse(email: string, schoolId: string, _plainPassword: string): Promise<string[]> {
+    return [...this.store.values()].filter(u => u.email === email && u.schoolId === schoolId).map(u => u.role);
   }
 
   async saveAvecProfil(user: User, _profilData: any): Promise<void> {

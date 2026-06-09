@@ -41,6 +41,7 @@ export interface SchoolDto {
   logoUrl?: string | null
   createdAt: string
   invites?: { id: string; email: string; status: string; expiresAt: string; createdAt: string }[]
+  users?: { email: string | null }[]
   _count?: { users: number; classes: number; subjects?: number; feePlans?: number }
   schoolConfig?: Record<string, unknown> | null
   schoolSettings?: Record<string, unknown> | null
@@ -118,40 +119,87 @@ export async function fetchMasterMfaStatus(): Promise<{ mfaEnabled: boolean }> {
   return res.data ?? { mfaEnabled: false }
 }
 
-export async function suspendSchool(id: string, reason?: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}/suspend`, {
+export async function mfaSetup(): Promise<{ qrDataUri: string; manualKey: string }> {
+  const res = await apiFetch<{ qrDataUri: string; manualKey: string }>('/api/v2/master/auth/mfa/setup', { method: 'POST', body: '{}' })
+  if (!res.data) throw new Error('Erreur lors de la configuration MFA')
+  return res.data
+}
+
+export async function mfaEnable(totpCode: string, password: string): Promise<{ recoveryCodes: string[] }> {
+  const res = await apiFetch<{ recoveryCodes: string[] }>('/api/v2/master/auth/mfa/enable', {
     method: 'POST',
-    body: JSON.stringify({ reason: reason?.trim() || undefined }),
+    body: JSON.stringify({ totpCode, sensitiveAuth: { password } }),
+  })
+  if (!res.data) throw new Error('Erreur lors de l\'activation MFA')
+  return res.data
+}
+
+export async function mfaDisable(password: string, totpCode: string): Promise<void> {
+  await apiFetch('/api/v2/master/auth/mfa/disable', {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth: { password, code: totpCode } }),
   })
 }
 
-export async function changePassword(body: {
+export async function mfaRegenCodes(password: string, totpCode: string): Promise<{ recoveryCodes: string[] }> {
+  const res = await apiFetch<{ recoveryCodes: string[] }>('/api/v2/master/auth/mfa/regen-codes', {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth: { password, code: totpCode } }),
+  })
+  if (!res.data) throw new Error('Erreur lors de la régénération')
+  return res.data
+}
+
+export async function suspendSchool(id: string, reason?: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/suspend`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason?.trim() || undefined, sensitiveAuth }),
+  })
+}
+
+// Étape 1 — vérifier identité (password + MFA) → déclenche l'envoi d'un OTP par email
+export async function initiatePasswordChange(body: {
   currentPassword: string
   mfaCode?: string
-  newPassword: string
 }): Promise<void> {
-  await apiFetch('/api/v2/master/auth/change-password', {
+  await apiFetch('/api/v2/master/auth/password-change/initiate', {
     method: 'POST',
     body: JSON.stringify({
       sensitiveAuth: { password: body.currentPassword, ...(body.mfaCode ? { code: body.mfaCode } : {}) },
-      newPassword: body.newPassword,
     }),
   })
 }
 
-export async function reactivateSchool(id: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}/reactivate`, { method: 'POST' })
-}
-
-export async function rejectSchool(id: string, motif: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}/reject`, {
+// Étape 2 — vérifier OTP email + définir le nouveau mot de passe
+export async function changePassword(body: {
+  otp: string
+  newPassword: string
+}): Promise<void> {
+  await apiFetch('/api/v2/master/auth/change-password', {
     method: 'POST',
-    body: JSON.stringify({ motif }),
+    body: JSON.stringify({ otp: body.otp, newPassword: body.newPassword }),
   })
 }
 
-export async function approveSchool(id: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}/approve`, { method: 'POST' })
+export async function reactivateSchool(id: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/reactivate`, {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth }),
+  })
+}
+
+export async function rejectSchool(id: string, motif: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ motif, sensitiveAuth }),
+  })
+}
+
+export async function approveSchool(id: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth }),
+  })
 }
 
 export async function changeSchoolPlan(id: string, plan: string): Promise<void> {
@@ -161,29 +209,66 @@ export async function changeSchoolPlan(id: string, plan: string): Promise<void> 
   })
 }
 
-export async function reexamineSchool(id: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}/reexamine`, { method: 'POST' })
+export async function reexamineSchool(id: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/reexamine`, {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth }),
+  })
 }
 
-export async function resendInvite(id: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}/resend-invite`, { method: 'POST' })
+export async function resendInvite(id: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/resend-invite`, {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth }),
+  })
 }
 
-export async function deleteSchool(id: string): Promise<void> {
-  await apiFetch(`/api/v2/master/schools/${id}`, { method: 'DELETE' })
+export async function deleteSchool(id: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ sensitiveAuth }),
+  })
 }
 
 export async function fetchLogs(params?: {
   action?: string
+  type?: 'auth' | 'actions' | 'all'
   page?: number
   limit?: number
 }): Promise<{ data: AuditLogDto[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
   const query = new URLSearchParams()
   if (params?.action) query.set('action', params.action)
-  if (params?.page) query.set('page', String(params.page))
-  if (params?.limit) query.set('limit', String(params.limit))
+  if (params?.type)   query.set('type', params.type)
+  if (params?.page)   query.set('page', String(params.page))
+  if (params?.limit)  query.set('limit', String(params.limit))
   const qs = query.toString()
   const res = await apiFetch<AuditLogDto[]>(`/api/v2/master/auth/logs${qs ? `?${qs}` : ''}`)
+  return { data: res.data ?? [], pagination: res.pagination ?? { page: 1, limit: 50, total: 0, pages: 0 } }
+}
+
+export interface EmailLogDto {
+  id: string
+  to: string
+  subject: string
+  status: string
+  provider?: string | null
+  createdAt: string
+  school?: { id: string; name: string; subdomain: string } | null
+}
+
+export async function fetchEmailLogs(params?: {
+  search?: string
+  schoolId?: string
+  page?: number
+  limit?: number
+}): Promise<{ data: EmailLogDto[]; pagination: { page: number; limit: number; total: number; pages: number } }> {
+  const query = new URLSearchParams()
+  if (params?.search)   query.set('search', params.search)
+  if (params?.schoolId) query.set('schoolId', params.schoolId)
+  if (params?.page)     query.set('page', String(params.page))
+  if (params?.limit)    query.set('limit', String(params.limit))
+  const qs = query.toString()
+  const res = await apiFetch<EmailLogDto[]>(`/api/v2/master/email-logs${qs ? `?${qs}` : ''}`)
   return { data: res.data ?? [], pagination: res.pagination ?? { page: 1, limit: 50, total: 0, pages: 0 } }
 }
 

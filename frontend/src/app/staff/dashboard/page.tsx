@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { Bell, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { logoutUser } from '@/lib/userAuth'
 
 type StaffSection =
   | 'dashboard' | 'council' | 'grades' | 'timetable'
@@ -207,7 +208,10 @@ export default function StaffDashboard() {
               <div className="text-[17px] font-bold text-white truncate">Pierre Censeur</div>
               <div className="text-[14px] text-white/35">Censeur · Staff</div>
             </div>
-            <button className="ml-auto" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)' }}>
+            <button onClick={logoutUser} title="Se déconnecter" className="ml-auto"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', padding: 4, borderRadius: 6 }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.8)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>
               <LogOut size={16} />
             </button>
           </div>

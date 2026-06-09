@@ -107,20 +107,78 @@ export class LoginMasterUseCase {
     };
   }
 
-  async executeChangePassword(masterUserId: string, newPassword: string): Promise<void> {
+  // Étape 1 — Envoie un OTP par email pour confirmer le changement de mot de passe
+  // (appelé après que requireMasterSensitiveAuth a déjà vérifié l'ancien password + MFA)
+  async executeSendPasswordChangeOtp(masterUserId: string): Promise<{ email: string }> {
+    const masterUser = await this.prisma.masterUser.findUnique({
+      where: { id: masterUserId },
+      select: { id: true, email: true, isActive: true },
+    });
+    if (!masterUser || !masterUser.isActive) throw new Error('Compte introuvable');
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpHashed = await bcrypt.hash(otp, 10);
+
+    await this.prisma.masterUser.update({
+      where: { id: masterUser.id },
+      data: {
+        passwordChangeEmailOtpHash: otpHashed,
+        passwordChangeEmailOtpExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        passwordChangeEmailOtpAttempts: 0,
+        passwordChangeEmailOtpSentAt: new Date(),
+      },
+    });
+
+    await this.sendEmail({ recipientEmail: masterUser.email, otp });
+    return { email: masterUser.email };
+  }
+
+  // Étape 2 — Vérifie l'OTP email et applique le nouveau mot de passe
+  async executeChangePassword(masterUserId: string, newPassword: string, otp: string): Promise<void> {
     if (newPassword.length < 12) {
       throw new Error('Le mot de passe doit contenir au moins 12 caractères');
     }
+
     const masterUser = await this.prisma.masterUser.findUnique({
       where: { id: masterUserId },
-      select: { id: true },
+      select: {
+        id: true,
+        passwordChangeEmailOtpHash: true,
+        passwordChangeEmailOtpExpiresAt: true,
+        passwordChangeEmailOtpAttempts: true,
+      },
     });
     if (!masterUser) throw new Error('Utilisateur introuvable');
 
+    if (!masterUser.passwordChangeEmailOtpHash) {
+      throw new Error('Aucun code de vérification demandé. Recommencez depuis l\'étape 1.');
+    }
+    if (masterUser.passwordChangeEmailOtpExpiresAt && new Date() > masterUser.passwordChangeEmailOtpExpiresAt) {
+      throw new Error('Le code de vérification a expiré. Recommencez.');
+    }
+    if ((masterUser.passwordChangeEmailOtpAttempts ?? 0) >= 5) {
+      throw new Error('Trop de tentatives. Recommencez depuis l\'étape 1.');
+    }
+
+    const otpOk = await bcrypt.compare(otp, masterUser.passwordChangeEmailOtpHash);
+    if (!otpOk) {
+      await this.prisma.masterUser.update({
+        where: { id: masterUser.id },
+        data: { passwordChangeEmailOtpAttempts: { increment: 1 } },
+      });
+      throw new Error('Code de vérification incorrect');
+    }
+
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.masterUser.update({
-      where: { id: masterUserId },
-      data: { passwordHash },
+      where: { id: masterUser.id },
+      data: {
+        passwordHash,
+        passwordChangeEmailOtpHash: null,
+        passwordChangeEmailOtpExpiresAt: null,
+        passwordChangeEmailOtpAttempts: 0,
+        passwordChangeEmailOtpSentAt: null,
+      },
     });
   }
 

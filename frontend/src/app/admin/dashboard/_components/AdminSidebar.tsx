@@ -1,4 +1,5 @@
 'use client'
+import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AdminSection } from '../_types'
 
@@ -58,7 +59,7 @@ interface Props {
   logoUrl?: string | null
 }
 
-export default function AdminSidebar({ current, onChange, schoolName, logoUrl }: Props) {
+export default function AdminSidebar({ current, onChange, schoolName, logoUrl, onLogout }: Props & { onLogout?: () => void }) {
   const displayName = schoolName || 'Mon établissement'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
 
@@ -129,12 +130,20 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl }:
 
       {/* User */}
       <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px' }}>
-        <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06] cursor-pointer" style={{ padding: '12px 14px' }}>
+        <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06]" style={{ padding: '12px 14px' }}>
           <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#d97706] to-[#dc2626] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">AM</div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-[17px] font-bold text-white truncate">Antoine Medengue</div>
             <div className="text-[14px] text-white/35">Proviseur / Admin</div>
           </div>
+          {onLogout && (
+            <button onClick={onLogout} title="Se déconnecter"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', flexShrink: 0, padding: 4, borderRadius: 6 }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.8)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>
+              <LogOut size={16} />
+            </button>
+          )}
         </div>
       </div>
     </aside>

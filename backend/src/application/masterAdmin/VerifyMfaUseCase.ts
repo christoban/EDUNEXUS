@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import * as otplib from 'otplib';
+import { verifySync } from 'otplib';
 import type { PrismaClient } from '@prisma/client';
 
 export class VerifyMfaUseCase {
@@ -42,9 +42,7 @@ export class VerifyMfaUseCase {
 
     if (masterUser.mfaSecret) {
       try {
-        const totpValid = (otplib as any).authenticator
-          ? (otplib as any).authenticator.verify({ token: code, secret: masterUser.mfaSecret })
-          : (otplib as any).verify({ token: code, secret: masterUser.mfaSecret });
+        const totpValid = verifySync({ token: code, secret: masterUser.mfaSecret }).valid;
         if (totpValid) {
           return {
             email: masterUser.email,

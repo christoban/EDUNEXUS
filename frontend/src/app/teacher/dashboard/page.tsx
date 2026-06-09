@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Bell, Search } from 'lucide-react'
+import { logoutUser } from '@/lib/userAuth'
 import TeacherSidebar from './_components/TeacherSidebar'
 import TeacherToast from './_components/TeacherToast'
 import SectionTeacherDashboard from './_components/SectionTeacherDashboard'
@@ -55,7 +56,7 @@ export default function TeacherDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f7f3ee', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
-      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} />
+      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {/* Topbar */}

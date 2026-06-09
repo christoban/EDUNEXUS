@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { logoutUser } from '@/lib/userAuth'
 import AdminSidebar from './_components/AdminSidebar'
 import AdminTopbar from './_components/AdminTopbar'
 import SectionDashboard from './_components/SectionDashboard'
@@ -76,7 +77,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: '#f7f3ee' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => showToast('Fonctionnalité à venir', 'info')} />

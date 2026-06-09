@@ -222,9 +222,9 @@ export class PrismaUserRepository implements UserRepository {
     }
   }
 
-  async authentifier(email: string, schoolId: string, plainPassword: string): Promise<User | null> {
+  async authentifier(email: string, schoolId: string, plainPassword: string, role?: string): Promise<User | null> {
     const data = await this.prisma.user.findFirst({
-      where: { email, schoolId },
+      where: { email, schoolId, ...(role ? { role: role as any } : {}) },
       include: { staffProfile: { include: { permissions: true } } },
     });
     if (!data || !data.passwordHash) return null;
@@ -234,6 +234,22 @@ export class PrismaUserRepository implements UserRepository {
     if (!valide) return null;
 
     return this.toDomain(data);
+  }
+
+  async listerRolesAvecMotDePasse(email: string, schoolId: string, plainPassword: string): Promise<string[]> {
+    const users = await this.prisma.user.findMany({
+      where: { email, schoolId, isActive: true },
+      select: { role: true, passwordHash: true },
+    });
+    const bcrypt = await import('bcryptjs');
+    const resultats = await Promise.all(
+      users.map(async u => {
+        if (!u.passwordHash) return null;
+        const ok = await bcrypt.compare(plainPassword, u.passwordHash);
+        return ok ? u.role : null;
+      })
+    );
+    return resultats.filter((r): r is NonNullable<typeof r> => r !== null) as string[];
   }
 
   async mettreAJourAvecProfil(userId: string, data: {

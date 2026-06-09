@@ -133,18 +133,99 @@ export class InviteOnboardingController {
         },
       });
 
+      // Email de confirmation à l'administrateur de l'école
       sendTransactionalEmail({
         recipientEmail: String(adminEmail),
         subject: 'EduNexus — Demande reçue, en attente d\'approbation',
         html: `
-          <p>Bonjour ${adminPrenom},</p>
-          <p>Votre inscription pour l'établissement <strong>${nom}</strong> a bien été enregistrée.</p>
+          <p>Bonjour ${String(adminPrenom).trim()},</p>
+          <p>Votre inscription pour l'établissement <strong>${String(nom).trim()}</strong> a bien été enregistrée.</p>
           <p>Notre équipe va examiner votre dossier sous <strong>24 à 48 heures</strong>. Vous recevrez un email dès validation.</p>
           <p style="color:#888;font-size:13px">EduNexus — Plateforme de gestion scolaire · Cameroun</p>
         `,
         template: 'school_invite',
         eventType: 'school_invite',
       }).catch(err => console.error('[Email] Onboarding confirmation error:', err));
+
+      // Notification au Super Admin — envoyée via Resend (destinataire = SUPER_ADMIN_EMAIL)
+      const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || 'christoban2005@gmail.com';
+      const masterDashboardUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/master/dashboard`;
+      const planLabels: Record<string, string> = { DISCOVERY: 'Découverte (gratuit)', STANDARD: 'Standard', PREMIUM: 'Premium' };
+
+      sendTransactionalEmail({
+        recipientEmail: superAdminEmail,
+        subject: `🏫 Nouvelle demande EduNexus — ${String(nom).trim()}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;">
+            <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
+              <h1 style="color:white;margin:0;font-size:22px;">🎓 EduNexus — Nouvelle demande d'inscription</h1>
+            </div>
+            <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
+              <p style="color:#1a1209;font-size:16px;margin-top:0;">
+                Un établissement vient de compléter son formulaire d'inscription et attend votre approbation.
+              </p>
+
+              <h2 style="color:#059669;font-size:18px;margin-bottom:16px;">🏫 Informations sur l'établissement</h2>
+              <table style="width:100%;border-collapse:collapse;font-size:15px;">
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;width:40%;">Nom</td>
+                  <td style="padding:10px 12px;color:#1a1209;font-weight:800;">${String(nom).trim()}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Sous-domaine</td>
+                  <td style="padding:10px 12px;color:#1a1209;font-family:monospace;">${subdomainClean}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Plan tarifaire</td>
+                  <td style="padding:10px 12px;color:#1a1209;">${planLabels[invite2.plan] ?? invite2.plan}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Sous-système</td>
+                  <td style="padding:10px 12px;color:#1a1209;">${subsystem ?? '—'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Type d'enseignement</td>
+                  <td style="padding:10px 12px;color:#1a1209;">${educationType ?? '—'}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Statut juridique</td>
+                  <td style="padding:10px 12px;color:#1a1209;">${ownership ?? '—'}</td>
+                </tr>
+                ${ville ? `<tr style="border-bottom:1px solid #f0ebe3;"><td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Ville</td><td style="padding:10px 12px;color:#1a1209;">${String(ville).trim()}${region ? ` · ${String(region).trim()}` : ''}</td></tr>` : ''}
+                ${telephone ? `<tr style="border-bottom:1px solid #f0ebe3;"><td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Téléphone</td><td style="padding:10px 12px;color:#1a1209;">${String(telephone).trim()}</td></tr>` : ''}
+              </table>
+
+              <h2 style="color:#1d4ed8;font-size:18px;margin-top:28px;margin-bottom:16px;">👤 Administrateur de l'établissement</h2>
+              <table style="width:100%;border-collapse:collapse;font-size:15px;">
+                <tr style="border-bottom:1px solid #f0ebe3;">
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;width:40%;">Nom complet</td>
+                  <td style="padding:10px 12px;color:#1a1209;font-weight:800;">${String(adminPrenom).trim()} ${String(adminNom).trim()}</td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 12px;color:#6b5c45;font-weight:600;">Email</td>
+                  <td style="padding:10px 12px;"><a href="mailto:${String(adminEmail).trim()}" style="color:#059669;font-weight:700;">${String(adminEmail).trim()}</a></td>
+                </tr>
+              </table>
+
+              <div style="text-align:center;margin:32px 0 16px;">
+                <a href="${masterDashboardUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+                  🔍 Examiner la demande sur le dashboard
+                </a>
+              </div>
+
+              <p style="color:#a89478;font-size:13px;text-align:center;margin:0;">
+                Lien direct : <a href="${masterDashboardUrl}" style="color:#059669;">${masterDashboardUrl}</a>
+              </p>
+              <hr style="border:none;border-top:1px solid #e8e0d4;margin:24px 0;" />
+              <p style="color:#a89478;font-size:12px;text-align:center;margin:0;">
+                EduNexus · Plateforme de gestion scolaire · Cameroun
+              </p>
+            </div>
+          </div>
+        `,
+        template: 'school_pending_notification',
+        eventType: 'school_pending_notification',
+      }).catch(err => console.error('[Email] Super admin notification error:', err));
     } catch (error) {
       next(error);
     }

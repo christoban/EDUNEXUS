@@ -47,3 +47,27 @@ export const logMasterAuthAudit = async (params: {
     console.error("[SECURITY][MASTER_AUTH_AUDIT] Failed to persist event", error);
   }
 };
+
+// Logs une action metier (approve, reject, suspend, invite, etc.)
+export const logMasterAction = async (params: {
+  req: Request;
+  masterUserId?: string | null;
+  action: string;
+  targetId?: string | null;
+  description?: string;
+}) => {
+  try {
+    const { req, masterUserId, action, targetId, description } = params;
+    await prisma.masterAuthAudit.create({
+      data: {
+        action: 'action:' + action,
+        masterUserId: masterUserId ?? null,
+        targetId: targetId ?? null,
+        description: description ?? null,
+        ipAddress: resolveClientIp(req),
+      },
+    });
+  } catch (error) {
+    console.error('[MASTER_ACTION_AUDIT] Failed to persist', error);
+  }
+};

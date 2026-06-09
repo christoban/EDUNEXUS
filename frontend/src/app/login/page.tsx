@@ -1,20 +1,37 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Eye, EyeOff, Loader2, ChevronRight } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-// ── Données démo ──
-const DEMO_USERS: Record<string, {
-  role: string; firstName: string; emoji: string
-  badge: string; color: string; bg: string; dest: string
-}> = {
-  'admin@ecole.cm':   { role:'ADMIN',   firstName:'Antoine', emoji:'🏫', badge:'Administrateur', color:'#059669', bg:'#d1fae5', dest:'/admin/dashboard' },
-  'teacher@ecole.cm': { role:'TEACHER', firstName:'Jean',    emoji:'👨‍🏫', badge:'Enseignant',      color:'#1d4ed8', bg:'#dbeafe', dest:'/teacher/dashboard' },
-  'parent@ecole.cm':  { role:'PARENT',  firstName:'Paul',    emoji:'👨‍👩‍👧', badge:'Parent',          color:'#b45309', bg:'#fef3c7', dest:'/parent/dashboard' },
-  'student@ecole.cm': { role:'STUDENT', firstName:'Marie',   emoji:'👨‍🎓', badge:'Élève',           color:'#7c3aed', bg:'#ede9fe', dest:'/student/dashboard' },
-  'staff@ecole.cm':   { role:'STAFF',   firstName:'Pierre',  emoji:'🔍', badge:'Censeur',          color:'#0d9488', bg:'#ccfbf1', dest:'/staff/dashboard' },
+// ── Configuration d'affichage par rôle (emojis, badges, couleurs, redirections) ──
+type SuccessInfo = { emoji: string; badge: string; color: string; bg: string; dest: string; firstName: string }
+
+const ROLE_CONFIG: Record<string, Omit<SuccessInfo, 'firstName'>> = {
+  ADMIN:   { emoji: '🏫',   badge: 'Administrateur', color: '#059669', bg: '#d1fae5', dest: '/admin/dashboard' },
+  TEACHER: { emoji: '👨‍🏫', badge: 'Enseignant',      color: '#1d4ed8', bg: '#dbeafe', dest: '/teacher/dashboard' },
+  PARENT:  { emoji: '👨‍👩‍👧', badge: 'Parent',          color: '#b45309', bg: '#fef3c7', dest: '/parent/dashboard' },
+  STUDENT: { emoji: '👨‍🎓', badge: 'Élève',           color: '#7c3aed', bg: '#ede9fe', dest: '/student/dashboard' },
+  STAFF:   { emoji: '🔍',   badge: 'Staff',           color: '#0d9488', bg: '#ccfbf1', dest: '/staff/dashboard' },
 }
+
+type SchoolOption = {
+  id: string
+  name: string
+  subdomain: string
+  status: 'ACTIVE' | 'SUSPENDED'
+  city?: string | null
+  region?: string | null
+  logoUrl?: string | null
+}
+
+const ROLE_SELECTOR = [
+  { role: 'ADMIN',   emoji: '🏫',   label: 'Administrateur', color: '#059669', bg: '#d1fae5', border: 'rgba(5,150,105,0.3)' },
+  { role: 'TEACHER', emoji: '👨‍🏫', label: 'Enseignant',      color: '#1d4ed8', bg: '#dbeafe', border: 'rgba(29,78,216,0.3)'  },
+  { role: 'PARENT',  emoji: '👨‍👩‍👧', label: 'Parent',          color: '#b45309', bg: '#fef3c7', border: 'rgba(180,83,9,0.3)'   },
+  { role: 'STUDENT', emoji: '👨‍🎓', label: 'Élève',           color: '#7c3aed', bg: '#ede9fe', border: 'rgba(124,58,237,0.3)' },
+  { role: 'STAFF',   emoji: '🔍',   label: 'Staff / Censeur', color: '#0d9488', bg: '#ccfbf1', border: 'rgba(13,148,136,0.3)' },
+]
 
 const ROLES = [
   { emoji:'🏫',   name:'Administrateur',  desc:"Gestion complète de l'établissement" },
@@ -29,15 +46,42 @@ export default function LoginPage() {
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
   const [showPwd, setShowPwd]       = useState(false)
-  const [schoolOpen, setSchoolOpen] = useState(false)
-  const [schoolId, setSchoolId]     = useState('')
-  const [loading, setLoading]       = useState(false)
+  const [schoolId, setSchoolId]         = useState('')         // subdomain envoyé à l'API
+  const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null)
+  const [schools, setSchools]           = useState<SchoolOption[]>([])
+  const [schoolsLoading, setSchoolsLoading] = useState(true)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [schoolSearch, setSchoolSearch] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [selectedRole, setSelectedRole]         = useState<string | null>(null)
+  const [roleMismatchWarning, setRoleMismatchWarning] = useState<string | null>(null)
+  const [loading, setLoading]                   = useState(false)
   const [alert, setAlert]           = useState<{ msg: string; type: 'error' | 'warning' } | null>(null)
-  const [success, setSuccess]       = useState<typeof DEMO_USERS[string] | null>(null)
+  const [success, setSuccess]       = useState<SuccessInfo | null>(null)
   const [progress, setProgress]     = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { emailRef.current?.focus() }, [])
+
+  // Charge la liste des écoles publiques au montage
+  useEffect(() => {
+    fetch('/api/v2/public/schools', { headers: { 'ngrok-skip-browser-warning': '1' } })
+      .then(r => r.json())
+      .then(data => { if (data.success) setSchools(data.data) })
+      .catch(() => {/* silencieux — l'utilisateur peut toujours taper manuellement */})
+      .finally(() => setSchoolsLoading(false))
+  }, [])
+
+  // Ferme le dropdown au clic extérieur
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
+        setDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [dropdownOpen])
 
   useEffect(() => {
     if (success) {
@@ -49,25 +93,69 @@ export default function LoginPage() {
 
   const submit = async () => {
     setAlert(null)
-    if (!email || !password) {
-      setAlert({ msg: 'Email ou mot de passe incorrect', type: 'error' }); return
+    if (!selectedRole) {
+      setAlert({ msg: 'Veuillez sélectionner votre rôle', type: 'error' }); return
     }
-    if (schoolId.toLowerCase() === 'inconnu') {
-      setAlert({ msg: 'Établissement introuvable', type: 'error' }); return
+    if (!selectedSchool) {
+      setAlert({ msg: "Veuillez sélectionner votre établissement", type: 'error' }); return
     }
-    if (schoolId.toLowerCase() === 'inactif') {
-      setAlert({ msg: "Cet établissement n'est pas encore actif", type: 'warning' }); return
+    if (!email.trim() || !password) {
+      setAlert({ msg: 'Email et mot de passe requis', type: 'error' }); return
     }
 
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1100))
-    setLoading(false)
+    try {
+      const res = await fetch('/api/v2/users/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          subdomain: schoolId.trim().toLowerCase(),
+          role: selectedRole,
+        }),
+      })
 
-    const user = DEMO_USERS[email.toLowerCase()]
-    if (!user || password !== 'demo1234') {
-      setAlert({ msg: 'Email ou mot de passe incorrect', type: 'error' }); return
+      const data = await res.json()
+
+      // Cas 3 — plusieurs rôles disponibles mais mauvais rôle sélectionné
+      if (res.status === 422 && data.code === 'ROLE_MISMATCH_MULTIPLE') {
+        const labels = (data.availableRoles as string[])
+          .map(r => ROLE_SELECTOR.find(s => s.role === r)?.label ?? r)
+          .join(' et ')
+        setAlert({
+          msg: `Votre compte dans cet établissement a plusieurs rôles : ${labels}. Sélectionnez le bon rôle ci-dessus.`,
+          type: 'error',
+        })
+        return
+      }
+
+      if (!data.success) {
+        const msg: string = data.message ?? 'Email ou mot de passe incorrect'
+        setAlert({ msg, type: msg.toLowerCase().includes('actif') || msg.toLowerCase().includes('suspendu') ? 'warning' : 'error' })
+        return
+      }
+
+      const { role, nomComplet, roleMismatch } = data.data as {
+        role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean
+      }
+      const config = ROLE_CONFIG[role] ?? { emoji: '👤', badge: role, color: '#6b7280', bg: '#f3f4f6', dest: '/' }
+      const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
+
+      // Cas 2 — Option A : rôle incorrect mais 1 seul rôle disponible → avertissement + redirection
+      if (roleMismatch) {
+        const selectedLabel = ROLE_SELECTOR.find(s => s.role === selectedRole)?.label ?? selectedRole
+        const actualLabel   = ROLE_SELECTOR.find(s => s.role === role)?.label ?? role
+        setRoleMismatchWarning(`Vous avez sélectionné ${selectedLabel} mais votre rôle dans cet établissement est ${actualLabel}. Redirection vers votre espace…`)
+      }
+
+      setSuccess({ ...config, firstName })
+    } catch {
+      setAlert({ msg: 'Impossible de se connecter. Vérifiez votre connexion.', type: 'error' })
+    } finally {
+      setLoading(false)
     }
-    setSuccess(user)
   }
 
   return (
@@ -207,42 +295,165 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Toggle établissement */}
-          <div
-            onClick={() => setSchoolOpen(o => !o)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              fontSize: 17, fontWeight: 700, color: '#a89478',
-              cursor: 'pointer', marginBottom: 16, userSelect: 'none'
-            }}
-          >
-            <ChevronRight
-              size={14}
-              style={{ transition: 'transform 0.2s', transform: schoolOpen ? 'rotate(90deg)' : 'none' }}
-            />
-            🏫 Identifier mon établissement{' '}
-            <span style={{ color: '#a89478', fontSize: 14, fontWeight: 600 }}>(optionnel)</span>
+          {/* Sélecteur d'établissement */}
+          <div style={{ marginBottom: 18, position: 'relative' }} ref={dropdownRef}>
+            <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              🏫 Votre établissement *
+            </label>
+
+            {/* Bouton déclencheur */}
+            <button
+              type="button"
+              onClick={() => { setDropdownOpen(o => !o); setSchoolSearch('') }}
+              style={{
+                width: '100%', padding: '16px 16px', background: 'white',
+                border: `1.5px solid ${selectedSchool?.status === 'SUSPENDED' ? 'rgba(234,88,12,0.4)' : dropdownOpen ? '#059669' : '#e8e0d4'}`,
+                borderRadius: 14, color: selectedSchool ? '#1a1209' : '#a89478',
+                fontSize: 15, fontFamily: 'inherit', fontWeight: 600,
+                cursor: 'pointer', textAlign: 'left',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                boxShadow: dropdownOpen ? '0 0 0 3px rgba(5,150,105,0.1)' : 'none',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                {schoolsLoading ? (
+                  <span style={{ color: '#a89478' }}>Chargement des établissements…</span>
+                ) : selectedSchool ? (
+                  <>
+                    <span style={{ fontSize: 22, flexShrink: 0 }}>🏫</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {selectedSchool.name}
+                      {selectedSchool.status === 'SUSPENDED' && (
+                        <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, background: '#ffedd5', color: '#ea580c', padding: '2px 7px', borderRadius: 20 }}>SUSPENDU</span>
+                      )}
+                    </span>
+                  </>
+                ) : (
+                  <span>Sélectionner votre établissement…</span>
+                )}
+              </span>
+              <ChevronDown size={16} style={{ flexShrink: 0, color: '#a89478', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }} />
+            </button>
+
+            {/* Sous-domaine affiché sous le bouton quand sélectionné */}
+            {selectedSchool && (
+              <div style={{ fontSize: 13, color: '#a89478', fontWeight: 500, marginTop: 5 }}>
+                Sous-domaine : <span style={{ fontFamily: 'monospace', color: '#6b5c45' }}>{selectedSchool.subdomain}</span>
+                {selectedSchool.city ? ` · ${selectedSchool.city}` : ''}
+              </div>
+            )}
+
+            {/* Dropdown */}
+            {dropdownOpen && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50,
+                background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.12)', overflow: 'hidden',
+              }}>
+                {/* Barre de recherche */}
+                <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0ebe3', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Search size={15} style={{ color: '#a89478', flexShrink: 0 }} />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={schoolSearch}
+                    onChange={e => setSchoolSearch(e.target.value)}
+                    placeholder="Rechercher un établissement…"
+                    style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1a1209', fontFamily: 'inherit', fontWeight: 600, width: '100%', background: 'transparent' }}
+                  />
+                </div>
+
+                {/* Liste */}
+                <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+                  {schools.length === 0 ? (
+                    <div style={{ padding: '20px 16px', textAlign: 'center', color: '#a89478', fontSize: 14 }}>
+                      Aucun établissement disponible
+                    </div>
+                  ) : (() => {
+                    const filtered = schools.filter(s =>
+                      s.name.toLowerCase().includes(schoolSearch.toLowerCase()) ||
+                      s.subdomain.toLowerCase().includes(schoolSearch.toLowerCase()) ||
+                      (s.city ?? '').toLowerCase().includes(schoolSearch.toLowerCase())
+                    )
+                    if (filtered.length === 0) return (
+                      <div style={{ padding: '20px 16px', textAlign: 'center', color: '#a89478', fontSize: 14 }}>
+                        Aucun résultat pour &ldquo;{schoolSearch}&rdquo;
+                      </div>
+                    )
+                    return filtered.map(school => (
+                      <button
+                        key={school.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSchool(school)
+                          setSchoolId(school.subdomain)
+                          setDropdownOpen(false)
+                          setAlert(null)
+                        }}
+                        style={{
+                          width: '100%', padding: '12px 16px', background: selectedSchool?.id === school.id ? '#f0fdf4' : 'white',
+                          border: 'none', borderBottom: '1px solid #faf7f2',
+                          cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f0fdf4' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = selectedSchool?.id === school.id ? '#f0fdf4' : 'white' }}
+                      >
+                        <span style={{ fontSize: 26, flexShrink: 0 }}>🏫</span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1209', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{school.name}</span>
+                            {school.status === 'SUSPENDED' && (
+                              <span style={{ fontSize: 10, fontWeight: 800, background: '#ffedd5', color: '#ea580c', padding: '2px 7px', borderRadius: 20, flexShrink: 0 }}>SUSPENDU</span>
+                            )}
+                            {selectedSchool?.id === school.id && (
+                              <span style={{ fontSize: 10, color: '#059669', fontWeight: 800, flexShrink: 0 }}>✓</span>
+                            )}
+                          </span>
+                          <span style={{ fontSize: 12, color: '#a89478', fontWeight: 500, fontFamily: 'monospace' }}>
+                            {school.subdomain}{school.city ? ` · ${school.city}` : ''}
+                          </span>
+                        </span>
+                      </button>
+                    ))
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Champ établissement collapsible */}
-          <div style={{
-            overflow: 'hidden',
-            maxHeight: schoolOpen ? 125 : 0,
-            transition: 'max-height 0.3s ease'
-          }}>
-            <div style={{ marginBottom: 19 }}>
-              <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Identifiant de l&apos;établissement
-              </label>
-              <input
-                type="text" value={schoolId}
-                onChange={e => setSchoolId(e.target.value)}
-                placeholder="lycee-du-succes ou Lycée du Succès"
-                style={{ width: '100%', padding: '19px 16px', background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 14, color: '#1a1209', fontSize: 14.5, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }}
-              />
-              <div style={{ fontSize: 14, color: '#a89478', fontWeight: 500, marginTop: 8 }}>
-                💡 Renseignez ce champ si vous appartenez à plusieurs établissements
-              </div>
+          {/* Sélecteur de rôle */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              Votre rôle *
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+              {ROLE_SELECTOR.map(r => {
+                const active = selectedRole === r.role
+                return (
+                  <button
+                    key={r.role}
+                    type="button"
+                    onClick={() => setSelectedRole(active ? null : r.role)}
+                    style={{
+                      padding: '10px 6px', border: `1.5px solid ${active ? r.border : '#e8e0d4'}`,
+                      borderRadius: 12, background: active ? r.bg : 'white',
+                      cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
+                      transition: 'all 0.15s',
+                      boxShadow: active ? `0 0 0 3px ${r.border}` : 'none',
+                    }}
+                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = r.border }}
+                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = '#e8e0d4' }}
+                  >
+                    <div style={{ fontSize: 22, marginBottom: 4 }}>{r.emoji}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : '#6b5c45', lineHeight: 1.3 }}>
+                      {r.label}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -326,6 +537,11 @@ export default function LoginPage() {
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
               Bonjour, {success.firstName} !
             </div>
+            {roleMismatchWarning && (
+              <div style={{ padding: '10px 14px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, fontSize: 13, color: '#92400e', fontWeight: 600, marginBottom: 10, textAlign: 'left', lineHeight: 1.6 }}>
+                ⚠️ {roleMismatchWarning}
+              </div>
+            )}
             <div style={{ fontSize: 14, color: '#6b5c45', fontWeight: 500, lineHeight: 1.6, marginBottom: 8 }}>
               Connexion réussie à EduNexus · École Lycée du Succès
             </div>

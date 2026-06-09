@@ -1,4 +1,5 @@
 'use client'
+import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeacherSection } from '../_types'
 
@@ -46,7 +47,7 @@ const BADGE_STYLES = {
   amber: 'bg-amber-500/20 text-amber-300',
 }
 
-export default function TeacherSidebar({ current, onChange, schoolName, logoUrl }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null }) {
+export default function TeacherSidebar({ current, onChange, schoolName, logoUrl, onLogout }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null; onLogout?: () => void }) {
   const displayName = schoolName || 'Mon établissement'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0].toUpperCase()).join('')
 
@@ -116,12 +117,20 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl 
 
       {/* User */}
       <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px' }}>
-        <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06] cursor-pointer" style={{ padding: '12px 14px' }}>
+        <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06]" style={{ padding: '12px 14px' }}>
           <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#1d4ed8] to-[#7c3aed] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">JD</div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-[17px] font-bold text-white truncate">Jean Dupont</div>
             <div className="text-[14px] text-white/35">Enseignant · Mathématiques</div>
           </div>
+          {onLogout && (
+            <button onClick={onLogout} title="Se déconnecter"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', flexShrink: 0, padding: 4, borderRadius: 6 }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.8)'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>
+              <LogOut size={16} />
+            </button>
+          )}
         </div>
       </div>
     </aside>

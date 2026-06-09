@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Badge from './Badge'
-import type { SchoolTab, SchoolRow } from '../_types'
+import type { SchoolTab, SchoolRow, ConfirmActionTarget } from '../_types'
 
 interface Props {
   schools: SchoolRow[]
@@ -18,6 +18,7 @@ interface Props {
   onViewDetails: (id: string) => void
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
   onRefresh: () => void
+  onConfirmAction: (target: ConfirmActionTarget) => void
 }
 
 const TABS: { id: SchoolTab; label: string; urgent?: boolean }[] = [
@@ -39,7 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const PLAN_LABELS: Record<string, string> = { deco: 'Découverte', std: 'Standard', prem: 'Premium' }
 
-export default function SectionSchools({ schools, loading, activeTab, onTabChange, searchTerm, onSearchChange, onInvite, onApprove, onReject, onSuspend, onDelete, onViewDetails, onToast, onRefresh }: Props) {
+export default function SectionSchools({ schools, loading, activeTab, onTabChange, searchTerm, onSearchChange, onInvite, onApprove, onReject, onSuspend, onDelete, onViewDetails, onToast, onRefresh, onConfirmAction }: Props) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const countsByTab: Record<SchoolTab, number> = {
@@ -126,7 +127,7 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                 <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
                   <Badge type={school.status}>{STATUS_LABELS[school.status] ?? school.status.toUpperCase()}</Badge>
                 </td>
-                <td style={tdStyle}>{school.adminEmail}</td>
+                <td style={tdStyle}>{school.adminEmail || <span style={{ color: '#c8bfb2' }}>—</span>}</td>
                 <td style={{ padding: '17px 16px', verticalAlign: 'middle' }}>
                   {school.status === 'draft' ? (
                     <>
@@ -174,15 +175,19 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                           {school.status === 'suspended' && (
                             <>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={async () => {
+                              <DropdownItem onClick={() => {
                                 setOpenDropdown(null)
-                                onToast('Réactivation en cours…', 'info')
-                                const { reactivateSchool } = await import('../_api')
-                                try {
-                                  await reactivateSchool(school.id)
-                                  onToast(`${school.name} réactivée`, 'success')
-                                  onRefresh()
-                                } catch (e: any) { onToast(e.message || 'Erreur lors de la réactivation', 'error') }
+                                onConfirmAction({
+                                  title: 'Réactiver l\'établissement',
+                                  description: `Réactiver «${school.name}» — tous les utilisateurs retrouveront l'accès.`,
+                                  icon: '✅',
+                                  successMsg: `${school.name} a été réactivée`,
+                                  execute: async (auth) => {
+                                    const { reactivateSchool } = await import('../_api')
+                                    await reactivateSchool(school.id, auth)
+                                    onRefresh()
+                                  },
+                                })
                               }} color="#059669">✅ Réactiver</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
                               <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
@@ -193,15 +198,19 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                           {school.status === 'rejected' && (
                             <>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={async () => {
+                              <DropdownItem onClick={() => {
                                 setOpenDropdown(null)
-                                onToast('Remise en examen…', 'info')
-                                const { reexamineSchool } = await import('../_api')
-                                try {
-                                  await reexamineSchool(school.id)
-                                  onToast(`La demande de ${school.name} est remise en examen`, 'success')
-                                  onRefresh()
-                                } catch (e: any) { onToast(e.message || 'Erreur lors du réexamen', 'error') }
+                                onConfirmAction({
+                                  title: 'Réexaminer la demande',
+                                  description: `Remettre «${school.name}» en file d'attente pour approbation.`,
+                                  icon: '🔄',
+                                  successMsg: `La demande de ${school.name} est remise en examen`,
+                                  execute: async (auth) => {
+                                    const { reexamineSchool } = await import('../_api')
+                                    await reexamineSchool(school.id, auth)
+                                    onRefresh()
+                                  },
+                                })
                               }} color="#1d4ed8">🔄 Réexaminer la demande</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
                               <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
@@ -212,14 +221,18 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                           {school.status === 'draft' && (
                             <>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={async () => {
+                              <DropdownItem onClick={() => {
                                 setOpenDropdown(null)
-                                onToast('Renvoi de l\'invitation…', 'info')
-                                const { resendInvite } = await import('../_api')
-                                try {
-                                  await resendInvite(school.id)
-                                  onToast(`Invitation renvoyée avec succès`, 'success')
-                                } catch (e: any) { onToast(e.message || 'Erreur lors du renvoi', 'error') }
+                                onConfirmAction({
+                                  title: 'Renvoyer l\'invitation',
+                                  description: `Envoyer un nouveau lien d'invitation à «${school.name}».`,
+                                  icon: '📧',
+                                  successMsg: 'Invitation renvoyée avec succès',
+                                  execute: async (auth) => {
+                                    const { resendInvite } = await import('../_api')
+                                    await resendInvite(school.id, auth)
+                                  },
+                                })
                               }} color="#059669">📧 Renvoyer l'invitation</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
                               <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>

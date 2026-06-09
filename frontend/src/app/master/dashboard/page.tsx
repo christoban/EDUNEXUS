@@ -41,9 +41,11 @@ function computeKpi(schools: SchoolRow[]): KpiData {
   }
 }
 
-function toSchoolRow(s: { id: string; name: string; subdomain: string; type: string; plan: string; status: string; email?: string | null; createdAt: string; invites?: { email: string; status: string; expiresAt: string }[] }): SchoolRow {
+function toSchoolRow(s: { id: string; name: string; subdomain: string; type: string; plan: string; status: string; email?: string | null; createdAt: string; invites?: { email: string; status: string; expiresAt: string }[]; users?: { email: string | null }[] }): SchoolRow {
   const invite = s.invites?.[0]
   const hasPendingInvite = !!invite
+  // Email admin : priorité school.email → user ADMIN → email invite
+  const adminUserEmail = s.users?.[0]?.email ?? null
   const rawStatus = s.status.toLowerCase()
 
   // Calcul du statut effectif affiché :
@@ -69,7 +71,7 @@ function toSchoolRow(s: { id: string; name: string; subdomain: string; type: str
     status,
     // school.email est null tant que l'admin n'a pas créé son compte (statut draft)
     // On utilise invite.email comme fallback : c'est l'adresse où l'invitation a été envoyée
-    adminEmail: s.email ?? invite?.email ?? '',
+    adminEmail: s.email ?? adminUserEmail ?? invite?.email ?? '',
     // inviteStatus n'a de sens que pour les écoles en phase d'invitation (draft)
     inviteStatus: hasPendingInvite ? invite!.status.toLowerCase() : '-',
     inviteExpiry: invite?.expiresAt ? new Date(invite.expiresAt).toLocaleDateString('fr-CM') : undefined,
@@ -97,6 +99,7 @@ export default function SuperAdminDashboard() {
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null)
   const [suspendTarget, setSuspendTarget] = useState<{ id: string; name: string; subdomain: string } | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [confirmActionTarget, setConfirmActionTarget] = useState<import('./_types').ConfirmActionTarget | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
@@ -248,7 +251,6 @@ export default function SuperAdminDashboard() {
         mfaEnabled={mfaEnabled}
         onNav={setSection}
         onLogout={handleLogout}
-        onChangePwd={() => setModal('changePwd')}
       />
 
       <main style={{ flex: 1, overflow: 'hidden' }}>
@@ -278,10 +280,14 @@ export default function SuperAdminDashboard() {
             onViewDetails={handleViewDetails}
             onToast={showToast}
             onRefresh={handleActionDone}
+            onConfirmAction={(target) => {
+              setConfirmActionTarget(target)
+              setModal('confirmAction')
+            }}
           />
         )}
 
-        {section === 'logs' && <SectionLogs logs={logs} loading={logsLoading} />}
+        {section === 'logs' && <SectionLogs logs={logs} loading={logsLoading} onChangePwd={() => setModal('changePwd')} mfaEnabled={mfaEnabled} />}
       </main>
 
       <MasterModals
@@ -289,11 +295,13 @@ export default function SuperAdminDashboard() {
         schoolId={selectedSchoolId}
         suspendTarget={suspendTarget}
         deleteTarget={deleteTarget}
+        confirmActionTarget={confirmActionTarget}
         mfaEnabled={mfaEnabled}
         onClose={() => {
           setModal(null)
           setSuspendTarget(null)
           setDeleteTarget(null)
+          setConfirmActionTarget(null)
           setSelectedSchoolId(null)
         }}
         onToast={showToast}

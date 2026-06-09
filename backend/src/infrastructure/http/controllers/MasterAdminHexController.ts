@@ -8,6 +8,7 @@ import type { RejeterEcoleUseCase } from '@application/masterAdmin/RejeterEcoleU
 import type { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/ChangerPlanAbonnementUseCase';
 import type { PlanType } from '@domain/types/enums';
 import { sendTransactionalEmail } from '../../../services/emailService';
+import { logMasterAction } from '../../../utils/masterAuthAudit';
 
 export class MasterAdminHexController {
   constructor(
@@ -38,6 +39,7 @@ export class MasterAdminHexController {
         notes,
       });
 
+      void logMasterAction({ req, masterUserId: master.id, action: 'school_invite_sent', description: `Invitation envoyée à ${email} pour «${schoolName}»` });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -47,7 +49,10 @@ export class MasterAdminHexController {
   // POST /api/v2/master/schools/:id/suspend
   suspendreEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.suspendre.execute(req.params.id as string);
+      const id = req.params.id as string;
+      const master = (req as any).masterUser;
+      await this.suspendre.execute(id);
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_suspended', targetId: id, description: `École ${id} suspendue` });
       res.json({ success: true, message: 'École suspendue' });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -57,7 +62,10 @@ export class MasterAdminHexController {
   // POST /api/v2/master/schools/:id/reactivate
   reactiverEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.reactiver.execute(req.params.id as string);
+      const id = req.params.id as string;
+      const master = (req as any).masterUser;
+      await this.reactiver.execute(id);
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_reactivated', targetId: id, description: `École ${id} réactivée` });
       res.json({ success: true, message: 'École réactivée' });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -67,12 +75,15 @@ export class MasterAdminHexController {
   // POST /api/v2/master/schools/:id/reject
   rejeterEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const id = req.params.id as string;
+      const master = (req as any).masterUser;
       const { motif } = req.body;
       if (!motif) {
         res.status(400).json({ success: false, message: 'Le motif est obligatoire' });
         return;
       }
-      await this.rejeter.execute({ schoolId: req.params.id as string, motif });
+      await this.rejeter.execute({ schoolId: id, motif });
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_rejected', targetId: id, description: `École ${id} rejetée — motif: ${motif}` });
       res.json({ success: true, message: 'École rejetée' });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -122,6 +133,7 @@ export class MasterAdminHexController {
           orderBy: { createdAt: 'desc' },
           include: {
             invites: { where: { status: 'PENDING' }, take: 1, orderBy: { createdAt: 'desc' } },
+            users: { where: { role: 'ADMIN', isActive: true }, take: 1, select: { email: true } },
             _count: { select: { users: true, classes: true } },
           },
         }),
@@ -172,13 +184,15 @@ export class MasterAdminHexController {
         return;
       }
 
+      const master = (req as any).masterUser;
+      const schoolName = school.name;
+
       await this.prisma.$transaction(async (tx) => {
-        // TeacherSubject → Subject n'a pas de CASCADE : suppression manuelle d'abord
         await tx.teacherSubject.deleteMany({ where: { subject: { schoolId: id } } });
-        // Tout le reste cascade depuis school (onDelete: Cascade dans le schéma)
         await tx.school.delete({ where: { id } });
       });
 
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_deleted', targetId: id, description: `«${schoolName}» supprimée définitivement` });
       res.json({ success: true, message: 'École supprimée définitivement' });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -220,6 +234,9 @@ export class MasterAdminHexController {
       const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
       const activationUrl = `${frontendUrl}/onboarding/${newToken}`;
 
+      const master = (req as any).masterUser;
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_invite_resent', targetId: id, description: `Invitation renvoyée à ${invite.email as string} pour «${invite.schoolName as string}»` });
+
       // Répondre immédiatement — l'email s'envoie en arrière-plan
       res.json({ success: true, message: `Invitation renvoyée à ${invite.email as string}` });
 
@@ -255,21 +272,29 @@ export class MasterAdminHexController {
         return;
       }
       await this.prisma.school.update({ where: { id }, data: { status: 'PENDING' } });
+      const master = (req as any).masterUser;
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_reexamined', targetId: id, description: `«${school.name}» remise en examen (REJECTED → PENDING)` });
       res.json({ success: true, message: `La demande de ${school.name} est remise en examen` });
     } catch (error) {
       this.gererErreur(error, res, next);
     }
   };
 
-  // GET /api/v2/master/auth/logs
+  // GET /api/v2/master/auth/logs?type=auth|actions|all
   listerLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { action, page = '1', limit = '50' } = req.query;
+      const { action, page = '1', limit = '50', type = 'all' } = req.query;
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
       const take = parseInt(limit as string);
 
       const where: any = {};
-      if (action) where.action = action;
+      if (action) {
+        where.action = action;
+      } else if (type === 'auth') {
+        where.NOT = { action: { startsWith: 'action:' } };
+      } else if (type === 'actions') {
+        where.action = { startsWith: 'action:' };
+      }
 
       const [logs, total] = await Promise.all([
         this.prisma.masterAuthAudit.findMany({
@@ -285,6 +310,43 @@ export class MasterAdminHexController {
       res.json({
         success: true,
         data: logs,
+        pagination: { page: parseInt(page as string), limit: take, total, pages: Math.ceil(total / take) },
+      });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // GET /api/v2/master/email-logs — logs email cross-schools pour le master admin
+  listerEmailLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { page = '1', limit = '50', search = '', schoolId } = req.query;
+      const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+      const take = parseInt(limit as string);
+
+      const where: any = {};
+      if (schoolId) where.schoolId = schoolId;
+      if (search) {
+        where.OR = [
+          { to: { contains: search as string, mode: 'insensitive' } },
+          { subject: { contains: search as string, mode: 'insensitive' } },
+        ];
+      }
+
+      const [emailLogs, total] = await Promise.all([
+        this.prisma.emailLog.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { createdAt: 'desc' },
+          include: { school: { select: { id: true, name: true, subdomain: true } } },
+        }),
+        this.prisma.emailLog.count({ where }),
+      ]);
+
+      res.json({
+        success: true,
+        data: emailLogs,
         pagination: { page: parseInt(page as string), limit: take, total, pages: Math.ceil(total / take) },
       });
     } catch (error) {
