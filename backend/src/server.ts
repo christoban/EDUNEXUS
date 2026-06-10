@@ -18,8 +18,6 @@ import { serve } from "inngest/express";
 import { inngest } from "./inngest/index.ts";
 import {
   generateTimeTable,
-  generateExam,
-  handleExamSubmission,
   generateReportCards,
   handleGradeSubmitted,
   sendPaymentReminders,
@@ -119,8 +117,6 @@ app.use(
     client: inngest,
     functions: [
       generateTimeTable,
-      generateExam,
-      handleExamSubmission,
       generateReportCards,
       handleGradeSubmitted,
       sendPaymentReminders,

@@ -8,8 +8,10 @@ interface Props {
   schoolInfo?: SchoolInfo | null
   onLogoUpdate?: (url: string) => void
 }
+interface ActivityLog { id: string; createdAt: string; action: string; description: string; user?: { firstName?: string; lastName?: string } | null }
+interface EmailLog { id: string; createdAt: string; to: string; subject: string; status: string }
 
-const TABS = ['Profil', 'Notifications', 'Sécurité', 'Préférences']
+const TABS = ['Profil', 'Notifications', 'Sécurité', 'Pédagogie', 'Préférences', 'Activités', 'Emails']
 
 const NOTIF_SETTINGS = [
   { label: 'Alertes notes en attente',       sub: 'Notifier quand des notes dépassent 48h sans validation', on: true },
@@ -31,6 +33,32 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [logoLoading, setLogoLoading] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
 
+  // Pédagogie
+  const [pedSettings, setPedSettings] = useState<{
+    passMark: number; councilPassMark: number; gradesPerTerm: number; termsPerYear: number
+    maxAbsences: number; attendanceLateAsAbsence: boolean
+    legalMaxContributionFirstCycle: number; legalMaxContributionSecondCycle: number
+    bulletinBlockOnUnpaidFees: boolean
+    schoolLanguageMode: string; academicCalendarType: string; cycles: string[]
+    smsEnabled: boolean; offlineModeEnabled: boolean; aiAlertsEnabled: boolean; messageModeration: boolean
+  } | null>(null)
+  const [pedLoading, setPedLoading] = useState(false)
+  const [pedSaving, setPedSaving] = useState(false)
+
+  // Activity logs
+  const [actPage, setActPage]               = useState(1)
+  const [actSearchInput, setActSearchInput] = useState('')
+  const [actSearch, setActSearch]           = useState('')
+  const [actData, setActData]               = useState<{ logs: ActivityLog[]; page: number; pages: number; total: number } | null>(null)
+  const [actLoading, setActLoading]         = useState(false)
+  // Email logs
+  const [emlPage, setEmlPage]               = useState(1)
+  const [emlSearchInput, setEmlSearchInput] = useState('')
+  const [emlSearch, setEmlSearch]           = useState('')
+  const [emlStatus, setEmlStatus]           = useState('')
+  const [emlData, setEmlData]               = useState<{ logs: EmailLog[]; pagination: { total: number; page: number; pages: number; limit: number } } | null>(null)
+  const [emlLoading, setEmlLoading]         = useState(false)
+
   useEffect(() => {
     if (schoolInfo) {
       setSchoolName(schoolInfo.name || '')
@@ -40,6 +68,42 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       setLogoPreview(schoolInfo.logoUrl || null)
     }
   }, [schoolInfo])
+
+  useEffect(() => {
+    if (activeTab !== 3) return
+    if (pedSettings) return
+    setPedLoading(true)
+    fetch('/api/v2/school-settings', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setPedSettings(d.data) })
+      .catch(() => onToast('Erreur chargement paramètres', 'error'))
+      .finally(() => setPedLoading(false))
+  }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== 5) return
+    setActLoading(true)
+    const params = new URLSearchParams({ page: String(actPage), limit: '10' })
+    if (actSearch) params.set('search', actSearch)
+    fetch(`/api/v2/activities?${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setActData({ logs: d.logs ?? [], page: d.page ?? 1, pages: d.pages ?? 1, total: d.total ?? 0 }))
+      .catch(() => onToast('Erreur chargement activités', 'error'))
+      .finally(() => setActLoading(false))
+  }, [activeTab, actPage, actSearch])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== 6) return
+    setEmlLoading(true)
+    const params = new URLSearchParams({ page: String(emlPage), limit: '15' })
+    if (emlSearch) params.set('search', emlSearch)
+    if (emlStatus) params.set('status', emlStatus)
+    fetch(`/api/v2/email-logs?${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setEmlData({ logs: d.logs ?? [], pagination: d.pagination ?? { total: 0, page: 1, pages: 1, limit: 15 } }))
+      .catch(() => onToast('Erreur chargement emails', 'error'))
+      .finally(() => setEmlLoading(false))
+  }, [activeTab, emlPage, emlSearch, emlStatus])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -179,7 +243,20 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
             </div>
             <div style={{ padding: '16px 26px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'flex-end' }}>
-              <button style={btnPrim} onClick={() => onToast('Profil sauvegardé', 'success')}>💾 Enregistrer les modifications</button>
+              <button style={btnPrim} onClick={async () => {
+                try {
+                  const res = await fetch('/api/v2/school/profile', {
+                    method: 'PATCH', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: schoolName, city: schoolCity, phone: schoolPhone, email: schoolEmail }),
+                  })
+                  const data = await res.json()
+                  if (!res.ok) throw new Error(data.message || 'Erreur')
+                  onToast('Profil sauvegardé avec succès', 'success')
+                } catch (err: any) {
+                  onToast(err.message || 'Erreur lors de la sauvegarde', 'error')
+                }
+              }}>💾 Enregistrer les modifications</button>
             </div>
           </div>
 
@@ -270,8 +347,179 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         </div>
       )}
 
-      {/* ── TAB: PRÉFÉRENCES ── */}
+      {/* ── TAB: PÉDAGOGIE ── */}
       {activeTab === 3 && (
+        <>
+          {pedLoading && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+              <div style={{ width: 36, height: 36, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
+            </div>
+          )}
+          {!pedLoading && pedSettings && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+              {/* Règles académiques */}
+              <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+                <div style={cardHeader}><span style={cardTitle}>📚 Règles académiques</span></div>
+                <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                  <div>
+                    <div style={fieldLabel}>Moyenne de passage (/20)</div>
+                    <input type="number" min="0" max="20" step="0.5" style={fieldInput} value={pedSettings.passMark}
+                      onChange={e => setPedSettings(s => s ? { ...s, passMark: parseFloat(e.target.value) || 0 } : s)} />
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Moyenne conseil (/20)</div>
+                    <input type="number" min="0" max="20" step="0.5" style={fieldInput} value={pedSettings.councilPassMark}
+                      onChange={e => setPedSettings(s => s ? { ...s, councilPassMark: parseFloat(e.target.value) || 0 } : s)} />
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Notes par trimestre</div>
+                    <div style={{ padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#a89478', fontSize: 16, fontWeight: 600 }}>{pedSettings.gradesPerTerm}</div>
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Trimestres par an</div>
+                    <div style={{ padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#a89478', fontSize: 16, fontWeight: 600 }}>{pedSettings.termsPerYear}</div>
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Calendrier académique</div>
+                    <select style={fieldSelect} value={pedSettings.academicCalendarType}
+                      onChange={e => setPedSettings(s => s ? { ...s, academicCalendarType: e.target.value } : s)}>
+                      <option value="trimester">Trimestres</option>
+                      <option value="semester">Semestres</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Régime linguistique</div>
+                    <select style={fieldSelect} value={pedSettings.schoolLanguageMode}
+                      onChange={e => setPedSettings(s => s ? { ...s, schoolLanguageMode: e.target.value } : s)}>
+                      <option value="francophone">Francophone</option>
+                      <option value="anglophone">Anglophone</option>
+                      <option value="bilingual">Bilingue</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Présences */}
+              <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+                <div style={cardHeader}><span style={cardTitle}>👥 Gestion des présences</span></div>
+                <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  <div>
+                    <div style={fieldLabel}>Absences max. autorisées</div>
+                    <input type="number" min="0" style={{ ...fieldInput, maxWidth: 200 }} value={pedSettings.maxAbsences}
+                      onChange={e => setPedSettings(s => s ? { ...s, maxAbsences: parseInt(e.target.value) || 0 } : s)} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 50, height: 28, borderRadius: 14, background: pedSettings.attendanceLateAsAbsence ? '#059669' : '#d4c8b8', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                      onClick={() => setPedSettings(s => s ? { ...s, attendanceLateAsAbsence: !s.attendanceLateAsAbsence } : s)}>
+                      <div style={{ position: 'absolute', top: 3, left: pedSettings.attendanceLateAsAbsence ? 24 : 3, width: 22, height: 22, borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1209' }}>Retard = Absence</div>
+                      <div style={{ fontSize: 14, color: '#a89478' }}>Compter les retards comme des absences</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contributions financières */}
+              <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+                <div style={cardHeader}><span style={cardTitle}>💰 Contributions financières</span></div>
+                <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                  <div>
+                    <div style={fieldLabel}>Plafond 1er cycle (FCFA)</div>
+                    <input type="number" min="0" style={fieldInput} value={pedSettings.legalMaxContributionFirstCycle}
+                      onChange={e => setPedSettings(s => s ? { ...s, legalMaxContributionFirstCycle: parseInt(e.target.value) || 0 } : s)} />
+                  </div>
+                  <div>
+                    <div style={fieldLabel}>Plafond 2nd cycle (FCFA)</div>
+                    <input type="number" min="0" style={fieldInput} value={pedSettings.legalMaxContributionSecondCycle}
+                      onChange={e => setPedSettings(s => s ? { ...s, legalMaxContributionSecondCycle: parseInt(e.target.value) || 0 } : s)} />
+                  </div>
+                </div>
+                <div style={{ padding: '0 26px 22px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ width: 50, height: 28, borderRadius: 14, background: pedSettings.bulletinBlockOnUnpaidFees ? '#059669' : '#d4c8b8', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                    onClick={() => setPedSettings(s => s ? { ...s, bulletinBlockOnUnpaidFees: !s.bulletinBlockOnUnpaidFees } : s)}>
+                    <div style={{ position: 'absolute', top: 3, left: pedSettings.bulletinBlockOnUnpaidFees ? 24 : 3, width: 22, height: 22, borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1209' }}>Bloquer bulletins si impayés</div>
+                    <div style={{ fontSize: 14, color: '#a89478' }}>Empêcher la génération des bulletins si des frais sont dus</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fonctionnalités */}
+              <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+                <div style={cardHeader}><span style={cardTitle}>⚡ Fonctionnalités</span></div>
+                <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[
+                    { key: 'smsEnabled', label: 'SMS', sub: 'Notifications par SMS aux parents' },
+                    { key: 'offlineModeEnabled', label: 'Mode hors-ligne', sub: 'Permettre la saisie sans connexion' },
+                    { key: 'aiAlertsEnabled', label: 'Alertes IA', sub: 'Détection automatique des anomalies de notes' },
+                    { key: 'messageModeration', label: 'Modération messages', sub: 'Valider les messages avant envoi' },
+                  ].map(({ key, label, sub }) => {
+                    const on = pedSettings[key as keyof typeof pedSettings] as boolean
+                    return (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #faf7f2' }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
+                        <div>
+                          <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1209' }}>{label}</div>
+                          <div style={{ fontSize: 14, color: '#a89478', marginTop: 3 }}>{sub}</div>
+                        </div>
+                        <div style={{ width: 50, height: 28, borderRadius: 14, background: on ? '#059669' : '#d4c8b8', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+                          onClick={() => setPedSettings(s => s ? { ...s, [key]: !on } : s)}>
+                          <div style={{ position: 'absolute', top: 3, left: on ? 24 : 3, width: 22, height: 22, borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Save button */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button style={{ ...btnPrim, opacity: pedSaving ? 0.7 : 1 }} disabled={pedSaving}
+                  onClick={async () => {
+                    if (!pedSettings) return
+                    setPedSaving(true)
+                    try {
+                      const res = await fetch('/api/v2/school-settings', {
+                        method: 'PUT', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          passMark: pedSettings.passMark,
+                          councilPassMark: pedSettings.councilPassMark,
+                          maxAbsences: pedSettings.maxAbsences,
+                          attendanceLateAsAbsence: pedSettings.attendanceLateAsAbsence,
+                          legalMaxContributionFirstCycle: pedSettings.legalMaxContributionFirstCycle,
+                          legalMaxContributionSecondCycle: pedSettings.legalMaxContributionSecondCycle,
+                          bulletinBlockOnUnpaidFees: pedSettings.bulletinBlockOnUnpaidFees,
+                          schoolLanguageMode: pedSettings.schoolLanguageMode,
+                          academicCalendarType: pedSettings.academicCalendarType,
+                          smsEnabled: pedSettings.smsEnabled,
+                          offlineModeEnabled: pedSettings.offlineModeEnabled,
+                          aiAlertsEnabled: pedSettings.aiAlertsEnabled,
+                          messageModeration: pedSettings.messageModeration,
+                        }),
+                      })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data.message || 'Erreur')
+                      onToast('Paramètres pédagogiques sauvegardés', 'success')
+                    } catch (err: any) {
+                      onToast(err.message || 'Erreur', 'error')
+                    } finally { setPedSaving(false) }
+                  }}>
+                  {pedSaving ? '⏳ Enregistrement…' : '💾 Enregistrer les modifications'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── TAB: PRÉFÉRENCES ── */}
+      {activeTab === 4 && (
         <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
           <div style={cardHeader}><span style={cardTitle}>⚙️ Préférences système</span></div>
           <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
@@ -294,6 +542,155 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           </div>
         </div>
       )}
+
+      {/* ── TAB: ACTIVITÉS ── */}
+      {activeTab === 5 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input
+              placeholder="Rechercher par action ou description…"
+              value={actSearchInput}
+              onChange={e => setActSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { setActSearch(actSearchInput); setActPage(1) } }}
+              style={{ flex: 1, padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.background = 'white' }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#d4c8b8'; e.currentTarget.style.background = '#f0ebe3' }}
+            />
+            <button style={btnSec} onClick={() => { setActSearch(actSearchInput); setActPage(1) }}>🔍 Rechercher</button>
+          </div>
+
+          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>📋 Journal d&apos;activités</span>
+              {actData && <span style={{ fontSize: 14, color: '#a89478' }}>{actData.total} entrée{actData.total !== 1 ? 's' : ''}</span>}
+            </div>
+
+            {actLoading && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+                <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
+              </div>
+            )}
+            {!actLoading && actData && actData.logs.length === 0 && (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Aucune activité enregistrée</div>
+            )}
+            {!actLoading && actData && actData.logs.length > 0 && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>{['Date', 'Action', 'Description', 'Utilisateur'].map(h => <th key={h} style={thLog}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {actData.logs.map((log, i) => (
+                      <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : '#fdfaf6' }}>
+                        <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
+                        <td style={tdLog}><span style={{ fontWeight: 700, color: '#1a1209' }}>{log.action}</span></td>
+                        <td style={{ ...tdLog, maxWidth: 320, wordBreak: 'break-word' }}>{log.description}</td>
+                        <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>
+                          {log.user ? (`${log.user.firstName ?? ''} ${log.user.lastName ?? ''}`).trim() || '—' : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {actData && (
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <span style={{ fontSize: 14, color: '#a89478' }}>Page {actData.page} / {actData.pages}</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={{ ...btnSec, opacity: actData.page <= 1 ? 0.45 : 1 }} disabled={actData.page <= 1} onClick={() => setActPage(p => p - 1)}>← Précédent</button>
+                  <button style={{ ...btnSec, opacity: actData.page >= actData.pages ? 0.45 : 1 }} disabled={actData.page >= actData.pages} onClick={() => setActPage(p => p + 1)}>Suivant →</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: EMAILS ── */}
+      {activeTab === 6 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <input
+              placeholder="Rechercher par destinataire ou sujet…"
+              value={emlSearchInput}
+              onChange={e => setEmlSearchInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { setEmlSearch(emlSearchInput); setEmlPage(1) } }}
+              style={{ flex: 1, minWidth: 200, padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
+              onFocus={e => { e.currentTarget.style.borderColor = '#059669'; e.currentTarget.style.background = 'white' }}
+              onBlur={e => { e.currentTarget.style.borderColor = '#d4c8b8'; e.currentTarget.style.background = '#f0ebe3' }}
+            />
+            <select
+              value={emlStatus}
+              onChange={e => { setEmlStatus(e.target.value); setEmlPage(1) }}
+              style={{ padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
+              <option value="">Tous les statuts</option>
+              <option value="SENT">Envoyé</option>
+              <option value="FAILED">Échec</option>
+              <option value="PENDING">En attente</option>
+            </select>
+            <button style={btnSec} onClick={() => { setEmlSearch(emlSearchInput); setEmlPage(1) }}>🔍 Rechercher</button>
+          </div>
+
+          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+            <div style={cardHeader}>
+              <span style={cardTitle}>📧 Journal des emails</span>
+              {emlData && <span style={{ fontSize: 14, color: '#a89478' }}>{emlData.pagination.total} email{emlData.pagination.total !== 1 ? 's' : ''}</span>}
+            </div>
+
+            {emlLoading && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+                <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
+              </div>
+            )}
+            {!emlLoading && emlData && emlData.logs.length === 0 && (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Aucun email enregistré</div>
+            )}
+            {!emlLoading && emlData && emlData.logs.length > 0 && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>{['Date', 'Destinataire', 'Sujet', 'Statut'].map(h => <th key={h} style={thLog}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {emlData.logs.map((log, i) => {
+                      const s = (log.status ?? '').toLowerCase()
+                      const badge = s.includes('sent') || s.includes('envoy')
+                        ? { bg: 'rgba(5,150,105,0.12)', color: '#047857' }
+                        : s.includes('fail') || s.includes('chec')
+                          ? { bg: 'rgba(220,38,38,0.12)', color: '#dc2626' }
+                          : s.includes('pend') || s.includes('attente')
+                            ? { bg: 'rgba(217,119,6,0.12)', color: '#b45309' }
+                            : { bg: '#f0ebe3', color: '#a89478' }
+                      return (
+                        <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : '#fdfaf6' }}>
+                          <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
+                          <td style={{ ...tdLog, maxWidth: 200, wordBreak: 'break-word' }}>{log.to}</td>
+                          <td style={{ ...tdLog, maxWidth: 280, wordBreak: 'break-word' }}>{log.subject}</td>
+                          <td style={tdLog}>
+                            <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: badge.bg, color: badge.color }}>
+                              {log.status}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {emlData && (
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <span style={{ fontSize: 14, color: '#a89478' }}>Page {emlData.pagination.page} / {emlData.pagination.pages}</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={{ ...btnSec, opacity: emlData.pagination.page <= 1 ? 0.45 : 1 }} disabled={emlData.pagination.page <= 1} onClick={() => setEmlPage(p => p - 1)}>← Précédent</button>
+                  <button style={{ ...btnSec, opacity: emlData.pagination.page >= emlData.pagination.pages ? 0.45 : 1 }} disabled={emlData.pagination.page >= emlData.pagination.pages} onClick={() => setEmlPage(p => p + 1)}>Suivant →</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -307,3 +704,10 @@ const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: '
 const fieldLabel: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }
 const fieldInput: React.CSSProperties = { width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }
 const fieldSelect: React.CSSProperties = { width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }
+const thLog: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: '#a89478', background: '#f0ebe3', border: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }
+const tdLog: React.CSSProperties = { padding: '10px 14px', fontSize: 14, color: '#6b5c45', border: '1px solid #f0ebe3', verticalAlign: 'top' }
+
+function fmtDate(iso: string) {
+  try { return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
+  catch { return iso }
+}

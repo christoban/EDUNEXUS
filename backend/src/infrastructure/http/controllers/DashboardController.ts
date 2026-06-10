@@ -30,15 +30,14 @@ export class DashboardController {
       let stats: any = {};
 
       if (user.role === 'ADMIN') {
-        const [totalStudents, totalTeachers, activeExams, presentAttendance, totalAttendance] =
+        const [totalStudents, totalTeachers, presentAttendance, totalAttendance] =
           await Promise.all([
             this.prisma.user.count({ where: { ...(schoolId ? { schoolId } : {}), role: 'STUDENT' } }),
             this.prisma.user.count({ where: { ...(schoolId ? { schoolId } : {}), role: 'TEACHER' } }),
-            this.prisma.exam.count({ where: { ...(schoolId ? { schoolId } : {}), content: { path: ['status'], equals: 'published' } } }),
             this.prisma.attendance.count({ where: { ...(schoolId ? { schoolId } : {}), status: { in: ['PRESENT', 'LATE'] } } }),
             this.prisma.attendance.count({ where: { ...(schoolId ? { schoolId } : {}) } }),
           ]);
-        stats = { totalStudents, totalTeachers, activeExams, avgAttendance: formatPercent(presentAttendance, totalAttendance), recentActivity: formattedActivity };
+        stats = { totalStudents, totalTeachers, avgAttendance: formatPercent(presentAttendance, totalAttendance), recentActivity: formattedActivity };
 
       } else if (user.role === 'TEACHER') {
         const teacherProfile = await this.prisma.teacherProfile.findUnique({
@@ -50,12 +49,6 @@ export class DashboardController {
           where: { ...(schoolId ? { schoolId } : {}) },
           select: { id: true, name: true },
         });
-        const myExams = await this.prisma.exam.findMany({
-          where: { ...(schoolId ? { schoolId } : {}), subjectId: { in: subjectIds } },
-          select: { id: true },
-        });
-        const pendingGrading = await this.prisma.submission.count({ where: { examId: { in: myExams.map((e) => e.id) } } });
-
         const todaySlots = await this.prisma.timetableSlot.findMany({
           where: { dayOfWeek: getTodayIndex(), teacherId: user.userId },
           include: { timetable: { include: { class: true } }, subject: true },
@@ -65,7 +58,7 @@ export class DashboardController {
           ? `${todaySlots[0].subject?.name} - ${todaySlots[0].timetable?.class?.name}`
           : 'Aucun cours aujourd\'hui';
 
-        stats = { myClassesCount: myClasses.length, myClassNames: myClasses.map((c) => c.name), pendingGrading, nextClass, recentActivity: formattedActivity };
+        stats = { myClassesCount: myClasses.length, myClassNames: myClasses.map((c) => c.name), nextClass, recentActivity: formattedActivity };
 
       } else if (user.role === 'STUDENT') {
         const studentProfile = await this.prisma.studentProfile.findUnique({

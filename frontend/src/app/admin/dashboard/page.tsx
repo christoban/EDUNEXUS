@@ -14,7 +14,11 @@ import SectionBulletins from './_components/SectionBulletins'
 import SectionTimetable from './_components/SectionTimetable'
 import SectionAcademicYear from './_components/SectionAcademicYear'
 import SectionSettings from './_components/SectionSettings'
+import SectionFinance from './_components/SectionFinance'
 import SectionPlaceholder from './_components/SectionPlaceholder'
+import SectionAdminAttendance from './_components/SectionAdminAttendance'
+import SectionAdminCouncil from './_components/SectionAdminCouncil'
+import SectionAdminAI from './_components/SectionAdminAI'
 import AdminToast from './_components/AdminToast'
 import type { AdminSection, Toast } from './_types'
 
@@ -37,10 +41,6 @@ const SECTION_TITLES: Record<AdminSection, string> = {
 }
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {
-  attendance: { icon: '✅', desc: 'Saisie et suivi des présences par classe et par créneau' },
-  council:    { icon: '🎓', desc: 'Conseils de classe et délibérations de fin de période' },
-  finance:    { icon: '📱', desc: 'Paiements Mobile Money MTN & Orange Money' },
-  ai:         { icon: '🤖', desc: 'Alertes et recommandations IA par élève' },
 }
 
 interface SchoolInfo { name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string }
@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [section, setSection] = useState<AdminSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -80,7 +81,7 @@ export default function AdminDashboard() {
       <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => showToast('Fonctionnalité à venir', 'info')} />
+        <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {section === 'dashboard' && (
@@ -90,13 +91,17 @@ export default function AdminDashboard() {
               onToast={showToast}
             />
           )}
-          {section === 'users'     && <SectionUsers     onToast={showToast} />}
+          {section === 'users'     && <SectionUsers     onToast={showToast} openInviteOnMount={inviteOpen} onInviteMounted={() => setInviteOpen(false)} />}
           {section === 'classes'   && <SectionClasses   onToast={showToast} />}
           {section === 'subjects'  && <SectionSubjects  onToast={showToast} />}
           {section === 'grades'    && <SectionGrades    onToast={showToast} />}
           {section === 'bulletins' && <SectionBulletins onToast={showToast} />}
           {section === 'timetable'      && <SectionTimetable     onToast={showToast} />}
           {section === 'academic-year' && <SectionAcademicYear  onToast={showToast} />}
+          {section === 'finance'       && <SectionFinance       onToast={showToast} />}
+          {section === 'attendance'    && <SectionAdminAttendance onToast={showToast} />}
+          {section === 'council'       && <SectionAdminCouncil  onToast={showToast} />}
+          {section === 'ai'            && <SectionAdminAI       onToast={showToast} />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (

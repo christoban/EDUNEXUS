@@ -137,11 +137,17 @@ export default function LoginPage() {
         return
       }
 
-      const { role, nomComplet, roleMismatch } = data.data as {
+      const { role, nomComplet, userId, permissions, roleMismatch } = data.data as {
         role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean
       }
       const config = ROLE_CONFIG[role] ?? { emoji: '👤', badge: role, color: '#6b7280', bg: '#f3f4f6', dest: '/' }
       const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
+
+      // Persistance des infos de session pour les dashboards (côté client uniquement)
+      localStorage.setItem('edunexus_user', JSON.stringify({
+        userId, role, nomComplet, firstName,
+        permissions: permissions ?? [],
+      }))
 
       // Cas 2 — Option A : rôle incorrect mais 1 seul rôle disponible → avertissement + redirection
       if (roleMismatch) {

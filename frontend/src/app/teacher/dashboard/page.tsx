@@ -9,9 +9,9 @@ import SectionTeacherDashboard from './_components/SectionTeacherDashboard'
 import SectionTeacherClasses from './_components/SectionTeacherClasses'
 import SectionTeacherAttendance from './_components/SectionTeacherAttendance'
 import SectionTeacherGrades from './_components/SectionTeacherGrades'
-import SectionTeacherExams from './_components/SectionTeacherExams'
+
 import SectionTeacherTimetable from './_components/SectionTeacherTimetable'
-import type { TeacherSection, Toast } from './_types'
+import type { TeacherSection, Toast, UserInfo } from './_types'
 
 let toastId = 0
 
@@ -22,7 +22,6 @@ const TITLES: Record<TeacherSection, string> = {
   grades:     'Notes',
   bulletins:  'Bulletins',
   timetable:  'Emploi du temps',
-  exams:      'Examens',
   resources:  'Ressources',
 }
 
@@ -35,12 +34,16 @@ export default function TeacherDashboard() {
   const [section, setSection] = useState<TeacherSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
+  const [user, setUser] = useState<UserInfo | null>(null)
+  const [pendingGrades, setPendingGrades] = useState<number>(0)
 
   useEffect(() => {
     fetch('/api/v2/school/me', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { if (d.success) setSchoolInfo(d.data) })
-      .catch(() => {})
+      .then(r => r.json()).then(d => { if (d.success) setSchoolInfo(d.data) }).catch(() => {})
+    fetch('/api/v2/users/me', { credentials: 'include' })
+      .then(r => r.json()).then(d => { if (d.success) setUser(d.data) }).catch(() => {})
+    fetch('/api/v2/grades?validationStatus=SUBMITTED&limit=1', { credentials: 'include' })
+      .then(r => r.json()).then(d => { if (d.pagination) setPendingGrades(d.pagination.total ?? 0) }).catch(() => {})
   }, [])
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
@@ -52,11 +55,11 @@ export default function TeacherDashboard() {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const sProps = { onToast: showToast }
+  const sProps = { onToast: showToast, user }
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f7f3ee', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
-      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} />
+      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} pendingGrades={pendingGrades} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {/* Topbar */}
@@ -85,7 +88,7 @@ export default function TeacherDashboard() {
           {section === 'classes'    && <SectionTeacherClasses onNav={s => setSection(s as TeacherSection)} {...sProps} />}
           {section === 'attendance' && <SectionTeacherAttendance {...sProps} />}
           {section === 'grades'     && <SectionTeacherGrades {...sProps} />}
-          {section === 'exams'      && <SectionTeacherExams {...sProps} />}
+
           {section === 'timetable'  && <SectionTeacherTimetable {...sProps} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (

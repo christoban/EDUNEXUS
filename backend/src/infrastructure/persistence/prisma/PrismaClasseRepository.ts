@@ -93,16 +93,6 @@ export class PrismaClasseRepository implements ClasseRepository {
       await tx.attendance.deleteMany({ where: { schoolId, classId: classeId } });
       await tx.grade.deleteMany({ where: { schoolId, classId: classeId } });
 
-      const exams = await tx.exam.findMany({
-        where: { schoolId, classId: classeId },
-        select: { id: true },
-      });
-      if (exams.length > 0) {
-        const examIds = exams.map(e => e.id);
-        await tx.submission.deleteMany({ where: { examId: { in: examIds } } });
-        await tx.exam.deleteMany({ where: { id: { in: examIds } } });
-      }
-
       await tx.classCouncilSession.deleteMany({ where: { schoolId, classId: classeId } });
       await tx.timetable.deleteMany({ where: { schoolId, classId: classeId } });
       await tx.classPromotion.deleteMany({

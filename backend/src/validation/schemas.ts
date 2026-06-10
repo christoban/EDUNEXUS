@@ -145,28 +145,6 @@ export const updateSubjectBodySchema = z
     message: "At least one field must be provided",
   });
 
-export const triggerExamGenerationBodySchema = z.object({
-  title: z.string().min(1).max(200).optional(),
-  subject: objectId,
-  class: objectId,
-  duration: z.number().int().positive().max(600).optional(),
-  dueDate: z.union([z.string().datetime(), z.date()]).optional(),
-  topic: z.string().min(2).max(300),
-  difficulty: z.string().min(2).max(30).optional(),
-  count: z.number().int().min(1).max(100).optional(),
-});
-
-export const submitExamBodySchema = z.object({
-  answers: z
-    .array(
-      z.object({
-        questionId: objectId,
-        answer: z.string().min(1).max(500),
-      })
-    )
-    .min(1),
-});
-
 export const generateTimetableBodySchema = z.object({
   classId: objectId,
   academicYearId: objectId,
@@ -243,7 +221,7 @@ export const reportCardsQuerySchema = z.object({
 export const emailLogsQuerySchema = z.object({
   search: z.string().trim().optional(),
   status: z.enum(["sent", "failed"]).optional(),
-  eventType: z.enum(["exam_result", "report_card_available", "payment_reminder", "school_invite"]).optional(),
+  eventType: z.enum(["report_card_available", "payment_reminder", "school_invite"]).optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });

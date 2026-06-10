@@ -52,62 +52,6 @@ const shell = (title: string, subtitle: string, body: string) => {
   </html>`;
 };
 
-export const buildExamResultTemplate = (payload: {
-  recipientName: string;
-  examTitle: string;
-  subjectName: string;
-  score: number;
-  maxScore: number;
-  percentage: number;
-  language?: Language;
-}) => {
-  const {
-    recipientName,
-    examTitle,
-    subjectName,
-    score,
-    maxScore,
-    percentage,
-    language = "fr",
-  } = payload;
-
-  const isFr = language === "fr";
-  const subjectLine = isFr
-    ? `Resultat examen: ${examTitle}`
-    : `Exam result: ${examTitle}`;
-  const body = isFr
-    ? `
-    <p>Bonjour <strong>${recipientName}</strong>,</p>
-    <p>Le resultat d'examen est maintenant disponible.</p>
-    <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
-      <tr><td><strong>Matiere:</strong></td><td>${subjectName}</td></tr>
-      <tr><td><strong>Examen:</strong></td><td>${examTitle}</td></tr>
-      <tr><td><strong>Score:</strong></td><td>${score}/${maxScore}</td></tr>
-      <tr><td><strong>Pourcentage:</strong></td><td>${percentage}%</td></tr>
-    </table>
-    <p>Connectez-vous a la plateforme pour consulter les details de vos reponses.</p>
-  `
-    : `
-    <p>Hello <strong>${recipientName}</strong>,</p>
-    <p>Your exam result is now available.</p>
-    <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;margin:12px 0;">
-      <tr><td><strong>Subject:</strong></td><td>${subjectName}</td></tr>
-      <tr><td><strong>Exam:</strong></td><td>${examTitle}</td></tr>
-      <tr><td><strong>Score:</strong></td><td>${score}/${maxScore}</td></tr>
-      <tr><td><strong>Percentage:</strong></td><td>${percentage}%</td></tr>
-    </table>
-    <p>Please sign in to EDUNEXUS to view full details.</p>
-  `;
-
-  return {
-    subject: subjectLine,
-    html: shell(subjectLine, isFr ? "Notification academique" : "Academic notification", body),
-    text: isFr
-      ? `Bonjour ${recipientName}, votre resultat pour ${examTitle} (${subjectName}) est disponible. Score: ${score}/${maxScore} (${percentage}%).`
-      : `Hello ${recipientName}, your result for ${examTitle} (${subjectName}) is now available. Score: ${score}/${maxScore} (${percentage}%).`,
-  };
-};
-
 export const buildReportCardTemplate = (payload: {
   recipientName: string;
   period: ReportPeriod;

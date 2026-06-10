@@ -6,6 +6,7 @@ import type { DeconnecterUtilisateurUseCase } from '@application/user/Deconnecte
 import type { ModifierUtilisateurUseCase } from '@application/user/ModifierUtilisateurUseCase';
 import type { SupprimerUtilisateurUseCase } from '@application/user/SupprimerUtilisateurUseCase';
 import type { TransfererEleveUseCase } from '@application/user/TransfererEleveUseCase';
+import type { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import type { TokenService } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 
@@ -27,6 +28,7 @@ export class UserController {
     private readonly transferer: TransfererEleveUseCase,
     private readonly tokenService: TokenService,
     private readonly schoolRepository: SchoolRepository,
+    private readonly designerAP: DesignerAPUseCase,
   ) {}
 
   // POST /api/v2/auth/login
@@ -209,6 +211,41 @@ export class UserController {
       });
 
       res.json({ success: true, message: 'Élève transféré avec succès' });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // PATCH /api/v2/users/:id/ap-designation
+  apDesignation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { departmentSubjectIds, action } = req.body as {
+        departmentSubjectIds?: string[];
+        action?: string;
+      };
+
+      if (action !== 'ASSIGN' && action !== 'REMOVE') {
+        res.status(400).json({ success: false, message: "action doit être 'ASSIGN' ou 'REMOVE'" });
+        return;
+      }
+      if (!Array.isArray(departmentSubjectIds)) {
+        res.status(400).json({ success: false, message: 'departmentSubjectIds (tableau) requis' });
+        return;
+      }
+
+      await this.designerAP.execute({
+        userId: req.params.id as string,
+        schoolId: user.schoolId,
+        demandeurRole: user.role,
+        departmentSubjectIds,
+        action,
+      });
+
+      const msg = action === 'ASSIGN'
+        ? 'Enseignant désigné Animateur Pédagogique avec succès'
+        : 'Désignation AP retirée avec succès';
+      res.json({ success: true, message: msg });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

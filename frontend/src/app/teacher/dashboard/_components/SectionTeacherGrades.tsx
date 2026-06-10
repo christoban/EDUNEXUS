@@ -1,20 +1,160 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import type { UserInfo } from '../_types'
 
 interface Props {
-  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
+  onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  user?: UserInfo | null
 }
 
-const GRADES_DATA = [
-  { num: 1, name: 'Marie Ngono',    note: 15.5, obs: '',                   status: 'Brouillon', sBg: '#f1f5f9', sC: '#475569' },
-  { num: 2, name: 'Jean Kamga',     note: 12,   obs: '',                   status: 'Brouillon', sBg: '#f1f5f9', sC: '#475569' },
-  { num: 3, name: 'Paul Kamga',     note: 7.5,  obs: 'Manque de travail', status: 'Brouillon', sBg: '#f1f5f9', sC: '#475569' },
-  { num: 4, name: 'Aminata Fouda',  note: 18,   obs: 'Excellent travail', status: 'Soumis',    sBg: '#fef3c7', sC: '#92400e' },
-  { num: 5, name: 'Bertrand Nkolo', note: 11,   obs: '',                   status: 'Brouillon', sBg: '#f1f5f9', sC: '#475569' },
-]
+export default function SectionTeacherGrades({ onToast, user }: Props) {
+  const [classes, setClasses] = useState<any[]>([])
+  const [subjects, setSubjects] = useState<any[]>([])
+  const [sequences, setSequences] = useState<any[]>([])
+  const [selectedClass, setSelectedClass] = useState('')
+  const [selectedSubject, setSelectedSubject] = useState('')
+  const [selectedSequence, setSelectedSequence] = useState('')
+  const [grades, setGrades] = useState<any[]>([])
+  const [notes, setNotes] = useState<Record<string, number>>({})
+  const [observations, setObservations] = useState<Record<string, string>>({})
+  const [rejectedGrades, setRejectedGrades] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
-export default function SectionTeacherGrades({ onToast }: Props) {
-  const [notes, setNotes] = useState(GRADES_DATA.map(g => g.note))
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+      fetch('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
+      fetch('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
+      fetch('/api/v2/grades?validationStatus=REJECTED', { credentials: 'include' }).then(r => r.json()),
+    ]).then(([clsRes, subRes, ayRes, rejRes]) => {
+      if (clsRes.success) setClasses(clsRes.data)
+      if (subRes.success) setSubjects(subRes.data)
+      if (ayRes.success) {
+        const seqs = ayRes.data.flatMap((ay: any) =>
+          ay.periods?.flatMap((p: any) =>
+            p.sequences?.map((s: any) => ({ ...s, periodName: p.name, academicYearId: ay.id })) || []
+          ) || []
+        )
+        setSequences(seqs)
+      }
+      if (rejRes.grades) setRejectedGrades(rejRes.grades)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
+  const loadGrades = async () => {
+    if (!selectedClass || !selectedSubject || !selectedSequence) {
+      onToast('Sélectionne classe, matière et séquence', 'warning')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    try {
+      const url = `/api/v2/grades?classId=${selectedClass}&subjectId=${selectedSubject}&sequenceId=${selectedSequence}`
+      const res = await fetch(url, { credentials: 'include' }).then(r => r.json())
+      if (res.grades?.length) {
+        setGrades(res.grades)
+        const n: Record<string, number> = {}
+        const o: Record<string, string> = {}
+        res.grades.forEach((g: any) => {
+          n[g.studentId] = g.sequenceScore ?? g.sequenceAverage ?? 0
+          o[g.studentId] = g.observation || ''
+        })
+        setNotes(n)
+        setObservations(o)
+      } else {
+        // Charger les élèves de la classe
+        const usersRes = await fetch(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
+        if (usersRes.success) {
+          setGrades(usersRes.data.map((u: any) => ({
+            studentId: u.id,
+            student: { id: u.id, firstName: u.firstName, lastName: u.lastName },
+          })))
+          const n: Record<string, number> = {}
+          usersRes.data.forEach((u: any) => { n[u.id] = 0 })
+          setNotes(n)
+          setObservations({})
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erreur')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveDraft = async () => {
+    if (!selectedClass || !selectedSubject || !selectedSequence) return
+    setSaving(true)
+    try {
+      const gradesPayload = Object.entries(notes).map(([studentId, value]) => ({
+        studentId, value, observation: observations[studentId] || '',
+      }))
+      const res = await fetch('/api/v2/grades/draft', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload }),
+      }).then(r => r.json())
+      if (res.success) {
+        onToast('Brouillon sauvegardé', 'info')
+      } else {
+        onToast(res.message || 'Erreur', 'error')
+      }
+    } catch (err: any) {
+      onToast(err.message, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const submitGrades = async () => {
+    if (!selectedClass || !selectedSubject || !selectedSequence) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/v2/grades/submit', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence }),
+      }).then(r => r.json())
+      if (res.success) {
+        onToast('Notes soumises pour validation', 'success')
+        loadGrades()
+      } else {
+        onToast(res.message || 'Erreur', 'error')
+      }
+    } catch (err: any) {
+      onToast(err.message, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const validatedCount = grades.filter((g: any) => g.validationStatus === 'VALIDATED' || g.validationStatus === 'SUBMITTED').length
+
+  if (loading && !grades.length) {
+    return (
+      <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <button onClick={loadGrades}
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
+            🔄 Réessayer
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
@@ -25,93 +165,146 @@ export default function SectionTeacherGrades({ onToast }: Props) {
         </div>
       </div>
 
-      {/* Barre de progression */}
-      <div style={{ background: '#f0ebe3', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, color: '#6b5c45', marginBottom: 8 }}>
-          <span>4e C — Mathématiques — Séquence 3</span>
-          <span style={{ color: '#059669' }}>30/38 validées (79%)</span>
+      {grades.length > 0 && (
+        <div style={{ background: '#f0ebe3', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, color: '#6b5c45', marginBottom: 8 }}>
+            <span>{classes.find((c: any) => c.id === selectedClass)?.name || ''} — {subjects.find((s: any) => s.id === selectedSubject)?.name || ''}</span>
+            <span style={{ color: '#059669' }}>{validatedCount}/{grades.length} validées ({grades.length ? Math.round(validatedCount / grades.length * 100) : 0}%)</span>
+          </div>
+          <div style={{ height: 8, background: '#d4c8b8', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${grades.length ? Math.round(validatedCount / grades.length * 100) : 0}%`, background: '#059669', borderRadius: 8, transition: 'width 1s' }} />
+          </div>
         </div>
-        <div style={{ height: 8, background: '#d4c8b8', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: '79%', background: '#059669', borderRadius: 8, transition: 'width 1s' }} />
-        </div>
-      </div>
+      )}
 
       {/* Filtres + table */}
       <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden', marginBottom: 18 }}>
         <div style={{ padding: '14px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <select style={filterSt}><option>4e C</option><option>6e A</option><option>5e B</option><option>3e A</option></select>
-          <select style={filterSt}><option>Mathématiques</option></select>
-          <select style={filterSt}><option>Séquence 3</option><option>Séquence 4</option></select>
-          <button style={btnPrim}>Charger</button>
+          <select style={filterSt} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
+            <option value="">Classe</option>
+            {classes.map((c: any) => <option key={c.id} value={c.id}>{c.level || ''} {c.name} {c.serie || ''}</option>)}
+          </select>
+          <select style={filterSt} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
+            <option value="">Matière</option>
+            {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select style={filterSt} value={selectedSequence} onChange={e => setSelectedSequence(e.target.value)}>
+            <option value="">Séquence</option>
+            {sequences.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <button style={btnPrim} onClick={loadGrades} disabled={loading}>Charger</button>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>{['N°', 'Élève', 'Note /20', 'Observation', 'Statut'].map(h => (
-              <th key={h} style={thSt}>{h}</th>
-            ))}</tr>
-          </thead>
-          <tbody>
-            {GRADES_DATA.map((g, i) => (
-              <tr key={i}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                <td style={{ ...tdSt, color: '#a89478', width: 44 }}>{g.num}</td>
-                <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{g.name}</td>
-                <td style={tdSt}>
-                  <input type="number" min={0} max={20} step={0.25}
-                    value={notes[i]}
-                    onChange={e => { const a = [...notes]; a[i] = Number(e.target.value); setNotes(a) }}
-                    style={{ width: 80, padding: '7px 10px', border: '1.5px solid #d4c8b8', borderRadius: 9, fontSize: 17, fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', outline: 'none', background: 'white', color: notes[i] < 10 ? '#dc2626' : notes[i] >= 16 ? '#059669' : '#1a1209' }}
-                  />
-                </td>
-                <td style={tdSt}>
-                  <input type="text" defaultValue={g.obs} placeholder="Observation..."
-                    style={{ width: 240, padding: '7px 12px', border: '1.5px solid #d4c8b8', borderRadius: 9, fontSize: 16, fontFamily: 'inherit', outline: 'none', background: 'white', color: '#1a1209' }}
-                  />
-                </td>
-                <td style={tdSt}>
-                  <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: g.sBg, color: g.sC }}>
-                    {g.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {grades.length > 0 && (
+          <>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>{['N°', 'Élève', 'Note /20', 'Observation', 'Statut'].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {grades.map((g: any, i: number) => {
+                  const sid = g.studentId || g.student?.id
+                  const name = g.student ? `${g.student.firstName} ${g.student.lastName}` : 'Inconnu'
+                  const status = g.validationStatus || 'DRAFT'
+                  const sColors: Record<string, { bg: string; color: string }> = {
+                    DRAFT: { bg: '#f1f5f9', color: '#475569' },
+                    SUBMITTED: { bg: '#fef3c7', color: '#92400e' },
+                    VALIDATED: { bg: '#d1fae5', color: '#065f46' },
+                    REJECTED: { bg: '#fee2e2', color: '#991b1b' },
+                    LOCKED: { bg: '#e0e7ff', color: '#3730a3' },
+                  }
+                  const sc = sColors[status] || sColors.DRAFT
+                  return (
+                    <tr key={sid}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
+                      <td style={{ ...tdSt, color: '#a89478', width: 44 }}>{i + 1}</td>
+                      <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{name}</td>
+                      <td style={tdSt}>
+                        <input type="number" min={0} max={20} step={0.25}
+                          value={notes[sid] ?? 0}
+                          onChange={e => {
+                            const a = { ...notes }
+                            a[sid] = Number(e.target.value)
+                            setNotes(a)
+                          }}
+                          disabled={status !== 'DRAFT' && status !== 'REJECTED'}
+                          style={{ width: 80, padding: '7px 10px', border: '1.5px solid #d4c8b8', borderRadius: 9, fontSize: 17, fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? '#f0ebe3' : 'white', color: (notes[sid] ?? 0) < 10 ? '#dc2626' : (notes[sid] ?? 0) >= 16 ? '#059669' : '#1a1209' }}
+                        />
+                      </td>
+                      <td style={tdSt}>
+                        <input type="text" value={observations[sid] || ''} placeholder="Observation..."
+                          onChange={e => {
+                            const a = { ...observations }
+                            a[sid] = e.target.value
+                            setObservations(a)
+                          }}
+                          disabled={status !== 'DRAFT' && status !== 'REJECTED'}
+                          style={{ width: 240, padding: '7px 12px', border: '1.5px solid #d4c8b8', borderRadius: 9, fontSize: 16, fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? '#f0ebe3' : 'white', color: '#1a1209' }}
+                        />
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: sc.bg, color: sc.color }}>
+                          {status === 'DRAFT' ? 'Brouillon' : status === 'SUBMITTED' ? 'Soumis' : status === 'VALIDATED' ? 'Validé' : status === 'REJECTED' ? 'Rejeté' : status}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
 
-        <div style={{ padding: '14px 22px', borderTop: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <span style={{ fontSize: 15, color: '#a89478', fontWeight: 600 }}>3 notes en brouillon · 1 soumise</span>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button style={btnSec} onClick={() => onToast('Brouillon sauvegardé', 'info')}>💾 Brouillon</button>
-            <button style={btnPrim} onClick={() => onToast('Notes soumises pour validation', 'success')}>📤 Soumettre pour validation</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Note rejetée */}
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid rgba(220,38,38,0.3)', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 22px', background: '#fef2f2', borderBottom: '1px solid rgba(220,38,38,0.15)' }}>
-          <span style={{ fontSize: 17, fontWeight: 800, color: '#dc2626' }}>✕ Note rejetée — 5e B</span>
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>{['Élève', 'Note', 'Motif du rejet', 'Actions'].map(h => <th key={h} style={thSt}>{h}</th>)}</tr></thead>
-          <tbody>
-            <tr>
-              <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>Sophie Kamga</td>
-              <td style={{ ...tdSt, fontWeight: 800, color: '#dc2626' }}>22/20</td>
-              <td style={{ ...tdSt, color: '#dc2626', fontWeight: 700 }}>Note invalide — dépasse 20</td>
-              <td style={tdSt}>
-                <button
-                  style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fef3c7', color: '#d97706', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
-                  onClick={() => onToast('Formulaire pré-rempli pour correction', 'info')}>
-                  ✏️ Corriger et resoumettre
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <span style={{ fontSize: 15, color: '#a89478', fontWeight: 600 }}>
+                {grades.filter((g: any) => g.validationStatus === 'DRAFT' || !g.validationStatus).length} brouillon{grades.filter((g: any) => g.validationStatus === 'DRAFT' || !g.validationStatus).length > 1 ? 's' : ''} · {grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length} soumise{grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length > 1 ? 's' : ''}
+              </span>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button style={btnSec} onClick={saveDraft} disabled={saving}>
+                  {saving ? '...' : '💾 Brouillon'}
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <button style={btnPrim} onClick={submitGrades} disabled={saving}>
+                  {saving ? '...' : '📤 Soumettre pour validation'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Notes rejetées */}
+      {rejectedGrades.length > 0 && (
+        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid rgba(220,38,38,0.3)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 22px', background: '#fef2f2', borderBottom: '1px solid rgba(220,38,38,0.15)' }}>
+            <span style={{ fontSize: 17, fontWeight: 800, color: '#dc2626' }}>✕ {rejectedGrades.length} note{rejectedGrades.length > 1 ? 's' : ''} rejetée{rejectedGrades.length > 1 ? 's' : ''}</span>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr>{['Élève', 'Note', 'Motif du rejet', 'Actions'].map(h => <th key={h} style={thSt}>{h}</th>)}</tr></thead>
+            <tbody>
+              {rejectedGrades.map((g: any) => (
+                <tr key={g.id}>
+                  <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{g.student?.firstName} {g.student?.lastName}</td>
+                  <td style={{ ...tdSt, fontWeight: 800, color: '#dc2626' }}>{g.sequenceScore ?? '?'}/20</td>
+                  <td style={{ ...tdSt, color: '#dc2626', fontWeight: 700 }}>{g.rejectionReason || 'Motif non spécifié'}</td>
+                  <td style={tdSt}>
+                    <button
+                      style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fef3c7', color: '#d97706', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                      onClick={() => {
+                        setSelectedClass(g.classId || '')
+                        setSelectedSubject(g.subjectId || '')
+                        setSelectedSequence(g.sequenceId || '')
+                        loadGrades()
+                      }}>
+                      ✏️ Corriger et resoumettre
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

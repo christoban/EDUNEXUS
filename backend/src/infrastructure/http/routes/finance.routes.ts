@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { FinanceController } from '@infrastructure/http/controllers/FinanceController';
+import { requireAuth } from '../../../middleware/auth';
 
 export function creerFinanceRoutes(controller: FinanceController): Router {
   const router = Router();
@@ -19,7 +20,7 @@ export function creerFinanceRoutes(controller: FinanceController): Router {
   router.post('/payments/webhook/campay', controller.webhookCampay);
 
   // Dépenses
-  router.post('/expenses', controller.creerDepense);
+  router.post('/expenses', requireAuth, controller.creerDepense);
 
   return router;
 }

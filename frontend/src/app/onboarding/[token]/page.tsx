@@ -715,7 +715,6 @@ export default function OnboardingPage() {
             {content}
           </div>
         </div>
-
       </div>
     </>
   )

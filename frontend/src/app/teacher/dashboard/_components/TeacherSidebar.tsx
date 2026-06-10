@@ -1,7 +1,7 @@
 'use client'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { TeacherSection } from '../_types'
+import type { TeacherSection, UserInfo } from '../_types'
 
 interface NavItem {
   id: TeacherSection
@@ -25,12 +25,12 @@ const NAV: NavGroup[] = [
   {
     label: 'Académique',
     items: [
-      { id: 'classes',    icon: '🏫', label: 'Mes classes',     badge: '4',  badgeColor: 'green' },
+      { id: 'classes',    icon: '🏫', label: 'Mes classes' },
       { id: 'attendance', icon: '✅', label: 'Présences' },
-      { id: 'grades',     icon: '📝', label: 'Notes',           badge: '4',  badgeColor: 'red' },
+      { id: 'grades',     icon: '📝', label: 'Notes' },
       { id: 'bulletins',  icon: '📄', label: 'Bulletins' },
       { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
-      { id: 'exams',      icon: '📋', label: 'Examens' },
+
     ]
   },
   {
@@ -47,7 +47,7 @@ const BADGE_STYLES = {
   amber: 'bg-amber-500/20 text-amber-300',
 }
 
-export default function TeacherSidebar({ current, onChange, schoolName, logoUrl, onLogout }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null; onLogout?: () => void }) {
+export default function TeacherSidebar({ current, onChange, schoolName, logoUrl, onLogout, user, pendingGrades }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null; onLogout?: () => void; user?: UserInfo | null; pendingGrades?: number }) {
   const displayName = schoolName || 'Mon établissement'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0].toUpperCase()).join('')
 
@@ -103,9 +103,9 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
                   style={{ padding: '6px 9px' }}>
                   <span className="text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
                   <span className="truncate flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span className={cn('ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES[item.badgeColor ?? 'green'])} style={{ padding: '3px 6px' }}>
-                      {item.badge}
+                  {item.id === 'grades' && pendingGrades != null && pendingGrades > 0 && (
+                    <span className={cn('ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.red)} style={{ padding: '3px 6px' }}>
+                      {pendingGrades}
                     </span>
                   )}
                 </button>
@@ -118,10 +118,12 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
       {/* User */}
       <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px' }}>
         <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06]" style={{ padding: '12px 14px' }}>
-          <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#1d4ed8] to-[#7c3aed] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">JD</div>
+          <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#1d4ed8] to-[#7c3aed] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">
+            {user ? (user.firstName[0] || '') + (user.lastName[0] || '') : '??'}
+          </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[17px] font-bold text-white truncate">Jean Dupont</div>
-            <div className="text-[14px] text-white/35">Enseignant · Mathématiques</div>
+            <div className="text-[17px] font-bold text-white truncate">{user ? `${user.firstName} ${user.lastName}` : 'Chargement...'}</div>
+            <div className="text-[14px] text-white/35">{user?.role || 'Enseignant'}{user?.teacherProfile?.teacherSubjects?.length ? ` · ${user.teacherProfile.teacherSubjects.map(s => s.subject.name).join(', ')}` : ''}</div>
           </div>
           {onLogout && (
             <button onClick={onLogout} title="Se déconnecter"

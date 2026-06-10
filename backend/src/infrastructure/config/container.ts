@@ -86,16 +86,11 @@ import { PrismaPromotionRepository } from '@infrastructure/persistence/prisma/Pr
 // --- Adapters Persistence Timetable ---
 import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/PrismaTimetableRepository';
 
-// --- Adapters Persistence Exam + AI ---
-import { PrismaExamenRepository } from '@infrastructure/persistence/prisma/PrismaExamenRepository';
+// --- Adapters Persistence AI ---
 import { PrismaSanteEleveRepository } from '@infrastructure/persistence/prisma/PrismaSanteEleveRepository';
 
 // --- Adapter Service IA ---
 import { GeminiIAService } from '@infrastructure/services/GeminiIAService';
-
-// --- Use Cases : Exam ---
-import { CreerExamenUseCase } from '@application/exam/CreerExamenUseCase';
-import { SoumettreReponseUseCase } from '@application/exam/SoumettreReponseUseCase';
 
 // --- Use Cases : AI ---
 import { CalculerIndiceSanteUseCase } from '@application/ai/CalculerIndiceSanteUseCase';
@@ -139,6 +134,18 @@ import { CreerMatiereUseCase } from '@application/subject/CreerMatiereUseCase';
 import { ModifierMatiereUseCase } from '@application/subject/ModifierMatiereUseCase';
 import { AssignerEnseignantMatiereUseCase } from '@application/subject/AssignerEnseignantMatiereUseCase';
 import { DefinirCoefficientUseCase } from '@application/subject/DefinirCoefficientUseCase';
+
+// --- Adapter Persistence Orientation ---
+import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
+
+// --- Use Cases : Orientation ---
+import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
+import { AjouterEntretienUseCase } from '@application/orientation/AjouterEntretienUseCase';
+import { AjouterTestAptitudeUseCase } from '@application/orientation/AjouterTestAptitudeUseCase';
+import { CreerRecommandationSerieUseCase } from '@application/orientation/CreerRecommandationSerieUseCase';
+import { AjouterSuiviUseCase } from '@application/orientation/AjouterSuiviUseCase';
+import { ListerFichesOrientationUseCase } from '@application/orientation/ListerFichesOrientationUseCase';
+import { GetStatsOrientationUseCase } from '@application/orientation/GetStatsOrientationUseCase';
 
 // --- Use Cases : MasterAdmin ---
 import { InviterEcoleUseCase } from '@application/masterAdmin/InviterEcoleUseCase';
@@ -293,15 +300,9 @@ export function creerContainer() {
   const cloturerAnneeUseCase = new CloturerAnneeUseCase(anneeRepository, promotionRepository);
   const mettreAJourCalendrierUseCase = new MettreAJourCalendrierUseCase(anneeRepository);
 
-  // 14. Use Cases — Exam + AI
-  const examenRepository = new PrismaExamenRepository(prisma);
+  // 14. Use Cases — AI
   const santeEleveRepository = new PrismaSanteEleveRepository(prisma);
   const geminiIAService = new GeminiIAService();
-
-  const creerExamenUseCase = new CreerExamenUseCase(
-    examenRepository, matiereRepository, userRepository
-  );
-  const soumettreReponseUseCase = new SoumettreReponseUseCase(examenRepository);
   const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
     santeEleveRepository, geminiIAService
   );
@@ -315,7 +316,17 @@ export function creerContainer() {
   const obtenirParametresUseCase = new ObtenirParametresEcoleUseCase(schoolSettingsRepository);
   const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository);
 
-  // 16. Use Cases — MasterAdmin
+  // 16. Use Cases — Orientation
+  const orientationRepository = new PrismaOrientationRepository(prisma);
+  const creerFicheOrientationUseCase = new CreerFicheOrientationUseCase(orientationRepository);
+  const ajouterEntretienUseCase = new AjouterEntretienUseCase(orientationRepository);
+  const ajouterTestAptitudeUseCase = new AjouterTestAptitudeUseCase(orientationRepository);
+  const creerRecommandationSerieUseCase = new CreerRecommandationSerieUseCase(orientationRepository);
+  const ajouterSuiviUseCase = new AjouterSuiviUseCase(orientationRepository);
+  const listerFichesOrientationUseCase = new ListerFichesOrientationUseCase(orientationRepository);
+  const getStatsOrientationUseCase = new GetStatsOrientationUseCase(orientationRepository);
+
+  // 17. Use Cases — MasterAdmin
   const inviterEcoleUseCase = new InviterEcoleUseCase(
     schoolRepository, invitationRepository, emailService
   );
@@ -401,10 +412,6 @@ export function creerContainer() {
       rembourserCaution: rembourserCautionUseCase,
       enregistrerDepense: enregistrerDepenseUseCase,
     },
-    exam: {
-      creer: creerExamenUseCase,
-      soumettre: soumettreReponseUseCase,
-    },
     ai: {
       calculerIndiceSante: calculerIndiceSanteUseCase,
     },
@@ -415,6 +422,16 @@ export function creerContainer() {
     schoolSettings: {
       obtenir: obtenirParametresUseCase,
       mettreAJour: mettreAJourParametresUseCase,
+    },
+    orientation: {
+      creerFiche: creerFicheOrientationUseCase,
+      ajouterEntretien: ajouterEntretienUseCase,
+      ajouterTest: ajouterTestAptitudeUseCase,
+      creerRecommandation: creerRecommandationSerieUseCase,
+      ajouterSuivi: ajouterSuiviUseCase,
+      listerFiches: listerFichesOrientationUseCase,
+      getStats: getStatsOrientationUseCase,
+      repo: orientationRepository,
     },
   };
 }

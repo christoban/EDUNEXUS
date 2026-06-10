@@ -106,6 +106,114 @@ export class GradeController {
     }
   };
 
+  // POST /api/v2/grades/draft — sauvegarde en masse (upsert)
+  draftEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { classId, subjectId, sequenceId, grades } = req.body;
+
+      if (!classId || !subjectId || !sequenceId || !grades?.length) {
+        res.status(400).json({ success: false, message: 'classId, subjectId, sequenceId et grades sont requis' });
+        return;
+      }
+
+      if (user.role === 'TEACHER') {
+        const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
+        if (!assigned) {
+          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
+          return;
+        }
+      }
+
+      const sequence = await prisma.academicSequence.findUnique({
+        where: { id: sequenceId },
+        include: { academicPeriod: { select: { academicYearId: true } } },
+      });
+      const academicYearId = sequence?.academicPeriod?.academicYearId || '';
+
+      const results = [];
+      for (const g of grades) {
+        if (!g.studentId || g.value === undefined) continue;
+        const existing = await prisma.grade.findFirst({
+          where: { schoolId: user.schoolId, classId, subjectId, sequenceId, studentId: g.studentId },
+        });
+        if (existing) {
+          if (existing.validationStatus !== 'DRAFT' && existing.validationStatus !== 'REJECTED') continue;
+          const updated = await prisma.grade.update({
+            where: { id: existing.id },
+            data: {
+              sequenceScore: Number(g.value),
+              sequenceAverage: Number(g.value),
+              maxValue: 20,
+              rejectionReason: null,
+              validationStatus: 'DRAFT',
+              recordedById: user.userId,
+            } as any,
+          });
+          results.push(updated);
+        } else {
+          const created = await prisma.grade.create({
+            data: {
+              schoolId: user.schoolId,
+              classId,
+              subjectId,
+              sequenceId,
+              studentId: g.studentId,
+              academicYearId,
+              sequenceScore: Number(g.value),
+              sequenceAverage: Number(g.value),
+              maxValue: 20,
+              validationStatus: 'DRAFT',
+              recordedById: user.userId,
+            } as any,
+          });
+          results.push(created);
+        }
+      }
+
+      res.json({ success: true, data: results, count: results.length });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/grades/submit — soumettre en masse les brouillons
+  soumettreEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { classId, subjectId, sequenceId } = req.body;
+
+      if (!classId || !subjectId || !sequenceId) {
+        res.status(400).json({ success: false, message: 'classId, subjectId et sequenceId sont requis' });
+        return;
+      }
+
+      if (user.role === 'TEACHER') {
+        const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
+        if (!assigned) {
+          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
+          return;
+        }
+      }
+
+      const result = await prisma.grade.updateMany({
+        where: {
+          schoolId: user.schoolId,
+          classId,
+          subjectId,
+          sequenceId,
+          validationStatus: 'DRAFT',
+          recordedById: user.userId,
+        },
+        data: { validationStatus: 'SUBMITTED' },
+      });
+
+      res.json({ success: true, data: { count: result.count } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // GET /api/v2/grades
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

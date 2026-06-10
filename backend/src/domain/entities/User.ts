@@ -19,10 +19,12 @@ export interface UserProps {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
-  // Permissions STAFF (chargées si role === 'STAFF')
+  // Permissions STAFF (chargées si role === 'STAFF' ou enseignant AP)
   staffPermissions?: StaffPermissionType[];
   // Section STAFF (FR ou EN dans un établissement bilingue)
   staffSectionId?: string;
+  // IDs des classes dont l'utilisateur est Professeur Principal
+  professorPrincipalClassIds?: string[];
 }
 
 export interface CreerUserProps {
@@ -35,6 +37,7 @@ export interface CreerUserProps {
   avatarUrl?: string;
   staffPermissions?: StaffPermissionType[];
   staffSectionId?: string;
+  professorPrincipalClassIds?: string[];
 }
 
 export class User {
@@ -86,6 +89,18 @@ export class User {
   aPermission(permission: StaffPermissionType): boolean {
     if (this.estAdmin()) return true; // L'admin a toutes les permissions
     return this.props.staffPermissions?.includes(permission) ?? false;
+  }
+
+  // Vrai si l'utilisateur est Animateur Pédagogique (AP / HOD)
+  estAP(): boolean {
+    return this.aPermission('SUPERVISE_TEACHERS') || this.aPermission('SUPERVISE_DEPARTMENT_TEACHERS');
+  }
+
+  // Vrai si l'utilisateur est Professeur Principal (optionnel : d'une classe spécifique)
+  estProfesseurPrincipal(classeId?: string): boolean {
+    const ids = this.props.professorPrincipalClassIds ?? [];
+    if (classeId !== undefined) return ids.includes(classeId);
+    return ids.length > 0;
   }
 
   // --- Méthodes métier ---

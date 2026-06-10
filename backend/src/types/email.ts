@@ -4,7 +4,6 @@
  */
 
 export type EmailEventType =
-  | "exam_result"
   | "report_card_available"
   | "report_card_sent"
   | "payment_reminder"
@@ -15,6 +14,7 @@ export type EmailEventType =
   | "master_password_change_otp"
   | "contact_request"
   | "school_approved"
-  | "school_pending_notification";
+  | "school_pending_notification"
+  | "demo_request";
 
 export type EmailStatus = "sent" | "failed";

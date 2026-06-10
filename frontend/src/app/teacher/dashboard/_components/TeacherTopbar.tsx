@@ -1,11 +1,15 @@
 'use client'
 import { Bell, Search } from 'lucide-react'
 
+interface UserInfo { firstName: string; lastName: string }
+
 interface Props {
   title: string
+  user?: UserInfo | null
 }
 
-export default function TeacherTopbar({ title }: Props) {
+export default function TeacherTopbar({ title, user }: Props) {
+  const initials = user ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase() : '??'
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
@@ -32,7 +36,7 @@ export default function TeacherTopbar({ title }: Props) {
           <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: '#dc2626', borderRadius: '50%', border: '2px solid white' }} />
         </div>
         <div style={{ width: 44, height: 44, borderRadius: 11, background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white', fontWeight: 800, fontSize: 15 }}>
-          JD
+          {initials}
         </div>
       </div>
     </header>

@@ -1,41 +1,119 @@
+'use client'
+import { useState, useEffect } from 'react'
+import type { UserInfo } from '../_types'
+
 interface Props {
   onNav: (s: string) => void
-  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
+  onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  user?: UserInfo | null
 }
 
-const KPI = [
-  { icon: '🏫', bg: '#d1fae5', val: '4',   label: 'Classes assignées',  trend: '2025–2026',    tBg: '#d1fae5', tC: '#065f46' },
-  { icon: '👨‍🎓', bg: '#dbeafe', val: '156', label: 'Élèves au total',    trend: '+8',            tBg: '#d1fae5', tC: '#065f46' },
-  { icon: '📝', bg: '#fef3c7', val: '4',   label: 'Notes en attente',   trend: '⚠️ Urgent',     tBg: '#fef3c7', tC: '#92400e', nav: 'grades' },
-  { icon: '✅', bg: '#d1fae5', val: '96%', label: 'Taux de présence',   trend: 'Ce trimestre', tBg: '#d1fae5', tC: '#065f46', nav: 'attendance' },
-]
+export default function SectionTeacherDashboard({ onNav, onToast, user }: Props) {
+  const [classCount, setClassCount] = useState<number | null>(null)
+  const [studentCount, setStudentCount] = useState<number | null>(null)
+  const [pendingGrades, setPendingGrades] = useState<number | null>(null)
+  const [attendanceRate, setAttendanceRate] = useState<string | null>(null)
+  const [todaySlots, setTodaySlots] = useState<any[]>([])
+  const [rejectedGrades, setRejectedGrades] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-const TODAY = [
-  { time: '07:30–08:30', classe: '6e A', subject: 'Mathématiques', salle: 'Salle 12', eleves: 45 },
-  { time: '10:30–11:30', classe: '4e C', subject: 'Mathématiques', salle: 'Salle 7',  eleves: 38 },
-  { time: '13:00–14:00', classe: '3e A', subject: 'Mathématiques', salle: 'Salle 3',  eleves: 40 },
-]
+  const fetchData = async () => {
+    if (!user) return
+    setLoading(true)
+    setError(null)
+    try {
+      const [classesRes, gradesPendingRes, statsRes, timetableRes, gradesRejectedRes] = await Promise.all([
+        fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+        fetch(`/api/v2/grades?validationStatus=SUBMITTED`, { credentials: 'include' }).then(r => r.json()),
+        fetch(`/api/v2/attendance/stats`, { credentials: 'include' }).then(r => r.json()),
+        fetch(`/api/v2/timetables`, { credentials: 'include' }).then(r => r.json()),
+        fetch(`/api/v2/grades?validationStatus=REJECTED`, { credentials: 'include' }).then(r => r.json()),
+      ])
 
-const ALERTS = [
-  { level: 'high',   icon: '🚨', title: '4 notes rejetées',            sub: '5e B — Valeur invalide',           nav: 'grades' },
-  { level: 'medium', icon: '⚠️', title: 'Conseil de classe demain',    sub: '3e A — 14h00 · Salle des profs' },
-  { level: 'medium', icon: '📊', title: '6 élèves absents aujourd\'hui', sub: 'Présences à valider',               nav: 'attendance' },
-]
+      if (classesRes.success) {
+        setClassCount(classesRes.data.length)
+        const total = classesRes.data.reduce((sum: number, c: any) => sum + (c._count?.students || 0), 0)
+        setStudentCount(total)
+      }
+      if (gradesPendingRes.grades) {
+        setPendingGrades(gradesPendingRes.pagination?.total || gradesPendingRes.grades.length)
+      }
+      if (statsRes.stats) {
+        setAttendanceRate(statsRes.stats.attendanceRate)
+      }
+      if (timetableRes.success) {
+        const dayNames = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi']
+        const todayIdx = new Date().getDay() - 1 // 0=Lundi
+        const slots = timetableRes.data.flatMap((t: any) =>
+          (t.slots || []).filter((s: any) => s.dayOfWeek === todayIdx)
+            .map((s: any) => ({
+              time: `${s.startTime}–${s.endTime}`,
+              classe: t.class?.name || '',
+              subject: s.subject?.name || '',
+              salle: s.room || '',
+              eleves: 0,
+            }))
+        )
+        setTodaySlots(slots)
+      }
+      if (gradesRejectedRes.grades) {
+        setRejectedGrades(gradesRejectedRes.grades.length)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erreur de chargement')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-export default function SectionTeacherDashboard({ onNav, onToast }: Props) {
+  useEffect(() => { fetchData() }, [user])
+
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+
+  const KPI_ITEMS = [
+    { icon: '🏫', bg: '#d1fae5', val: classCount !== null ? String(classCount) : '...', label: 'Classes assignées', trend: '2025–2026', tBg: '#d1fae5', tC: '#065f46' },
+    { icon: '👨‍🎓', bg: '#dbeafe', val: studentCount !== null ? String(studentCount) : '...', label: 'Élèves au total', trend: 'Année en cours', tBg: '#d1fae5', tC: '#065f46' },
+    { icon: '📝', bg: '#fef3c7', val: pendingGrades !== null ? String(pendingGrades) : '...', label: 'Notes en attente', trend: '⚠️ Urgent', tBg: '#fef3c7', tC: '#92400e', nav: 'grades' },
+    { icon: '✅', bg: '#d1fae5', val: attendanceRate || '...', label: 'Taux de présence', trend: 'Global', tBg: '#d1fae5', tC: '#065f46', nav: 'attendance' },
+  ]
+
+  if (loading) {
+    return (
+      <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <button onClick={fetchData}
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
+            🔄 Réessayer
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>Bonjour, Jean 👋</div>
-          <div style={sSub}>Vendredi 29 Mai 2026 · Trimestre 2 · Séquence 3</div>
+          <div style={sTitle}>Bonjour, {user?.firstName || 'Enseignant'} 👋</div>
+          <div style={sSub}>{dateStr}</div>
         </div>
-        <button style={btnSec} onClick={() => onToast('Actualisation...', 'info')}>🔄 Actualiser</button>
+        <button style={btnSec} onClick={() => { onToast('Actualisation...', 'info'); fetchData() }}>🔄 Actualiser</button>
       </div>
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 22 }}>
-        {KPI.map((k, i) => (
+        {KPI_ITEMS.map((k, i) => (
           <div key={i}
             onClick={() => k.nav && onNav(k.nav)}
             style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '22px 26px', cursor: k.nav ? 'pointer' : 'default', transition: 'all 0.15s' }}
@@ -60,7 +138,9 @@ export default function SectionTeacherDashboard({ onNav, onToast }: Props) {
             <button style={btnSecSm} onClick={() => onNav('timetable')}>Voir EDT complet</button>
           </div>
           <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {TODAY.map((c, i) => (
+            {todaySlots.length === 0 ? (
+              <div style={{ padding: 20, textAlign: 'center', color: '#a89478', fontSize: 15, fontWeight: 600 }}>Aucun cours aujourd&apos;hui</div>
+            ) : todaySlots.map((c, i) => (
               <div key={i}
                 style={{ background: '#f7f3ee', borderRadius: 14, border: '1.5px solid #e8e0d4', padding: '16px 18px', cursor: 'pointer', transition: 'all 0.12s' }}
                 onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: '#d4c8b8', boxShadow: '0 3px 10px rgba(0,0,0,0.06)' })}
@@ -71,8 +151,7 @@ export default function SectionTeacherDashboard({ onNav, onToast }: Props) {
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#1a1209', marginBottom: 8 }}>{c.subject}</div>
                 <div style={{ display: 'flex', gap: 16, fontSize: 15, color: '#a89478', fontWeight: 600 }}>
-                  <span>📍 {c.salle}</span>
-                  <span>👥 {c.eleves} élèves</span>
+                  <span>📍 {c.salle || 'Salle non définie'}</span>
                 </div>
               </div>
             ))}
@@ -85,17 +164,17 @@ export default function SectionTeacherDashboard({ onNav, onToast }: Props) {
             <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>🔔 Alertes &amp; actions</span>
           </div>
           <div style={{ padding: '16px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {ALERTS.map((a, i) => (
-              <div key={i}
-                onClick={() => a.nav && onNav(a.nav)}
-                style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1.5px solid', cursor: a.nav ? 'pointer' : 'default', transition: 'all 0.12s', background: a.level === 'high' ? '#fef2f2' : '#fef3c7', borderColor: a.level === 'high' ? 'rgba(220,38,38,0.2)' : 'rgba(217,119,6,0.2)' }}>
-                <span style={{ fontSize: 20 }}>{a.icon}</span>
+            {rejectedGrades > 0 && (
+              <div
+                onClick={() => onNav('grades')}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1.5px solid', cursor: 'pointer', background: '#fef2f2', borderColor: 'rgba(220,38,38,0.2)' }}>
+                <span style={{ fontSize: 20 }}>🚨</span>
                 <div>
-                  <div style={{ fontSize: 17, fontWeight: 800, color: a.level === 'high' ? '#991b1b' : '#92400e' }}>{a.title}</div>
-                  <div style={{ fontSize: 15, color: a.level === 'high' ? '#dc2626' : '#d97706', fontWeight: 500, marginTop: 3 }}>{a.sub}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: '#991b1b' }}>{rejectedGrades} note{rejectedGrades > 1 ? 's' : ''} rejetée{rejectedGrades > 1 ? 's' : ''}</div>
+                  <div style={{ fontSize: 15, color: '#dc2626', fontWeight: 500, marginTop: 3 }}>Corriger et resoumettre</div>
                 </div>
               </div>
-            ))}
+            )}
 
             {/* Actions rapides */}
             <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 8 }}>

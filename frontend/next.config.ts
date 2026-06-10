@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
 
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: 'images.unsplash.com' }],
+  },
+
   // Permet au hot-reload (HMR) de fonctionner depuis le domaine ngrok
   ...(NGROK_HOSTNAME ? { allowedDevOrigins: [NGROK_HOSTNAME] } : {}),
 

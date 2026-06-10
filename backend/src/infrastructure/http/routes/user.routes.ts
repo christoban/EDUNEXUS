@@ -17,5 +17,8 @@ export function creerUserRoutes(controller: UserController): Router {
   // Transfert élève
   router.post('/students/:id/transfer', controller.transfer);
 
+  // Désignation AP (Animateur Pédagogique / HOD)
+  router.patch('/:id/ap-designation', controller.apDesignation);
+
   return router;
 }

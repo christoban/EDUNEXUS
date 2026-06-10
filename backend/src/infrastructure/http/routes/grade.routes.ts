@@ -14,6 +14,8 @@ export function creerGradeRoutes(controller: GradeController): Router {
 
   // Saisie et modification
   router.post('/', sensitiveWriteLimiter, requireAuth, controller.saisir);
+  router.post('/draft', sensitiveWriteLimiter, requireAuth, controller.draftEnMasse);
+  router.post('/submit', sensitiveWriteLimiter, requireAuth, controller.soumettreEnMasse);
   router.put('/:id', sensitiveWriteLimiter, requireAuth, controller.modifier);
 
   // Workflow de validation
