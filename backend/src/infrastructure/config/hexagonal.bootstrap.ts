@@ -46,6 +46,9 @@ import { CoreDomainController } from '@infrastructure/http/controllers/CoreDomai
 import { PublicController } from '@infrastructure/http/controllers/PublicController';
 import { SMSController } from '@infrastructure/http/controllers/SMSController';
 import { InviteOnboardingController } from '@infrastructure/http/controllers/InviteOnboardingController';
+import { TemplateController } from '@infrastructure/http/controllers/TemplateController';
+import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
+import { creerSchoolConfigRoutes } from '@infrastructure/http/routes/school-config.routes';
 import { OrientationController } from '@infrastructure/http/controllers/OrientationController';
 import { creerActivitiesRoutes } from '@infrastructure/http/routes/activities.routes';
 import { creerDashboardRoutes } from '@infrastructure/http/routes/dashboard.routes';
@@ -97,6 +100,12 @@ export function bootstrapHexagonal(app: Application): void {
   const inviteOnboardingController = new InviteOnboardingController(prisma);
   app.get('/api/v2/onboarding/invite/:token', inviteOnboardingController.validateInvite);
   app.post('/api/v2/onboarding/invite/:token/complete', inviteOnboardingController.completeOnboarding);
+  app.post('/api/v2/onboarding/preview-structure', inviteOnboardingController.previewStructure);
+
+  // ── Templates Excel téléchargeables (admin uniquement) ────────────────
+  const templateController = new TemplateController(prisma);
+  app.get('/api/v2/templates/import-eleves', requireAuth, requireRole('ADMIN'), templateController.importEleves);
+  app.get('/api/v2/templates/import-enseignants', requireAuth, requireRole('ADMIN'), templateController.importEnseignants);
 
   // ── Informations de l'école (utilisateurs authentifiés) ──────────────
   app.get('/api/v2/school/me', requireAuth, async (req, res, next) => {
@@ -104,7 +113,7 @@ export function bootstrapHexagonal(app: Application): void {
       const schoolId = req.user!.schoolId;
       const school = await prisma.school.findUnique({
         where: { id: schoolId },
-        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true },
+        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true, status: true, educationType: true, ownership: true, onboardingConfig: true },
       });
       if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
       res.json({ success: true, data: school });
@@ -139,6 +148,57 @@ export function bootstrapHexagonal(app: Application): void {
     } catch (err) { next(err); }
   });
 
+  // ── Prévisualisation des classes pour la page /admin/configuration ───────
+  app.get('/api/v2/schools/:id/configuration/preview', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.params.id as string;
+      if (req.user!.schoolId !== schoolId) {
+        res.status(403).json({ success: false, message: 'Accès refusé' }); return;
+      }
+      const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { onboardingConfig: true } });
+      if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
+
+      const cfg = (school.onboardingConfig ?? {}) as any;
+      const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const classes: { name: string; level: string }[] = [];
+
+      if (cfg.niveaux1erCycle) {
+        const conv = cfg.conventionNommage ?? 'LETTRES';
+        for (const n of cfg.niveaux1erCycle) {
+          const c = cfg.classesParNiveau?.[n] ?? 2;
+          for (let i = 0; i < Math.min(c, 26); i++) {
+            const s = conv === 'LETTRES' ? L[i] : conv === 'CHIFFRES' ? `${i + 1}` : `${L[i]}1`;
+            classes.push({ name: `${n} ${s}`, level: n });
+          }
+        }
+      }
+      if (cfg.niveaux2eCycle && cfg.filieres) {
+        const nb = cfg.classesParFiliere === '3+' ? 3 : parseInt(cfg.classesParFiliere ?? '1');
+        for (const n of cfg.niveaux2eCycle) {
+          for (const f of cfg.filieres) {
+            if (n === '2nde' && (/^TI/.test(f) || /F\s*·\s*G\s*·\s*H/.test(f) || /technique/i.test(f))) continue;
+            if (f.startsWith('A4') || f.includes('A4')) {
+              for (const lang of (cfg.a4Languages?.length ? cfg.a4Languages : ['LV'])) {
+                classes.push({ name: `${n} A4-${lang}`, level: n });
+              }
+            } else {
+              const short = f.split('—')[0]?.trim() ?? f;
+              for (let i = 0; i < nb; i++) classes.push({ name: `${n} ${short}${nb > 1 ? ` ${L[i]}` : ''}`, level: n });
+            }
+          }
+        }
+      }
+      if (cfg.niveauxPrimaire) {
+        for (const n of cfg.niveauxPrimaire) {
+          const c = cfg.classesParNiveauPrimaire?.[n] ?? 1;
+          for (let i = 0; i < Math.min(c, 26); i++) classes.push({ name: `${n} ${L[i]}`, level: n });
+        }
+      }
+
+      res.json({ success: true, data: { classes, totalClasses: classes.length } });
+    } catch (err) { next(err); }
+  });
+
   app.use('/api/v2/grades', creerGradeRoutes(gradeController));
   app.use('/api/v2/attendance', creerAttendanceRoutes(attendanceController));
   app.use('/api/v2/onboarding', creerOnboardingRoutes(onboardingController));
@@ -158,6 +218,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.user.tokenService,
     container.user.schoolRepository,
     designerAPUseCase,
+    container.user.importer,
   );
 
   const masterAdminHexController = new MasterAdminHexController(
@@ -256,6 +317,10 @@ export function bootstrapHexagonal(app: Application): void {
 
   app.use('/api/v2/parent', creerParentRoutes(parentController));
   app.use('/api/v2/school-settings', creerSchoolSettingsRoutes(schoolSettingsController));
+
+  // ── Activation de l'établissement (Admin, après configuration) ─────
+  const activerEtablissementUseCase = new ActiverEtablissementUseCase(prisma);
+  app.use('/api/v2', creerSchoolConfigRoutes(activerEtablissementUseCase));
 
   // ── Thin controllers (pas de use case — Prisma direct, aucune logique métier) ──
   const activitiesController = new ActivitiesLogController(prisma);

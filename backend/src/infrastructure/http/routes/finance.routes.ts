@@ -1,26 +1,26 @@
 import { Router } from 'express';
 import type { FinanceController } from '@infrastructure/http/controllers/FinanceController';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../../../middleware/auth';
 
 export function creerFinanceRoutes(controller: FinanceController): Router {
   const router = Router();
 
   // Plans de frais
-  router.post('/fee-plans', controller.creerPlan);
+  router.post('/fee-plans', requireAuth, requireRole('ADMIN'), controller.creerPlan);
 
   // Factures
-  router.post('/invoices', controller.creerFacture);
-  router.post('/invoices/bulk', controller.creerFacturesEnMasse);
+  router.post('/invoices', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFacture);
+  router.post('/invoices/bulk', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFacturesEnMasse);
 
   // Paiements Mobile Money
-  router.post('/payments/mobile', controller.initierPaiementMobile);
-  router.post('/payments/caution/:id/rembourser', controller.rembourserCautionEleve);
+  router.post('/payments/mobile', requireAuth, requireRole('ADMIN', 'STAFF'), controller.initierPaiementMobile);
+  router.post('/payments/caution/:id/rembourser', requireAuth, requireRole('ADMIN', 'STAFF'), controller.rembourserCautionEleve);
 
-  // Webhook Campay — pas d'auth middleware
+  // Webhook Campay — pas d'auth (appelé par Campay directement)
   router.post('/payments/webhook/campay', controller.webhookCampay);
 
   // Dépenses
-  router.post('/expenses', requireAuth, controller.creerDepense);
+  router.post('/expenses', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerDepense);
 
   return router;
 }

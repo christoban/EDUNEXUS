@@ -2,144 +2,581 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// ─── BAC COEFFICIENTS ────────────────────────────────────────────────────────
-// Source : Décret 95-035 du 24 février 1995 + Arrêté 227/18/MINESEC
-//
-// serieA4 / serieC / serieD / serieTI → Float NON NULLABLE — données décret confirmées
-// serieABI (A4 Bilingue, code OBC: BAABI) → Float? nullable — à confirmer OBC
-// serieE (arrêté mars 2022) → Float? nullable — à confirmer OBC
-// Sous-séries A1-A5, SH, AC → Float? nullable — à confirmer terrain
-//
-// "Intensive English" : matière exclusive à la série ABI
-//   serieA4/C/D/TI = 0 (non évaluée, pas null car champ non nullable)
+// ─── BAC COEFFICIENTS — Arrêté N° 92/22 MINESEC du 17 Mars 2022 ───────────────
+// Structure : une entrée par (matière, série, niveau, groupe)
+// Groupe 1 = matières principales, Groupe 2 = transversales
 
-const bacCoefficients = [
-  // ── Mathématiques ─────────────────────────────────────────────────────────
-  // A4:2 (séries littéraires ont maths option), A3:2 confirmé terrain
-  {
-    subjectName: "Mathématiques",
-    serieA4: 2, serieC: 6, serieD: 4, serieTI: 5,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: 2, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── Français (matière générale A4 / technique) ────────────────────────────
-  {
-    subjectName: "Français",
-    serieA4: 6, serieC: 4, serieD: 4, serieTI: 3,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── Physique-Chimie ───────────────────────────────────────────────────────
-  // A4:null confirmé : aucun coeff pour les séries littéraires (source CIOP)
-  {
-    subjectName: "Physique-Chimie",
-    serieA4: null, serieC: 5, serieD: 3, serieTI: 4,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── SVT / Biologie (ancien nom) ───────────────────────────────────────────
-  {
-    subjectName: "SVT / Biologie",
-    serieA4: 2, serieC: 2, serieD: 4, serieTI: 2,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── SVT (nom canonique terrain confirmé) ──────────────────────────────────
-  // A4:null pour séries littéraires — source enquête terrain Mai 2026
-  {
-    subjectName: "SVT",
-    serieA4: null, serieC: 2, serieD: 4, serieTI: 2,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── Philosophie ───────────────────────────────────────────────────────────
-  // A4:4 (corrigé depuis 5), A1/A2/A3/A5 : 4/4/4/2 — source CIOP officielle
-  {
-    subjectName: "Philosophie",
-    serieA4: 4, serieC: 3, serieD: 3, serieTI: 2,
-    serieABI: null, serieE: null,
-    serieA1: 4, serieA2: 4, serieA3: 4, serieA5: 2, serieSH: null, serieAC: null,
-  },
-  // ── Histoire-Géographie ───────────────────────────────────────────────────
-  // A4:2 (corrigé depuis 4) — même coeff dans toutes les séries littéraires
-  {
-    subjectName: "Histoire-Géographie",
-    serieA4: 2, serieC: 2, serieD: 2, serieTI: 2,
-    serieABI: null, serieE: null,
-    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
-  },
-  // ── Anglais ───────────────────────────────────────────────────────────────
-  // A5:4 (section Anglophone intensive, coeff renforcé)
-  {
-    subjectName: "Anglais",
-    serieA4: 3, serieC: 2, serieD: 2, serieTI: 2,
-    serieABI: null, serieE: null,
-    serieA1: 3, serieA2: 3, serieA3: 3, serieA5: 4, serieSH: null, serieAC: null,
-  },
-  // ── Intensive English — ABI uniquement ────────────────────────────────────
-  // serieABI:5 confirmé terrain : Lycée Bilingue Garoua, 2nde ABI, bulletin T2 2020/2021
-  // Tous les autres champs null : matière exclusive à la série ABI
-  {
-    subjectName: "Intensive English",
-    serieA4: null, serieC: null, serieD: null, serieTI: null,
-    serieABI: 5,
-    serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── Langue Française ──────────────────────────────────────────────────────
-  // Matière des séries littéraires (A1-A5, A4) — absente de C/D/TI
-  {
-    subjectName: "Langue Française",
-    serieA4: 2, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
-  },
-  // ── Littérature / Culture générale ────────────────────────────────────────
-  {
-    subjectName: "Littérature / Culture générale",
-    serieA4: 2, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
-  },
-  // ── ECM (Éducation à la Citoyenneté et à la Morale) ──────────────────────
-  {
-    subjectName: "ECM",
-    serieA4: 2, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: 2, serieSH: null, serieAC: null,
-  },
-  // ── LV2 ───────────────────────────────────────────────────────────────────
-  // A5:3 (option renforcée en A5 bilingue), A2:2 confirmé terrain
-  {
-    subjectName: "LV2 (Allemand/Espagnol/Arabe)",
-    serieA4: 2, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: 2, serieA3: null, serieA5: 3, serieSH: null, serieAC: null,
-  },
-  // ── Latin ─────────────────────────────────────────────────────────────────
-  // Option classique : A1/A2/A3 uniquement
-  {
-    subjectName: "Latin",
-    serieA4: null, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: 2, serieA2: 2, serieA3: 2, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── Grec ──────────────────────────────────────────────────────────────────
-  // Option classique : A1 uniquement (très rare)
-  {
-    subjectName: "Grec",
-    serieA4: null, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: 2, serieA2: null, serieA3: null, serieA5: null, serieSH: null, serieAC: null,
-  },
-  // ── LV3 ───────────────────────────────────────────────────────────────────
-  // Option rare A5 : Italien / Russe
-  {
-    subjectName: "LV3 (Italien/Russe)",
-    serieA4: null, serieC: null, serieD: null, serieTI: null,
-    serieABI: null, serieE: null,
-    serieA1: null, serieA2: null, serieA3: null, serieA5: 2, serieSH: null, serieAC: null,
-  },
+type BacCoeffEntry = {
+  subjectName: string
+  serie: string
+  niveau: string
+  coefficient: number
+  groupe: number
+  source: string
+  isOfficialMinesec: boolean
+}
+
+function bc(sn: string, s: string, n: string, c: number, g: number): BacCoeffEntry {
+  return {
+    subjectName: sn, serie: s, niveau: n, coefficient: c, groupe: g,
+    source: "Arrêté N° 92/22 MINESEC du 17 Mars 2022",
+    isOfficialMinesec: true,
+  }
+}
+
+const N = { S: "SECONDE", P: "PREMIERE", T: "TERMINALE" } as const
+const G1 = 1, G2 = 2
+
+const bacCoefficients: BacCoeffEntry[] = [
+
+  // ══════════════════ SÉRIE A1 ══════════════════════════════════════════════
+  // Groupe 1 — identique sur les 3 niveaux
+  bc("Latin",         "A1", N.S, 3, G1),
+  bc("Latin",         "A1", N.P, 3, G1),
+  bc("Latin",         "A1", N.T, 3, G1),
+  bc("Grec",          "A1", N.S, 3, G1),
+  bc("Grec",          "A1", N.P, 3, G1),
+  bc("Grec",          "A1", N.T, 3, G1),
+  bc("Littérature",   "A1", N.S, 3, G1),
+  bc("Littérature",   "A1", N.P, 3, G1),
+  bc("Littérature",   "A1", N.T, 3, G1),
+  // Groupe 2 — identique sur les 3 niveaux
+  bc("Informatique",          "A1", N.S, 2, G2),
+  bc("Informatique",          "A1", N.P, 2, G2),
+  bc("Informatique",          "A1", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté", "A1", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté", "A1", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté", "A1", N.T, 2, G2),
+  bc("EPS",             "A1", N.S, 2, G2),
+  bc("EPS",             "A1", N.P, 2, G2),
+  bc("EPS",             "A1", N.T, 2, G2),
+  bc("Mathématiques",   "A1", N.S, 2, G2),
+  bc("Mathématiques",   "A1", N.P, 2, G2),
+  bc("Mathématiques",   "A1", N.T, 2, G2),
+  bc("Sciences",        "A1", N.S, 1, G2),
+  bc("Sciences",        "A1", N.P, 1, G2),
+  bc("Sciences",        "A1", N.T, 1, G2),
+  bc("Langue Nationale","A1", N.S, 1, G2),
+  bc("Langue Nationale","A1", N.P, 1, G2),
+  bc("Langue Nationale","A1", N.T, 1, G2),
+  bc("Cultures Nationales","A1", N.S, 1, G2),
+  bc("Cultures Nationales","A1", N.P, 1, G2),
+  bc("Cultures Nationales","A1", N.T, 1, G2),
+  bc("Éducation Artistique","A1", N.S, 1, G2),
+  bc("Éducation Artistique","A1", N.P, 1, G2),
+  bc("Éducation Artistique","A1", N.T, 1, G2),
+  bc("Travail Manuel",  "A1", N.S, 1, G2),
+  bc("Travail Manuel",  "A1", N.P, 1, G2),
+  bc("Travail Manuel",  "A1", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE A2 ══════════════════════════════════════════════
+  // Groupe 1
+  bc("Latin",            "A2", N.S, 3, G1),
+  bc("Latin",            "A2", N.P, 3, G1),
+  bc("Latin",            "A2", N.T, 3, G1),
+  bc("LV2",              "A2", N.S, 3, G1),
+  bc("LV2",              "A2", N.P, 3, G1),
+  bc("LV2",              "A2", N.T, 3, G1),
+  bc("Littérature",      "A2", N.S, 3, G1),
+  bc("Littérature",      "A2", N.P, 3, G1),
+  bc("Littérature",      "A2", N.T, 3, G1),
+  bc("Langue Française", "A2", N.S, 2, G1),
+  bc("Langue Française", "A2", N.P, 2, G1),
+  bc("Langue Française", "A2", N.T, 2, G1),
+  bc("Philosophie",      "A2", N.S, 2, G1),
+  bc("Philosophie",      "A2", N.P, 2, G1),
+  bc("Philosophie",      "A2", N.T, 4, G1), // ⚠️ 4 en Tle
+  bc("Anglais",          "A2", N.S, 4, G1),
+  bc("Anglais",          "A2", N.P, 4, G1),
+  bc("Anglais",          "A2", N.T, 4, G1),
+  // Groupe 2 — sauf Informatique qui change en Tle
+  bc("Informatique",                "A2", N.S, 2, G2),
+  bc("Informatique",                "A2", N.P, 2, G2),
+  bc("Informatique",                "A2", N.T, 1, G2), // ⚠️ 1 en Tle
+  bc("Éducation à la Citoyenneté",   "A2", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté",   "A2", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté",   "A2", N.T, 2, G2),
+  bc("EPS",               "A2", N.S, 2, G2),
+  bc("EPS",               "A2", N.P, 2, G2),
+  bc("EPS",               "A2", N.T, 2, G2),
+  bc("Histoire",          "A2", N.S, 2, G2),
+  bc("Histoire",          "A2", N.P, 2, G2),
+  bc("Histoire",          "A2", N.T, 2, G2),
+  bc("Géographie",        "A2", N.S, 2, G2),
+  bc("Géographie",        "A2", N.P, 2, G2),
+  bc("Géographie",        "A2", N.T, 2, G2),
+  bc("Sciences",          "A2", N.S, 1, G2),
+  bc("Sciences",          "A2", N.P, 1, G2),
+  bc("Sciences",          "A2", N.T, 1, G2),
+  bc("Langue Nationale",  "A2", N.S, 1, G2),
+  bc("Langue Nationale",  "A2", N.P, 1, G2),
+  bc("Langue Nationale",  "A2", N.T, 1, G2),
+  bc("Cultures Nationales","A2", N.S, 1, G2),
+  bc("Cultures Nationales","A2", N.P, 1, G2),
+  bc("Cultures Nationales","A2", N.T, 1, G2),
+  bc("Éducation Artistique","A2", N.S, 1, G2),
+  bc("Éducation Artistique","A2", N.P, 1, G2),
+  bc("Éducation Artistique","A2", N.T, 1, G2),
+  bc("Travail Manuel",    "A2", N.S, 1, G2),
+  bc("Travail Manuel",    "A2", N.P, 1, G2),
+  bc("Travail Manuel",    "A2", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE A3 ══════════════════════════════════════════════
+  // Groupe 1
+  bc("Latin",            "A3", N.S, 4, G1),
+  bc("Latin",            "A3", N.P, 4, G1),
+  bc("Latin",            "A3", N.T, 4, G1),
+  bc("Littérature",      "A3", N.S, 3, G1),
+  bc("Littérature",      "A3", N.P, 3, G1),
+  bc("Littérature",      "A3", N.T, 3, G1),
+  bc("Langue Française", "A3", N.S, 2, G1),
+  bc("Langue Française", "A3", N.P, 2, G1),
+  bc("Langue Française", "A3", N.T, 2, G1),
+  bc("Philosophie",      "A3", N.S, 2, G1),
+  bc("Philosophie",      "A3", N.P, 2, G1),
+  bc("Philosophie",      "A3", N.T, 4, G1), // ⚠️ 4 en Tle
+  bc("Anglais",          "A3", N.S, 4, G1),
+  bc("Anglais",          "A3", N.P, 4, G1),
+  bc("Anglais",          "A3", N.T, 4, G1),
+  // Groupe 2 — identique à A2
+  bc("Informatique",                "A3", N.S, 2, G2),
+  bc("Informatique",                "A3", N.P, 2, G2),
+  bc("Informatique",                "A3", N.T, 1, G2),
+  bc("Éducation à la Citoyenneté",   "A3", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté",   "A3", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté",   "A3", N.T, 2, G2),
+  bc("EPS",               "A3", N.S, 2, G2),
+  bc("EPS",               "A3", N.P, 2, G2),
+  bc("EPS",               "A3", N.T, 2, G2),
+  bc("Histoire",          "A3", N.S, 2, G2),
+  bc("Histoire",          "A3", N.P, 2, G2),
+  bc("Histoire",          "A3", N.T, 2, G2),
+  bc("Géographie",        "A3", N.S, 2, G2),
+  bc("Géographie",        "A3", N.P, 2, G2),
+  bc("Géographie",        "A3", N.T, 2, G2),
+  bc("Sciences",          "A3", N.S, 1, G2),
+  bc("Sciences",          "A3", N.P, 1, G2),
+  bc("Sciences",          "A3", N.T, 1, G2),
+  bc("Langue Nationale",  "A3", N.S, 1, G2),
+  bc("Langue Nationale",  "A3", N.P, 1, G2),
+  bc("Langue Nationale",  "A3", N.T, 1, G2),
+  bc("Cultures Nationales","A3", N.S, 1, G2),
+  bc("Cultures Nationales","A3", N.P, 1, G2),
+  bc("Cultures Nationales","A3", N.T, 1, G2),
+  bc("Éducation Artistique","A3", N.S, 1, G2),
+  bc("Éducation Artistique","A3", N.P, 1, G2),
+  bc("Éducation Artistique","A3", N.T, 1, G2),
+  bc("Travail Manuel",    "A3", N.S, 1, G2),
+  bc("Travail Manuel",    "A3", N.P, 1, G2),
+  bc("Travail Manuel",    "A3", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE A4 ══════════════════════════════════════════════
+  // Groupe 1
+  bc("Littérature",      "A4", N.S, 3, G1),
+  bc("Littérature",      "A4", N.P, 3, G1),
+  bc("Littérature",      "A4", N.T, 3, G1),
+  bc("Langue Française", "A4", N.S, 2, G1),
+  bc("Langue Française", "A4", N.P, 2, G1),
+  bc("Langue Française", "A4", N.T, 2, G1),
+  bc("Philosophie",      "A4", N.S, 2, G1),
+  bc("Philosophie",      "A4", N.P, 2, G1),
+  bc("Philosophie",      "A4", N.T, 4, G1), // ⚠️ 4 en Tle
+  bc("Anglais",          "A4", N.S, 4, G1),
+  bc("Anglais",          "A4", N.P, 4, G1),
+  bc("Anglais",          "A4", N.T, 4, G1),
+  bc("LV2",              "A4", N.S, 3, G1),
+  bc("LV2",              "A4", N.P, 3, G1),
+  bc("LV2",              "A4", N.T, 3, G1),
+  // Groupe 2
+  bc("Géographie",               "A4", N.S, 2, G2),
+  bc("Géographie",               "A4", N.P, 2, G2),
+  bc("Géographie",               "A4", N.T, 2, G2),
+  bc("Histoire",                 "A4", N.S, 2, G2),
+  bc("Histoire",                 "A4", N.P, 2, G2),
+  bc("Histoire",                 "A4", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté","A4", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté","A4", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté","A4", N.T, 2, G2),
+  bc("Informatique",             "A4", N.S, 2, G2),
+  bc("Informatique",             "A4", N.P, 2, G2),
+  bc("Informatique",             "A4", N.T, 2, G2),
+  bc("EPS",            "A4", N.S, 2, G2),
+  bc("EPS",            "A4", N.P, 2, G2),
+  bc("EPS",            "A4", N.T, 2, G2),
+  bc("Mathématiques",  "A4", N.S, 2, G2),
+  bc("Mathématiques",  "A4", N.P, 2, G2),
+  bc("Mathématiques",  "A4", N.T, 2, G2),
+  bc("Sciences",       "A4", N.S, 1, G2),
+  bc("Sciences",       "A4", N.P, 1, G2),
+  bc("Sciences",       "A4", N.T, 1, G2),
+  bc("Langue Nationale","A4", N.S, 1, G2),
+  bc("Langue Nationale","A4", N.P, 1, G2),
+  bc("Langue Nationale","A4", N.T, 1, G2),
+  bc("Cultures Nationales","A4", N.S, 1, G2),
+  bc("Cultures Nationales","A4", N.P, 1, G2),
+  bc("Cultures Nationales","A4", N.T, 1, G2),
+  bc("Éducation Artistique","A4", N.S, 1, G2),
+  bc("Éducation Artistique","A4", N.P, 1, G2),
+  bc("Éducation Artistique","A4", N.T, 1, G2),
+  bc("Travail Manuel", "A4", N.S, 1, G2),
+  bc("Travail Manuel", "A4", N.P, 1, G2),
+  bc("Travail Manuel", "A4", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE A5 ══════════════════════════════════════════════
+  // Groupe 1 — identique sur les 3 niveaux (Philosophie reste à 2)
+  bc("Littérature",      "A5", N.S, 3, G1),
+  bc("Littérature",      "A5", N.P, 3, G1),
+  bc("Littérature",      "A5", N.T, 3, G1),
+  bc("Langue Française", "A5", N.S, 2, G1),
+  bc("Langue Française", "A5", N.P, 2, G1),
+  bc("Langue Française", "A5", N.T, 2, G1),
+  bc("Philosophie",      "A5", N.S, 2, G1),
+  bc("Philosophie",      "A5", N.P, 2, G1),
+  bc("Philosophie",      "A5", N.T, 2, G1), // ⚠️ reste à 2 même en Tle
+  bc("Anglais",          "A5", N.S, 4, G1),
+  bc("Anglais",          "A5", N.P, 4, G1),
+  bc("Anglais",          "A5", N.T, 4, G1),
+  bc("LV2",              "A5", N.S, 3, G1),
+  bc("LV2",              "A5", N.P, 3, G1),
+  bc("LV2",              "A5", N.T, 3, G1),
+  bc("LV3",              "A5", N.S, 3, G1),
+  bc("LV3",              "A5", N.P, 3, G1),
+  bc("LV3",              "A5", N.T, 3, G1),
+  // Groupe 2
+  bc("Informatique",                "A5", N.S, 2, G2),
+  bc("Informatique",                "A5", N.P, 2, G2),
+  bc("Informatique",                "A5", N.T, 1, G2), // ⚠️ 1 en Tle
+  bc("Éducation à la Citoyenneté",   "A5", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté",   "A5", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté",   "A5", N.T, 2, G2),
+  bc("EPS",               "A5", N.S, 2, G2),
+  bc("EPS",               "A5", N.P, 2, G2),
+  bc("EPS",               "A5", N.T, 2, G2),
+  bc("Histoire",          "A5", N.S, 2, G2),
+  bc("Histoire",          "A5", N.P, 2, G2),
+  bc("Histoire",          "A5", N.T, 2, G2),
+  bc("Géographie",        "A5", N.S, 2, G2),
+  bc("Géographie",        "A5", N.P, 2, G2),
+  bc("Géographie",        "A5", N.T, 2, G2),
+  bc("Sciences",          "A5", N.S, 1, G2),
+  bc("Sciences",          "A5", N.P, 1, G2),
+  bc("Sciences",          "A5", N.T, 1, G2),
+  bc("Langue Nationale",  "A5", N.S, 1, G2),
+  bc("Langue Nationale",  "A5", N.P, 1, G2),
+  bc("Langue Nationale",  "A5", N.T, 1, G2),
+  bc("Cultures Nationales","A5", N.S, 1, G2),
+  bc("Cultures Nationales","A5", N.P, 1, G2),
+  bc("Cultures Nationales","A5", N.T, 1, G2),
+  bc("Éducation Artistique","A5", N.S, 1, G2),
+  bc("Éducation Artistique","A5", N.P, 1, G2),
+  bc("Éducation Artistique","A5", N.T, 1, G2),
+  bc("Travail Manuel",    "A5", N.S, 1, G2),
+  bc("Travail Manuel",    "A5", N.P, 1, G2),
+  bc("Travail Manuel",    "A5", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE ABI ═════════════════════════════════════════════
+  // Groupe 1
+  bc("Intensive English", "ABI", N.S, 5, G1),
+  bc("Intensive English", "ABI", N.P, 5, G1),
+  bc("Intensive English", "ABI", N.T, 5, G1),
+  bc("Littérature",       "ABI", N.S, 3, G1),
+  bc("Littérature",       "ABI", N.P, 3, G1),
+  bc("Littérature",       "ABI", N.T, 3, G1),
+  bc("Langue Française",  "ABI", N.S, 2, G1),
+  bc("Langue Française",  "ABI", N.P, 2, G1),
+  bc("Langue Française",  "ABI", N.T, 2, G1),
+  bc("Philosophie",       "ABI", N.S, 2, G1),
+  bc("Philosophie",       "ABI", N.P, 2, G1),
+  bc("Philosophie",       "ABI", N.T, 4, G1), // ⚠️ 4 en Tle
+  bc("LV2",               "ABI", N.S, 3, G1),
+  bc("LV2",               "ABI", N.P, 3, G1),
+  bc("LV2",               "ABI", N.T, 3, G1),
+  // Groupe 2
+  bc("Informatique",                  "ABI", N.S, 2, G2),
+  bc("Informatique",                  "ABI", N.P, 2, G2),
+  bc("Informatique",                  "ABI", N.T, 1, G2),
+  bc("Citizenship Education",         "ABI", N.S, 2, G2),
+  bc("Citizenship Education",         "ABI", N.P, 2, G2),
+  bc("Citizenship Education",         "ABI", N.T, 2, G2),
+  bc("SPE",                           "ABI", N.S, 2, G2),
+  bc("SPE",                           "ABI", N.P, 2, G2),
+  bc("SPE",                           "ABI", N.T, 2, G2),
+  bc("Mathématiques",                 "ABI", N.S, 2, G2),
+  bc("Mathématiques",                 "ABI", N.P, 2, G2),
+  bc("Mathématiques",                 "ABI", N.T, 2, G2),
+  bc("Histoire",                      "ABI", N.S, 2, G2),
+  bc("Histoire",                      "ABI", N.P, 2, G2),
+  bc("Histoire",                      "ABI", N.T, 2, G2),
+  bc("Géographie",                    "ABI", N.S, 2, G2),
+  bc("Géographie",                    "ABI", N.P, 2, G2),
+  bc("Géographie",                    "ABI", N.T, 2, G2),
+  bc("Sciences",                      "ABI", N.S, 1, G2),
+  bc("Sciences",                      "ABI", N.P, 1, G2),
+  bc("Sciences",                      "ABI", N.T, 1, G2),
+  bc("Langue Nationale",              "ABI", N.S, 1, G2),
+  bc("Langue Nationale",              "ABI", N.P, 1, G2),
+  bc("Langue Nationale",              "ABI", N.T, 1, G2),
+  bc("Cultures Nationales",           "ABI", N.S, 1, G2),
+  bc("Cultures Nationales",           "ABI", N.P, 1, G2),
+  bc("Cultures Nationales",           "ABI", N.T, 1, G2),
+  bc("Éducation Artistique",          "ABI", N.S, 1, G2),
+  bc("Éducation Artistique",          "ABI", N.P, 1, G2),
+  bc("Éducation Artistique",          "ABI", N.T, 1, G2),
+  bc("Manual Labor",                  "ABI", N.S, 1, G2),
+  bc("Manual Labor",                  "ABI", N.P, 1, G2),
+  bc("Manual Labor",                  "ABI", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE C ═══════════════════════════════════════════════
+  // Groupe 1 — Seconde
+  bc("Mathématiques",  "C", N.S, 6, G1),
+  bc("Physique",       "C", N.S, 3, G1),
+  bc("Chimie",         "C", N.S, 3, G1),
+  bc("Informatique",   "C", N.S, 3, G1),
+  bc("SVTEEHB",        "C", N.S, 2, G1),
+  // Groupe 1 — Première
+  bc("Mathématiques",  "C", N.P, 6, G1),
+  bc("Physique",       "C", N.P, 3, G1),
+  bc("Chimie",         "C", N.P, 3, G1),
+  bc("Informatique",   "C", N.P, 2, G1),
+  // ⚠️ SVTEEHB absent en 1ère C
+  // Groupe 1 — Terminale
+  bc("Mathématiques",  "C", N.T, 6, G1),
+  bc("Physique",       "C", N.T, 3, G1),
+  bc("Chimie",         "C", N.T, 3, G1),
+  bc("Informatique",   "C", N.T, 4, G1),
+  // Groupe 2 — tous niveaux
+  bc("Littérature",               "C", N.S, 2, G2),
+  bc("Littérature",               "C", N.P, 2, G2),
+  bc("Littérature",               "C", N.T, 2, G2),
+  bc("Langue Française",          "C", N.S, 1, G2),
+  bc("Langue Française",          "C", N.P, 1, G2),
+  bc("Langue Française",          "C", N.T, 1, G2),
+  bc("Anglais",                   "C", N.S, 3, G2),
+  bc("Anglais",                   "C", N.P, 3, G2),
+  bc("Anglais",                   "C", N.T, 3, G2),
+  bc("Philosophie",               "C", N.S, 0, G2),
+  bc("Philosophie",               "C", N.P, 1, G2),
+  bc("Philosophie",               "C", N.T, 2, G2),
+  bc("Histoire-Géographie",       "C", N.S, 2, G2),
+  bc("Histoire-Géographie",       "C", N.P, 2, G2),
+  bc("Histoire-Géographie",       "C", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté","C", N.S, 1, G2),
+  bc("Éducation à la Citoyenneté","C", N.P, 1, G2),
+  bc("Éducation à la Citoyenneté","C", N.T, 1, G2),
+  bc("EPS",                       "C", N.S, 2, G2),
+  bc("EPS",                       "C", N.P, 2, G2),
+  bc("EPS",                       "C", N.T, 2, G2),
+  bc("Travail Manuel",            "C", N.S, 1, G2),
+  bc("Travail Manuel",            "C", N.P, 1, G2),
+  bc("Travail Manuel",            "C", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE D ═══════════════════════════════════════════════
+  // ⚠️ COMMENCE EN 1ÈRE — AUCUNE ENTRÉE POUR SECONDE
+  // Groupe 1 — Première
+  bc("SVTEEHB",      "D", N.P, 6, G1),
+  bc("Mathématiques","D", N.P, 4, G1),
+  bc("Chimie",       "D", N.P, 2, G1),
+  bc("Informatique", "D", N.P, 2, G1),
+  // Groupe 1 — Terminale
+  bc("SVTEEHB",      "D", N.T, 6, G1),
+  bc("Mathématiques","D", N.T, 4, G1),
+  bc("Chimie",       "D", N.T, 2, G1),
+  bc("Informatique", "D", N.T, 2, G1),
+  // Groupe 2 — Première et Terminale
+  bc("Littérature",               "D", N.P, 2, G2),
+  bc("Littérature",               "D", N.T, 2, G2),
+  bc("Langue Française",          "D", N.P, 1, G2),
+  bc("Langue Française",          "D", N.T, 1, G2),
+  bc("Anglais",                   "D", N.P, 3, G2),
+  bc("Anglais",                   "D", N.T, 3, G2),
+  bc("Physique",                  "D", N.P, 2, G2),
+  bc("Physique",                  "D", N.T, 3, G2), // ⚠️ 3 en Tle
+  bc("Philosophie",               "D", N.P, 2, G2),
+  bc("Philosophie",               "D", N.T, 2, G2),
+  bc("Histoire-Géographie",       "D", N.P, 2, G2),
+  bc("Histoire-Géographie",       "D", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté","D", N.P, 1, G2),
+  bc("Éducation à la Citoyenneté","D", N.T, 1, G2),
+  bc("EPS",                       "D", N.P, 2, G2),
+  bc("EPS",                       "D", N.T, 2, G2),
+  bc("Travail Manuel",            "D", N.P, 1, G2),
+  bc("Travail Manuel",            "D", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE E ═══════════════════════════════════════════════
+  // Groupe 1 — tous niveaux
+  bc("Mathématiques",                    "E", N.S, 5, G1),
+  bc("Mathématiques",                    "E", N.P, 6, G1),
+  bc("Mathématiques",                    "E", N.T, 6, G1),
+  bc("Physique",                         "E", N.S, 3, G1),
+  bc("Physique",                         "E", N.P, 3, G1),
+  bc("Physique",                         "E", N.T, 3, G1),
+  bc("Chimie",                           "E", N.S, 2, G1),
+  bc("Chimie",                           "E", N.P, 2, G1),
+  bc("Chimie",                           "E", N.T, 2, G1),
+  bc("Dessin et Technologie Mécaniques", "E", N.S, 6, G1),
+  bc("Dessin et Technologie Mécaniques", "E", N.P, 6, G1),
+  bc("Dessin et Technologie Mécaniques", "E", N.T, 6, G1),
+  bc("Fabrication Éléments Mécaniques",  "E", N.S, 4, G1),
+  bc("Fabrication Éléments Mécaniques",  "E", N.P, 4, G1),
+  bc("Fabrication Éléments Mécaniques",  "E", N.T, 4, G1),
+  // Groupe 2
+  bc("Français",          "E", N.S, 3, G2),
+  bc("Français",          "E", N.P, 2, G2),
+  bc("Français",          "E", N.T, 2, G2),
+  bc("Anglais",           "E", N.S, 3, G2),
+  bc("Anglais",           "E", N.P, 3, G2),
+  bc("Anglais",           "E", N.T, 2, G2),
+  bc("Informatique",      "E", N.S, 2, G2),
+  bc("Informatique",      "E", N.P, 2, G2),
+  bc("Informatique",      "E", N.T, 2, G2),
+  bc("Philosophie",       "E", N.S, 0, G2),
+  bc("Philosophie",       "E", N.P, 1, G2),
+  bc("Philosophie",       "E", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté","E", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté","E", N.P, 1, G2),
+  bc("Éducation à la Citoyenneté","E", N.T, 1, G2),
+  bc("EPS",               "E", N.S, 2, G2),
+  bc("EPS",               "E", N.P, 2, G2),
+  bc("EPS",               "E", N.T, 2, G2),
+
+  // ══════════════════ SÉRIE TI ══════════════════════════════════════════════
+  // ⚠️ COMMENCE EN 1ÈRE — AUCUNE ENTRÉE POUR SECONDE
+  // Groupe 1 — Première
+  bc("Algorithmique-Programmation", "TI", N.P, 3, G1),
+  bc("Systèmes d'Information",      "TI", N.P, 3, G1),
+  bc("Maintenance et Multimédia",   "TI", N.P, 2, G1),
+  bc("Mathématiques",               "TI", N.P, 4, G1),
+  bc("Physique",                    "TI", N.P, 2, G1),
+  bc("Chimie",                      "TI", N.P, 1, G1),
+  // Groupe 1 — Terminale
+  bc("Programmation",               "TI", N.T, 3, G1),
+  bc("Systèmes d'Information",      "TI", N.T, 3, G1),
+  bc("Réseau Internet Sécurité",    "TI", N.T, 2, G1),
+  bc("Mathématiques",               "TI", N.T, 4, G1),
+  bc("Physique",                    "TI", N.T, 2, G1),
+  bc("Chimie",                      "TI", N.T, 2, G1),
+  // Groupe 2 — Première et Terminale
+  bc("Français",                    "TI", N.P, 3, G2),
+  bc("Français",                    "TI", N.T, 3, G2),
+  bc("Anglais",                     "TI", N.P, 3, G2),
+  bc("Anglais",                     "TI", N.T, 3, G2),
+  bc("SVTEEHB",                     "TI", N.P, 2, G2),
+  bc("SVTEEHB",                     "TI", N.T, 2, G2),
+  bc("Histoire-Géographie",         "TI", N.P, 2, G2),
+  bc("Histoire-Géographie",         "TI", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté",  "TI", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté",  "TI", N.T, 2, G2),
+  bc("Philosophie",                 "TI", N.P, 1, G2),
+  bc("Philosophie",                 "TI", N.T, 2, G2),
+  bc("EPS",                         "TI", N.P, 2, G2),
+  bc("EPS",                         "TI", N.T, 2, G2),
+  bc("Cultures Nationales",         "TI", N.P, 1, G2),
+  bc("Cultures Nationales",         "TI", N.T, 1, G2),
+  bc("Travail Manuel",              "TI", N.P, 1, G2),
+  bc("Travail Manuel",              "TI", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE SH ══════════════════════════════════════════════
+  // Groupe 1
+  bc("Géographie",                 "SH", N.S, 3, G1),
+  bc("Géographie",                 "SH", N.P, 3, G1),
+  bc("Géographie",                 "SH", N.T, 3, G1),
+  bc("Histoire",                   "SH", N.S, 3, G1),
+  bc("Histoire",                   "SH", N.P, 3, G1),
+  bc("Histoire",                   "SH", N.T, 3, G1),
+  bc("Littérature",                "SH", N.S, 3, G1),
+  bc("Littérature",                "SH", N.P, 3, G1),
+  bc("Littérature",                "SH", N.T, 3, G1),
+  bc("Langue Française",           "SH", N.S, 2, G1),
+  bc("Langue Française",           "SH", N.P, 2, G1),
+  bc("Langue Française",           "SH", N.T, 2, G1),
+  bc("Philosophie",                "SH", N.S, 2, G1),
+  bc("Philosophie",                "SH", N.P, 2, G1),
+  bc("Philosophie",                "SH", N.T, 4, G1), // ⚠️ 4 en Tle
+  bc("Anglais",                    "SH", N.S, 4, G1),
+  bc("Anglais",                    "SH", N.P, 4, G1),
+  bc("Anglais",                    "SH", N.T, 4, G1),
+  bc("Éducation à la Citoyenneté", "SH", N.S, 2, G1),
+  bc("Éducation à la Citoyenneté", "SH", N.P, 2, G1),
+  bc("Éducation à la Citoyenneté", "SH", N.T, 2, G1),
+  // Groupe 2
+  bc("Informatique",              "SH", N.S, 2, G2),
+  bc("Informatique",              "SH", N.P, 2, G2),
+  bc("Informatique",              "SH", N.T, 2, G2),
+  bc("EPS",                       "SH", N.S, 2, G2),
+  bc("EPS",                       "SH", N.P, 2, G2),
+  bc("EPS",                       "SH", N.T, 2, G2),
+  bc("Mathématiques",             "SH", N.S, 2, G2),
+  bc("Mathématiques",             "SH", N.P, 2, G2),
+  bc("Mathématiques",             "SH", N.T, 2, G2),
+  bc("Sciences",                  "SH", N.S, 2, G2),
+  bc("Sciences",                  "SH", N.P, 2, G2),
+  bc("Sciences",                  "SH", N.T, 2, G2),
+  bc("Langue Nationale",          "SH", N.S, 1, G2),
+  bc("Langue Nationale",          "SH", N.P, 1, G2),
+  bc("Langue Nationale",          "SH", N.T, 1, G2),
+  bc("Cultures Nationales",       "SH", N.S, 1, G2),
+  bc("Cultures Nationales",       "SH", N.P, 1, G2),
+  bc("Cultures Nationales",       "SH", N.T, 1, G2),
+  bc("Éducation Artistique",      "SH", N.S, 1, G2),
+  bc("Éducation Artistique",      "SH", N.P, 1, G2),
+  bc("Éducation Artistique",      "SH", N.T, 1, G2),
+  bc("Travail Manuel",            "SH", N.S, 1, G2),
+  bc("Travail Manuel",            "SH", N.P, 1, G2),
+  bc("Travail Manuel",            "SH", N.T, 1, G2),
+
+  // ══════════════════ SÉRIE AC ══════════════════════════════════════════════
+  // Groupe 1 — Seconde
+  bc("Histoire du Cinéma",          "AC", N.S, 4, G1),
+  bc("Éléments Langage Cinéma",     "AC", N.S, 4, G1),
+  bc("Outils et Métiers Cinéma",    "AC", N.S, 3, G1),
+  // Groupe 1 — Première
+  bc("Genres Cinématographiques",   "AC", N.P, 4, G1),
+  bc("Analyse Filmique",            "AC", N.P, 3, G1),
+  bc("Économie du Cinéma",          "AC", N.P, 3, G1),
+  // Groupe 1 — Terminale
+  bc("Processus Réalisation Film",  "AC", N.T, 3, G1),
+  bc("Projet Fin Formation",        "AC", N.T, 4, G1),
+  bc("Sociologie du Cinéma",        "AC", N.T, 3, G1),
+  // Groupe 2
+  bc("Français",                   "AC", N.S, 3, G2),
+  bc("Français",                   "AC", N.P, 3, G2),
+  bc("Français",                   "AC", N.T, 3, G2),
+  bc("Anglais",                    "AC", N.S, 3, G2),
+  bc("Anglais",                    "AC", N.P, 3, G2),
+  bc("Anglais",                    "AC", N.T, 3, G2),
+  bc("Informatique",               "AC", N.S, 3, G2),
+  bc("Informatique",               "AC", N.P, 2, G2),
+  bc("Informatique",               "AC", N.T, 2, G2),
+  bc("Mathématiques",              "AC", N.S, 1, G2),
+  bc("Mathématiques",              "AC", N.P, 1, G2),
+  bc("Mathématiques",              "AC", N.T, 0, G2),
+  bc("Physique",                   "AC", N.S, 2, G2),
+  bc("Physique",                   "AC", N.P, 2, G2),
+  bc("Physique",                   "AC", N.T, 0, G2),
+  bc("Langue Nationale",           "AC", N.S, 1, G2),
+  bc("Langue Nationale",           "AC", N.P, 1, G2),
+  bc("Langue Nationale",           "AC", N.T, 1, G2),
+  bc("Cultures Nationales",        "AC", N.S, 1, G2),
+  bc("Cultures Nationales",        "AC", N.P, 1, G2),
+  bc("Cultures Nationales",        "AC", N.T, 1, G2),
+  bc("Éducation à la Citoyenneté", "AC", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté", "AC", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté", "AC", N.T, 2, G2),
+  bc("Philosophie",                "AC", N.S, 1, G2),
+  bc("Philosophie",                "AC", N.P, 1, G2),
+  bc("Philosophie",                "AC", N.T, 1, G2),
+  bc("Histoire",                   "AC", N.S, 0, G2),
+  bc("Histoire",                   "AC", N.P, 2, G2),
+  bc("Histoire",                   "AC", N.T, 0, G2),
+  bc("Géographie",                 "AC", N.S, 0, G2),
+  bc("Géographie",                 "AC", N.P, 0, G2),
+  bc("Géographie",                 "AC", N.T, 2, G2),
+  bc("EPS",                        "AC", N.S, 2, G2),
+  bc("EPS",                        "AC", N.P, 2, G2),
+  bc("EPS",                        "AC", N.T, 2, G2),
+  bc("Travail Manuel",             "AC", N.S, 1, G2),
+  bc("Travail Manuel",             "AC", N.P, 1, G2),
+  bc("Travail Manuel",             "AC", N.T, 1, G2),
 ];
 
 // ─── LES 17 VRAIS TEMPLATES D'ÉTABLISSEMENTS CAMEROUNAIS ────────────────────
@@ -165,7 +602,7 @@ const schoolTemplates = [
   // ── 1. Lycée général francophone ───────────────────────────────────────────
   // Établissements publics : Lycée de Yaoundé, Lycée de Douala, etc.
   // 1er cycle (6e-3e) + 2nd cycle (2nde-Tle), séries A4/C/D/TI
-  // Pas de série TI en 2nde (démarre en 1ère)
+  // Pas de série D ni TI en 2nde (démarrent en 1ère)
   {
     code: "LYCEE_FR",
     name: "Lycée général francophone",
@@ -180,10 +617,9 @@ const schoolTemplates = [
         { level: "5e",   serie: null, filiere: null },
         { level: "4e",   serie: null, filiere: null },
         { level: "3e",   serie: null, filiere: null },
-        // 2nd cycle — séries A4, C, D (TI interdit en 2nde)
+        // 2nd cycle — séries A4, C (D et TI interdits en 2nde)
         { level: "2nde", serie: "A4", filiere: null },
         { level: "2nde", serie: "C",  filiere: null },
-        { level: "2nde", serie: "D",  filiere: null },
         // 1ère — TI démarre ici
         { level: "1ere", serie: "A4", filiere: null },
         { level: "1ere", serie: "C",  filiere: null },
@@ -255,7 +691,6 @@ const schoolTemplates = [
         { level: "3e",   serie: null, filiere: null },
         { level: "2nde", serie: "A4", filiere: null },
         { level: "2nde", serie: "C",  filiere: null },
-        { level: "2nde", serie: "D",  filiere: null },
         { level: "1ere", serie: "A4", filiere: null },
         { level: "1ere", serie: "C",  filiere: null },
         { level: "1ere", serie: "D",  filiere: null },
@@ -695,7 +1130,6 @@ const schoolTemplates = [
         { level: "2nde", serie: "A4"  },
         { level: "2nde", serie: "ABI" },
         { level: "2nde", serie: "C"   },
-        { level: "2nde", serie: "D"   },
         { level: "1ere", serie: "A4"  },
         { level: "1ere", serie: "ABI" },
         { level: "1ere", serie: "C"   },
@@ -792,10 +1226,168 @@ const schoolTemplates = [
   },
 ];
 
+// ─── MATIÈRES PAR DÉFAUT PAR TEMPLATE ────────────────────────────────────────
+// Stockées dans SchoolTemplate.config au moment du seed.
+// Le use case d'activation les lit pour créer les Subject records de l'école.
+// coefficient = coefficient standard (1er cycle FR) ou barème max (primaire).
+
+type SubjectDef = {
+  name: string
+  code: string
+  coefficient: number
+  hoursPerWeek?: number
+  subjectType?: 'THEORETICAL' | 'PRACTICAL' | 'MIXED'
+}
+
+const FR_SEC_SUBJECTS: SubjectDef[] = [
+  { name: "Français",            code: "FR",    coefficient: 4, hoursPerWeek: 5 },
+  { name: "Mathématiques",       code: "MATHS", coefficient: 4, hoursPerWeek: 4 },
+  { name: "SVT",                 code: "SVT",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "Physique-Chimie",     code: "PC",    coefficient: 2, hoursPerWeek: 2 },
+  { name: "Histoire-Géographie", code: "HG",    coefficient: 2, hoursPerWeek: 3 },
+  { name: "Anglais",             code: "ANG",   coefficient: 2, hoursPerWeek: 3 },
+  { name: "LV2",                 code: "LV2",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "Éducation Civique",   code: "EC",    coefficient: 1, hoursPerWeek: 1 },
+  { name: "EPS",                 code: "EPS",   coefficient: 1, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
+]
+
+const TECH_FR_SUBJECTS: SubjectDef[] = [
+  { name: "Français",            code: "FR",    coefficient: 2, hoursPerWeek: 3 },
+  { name: "Mathématiques",       code: "MATHS", coefficient: 2, hoursPerWeek: 3 },
+  { name: "Anglais",             code: "ANG",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "Sciences Physiques",  code: "SP",    coefficient: 2, hoursPerWeek: 2 },
+  { name: "Éducation Civique",   code: "EC",    coefficient: 1, hoursPerWeek: 1 },
+  { name: "EPS",                 code: "EPS",   coefficient: 1, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
+  { name: "Technologie",         code: "TECH",  coefficient: 6, hoursPerWeek: 6, subjectType: 'MIXED' },
+  { name: "Travaux Pratiques",   code: "TP",    coefficient: 6, hoursPerWeek: 6, subjectType: 'PRACTICAL' },
+]
+
+const SAR_CFM_SUBJECTS: SubjectDef[] = [
+  { name: "Pratique Atelier",         code: "PRATIQUE", coefficient: 6, hoursPerWeek: 6, subjectType: 'PRACTICAL' },
+  { name: "Calcul Professionnel",      code: "CALCUL",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "Français / Communication", code: "FR",       coefficient: 2, hoursPerWeek: 2 },
+  { name: "Éducation Physique",        code: "EPS",      coefficient: 1, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
+]
+
+// barèmes APC — total = 300 pts (source: grille officielle MINEDUB)
+const PRIMAIRE_FR_SUBJECTS: SubjectDef[] = [
+  { name: "Français",                code: "FR",    coefficient: 30, hoursPerWeek: 5 },
+  { name: "Anglais",                 code: "ANG",   coefficient: 30, hoursPerWeek: 3 },
+  { name: "Mathématiques",           code: "MATHS", coefficient: 40, hoursPerWeek: 5 },
+  { name: "Sciences et Technologie", code: "SCI",   coefficient: 40, hoursPerWeek: 3 },
+  { name: "TIC",                     code: "TIC",   coefficient: 40, hoursPerWeek: 2 },
+  { name: "Histoire-Géographie",     code: "HG",    coefficient: 20, hoursPerWeek: 2 },
+  { name: "Éducation Morale + EPS",  code: "MEPS",  coefficient: 20, hoursPerWeek: 2 },
+  { name: "Éducation Artistique",    code: "EA",    coefficient: 20, hoursPerWeek: 1 },
+  { name: "Sport",                   code: "SPORT", coefficient: 20, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
+  { name: "Développement Personnel", code: "DP",    coefficient: 20, hoursPerWeek: 1 },
+  { name: "Langue Nationale",        code: "LN",    coefficient: 20, hoursPerWeek: 1 },
+]
+
+const EN_SEC_SUBJECTS: SubjectDef[] = [
+  { name: "English Language",             code: "ENG",   coefficient: 4, hoursPerWeek: 5 },
+  { name: "French",                       code: "FR",    coefficient: 3, hoursPerWeek: 3 },
+  { name: "Mathematics",                  code: "MATHS", coefficient: 4, hoursPerWeek: 4 },
+  { name: "Biology",                      code: "BIO",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "Chemistry",                    code: "CHEM",  coefficient: 2, hoursPerWeek: 2 },
+  { name: "Physics",                      code: "PHY",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "Geography",                    code: "GEO",   coefficient: 2, hoursPerWeek: 2 },
+  { name: "History",                      code: "HIST",  coefficient: 2, hoursPerWeek: 2 },
+  { name: "Computer Science",             code: "CS",    coefficient: 2, hoursPerWeek: 2 },
+  { name: "Citizenship Education",        code: "CE",    coefficient: 1, hoursPerWeek: 1 },
+  { name: "Physical & Health Education",  code: "PHE",   coefficient: 1, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
+]
+
+// barèmes variables par école — valeurs indicatives terrain
+const PRIMARY_EN_SUBJECTS: SubjectDef[] = [
+  { name: "English Language",            code: "ENG",   coefficient: 40, hoursPerWeek: 5 },
+  { name: "French",                      code: "FR",    coefficient: 30, hoursPerWeek: 3 },
+  { name: "Mathematics",                 code: "MATHS", coefficient: 40, hoursPerWeek: 4 },
+  { name: "Sciences",                    code: "SCI",   coefficient: 20, hoursPerWeek: 2 },
+  { name: "Social Studies",              code: "SS",    coefficient: 20, hoursPerWeek: 2 },
+  { name: "Religious Studies",           code: "RS",    coefficient: 15, hoursPerWeek: 1 },
+  { name: "Physical & Health Education", code: "PHE",   coefficient: 10, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
+  { name: "Arts & Crafts",               code: "AC",    coefficient: 10, hoursPerWeek: 1, subjectType: 'PRACTICAL' },
+]
+
+// fr = sujets section FR (aussi utilisé pour templates purement FR)
+// en = sujets section EN (bilingual + purement EN)
+const TEMPLATE_SUBJECTS: Record<string, { fr?: SubjectDef[]; en?: SubjectDef[] }> = {
+  LYCEE_FR:           { fr: FR_SEC_SUBJECTS },
+  CES_FR:             { fr: FR_SEC_SUBJECTS },
+  PRIVE_FR:           { fr: FR_SEC_SUBJECTS },
+  LYCEE_TECHNIQUE_FR: { fr: TECH_FR_SUBJECTS },
+  CETIC:              { fr: TECH_FR_SUBJECTS },
+  SAR_SM:             { fr: SAR_CFM_SUBJECTS },
+  CFM:                { fr: SAR_CFM_SUBJECTS },
+  PRIMAIRE_FR:        { fr: PRIMAIRE_FR_SUBJECTS },
+  MATERNELLE_FR:      {},
+  GHS_EN:             { en: EN_SEC_SUBJECTS },
+  GSS_EN:             { en: EN_SEC_SUBJECTS },
+  PRIVE_EN:           { en: EN_SEC_SUBJECTS },
+  PRIMARY_EN:         { en: PRIMARY_EN_SUBJECTS },
+  NURSERY_EN:         {},
+  LYCEE_BILINGUE:     { fr: FR_SEC_SUBJECTS,       en: EN_SEC_SUBJECTS },
+  PRIMARY_BILINGUAL:  { fr: PRIMAIRE_FR_SUBJECTS,  en: PRIMARY_EN_SUBJECTS },
+  COMPLEXE_SCOLAIRE:  {},
+}
+
+// ─── SUBJECT PACKS ──────────────────────────────────────────────────────────
+// Packs de matières par défaut qu'un Admin peut accepter en un clic
+// lors de l'activation de son école. Stockés dans SchoolTemplate.config.subjectPacks.
+
+type SubjectPackItem = { name: string; code: string; coefficient: number; optional?: boolean }
+
+const CYCLE1_FR_PACK: SubjectPackItem[] = [
+  { name: "Français",            code: "FR",    coefficient: 4 },
+  { name: "Mathématiques",       code: "MATHS", coefficient: 4 },
+  { name: "SVT",                 code: "SVT",   coefficient: 2 },
+  { name: "Physique-Chimie",     code: "PC",    coefficient: 2 },
+  { name: "Histoire-Géographie", code: "HG",    coefficient: 2 },
+  { name: "Anglais LV1",         code: "ANG",   coefficient: 2 },
+  { name: "Éducation Civique",   code: "EC",    coefficient: 1 },
+  { name: "EPS",                 code: "EPS",   coefficient: 1 },
+  { name: "LV2",                 code: "LV2",   coefficient: 2, optional: true },
+]
+
+const PRIMAIRE_FR_BASE_PACK: SubjectPackItem[] = [
+  { name: "Français",      code: "FR",    coefficient: 30 },
+  { name: "Mathématiques", code: "MATHS", coefficient: 40 },
+  { name: "Éveil",         code: "EVEIL", coefficient: 20 },
+  { name: "EPS",           code: "EPS",   coefficient: 20 },
+  { name: "Religion",      code: "REL",   coefficient: 0,  optional: true },
+]
+
+const PRIMAIRE_FR_CE1_PLUS_PACK: SubjectPackItem[] = [
+  { name: "Sciences/TIC",        code: "SCI",   coefficient: 40 },
+  { name: "Histoire",            code: "HIST",  coefficient: 20 },
+  { name: "Géographie",          code: "GEO",   coefficient: 20 },
+  { name: "Langue Nationale",    code: "LN",    coefficient: 20 },
+]
+
+const TEMPLATE_SUBJECT_PACKS: Record<string, { cycle1?: SubjectPackItem[]; cycle2?: SubjectPackItem[]; primaire?: SubjectPackItem[]; primaireCE1Plus?: SubjectPackItem[] }> = {
+  LYCEE_FR:           { cycle1: CYCLE1_FR_PACK, cycle2: undefined }, // cycle2 = BacCoefficients au moment de l'activation
+  PRIVE_FR:           { cycle1: CYCLE1_FR_PACK, cycle2: undefined },
+  CES_FR:             { cycle1: CYCLE1_FR_PACK },
+  PRIMAIRE_FR:        { primaire: PRIMAIRE_FR_BASE_PACK, primaireCE1Plus: PRIMAIRE_FR_CE1_PLUS_PACK },
+  MATERNELLE_FR:      {},
+  LYCEE_TECHNIQUE_FR: {},
+  CETIC:              {},
+  SAR_SM:             {},
+  CFM:                {},
+  GHS_EN:             {},
+  GSS_EN:             {},
+  PRIVE_EN:           {},
+  PRIMARY_EN:         {},
+  NURSERY_EN:         {},
+  LYCEE_BILINGUE:     { cycle1: CYCLE1_FR_PACK, cycle2: undefined },
+  PRIMARY_BILINGUAL:  { primaire: PRIMAIRE_FR_BASE_PACK, primaireCE1Plus: PRIMAIRE_FR_CE1_PLUS_PACK },
+  COMPLEXE_SCOLAIRE:  {},
+}
+
 // ─── FORMULES DE NOTES PAR DÉFAUT ────────────────────────────────────────────
 // isDefault=true + schoolId null → règles système, non liées à une école.
-// Appliquées automatiquement à l'onboarding selon le sous-système.
-// Les valeurs seront confirmées par les enquêtes terrain (Mai 2026).
+// Appliquées automatiquement à l'activation selon le type de template.
 
 const defaultGradeFormulas = [
   {
@@ -816,6 +1408,17 @@ const defaultGradeFormulas = [
     evaluations: [
       { code: "CLASS_TEST",    label: "Class Test",    weight: 30, count: 2 },
       { code: "TERMINAL_EXAM", label: "Terminal Exam", weight: 70, count: 1 },
+    ],
+    isDefault: true,
+  },
+  {
+    id: "default-technique-fr",
+    label: "Formule technique FR — Éval 1 + Éval 2 (50/50 par trimestre)",
+    // Source : LYCEE_TECHNIQUE_FR, CETIC — 2 évaluations séparées par trimestre
+    // Notes théorie et pratique saisies séparément (bulletin technique)
+    evaluations: [
+      { code: "EVAL1", label: "Évaluation 1", weight: 50, count: 1 },
+      { code: "EVAL2", label: "Évaluation 2", weight: 50, count: 1 },
     ],
     isDefault: true,
   },
@@ -849,6 +1452,17 @@ const defaultMentionRules = [
     ],
     isDefault: true,
   },
+  {
+    id: "default-apc-mentions",
+    // Source : grille MINEDUB APC primaire — cotes sur /20
+    rules: [
+      { label: "Expert", min: 18,    max: 20    },
+      { label: "Acquis", min: 15,    max: 17.99 },
+      { label: "ECA",    min: 11,    max: 14.99 },
+      { label: "NA",     min: 0,     max: 10.99 },
+    ],
+    isDefault: true,
+  },
 ];
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
@@ -860,32 +1474,38 @@ async function main() {
   console.log("🎓 Seeding BacCoefficients...");
   for (const coeff of bacCoefficients) {
     await prisma.bacCoefficient.upsert({
-      where:  { subjectName: coeff.subjectName },
+      where: {
+        subjectName_serie_niveau: {
+          subjectName: coeff.subjectName,
+          serie: coeff.serie,
+          niveau: coeff.niveau,
+        },
+      },
       update: {
-        serieA4:  coeff.serieA4,
-        serieC:   coeff.serieC,
-        serieD:   coeff.serieD,
-        serieTI:  coeff.serieTI,
-        serieABI: coeff.serieABI,
-        serieE:   coeff.serieE,
-        serieA1:  coeff.serieA1,
-        serieA2:  coeff.serieA2,
-        serieA3:  coeff.serieA3,
-        serieA5:  coeff.serieA5,
-        serieSH:  coeff.serieSH,
-        serieAC:  coeff.serieAC,
+        coefficient: coeff.coefficient,
+        groupe: coeff.groupe,
+        source: coeff.source,
+        isOfficialMinesec: coeff.isOfficialMinesec,
       },
       create: coeff,
     });
   }
-  console.log(`   ✓ ${bacCoefficients.length} matières`);
+  console.log(`   ✓ ${bacCoefficients.length} entrées`);
 
-  // 2. SchoolTemplates (17)
+  // 2. SchoolTemplates (17) — config enrichie avec defaultSubjects + subjectPacks
   console.log("\n🏫 Seeding SchoolTemplates...");
   for (const t of schoolTemplates) {
+    const subs = TEMPLATE_SUBJECTS[t.code] ?? {}
+    const packs = TEMPLATE_SUBJECT_PACKS[t.code] ?? {}
+    const mergedConfig = {
+      ...(t.config as any),
+      ...(subs.fr ? { defaultSubjects: subs.fr } : {}),
+      ...(subs.en ? { defaultSubjectsEN: subs.en } : {}),
+      ...(Object.keys(packs).length > 0 ? { subjectPacks: packs } : {}),
+    }
     await prisma.schoolTemplate.upsert({
       where:  { code: t.code },
-      update: { config: t.config as any, name: t.name },
+      update: { config: mergedConfig as any, name: t.name },
       create: {
         code: t.code,
         name: t.name,
@@ -893,10 +1513,11 @@ async function main() {
         educationType: t.educationType,
         level: t.level,
         ownership: t.ownership,
-        config: t.config as any,
+        config: mergedConfig as any,
       },
     });
-    console.log(`   ✓ ${t.code}`);
+    const nbSubj = (subs.fr?.length ?? 0) + (subs.en?.length ?? 0);
+    console.log(`   ✓ ${t.code}${nbSubj ? ` (${nbSubj} matières)` : ''}`);
   }
   console.log(`   → ${schoolTemplates.length} templates seeded`);
 
@@ -921,14 +1542,14 @@ async function main() {
     await prisma.gradeFormula.upsert({
       where:  { id: formula.id },
       update: {
-        schoolId:    systemSchool.id,
+        schoolId:    null,   // règle système — pas liée à une école
         label:       formula.label,
         evaluations: formula.evaluations as any,
         isDefault:   formula.isDefault,
       },
       create: {
         id:          formula.id,
-        schoolId:    systemSchool.id,
+        schoolId:    null,
         label:       formula.label,
         evaluations: formula.evaluations as any,
         isDefault:   formula.isDefault,
@@ -941,13 +1562,13 @@ async function main() {
     await prisma.mentionRule.upsert({
       where:  { id: rule.id },
       update: {
-        schoolId:  systemSchool.id,
+        schoolId:  null,   // règle système — pas liée à une école
         rules:     rule.rules as any,
         isDefault: rule.isDefault,
       },
       create: {
         id:        rule.id,
-        schoolId:  systemSchool.id,
+        schoolId:  null,
         rules:     rule.rules as any,
         isDefault: rule.isDefault,
       },

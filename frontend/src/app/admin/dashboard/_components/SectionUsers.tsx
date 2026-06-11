@@ -376,6 +376,304 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   )
 }
 
+// ── Modal Import Excel ──
+interface ImportPreviewRow {
+  nom: string
+  prenom: string
+  email: string
+  telephone: string
+  classe?: string
+  matieres?: string
+}
+
+interface ImportStepProps {
+  importType: 'STUDENT' | 'TEACHER' | null
+  setImportType: (t: 'STUDENT' | 'TEACHER') => void
+  step: number
+  onStep: (n: number) => void
+  onClose: () => void
+  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
+  onSuccess: () => void
+}
+
+function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'importType' | 'setImportType' | 'step' | 'onStep'>) {
+  const [step, setStep] = useState(0)
+  const [importType, setImportType] = useState<'STUDENT' | 'TEACHER' | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<ImportPreviewRow[]>([])
+  const [totalRows, setTotalRows] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<{ total: number; success: number; errors: { ligne: number; erreur: string }[] } | null>(null)
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch(`/api/v2/templates/${importType === 'STUDENT' ? 'import-eleves' : 'import-enseignants'}`, { credentials: 'include' })
+      if (!res.ok) throw new Error('Erreur de téléchargement')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = importType === 'STUDENT' ? 'import-eleves.xlsx' : 'import-enseignants.xlsx'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur de téléchargement', 'error')
+    }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.size > 5 * 1024 * 1024) {
+      onToast('Fichier trop volumineux (max 5 MB)', 'error')
+      return
+    }
+    const ext = f.name.toLowerCase().slice(f.name.lastIndexOf('.'))
+    if (ext !== '.xlsx' && ext !== '.xls') {
+      onToast('Format non supporté. Utilisez .xlsx ou .xls', 'error')
+      return
+    }
+    setFile(f)
+
+    const buffer = await f.arrayBuffer()
+    const XLSX = await import('xlsx')
+    const wb = XLSX.read(buffer, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' })
+    setTotalRows(rows.length)
+
+    const previewData: ImportPreviewRow[] = rows.slice(0, 5).map((r: Record<string, string>) => ({
+      nom: r.nom || '',
+      prenom: r.prenom || '',
+      email: r.email || '',
+      telephone: r.telephone || '',
+      classe: r.classe || r.matieres || '',
+      matieres: r.matieres || '',
+    }))
+    setPreview(previewData)
+  }
+
+  const handleImport = async () => {
+    if (!file) return
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('role', importType!)
+      const res = await fetch('/api/v2/users/import', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur lors de l\'import')
+      setResult(data.data)
+      setStep(3)
+      if (data.data.errors?.length === 0) {
+        onToast(`${data.data.success} compte${data.data.success > 1 ? 's' : ''} créé${data.data.success > 1 ? 's' : ''} avec succès`, 'success')
+      }
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReset = () => {
+    setStep(0)
+    setImportType(null)
+    setFile(null)
+    setPreview([])
+    setTotalRows(0)
+    setResult(null)
+  }
+
+  const handleClose = () => {
+    if (result && result.success > 0) onSuccess()
+    handleReset()
+    onClose()
+  }
+
+  return (
+    <>
+      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)' }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: '96%', maxWidth: 620, maxHeight: '92vh', overflowY: 'auto', borderRadius: 20 }}>
+        <div style={{ background: 'white', borderRadius: 20, padding: '40px 44px', boxShadow: '0 32px 80px rgba(0,0,0,0.22)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209' }}>
+                {step === 0 ? 'Import Excel' : step === 1 ? 'Télécharger le modèle' : step === 2 ? 'Importer le fichier' : 'Résultat'}
+              </div>
+              <div style={{ fontSize: 14, color: '#a89478', marginTop: 4 }}>
+                {step === 0 && 'Que voulez-vous importer ?'}
+                {step === 1 && 'Utilisez notre modèle pour éviter les erreurs'}
+                {step === 2 && file ? `${totalRows} ligne${totalRows > 1 ? 's' : ''} détectée${totalRows > 1 ? 's' : ''}` : 'Formats acceptés : .xlsx, .xls (max 5 MB)'}
+                {step === 3 && result && `${result.success} compte${result.success > 1 ? 's' : ''} créé${result.success > 1 ? 's' : ''}`}
+              </div>
+            </div>
+            <button onClick={handleClose} style={{ background: '#f0ebe3', border: 'none', cursor: 'pointer', color: '#6b5c45', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0 }}>✕</button>
+          </div>
+
+          <div style={{ height: 1, background: '#e8e0d4', marginBottom: 26 }} />
+
+          {/* Steps indicator */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 28, justifyContent: 'center' }}>
+            {['Choix', 'Modèle', 'Import', 'Résultat'].map((label, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, background: i <= step ? '#059669' : '#e8e0d4', color: i <= step ? 'white' : '#a89478' }}>{i + 1}</div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: i <= step ? '#059669' : '#a89478', display: i === step ? 'inline' : 'none' }}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Step 0 — Choose type */}
+          {step === 0 && (
+            <div style={{ display: 'flex', gap: 16, flexDirection: 'column' }}>
+              <button onClick={() => { setImportType('STUDENT'); setStep(1) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 14, border: `2px solid ${importType === 'STUDENT' ? '#059669' : '#e8e0d4'}`, background: importType === 'STUDENT' ? '#f0fdf4' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
+                <span style={{ fontSize: 32 }}>👨‍🎓</span>
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1209' }}>Élèves + Parents</div>
+                  <div style={{ fontSize: 14, color: '#a89478', marginTop: 3 }}>Importez vos élèves avec leurs parents (optionnel)</div>
+                </div>
+              </button>
+              <button onClick={() => { setImportType('TEACHER'); setStep(1) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 14, border: `2px solid ${importType === 'TEACHER' ? '#059669' : '#e8e0d4'}`, background: importType === 'TEACHER' ? '#f0fdf4' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
+                <span style={{ fontSize: 32 }}>👨‍🏫</span>
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: '#1a1209' }}>Enseignants</div>
+                  <div style={{ fontSize: 14, color: '#a89478', marginTop: 3 }}>Importez vos enseignants avec leurs matières</div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* Step 1 — Download template */}
+          {step === 1 && (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>📥</div>
+              <div style={{ fontSize: 16, color: '#6b5c45', marginBottom: 24, lineHeight: 1.6 }}>
+                Téléchargez le modèle Excel, remplissez-le avec vos données, puis importez-le.
+              </div>
+              <button onClick={handleDownloadTemplate}
+                style={{ padding: '16px 28px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                📥 Télécharger le modèle {importType === 'STUDENT' ? 'élèves' : 'enseignants'}
+              </button>
+              <div style={{ marginTop: 16 }}>
+                <button onClick={() => setStep(2)}
+                  style={{ background: 'none', border: 'none', color: '#059669', fontWeight: 700, cursor: 'pointer', fontSize: 15, fontFamily: 'inherit' }}>
+                  J'ai déjà mon fichier → Passer à l'import
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2 — Upload file */}
+          {step === 2 && (
+            <div>
+              <label style={{ display: 'block', border: `2px dashed ${file ? '#059669' : '#d4c8b8'}`, borderRadius: 14, padding: '36px 20px', textAlign: 'center', cursor: 'pointer', background: file ? '#f0fdf4' : '#fafaf8', transition: 'all 0.12s' }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>{file ? '📄' : '📂'}</div>
+                {file ? (
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#059669' }}>{file.name}</div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#6b5c45' }}>Cliquez pour sélectionner un fichier</div>
+                    <div style={{ fontSize: 13, color: '#a89478', marginTop: 6 }}>.xlsx ou .xls — 5 MB max</div>
+                  </>
+                )}
+                <input type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{ display: 'none' }} />
+              </label>
+
+              {/* Preview */}
+              {preview.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#6b5c45', marginBottom: 10 }}>
+                    Aperçu ({Math.min(5, totalRows)} premières lignes sur {totalRows})
+                  </div>
+                  <div style={{ border: '1.5px solid #e8e0d4', borderRadius: 10, overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f0ebe3' }}>
+                          {importType === 'STUDENT'
+                            ? ['Nom', 'Prénom', 'Email', 'Téléphone', 'Classe'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#6b5c45' }}>{h}</th>)
+                            : ['Nom', 'Prénom', 'Email', 'Téléphone', 'Matières'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#6b5c45' }}>{h}</th>)
+                          }
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.map((row, i) => (
+                          <tr key={i} style={{ borderTop: '1px solid #f0ebe3' }}>
+                            <td style={{ padding: '7px 10px', fontWeight: 600, color: '#1a1209' }}>{row.nom}</td>
+                            <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.prenom}</td>
+                            <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.email || '—'}</td>
+                            <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.telephone || '—'}</td>
+                            <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.classe || row.matieres || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                <button onClick={() => setStep(1)} style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }}>← Changer</button>
+                <button onClick={handleImport} disabled={!file || loading}
+                  style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: !file ? '#ccc' : 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1 }}>
+                  {loading ? '⏳ Traitement en cours...' : '✅ Confirmer l\'import'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3 — Result */}
+          {step === 3 && result && (
+            <div>
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>{result.errors?.length > 0 ? '⚠️' : '✅'}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
+                  {result.success} compte{result.success > 1 ? 's' : ''} créé{result.success > 1 ? 's' : ''}
+                </div>
+                {result.errors?.length > 0 && (
+                  <div style={{ fontSize: 15, color: '#dc2626', fontWeight: 600 }}>⚠️ {result.errors.length} ligne{result.errors.length > 1 ? 's' : ''} ignorée{result.errors.length > 1 ? 's' : ''}</div>
+                )}
+              </div>
+
+              {result.errors?.length > 0 && (
+                <div style={{ marginTop: 16, background: '#fef2f2', borderRadius: 10, border: '1px solid rgba(220,38,38,0.15)', padding: '14px 16px', maxHeight: 200, overflowY: 'auto' }}>
+                  {result.errors.map((err, i) => (
+                    <div key={i} style={{ fontSize: 13, color: '#991b1b', marginBottom: i < result.errors.length - 1 ? 6 : 0, lineHeight: 1.5 }}>
+                      <strong>Ligne {err.ligne}</strong> — {err.erreur}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                <button onClick={() => { handleReset(); setStep(0) }} style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Importer un autre fichier
+                </button>
+                <button onClick={handleClose} style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Fermer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Loading overlay for import */}
+          {loading && step === 2 && (
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <div style={{ width: 40, height: 40, border: '4px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+              <div style={{ fontSize: 15, color: '#6b5c45', fontWeight: 600 }}>Traitement en cours...</div>
+              <div style={{ fontSize: 13, color: '#a89478', marginTop: 4 }}>Création des comptes et envoi des invitations</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -429,6 +727,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   const [removeAP, setRemoveAP]     = useState(EMPTY_REMOVE_AP)
   const [availClasses, setAvailClasses] = useState<ClassItem[]>([])
   const [availSubjects, setAvailSubjects] = useState<SubjectItem2[]>([])
+  const [importOpen, setImportOpen] = useState(false)
 
   useEffect(() => {
     if (openInviteOnMount) {
@@ -679,6 +978,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         <div style={{ display: 'flex', gap: 10 }}>
           <button style={{ ...btnSecSm, padding: '10px 18px' }} onClick={openCreateUser}>+ Créer</button>
           <button style={btnPrim} onClick={() => setInviteOpen(true)}>✉️ Inviter</button>
+          <button style={{ ...btnSecSm, padding: '10px 18px' }} onClick={() => setImportOpen(true)}>📊 Import Excel</button>
         </div>
       </div>
 
@@ -924,6 +1224,15 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         </div>
       )}
 
+      {/* ── Modal Import Excel ── */}
+      {importOpen && (
+        <ImportModal
+          onClose={() => { setImportOpen(false) }}
+          onToast={onToast}
+          onSuccess={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}
+        />
+      )}
+
       {/* ── Modal créer un utilisateur ── */}
       {createOpen && (
         <div onClick={() => { setCreateOpen(false); setCreateForm(EMPTY_CREATE_USER) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1032,7 +1341,7 @@ const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral
 const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSecSm: React.CSSProperties = { padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const filterSelect: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+
 const thStyle: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
 const tdStyle: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
 const sLb: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#6b7280', marginBottom: 6 }

@@ -1,0 +1,30 @@
+import { Router } from 'express';
+import type { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
+import { requireAuth, requireRole } from '../../../middleware/auth';
+
+export function creerSchoolConfigRoutes(activateUseCase: ActiverEtablissementUseCase): Router {
+  const router = Router();
+
+  // POST /api/v2/schools/:id/activate — Active l'établissement après configuration
+  router.post('/schools/:id/activate', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+      const schoolId = req.params.id as string;
+      const result = await activateUseCase.execute({ schoolId });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('introuvable')) {
+          res.status(404).json({ success: false, message: error.message });
+          return;
+        }
+        if (error.message.includes('doit être approuvé')) {
+          res.status(422).json({ success: false, message: error.message });
+          return;
+        }
+      }
+      next(error);
+    }
+  });
+
+  return router;
+}

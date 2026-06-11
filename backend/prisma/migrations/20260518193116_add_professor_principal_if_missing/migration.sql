@@ -1,9 +1,7 @@
 -- DropForeignKey
-ALTER TABLE "GradeFormula" DROP CONSTRAINT "GradeFormula_schoolId_fkey";
-
+ALTER TABLE IF EXISTS "GradeFormula" DROP CONSTRAINT IF EXISTS "GradeFormula_schoolId_fkey";
 -- DropForeignKey
-ALTER TABLE "MentionRule" DROP CONSTRAINT "MentionRule_schoolId_fkey";
-
+ALTER TABLE IF EXISTS "MentionRule" DROP CONSTRAINT IF EXISTS "MentionRule_schoolId_fkey";
 -- AlterTable
 ALTER TABLE "Class" ADD COLUMN     "professorPrincipalId" TEXT;
 

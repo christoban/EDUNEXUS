@@ -7,8 +7,10 @@ import type { ModifierUtilisateurUseCase } from '@application/user/ModifierUtili
 import type { SupprimerUtilisateurUseCase } from '@application/user/SupprimerUtilisateurUseCase';
 import type { TransfererEleveUseCase } from '@application/user/TransfererEleveUseCase';
 import type { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
+import type { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisateursUseCase';
 import type { TokenService } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import * as XLSX from 'xlsx';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -29,6 +31,7 @@ export class UserController {
     private readonly tokenService: TokenService,
     private readonly schoolRepository: SchoolRepository,
     private readonly designerAP: DesignerAPUseCase,
+    private readonly importer: ImporterUtilisateursUseCase,
   ) {}
 
   // POST /api/v2/auth/login
@@ -211,6 +214,53 @@ export class UserController {
       });
 
       res.json({ success: true, message: 'Élève transféré avec succès' });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/users/import
+  importUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const role = req.body.role as string;
+      const file = (req as any).file as Express.Multer.File | undefined;
+
+      if (!file) {
+        res.status(400).json({ success: false, message: 'Fichier requis (.xlsx ou .xls)' });
+        return;
+      }
+      if (role !== 'STUDENT' && role !== 'TEACHER') {
+        res.status(400).json({ success: false, message: "role doit être 'STUDENT' ou 'TEACHER'" });
+        return;
+      }
+
+      const wb = XLSX.read(file.buffer, { type: 'buffer' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rowsJson = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
+
+      const rows = rowsJson.map((r, i) => ({
+        ligne: i + 2,
+        nom: String(r.nom || '').trim(),
+        prenom: String(r.prenom || '').trim(),
+        email: String(r.email || '').trim(),
+        telephone: String(r.telephone || '').trim(),
+        matricule: String(r.matricule || '').trim(),
+        dateNaissance: String(r.date_naissance || '').trim(),
+        classe: String(r.classe || '').trim(),
+        emailParent: String(r.email_parent || '').trim(),
+        telephoneParent: String(r.telephone_parent || '').trim(),
+        matieres: String(r.matieres || '').trim(),
+      }));
+
+      if (rows.length === 0) {
+        res.status(400).json({ success: false, message: 'Aucune ligne trouvée dans le fichier' });
+        return;
+      }
+
+      const resultat = await this.importer.execute(user.schoolId, rows, role as 'STUDENT' | 'TEACHER');
+
+      res.json({ success: true, data: resultat });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

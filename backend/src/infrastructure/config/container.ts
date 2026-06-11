@@ -34,6 +34,9 @@ import { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerP
 import { OnboarderEcoleUseCase } from '@application/school/OnboarderEcoleUseCase';
 import { ApprouverEcoleUseCase } from '@application/school/ApprouverEcoleUseCase';
 
+// --- Use Case : Import ---
+import { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisateursUseCase';
+
 // --- Use Cases : Bulletins ---
 import { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinUseCase';
 import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
@@ -188,7 +191,12 @@ export function creerContainer() {
   );
   const validerEnBlocUseCase = new ValiderEnBlocUseCase(noteRepository, userRepository);
 
-  // 5. Use Cases — Présences
+  // 5. Use Cases — Import
+  const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
+    prisma, userRepository
+  );
+
+  // 6. Use Cases — Présences
   const enregistrerPresenceUseCase = new EnregistrerPresenceUseCase(
     presenceRepository, userRepository, notificationService
   );
@@ -198,7 +206,7 @@ export function creerContainer() {
     schoolRepository, userRepository, emailService
   );
   const approuverEcoleUseCase = new ApprouverEcoleUseCase(
-    schoolRepository, userRepository, anneeRepository, emailService
+    schoolRepository, userRepository, emailService
   );
 
   // 7. Use Cases — Bulletins
@@ -365,6 +373,7 @@ export function creerContainer() {
       modifier: modifierUtilisateurUseCase,
       supprimer: supprimerUtilisateurUseCase,
       transferer: transfererEleveUseCase,
+      importer: importerUtilisateursUseCase,
       tokenService,
       schoolRepository,
     },

@@ -64,9 +64,22 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetch('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(d => { if (d.success) setSchoolInfo(d.data) })
-      .catch(() => {})
-  }, [])
+      .then(d => {
+        if (!d.success) { router.replace('/login'); return }
+        const { status } = d.data as { status: string }
+        if (status === 'APPROVED') { router.replace('/admin/configuration'); return }
+        if (status !== 'ACTIVE') { router.replace('/login'); return }
+        setSchoolInfo(d.data)
+
+        // Toast de bienvenue après activation
+        const params = new URLSearchParams(window.location.search)
+        if (params.get('activated') === '1') {
+          showToast('Votre espace est maintenant actif ! Bienvenue sur EduNexus 🎉', 'success')
+          window.history.replaceState(null, '', '/admin/dashboard')
+        }
+      })
+      .catch(() => router.replace('/login'))
+  }, [router, showToast])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

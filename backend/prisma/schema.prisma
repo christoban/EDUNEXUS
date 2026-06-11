@@ -60,6 +60,7 @@ model School {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   templateCode         String?
+  onboardingConfig     Json?
   sequences            AcademicSequence[]
   academicYears        AcademicYear[]
   activitiesLogs       ActivitiesLog[]
@@ -86,6 +87,7 @@ model School {
   schoolConfig         SchoolConfig?
   invites              SchoolInvite[]
   schoolSettings       SchoolSettings?
+  configurationForm    SchoolConfigurationForm?
   sections             Section[]
   smsLogs              SmsLog[]
   staffProfiles        StaffProfile[]
@@ -162,6 +164,16 @@ model SchoolSettings {
   currency  String   @default("XAF")
   updatedAt DateTime @updatedAt
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+}
+
+model SchoolConfigurationForm {
+  id          String    @id @default(cuid())
+  schoolId    String    @unique
+  formData    Json      @default("{}")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model GradeFormula {
@@ -345,20 +357,16 @@ model SubjectCoefficient {
 }
 
 model BacCoefficient {
-  id          String @id @default(cuid())
-  subjectName String @unique
-  serieC      Float?
-  serieD      Float?
-  serieTI     Float?
-  serieA1     Float?
-  serieA2     Float?
-  serieA3     Float?
-  serieA4     Float?
-  serieA5     Float?
-  serieABI    Float?
-  serieAC     Float?
-  serieE      Float?
-  serieSH     Float?
+  id                String   @id @default(cuid())
+  subjectName       String
+  serie             String
+  niveau            String   @default("TERMINALE")
+  coefficient       Float
+  groupe            Int      @default(1)
+  source            String   @default("Arrêté N° 92/22 MINESEC du 17 Mars 2022")
+  isOfficialMinesec Boolean  @default(true)
+
+  @@unique([subjectName, serie, niveau])
 }
 
 model SchoolTemplate {

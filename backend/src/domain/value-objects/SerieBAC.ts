@@ -13,8 +13,8 @@ export const SERIES_BY_LEVEL: Record<string, string[]> = {
   "4e": [],
   "3e": [],
 
-  // Seconde — pas de TI ni E
-  "2nde": ["A4", "ABI", "C", "D", "A1", "A2", "A3", "A5", "SH", "AC"],
+  // Seconde — pas de D ni TI (E démarre en 2nde)
+  "2nde": ["A4", "ABI", "C", "A1", "A2", "A3", "A5", "E", "SH", "AC"],
 
   // Première et Terminale — toutes les séries disponibles
   "1ere": ["A4", "ABI", "C", "D", "TI", "E", "A1", "A2", "A3", "A5", "SH", "AC"],
@@ -71,7 +71,7 @@ export const NO_SERIE_LEVELS = [
 ]
 
 // Séries interdites en Seconde
-export const SERIES_FORBIDDEN_IN_SECONDE = ["TI", "E"]
+export const SERIES_FORBIDDEN_IN_SECONDE = ["TI", "D"]
 
 // Niveaux où les coefficients BAC s'appliquent
 export const BAC_LEVELS = ["Tle"]

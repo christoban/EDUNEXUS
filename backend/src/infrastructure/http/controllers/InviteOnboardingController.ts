@@ -3,8 +3,90 @@ import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sendTransactionalEmail } from '../../../services/emailService';
 
+const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+function previewGen(
+  config: {
+    niveaux1erCycle?: string[]
+    classesParNiveau?: Record<string, number>
+    conventionNommage?: string
+    niveaux2eCycle?: string[]
+    filieres?: string[]
+    a4Languages?: string[]
+    classesParFiliere?: string
+    niveauxPrimaire?: string[]
+    classesParNiveauPrimaire?: Record<string, number>
+  }
+): { classes: { name: string; level: string; section: string }[] } {
+  const classes: { name: string; level: string; section: string }[] = []
+  const conv = config.conventionNommage ?? 'LETTRES'
+
+  // 1er cycle
+  if (config.niveaux1erCycle) {
+    for (const niveau of config.niveaux1erCycle) {
+      const count = config.classesParNiveau?.[niveau] ?? 2
+      for (let i = 0; i < Math.min(count, 26); i++) {
+        const suffix = conv === 'LETTRES' ? LETTRES[i]
+          : conv === 'CHIFFRES' ? `${i + 1}`
+          : `${LETTRES[i]}1`
+        classes.push({ name: `${niveau} ${suffix}`, level: niveau, section: 'FR' })
+      }
+    }
+  }
+
+  // 2e cycle
+  if (config.niveaux2eCycle && config.filieres) {
+    const nbClasses = config.classesParFiliere === '3+' ? 3 : parseInt(config.classesParFiliere ?? '1')
+    for (const niveau of config.niveaux2eCycle) {
+      for (const filiere of config.filieres) {
+        // Les filières techniques (TI, F·G·H) ne s'ouvrent qu'à partir de la 1ère
+        if (niveau === '2nde' && (/^TI/.test(filiere) || filiere === 'D' || /F\s*·\s*G\s*·\s*H/.test(filiere) || /technique/i.test(filiere))) continue
+
+        // Séries A4 → 1 classe par langue
+        if (filiere.startsWith('A4') || filiere.includes('A4')) {
+          const langs = config.a4Languages?.length ? config.a4Languages : ['LV']
+          for (const lang of langs) {
+            classes.push({ name: `${niveau} A4-${lang}`, level: niveau, section: 'FR' })
+          }
+        } else {
+          // Autres filières
+          for (let i = 0; i < nbClasses; i++) {
+            const suffix = nbClasses > 1 ? ` ${LETTRES[i]}` : ''
+            const short = filiere.split('—')[0]?.trim() ?? filiere
+            classes.push({ name: `${niveau} ${short}${suffix}`, level: niveau, section: 'FR' })
+          }
+        }
+      }
+    }
+  }
+
+  // Primaire
+  if (config.niveauxPrimaire) {
+    for (const niveau of config.niveauxPrimaire) {
+      const count = config.classesParNiveauPrimaire?.[niveau] ?? 1
+      for (let i = 0; i < Math.min(count, 26); i++) {
+        classes.push({ name: `${niveau} ${LETTRES[i]}`, level: niveau, section: 'FR' })
+      }
+    }
+  }
+
+  return { classes }
+}
+
 export class InviteOnboardingController {
   constructor(private readonly prisma: PrismaClient) {}
+
+  // POST /api/v2/onboarding/preview-structure
+  previewStructure = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const config = req.body
+      const result = previewGen(config)
+      const subjects: string[] = []
+      res.json({ success: true, data: { ...result, totalClasses: result.classes.length, subjects } })
+    } catch (error) {
+      next(error)
+    }
+  }
 
   // GET /api/v2/onboarding/invite/:token
   validateInvite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -50,6 +132,7 @@ export class InviteOnboardingController {
         nom, subdomain, adresse, ville, region, telephone, email,
         subsystem, educationType, ownership,
         adminPrenom, adminNom, adminEmail, password, logoBase64,
+        onboardingConfig,
       } = req.body;
 
       const required = ['nom', 'subdomain', 'subsystem', 'educationType', 'ownership', 'adminPrenom', 'adminNom', 'adminEmail', 'password'];
@@ -103,6 +186,7 @@ export class InviteOnboardingController {
             status: 'PENDING',
             plan: invite2.plan,
             logoUrl: validLogo,
+            onboardingConfig: onboardingConfig || undefined,
           },
         });
 

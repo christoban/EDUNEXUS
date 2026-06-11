@@ -40,14 +40,10 @@ export class PrismaMatiereRepository implements MatiereRepository {
   async getCoefficientsBACParSerie(
     serieCode: string
   ): Promise<{ subjectName: string; coefficient: number }[]> {
-    const coeffs = await this.prisma.bacCoefficient.findMany();
-    return coeffs
-      .map(c => {
-        const key = `serie${serieCode}` as keyof typeof c;
-        const valeur = c[key] as number | null;
-        return valeur !== null ? { subjectName: c.subjectName, coefficient: valeur } : null;
-      })
-      .filter((c): c is { subjectName: string; coefficient: number } => c !== null);
+    const coeffs = await this.prisma.bacCoefficient.findMany({
+      where: { serie: serieCode },
+    });
+    return coeffs.map(c => ({ subjectName: c.subjectName, coefficient: c.coefficient }));
   }
 
   async estEnseignantAssigne(

@@ -103,10 +103,9 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          invoiceId: invoice.id,
+          factureId: invoice.id,
           studentId: invoice.student.id,
-          amount: invoice.amount,
-          phone: phone.trim(),
+          phoneNumber: phone.trim(),
           method: phone.startsWith('67') || phone.startsWith('68') ? 'ORANGE_MONEY' : 'MTN_MOMO',
         }),
       })
