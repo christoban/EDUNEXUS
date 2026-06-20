@@ -174,6 +174,26 @@ export const TECHNICAL_FILIERES_INTERNAL = [
 // Liste combinée pour la validation
 export const TECHNICAL_FILIERES = [...TECHNICAL_FILIERES_OFFICIAL, ...TECHNICAL_FILIERES_INTERNAL]
 
+// ── PEBS (Programme d'Éducation Bilingue Spécial) ─────────────────────────
+export const PEBS_FILIERES = {
+  FR_GENERAL: 'FR_GENERAL',
+  FR_PEBS:    'FR_PEBS',
+  EN_GENERAL: 'EN_GENERAL',
+  EN_PEBS:    'EN_PEBS',
+} as const
+
+export type PebsFiliere = (typeof PEBS_FILIERES)[keyof typeof PEBS_FILIERES]
+
+export const PEBS_VALUES = Object.values(PEBS_FILIERES)
+
+export function isPEBSFiliere(value: string): boolean {
+  return PEBS_VALUES.includes(value as PebsFiliere)
+}
+
+export function getDefaultFiliere(isAnglophone: boolean): string {
+  return isAnglophone ? PEBS_FILIERES.EN_GENERAL : PEBS_FILIERES.FR_GENERAL
+}
+
 export function validateClassFiliere(level: string, filiere: string | null | undefined): {
   valid: boolean
   warning?: string
@@ -181,32 +201,51 @@ export function validateClassFiliere(level: string, filiere: string | null | und
 } {
   const filiereNormalized = filiere ?? null
 
-  if (!TECHNICAL_LEVELS.includes(level)) {
-    return { valid: true }
-  }
-
-  if (!filiereNormalized) {
-    return {
-      valid: false,
-      error: `Le niveau technique ${level} requiert une filière.`,
+  // 1er cycle francophone — PEBS filieres autorisées
+  if (FIRST_CYCLE_LEVELS.includes(level)) {
+    if (filiereNormalized && filiereNormalized !== PEBS_FILIERES.FR_GENERAL && filiereNormalized !== PEBS_FILIERES.FR_PEBS) {
+      return {
+        valid: false,
+        error: `Pour le niveau ${level}, les seules valeurs de filière autorisées sont "${PEBS_FILIERES.FR_GENERAL}" ou "${PEBS_FILIERES.FR_PEBS}".`,
+      }
     }
-  }
-
-  if (TECHNICAL_FILIERES_OFFICIAL.includes(filiereNormalized)) {
     return { valid: true }
   }
 
-  if (TECHNICAL_FILIERES_INTERNAL.includes(filiereNormalized)) {
+  // Anglophone lower cycle (Form1-Form5) — PEBS filieres autorisées
+  if (ANGLOPHONE_LOWER_LEVELS.includes(level)) {
+    if (filiereNormalized && filiereNormalized !== PEBS_FILIERES.EN_GENERAL && filiereNormalized !== PEBS_FILIERES.EN_PEBS) {
+      return {
+        valid: false,
+        error: `Pour le niveau ${level}, les seules valeurs de filière autorisées sont "${PEBS_FILIERES.EN_GENERAL}" ou "${PEBS_FILIERES.EN_PEBS}".`,
+      }
+    }
+    return { valid: true }
+  }
+
+  // Niveau technique — validation existante
+  if (TECHNICAL_LEVELS.includes(level)) {
+    if (!filiereNormalized) {
+      return {
+        valid: false,
+        error: `Le niveau technique ${level} requiert une filière.`,
+      }
+    }
+    if (TECHNICAL_FILIERES_OFFICIAL.includes(filiereNormalized)) {
+      return { valid: true }
+    }
+    if (TECHNICAL_FILIERES_INTERNAL.includes(filiereNormalized)) {
+      return {
+        valid: true,
+        warning: `La filière "${filiereNormalized}" est un code interne d'établissement (non officiel MINESEC). Elle est acceptée mais non standardisée.`,
+      }
+    }
     return {
       valid: true,
-      warning: `La filière "${filiereNormalized}" est un code interne d'établissement (non officiel MINESEC). Elle est acceptée mais non standardisée.`,
+      warning: `La filière "${filiereNormalized}" n'est pas reconnue dans la liste standard. Elle sera acceptée. Filières officielles MINESEC : ${TECHNICAL_FILIERES_OFFICIAL.join(", ")}`,
     }
   }
 
-  // Code inconnu — on accepte avec warning plutôt que bloquer
-  // Les codes filière varient selon les établissements
-  return {
-    valid: true,
-    warning: `La filière "${filiereNormalized}" n'est pas reconnue dans la liste standard. Elle sera acceptée. Filières officielles MINESEC : ${TECHNICAL_FILIERES_OFFICIAL.join(", ")}`,
-  }
+  // Autres niveaux (primaire, maternelle, 2nd cycle, etc.) — pas de filière
+  return { valid: true }
 }

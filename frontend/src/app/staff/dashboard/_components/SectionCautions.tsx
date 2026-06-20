@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -33,7 +34,7 @@ export default function SectionCautions({ onToast }: Props) {
   const fetchCautions = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/v2/finance/invoices?feeType=CAUTION&limit=50', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/finance/invoices?feeType=CAUTION&limit=50', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setCautions(data.data || [])
@@ -55,7 +56,7 @@ export default function SectionCautions({ onToast }: Props) {
     if (!confirm(`Rembourser la caution de ${caution.student.firstName} ${caution.student.lastName} (${fmtCFA(caution.amount)}) ?`)) return
     setActionId(caution.id)
     try {
-      const res = await fetch(`/api/v2/finance/payments/caution/${cautionPayment.id}/rembourser`, {
+      const res = await fetchApi(`/api/v2/finance/payments/caution/${cautionPayment.id}/rembourser`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'REMBOURSER' }),
@@ -77,7 +78,7 @@ export default function SectionCautions({ onToast }: Props) {
     if (!cautionPayment) { onToast('Aucun paiement de caution trouvé', 'error'); return }
     setActionId(caution.id)
     try {
-      const res = await fetch(`/api/v2/finance/payments/caution/${cautionPayment.id}/rembourser`, {
+      const res = await fetchApi(`/api/v2/finance/payments/caution/${cautionPayment.id}/rembourser`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'RETENIR_DEFINITIVEMENT' }),

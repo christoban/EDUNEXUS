@@ -18,6 +18,9 @@ export function creerReportCardRoutes(controller: ReportCardController): Router 
   // Envoi aux parents via use case hexagonal
   router.post('/send', sensitiveWriteLimiter, requireAuth, requireRole('ADMIN', 'STAFF'), controller.envoyerBulletins);
 
+  // Commentaire du Professeur Principal (écrit APRÈS génération, AVANT envoi aux parents)
+  router.patch('/:id/comment', requireAuth, controller.ajouterCommentaire);
+
   // Vue élève (avant GET / pour éviter que "my" soit traité comme un :id)
   router.get('/my', requireAuth, controller.mesBulletins);
 

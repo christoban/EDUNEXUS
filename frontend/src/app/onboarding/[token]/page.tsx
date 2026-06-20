@@ -25,6 +25,26 @@ interface DetectedTemplate {
   isComplexe?: boolean
 }
 
+const TEMPLATE_META: Record<string, DetectedTemplate> = {
+  GHS_EN:            { code: 'GHS_EN', name: 'Government High School', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  GSS_EN:            { code: 'GSS_EN', name: 'Government Secondary School', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  PRIVE_EN:          { code: 'PRIVE_EN', name: 'Private School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  PRIMARY_EN:        { code: 'PRIMARY_EN', name: 'Primary School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
+  NURSERY_EN:        { code: 'NURSERY_EN', name: 'Nursery School', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
+  LYCEE_BILINGUE:    { code: 'LYCEE_BILINGUE', name: 'Lycée Bilingue', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  PRIMARY_BILINGUAL: { code: 'PRIMARY_BILINGUAL', name: 'Primary School Bilingue', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
+  LYCEE_TECHNIQUE_FR: { code: 'LYCEE_TECHNIQUE_FR', name: 'Lycée Technique Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false },
+  CETIC:             { code: 'CETIC', name: "Collège d'Enseignement Technique", hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
+  SAR_SM:            { code: 'SAR_SM', name: 'SAR / Section Ménagère', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
+  CFM:               { code: 'CFM', name: 'Centre de Formation aux Métiers', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
+  PRIMAIRE_FR:       { code: 'PRIMAIRE_FR', name: 'École Primaire Francophone', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
+  MATERNELLE_FR:     { code: 'MATERNELLE_FR', name: 'École Maternelle', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
+  LYCEE_FR:          { code: 'LYCEE_FR', name: 'Lycée Général Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  CES_FR:            { code: 'CES_FR', name: "Collège d'Enseignement Secondaire", hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  PRIVE_FR:          { code: 'PRIVE_FR', name: 'Établissement Privé Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  COMPLEXE_SCOLAIRE: { code: 'COMPLEXE_SCOLAIRE', name: 'Complexe Scolaire', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false, isComplexe: true },
+}
+
 interface PreviewData {
   classes: { name: string; level: string; section: string }[]
   totalClasses: number
@@ -92,6 +112,8 @@ const OWNERSHIP_OPTIONS = [
   { value: 'PRIVATE_FAITH',   label: 'Privé confessionnel', icon: '⛪' },
 ]
 
+const TCODES_PEBS_FR = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_BILINGUE']
+const TCODES_PEBS_EN = ['GHS_EN','GSS_EN','PRIVE_EN','LYCEE_BILINGUE']
 const TCODES_AVEC_1ER_CYCLE = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_TECHNIQUE_FR','CETIC','LYCEE_BILINGUE','COMPLEXE_SCOLAIRE']
 const TCODES_AVEC_2E_CYCLE = ['LYCEE_FR','PRIVE_FR','LYCEE_BILINGUE','GHS_EN','GSS_EN','PRIVE_EN','COMPLEXE_SCOLAIRE']
 const TCODES_TECHNIQUE = ['LYCEE_TECHNIQUE_FR','CETIC']
@@ -105,7 +127,6 @@ const NIVEAUX_2E_CYCLE_EN = ['Lower Sixth','Upper Sixth']
 
 const FILIERES_LITT = [
   'A4 — Langues Vivantes',
-  'ABI — A Bilingue (Intensive English)',
   'A1 — Littéraire LV1 renforcée',
   'A2 — Littéraire LV2 renforcée',
   'A3 — Littéraire LV3 renforcée',
@@ -309,7 +330,7 @@ function CheckboxGroup({ options, values, onChange, note }: {
         {options.map(o => {
           const checked = values.includes(o.value)
           return (
-            <label key={o.value}
+            <label key={o.value} onClick={() => onChange(checked ? values.filter(v => v !== o.value) : [...values, o.value])}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
                 border: `2px solid ${checked ? '#059669' : '#d4c8b8'}`,
@@ -396,10 +417,12 @@ export default function OnboardingPage() {
   const [bulletinFrequency, setBulletinFrequency] = useState<'MONTHLY'|'TRIMESTRIAL'>('MONTHLY')
   const [evalSystemPrimaire, setEvalSystemPrimaire] = useState<'APC_300'|'NOTES_20'|''>('')
   const [appelFrequency, setAppelFrequency]     = useState<'TWICE'|'ONCE'|''>('')
-  const [abiEnabled, setAbiEnabled]             = useState(false)
+  const [hasPEBSFrancophone, setHasPEBSFrancophone] = useState(false)
+  const [hasPEBSAnglophone, setHasPEBSAnglophone]   = useState(false)
   const [enStreamStartLevel, setEnStreamStartLevel] = useState<'FORM4'|'FORM5'|'SIXTH'|''>('')
   const [bilingualEnLevels, setBilingualEnLevels]   = useState<string[]>([])
   const [bilingualEnFilieres, setBilingualEnFilieres] = useState<string[]>([])
+  const [forcedTemplateCode, setForcedTemplateCode] = useState<string | null>(null)
 
   const [form, setForm] = useState<FormData>({
     nom: '', subdomain: '', subsystem: 'FRANCOPHONE', educationType: 'GENERAL',
@@ -420,7 +443,14 @@ export default function OnboardingPage() {
     classesParNiveauPrimaire: {},
   })
 
-  const template = detectTemplate(form)
+  const template = forcedTemplateCode ? (TEMPLATE_META[forcedTemplateCode] ?? detectTemplate(form)) : detectTemplate(form)
+
+  function setWithTemplateReset(k: 'subsystem' | 'educationType' | 'ownership') {
+    return (v: string) => {
+      setForcedTemplateCode(null)
+      setForm(f => ({ ...f, [k]: v }))
+    }
+  }
 
   const set = (k: keyof FormData) => (v: string) => setForm(f => ({ ...f, [k]: v }))
   const slRef = useRef(false)
@@ -489,6 +519,21 @@ export default function OnboardingPage() {
       })
       .finally(() => clearTimeout(timeout))
   }, [token])
+
+  // Auto-ajouter/retirer ABI des filières quand PEBS Francophone change
+  useEffect(() => {
+    setForm(f => {
+      const abiEntry = 'ABI — A Bilingue (Intensive English)';
+      const hasABI = f.filieres.includes(abiEntry);
+      if (hasPEBSFrancophone && !hasABI) {
+        return { ...f, filieres: [...f.filieres, abiEntry] };
+      }
+      if (!hasPEBSFrancophone && hasABI) {
+        return { ...f, filieres: f.filieres.filter(x => x !== abiEntry) };
+      }
+      return f;
+    });
+  }, [hasPEBSFrancophone])
 
   // Debounced preview fetch when configuration changes
   useEffect(() => {
@@ -638,7 +683,8 @@ export default function OnboardingPage() {
             bulletinFrequency,
             evalSystemPrimaire: evalSystemPrimaire || undefined,
             appelFrequency: appelFrequency || undefined,
-            abiEnabled,
+            hasPEBSFrancophone,
+            hasPEBSAnglophone,
             enStreamStartLevel: enStreamStartLevel || undefined,
             bilingualEnLevels: bilingualEnLevels.length ? bilingualEnLevels : undefined,
             bilingualEnFilieres: bilingualEnFilieres.length ? bilingualEnFilieres : undefined,
@@ -845,16 +891,91 @@ export default function OnboardingPage() {
             </Field>
 
             <Field label="Sous-système" required>
-              <RadioCards options={SUBSYSTEM_OPTIONS} value={form.subsystem} onChange={set('subsystem')} />
+              <RadioCards options={SUBSYSTEM_OPTIONS} value={form.subsystem} onChange={setWithTemplateReset('subsystem')} />
             </Field>
 
             <Field label="Type d'enseignement" required>
-              <RadioCards options={EDUCATION_OPTIONS} value={form.educationType} onChange={set('educationType')} />
+              <RadioCards options={EDUCATION_OPTIONS} value={form.educationType} onChange={setWithTemplateReset('educationType')} />
             </Field>
 
             <Field label="Statut juridique" required>
-              <RadioCards options={OWNERSHIP_OPTIONS} value={form.ownership} onChange={set('ownership')} />
+              <RadioCards options={OWNERSHIP_OPTIONS} value={form.ownership} onChange={setWithTemplateReset('ownership')} />
             </Field>
+
+            {/* Template détecté */}
+            {template && (
+              <div style={{
+                padding: '12px 14px', background: 'rgba(5,150,105,0.06)',
+                border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 12,
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
+                  🏫 Template d'établissement détecté
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#047857' }}>
+                  {template.name}
+                </div>
+
+                {/* Discriminating question: CES_FR vs LYCEE_FR */}
+                {form.subsystem === 'FRANCOPHONE' && form.educationType === 'GENERAL' && form.ownership === 'PUBLIC' && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(5,150,105,0.15)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 6 }}>
+                      🤔 Votre établissement est-il un CES (Collège) ou un Lycée ?
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { code: 'LYCEE_FR', label: '🏫 Lycée', desc: 'Avec 2nd cycle (2nde→Tle)' },
+                        { code: 'CES_FR', label: '📖 CES (Collège)', desc: 'Sans 2nd cycle (6e→3e)' },
+                      ].map(opt => {
+                        const active = (forcedTemplateCode ?? template?.code) === opt.code
+                        return (
+                          <button key={opt.code} type="button" onClick={() => setForcedTemplateCode(opt.code)}
+                            style={{
+                              flex: 1, padding: '8px 10px', border: `2px solid ${active ? '#059669' : '#d4c8b8'}`,
+                              borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
+                              cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                              color: active ? '#047857' : '#6b5c45',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                            }}>
+                            <span>{opt.label}</span>
+                            <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Discriminating question: GHS_EN vs GSS_EN */}
+                {form.subsystem === 'ANGLOPHONE' && form.educationType === 'GENERAL' && form.ownership === 'PUBLIC' && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(5,150,105,0.15)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 6 }}>
+                      🤔 Is your school a Government High School (GHS) or Government Secondary School (GSS)?
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { code: 'GHS_EN', label: 'GHS', desc: 'High School (Form 1→Upper Sixth)' },
+                        { code: 'GSS_EN', label: 'GSS', desc: 'Secondary School (Form 1→Form 5)' },
+                      ].map(opt => {
+                        const active = (forcedTemplateCode ?? template?.code) === opt.code
+                        return (
+                          <button key={opt.code} type="button" onClick={() => setForcedTemplateCode(opt.code)}
+                            style={{
+                              flex: 1, padding: '8px 10px', border: `2px solid ${active ? '#059669' : '#d4c8b8'}`,
+                              borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
+                              cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                              color: active ? '#047857' : '#6b5c45',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                            }}>
+                            <span>{opt.label}</span>
+                            <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <Field label="Ville">
@@ -1393,24 +1514,47 @@ export default function OnboardingPage() {
                   </Field>
                 )}
 
-                {/* ABI — LYCEE_BILINGUE uniquement */}
-                {template.code === 'LYCEE_BILINGUE' && (
-                  <Field label="Proposez-vous la série ABI (A Bilingue) ?">
+                {/* PEBS — Programme d'Éducation Bilingue Spécial */}
+                {template.code && TCODES_PEBS_FR.includes(template.code) && (
+                  <Field label="Programme d'Éducation Bilingue Spécial (PEBS) — Francophone">
                     <div style={{ display: 'flex', gap: 8 }}>
                       {([{ v: true, l: 'Oui' }, { v: false, l: 'Non' }]).map(opt => (
-                        <button key={String(opt.v)} type="button" onClick={() => setAbiEnabled(opt.v)}
+                        <button key={String(opt.v)} type="button" onClick={() => setHasPEBSFrancophone(opt.v)}
                           style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${abiEnabled === opt.v ? '#059669' : '#d4c8b8'}`,
-                            borderRadius: 10, background: abiEnabled === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
+                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSFrancophone === opt.v ? '#059669' : '#d4c8b8'}`,
+                            borderRadius: 10, background: hasPEBSFrancophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
                             cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: abiEnabled === opt.v ? '#047857' : '#6b5c45',
+                            color: hasPEBSFrancophone === opt.v ? '#047857' : '#6b5c45',
+                          }}>
+                          {opt.l}
+                        </button>
+                      ))}
+                    </div>
+                    {hasPEBSFrancophone && (
+                      <div style={{ fontSize: 12, color: '#a89478', marginTop: 6, fontWeight: 600 }}>
+                        La série ABI sera automatiquement activée au second cycle (continuation du PEBS).
+                      </div>
+                    )}
+                  </Field>
+                )}
+                {template.code && TCODES_PEBS_EN.includes(template.code) && (
+                  <Field label="Programme d'Éducation Bilingue Spécial (PEBS) — Anglophone">
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {([{ v: true, l: 'Yes' }, { v: false, l: 'No' }]).map(opt => (
+                        <button key={String(opt.v)} type="button" onClick={() => setHasPEBSAnglophone(opt.v)}
+                          style={{
+                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSAnglophone === opt.v ? '#059669' : '#d4c8b8'}`,
+                            borderRadius: 10, background: hasPEBSAnglophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
+                            cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
+                            color: hasPEBSAnglophone === opt.v ? '#047857' : '#6b5c45',
                           }}>
                           {opt.l}
                         </button>
                       ))}
                     </div>
                   </Field>
-                )}
+            )}
+
               </div>
             )}
 

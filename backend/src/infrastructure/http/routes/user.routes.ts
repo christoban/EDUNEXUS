@@ -25,6 +25,10 @@ export function creerUserRoutes(controller: UserController): Router {
   router.post('/auth/logout', controller.logout);
   router.post('/auth/refresh', controller.refresh);
 
+  // Invitation utilisateur — publique (pas de session)
+  router.get('/auth/invite/validate', controller.validateInvite);
+  router.post('/auth/invite/complete', controller.completeInvite);
+
   // Gestion utilisateurs
   router.post('/', requireAuth, requireRole('ADMIN'), controller.register);
   router.put('/:id', requireAuth, controller.update);

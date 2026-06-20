@@ -11,6 +11,8 @@ export function creerClasseRoutes(controller: ClasseController): Router {
   router.patch('/:id/professor-principal', requireAuth, requireRole('ADMIN'), controller.assignerProfesseurPrincipal);
   router.post('/:id/subgroups', requireAuth, requireRole('ADMIN'), controller.creerSousGroupeTP);
   router.post('/subgroups/:subGroupId/students', requireAuth, requireRole('ADMIN'), controller.assignerElevesAuSousGroupe);
+  router.post('/:classId/subjects', requireAuth, requireRole('ADMIN'), controller.ajouterMatiereClasse);
+  router.delete('/:classId/subjects/:subjectId', requireAuth, requireRole('ADMIN'), controller.supprimerMatiereClasse);
 
   return router;
 }

@@ -1,9 +1,13 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { ChildWithStats } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  userId?: string
 }
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
@@ -12,75 +16,70 @@ const TIMES_END = ['08:30', '09:30', '10:30', '11:30', '13:00', '14:00', '15:00'
 
 type SlotType = { subject: string; teacher: string; color: string } | null
 
-export default function SectionParentTimetable({ onToast }: Props) {
-  const [children, setChildren] = useState<ChildWithStats[]>([])
+interface TimetableData {
+  children: ChildWithStats[]
+  slotsByChild: Record<string, Record<string, SlotType>>
+  classNames: Record<string, string>
+}
+
+function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  if (!cachedAt) return null
+  const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      📦 Données du {date} — hors-ligne
+    </div>
+  )
+}
+
+function buildSlots(data: any[]): Record<string, SlotType> {
+  const slotMap: Record<string, SlotType> = {}
+  const colors = ['#059669', '#1d4ed8', '#7c3aed', '#d97706', '#0d9488', '#dc2626', '#ea580c']
+  let colorIdx = 0
+  const subjectColors: Record<string, string> = {}
+  data.forEach((tt: any) => {
+    (tt.slots || []).forEach((s: any) => {
+      const startIdx = TIMES.indexOf(s.startTime)
+      if (startIdx === -1) return
+      const subName = s.subject?.name || ''
+      if (subName && !subjectColors[subName]) { subjectColors[subName] = colors[colorIdx % colors.length]; colorIdx++ }
+      slotMap[`${s.dayOfWeek}-${startIdx}`] = {
+        subject: subName,
+        teacher: s.teacher ? `${s.teacher.firstName} ${s.teacher.lastName}` : '',
+        color: subjectColors[subName] || '#059669',
+      }
+    })
+  })
+  return slotMap
+}
+
+export default function SectionParentTimetable({ onToast, userId }: Props) {
   const [selectedChild, setSelectedChild] = useState(0)
-  const [slots, setSlots] = useState<Record<string, SlotType>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [className, setClassName] = useState('')
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const childrenRes = await fetch('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
-      if (!childrenRes.success) {
-        setError('Erreur de chargement des enfants')
-        return
+  const cacheKey = userId ? `parent:timetable:${userId}` : ''
+  const fetchFn = useCallback(async (): Promise<TimetableData> => {
+    const childrenRes = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
+    if (!childrenRes.success) throw new Error('Erreur de chargement des enfants')
+    const children: ChildWithStats[] = childrenRes.data
+
+    const slotsByChild: Record<string, Record<string, SlotType>> = {}
+    const classNames: Record<string, string> = {}
+
+    await Promise.all(children.map(async (child) => {
+      if (!child.classeId) { slotsByChild[child.studentId] = {}; classNames[child.studentId] = child.classeNom || '—'; return }
+      classNames[child.studentId] = child.classeNom || ''
+      try {
+        const ttRes = await fetchApi(`/api/v2/timetables?classId=${child.classeId}`, { credentials: 'include' }).then(r => r.json())
+        slotsByChild[child.studentId] = ttRes.success ? buildSlots(ttRes.data) : {}
+      } catch {
+        slotsByChild[child.studentId] = {}
       }
-      setChildren(childrenRes.data)
+    }))
 
-      const child = childrenRes.data[selectedChild]
-      if (!child) {
-        setError('Aucun enfant trouvé')
-        return
-      }
+    return { children, slotsByChild, classNames }
+  }, [userId])
 
-      if (!child.classeId) {
-        setClassName(child.classeNom || '—')
-        setSlots({})
-        return
-      }
-
-      setClassName(child.classeNom || '')
-
-      const ttRes = await fetch(`/api/v2/timetables?classId=${child.classeId}`, { credentials: 'include' }).then(r => r.json())
-      if (ttRes.success) {
-        const slotMap: Record<string, SlotType> = {}
-        const colors = ['#059669', '#1d4ed8', '#7c3aed', '#d97706', '#0d9488', '#dc2626', '#ea580c']
-        let colorIdx = 0
-        const subjectColors: Record<string, string> = {}
-
-        ttRes.data.forEach((tt: any) => {
-          (tt.slots || []).forEach((s: any) => {
-            const startIdx = TIMES.indexOf(s.startTime)
-            if (startIdx === -1) return
-            const subName = s.subject?.name || ''
-            if (subName && !subjectColors[subName]) {
-              subjectColors[subName] = colors[colorIdx % colors.length]
-              colorIdx++
-            }
-            const key = `${s.dayOfWeek}-${startIdx}`
-            slotMap[key] = {
-              subject: subName,
-              teacher: s.teacher ? `${s.teacher.firstName} ${s.teacher.lastName}` : '',
-              color: subjectColors[subName] || '#059669',
-            }
-          })
-        })
-        setSlots(slotMap)
-      } else {
-        setError('Erreur de chargement de l\'emploi du temps')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erreur réseau')
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedChild])
-
-  useEffect(() => { fetchData() }, [fetchData])
+  const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<TimetableData>(cacheKey, fetchFn)
 
   const getWeekRange = () => {
     const now = new Date()
@@ -100,12 +99,14 @@ export default function SectionParentTimetable({ onToast }: Props) {
     )
   }
 
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
+
   if (error) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
-          <button onClick={fetchData}
+          <button onClick={refetch}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
@@ -114,12 +115,19 @@ export default function SectionParentTimetable({ onToast }: Props) {
     )
   }
 
+  const children = data?.children ?? []
+  const child = children[selectedChild]
+  const slots = child ? (data?.slotsByChild[child.studentId] ?? {}) : {}
+  const className = child ? (data?.classNames[child.studentId] ?? '') : ''
+
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
-      <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: fromCache ? 8 : 26 }}>
         <div style={sTitle}>Emploi du temps</div>
         <div style={sSub}>{className} · {getWeekRange()}</div>
       </div>
+
+      {fromCache && <CacheBadge cachedAt={cachedAt} />}
 
       {children.length > 1 && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>

@@ -9,6 +9,13 @@ interface ApiResponse<T> {
   pagination?: { page: number; limit: number; total: number; pages: number }
 }
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<ApiResponse<T>> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -16,7 +23,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<ApiResp
     ...options,
   })
   const data: ApiResponse<T> = await res.json()
-  if (!data.success) throw new Error(data.message || 'Erreur serveur')
+  if (!data.success) throw new ApiError(data.message || 'Erreur serveur', res.status)
   return data
 }
 
@@ -206,6 +213,13 @@ export async function changeSchoolPlan(id: string, plan: string): Promise<void> 
   await apiFetch(`/api/v2/master/schools/${id}/plan`, {
     method: 'PATCH',
     body: JSON.stringify({ plan }),
+  })
+}
+
+export async function cancelApproval(id: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
+  await apiFetch(`/api/v2/master/schools/${id}/cancel-approval`, {
+    method: 'POST',
+    body: JSON.stringify({ sensitiveAuth }),
   })
 }
 

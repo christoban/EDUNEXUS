@@ -43,6 +43,15 @@ export interface CreerPaiementProps {
   phoneNumber?: string;
 }
 
+export interface CreerPaiementCashProps {
+  schoolId: string;
+  invoiceId: string;
+  studentId: string;
+  amount: number;
+  currency?: string;
+  enregistreurId: string;
+}
+
 export class Paiement {
   private constructor(private readonly props: PaiementProps) {}
 
@@ -61,6 +70,25 @@ export class Paiement {
 
   static reconstituer(props: PaiementProps): Paiement {
     return new Paiement(props);
+  }
+
+  /** Paiement en espèces enregistré directement au guichet — pas de Campay. */
+  static creerCash(props: CreerPaiementCashProps): Paiement {
+    if (props.amount <= 0) throw new Error('Le montant du paiement doit être supérieur à 0');
+    const now = new Date();
+    return new Paiement({
+      id: crypto.randomUUID(),
+      schoolId: props.schoolId,
+      invoiceId: props.invoiceId,
+      studentId: props.studentId,
+      amount: props.amount,
+      currency: props.currency ?? 'XAF',
+      method: 'CASH',
+      feeType: 'TUITION',
+      status: 'SUCCESS',
+      paidAt: now,
+      createdAt: now,
+    });
   }
 
   // --- Getters ---

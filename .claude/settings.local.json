@@ -33,7 +33,11 @@
       "Bash(bun install *)",
       "Bash(grep -E \"^axios$|^socket|^lucide|^sonner$|^recharts$|^react-hook-form$|^zod$|^date-fns$\")",
       "Bash(bunx shadcn@latest init -y --base-color neutral)",
-      "Bash(not exist *)"
+      "Bash(not exist *)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"\\\\d \\\\\"BacCoefficient\\\\\"\")",
+      "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"SELECT COUNT\\(*\\) FROM \\\\\"BacCoefficient\\\\\";\" -c \"SELECT serie, COUNT\\(*\\) FROM \\\\\"BacCoefficient\\\\\" GROUP BY serie ORDER BY serie;\")",
+      "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"\\\\dt\")"
     ]
   }
 }

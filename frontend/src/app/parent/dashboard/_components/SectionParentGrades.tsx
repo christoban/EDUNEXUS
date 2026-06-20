@@ -1,10 +1,17 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { ChildWithStats, ReportCard } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  userId?: string
 }
+
+interface GradesData { children: ChildWithStats[]; bulletins: ReportCard[] }
 
 const MENTION_COLOR = (m: string | null): [string, string] => {
   const map: Record<string, [string, string]> = {
@@ -14,51 +21,42 @@ const MENTION_COLOR = (m: string | null): [string, string] => {
   return map[m ?? ''] ?? ['#f1f5f9', '#475569']
 }
 
-export default function SectionParentGrades({ onToast }: Props) {
-  const [children, setChildren] = useState<ChildWithStats[]>([])
-  const [bulletins, setBulletins] = useState<ReportCard[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  if (!cachedAt) return null
+  const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      📦 Données du {date} — hors-ligne
+    </div>
+  )
+}
+
+export default function SectionParentGrades({ onToast, userId }: Props) {
+  const isOnline = useOnlineStatus()
   const [selectedChild, setSelectedChild] = useState(0)
   const [downloading, setDownloading] = useState<string | null>(null)
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const childrenRes = await fetch('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
-      if (!childrenRes.success) {
-        setError('Erreur de chargement')
-        return
-      }
-      setChildren(childrenRes.data)
+  const cacheKey = userId ? `parent:grades:${userId}` : ''
+  const fetchFn = useCallback(async (): Promise<GradesData> => {
+    const childrenRes = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
+    if (!childrenRes.success) throw new Error('Erreur de chargement')
+    const rcRes = await fetchApi('/api/v2/report-cards', { credentials: 'include' }).then(r => r.json())
+    return { children: childrenRes.data, bulletins: rcRes.reportCards ?? [] }
+  }, [userId])
 
-      const rcRes = await fetch('/api/v2/report-cards', { credentials: 'include' }).then(r => r.json())
-      if (rcRes.reportCards) {
-        setBulletins(rcRes.reportCards)
-      } else {
-        setBulletins([])
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erreur réseau')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<GradesData>(cacheKey, fetchFn)
 
-  useEffect(() => { fetchData() }, [fetchData])
-
+  const children = data?.children ?? []
+  const bulletins = data?.bulletins ?? []
   const selectedChildData = children[selectedChild]
   const selectedName = selectedChildData ? `${selectedChildData.prenom} ${selectedChildData.nom}` : ''
-  const filteredBulletins = bulletins.filter(b => {
-    if (!selectedChildData) return false
-    return b.student?.id === selectedChildData.studentId
-  })
+  const filteredBulletins = bulletins.filter(b => b.student?.id === selectedChildData?.studentId)
 
   const downloadPdf = async (id: string, label: string) => {
+    if (!isOnline) { onToast('Téléchargement PDF indisponible hors-ligne', 'warning'); return }
     setDownloading(id)
     try {
-      const res = await fetch(`/api/v2/report-cards/${id}/pdf`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/report-cards/${id}/pdf`, { credentials: 'include' })
       if (!res.ok) { onToast('Erreur de téléchargement', 'error'); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -85,12 +83,14 @@ export default function SectionParentGrades({ onToast }: Props) {
     )
   }
 
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
+
   if (error) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
-          <button onClick={fetchData}
+          <button onClick={refetch}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
@@ -101,10 +101,12 @@ export default function SectionParentGrades({ onToast }: Props) {
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: fromCache ? 8 : 26 }}>
         <div style={sTitle}>Bulletins & Notes</div>
         <div style={sSub}>Résultats scolaires de vos enfants</div>
       </div>
+
+      {fromCache && <CacheBadge cachedAt={cachedAt} />}
 
       {children.length > 0 && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
@@ -149,10 +151,11 @@ export default function SectionParentGrades({ onToast }: Props) {
                     </td>
                     <td style={tdSt}>
                       <button
-                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'white', color: '#059669', border: '1.5px solid #059669', cursor: 'pointer', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1 }}
+                        title={!isOnline ? 'Téléchargement PDF indisponible hors-ligne' : undefined}
+                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : '#f0ebe3', color: isOnline ? '#059669' : '#a89478', border: `1.5px solid ${isOnline ? '#059669' : '#d4c8b8'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1 }}
                         onClick={() => downloadPdf(b.id, b.academicPeriod?.name || 'bulletin')}
-                        disabled={downloading === b.id}>
-                        {downloading === b.id ? '⏳...' : '📥 PDF'}
+                        disabled={downloading === b.id || !isOnline}>
+                        {downloading === b.id ? '⏳...' : isOnline ? '📥 PDF' : '📶'}
                       </button>
                     </td>
                   </tr>

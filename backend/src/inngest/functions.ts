@@ -772,6 +772,19 @@ export const sendPaymentReminders = inngest.createFunction(
   }
 );
 
+export const markOverdueLoans = inngest.createFunction(
+  { id: "mark-overdue-loans", name: "Marquer emprunts en retard", triggers: [{ cron: "0 1 * * *" }] },
+  async ({ step }) => {
+    return await step.run("update-overdue-loans", async () => {
+      const result = await prisma.bookLoan.updateMany({
+        where: { status: "ACTIVE", dueDate: { lt: new Date() } },
+        data: { status: "OVERDUE" },
+      });
+      return { updated: result.count };
+    });
+  }
+);
+
 export const handleGradeSubmitted = inngest.createFunction(
   { id: "Handle-Grade-Submitted", triggers: [{ event: "grade/submitted" }] },
   async ({ event, step }) => {

@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -40,7 +41,7 @@ export default function SectionGradeValidation({ onToast }: Props) {
   const fetchPending = useCallback(async () => {
     try {
       setLoading(true); setError(null)
-      const res = await fetch('/api/v2/grades/pending', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/grades/pending', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
 
@@ -72,7 +73,7 @@ export default function SectionGradeValidation({ onToast }: Props) {
   const validateGrade = async (gradeId: string) => {
     setValidating(prev => new Set(prev).add(gradeId))
     try {
-      const res = await fetch(`/api/v2/grades/${gradeId}/validate`, { method: 'PATCH', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/grades/${gradeId}/validate`, { method: 'PATCH', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       return true
@@ -89,7 +90,7 @@ export default function SectionGradeValidation({ onToast }: Props) {
     const key = `${lot.classId}__${lot.subjectId}`
     setValidating(prev => new Set([...prev, key]))
     try {
-      const res = await fetch('/api/v2/grades/bulk-validate', {
+      const res = await fetchApi('/api/v2/grades/bulk-validate', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classId: lot.classId, sequenceId: lot.sequenceId }),
@@ -112,7 +113,7 @@ export default function SectionGradeValidation({ onToast }: Props) {
   const submitReject = async () => {
     if (!rejectModal.motif.trim()) { onToast('Le motif de rejet est obligatoire', 'error'); return }
     try {
-      const res = await fetch(`/api/v2/grades/${rejectModal.gradeId}/reject`, {
+      const res = await fetchApi(`/api/v2/grades/${rejectModal.gradeId}/reject`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ motif: rejectModal.motif }),

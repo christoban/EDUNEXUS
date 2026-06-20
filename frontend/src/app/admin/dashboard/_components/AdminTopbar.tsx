@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Bell, Search, Loader2 } from 'lucide-react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface SearchResult {
   id: string
@@ -39,7 +40,7 @@ export default function AdminTopbar({ title, onInvite, onNavigate }: Props) {
     if (q.trim().length < 2) { setResults([]); setOpen(false); return }
     setLoading(true)
     try {
-      const res = await fetch(`/api/v2/search/global?q=${encodeURIComponent(q.trim())}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/search/global?q=${encodeURIComponent(q.trim())}`, { credentials: 'include' })
       const data = await res.json()
       if (res.ok) {
         setResults(data.results || [])
@@ -80,13 +81,13 @@ export default function AdminTopbar({ title, onInvite, onNavigate }: Props) {
 
   return (
     <header style={{
-      '--keyframes-edu-spin': 'edu-spin',
-      } as React.CSSProperties & { '--keyframes-edu-spin': string }}>
-      <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
       height: 68, background: 'white', borderBottom: '1.5px solid #e8e0d4',
       display: 'flex', alignItems: 'center', padding: '0 28px',
-      gap: 14, flexShrink: 0
-    
+      gap: 14, flexShrink: 0,
+      '--keyframes-edu-spin': 'edu-spin',
+    } as React.CSSProperties & { '--keyframes-edu-spin': string }}>
+      <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
+
       <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209' }}>
         {title}
       </div>

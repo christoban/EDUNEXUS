@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -26,7 +27,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/v2/timetables', { credentials: 'include' }).then(r => r.json())
+      const res = await fetchApi('/api/v2/timetables', { credentials: 'include' }).then(r => r.json())
       if (res.success) {
         const slotMap: Record<string, SlotType> = {}
         const teacherName = user ? `${user.firstName} ${user.lastName}`.toLowerCase() : ''
@@ -62,7 +63,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
   const openCatchupModal = async () => {
     setCatchup({ ...EMPTY_CATCHUP, open: true })
     try {
-      const res = await fetch('/api/v2/classes', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/classes', { credentials: 'include' })
       const data = await res.json()
       setCatchupClasses(data.data || [])
     } catch {}
@@ -79,7 +80,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
       if (catchup.proposedStartTime)  body.proposedStartTime = catchup.proposedStartTime
       if (catchup.proposedEndTime)    body.proposedEndTime = catchup.proposedEndTime
       if (catchup.reason.trim())      body.reason = catchup.reason.trim()
-      const res = await fetch('/api/v2/timetables/catchup-requests', {
+      const res = await fetchApi('/api/v2/timetables/catchup-requests', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
 import type { AttendancePeriod, AttendanceStatus } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { notifyAbsenceSms } from '@infrastructure/services/SmsNotificationService';
 
 const startOfDayUtc = (dateString: string) => {
   const [y = 0, m = 1, d = 1] = dateString.split('-').map(Number);
@@ -20,19 +21,17 @@ export class AttendanceController {
 
   // POST /api/v2/attendance
   enregistrer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const user = (req as any).user;
+    const { classId, academicPeriodId, subjectId, date, period, presences, isOfflineSync } = req.body;
+
+    if (!classId || !date || !period || !presences?.length) {
+      res.status(400).json({ success: false, message: 'classId, date, period et presences sont requis' });
+      return;
+    }
+
+    let resultat: { enregistrees: number; absents: string[]; retards: string[] };
     try {
-      const user = (req as any).user;
-      const { classId, academicPeriodId, subjectId, date, period, presences, isOfflineSync } = req.body;
-
-      if (!classId || !date || !period || !presences?.length) {
-        res.status(400).json({
-          success: false,
-          message: 'classId, date, period et presences sont requis',
-        });
-        return;
-      }
-
-      const resultat = await this.enregistrerPresence.execute({
+      resultat = await this.enregistrerPresence.execute({
         schoolId: user.schoolId,
         classId,
         academicPeriodId,
@@ -47,8 +46,6 @@ export class AttendanceController {
         })),
         isOfflineSync: isOfflineSync ?? false,
       });
-
-      res.status(201).json({ success: true, data: resultat });
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('déjà été enregistrées')) {
@@ -61,6 +58,40 @@ export class AttendanceController {
         }
       }
       next(error);
+      return;
+    }
+
+    res.status(201).json({ success: true, data: resultat });
+
+    // Fire-and-forget SMS — proprement hors du try/catch, réponse déjà envoyée
+    if (resultat.absents.length > 0) {
+      const schoolId = user.schoolId as string
+      const dateObj = new Date(date)
+      const absentIds = resultat.absents
+      void (async () => {
+        try {
+          const students = await prisma.user.findMany({
+            where: { id: { in: absentIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+          const subjectName = subjectId
+            ? (await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }))?.name
+            : undefined
+          await Promise.all(
+            students.map((s) =>
+              notifyAbsenceSms({
+                schoolId,
+                studentId: s.id,
+                studentName: `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim(),
+                date: dateObj,
+                subjectName,
+              }),
+            ),
+          )
+        } catch (err) {
+          console.error('[SMS Attendance fire-and-forget]', err)
+        }
+      })()
     }
   };
 

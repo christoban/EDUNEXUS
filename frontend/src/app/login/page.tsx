@@ -19,7 +19,6 @@ type SchoolOption = {
   id: string
   name: string
   subdomain: string
-  status: 'ACTIVE' | 'SUSPENDED'
   city?: string | null
   region?: string | null
   logoUrl?: string | null
@@ -57,11 +56,18 @@ export default function LoginPage() {
   const [roleMismatchWarning, setRoleMismatchWarning] = useState<string | null>(null)
   const [loading, setLoading]                   = useState(false)
   const [alert, setAlert]           = useState<{ msg: string; type: 'error' | 'warning' } | null>(null)
+  const [suspended, setSuspended]   = useState<{ schoolName: string } | null>(null)
   const [success, setSuccess]       = useState<SuccessInfo | null>(null)
   const [progress, setProgress]     = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { emailRef.current?.focus() }, [])
+
+  // Empêcher le remplissage automatique du navigateur (sécurité)
+  useEffect(() => {
+    const t = setTimeout(() => { setEmail(''); setPassword('') }, 50)
+    return () => clearTimeout(t)
+  }, [])
 
   // Charge la liste des écoles publiques au montage
   useEffect(() => {
@@ -93,6 +99,7 @@ export default function LoginPage() {
 
   const submit = async () => {
     setAlert(null)
+    setSuspended(null)
     if (!selectedRole) {
       setAlert({ msg: 'Veuillez sélectionner votre rôle', type: 'error' }); return
     }
@@ -119,7 +126,13 @@ export default function LoginPage() {
 
       const data = await res.json()
 
-      // Cas 3 — plusieurs rôles disponibles mais mauvais rôle sélectionné
+      // École suspendue — credentials valides mais accès bloqué
+      if (res.status === 403 && data.error === 'SCHOOL_SUSPENDED') {
+        setSuspended({ schoolName: selectedSchool.name })
+        return
+      }
+
+      // Cas multi-rôles
       if (res.status === 422 && data.code === 'ROLE_MISMATCH_MULTIPLE') {
         const labels = (data.availableRoles as string[])
           .map(r => ROLE_SELECTOR.find(s => s.role === r)?.label ?? r)
@@ -133,30 +146,29 @@ export default function LoginPage() {
 
       if (!data.success) {
         const msg: string = data.message ?? 'Email ou mot de passe incorrect'
-        setAlert({ msg, type: msg.toLowerCase().includes('actif') || msg.toLowerCase().includes('suspendu') ? 'warning' : 'error' })
+        setAlert({ msg, type: 'error' })
         return
       }
 
-      const { role, nomComplet, userId, permissions, roleMismatch } = data.data as {
-        role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean
+      const { role, nomComplet, userId, permissions, roleMismatch, redirectTo } = data.data as {
+        role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; redirectTo?: string | null
       }
       const config = ROLE_CONFIG[role] ?? { emoji: '👤', badge: role, color: '#6b7280', bg: '#f3f4f6', dest: '/' }
+      const dest = redirectTo ?? config.dest
       const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
 
-      // Persistance des infos de session pour les dashboards (côté client uniquement)
       localStorage.setItem('edunexus_user', JSON.stringify({
         userId, role, nomComplet, firstName,
         permissions: permissions ?? [],
       }))
 
-      // Cas 2 — Option A : rôle incorrect mais 1 seul rôle disponible → avertissement + redirection
       if (roleMismatch) {
         const selectedLabel = ROLE_SELECTOR.find(s => s.role === selectedRole)?.label ?? selectedRole
         const actualLabel   = ROLE_SELECTOR.find(s => s.role === role)?.label ?? role
         setRoleMismatchWarning(`Vous avez sélectionné ${selectedLabel} mais votre rôle dans cet établissement est ${actualLabel}. Redirection vers votre espace…`)
       }
 
-      setSuccess({ ...config, firstName })
+      setSuccess({ ...config, dest, firstName })
     } catch {
       setAlert({ msg: 'Impossible de se connecter. Vérifiez votre connexion.', type: 'error' })
     } finally {
@@ -274,7 +286,33 @@ export default function LoginPage() {
       }}>
         <div style={{ width: '100%', maxWidth: 530, position: 'relative', zIndex: 1 }}>
 
-          {/* Welcome */}
+          {/* ══ BLOC SUSPENSION — remplace le formulaire ══ */}
+          {suspended ? (
+            <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
+              <style>{`@keyframes edu-fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }`}</style>
+              <div style={{ background: '#fef2f2', border: '2px solid rgba(220,38,38,0.25)', borderRadius: 16, padding: '32px 36px', boxShadow: '0 4px 24px rgba(220,38,38,0.08)' }}>
+                <div style={{ fontSize: 40, marginBottom: 16, textAlign: 'center' }}>🚫</div>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#991b1b', marginBottom: 12, textAlign: 'center' }}>
+                  Établissement suspendu
+                </div>
+                <div style={{ fontSize: 15, color: '#b91c1c', fontWeight: 600, lineHeight: 1.7, marginBottom: 20 }}>
+                  <strong>{suspended.schoolName}</strong> a été suspendu par l&apos;administrateur EduNexus.
+                  L&apos;accès à la plateforme est temporairement bloqué pour cet établissement.
+                </div>
+                <div style={{ background: 'white', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, fontSize: 14, color: '#6b5c45', lineHeight: 1.6 }}>
+                  Pour toute question ou pour régulariser la situation, contactez le support EduNexus à{' '}
+                  <a href="mailto:support@edunexus.cm" style={{ color: '#059669', fontWeight: 700 }}>support@edunexus.cm</a>
+                </div>
+                <button
+                  onClick={() => setSuspended(null)}
+                  style={{ width: '100%', padding: '12px 0', background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, fontSize: 15, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ← Changer d&apos;établissement
+                </button>
+              </div>
+            </div>
+          ) : (
+
+          <>{/* Welcome */}
           <div style={{ marginBottom: 32 }}>
             <span style={{ fontSize: 45, marginBottom: 10, display: 'block' }}>👋</span>
             <div style={{
@@ -313,7 +351,7 @@ export default function LoginPage() {
               onClick={() => { setDropdownOpen(o => !o); setSchoolSearch('') }}
               style={{
                 width: '100%', padding: '16px 16px', background: 'white',
-                border: `1.5px solid ${selectedSchool?.status === 'SUSPENDED' ? 'rgba(234,88,12,0.4)' : dropdownOpen ? '#059669' : '#e8e0d4'}`,
+                border: `1.5px solid ${dropdownOpen ? '#059669' : '#e8e0d4'}`,
                 borderRadius: 14, color: selectedSchool ? '#1a1209' : '#a89478',
                 fontSize: 15, fontFamily: 'inherit', fontWeight: 600,
                 cursor: 'pointer', textAlign: 'left',
@@ -330,9 +368,6 @@ export default function LoginPage() {
                     <span style={{ fontSize: 22, flexShrink: 0 }}>🏫</span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {selectedSchool.name}
-                      {selectedSchool.status === 'SUSPENDED' && (
-                        <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 800, background: '#ffedd5', color: '#ea580c', padding: '2px 7px', borderRadius: 20 }}>SUSPENDU</span>
-                      )}
                     </span>
                   </>
                 ) : (
@@ -411,9 +446,6 @@ export default function LoginPage() {
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1209', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{school.name}</span>
-                            {school.status === 'SUSPENDED' && (
-                              <span style={{ fontSize: 10, fontWeight: 800, background: '#ffedd5', color: '#ea580c', padding: '2px 7px', borderRadius: 20, flexShrink: 0 }}>SUSPENDU</span>
-                            )}
                             {selectedSchool?.id === school.id && (
                               <span style={{ fontSize: 10, color: '#059669', fontWeight: 800, flexShrink: 0 }}>✓</span>
                             )}
@@ -473,7 +505,7 @@ export default function LoginPage() {
               onChange={e => { setEmail(e.target.value); setAlert(null) }}
               onKeyDown={e => e.key === 'Enter' && submit()}
               placeholder="jean.dupont@ecole.cm"
-              autoComplete="email"
+              autoComplete="off"
               style={{ width: '100%', padding: '19px 16px', background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 14, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
             />
           </div>
@@ -488,7 +520,7 @@ export default function LoginPage() {
                 type={showPwd ? 'text' : 'password'} value={password}
                 onChange={e => { setPassword(e.target.value); setAlert(null) }}
                 onKeyDown={e => e.key === 'Enter' && submit()}
-                placeholder="••••••••••" autoComplete="current-password"
+                placeholder="••••••••••" autoComplete="new-password"
                 style={{ width: '100%', padding: '19px 16px', background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 14, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
               />
               <button type="button" onClick={() => setShowPwd(s => !s)}
@@ -520,6 +552,9 @@ export default function LoginPage() {
             {loading ? <Loader2 size={18} className="animate-spin" /> : null}
             {loading ? 'Connexion...' : 'Se connecter →'}
           </button>
+
+        </>
+        )}
 
         </div>
       </div>

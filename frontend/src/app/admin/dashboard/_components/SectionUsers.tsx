@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -123,6 +124,7 @@ interface UserItem {
   createdAt: string
   studentProfile: { class: { name: string } | null } | null
   staffProfile: { title: string } | null
+  classesProfessorPrincipal?: { id: string; name: string }[]
 }
 
 // ── Fusion permissions sans doublon ──
@@ -199,7 +201,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     set('loading', true)
     set('error', '')
     try {
-      const res = await fetch('/api/v2/users', {
+      const res = await fetchApi('/api/v2/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -384,6 +386,8 @@ interface ImportPreviewRow {
   telephone: string
   classe?: string
   matieres?: string
+  classePrincipale?: string
+  departementAp?: string
 }
 
 interface ImportStepProps {
@@ -403,11 +407,18 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
   const [preview, setPreview] = useState<ImportPreviewRow[]>([])
   const [totalRows, setTotalRows] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<{ total: number; success: number; errors: { ligne: number; erreur: string }[] } | null>(null)
+  const [result, setResult] = useState<{
+    total: number
+    success: number
+    professeursPrincipauxAssignes: number
+    animateursPedagogiquesAssignes: number
+    errors: { ligne: number; erreur: string }[]
+    warnings: { ligne: number; avertissement: string }[]
+  } | null>(null)
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await fetch(`/api/v2/templates/${importType === 'STUDENT' ? 'import-eleves' : 'import-enseignants'}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/templates/${importType === 'STUDENT' ? 'import-eleves' : 'import-enseignants'}`, { credentials: 'include' })
       if (!res.ok) throw new Error('Erreur de téléchargement')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -449,6 +460,8 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
       telephone: r.telephone || '',
       classe: r.classe || r.matieres || '',
       matieres: r.matieres || '',
+      classePrincipale: r.classe_principale || '',
+      departementAp: r.departement_ap || '',
     }))
     setPreview(previewData)
   }
@@ -460,7 +473,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
       const formData = new FormData()
       formData.append('file', file)
       formData.append('role', importType!)
-      const res = await fetch('/api/v2/users/import', {
+      const res = await fetchApi('/api/v2/users/import', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -596,7 +609,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                         <tr style={{ background: '#f0ebe3' }}>
                           {importType === 'STUDENT'
                             ? ['Nom', 'Prénom', 'Email', 'Téléphone', 'Classe'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#6b5c45' }}>{h}</th>)
-                            : ['Nom', 'Prénom', 'Email', 'Téléphone', 'Matières'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#6b5c45' }}>{h}</th>)
+                            : ['Nom', 'Prénom', 'Email', 'Téléphone', 'Matières', 'Prof. Principal', 'AP'].map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#6b5c45' }}>{h}</th>)
                           }
                         </tr>
                       </thead>
@@ -608,6 +621,10 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                             <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.email || '—'}</td>
                             <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.telephone || '—'}</td>
                             <td style={{ padding: '7px 10px', color: '#6b5c45' }}>{row.classe || row.matieres || '—'}</td>
+                            {importType === 'TEACHER' && <>
+                              <td style={{ padding: '7px 10px', color: row.classePrincipale ? '#059669' : '#a89478', fontWeight: row.classePrincipale ? 700 : 400 }}>{row.classePrincipale || '—'}</td>
+                              <td style={{ padding: '7px 10px', color: row.departementAp ? '#1d4ed8' : '#a89478', fontWeight: row.departementAp ? 700 : 400 }}>{row.departementAp || '—'}</td>
+                            </>}
                           </tr>
                         ))}
                       </tbody>
@@ -639,11 +656,43 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                 )}
               </div>
 
+              {/* Stats PP / AP */}
+              {(result.professeursPrincipauxAssignes > 0 || result.animateursPedagogiquesAssignes > 0) && (
+                <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                  {result.professeursPrincipauxAssignes > 0 && (
+                    <div style={{ flex: 1, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, marginBottom: 2 }}>🧑‍💼</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#065f46' }}>{result.professeursPrincipauxAssignes} PP assigné{result.professeursPrincipauxAssignes > 1 ? 's' : ''}</div>
+                    </div>
+                  )}
+                  {result.animateursPedagogiquesAssignes > 0 && (
+                    <div style={{ flex: 1, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, marginBottom: 2 }}>⭐</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1e40af' }}>{result.animateursPedagogiquesAssignes} AP assigné{result.animateursPedagogiquesAssignes > 1 ? 's' : ''}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Erreurs (rouge) */}
               {result.errors?.length > 0 && (
-                <div style={{ marginTop: 16, background: '#fef2f2', borderRadius: 10, border: '1px solid rgba(220,38,38,0.15)', padding: '14px 16px', maxHeight: 200, overflowY: 'auto' }}>
+                <div style={{ marginTop: 12, background: '#fef2f2', borderRadius: 10, border: '1px solid rgba(220,38,38,0.15)', padding: '14px 16px', maxHeight: 160, overflowY: 'auto' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#991b1b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Erreurs</div>
                   {result.errors.map((err, i) => (
                     <div key={i} style={{ fontSize: 13, color: '#991b1b', marginBottom: i < result.errors.length - 1 ? 6 : 0, lineHeight: 1.5 }}>
                       <strong>Ligne {err.ligne}</strong> — {err.erreur}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Avertissements (orange) */}
+              {result.warnings?.length > 0 && (
+                <div style={{ marginTop: 10, background: '#fffbeb', borderRadius: 10, border: '1px solid rgba(245,158,11,0.25)', padding: '14px 16px', maxHeight: 120, overflowY: 'auto' }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Avertissements</div>
+                  {result.warnings.map((w, i) => (
+                    <div key={i} style={{ fontSize: 13, color: '#b45309', marginBottom: i < result.warnings.length - 1 ? 6 : 0, lineHeight: 1.5 }}>
+                      <strong>Ligne {w.ligne}</strong> — {w.avertissement}
                     </div>
                   ))}
                 </div>
@@ -705,8 +754,7 @@ interface ClassItem { id: string; name: string }
 
 const EMPTY_MOD_USER = { open: false, userId: '', firstName: '', lastName: '', email: '', phone: '', loading: false, error: '' }
 const EMPTY_TRANSFER = { open: false, userId: '', userName: '', classId: '', classes: [] as ClassItem[], loading: false, error: '' }
-const EMPTY_AP = { open: false, userId: '', userName: '', subjects: [] as { id: string; name: string }[], selectedIds: [] as string[], loadingSubjects: false, loading: false, error: '' }
-const EMPTY_REMOVE_AP = { open: false, userId: '', userName: '', loading: false }
+
 const EMPTY_CREATE_USER = {
   open: false, firstName: '', lastName: '', email: '', phone: '', role: 'TEACHER' as 'TEACHER' | 'STUDENT' | 'PARENT' | 'STAFF',
   subjectIds: [] as string[], classeId: '', dateOfBirth: '', gender: '',
@@ -723,8 +771,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   const [transfer, setTransfer]     = useState(EMPTY_TRANSFER)
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_USER)
-  const [apForm, setApForm]         = useState(EMPTY_AP)
-  const [removeAP, setRemoveAP]     = useState(EMPTY_REMOVE_AP)
+
   const [availClasses, setAvailClasses] = useState<ClassItem[]>([])
   const [availSubjects, setAvailSubjects] = useState<SubjectItem2[]>([])
   const [importOpen, setImportOpen] = useState(false)
@@ -748,17 +795,13 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       const params = new URLSearchParams({ limit: '100' })
       if (roleFilter) params.set('role', roleFilter)
       if (search) params.set('search', search)
-      const res = await fetch(`/api/v2/users?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/users?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       setUsers(data.data || [])
-      if (!roleFilter) {
-        // compute counts per role from the full list
-        const c: Record<string, number> = {}
-        for (const u of (data.data || []) as UserItem[]) {
-          c[u.role] = (c[u.role] || 0) + 1
-        }
-        setCounts(c)
+      // Utiliser roleCounts du backend (vrais totaux, pas limités à la page)
+      if (!roleFilter && data.roleCounts) {
+        setCounts(data.roleCounts as Record<string, number>)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de chargement')
@@ -781,7 +824,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
     if (!modUser.firstName.trim() || !modUser.lastName.trim()) { setModUser(f => ({ ...f, error: 'Prénom et nom obligatoires' })); return }
     setModUser(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/users/${modUser.userId}`, {
+      const res = await fetchApi(`/api/v2/users/${modUser.userId}`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName: modUser.firstName.trim(), lastName: modUser.lastName.trim(), email: modUser.email.trim() || undefined }),
@@ -801,7 +844,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
     setOpenDD(null)
     setTransfer({ open: true, userId: user.id, userName: `${user.firstName} ${user.lastName}`, classId: '', classes: [], loading: false, error: '' })
     try {
-      const res = await fetch('/api/v2/classes', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/classes', { credentials: 'include' })
       const data = await res.json()
       if (res.ok) setTransfer(f => ({ ...f, classes: data.data || [] }))
     } catch { /* silencieux */ }
@@ -811,7 +854,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
     if (!transfer.classId) { setTransfer(f => ({ ...f, error: 'Sélectionnez une classe' })); return }
     setTransfer(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/users/students/${transfer.userId}/transfer`, {
+      const res = await fetchApi(`/api/v2/users/students/${transfer.userId}/transfer`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newClassId: transfer.classId }),
@@ -831,8 +874,8 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
     setCreateOpen(true)
     try {
       const [cRes, sRes] = await Promise.all([
-        fetch('/api/v2/classes', { credentials: 'include' }),
-        fetch('/api/v2/subjects', { credentials: 'include' }),
+        fetchApi('/api/v2/classes', { credentials: 'include' }),
+        fetchApi('/api/v2/subjects', { credentials: 'include' }),
       ])
       if (cRes.ok) { const d = await cRes.json(); setAvailClasses(d.data || []) }
       if (sRes.ok) { const d = await sRes.json(); setAvailSubjects(d.data || []) }
@@ -869,7 +912,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         if (createForm.staffPermissions.length > 0) body.staffPermissions = createForm.staffPermissions
       }
 
-      const res = await fetch('/api/v2/users', {
+      const res = await fetchApi('/api/v2/users', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -898,70 +941,13 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   const handleDelete = async (userId: string) => {
     if (!confirm('Supprimer cet utilisateur ? Cette action est irréversible.')) return
     try {
-      const res = await fetch(`/api/v2/users/${userId}`, { method: 'DELETE', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/users/${userId}`, { method: 'DELETE', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       onToast('Utilisateur supprimé', 'success')
       fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur', 'error')
-    }
-  }
-
-  // ── Désigner / Retirer AP ────────────────────────────────────────────────
-  const openDesignerAP = async (user: UserItem) => {
-    setOpenDD(null)
-    setApForm({ ...EMPTY_AP, open: true, userId: user.id, userName: `${user.firstName} ${user.lastName}`, loadingSubjects: true })
-    try {
-      const res = await fetch('/api/v2/subjects', { credentials: 'include' })
-      const data = await res.json()
-      setApForm(f => ({ ...f, subjects: data.data || [], loadingSubjects: false }))
-    } catch {
-      setApForm(f => ({ ...f, loadingSubjects: false }))
-    }
-  }
-
-  const submitDesignerAP = async () => {
-    if (apForm.selectedIds.length === 0) { setApForm(f => ({ ...f, error: 'Sélectionnez au moins une matière.' })); return }
-    setApForm(f => ({ ...f, loading: true, error: '' }))
-    try {
-      const res = await fetch(`/api/v2/users/${apForm.userId}/ap-designation`, {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'ASSIGN', departmentSubjectIds: apForm.selectedIds }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(`${apForm.userName} désigné(e) Animateur Pédagogique`, 'success')
-      setApForm(EMPTY_AP)
-      fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
-      setApForm(f => ({ ...f, loading: false }))
-    }
-  }
-
-  const openRetireAP = (user: UserItem) => {
-    setOpenDD(null)
-    setRemoveAP({ open: true, userId: user.id, userName: `${user.firstName} ${user.lastName}`, loading: false })
-  }
-
-  const confirmRemoveAP = async () => {
-    setRemoveAP(f => ({ ...f, loading: true }))
-    try {
-      const res = await fetch(`/api/v2/users/${removeAP.userId}/ap-designation`, {
-        method: 'PATCH', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'REMOVE', departmentSubjectIds: [] }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(`Désignation AP retirée de ${removeAP.userName}`, 'success')
-      setRemoveAP(EMPTY_REMOVE_AP)
-      fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
-      setRemoveAP(f => ({ ...f, loading: false }))
     }
   }
 
@@ -1046,6 +1032,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                 const rl = ROLE_LABEL[user.role] ?? { label: user.role, bg: '#f1f5f9', color: '#475569' }
                 const className = user.studentProfile?.class?.name ?? null
                 const staffTitle = user.staffProfile?.title ?? null
+                const ppClasses = user.classesProfessorPrincipal?.map((c: { name: string }) => c.name) ?? []
                 return (
                   <tr key={user.id}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
@@ -1063,6 +1050,15 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                     <td style={tdStyle}>{formatLastLogin(user.lastLogin)}</td>
                     <td style={tdStyle}>
                       {className ? <span style={badge('#f1f5f9', '#475569')}>{className}</span>
+                        : ppClasses.length > 0
+                          ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                              <span style={badge('#dbeafe', '#1e40af')}>🏫 PP {ppClasses[0]}</span>
+                              {staffTitle && (
+                                <span style={badge(staffTitle === 'Animateur Pédagogique' ? '#d1fae5' : '#ffedd5', staffTitle === 'Animateur Pédagogique' ? '#065f46' : '#9a3412')}>
+                                  {staffTitle === 'Animateur Pédagogique' ? '⭐ AP' : staffTitle}
+                                </span>
+                              )}
+                            </div>
                         : (user.role === 'TEACHER' && staffTitle === 'Animateur Pédagogique')
                           ? <span style={badge('#d1fae5', '#065f46')}>⭐ AP</span>
                         : staffTitle ? <span style={badge('#ffedd5', '#9a3412')}>{staffTitle}</span>
@@ -1081,11 +1077,6 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                             {[
                               { icon: '✏️', label: 'Modifier', danger: false, onClick: () => openModUser(user) },
                               ...(user.role === 'STUDENT' ? [{ icon: '🔄', label: 'Changer de classe', danger: false, onClick: () => openTransfer(user) }] : []),
-                              ...(user.role === 'TEACHER' ? [
-                                user.staffProfile?.title === 'Animateur Pédagogique'
-                                  ? { icon: '⭐', label: 'Retirer la désignation AP', danger: false, onClick: () => openRetireAP(user) }
-                                  : { icon: '⭐', label: 'Désigner comme AP', danger: false, onClick: () => openDesignerAP(user) }
-                              ] : []),
                               { icon: '🗑', label: 'Supprimer', danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
                             ].map((item, j) => (
                               <div key={j} onClick={item.onClick}
@@ -1159,65 +1150,6 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setTransfer(EMPTY_TRANSFER)}>Annuler</button>
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: transfer.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: transfer.loading ? 0.7 : 1 }} onClick={submitTransfer} disabled={transfer.loading}>
                 {transfer.loading ? 'Transfert…' : '🔄 Transférer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal désigner AP ── */}
-      {apForm.open && (
-        <div onClick={() => setApForm(EMPTY_AP)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, padding: '32px 36px', width: 500, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 4 }}>Désigner comme AP</div>
-            <div style={{ fontSize: 15, color: '#a89478', marginBottom: 22 }}>{apForm.userName}</div>
-            <div style={sLb}>Matières du département *</div>
-            <div style={{ border: '1.5px solid #e8e0d4', borderRadius: 10, maxHeight: 240, overflowY: 'auto', padding: 4, marginBottom: 10 }}>
-              {apForm.loadingSubjects ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
-                  <div style={{ width: 22, height: 22, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
-                </div>
-              ) : apForm.subjects.length === 0 ? (
-                <div style={{ padding: 12, color: '#a89478', fontSize: 14, textAlign: 'center' }}>Aucune matière disponible</div>
-              ) : apForm.subjects.map(sub => {
-                const checked = apForm.selectedIds.includes(sub.id)
-                return (
-                  <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: checked ? '#f0fdf4' : 'transparent' }}>
-                    <input type="checkbox" checked={checked}
-                      onChange={() => setApForm(f => ({ ...f, selectedIds: checked ? f.selectedIds.filter(x => x !== sub.id) : [...f.selectedIds, sub.id] }))}
-                      style={{ accentColor: '#059669', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1209' }}>{sub.name}</span>
-                  </label>
-                )
-              })}
-            </div>
-            <div style={{ fontSize: 13, color: '#a89478', marginBottom: 14 }}>
-              {apForm.selectedIds.length} matière{apForm.selectedIds.length !== 1 ? 's' : ''} sélectionnée{apForm.selectedIds.length !== 1 ? 's' : ''}
-            </div>
-            {apForm.error && <div style={sErr}>{apForm.error}</div>}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setApForm(EMPTY_AP)}>Annuler</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: apForm.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: apForm.loading ? 0.7 : 1 }} onClick={submitDesignerAP} disabled={apForm.loading || apForm.loadingSubjects}>
-                {apForm.loading ? '⏳ Désignation…' : '⭐ Confirmer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Confirmation retrait AP ── */}
-      {removeAP.open && (
-        <div onClick={() => setRemoveAP(EMPTY_REMOVE_AP)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, padding: '32px 36px', width: 420, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 14 }}>Retirer la désignation AP</div>
-            <div style={{ fontSize: 16, color: '#6b5c45', lineHeight: 1.7, marginBottom: 24 }}>
-              Retirer la désignation AP de <strong>{removeAP.userName}</strong> ?<br />
-              <span style={{ fontSize: 14, color: '#a89478' }}>Les permissions Animateur Pédagogique seront supprimées.</span>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setRemoveAP(EMPTY_REMOVE_AP)}>Annuler</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: 'white', border: 'none', cursor: removeAP.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: removeAP.loading ? 0.7 : 1 }} onClick={confirmRemoveAP} disabled={removeAP.loading}>
-                {removeAP.loading ? '⏳ Retrait…' : 'Retirer la désignation'}
               </button>
             </div>
           </div>

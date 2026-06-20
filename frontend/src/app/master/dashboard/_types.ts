@@ -3,7 +3,7 @@ import type { MasterUserDto, SchoolDto, AuditLogDto, SchoolDetailDto } from './_
 export type { MasterUserDto, SchoolDto, AuditLogDto, SchoolDetailDto }
 
 export type Section = 'overview' | 'schools' | 'logs'
-export type SchoolTab = 'all' | 'pending' | 'active' | 'suspended' | 'draft' | 'rejected'
+export type SchoolTab = 'all' | 'pending' | 'approved' | 'active' | 'suspended' | 'draft' | 'rejected'
 export type LogTab = 'emails' | 'auth' | 'security'
 export type ModalId =
   | 'invite' | 'approve' | 'reject' | 'suspend' | 'delete'
@@ -32,7 +32,7 @@ export interface SchoolRow {
   subdomain: string
   type: string
   plan: 'deco' | 'std' | 'prem'
-  status: 'active' | 'pending' | 'suspended' | 'draft' | 'rejected'
+  status: 'active' | 'pending' | 'approved' | 'suspended' | 'draft' | 'rejected'
   adminEmail: string
   inviteStatus: string
   inviteExpiry?: string

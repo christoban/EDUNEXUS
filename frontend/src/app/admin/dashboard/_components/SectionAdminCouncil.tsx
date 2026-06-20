@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -44,7 +45,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   const fetchSessions = useCallback(async () => {
     try {
       setLoading(true); setError(null)
-      const res = await fetch('/api/v2/class-councils', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/class-councils', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setSessions(data.sessions || [])
@@ -58,7 +59,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   const openSession = async (sessionId: string) => {
     setLoadingDetail(true); setSelected(null)
     try {
-      const res = await fetch(`/api/v2/class-councils/${sessionId}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/class-councils/${sessionId}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       setSelected(data.session)
@@ -72,7 +73,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
     if (!confirm('Verrouiller ce conseil ? Aucune modification ne sera possible après.')) return
     setLocking(true)
     try {
-      const res = await fetch(`/api/v2/class-councils/${selected.id}/lock`, { method: 'POST', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/class-councils/${selected.id}/lock`, { method: 'POST', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       onToast('Conseil de classe verrouillé', 'success')

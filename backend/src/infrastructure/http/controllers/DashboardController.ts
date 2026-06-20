@@ -87,4 +87,19 @@ export class DashboardController {
       next(error);
     }
   };
+
+  getAdminBadges = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { schoolId } = req.user!;
+      const [users, classes, pendingGrades, pendingInvoices] = await Promise.all([
+        this.prisma.user.count({ where: { schoolId } }),
+        this.prisma.class.count({ where: { schoolId } }),
+        this.prisma.grade.count({ where: { schoolId, validationStatus: 'SUBMITTED' } }),
+        this.prisma.invoice.count({ where: { schoolId, status: { in: ['PENDING', 'OVERDUE'] } } }),
+      ]);
+      res.json({ success: true, data: { users, classes, pendingGrades, pendingInvoices } });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

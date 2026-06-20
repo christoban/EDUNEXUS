@@ -139,6 +139,10 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
   const [disablePwd, setDisablePwd] = useState('')
   const [disableMfa, setDisableMfa] = useState('')
 
+  // Show/hide password toggles
+  const [showEnablePwd, setShowEnablePwd] = useState(false)
+  const [showDisablePwd, setShowDisablePwd] = useState(false)
+
   const inp: React.CSSProperties = {
     width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8',
     borderRadius: 10, color: '#1a1209', fontSize: 15, fontFamily: 'inherit', fontWeight: 600,
@@ -306,8 +310,16 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={fieldLabel}>Votre mot de passe actuel *</label>
-                <input style={inp} type="password" placeholder="••••••••••••" value={password}
-                  onChange={e => setPassword(e.target.value)} />
+                <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <input type="password" autoComplete="new-password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <div style={{ position: 'relative' }}>
+                  <input style={{ ...inp, paddingRight: 40 }} type={showEnablePwd ? 'text' : 'password'} placeholder="••••••••••••" value={password}
+                    autoComplete="new-password" onChange={e => setPassword(e.target.value)} />
+                  <button type="button" onClick={() => setShowEnablePwd(s => !s)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
+                    {showEnablePwd ? '🙈' : '👁'}
+                  </button>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button style={btnGray} onClick={() => { setError(''); setFlow('enable-qr') }}>← Retour</button>
@@ -351,13 +363,21 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={fieldLabel}>Mot de passe actuel *</label>
-                <input style={inp} type="password" placeholder="••••••••••••" value={disablePwd}
-                  onChange={e => setDisablePwd(e.target.value)} />
+                <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <input type="password" autoComplete="new-password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <div style={{ position: 'relative' }}>
+                  <input style={{ ...inp, paddingRight: 40 }} type={showDisablePwd ? 'text' : 'password'} placeholder="••••••••••••" value={disablePwd}
+                    autoComplete="new-password" onChange={e => setDisablePwd(e.target.value)} />
+                  <button type="button" onClick={() => setShowDisablePwd(s => !s)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
+                    {showDisablePwd ? '🙈' : '👁'}
+                  </button>
+                </div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={fieldLabel}>Code MFA actuel *</label>
                 <input style={{ ...inp, textAlign: 'center', fontSize: 20, fontWeight: 900, letterSpacing: 6 }}
-                  type="tel" maxLength={6} placeholder="123456" value={disableMfa}
+                  type="tel" maxLength={6} placeholder="123456" value={disableMfa} autoComplete="one-time-code"
                   onChange={e => setDisableMfa(e.target.value.replace(/\D/g, '').slice(0, 6))} />
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -377,13 +397,21 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
               </p>
               <div style={{ marginBottom: 14 }}>
                 <label style={fieldLabel}>Mot de passe actuel *</label>
-                <input style={inp} type="password" placeholder="••••••••••••" value={disablePwd}
-                  onChange={e => setDisablePwd(e.target.value)} />
+                <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <input type="password" autoComplete="new-password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <div style={{ position: 'relative' }}>
+                  <input style={{ ...inp, paddingRight: 40 }} type={showDisablePwd ? 'text' : 'password'} placeholder="••••••••••••" value={disablePwd}
+                    autoComplete="new-password" onChange={e => setDisablePwd(e.target.value)} />
+                  <button type="button" onClick={() => setShowDisablePwd(s => !s)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
+                    {showDisablePwd ? '🙈' : '👁'}
+                  </button>
+                </div>
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={fieldLabel}>Code MFA actuel *</label>
                 <input style={{ ...inp, textAlign: 'center', fontSize: 20, fontWeight: 900, letterSpacing: 6 }}
-                  type="tel" maxLength={6} placeholder="123456" value={disableMfa}
+                  type="tel" maxLength={6} placeholder="123456" value={disableMfa} autoComplete="one-time-code"
                   onChange={e => setDisableMfa(e.target.value.replace(/\D/g, '').slice(0, 6))} />
               </div>
               <div style={{ display: 'flex', gap: 10 }}>

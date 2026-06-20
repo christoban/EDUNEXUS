@@ -62,4 +62,8 @@ export class InMemoryUserRepository implements UserRepository {
   async transfererEleve(_params: any): Promise<void> {
     // stub
   }
+
+  async findEmailsParentsParEleve(_studentId: string): Promise<string[]> {
+    return [];
+  }
 }

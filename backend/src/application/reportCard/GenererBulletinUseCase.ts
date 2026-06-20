@@ -13,6 +13,7 @@ import type { MatiereRepository } from '@domain/ports/repositories/MatiereReposi
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
 import type { PdfService } from '@domain/ports/services/PdfService';
+import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 import type { BulletinTemplate } from '@domain/types/enums';
 
 export interface GenererBulletinCommande {
@@ -42,6 +43,7 @@ export class GenererBulletinUseCase {
     private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly presenceRepository: PresenceRepository,
     private readonly pdfService: PdfService,
+    private readonly classCouncilRepository: ClassCouncilRepository,
   ) {}
 
   async execute(commande: GenererBulletinCommande): Promise<GenererBulletinResultat> {
@@ -56,6 +58,17 @@ export class GenererBulletinUseCase {
 
     // Lance BulletinBloqueError si des notes ne sont pas validées
     Bulletin.verifierPrerequisGeneration(notesNonValidees, classe.nomComplet);
+
+    // Loi 5b — le conseil de classe doit être LOCKED avant la génération des bulletins
+    const conseilVerrouille = await this.classCouncilRepository.sessionVerrouilleeExiste(
+      commande.classId,
+      commande.academicPeriodId,
+    );
+    if (!conseilVerrouille) {
+      throw new Error(
+        `Le Conseil de Classe de "${classe.nomComplet}" doit être tenu et verrouillé avant de générer les bulletins.`,
+      );
+    }
 
     // 2. Récupérer les élèves de la classe
     const eleves = await this.userRepository.findByRole(commande.schoolId, 'STUDENT');
@@ -207,6 +220,13 @@ export class GenererBulletinUseCase {
       } else {
         await this.bulletinRepository.save(bulletin);
       }
+
+      // Loi 6 — verrouiller les notes VALIDATED après génération du bulletin
+      await this.noteRepository.verrouillerNotesValidees(
+        eleve.id,
+        commande.classId,
+        commande.academicPeriodId,
+      );
 
       generes++;
     }

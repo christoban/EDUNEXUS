@@ -16,6 +16,7 @@ export type EmailEventType =
   | "school_approved"
   | "school_pending_notification"
   | "demo_request"
-  | "user_import";
+  | "user_import"
+  | "user_invite";
 
 export type EmailStatus = "sent" | "failed";

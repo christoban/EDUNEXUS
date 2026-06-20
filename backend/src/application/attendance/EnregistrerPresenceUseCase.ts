@@ -48,16 +48,20 @@ export class EnregistrerPresenceUseCase {
     }
 
     // 2. Vérifier qu'une présence n'existe pas déjà pour ce créneau
-    const dejaEnregistree = await this.presenceRepository.existeDeja(
-      commande.presences[0]?.studentId ?? '',
-      commande.date,
-      commande.period
-    );
-    if (dejaEnregistree) {
-      throw new Error(
-        `Les présences du ${commande.date.toLocaleDateString('fr-FR')} ` +
-        `(${commande.period}) ont déjà été enregistrées pour cette classe`
+    //    (ignoré pour la synchronisation hors-ligne — la resynchronisation
+    //     d'un même créneau est intentionnelle et doit écraser l'existant)
+    if (!commande.isOfflineSync) {
+      const dejaEnregistree = await this.presenceRepository.existeDeja(
+        commande.presences[0]?.studentId ?? '',
+        commande.date,
+        commande.period
       );
+      if (dejaEnregistree) {
+        throw new Error(
+          `Les présences du ${commande.date.toLocaleDateString('fr-FR')} ` +
+          `(${commande.period}) ont déjà été enregistrées pour cette classe`
+        );
+      }
     }
 
     // 3. Créer les entités Presence

@@ -3,6 +3,7 @@ import type { CreerMatiereUseCase } from '@application/subject/CreerMatiereUseCa
 import type { ModifierMatiereUseCase } from '@application/subject/ModifierMatiereUseCase';
 import type { AssignerEnseignantMatiereUseCase } from '@application/subject/AssignerEnseignantMatiereUseCase';
 import type { DefinirCoefficientUseCase } from '@application/subject/DefinirCoefficientUseCase';
+import type { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUseCase';
 
 export class SubjectController {
   constructor(
@@ -10,6 +11,7 @@ export class SubjectController {
     private readonly modifier: ModifierMatiereUseCase,
     private readonly assignerEnseignant: AssignerEnseignantMatiereUseCase,
     private readonly definirCoefficient: DefinirCoefficientUseCase,
+    private readonly supprimer: SupprimerMatiereUseCase,
   ) {}
 
   creerMatiere = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -86,6 +88,20 @@ export class SubjectController {
       });
 
       res.json({ success: true, data: resultat });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  supprimerMatiere = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      await this.supprimer.execute({
+        matiereId: req.params.id as string,
+        schoolId: user.schoolId,
+        demandeurRole: user.role,
+      });
+      res.json({ success: true, message: 'Matière supprimée' });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

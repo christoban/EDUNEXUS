@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { SessionUser } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -58,7 +59,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
       const body: Record<string, unknown> = { label: depenseForm.label.trim(), amount: amt }
       if (depenseForm.category.trim()) body.category = depenseForm.category.trim()
       if (depenseForm.date) body.date = depenseForm.date
-      const res = await fetch('/api/v2/finance/expenses', {
+      const res = await fetchApi('/api/v2/finance/expenses', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -80,7 +81,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
     try {
       const params = new URLSearchParams({ limit: '20', page: String(pg) })
       if (statusFilter) params.set('status', statusFilter)
-      const res = await fetch(`/api/v2/finance/invoices?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/finance/invoices?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setInvoices(data.data || [])
@@ -99,7 +100,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
     if (!phone?.trim()) return
     setPayingId(invoice.id)
     try {
-      const res = await fetch('/api/v2/finance/payments/mobile', {
+      const res = await fetchApi('/api/v2/finance/payments/mobile', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

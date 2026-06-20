@@ -166,6 +166,23 @@ export class PrismaNoteRepository implements NoteRepository {
     });
   }
 
+  async verrouillerNotesValidees(studentId: string, classId: string, academicPeriodId: string): Promise<void> {
+    const sequences = await this.prisma.academicSequence.findMany({
+      where: { academicPeriodId },
+      select: { id: true },
+    });
+    const sequenceIds = sequences.map(s => s.id);
+    await this.prisma.grade.updateMany({
+      where: {
+        studentId,
+        classId,
+        sequenceId: { in: sequenceIds },
+        validationStatus: 'VALIDATED',
+      },
+      data: { validationStatus: 'LOCKED' },
+    });
+  }
+
   async findNotesEnAttenteDepuis(heures: number): Promise<Note[]> {
     const depuis = new Date(Date.now() - heures * 60 * 60 * 1000);
     const data = await this.prisma.grade.findMany({

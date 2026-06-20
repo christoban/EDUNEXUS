@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onNav: (s: string) => void
@@ -55,9 +56,9 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
 
     try {
       const [statsRes, ayRes, attRes] = await Promise.all([
-        fetch('/api/v2/dashboard/stats', { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/dashboard/stats', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
       ])
 
       if (statsRes.stats?.avgGrade && statsRes.stats.avgGrade !== 'N/A') {
@@ -83,9 +84,9 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
 
       if (classId && userId && sequenceId) {
         const [avgRes, ttRes, gradesRes] = await Promise.all([
-          fetch(`/api/v2/grades/average/${userId}?classId=${classId}&sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
-          fetch(`/api/v2/timetables?classId=${classId}`, { credentials: 'include' }).then(r => r.json()),
-          fetch(`/api/v2/grades?sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
+          fetchApi(`/api/v2/grades/average/${userId}?classId=${classId}&sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
+          fetchApi(`/api/v2/timetables?classId=${classId}`, { credentials: 'include' }).then(r => r.json()),
+          fetchApi(`/api/v2/grades?sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
         ])
 
         if (avgRes.average !== undefined) setAvgGrade(avgRes.average)

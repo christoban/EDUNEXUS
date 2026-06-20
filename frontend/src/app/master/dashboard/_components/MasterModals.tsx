@@ -71,10 +71,24 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   )
 }
 
-function FieldInput({ placeholder, type = 'text', value, onChange, style }: { placeholder?: string; type?: string; value?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; style?: React.CSSProperties }) {
+function FieldInput({ placeholder, type = 'text', value, onChange, style, autoComplete = 'off', showToggle }: { placeholder?: string; type?: string; value?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; style?: React.CSSProperties; autoComplete?: string; showToggle?: boolean }) {
+  const [show, setShow] = useState(false)
+  const base: React.CSSProperties = { width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 10, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', ...style }
+  if (showToggle && type === 'password') {
+    return (
+      <div style={{ position: 'relative' }}>
+        <input type={show ? 'text' : 'password'} placeholder={placeholder} value={value} onChange={onChange} autoComplete={autoComplete}
+          style={{ ...base, paddingRight: 40 }} />
+        <button type="button" onClick={() => setShow(s => !s)}
+          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
+          {show ? '🙈' : '👁'}
+        </button>
+      </div>
+    )
+  }
   return (
-    <input type={type} placeholder={placeholder} value={value} onChange={onChange}
-      style={{ width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 10, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', ...style }} />
+    <input type={type} placeholder={placeholder} value={value} onChange={onChange} autoComplete={autoComplete}
+      style={base} />
   )
 }
 
@@ -131,8 +145,11 @@ function SensitiveAuthFields({ mfaEnabled, password, onPassword, mfaCode, onMfaC
       <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
         🔐 Vérification d&apos;identité requise
       </div>
+      {/* Honeypot — absorbe l'autofill Chrome/Firefox avant les vrais champs */}
+      <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+      <input type="password" autoComplete="new-password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
       <Field label="Votre mot de passe master *">
-        <FieldInput type="password" placeholder="••••••••••••" value={password} onChange={e => onPassword(e.target.value)} />
+        <FieldInput type="password" placeholder="••••••••••••" value={password} onChange={e => onPassword(e.target.value)} autoComplete="new-password" showToggle />
       </Field>
       {mfaEnabled && (
         <Field label="Code TOTP ou code de récupération *" hint="Requis car le MFA est actif">
@@ -332,7 +349,9 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
             </div>
             <Field label="Confirmez en tapant le nom de l'école *"
               hint={deleteInput === deleteTarget.name ? '⚠️ Confirmation valide' : 'Le nom doit correspondre exactement'}>
-              <input type="text" value={deleteInput} onChange={e => setDeleteInput(e.target.value)}
+              {/* Honeypot — absorbe l'autofill Chrome sur les champs texte proches d'un champ password */}
+              <input type="text" autoComplete="name" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+              <input type="text" value={deleteInput} onChange={e => setDeleteInput(e.target.value)} autoComplete="off"
                 placeholder={`Tapez exactement : ${deleteTarget.name}`}
                 style={{ width: '100%', padding: '11px 14px', background: '#f0ebe3', border: `1.5px solid ${deleteInput === deleteTarget.name ? '#dc2626' : '#d4c8b8'}`, borderRadius: 10, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }} />
             </Field>
@@ -390,8 +409,11 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
             {/* ── Étape 1 : mot de passe actuel + MFA → déclenche l'envoi d'un OTP par email ── */}
             {pwdStep === 1 && (
               <>
+                {/* Honeypot */}
+                <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+                <input type="password" autoComplete="new-password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
                 <Field label="Mot de passe actuel *">
-                  <FieldInput type="password" placeholder="••••••••••••" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} />
+                  <FieldInput type="password" placeholder="••••••••••••" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="new-password" showToggle />
                 </Field>
                 {mfaEnabled && (
                   <Field label="Code TOTP ou code de récupération *" hint="Requis car le MFA est actif sur ce compte">
@@ -445,10 +467,10 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                   />
                 </Field>
                 <Field label="Nouveau mot de passe *" hint="Minimum 12 caractères">
-                  <FieldInput type="password" placeholder="Minimum 12 caractères" value={newPwd} onChange={e => setNewPwd(e.target.value)} />
+                  <FieldInput type="password" placeholder="Minimum 12 caractères" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" showToggle />
                 </Field>
                 <Field label="Confirmer le mot de passe *">
-                  <FieldInput type="password" placeholder="Répétez le nouveau mot de passe" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} />
+                  <FieldInput type="password" placeholder="Répétez le nouveau mot de passe" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" showToggle />
                 </Field>
                 <ModalFooter>
                   <BtnSecondary onClick={() => { setPwdStep(1); setEmailOtp('') }}>← Retour</BtnSecondary>
@@ -572,7 +594,10 @@ function InviteForm({ selectedPlan, onPlanChange, loading, onCancel, onDone, onE
   }
 
   return (
-    <form onSubmit={handleConfirmSubmit}>
+    <form onSubmit={handleConfirmSubmit} autoComplete="off">
+      {/* Honeypot */}
+      <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+      <input type="password" autoComplete="new-password" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
       <div style={{ background: '#f0ebe3', borderRadius: 14, padding: 16, marginBottom: 16 }}>
         <div style={{ fontSize: 12, color: '#a89478', marginBottom: 4 }}>Établissement</div>
         <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>{schoolName}</div>
@@ -581,7 +606,7 @@ function InviteForm({ selectedPlan, onPlanChange, loading, onCancel, onDone, onE
       </div>
 
       <Field label="Mot de passe master *" hint="Confirmez votre identité pour envoyer l'invitation">
-        <FieldInput type="password" placeholder="••••••••••••" value={password} onChange={e => setPassword(e.target.value)} />
+        <FieldInput type="password" placeholder="••••••••••••" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" showToggle />
       </Field>
 
       {mfaEnabled && (

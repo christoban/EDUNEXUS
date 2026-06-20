@@ -1,0 +1,26 @@
+{
+  "name": "EduNexus",
+  "short_name": "EduNexus",
+  "description": "Plateforme de gestion scolaire multi-établissements",
+  "theme_color": "#1a2e1e",
+  "background_color": "#f7f3ee",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/login",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

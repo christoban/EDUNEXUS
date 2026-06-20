@@ -83,8 +83,8 @@ export class OnboarderEcoleUseCase {
 
     await this.userRepository.save(admin);
 
-    // 5. Email de confirmation à l'Admin
-    await this.emailService.envoyer({
+    // 5. Email de confirmation à l'Admin (fire-and-forget — ne bloque pas la réponse HTTP)
+    void this.emailService.envoyer({
       destinataire: commande.adminEmail,
       sujet: 'Demande d\'accès EduNexus reçue',
       contenuHtml: `
@@ -92,7 +92,7 @@ export class OnboarderEcoleUseCase {
         <p>Votre demande d'inscription pour <strong>${school.name}</strong> a bien été reçue.</p>
         <p>Notre équipe va l'examiner sous 24-48h. Vous recevrez un email dès validation.</p>
       `,
-    });
+    }).catch(err => console.error('[Email] Échec confirmation onboarding:', (err as Error)?.message));
 
     return {
       schoolId: school.id,

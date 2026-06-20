@@ -1,6 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { db } from '@/lib/offline/db'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -31,14 +34,32 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const { isOnline, addToQueue } = useSyncQueue()
+
   useEffect(() => {
-    Promise.all([
-      fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
-    ]).then(([clsRes, subRes]) => {
-      if (clsRes.success) setClasses(clsRes.data)
-      if (subRes.success) setSubjects(subRes.data)
-    }).catch(() => {}).finally(() => setLoading(false))
+    if (navigator.onLine) {
+      Promise.all([
+        fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
+      ]).then(async ([clsRes, subRes]) => {
+        if (clsRes.success) {
+          setClasses(clsRes.data)
+          await db.cachedData.put({ key: 'teacher:classes', data: clsRes.data, cachedAt: Date.now() })
+        }
+        if (subRes.success) {
+          setSubjects(subRes.data)
+          await db.cachedData.put({ key: 'teacher:subjects', data: subRes.data, cachedAt: Date.now() })
+        }
+      }).catch(() => {}).finally(() => setLoading(false))
+    } else {
+      Promise.all([
+        db.cachedData.get('teacher:classes'),
+        db.cachedData.get('teacher:subjects'),
+      ]).then(([clsCache, subCache]) => {
+        if (clsCache) setClasses(clsCache.data as any[])
+        if (subCache) setSubjects(subCache.data as any[])
+      }).catch(() => {}).finally(() => setLoading(false))
+    }
   }, [])
 
   const loadAttendance = async () => {
@@ -46,20 +67,34 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/v2/attendance?classId=${selectedClass}&date=${selectedDate}`, { credentials: 'include' }).then(r => r.json())
+      if (!isOnline) {
+        const cached = await db.cachedData.get(`teacher:students:${selectedClass}`)
+        if (cached) {
+          setStudents(cached.data as any[])
+          setStatuses({})
+          onToast('Mode hors-ligne — données en cache', 'info')
+        } else {
+          setStudents([])
+          onToast('Aucune donnée en cache pour cette classe', 'warning')
+        }
+        return
+      }
+
+      const res = await fetchApi(`/api/v2/attendance?classId=${selectedClass}&date=${selectedDate}`, { credentials: 'include' }).then(r => r.json())
       if (res.records?.length) {
         const mapped: Record<string, AttStatus> = {}
-        res.records.forEach((r: any) => {
-          mapped[r.studentId] = r.status as AttStatus
-        })
-        setStudents(res.records.map((r: any) => ({ id: r.studentId, name: r.student?.name || 'Inconnu', ...r.student })))
+        res.records.forEach((r: any) => { mapped[r.studentId] = r.status as AttStatus })
+        const studentList = res.records.map((r: any) => ({ id: r.studentId, name: r.student?.name || 'Inconnu', ...r.student }))
+        setStudents(studentList)
         setStatuses(mapped)
+        await db.cachedData.put({ key: `teacher:students:${selectedClass}`, data: studentList, cachedAt: Date.now() })
       } else {
-        // Aucune présence — charger les élèves de la classe
-        const usersRes = await fetch(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
+        const usersRes = await fetchApi(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
         if (usersRes.success && usersRes.data.length) {
-          setStudents(usersRes.data.map((u: any) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`.trim() })))
+          const studentList = usersRes.data.map((u: any) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`.trim() }))
+          setStudents(studentList)
           setStatuses({})
+          await db.cachedData.put({ key: `teacher:students:${selectedClass}`, data: studentList, cachedAt: Date.now() })
         } else {
           setStudents([])
           setStatuses({})
@@ -78,22 +113,30 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
 
   const saveAttendance = async () => {
     if (!selectedClass || !students.length) { onToast('Rien à sauvegarder', 'warning'); return }
+    const presences = Object.entries(statuses)
+      .filter(([, v]) => v !== null)
+      .map(([studentId, statut]) => ({ studentId, statut }))
+    const payload = {
+      classId: selectedClass,
+      subjectId: selectedSubject || undefined,
+      date: selectedDate,
+      period: 'MORNING',
+      presences,
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'ATTENDANCE', endpoint: '/api/v2/attendance', method: 'POST', payload })
+      onToast('Présences mises en file d\'attente — synchronisation à la reconnexion', 'warning')
+      return
+    }
+
     setLoading(true)
     try {
-      const presences = Object.entries(statuses)
-        .filter(([, v]) => v !== null)
-        .map(([studentId, statut]) => ({ studentId, statut }))
-      const res = await fetch('/api/v2/attendance', {
+      const res = await fetchApi('/api/v2/attendance', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classId: selectedClass,
-          subjectId: selectedSubject || undefined,
-          date: selectedDate,
-          period: 'MORNING',
-          presences,
-        }),
+        body: JSON.stringify(payload),
       }).then(r => r.json())
       if (res.success) {
         onToast('Présences enregistrées', 'success')
@@ -142,6 +185,13 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
           <div style={sSub}>Saisie par classe · {selectedDate}</div>
         </div>
       </div>
+
+      {!isOnline && (
+        <div style={{ background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>📶</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#92400e' }}>Mode hors-ligne — les présences seront synchronisées à la reconnexion</span>
+        </div>
+      )}
 
       {/* Filtres */}
       <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '14px 22px', marginBottom: 18, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -239,7 +289,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
             </table>
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button style={btnPrim} onClick={saveAttendance} disabled={loading}>
-                {loading ? '💾 Sauvegarde...' : '✅ Enregistrer les présences'}
+                {loading ? '💾 Sauvegarde...' : isOnline ? '✅ Enregistrer les présences' : '📶 Mettre en file d\'attente'}
               </button>
             </div>
           </div>

@@ -108,6 +108,15 @@ export class InMemoryNoteRepository implements NoteRepository {
     return [];
   }
 
+  async verrouillerNotesValidees(studentId: string, classId: string, _academicPeriodId: string): Promise<void> {
+    for (const note of this.store.values()) {
+      const data = note.toObject();
+      if (data.studentId === studentId && data.classId === classId && data.validationStatus === 'VALIDATED') {
+        note.verrouiller();
+      }
+    }
+  }
+
   // Helper pour les assertions dans les tests
   compter(): number {
     return this.store.size;

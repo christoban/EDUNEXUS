@@ -104,12 +104,12 @@ export class Note {
 
   // --- Workflow de validation ---
 
-  // Étape 1 : Enseignant soumet pour validation (DRAFT → SUBMITTED)
+  // Étape 1 : Enseignant soumet pour validation (DRAFT ou REJECTED → SUBMITTED)
   soumettrePourValidation(): void {
-    if (this.props.validationStatus !== 'DRAFT') {
+    if (this.props.validationStatus !== 'DRAFT' && this.props.validationStatus !== 'REJECTED') {
       throw new Error(
         `Impossible de soumettre : statut actuel "${this.props.validationStatus}". ` +
-        `Seules les notes en DRAFT peuvent être soumises.`
+        `Seules les notes en DRAFT ou REJECTED peuvent être soumises.`
       );
     }
     if (!this.aAuMoinsUnScore()) {
@@ -132,7 +132,7 @@ export class Note {
     this.props.rejectionReason = undefined;
   }
 
-  // Étape 2b : Censeur/VP rejette (SUBMITTED → DRAFT)
+  // Étape 2b : Censeur/VP rejette (SUBMITTED → REJECTED)
   rejeter(motif: string): void {
     if (this.props.validationStatus !== 'SUBMITTED') {
       throw new Error(
@@ -143,7 +143,7 @@ export class Note {
     if (!motif?.trim()) {
       throw new Error('Un motif de rejet est obligatoire');
     }
-    this.props.validationStatus = 'DRAFT';
+    this.props.validationStatus = 'REJECTED';
     this.props.rejectionReason = motif;
     this.props.validatedById = undefined;
     this.props.validatedAt = undefined;
@@ -175,11 +175,15 @@ export class Note {
   }
 
   peutEtreModifiee(): boolean {
-    return this.props.validationStatus === 'DRAFT';
+    return this.props.validationStatus === 'DRAFT' || this.props.validationStatus === 'REJECTED';
   }
 
   estValidee(): boolean {
     return this.props.validationStatus === 'VALIDATED';
+  }
+
+  estRejetee(): boolean {
+    return this.props.validationStatus === 'REJECTED';
   }
 
   estVerrouillee(): boolean {

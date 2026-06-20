@@ -1,82 +1,79 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
   user?: UserInfo | null
 }
 
-interface WeeklyStat {
-  week: string
-  present: number
-  absent: number
-  late: number
-  excused: number
+interface WeeklyStat { week: string; present: number; absent: number; late: number; excused: number }
+
+interface AttendanceData {
+  stats: { total: number; present: number; absent: number; late: number; excused: number; attendanceRate: string } | null
+  weekly: WeeklyStat[]
+}
+
+function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  if (!cachedAt) return null
+  const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      📦 Données du {date} — hors-ligne
+    </div>
+  )
 }
 
 export default function SectionStudentAttendance({ onToast, user }: Props) {
-  const [stats, setStats] = useState<{ total: number; present: number; absent: number; late: number; excused: number; attendanceRate: string } | null>(null)
-  const [weekly, setWeekly] = useState<WeeklyStat[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const cacheKey = user ? `student:attendance:${user.id}` : ''
 
-  const fetchData = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [statsRes, recordsRes] = await Promise.all([
-        fetch('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
-        fetch('/api/v2/attendance?limit=100', { credentials: 'include' }).then(r => r.json()),
-      ])
+  const fetchFn = useCallback(async (): Promise<AttendanceData> => {
+    const [statsRes, recordsRes] = await Promise.all([
+      fetchApi('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/attendance?limit=100', { credentials: 'include' }).then(r => r.json()),
+    ])
 
-      if (statsRes.stats) {
-        setStats({
-          total: statsRes.stats.total || 0,
-          present: statsRes.stats.present || 0,
-          absent: statsRes.stats.absent || 0,
-          late: statsRes.stats.late || 0,
-          excused: statsRes.stats.excused || 0,
-          attendanceRate: statsRes.stats.attendanceRate || '0%',
-        })
+    const stats = statsRes.stats ? {
+      total: statsRes.stats.total || 0,
+      present: statsRes.stats.present || 0,
+      absent: statsRes.stats.absent || 0,
+      late: statsRes.stats.late || 0,
+      excused: statsRes.stats.excused || 0,
+      attendanceRate: statsRes.stats.attendanceRate || '0%',
+    } : null
+
+    let weekly: WeeklyStat[] = []
+    if (recordsRes.records?.length) {
+      const weeks: Record<string, WeeklyStat> = {}
+      recordsRes.records.forEach((r: any) => {
+        const d = new Date(r.date)
+        const startOfWeek = new Date(d)
+        startOfWeek.setDate(d.getDate() - d.getDay() + 1)
+        const weekKey = startOfWeek.toISOString().slice(0, 10)
+        if (!weeks[weekKey]) weeks[weekKey] = { week: weekKey, present: 0, absent: 0, late: 0, excused: 0 }
+        if (r.status === 'PRESENT') weeks[weekKey].present++
+        else if (r.status === 'ABSENT') weeks[weekKey].absent++
+        else if (r.status === 'LATE') weeks[weekKey].late++
+        else if (r.status === 'EXCUSED') weeks[weekKey].excused++
+      })
+      const fmt = (d: string) => {
+        const date = new Date(d + 'T00:00:00')
+        const end = new Date(date)
+        end.setDate(date.getDate() + 4)
+        return `${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
       }
-
-      if (recordsRes.records?.length) {
-        const weeks: Record<string, WeeklyStat> = {}
-        recordsRes.records.forEach((r: any) => {
-          const d = new Date(r.date)
-          const startOfWeek = new Date(d)
-          startOfWeek.setDate(d.getDate() - d.getDay() + 1)
-          const weekKey = startOfWeek.toISOString().slice(0, 10)
-          if (!weeks[weekKey]) {
-            weeks[weekKey] = { week: weekKey, present: 0, absent: 0, late: 0, excused: 0 }
-          }
-          if (r.status === 'PRESENT') weeks[weekKey].present++
-          else if (r.status === 'ABSENT') weeks[weekKey].absent++
-          else if (r.status === 'LATE') weeks[weekKey].late++
-          else if (r.status === 'EXCUSED') weeks[weekKey].excused++
-        })
-
-        const sorted = Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week))
-        const fmt = (d: string) => {
-          const date = new Date(d + 'T00:00:00')
-          const end = new Date(date)
-          end.setDate(date.getDate() + 4)
-          return `${date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
-        }
-        setWeekly(sorted.map(w => ({ ...w, week: fmt(w.week) })))
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erreur de chargement')
-    } finally {
-      setLoading(false)
+      weekly = Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).map(w => ({ ...w, week: fmt(w.week) }))
     }
+
+    return { stats, weekly }
   }, [user])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<AttendanceData>(cacheKey, fetchFn)
 
-  if (loading) {
+  if (!user || loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
@@ -84,12 +81,14 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
     )
   }
 
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
+
   if (error) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
-          <button onClick={fetchData}
+          <button onClick={refetch}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
@@ -98,21 +97,25 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
     )
   }
 
+  const stats = data?.stats ?? null
+  const weekly = data?.weekly ?? []
   const rateNum = stats ? Number(stats.attendanceRate.replace('%', '')) : 0
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: fromCache ? 8 : 26 }}>
         <div style={sTitle}>Mes présences</div>
         <div style={sSub}>Suivi de votre assiduité</div>
       </div>
 
+      {fromCache && <CacheBadge cachedAt={cachedAt} />}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 22 }}>
         {[
           { icon: '✅', bg: '#d1fae5', val: `${rateNum}%`, label: 'Taux de présence', color: '#065f46' },
-          { icon: '✗',  bg: '#fee2e2', val: String(stats?.absent || 0), label: 'Absences',    color: '#991b1b' },
-          { icon: '~',  bg: '#fef3c7', val: String(stats?.late || 0),   label: 'Retards',          color: '#92400e' },
-          { icon: 'E',  bg: '#dbeafe', val: String(stats?.excused || 0),   label: 'Excusés',          color: '#1e40af' },
+          { icon: '✗',  bg: '#fee2e2', val: String(stats?.absent || 0), label: 'Absences', color: '#991b1b' },
+          { icon: '~',  bg: '#fef3c7', val: String(stats?.late || 0), label: 'Retards', color: '#92400e' },
+          { icon: 'E',  bg: '#dbeafe', val: String(stats?.excused || 0), label: 'Excusés', color: '#1e40af' },
         ].map((s, i) => (
           <div key={i} style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '22px 26px' }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: s.color, marginBottom: 12 }}>{s.icon}</div>

@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import type { TimetableGridConfigController } from '../controllers/TimetableGridConfigController';
+import { requireAuth, requireRole } from '../../../middleware/auth';
+
+export function creerTimetableGridConfigRoutes(controller: TimetableGridConfigController): Router {
+  const router = Router();
+
+  router.get('/', requireAuth, controller.get);
+  router.post('/', requireAuth, requireRole('ADMIN', 'STAFF'), controller.save);
+
+  return router;
+}

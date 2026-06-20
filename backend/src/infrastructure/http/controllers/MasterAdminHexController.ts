@@ -188,7 +188,11 @@ export class MasterAdminHexController {
       const schoolName = school.name;
 
       await this.prisma.$transaction(async (tx) => {
+        // TeacherSubject : la cascade School→Subject→TeacherSubject ne passe pas par schoolId direct
         await tx.teacherSubject.deleteMany({ where: { subject: { schoolId: id } } });
+        // User.schoolId est nullable (SetNull par défaut) → les users resteraient orphelins sans cette ligne
+        await tx.user.deleteMany({ where: { schoolId: id } });
+        // School.delete() cascade tout ce qui a onDelete: Cascade (profiles, classes, notes, etc.)
         await tx.school.delete({ where: { id } });
       });
 
@@ -253,6 +257,28 @@ export class MasterAdminHexController {
         template: 'school_invite',
         eventType: 'school_invite',
       }).catch(err => console.error('[Email] Échec renvoi invitation:', err));
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/master/schools/:id/cancel-approval
+  annulerApprobationEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+      const school = await this.prisma.school.findUnique({ where: { id }, select: { id: true, status: true, name: true } });
+      if (!school) {
+        res.status(404).json({ success: false, message: 'École introuvable' });
+        return;
+      }
+      if (school.status !== 'APPROVED') {
+        res.status(400).json({ success: false, message: 'Seule une école approuvée peut voir son approbation annulée' });
+        return;
+      }
+      await this.prisma.school.update({ where: { id }, data: { status: 'PENDING' } });
+      const master = (req as any).masterUser;
+      void logMasterAction({ req, masterUserId: master?.id, action: 'school_approval_cancelled', targetId: id, description: `«${school.name}» approbation annulée (APPROVED → PENDING)` });
+      res.json({ success: true, message: `L'approbation de ${school.name} a été annulée — elle repasse en attente` });
     } catch (error) {
       this.gererErreur(error, res, next);
     }
@@ -348,6 +374,123 @@ export class MasterAdminHexController {
         success: true,
         data: emailLogs,
         pagination: { page: parseInt(page as string), limit: take, total, pages: Math.ceil(total / take) },
+      });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/master/schools/:id/sync-subjects
+  // Rattrapage : crée les matières et SubjectCoefficients pour une école ACTIVE
+  // dont l'activation s'est faite avant que ces étapes soient en place.
+  syncSubjects = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = req.params.id as string;
+      const school = await this.prisma.school.findUnique({ where: { id } });
+      if (!school) {
+        res.status(404).json({ success: false, message: 'École introuvable' });
+        return;
+      }
+      if (school.status !== 'ACTIVE') {
+        res.status(400).json({ success: false, message: 'Seules les écoles ACTIVE peuvent être synchronisées' });
+        return;
+      }
+
+      const existingCount = await this.prisma.subject.count({ where: { schoolId: id } });
+
+      const config = school.onboardingConfig as any;
+      const templateCode: string | undefined = (school as any).templateCode ?? config?.templateCode;
+
+      const effectiveTemplate = templateCode
+        ? await this.prisma.schoolTemplate.findUnique({ where: { code: templateCode } })
+        : null;
+
+      let subjectCount = 0;
+      let subjectCoeffCount = 0;
+
+      const CYCLE2_LEVELS: string[] = ['2nde', '1ere', '1ère', 'Tle'];
+      const NIVEAU_MAP: Record<string, string> = {
+        '2nde': 'SECONDE', '1ere': 'PREMIERE', '1ère': 'PREMIERE', 'Tle': 'TERMINALE',
+      };
+
+      await this.prisma.$transaction(async (tx) => {
+        // Créer les matières de base si aucune n'existe
+        // Skip for templates with full reference data — subjects are created on-demand below
+        const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE'];
+        const hasReferenceData = templateCode && TEMPLATES_WITH_REFERENCE_DATA.includes(templateCode);
+        if (existingCount === 0 && effectiveTemplate && !hasReferenceData) {
+          const tCfg = effectiveTemplate.config as any;
+          const frSubjects: any[] = tCfg.defaultSubjects   ?? [];
+          const enSubjects: any[] = tCfg.defaultSubjectsEN ?? [];
+
+          for (const s of frSubjects) {
+            await tx.subject.create({
+              data: { schoolId: id, name: s.name as string, code: s.code as string, coefficient: s.coefficient as number, hoursPerWeek: (s.hoursPerWeek ?? 2) as number, subjectType: (s.subjectType ?? 'THEORETICAL') as any },
+            });
+          }
+          for (const s of enSubjects) {
+            await tx.subject.create({
+              data: { schoolId: id, name: (frSubjects.length > 0 ? `${s.name} (EN)` : s.name) as string, code: (frSubjects.length > 0 ? `${s.code}_EN` : s.code) as string, coefficient: s.coefficient as number, hoursPerWeek: (s.hoursPerWeek ?? 2) as number, subjectType: (s.subjectType ?? 'THEORETICAL') as any },
+            });
+          }
+          subjectCount = frSubjects.length + enSubjects.length;
+        }
+
+        // SubjectCoefficients 2e cycle
+        const cycle2Classes = await tx.class.findMany({
+          where: { schoolId: id, level: { in: CYCLE2_LEVELS } },
+          select: { name: true, level: true },
+        });
+
+        if (cycle2Classes.length > 0) {
+          const schoolSubjects = await tx.subject.findMany({ where: { schoolId: id }, select: { id: true, name: true } });
+          const subjectByName = new Map(schoolSubjects.map(s => [s.name, s.id]));
+          const processed = new Set<string>();
+
+          for (const classe of cycle2Classes) {
+            const niveauBac = NIVEAU_MAP[classe.level];
+            if (!niveauBac) continue;
+            const nameParts = classe.name.split(' ');
+            const serieRaw2 = nameParts[1];
+            if (!serieRaw2) continue;
+            const dashIdx2 = serieRaw2.indexOf('-');
+            const seriePart = dashIdx2 >= 0 ? serieRaw2.slice(0, dashIdx2) : serieRaw2;
+            const serieCode = seriePart === 'A4' && dashIdx2 >= 0 ? serieRaw2 : seriePart;
+            const key = `${niveauBac}|${serieCode}`;
+            if (processed.has(key)) continue;
+            processed.add(key);
+
+            const bacCoeffs = await tx.bacCoefficient.findMany({ where: { serie: seriePart, niveau: niveauBac } });
+            for (const bc of bacCoeffs) {
+              let subjectName = bc.subjectName;
+              if (seriePart === 'A4' && bc.subjectName === 'LV2' && dashIdx2 >= 0) {
+                subjectName = serieRaw2.slice(dashIdx2 + 1);
+              }
+              let subjectId = subjectByName.get(subjectName);
+              if (!subjectId) {
+                const code = subjectName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
+                const newS = await tx.subject.create({
+                  data: { schoolId: id, name: subjectName, code, coefficient: bc.coefficient, hoursPerWeek: 2, subjectType: 'THEORETICAL' as any },
+                });
+                subjectId = newS.id;
+                subjectByName.set(subjectName, subjectId);
+                subjectCount++;
+              }
+              await tx.subjectCoefficient.upsert({
+                where: { schoolId_subjectId_classLevel_serieCode: { schoolId: id, subjectId, classLevel: classe.level, serieCode } },
+                update: { coefficient: bc.coefficient },
+                create: { schoolId: id, subjectId, classLevel: classe.level, serieCode, coefficient: bc.coefficient },
+              });
+              subjectCoeffCount++;
+            }
+          }
+        }
+      });
+
+      res.json({
+        success: true,
+        message: `Synchronisation terminée pour "${school.name}"`,
+        data: { subjectsCreated: subjectCount, subjectCoefficientsUpserted: subjectCoeffCount },
       });
     } catch (error) {
       this.gererErreur(error, res, next);

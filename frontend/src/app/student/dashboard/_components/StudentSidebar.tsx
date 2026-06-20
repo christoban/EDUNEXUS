@@ -34,6 +34,12 @@ const NAV: NavGroup[] = [
       { id: 'attendance', icon: '✅', label: 'Mes présences' },
     ]
   },
+  {
+    label: 'Services',
+    items: [
+      { id: 'library', icon: '📚', label: 'Mes lectures' },
+    ]
+  },
 ]
 
 export default function StudentSidebar({ current, onChange, schoolName, logoUrl, onLogout, user }: {

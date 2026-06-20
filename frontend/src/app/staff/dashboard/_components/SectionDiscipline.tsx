@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -54,7 +55,7 @@ export default function SectionDiscipline({ onToast }: Props) {
       const params = new URLSearchParams({ limit: '50' })
       if (typeFilter)   params.set('type', typeFilter)
       if (statusFilter) params.set('status', statusFilter)
-      const res = await fetch(`/api/v2/discipline?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/discipline?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setRecords(data.data || [])
@@ -70,7 +71,7 @@ export default function SectionDiscipline({ onToast }: Props) {
   const searchStudents = async (q: string) => {
     if (q.trim().length < 2) { setForm(f => ({ ...f, studentResults: [] })); return }
     try {
-      const res = await fetch(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
       const data = await res.json()
       setForm(f => ({ ...f, studentResults: data.data || [] }))
     } catch { setForm(f => ({ ...f, studentResults: [] })) }
@@ -82,7 +83,7 @@ export default function SectionDiscipline({ onToast }: Props) {
     if (!type || !reason.trim()) { setForm(f => ({ ...f, error: 'Type et motif obligatoires' })); return }
     setForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/discipline', {
+      const res = await fetchApi('/api/v2/discipline', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId: selectedStudent.id, type, reason: reason.trim(), startDate: startDate || undefined, endDate: endDate || undefined }),
@@ -101,7 +102,7 @@ export default function SectionDiscipline({ onToast }: Props) {
     if (!confirm(`Lever la sanction de ${studentName} ?`)) return
     setLiftingId(recordId)
     try {
-      const res = await fetch(`/api/v2/discipline/${recordId}/lift`, { method: 'PATCH', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/discipline/${recordId}/lift`, { method: 'PATCH', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       onToast('Sanction levée', 'success')

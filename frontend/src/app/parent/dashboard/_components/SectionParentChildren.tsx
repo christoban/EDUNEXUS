@@ -1,10 +1,14 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import type { ChildWithStats } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onNav: (s: string) => void
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  userId?: string
 }
 
 const HEALTH_COLORS = (s: number): [string, string, string] =>
@@ -29,29 +33,25 @@ function HealthBadge({ score }: { score: number }) {
   )
 }
 
-export default function SectionParentChildren({ onNav, onToast }: Props) {
-  const [children, setChildren] = useState<ChildWithStats[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  if (!cachedAt) return null
+  const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      📦 Données du {date} — hors-ligne
+    </div>
+  )
+}
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
-      if (res.success) {
-        setChildren(res.data)
-      } else {
-        setError('Erreur de chargement des enfants')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erreur réseau')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+export default function SectionParentChildren({ onNav, onToast, userId }: Props) {
+  const cacheKey = userId ? `parent:children:${userId}` : ''
+  const fetchFn = useCallback(async () => {
+    const res = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
+    if (!res.success) throw new Error('Erreur de chargement des enfants')
+    return res.data as ChildWithStats[]
+  }, [userId])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const { data: children, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<ChildWithStats[]>(cacheKey, fetchFn)
 
   if (loading) {
     return (
@@ -61,12 +61,14 @@ export default function SectionParentChildren({ onNav, onToast }: Props) {
     )
   }
 
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
+
   if (error) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
-          <button onClick={fetchData}
+          <button onClick={refetch}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
@@ -75,13 +77,16 @@ export default function SectionParentChildren({ onNav, onToast }: Props) {
     )
   }
 
-  if (!children.length) {
+  const list = children ?? []
+
+  if (!list.length) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ marginBottom: 26 }}>
           <div style={sTitle}>Mes enfants</div>
           <div style={sSub}>Suivi scolaire en temps réel</div>
         </div>
+        {fromCache && <CacheBadge cachedAt={cachedAt} />}
         <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>👨‍👩‍👧</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucun enfant inscrit</div>
@@ -93,13 +98,15 @@ export default function SectionParentChildren({ onNav, onToast }: Props) {
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: fromCache ? 8 : 26 }}>
         <div style={sTitle}>Mes enfants</div>
-        <div style={sSub}>Suivi scolaire en temps réel · {children.length} enfant{children.length > 1 ? 's' : ''} inscrit{children.length > 1 ? 's' : ''}</div>
+        <div style={sSub}>Suivi scolaire en temps réel · {list.length} enfant{list.length > 1 ? 's' : ''} inscrit{list.length > 1 ? 's' : ''}</div>
       </div>
 
+      {fromCache && <CacheBadge cachedAt={cachedAt} />}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 18 }}>
-        {children.map((child, i) => {
+        {list.map((child, i) => {
           const avg = child.dernieereMoyenne ?? 0
           const avgColor = avg >= 14 ? '#059669' : avg >= 10 ? '#1d4ed8' : '#dc2626'
           return (
@@ -146,9 +153,9 @@ export default function SectionParentChildren({ onNav, onToast }: Props) {
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   {[
-                    { label: '📄 Bulletins',  action: () => onNav('grades'),     prim: true  },
-                    { label: '✅ Présences',  action: () => onNav('attendance'),  prim: false },
-                    { label: '📱 Paiements',  action: () => onNav('payments'),   prim: false },
+                    { label: '📄 Bulletins',  action: () => onNav('grades'),    prim: true  },
+                    { label: '✅ Présences',  action: () => onNav('attendance'), prim: false },
+                    { label: '📱 Paiements',  action: () => onNav('payments'),  prim: false },
                   ].map((btn, j) => (
                     <button key={j} onClick={btn.action}
                       style={{ flex: 1, padding: '9px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: btn.prim ? 'none' : '1.5px solid #d4c8b8', background: btn.prim ? 'linear-gradient(135deg,#059669,#047857)' : 'white', color: btn.prim ? 'white' : '#6b5c45', transition: 'all 0.12s' }}

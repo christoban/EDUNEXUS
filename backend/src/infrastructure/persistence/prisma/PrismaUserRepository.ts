@@ -162,7 +162,7 @@ export class PrismaUserRepository implements UserRepository {
     });
 
     if (data.role === 'STUDENT') {
-      await this.prisma.studentProfile.create({
+      const studentProfile = await this.prisma.studentProfile.create({
         data: { userId: data.id, classId: profilData.classeId ?? null },
       });
 
@@ -173,7 +173,7 @@ export class PrismaUserRepository implements UserRepository {
           });
           if (parentProfile) {
             await this.prisma.parentStudent.create({
-              data: { parentProfileId: parentProfile.id, studentProfileId: data.id },
+              data: { parentProfileId: parentProfile.id, studentProfileId: studentProfile.id },
             });
           }
         }
@@ -305,26 +305,60 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async supprimerAvecCascade(userId: string): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.attendance.deleteMany({ where: { studentId: userId } }),
-      this.prisma.grade.deleteMany({ where: { studentId: userId } }),
-      this.prisma.reportCard.deleteMany({ where: { studentId: userId } }),
-      this.prisma.parentStudent.deleteMany({
+    await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (!user) throw new Error('Utilisateur introuvable');
+
+      let parentProfileIds: string[] = [];
+
+      if (user.role === 'STUDENT') {
+        const studentProfile = await tx.studentProfile.findUnique({
+          where: { userId },
+          select: {
+            parents: { select: { parentProfileId: true } },
+          },
+        });
+        parentProfileIds = studentProfile?.parents.map(p => p.parentProfileId) ?? [];
+      }
+
+      await tx.attendance.deleteMany({ where: { studentId: userId } });
+      await tx.grade.deleteMany({ where: { studentId: userId } });
+      await tx.reportCard.deleteMany({ where: { studentId: userId } });
+      await tx.parentStudent.deleteMany({
         where: {
           OR: [
             { studentProfile: { userId } },
             { parentProfile: { userId } },
           ],
         },
-      }),
-      this.prisma.teacherSubject.deleteMany({
+      });
+      await tx.teacherSubject.deleteMany({
         where: { teacherProfile: { userId } },
-      }),
-      this.prisma.staffPermission.deleteMany({
+      });
+      await tx.staffPermission.deleteMany({
         where: { staffProfile: { userId } },
-      }),
-      this.prisma.user.delete({ where: { id: userId } }),
-    ]);
+      });
+      await tx.user.delete({ where: { id: userId } });
+
+      for (const parentProfileId of parentProfileIds) {
+        const remaining = await tx.parentStudent.count({
+          where: { parentProfileId },
+        });
+        if (remaining === 0) {
+          const parentProfile = await tx.parentProfile.findUnique({
+            where: { id: parentProfileId },
+            select: { userId: true },
+          });
+          if (parentProfile) {
+            await tx.parentProfile.delete({ where: { id: parentProfileId } });
+            await tx.user.delete({ where: { id: parentProfile.userId } });
+          }
+        }
+      }
+    });
   }
 
   async transfererEleve(params: {
@@ -352,6 +386,16 @@ export class PrismaUserRepository implements UserRepository {
         },
       }),
     ]);
+  }
+
+  async findEmailsParentsParEleve(studentId: string): Promise<string[]> {
+    const relations = await this.prisma.parentStudent.findMany({
+      where: { studentProfile: { userId: studentId } },
+      include: { parentProfile: { include: { user: { select: { email: true } } } } },
+    });
+    return relations
+      .map((r) => r.parentProfile.user.email)
+      .filter((email): email is string => !!email);
   }
 
   private toDomain(data: any): User {

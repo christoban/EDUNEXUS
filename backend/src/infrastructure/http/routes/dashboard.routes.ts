@@ -5,5 +5,6 @@ import { requireAuth } from '../../../middleware/auth';
 export function creerDashboardRoutes(controller: DashboardController): Router {
   const router = Router();
   router.get('/stats', requireAuth, controller.getStats);
+  router.get('/admin-badges', requireAuth, controller.getAdminBadges);
   return router;
 }

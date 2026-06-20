@@ -157,9 +157,14 @@ export class InviteOnboardingController {
         return;
       }
 
+      if (!invite2.schoolId) {
+        res.status(500).json({ success: false, message: 'Invitation corrompue : aucune école associée.' });
+        return;
+      }
+
       const subdomainClean = String(subdomain).toLowerCase().trim().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
       const existing = await this.prisma.school.findUnique({ where: { subdomain: subdomainClean } });
-      if (existing) {
+      if (existing && existing.id !== invite2.schoolId) {
         res.status(409).json({ success: false, message: `Le sous-domaine "${subdomainClean}" est déjà pris. Choisissez-en un autre.` });
         return;
       }
@@ -171,7 +176,8 @@ export class InviteOnboardingController {
           ? logoBase64
           : null;
 
-        const school = await tx.school.create({
+        const school = await tx.school.update({
+          where: { id: invite2.schoolId },
           data: {
             name: String(nom).trim(),
             subdomain: subdomainClean,
@@ -187,6 +193,7 @@ export class InviteOnboardingController {
             plan: invite2.plan,
             logoUrl: validLogo,
             onboardingConfig: onboardingConfig || undefined,
+            templateCode: (onboardingConfig as any)?.templateCode ?? null,
           },
         });
 

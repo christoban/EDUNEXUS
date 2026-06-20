@@ -34,4 +34,5 @@ export class InMemoryNoteRepository implements NoteRepository {
   async update(note: Note): Promise<void> { this.store.set(note.id, note); }
   async updateStatut(_noteId: string, _statut: GradeValidationStatus, _validateurId?: string, _motif?: string): Promise<void> {}
   async findNotesEnAttenteDepuis(_heures: number): Promise<Note[]> { return []; }
+  async verrouillerNotesValidees(_studentId: string, _classId: string, _academicPeriodId: string): Promise<void> {}
 }

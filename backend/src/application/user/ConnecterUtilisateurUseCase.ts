@@ -29,7 +29,8 @@ export interface ConnecterUtilisateurResultat {
   nomComplet: string;
   accessToken: string;
   refreshToken: string;
-  roleMismatch?: boolean; // true si le rôle sélectionné ≠ rôle réel (1 seul rôle dispo)
+  roleMismatch?: boolean;
+  redirectTo?: string; // présent si l'école était APPROVED → '/admin/configuration'
 }
 
 export class ConnecterUtilisateurUseCase {
@@ -40,17 +41,11 @@ export class ConnecterUtilisateurUseCase {
   ) {}
 
   async execute(commande: ConnecterUtilisateurCommande): Promise<ConnecterUtilisateurResultat> {
-    // 1. Vérifier que l'école est accessible
+    // 1. Charger l'école (nécessaire pour schoolId — pas de vérification de statut ici)
     const school = await this.schoolRepository.findById(commande.schoolId);
     if (!school) throw new Error('École introuvable');
-    if (school.estSuspendue()) {
-      throw new Error("Cet établissement est suspendu. Contactez l'administrateur EduNexus.");
-    }
-    if (school.status !== 'ACTIVE' && school.status !== 'APPROVED') {
-      throw new Error("Cet établissement n'est pas encore actif.");
-    }
 
-    // 2. Charger et authentifier l'utilisateur (bcrypt dans l'adapter)
+    // 2. Authentifier l'utilisateur EN PREMIER — le statut de l'école ne filtre pas les credentials
     let user = await this.userRepository.authentifier(
       commande.email,
       commande.schoolId,
@@ -60,7 +55,7 @@ export class ConnecterUtilisateurUseCase {
     let roleMismatch = false;
 
     if (!user) {
-      // Rôle sélectionné incorrect — vérifier les rôles disponibles (mot de passe déjà validé par bcrypt)
+      // Rôle sélectionné incorrect — vérifier les rôles disponibles (mot de passe déjà validé)
       const rolesDisponibles = await this.userRepository.listerRolesAvecMotDePasse(
         commande.email,
         commande.schoolId,
@@ -72,13 +67,11 @@ export class ConnecterUtilisateurUseCase {
       }
 
       if (rolesDisponibles.length > 1) {
-        // Plusieurs rôles dispo → le frontend doit demander lequel choisir
         const err = new Error('ROLE_MISMATCH_MULTIPLE');
         (err as any).availableRoles = rolesDisponibles;
         throw err;
       }
 
-      // Un seul rôle disponible (≠ sélectionné) → Option A : authentifier avec le bon rôle
       user = await this.userRepository.authentifier(
         commande.email,
         commande.schoolId,
@@ -92,10 +85,14 @@ export class ConnecterUtilisateurUseCase {
       throw new Error('Email ou mot de passe incorrect');
     }
 
-    // 3. Auto-activation : si ADMIN + école APPROVED → passer ACTIVE
-    if (user.estAdmin() && school.status === 'APPROVED') {
-      school.activer();
-      await this.schoolRepository.update(school);
+    // 3. Vérifier le statut de l'école SEULEMENT après validation des credentials
+    if (school.estSuspendue()) {
+      const err = new Error('SCHOOL_SUSPENDED');
+      (err as any).code = 'SCHOOL_SUSPENDED';
+      throw err;
+    }
+    if (school.status !== 'ACTIVE' && school.status !== 'APPROVED') {
+      throw new Error("Cet établissement n'est pas encore actif.");
     }
 
     // 4. Enregistrer le dernier login
@@ -120,6 +117,8 @@ export class ConnecterUtilisateurUseCase {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       roleMismatch,
+      // Indique au frontend où rediriger : ADMIN sur école APPROVED → configuration
+      redirectTo: (user.estAdmin() && school.status === 'APPROVED') ? '/admin/configuration' : undefined,
     };
   }
 }

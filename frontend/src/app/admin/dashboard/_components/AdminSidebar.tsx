@@ -16,40 +16,16 @@ interface NavSection {
   items: NavItem[]
 }
 
-const NAV: NavSection[] = [
-  {
-    items: [
-      { id: 'dashboard',  icon: '⊞',  label: 'Tableau de bord' },
-      { id: 'users',      icon: '👥', label: 'Utilisateurs',    badge: '342', badgeColor: 'green' },
-      { id: 'classes',    icon: '🏫', label: 'Classes',         badge: '6',   badgeColor: 'green' },
-      { id: 'subjects',   icon: '📚', label: 'Matières' },
-    ]
-  },
-  {
-    label: 'Académique',
-    items: [
-      { id: 'attendance', icon: '✅', label: 'Présences' },
-      { id: 'grades',     icon: '📝', label: 'Notes',            badge: '4',  badgeColor: 'red' },
-      { id: 'bulletins',  icon: '📄', label: 'Bulletins' },
-      { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
-      { id: 'council',    icon: '🎓', label: 'Conseil de classe' },
-    ]
-  },
-  {
-    label: 'Services',
-    items: [
-      { id: 'academic-year', icon: '📆', label: 'Année scolaire' },
-      { id: 'finance',    icon: '📱', label: 'Mobile Money',      badge: '89', badgeColor: 'amber' },
-      { id: 'ai',         icon: '🤖', label: 'IA Santé scolaire', badge: '3',  badgeColor: 'red' },
-      { id: 'settings',   icon: '⚙️', label: 'Paramètres' },
-    ]
-  }
-]
-
 const BADGE_STYLES = {
   red:   'bg-red-500/25 text-red-300',
   green: 'bg-green-500/20 text-green-300',
   amber: 'bg-amber-500/20 text-amber-300',
+}
+
+interface SessionUser {
+  nomComplet?: string
+  firstName?: string
+  role?: string
 }
 
 interface Props {
@@ -57,11 +33,47 @@ interface Props {
   onChange: (s: AdminSection) => void
   schoolName?: string
   logoUrl?: string | null
+  badges?: Partial<Record<AdminSection, string>>
+  sessionUser?: SessionUser | null
+  onLogout?: () => void
 }
 
-export default function AdminSidebar({ current, onChange, schoolName, logoUrl, onLogout }: Props & { onLogout?: () => void }) {
+export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout }: Props) {
   const displayName = schoolName || 'Mon établissement'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
+
+  const userDisplayName = sessionUser?.nomComplet ?? sessionUser?.firstName ?? 'Administrateur'
+  const userInitials = userDisplayName.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
+
+  const NAV: NavSection[] = [
+    {
+      items: [
+        { id: 'dashboard', icon: '⊞', label: 'Tableau de bord' },
+        { id: 'users',     icon: '👥', label: 'Utilisateurs', badge: badges.users,   badgeColor: 'green' },
+        { id: 'classes',   icon: '🏫', label: 'Classes',      badge: badges.classes, badgeColor: 'green' },
+        { id: 'subjects', icon: '📚', label: 'Matières' },
+      ]
+    },
+    {
+      label: 'Académique',
+      items: [
+        { id: 'attendance', icon: '✅', label: 'Présences' },
+        { id: 'grades',     icon: '📝', label: 'Notes',       badge: badges.grades, badgeColor: 'red' },
+        { id: 'bulletins',  icon: '📄', label: 'Bulletins' },
+        { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
+        { id: 'council',    icon: '🎓', label: 'Conseil de classe' },
+      ]
+    },
+    {
+      label: 'Services',
+      items: [
+        { id: 'academic-year', icon: '📆', label: 'Année scolaire' },
+        { id: 'finance',       icon: '📱', label: 'Mobile Money',      badge: badges.finance, badgeColor: 'amber' },
+        { id: 'ai',            icon: '🤖', label: 'IA Santé scolaire' },
+        { id: 'settings',      icon: '⚙️', label: 'Paramètres' },
+      ]
+    }
+  ]
 
   return (
     <aside className="w-[320px] min-w-[320px] bg-[#1a2e1e] flex flex-col h-screen flex-shrink-0 relative overflow-hidden">
@@ -69,7 +81,6 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, o
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
         style={{ background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 13px,#22c55e 13px,#22c55e 25px,#ef4444 25px,#ef4444 37px,#60a5fa 37px,#60a5fa 49px)' }}
       />
-      
 
       {/* Brand */}
       <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{padding: "25px 25px"}}>
@@ -112,7 +123,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, o
                     'font-nunito',
                     current === item.id
                       ? 'bg-[#3a6b44] text-white'
-                      : 'bg-transparent text-white/52 hover:bg-[#243b29] hover:text-white/82' 
+                      : 'bg-transparent text-white/52 hover:bg-[#243b29] hover:text-white/82'
                   )} style={{padding: "6px 9px"}} >
                   <span className="text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
                   <span className="truncate flex-1">{item.label}</span>
@@ -126,14 +137,35 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, o
             </div>
           ))}
         </nav>
+
+        {/* Assistant IA Dev — visible uniquement en développement */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{ borderTop: '1px dashed rgba(245,158,11,0.4)', marginTop: 8, paddingTop: 10 }}>
+            <button onClick={() => onChange('ai-assistant')}
+              className={cn(
+                'w-full flex items-center gap-[20px] rounded-lg',
+                'text-[16px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer',
+                'font-nunito',
+                current === 'ai-assistant'
+                  ? 'bg-[#3a6b44] text-white'
+                  : 'bg-transparent hover:bg-[#243b29]'
+              )}
+              style={{ padding: '6px 9px', color: current === 'ai-assistant' ? 'white' : '#f59e0b' }}>
+              <span className="text-[23px] w-[18px] text-center flex-shrink-0">🤖</span>
+              <span className="truncate flex-1">Assistant IA Dev</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* User */}
       <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px' }}>
         <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06]" style={{ padding: '12px 14px' }}>
-          <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#d97706] to-[#dc2626] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">AM</div>
+          <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#d97706] to-[#dc2626] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">
+            {userInitials}
+          </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[17px] font-bold text-white truncate">Antoine Medengue</div>
+            <div className="text-[17px] font-bold text-white truncate">{userDisplayName}</div>
             <div className="text-[14px] text-white/35">Proviseur / Admin</div>
           </div>
           {onLogout && (

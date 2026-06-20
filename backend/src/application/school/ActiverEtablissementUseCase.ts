@@ -6,6 +6,11 @@
  * et copie les formules/mentions du template dans l'école.
  */
 import type { PrismaClient } from '@prisma/client';
+import {
+  assignerMatieresPourClasse,
+  parseSerie,
+} from './SubjectAssignmentHelper';
+import { getTemplateMeta, isPEBSFrancophoneEligible, isPEBSAnglophoneEligible } from './schoolTemplateConfig';
 
 export interface ActiverEtablissementCommande {
   schoolId: string;
@@ -14,6 +19,9 @@ export interface ActiverEtablissementCommande {
 export interface ActiverEtablissementResultat {
   schoolId: string;
   message: string;
+  classCount: number;
+  subjectCount: number;
+  academicYear: string;
 }
 
 const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -47,17 +55,16 @@ export class ActiverEtablissementUseCase {
     // passMark: 50 for /100 grading, 10 otherwise
     const passMark = enGradingSystem === 'OVER_100' ? 50 : 10;
 
-    // schoolLanguageMode
-    const langMode = ['GHS_EN','GSS_EN','PRIVE_EN','PRIMARY_EN','NURSERY_EN'].includes(templateCode ?? '')
-      ? 'anglophone'
-      : ['LYCEE_BILINGUE','PRIMARY_BILINGUAL'].includes(templateCode ?? '')
-      ? 'bilingual'
-      : 'francophone';
+    // schoolLanguageMode & bulletinTemplate
+    const templateMeta = getTemplateMeta(templateCode);
+    const langMode = templateMeta.langMode;
+    const isPrimaire = templateMeta.isPrimaire;
+    const isAnglophone = templateMeta.isAnglophone;
+    const isTechnique = templateMeta.isTechnique;
 
-    // bulletinTemplate
-    const isPrimaire = ['PRIMAIRE_FR','PRIMARY_EN','PRIMARY_BILINGUAL','MATERNELLE_FR','NURSERY_EN'].includes(templateCode ?? '');
-    const isAnglophone = ['GHS_EN','GSS_EN','PRIVE_EN','PRIMARY_EN','NURSERY_EN'].includes(templateCode ?? '');
-    const isTechnique = ['LYCEE_TECHNIQUE_FR','CETIC','SAR_SM','CFM'].includes(templateCode ?? '');
+    // PEBS flags (from onboarding config or defaults)
+    const hasPEBSFrancophone = config?.hasPEBSFrancophone === true && isPEBSFrancophoneEligible(templateCode);
+    const hasPEBSAnglophone  = config?.hasPEBSAnglophone  === true && isPEBSAnglophoneEligible(templateCode);
     type BulletinTpl = 'FR_SECONDARY' | 'EN_SECONDARY' | 'TECHNICAL_FR' | 'PRIMARY' | 'MONTHLY';
     let bulletinTemplate: BulletinTpl = 'FR_SECONDARY';
     if (bulletinFrequency === 'MONTHLY' && isPrimaire) bulletinTemplate = 'MONTHLY';
@@ -71,10 +78,15 @@ export class ActiverEtablissementUseCase {
     // APC_300 → passMark 300 is the total but individual subjects still /10
     const finalPassMark = evalSystemPrimaire === 'APC_300' ? 10 : passMark;
 
+    let classCount = 0;
+    let subjectCount = 0;
+    let academicYearName = '';
+
     await this.prisma.$transaction(async (tx) => {
       // 1. Créer l'année académique courante
       const now = new Date();
       const currentYear = now.getFullYear();
+      academicYearName = `${currentYear}-${currentYear + 1}`;
       const academicYear = await tx.academicYear.create({
         data: {
           schoolId,
@@ -141,10 +153,10 @@ export class ActiverEtablissementUseCase {
       }
 
       // 4. Créer les classes depuis onboardingConfig
+      let classesACreer: { name: string; level: string; schoolId: string; serie?: string | null; filiere?: string | null }[] = [];
       if (config) {
-        const classesACreer: { name: string; level: string; schoolId: string }[] = [];
 
-        // 4a. 1er cycle
+        // 4a. 1er cycle (avec filiere PEBS/GENERAL)
         if (config.niveaux1erCycle?.length > 0) {
           const conv = config.conventionNommage ?? 'LETTRES';
           for (const niveau of config.niveaux1erCycle) {
@@ -153,7 +165,15 @@ export class ActiverEtablissementUseCase {
               const suffix = conv === 'LETTRES' ? LETTRES[i]
                 : conv === 'CHIFFRES' ? `${i + 1}`
                 : `${LETTRES[i]}1`;
-              classesACreer.push({ name: `${niveau} ${suffix}`, level: niveau, schoolId });
+              // PEBS: première classe (A) = FR_PEBS/EN_PEBS, reste = GENERAL
+              const isPEBSClass = i === 0 && (
+                (hasPEBSFrancophone && !isAnglophone) ||
+                (hasPEBSAnglophone && isAnglophone)
+              );
+              const filiere = isPEBSClass
+                ? (isAnglophone ? 'EN_PEBS' : 'FR_PEBS')
+                : (isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL');
+              classesACreer.push({ name: `${niveau} ${suffix}`, level: niveau, schoolId, filiere });
             }
           }
         }
@@ -168,6 +188,14 @@ export class ActiverEtablissementUseCase {
           return m?.[1] ?? filiereLabel;
         }
 
+        // Auto-ajouter ABI si PEBS Francophone activé et ABI pas déjà sélectionnée
+        if (hasPEBSFrancophone) {
+          const hasABI = config.filieres?.some((f: string) => /^ABI/.test(f));
+          if (!hasABI) {
+            config.filieres = [...(config.filieres ?? []), 'ABI — A Bilingue (Intensive English)'];
+          }
+        }
+
         if (config.niveaux2eCycle?.length > 0 && config.filieres?.length > 0) {
           const nbClasses = config.classesParFiliere === '3+' ? 3 : parseInt(config.classesParFiliere ?? '1');
           for (const niveau of config.niveaux2eCycle) {
@@ -177,13 +205,13 @@ export class ActiverEtablissementUseCase {
               if (filiere.startsWith('A4') || filiere.includes('A4')) {
                 const langs = config.a4Languages?.length ? config.a4Languages : ['LV'];
                 for (const lang of langs) {
-                  classesACreer.push({ name: `${niveau} A4-${lang}`, level: niveau, schoolId });
+                  classesACreer.push({ name: `${niveau} A4-${lang}`, level: niveau, schoolId, serie: `A4-${lang}` });
                 }
               } else {
                 const serie = extraireSerie(filiere);
                 for (let i = 0; i < nbClasses; i++) {
                   const suffix = nbClasses > 1 ? ` ${LETTRES[i]}` : '';
-                  classesACreer.push({ name: `${niveau} ${serie}${suffix}`, level: niveau, schoolId });
+                  classesACreer.push({ name: `${niveau} ${serie}${suffix}`, level: niveau, schoolId, serie });
                 }
               }
             }
@@ -222,15 +250,28 @@ export class ActiverEtablissementUseCase {
           }
         }
 
-        // Sauvegarder toutes les classes
-        for (const classe of classesACreer) {
-          await tx.class.create({ data: classe });
+        // Sauvegarder toutes les classes (avec serie pour le 2e cycle, filiere pour le 1er cycle/PEBS)
+        for (const c of classesACreer) {
+          await tx.class.create({
+            data: { name: c.name, level: c.level, schoolId: c.schoolId, serie: c.serie ?? null, filiere: c.filiere ?? null },
+          });
         }
+        classCount = classesACreer.length;
       }
 
       // 4f. Créer les matières depuis template.config.defaultSubjects
-      if (school.template) {
-        const tCfg = school.template.config as any;
+      // Fallback : si school.templateCode n'était pas renseigné au moment de l'activation,
+      // on récupère le template via onboardingConfig.templateCode
+      let effectiveTemplate: any = school.template;
+      if (!effectiveTemplate && templateCode) {
+        effectiveTemplate = await tx.schoolTemplate.findUnique({ where: { code: templateCode } });
+      }
+      // Templates with full reference data (CycleCoefficients, BacCoefficients, AnglophoneSubjectLoad)
+      // skip 4f — section 4g below creates subjects on-demand from correct reference data instead.
+      const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE'];
+      const hasReferenceData = templateCode && TEMPLATES_WITH_REFERENCE_DATA.includes(templateCode);
+      if (effectiveTemplate && !hasReferenceData) {
+        const tCfg = effectiveTemplate.config as any;
         const frSubjects: any[] = tCfg.defaultSubjects   ?? [];
         const enSubjects: any[] = tCfg.defaultSubjectsEN ?? [];
 
@@ -258,6 +299,107 @@ export class ActiverEtablissementUseCase {
               subjectType: (s.subjectType ?? 'THEORETICAL') as any,
             },
           });
+        }
+        subjectCount = frSubjects.length + enSubjects.length;
+      }
+
+      // 4g. SubjectCoefficients pour toutes les classes (1er cycle + 2e cycle)
+      if (classesACreer.length > 0) {
+        const schoolSubjects = await tx.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
+        const subjectByName  = new Map(schoolSubjects.map(s => [s.name, s.id]));
+        const subjectCountRef = { value: 0 };
+
+        // Déduplication par (level, serie, filiere) pour limiter les requêtes BacCoefficient
+        // mais A4 doit être traité par (level, serie, langue) pour créer les LV2 réels
+        const processedKeys = new Set<string>();
+        for (const c of classesACreer) {
+          const seriePart = parseSerie(c.name, c.level);
+          // 1er cycle : clé inclut la filière (FR_PEBS ≠ FR_GENERAL)
+          // A4 2nd cycle : clé inclut le nom complet pour distinguer les langues
+          // Autres 2nd cycle : (level|seriePart) suffit
+          const dedupKey = seriePart === 'A4'
+            ? `${c.level}|${c.name}`
+            : seriePart
+              ? `${c.level}|${seriePart}`
+              : `${c.level}|${c.filiere ?? ''}`;
+          if (processedKeys.has(dedupKey)) continue;
+          processedKeys.add(dedupKey);
+
+          await assignerMatieresPourClasse(
+            tx, c, schoolId, config, isAnglophone, subjectByName, subjectCountRef, school.templateCode ?? '',
+          );
+        }
+        subjectCount += subjectCountRef.value;
+      }
+
+      // 4h. Créer les départements pédagogiques selon le template (uniquement secondaire)
+      if (templateCode && !isPrimaire) {
+        const schoolSubjects = await tx.subject.findMany({ where: { schoolId } });
+        const FR_DEPT_TEMPLATES = ['LYCEE_FR', 'PRIVE_FR', 'CES_FR', 'LYCEE_BILINGUE'];
+        const EN_DEPT_TEMPLATES = ['GHS_EN', 'GSS_EN', 'PRIVE_EN'];
+        const subjectNamesLower = new Set(schoolSubjects.map(s => s.name.toLowerCase()));
+
+        interface DeptDef { name: string; color: string; keywords: string[]; }
+        let deptDefs: DeptDef[] = [];
+
+        if (FR_DEPT_TEMPLATES.includes(templateCode)) {
+          deptDefs = [
+            { name: 'Lettres', color: '#3b82f6', keywords: ['français', 'littérature', 'philosophie', 'écriture', 'lecture', 'grammaire', 'francais', 'litterature'] },
+            { name: 'Sciences Humaines', color: '#f59e0b', keywords: ['histoire', 'géographie', 'éducation civique', 'ecm', 'hgg', 'h-g', 'geographie'] },
+            { name: 'Langues Vivantes', color: '#10b981', keywords: ['anglais', 'allemand', 'espagnol', 'langue vivante', 'lv1', 'lv2', 'lvent', 'lv', 'english'] },
+            { name: 'Mathématiques et Sciences', color: '#ef4444', keywords: ['mathématiques', 'maths', 'math', 'physique', 'chimie', 'svt', 'science'] },
+            { name: 'Arts et Culture', color: '#f97316', keywords: ['art', 'musique', 'danse', 'culture', 'éducation artistique', 'education artistique'] },
+          ];
+          if (subjectNamesLower.has('informatique')) {
+            deptDefs.push({ name: 'Informatique', color: '#8b5cf6', keywords: ['informatique', 'tic', 'ntic', 'computer', 'technologie'] });
+          }
+          deptDefs.push({ name: 'Autres', color: '#9ca3af', keywords: [] });
+        } else if (EN_DEPT_TEMPLATES.includes(templateCode)) {
+          deptDefs = [
+            { name: 'Languages', color: '#3b82f6', keywords: ['english', 'french', 'literature', 'language', 'linguistics'] },
+            { name: 'Social Sciences', color: '#f59e0b', keywords: ['history', 'geography', 'social', 'civics', 'economics'] },
+            { name: 'Sciences', color: '#ef4444', keywords: ['mathematics', 'math', 'physics', 'chemistry', 'biology', 'science'] },
+            { name: 'Technical', color: '#8b5cf6', keywords: ['computer', 'ict', 'technology', 'technical', 'engineering', 'design'] },
+            { name: 'PE & Arts', color: '#10b981', keywords: ['physical', 'pe', 'sport', 'art', 'music', 'drama', 'health'] },
+            { name: 'Others', color: '#9ca3af', keywords: [] },
+          ];
+        }
+
+        if (deptDefs.length > 0) {
+          const matchedSubjectIds = new Set<string>();
+          const createdDepartments: { id: string; name: string }[] = [];
+
+          for (const def of deptDefs) {
+            const department = await tx.department.create({
+              data: { schoolId, name: def.name, color: def.color },
+            });
+            createdDepartments.push({ id: department.id, name: def.name });
+
+            if (def.keywords.length > 0) {
+              const matching = schoolSubjects.filter(s =>
+                !matchedSubjectIds.has(s.id) &&
+                def.keywords.some(kw => s.name.toLowerCase().includes(kw))
+              );
+              for (const subj of matching) {
+                matchedSubjectIds.add(subj.id);
+                await tx.subject.update({
+                  where: { id: subj.id },
+                  data: { departmentId: department.id },
+                });
+              }
+            }
+          }
+
+          // Subjects non assignés → dernier département (Autres/Others)
+          const fallbackDept = createdDepartments[createdDepartments.length - 1];
+          for (const subj of schoolSubjects) {
+            if (!matchedSubjectIds.has(subj.id)) {
+              await tx.subject.update({
+                where: { id: subj.id },
+                data: { departmentId: fallbackDept.id },
+              });
+            }
+          }
         }
       }
 
@@ -312,10 +454,10 @@ export class ActiverEtablissementUseCase {
         },
       });
 
-      // 9. Passer le statut à ACTIVE
+      // 9. Passer le statut à ACTIVE + sauvegarder les flags PEBS
       await tx.school.update({
         where: { id: schoolId },
-        data: { status: 'ACTIVE' },
+        data: { status: 'ACTIVE', hasPEBSFrancophone, hasPEBSAnglophone },
       });
 
       // 10. Marquer le formulaire de configuration comme complété
@@ -330,6 +472,9 @@ export class ActiverEtablissementUseCase {
     return {
       schoolId: school.id,
       message: `Établissement "${school.name}" activé avec succès`,
+      classCount,
+      subjectCount,
+      academicYear: academicYearName,
     };
   }
 }

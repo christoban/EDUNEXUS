@@ -1,6 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { db } from '@/lib/offline/db'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -21,26 +24,49 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false)
+  const [localDraft, setLocalDraft] = useState<{ notes: Record<string, number>; observations: Record<string, string> } | null>(null)
+
+  const { isOnline, addToQueue } = useSyncQueue()
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/v2/grades?validationStatus=REJECTED', { credentials: 'include' }).then(r => r.json()),
-    ]).then(([clsRes, subRes, ayRes, rejRes]) => {
-      if (clsRes.success) setClasses(clsRes.data)
-      if (subRes.success) setSubjects(subRes.data)
-      if (ayRes.success) {
-        const seqs = ayRes.data.flatMap((ay: any) =>
-          ay.periods?.flatMap((p: any) =>
-            p.sequences?.map((s: any) => ({ ...s, periodName: p.name, academicYearId: ay.id })) || []
-          ) || []
-        )
-        setSequences(seqs)
-      }
-      if (rejRes.grades) setRejectedGrades(rejRes.grades)
-    }).catch(() => {}).finally(() => setLoading(false))
+    if (navigator.onLine) {
+      Promise.all([
+        fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/grades?validationStatus=REJECTED', { credentials: 'include' }).then(r => r.json()),
+      ]).then(async ([clsRes, subRes, ayRes, rejRes]) => {
+        if (clsRes.success) {
+          setClasses(clsRes.data)
+          await db.cachedData.put({ key: 'teacher:classes', data: clsRes.data, cachedAt: Date.now() })
+        }
+        if (subRes.success) {
+          setSubjects(subRes.data)
+          await db.cachedData.put({ key: 'teacher:subjects', data: subRes.data, cachedAt: Date.now() })
+        }
+        if (ayRes.success) {
+          const seqs = ayRes.data.flatMap((ay: any) =>
+            ay.periods?.flatMap((p: any) =>
+              p.sequences?.map((s: any) => ({ ...s, periodName: p.name, academicYearId: ay.id })) || []
+            ) || []
+          )
+          setSequences(seqs)
+          await db.cachedData.put({ key: 'teacher:sequences', data: seqs, cachedAt: Date.now() })
+        }
+        if (rejRes.grades) setRejectedGrades(rejRes.grades)
+      }).catch(() => {}).finally(() => setLoading(false))
+    } else {
+      Promise.all([
+        db.cachedData.get('teacher:classes'),
+        db.cachedData.get('teacher:subjects'),
+        db.cachedData.get('teacher:sequences'),
+      ]).then(([clsCache, subCache, seqCache]) => {
+        if (clsCache) setClasses(clsCache.data as any[])
+        if (subCache) setSubjects(subCache.data as any[])
+        if (seqCache) setSequences(seqCache.data as any[])
+      }).catch(() => {}).finally(() => setLoading(false))
+    }
   }, [])
 
   const loadGrades = async () => {
@@ -50,27 +76,61 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     }
     setLoading(true)
     setError(null)
+    const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
     try {
+      if (!isOnline) {
+        const cached = await db.cachedData.get(`teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`)
+        const draft = await db.cachedData.get(draftKey)
+        if (cached) {
+          setGrades(cached.data as any[])
+          if (draft) {
+            setLocalDraft(draft.data as { notes: Record<string, number>; observations: Record<string, string> })
+            setShowDraftPrompt(true)
+          } else {
+            const n: Record<string, number> = {}
+            const o: Record<string, string> = {}
+            ;(cached.data as any[]).forEach((g: any) => {
+              n[g.studentId] = g.sequenceScore ?? 0
+              o[g.studentId] = g.observation || ''
+            })
+            setNotes(n)
+            setObservations(o)
+          }
+        } else {
+          setGrades([])
+          onToast('Aucune donnée en cache — connexion requise', 'warning')
+        }
+        return
+      }
+
       const url = `/api/v2/grades?classId=${selectedClass}&subjectId=${selectedSubject}&sequenceId=${selectedSequence}`
-      const res = await fetch(url, { credentials: 'include' }).then(r => r.json())
+      const res = await fetchApi(url, { credentials: 'include' }).then(r => r.json())
       if (res.grades?.length) {
         setGrades(res.grades)
-        const n: Record<string, number> = {}
-        const o: Record<string, string> = {}
-        res.grades.forEach((g: any) => {
-          n[g.studentId] = g.sequenceScore ?? g.sequenceAverage ?? 0
-          o[g.studentId] = g.observation || ''
-        })
-        setNotes(n)
-        setObservations(o)
+        await db.cachedData.put({ key: `teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, data: res.grades, cachedAt: Date.now() })
+        const draft = await db.cachedData.get(draftKey)
+        if (draft) {
+          setLocalDraft(draft.data as { notes: Record<string, number>; observations: Record<string, string> })
+          setShowDraftPrompt(true)
+        } else {
+          const n: Record<string, number> = {}
+          const o: Record<string, string> = {}
+          res.grades.forEach((g: any) => {
+            n[g.studentId] = g.sequenceScore ?? g.sequenceAverage ?? 0
+            o[g.studentId] = g.observation || ''
+          })
+          setNotes(n)
+          setObservations(o)
+        }
       } else {
-        // Charger les élèves de la classe
-        const usersRes = await fetch(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
+        const usersRes = await fetchApi(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
         if (usersRes.success) {
-          setGrades(usersRes.data.map((u: any) => ({
+          const gradesList = usersRes.data.map((u: any) => ({
             studentId: u.id,
             student: { id: u.id, firstName: u.firstName, lastName: u.lastName },
-          })))
+          }))
+          setGrades(gradesList)
+          await db.cachedData.put({ key: `teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, data: gradesList, cachedAt: Date.now() })
           const n: Record<string, number> = {}
           usersRes.data.forEach((u: any) => { n[u.id] = 0 })
           setNotes(n)
@@ -86,12 +146,20 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
   const saveDraft = async () => {
     if (!selectedClass || !selectedSubject || !selectedSequence) return
+    const gradesPayload = Object.entries(notes).map(([studentId, value]) => ({
+      studentId, value, observation: observations[studentId] || '',
+    }))
+    const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
+
+    if (!isOnline) {
+      await db.cachedData.put({ key: draftKey, data: { notes, observations }, cachedAt: Date.now() })
+      onToast('Brouillon sauvegardé localement', 'info')
+      return
+    }
+
     setSaving(true)
     try {
-      const gradesPayload = Object.entries(notes).map(([studentId, value]) => ({
-        studentId, value, observation: observations[studentId] || '',
-      }))
-      const res = await fetch('/api/v2/grades/draft', {
+      const res = await fetchApi('/api/v2/grades/draft', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -99,6 +167,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       }).then(r => r.json())
       if (res.success) {
         onToast('Brouillon sauvegardé', 'info')
+        await db.cachedData.delete(draftKey)
       } else {
         onToast(res.message || 'Erreur', 'error')
       }
@@ -111,9 +180,23 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
   const submitGrades = async () => {
     if (!selectedClass || !selectedSubject || !selectedSequence) return
+    const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
+
+    if (!isOnline) {
+      await addToQueue({
+        type: 'GRADE',
+        endpoint: '/api/v2/grades/submit',
+        method: 'POST',
+        payload: { classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence },
+      })
+      await db.cachedData.delete(draftKey)
+      onToast('Soumission mise en file d\'attente — synchronisation à la reconnexion', 'warning')
+      return
+    }
+
     setSaving(true)
     try {
-      const res = await fetch('/api/v2/grades/submit', {
+      const res = await fetchApi('/api/v2/grades/submit', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -121,6 +204,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       }).then(r => r.json())
       if (res.success) {
         onToast('Notes soumises pour validation', 'success')
+        await db.cachedData.delete(draftKey)
         loadGrades()
       } else {
         onToast(res.message || 'Erreur', 'error')
@@ -164,6 +248,32 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
           <div style={sSub}>Saisie et soumission des notes</div>
         </div>
       </div>
+
+      {!isOnline && (
+        <div style={{ background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>📶</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#92400e' }}>Mode hors-ligne — brouillons sauvegardés localement, soumissions synchronisées à la reconnexion</span>
+        </div>
+      )}
+
+      {/* Prompt restauration brouillon */}
+      {showDraftPrompt && localDraft && (
+        <div style={{ background: '#fffbeb', border: '1.5px solid #d97706', borderRadius: 12, padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 22 }}>💾</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#92400e' }}>Brouillon hors-ligne détecté</div>
+            <div style={{ fontSize: 13, color: '#b45309', marginTop: 2 }}>Des notes ont été sauvegardées localement. Voulez-vous les restaurer ?</div>
+          </div>
+          <button onClick={() => { setNotes(localDraft.notes); setObservations(localDraft.observations); setShowDraftPrompt(false) }}
+            style={{ padding: '7px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: '#d97706', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Restaurer
+          </button>
+          <button onClick={() => setShowDraftPrompt(false)}
+            style={{ padding: '7px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Ignorer
+          </button>
+        </div>
+      )}
 
       {grades.length > 0 && (
         <div style={{ background: '#f0ebe3', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
@@ -265,7 +375,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
                   {saving ? '...' : '💾 Brouillon'}
                 </button>
                 <button style={btnPrim} onClick={submitGrades} disabled={saving}>
-                  {saving ? '...' : '📤 Soumettre pour validation'}
+                  {saving ? '...' : isOnline ? '📤 Soumettre pour validation' : '📶 Mettre en file d\'attente'}
                 </button>
               </div>
             </div>

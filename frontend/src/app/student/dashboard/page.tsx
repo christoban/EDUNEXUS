@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
 import { Bell } from 'lucide-react'
@@ -10,7 +10,11 @@ import SectionStudentGrades from './_components/SectionStudentGrades'
 import SectionStudentBulletins from './_components/SectionStudentBulletins'
 import SectionStudentTimetable from './_components/SectionStudentTimetable'
 import SectionStudentAttendance from './_components/SectionStudentAttendance'
+import SectionStudentLibrary from './_components/SectionStudentLibrary'
 import type { StudentSection, Toast, UserInfo } from './_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
+import { db } from '@/lib/offline/db'
 
 let toastId = 0
 
@@ -20,6 +24,7 @@ const TITLES: Record<StudentSection, string> = {
   bulletins:  'Mes bulletins',
   timetable:  'Mon emploi du temps',
   attendance: 'Mes présences',
+  library:    'Mes lectures',
 }
 
 export default function StudentDashboard() {
@@ -29,15 +34,50 @@ export default function StudentDashboard() {
   const [user, setUser] = useState<UserInfo | null>(null)
 
   useEffect(() => {
-    fetch('/api/v2/school/me', { credentials: 'include' })
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setSchoolInfo(d.data) })
       .catch(() => {})
-    fetch('/api/v2/users/me', { credentials: 'include' })
+    fetchApi('/api/v2/users/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setUser(d.data) })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!user || !navigator.onLine) return
+    const uid = user.id
+    ;(async () => {
+      try {
+        const now = Date.now()
+        const rcRes = await fetchApi('/api/v2/report-cards/my', { credentials: 'include' }).then(r => r.json())
+        if (rcRes.reportCards) await db.cachedData.put({ key: `student:bulletins:${uid}`, data: rcRes.reportCards, cachedAt: now })
+        const [statsRes, recordsRes] = await Promise.all([
+          fetchApi('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
+          fetchApi('/api/v2/attendance?limit=100', { credentials: 'include' }).then(r => r.json()),
+        ])
+        const stats = statsRes.stats ? {
+          total: statsRes.stats.total || 0, present: statsRes.stats.present || 0,
+          absent: statsRes.stats.absent || 0, late: statsRes.stats.late || 0,
+          excused: statsRes.stats.excused || 0, attendanceRate: statsRes.stats.attendanceRate || '0%',
+        } : null
+        const weeks: Record<string, { week: string; present: number; absent: number; late: number; excused: number }> = {}
+        ;(recordsRes.records || []).forEach((r: any) => {
+          const d = new Date(r.date), sw = new Date(d)
+          sw.setDate(d.getDate() - d.getDay() + 1)
+          const k = sw.toISOString().slice(0, 10)
+          if (!weeks[k]) weeks[k] = { week: k, present: 0, absent: 0, late: 0, excused: 0 }
+          if (r.status === 'PRESENT') weeks[k].present++
+          else if (r.status === 'ABSENT') weeks[k].absent++
+          else if (r.status === 'LATE') weeks[k].late++
+          else if (r.status === 'EXCUSED') weeks[k].excused++
+        })
+        const fmt = (s: string) => { const d = new Date(s + 'T00:00:00'), e = new Date(d); e.setDate(d.getDate() + 4); return `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` }
+        const weekly = Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).map(w => ({ ...w, week: fmt(w.week) }))
+        await db.cachedData.put({ key: `student:attendance:${uid}`, data: { stats, weekly }, cachedAt: now })
+      } catch { /* silent */ }
+    })()
+  }, [user])
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -76,10 +116,12 @@ export default function StudentDashboard() {
           {section === 'bulletins'  && <SectionStudentBulletins {...sProps} />}
           {section === 'timetable'  && <SectionStudentTimetable {...sProps} />}
           {section === 'attendance' && <SectionStudentAttendance {...sProps} />}
+          {section === 'library'    && <SectionStudentLibrary />}
         </main>
       </div>
 
       <StudentToast toasts={toasts} onRemove={removeToast} />
+      <OfflineIndicator />
     </div>
   )
 }

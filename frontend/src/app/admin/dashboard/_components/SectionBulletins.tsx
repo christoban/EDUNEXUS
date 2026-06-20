@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -38,7 +39,7 @@ export default function SectionBulletins({ onToast }: Props) {
   const [sending, setSending]               = useState(false)
 
   useEffect(() => {
-    fetch('/api/v2/classes', { credentials: 'include' })
+    fetchApi('/api/v2/classes', { credentials: 'include' })
       .then(r => r.json())
       .then(d => setClasses(d.data || []))
       .catch(() => {})
@@ -52,8 +53,8 @@ export default function SectionBulletins({ onToast }: Props) {
     setReportCards([])
     try {
       const [checkRes, rcRes] = await Promise.all([
-        fetch(`/api/v2/report-cards/check/${classId}`, { credentials: 'include' }),
-        fetch(`/api/v2/report-cards?classId=${classId}&limit=100`, { credentials: 'include' }),
+        fetchApi(`/api/v2/report-cards/check/${classId}`, { credentials: 'include' }),
+        fetchApi(`/api/v2/report-cards?classId=${classId}&limit=100`, { credentials: 'include' }),
       ])
       if (checkRes.ok) {
         const cd = await checkRes.json()
@@ -74,7 +75,7 @@ export default function SectionBulletins({ onToast }: Props) {
     if (!classId || !check?.canGenerateReportCard) return
     setGenerating(true)
     try {
-      const res = await fetch('/api/v2/report-cards/generate', {
+      const res = await fetchApi('/api/v2/report-cards/generate', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classId }),
@@ -94,7 +95,7 @@ export default function SectionBulletins({ onToast }: Props) {
     if (!classId) return
     setExporting(true)
     try {
-      const res = await fetch(`/api/v2/report-cards/export/${classId}`, { method: 'POST', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/report-cards/export/${classId}`, { method: 'POST', credentials: 'include' })
       if (!res.ok) throw new Error('Erreur export')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -113,7 +114,7 @@ export default function SectionBulletins({ onToast }: Props) {
     if (!classId) return
     setSending(true)
     try {
-      const res = await fetch('/api/v2/report-cards/send', {
+      const res = await fetchApi('/api/v2/report-cards/send', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classId }),

@@ -12,8 +12,12 @@ export function creerFinanceRoutes(controller: FinanceController): Router {
   router.post('/invoices', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFacture);
   router.post('/invoices/bulk', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFacturesEnMasse);
 
-  // Paiements Mobile Money
+  // Paiements Mobile Money (initié par Admin/Staff au guichet à la place du parent)
   router.post('/payments/mobile', requireAuth, requireRole('ADMIN', 'STAFF'), controller.initierPaiementMobile);
+
+  // Paiement en espèces (guichet) — enregistré directement comme SUCCESS sans Campay
+  router.post('/payments/cash', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerPaiementCash);
+
   router.post('/payments/caution/:id/rembourser', requireAuth, requireRole('ADMIN', 'STAFF'), controller.rembourserCautionEleve);
 
   // Webhook Campay — pas d'auth (appelé par Campay directement)

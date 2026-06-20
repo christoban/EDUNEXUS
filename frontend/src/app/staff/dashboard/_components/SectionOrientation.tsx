@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -213,7 +214,7 @@ export default function SectionOrientation({ onToast }: Props) {
 
   // ── Fetch years ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch('/api/v2/academic-years', { credentials: 'include' })
+    fetchApi('/api/v2/academic-years', { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         const list: AcademicYear[] = (d.data || []).map((y: any) => ({ id: y.id, label: y.label || y.name || y.id }))
@@ -228,7 +229,7 @@ export default function SectionOrientation({ onToast }: Props) {
     setLoadingStats(true)
     try {
       const params = selectedYear ? `?academicYearId=${selectedYear}` : ''
-      const res = await fetch(`/api/v2/orientation/stats${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/orientation/stats${params}`, { credentials: 'include' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
       setStats(d.data)
@@ -244,7 +245,7 @@ export default function SectionOrientation({ onToast }: Props) {
       if (riskFilter)   params.set('riskLevel', riskFilter)
       if (statusFilter) params.set('status', statusFilter)
       if (selectedYear) params.set('academicYearId', selectedYear)
-      const res = await fetch(`/api/v2/orientation/fiches?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/orientation/fiches?${params}`, { credentials: 'include' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur serveur')
       setFiches(d.fiches || [])
@@ -261,7 +262,7 @@ export default function SectionOrientation({ onToast }: Props) {
   const openFiche = async (id: string) => {
     setLoadingFiche(true); setView('fiche'); setFicheTab('entretiens')
     try {
-      const res = await fetch(`/api/v2/orientation/fiches/${id}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/orientation/fiches/${id}`, { credentials: 'include' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message)
       setSelectedFiche(d.data)
@@ -275,7 +276,7 @@ export default function SectionOrientation({ onToast }: Props) {
   const searchStudents = async (q: string, setter: (r: StudentResult[]) => void) => {
     if (q.trim().length < 2) { setter([]); return }
     try {
-      const res = await fetch(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
       const d = await res.json()
       setter(d.data || [])
     } catch { setter([]) }
@@ -291,7 +292,7 @@ export default function SectionOrientation({ onToast }: Props) {
     }
     setNewFicheForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/orientation/fiches', {
+      const res = await fetchApi('/api/v2/orientation/fiches', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -319,7 +320,7 @@ export default function SectionOrientation({ onToast }: Props) {
     if (!selectedFiche) return
     setEntretienForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/orientation/fiches/${selectedFiche.id}/entretiens`, {
+      const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/entretiens`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -347,7 +348,7 @@ export default function SectionOrientation({ onToast }: Props) {
   // ── Marquer entretien réalisé ─────────────────────────────────────────────────
   const marquerRealise = async (entretienId: string) => {
     try {
-      const res = await fetch(`/api/v2/orientation/entretiens/${entretienId}`, {
+      const res = await fetchApi(`/api/v2/orientation/entretiens/${entretienId}`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'REALISE' }),
@@ -366,7 +367,7 @@ export default function SectionOrientation({ onToast }: Props) {
     if (!selectedFiche) return
     setTestForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/orientation/fiches/${selectedFiche.id}/tests`, {
+      const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/tests`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -393,7 +394,7 @@ export default function SectionOrientation({ onToast }: Props) {
     if (!selectedFiche) return
     setSuiviForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/orientation/fiches/${selectedFiche.id}/suivis`, {
+      const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/suivis`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -423,7 +424,7 @@ export default function SectionOrientation({ onToast }: Props) {
     if (!selectedFiche) return
     setRecoForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/orientation/fiches/${selectedFiche.id}/recommandation-serie`, {
+      const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/recommandation-serie`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -448,7 +449,7 @@ export default function SectionOrientation({ onToast }: Props) {
     if (!selectedFiche?.recommandation) return
     setValidatingReco(true)
     try {
-      const res = await fetch(`/api/v2/orientation/recommandations/${selectedFiche.recommandation.id}/valider`, {
+      const res = await fetchApi(`/api/v2/orientation/recommandations/${selectedFiche.recommandation.id}/valider`, {
         method: 'PATCH', credentials: 'include',
       })
       const d = await res.json()
@@ -488,7 +489,7 @@ export default function SectionOrientation({ onToast }: Props) {
     if (Object.keys(body).length === 0) { setEditEntOpen(false); return }
     setEditEnt(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/orientation/entretiens/${editEnt.entretienId}`, {
+      const res = await fetchApi(`/api/v2/orientation/entretiens/${editEnt.entretienId}`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

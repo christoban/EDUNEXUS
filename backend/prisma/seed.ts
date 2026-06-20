@@ -12,6 +12,7 @@ type BacCoeffEntry = {
   niveau: string
   coefficient: number
   groupe: number
+  templateCode: string
   source: string
   isOfficialMinesec: boolean
 }
@@ -19,6 +20,7 @@ type BacCoeffEntry = {
 function bc(sn: string, s: string, n: string, c: number, g: number): BacCoeffEntry {
   return {
     subjectName: sn, serie: s, niveau: n, coefficient: c, groupe: g,
+    templateCode: "__ALL__",
     source: "Arrêté N° 92/22 MINESEC du 17 Mars 2022",
     isOfficialMinesec: true,
   }
@@ -44,9 +46,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Informatique",          "A1", N.S, 2, G2),
   bc("Informatique",          "A1", N.P, 2, G2),
   bc("Informatique",          "A1", N.T, 2, G2),
-  bc("Éducation à la Citoyenneté", "A1", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté", "A1", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté", "A1", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale", "A1", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale", "A1", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale", "A1", N.T, 2, G2),
   bc("EPS",             "A1", N.S, 2, G2),
   bc("EPS",             "A1", N.P, 2, G2),
   bc("EPS",             "A1", N.T, 2, G2),
@@ -56,9 +58,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",        "A1", N.S, 1, G2),
   bc("Sciences",        "A1", N.P, 1, G2),
   bc("Sciences",        "A1", N.T, 1, G2),
-  bc("Langue Nationale","A1", N.S, 1, G2),
-  bc("Langue Nationale","A1", N.P, 1, G2),
-  bc("Langue Nationale","A1", N.T, 1, G2),
+  bc("Langues Nationales","A1", N.S, 1, G2),
+  bc("Langues Nationales","A1", N.P, 1, G2),
+  bc("Langues Nationales","A1", N.T, 1, G2),
   bc("Cultures Nationales","A1", N.S, 1, G2),
   bc("Cultures Nationales","A1", N.P, 1, G2),
   bc("Cultures Nationales","A1", N.T, 1, G2),
@@ -93,9 +95,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Informatique",                "A2", N.S, 2, G2),
   bc("Informatique",                "A2", N.P, 2, G2),
   bc("Informatique",                "A2", N.T, 1, G2), // ⚠️ 1 en Tle
-  bc("Éducation à la Citoyenneté",   "A2", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté",   "A2", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté",   "A2", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A2", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A2", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A2", N.T, 2, G2),
   bc("EPS",               "A2", N.S, 2, G2),
   bc("EPS",               "A2", N.P, 2, G2),
   bc("EPS",               "A2", N.T, 2, G2),
@@ -108,9 +110,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",          "A2", N.S, 1, G2),
   bc("Sciences",          "A2", N.P, 1, G2),
   bc("Sciences",          "A2", N.T, 1, G2),
-  bc("Langue Nationale",  "A2", N.S, 1, G2),
-  bc("Langue Nationale",  "A2", N.P, 1, G2),
-  bc("Langue Nationale",  "A2", N.T, 1, G2),
+  bc("Langues Nationales",  "A2", N.S, 1, G2),
+  bc("Langues Nationales",  "A2", N.P, 1, G2),
+  bc("Langues Nationales",  "A2", N.T, 1, G2),
   bc("Cultures Nationales","A2", N.S, 1, G2),
   bc("Cultures Nationales","A2", N.P, 1, G2),
   bc("Cultures Nationales","A2", N.T, 1, G2),
@@ -142,9 +144,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Informatique",                "A3", N.S, 2, G2),
   bc("Informatique",                "A3", N.P, 2, G2),
   bc("Informatique",                "A3", N.T, 1, G2),
-  bc("Éducation à la Citoyenneté",   "A3", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté",   "A3", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté",   "A3", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A3", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A3", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A3", N.T, 2, G2),
   bc("EPS",               "A3", N.S, 2, G2),
   bc("EPS",               "A3", N.P, 2, G2),
   bc("EPS",               "A3", N.T, 2, G2),
@@ -157,9 +159,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",          "A3", N.S, 1, G2),
   bc("Sciences",          "A3", N.P, 1, G2),
   bc("Sciences",          "A3", N.T, 1, G2),
-  bc("Langue Nationale",  "A3", N.S, 1, G2),
-  bc("Langue Nationale",  "A3", N.P, 1, G2),
-  bc("Langue Nationale",  "A3", N.T, 1, G2),
+  bc("Langues Nationales",  "A3", N.S, 1, G2),
+  bc("Langues Nationales",  "A3", N.P, 1, G2),
+  bc("Langues Nationales",  "A3", N.T, 1, G2),
   bc("Cultures Nationales","A3", N.S, 1, G2),
   bc("Cultures Nationales","A3", N.P, 1, G2),
   bc("Cultures Nationales","A3", N.T, 1, G2),
@@ -194,9 +196,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Histoire",                 "A4", N.S, 2, G2),
   bc("Histoire",                 "A4", N.P, 2, G2),
   bc("Histoire",                 "A4", N.T, 2, G2),
-  bc("Éducation à la Citoyenneté","A4", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté","A4", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté","A4", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","A4", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","A4", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","A4", N.T, 2, G2),
   bc("Informatique",             "A4", N.S, 2, G2),
   bc("Informatique",             "A4", N.P, 2, G2),
   bc("Informatique",             "A4", N.T, 2, G2),
@@ -209,9 +211,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",       "A4", N.S, 1, G2),
   bc("Sciences",       "A4", N.P, 1, G2),
   bc("Sciences",       "A4", N.T, 1, G2),
-  bc("Langue Nationale","A4", N.S, 1, G2),
-  bc("Langue Nationale","A4", N.P, 1, G2),
-  bc("Langue Nationale","A4", N.T, 1, G2),
+  bc("Langues Nationales","A4", N.S, 1, G2),
+  bc("Langues Nationales","A4", N.P, 1, G2),
+  bc("Langues Nationales","A4", N.T, 1, G2),
   bc("Cultures Nationales","A4", N.S, 1, G2),
   bc("Cultures Nationales","A4", N.P, 1, G2),
   bc("Cultures Nationales","A4", N.T, 1, G2),
@@ -246,9 +248,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Informatique",                "A5", N.S, 2, G2),
   bc("Informatique",                "A5", N.P, 2, G2),
   bc("Informatique",                "A5", N.T, 1, G2), // ⚠️ 1 en Tle
-  bc("Éducation à la Citoyenneté",   "A5", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté",   "A5", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté",   "A5", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A5", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A5", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",   "A5", N.T, 2, G2),
   bc("EPS",               "A5", N.S, 2, G2),
   bc("EPS",               "A5", N.P, 2, G2),
   bc("EPS",               "A5", N.T, 2, G2),
@@ -261,9 +263,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",          "A5", N.S, 1, G2),
   bc("Sciences",          "A5", N.P, 1, G2),
   bc("Sciences",          "A5", N.T, 1, G2),
-  bc("Langue Nationale",  "A5", N.S, 1, G2),
-  bc("Langue Nationale",  "A5", N.P, 1, G2),
-  bc("Langue Nationale",  "A5", N.T, 1, G2),
+  bc("Langues Nationales",  "A5", N.S, 1, G2),
+  bc("Langues Nationales",  "A5", N.P, 1, G2),
+  bc("Langues Nationales",  "A5", N.T, 1, G2),
   bc("Cultures Nationales","A5", N.S, 1, G2),
   bc("Cultures Nationales","A5", N.P, 1, G2),
   bc("Cultures Nationales","A5", N.T, 1, G2),
@@ -298,9 +300,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Citizenship Education",         "ABI", N.S, 2, G2),
   bc("Citizenship Education",         "ABI", N.P, 2, G2),
   bc("Citizenship Education",         "ABI", N.T, 2, G2),
-  bc("SPE",                           "ABI", N.S, 2, G2),
-  bc("SPE",                           "ABI", N.P, 2, G2),
-  bc("SPE",                           "ABI", N.T, 2, G2),
+  bc("Sport and Physical Education",  "ABI", N.S, 2, G2),
+  bc("Sport and Physical Education",  "ABI", N.P, 2, G2),
+  bc("Sport and Physical Education",  "ABI", N.T, 2, G2),
   bc("Mathématiques",                 "ABI", N.S, 2, G2),
   bc("Mathématiques",                 "ABI", N.P, 2, G2),
   bc("Mathématiques",                 "ABI", N.T, 2, G2),
@@ -313,22 +315,22 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",                      "ABI", N.S, 1, G2),
   bc("Sciences",                      "ABI", N.P, 1, G2),
   bc("Sciences",                      "ABI", N.T, 1, G2),
-  bc("Langue Nationale",              "ABI", N.S, 1, G2),
-  bc("Langue Nationale",              "ABI", N.P, 1, G2),
-  bc("Langue Nationale",              "ABI", N.T, 1, G2),
+  bc("Langues Nationales",              "ABI", N.S, 1, G2),
+  bc("Langues Nationales",              "ABI", N.P, 1, G2),
+  bc("Langues Nationales",              "ABI", N.T, 1, G2),
   bc("Cultures Nationales",           "ABI", N.S, 1, G2),
   bc("Cultures Nationales",           "ABI", N.P, 1, G2),
   bc("Cultures Nationales",           "ABI", N.T, 1, G2),
   bc("Éducation Artistique",          "ABI", N.S, 1, G2),
   bc("Éducation Artistique",          "ABI", N.P, 1, G2),
   bc("Éducation Artistique",          "ABI", N.T, 1, G2),
-  bc("Manual Labor",                  "ABI", N.S, 1, G2),
-  bc("Manual Labor",                  "ABI", N.P, 1, G2),
-  bc("Manual Labor",                  "ABI", N.T, 1, G2),
+  bc("Manual Labor / Handicraft / Drawing", "ABI", N.S, 1, G2),
+  bc("Manual Labor / Handicraft / Drawing", "ABI", N.P, 1, G2),
+  bc("Manual Labor / Handicraft / Drawing", "ABI", N.T, 1, G2),
 
   // ══════════════════ SÉRIE C ═══════════════════════════════════════════════
   // Groupe 1 — Seconde
-  bc("Mathématiques",  "C", N.S, 6, G1),
+  bc("Mathématiques",  "C", N.S, 5, G1), // ⚠️ 5 (arrêté), pas 6
   bc("Physique",       "C", N.S, 3, G1),
   bc("Chimie",         "C", N.S, 3, G1),
   bc("Informatique",   "C", N.S, 3, G1),
@@ -336,13 +338,12 @@ const bacCoefficients: BacCoeffEntry[] = [
   // Groupe 1 — Première
   bc("Mathématiques",  "C", N.P, 6, G1),
   bc("Physique",       "C", N.P, 3, G1),
-  bc("Chimie",         "C", N.P, 3, G1),
+  bc("Chimie",         "C", N.P, 2, G1), // ⚠️ 2 (arrêté), pas 3
   bc("Informatique",   "C", N.P, 2, G1),
-  // ⚠️ SVTEEHB absent en 1ère C
   // Groupe 1 — Terminale
   bc("Mathématiques",  "C", N.T, 6, G1),
   bc("Physique",       "C", N.T, 3, G1),
-  bc("Chimie",         "C", N.T, 3, G1),
+  bc("Chimie",         "C", N.T, 2, G1), // ⚠️ 2 (arrêté), pas 3
   bc("Informatique",   "C", N.T, 4, G1),
   // Groupe 2 — tous niveaux
   bc("Littérature",               "C", N.S, 2, G2),
@@ -357,12 +358,15 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Philosophie",               "C", N.S, 0, G2),
   bc("Philosophie",               "C", N.P, 1, G2),
   bc("Philosophie",               "C", N.T, 2, G2),
-  bc("Histoire-Géographie",       "C", N.S, 2, G2),
-  bc("Histoire-Géographie",       "C", N.P, 2, G2),
-  bc("Histoire-Géographie",       "C", N.T, 2, G2),
-  bc("Éducation à la Citoyenneté","C", N.S, 1, G2),
-  bc("Éducation à la Citoyenneté","C", N.P, 1, G2),
-  bc("Éducation à la Citoyenneté","C", N.T, 1, G2),
+  bc("Histoire",                  "C", N.S, 2, G2), // Histoire + Géographie séparés
+  bc("Géographie",                "C", N.S, 2, G2),
+  bc("Histoire",                  "C", N.P, 2, G2),
+  bc("Géographie",                "C", N.T, 2, G2),
+  bc("SVTEEHB",                   "C", N.P, 2, G2), // SVTEEHB passe en G2 en 1ère/Tle
+  bc("SVTEEHB",                   "C", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","C", N.S, 1, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","C", N.P, 1, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","C", N.T, 1, G2),
   bc("EPS",                       "C", N.S, 2, G2),
   bc("EPS",                       "C", N.P, 2, G2),
   bc("EPS",                       "C", N.T, 2, G2),
@@ -393,10 +397,10 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Physique",                  "D", N.T, 3, G2), // ⚠️ 3 en Tle
   bc("Philosophie",               "D", N.P, 2, G2),
   bc("Philosophie",               "D", N.T, 2, G2),
-  bc("Histoire-Géographie",       "D", N.P, 2, G2),
-  bc("Histoire-Géographie",       "D", N.T, 2, G2),
-  bc("Éducation à la Citoyenneté","D", N.P, 1, G2),
-  bc("Éducation à la Citoyenneté","D", N.T, 1, G2),
+  bc("Histoire",                  "D", N.P, 2, G2), // 1ère: Histoire seulement
+  bc("Géographie",                "D", N.T, 2, G2), // Tle: Géographie seulement
+  bc("Éducation à la Citoyenneté et à la Morale","D", N.P, 1, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","D", N.T, 1, G2),
   bc("EPS",                       "D", N.P, 2, G2),
   bc("EPS",                       "D", N.T, 2, G2),
   bc("Travail Manuel",            "D", N.P, 1, G2),
@@ -432,9 +436,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Philosophie",       "E", N.S, 0, G2),
   bc("Philosophie",       "E", N.P, 1, G2),
   bc("Philosophie",       "E", N.T, 2, G2),
-  bc("Éducation à la Citoyenneté","E", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté","E", N.P, 1, G2),
-  bc("Éducation à la Citoyenneté","E", N.T, 1, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","E", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","E", N.P, 1, G2),
+  bc("Éducation à la Citoyenneté et à la Morale","E", N.T, 1, G2),
   bc("EPS",               "E", N.S, 2, G2),
   bc("EPS",               "E", N.P, 2, G2),
   bc("EPS",               "E", N.T, 2, G2),
@@ -462,10 +466,10 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Anglais",                     "TI", N.T, 3, G2),
   bc("SVTEEHB",                     "TI", N.P, 2, G2),
   bc("SVTEEHB",                     "TI", N.T, 2, G2),
-  bc("Histoire-Géographie",         "TI", N.P, 2, G2),
-  bc("Histoire-Géographie",         "TI", N.T, 2, G2),
-  bc("Éducation à la Citoyenneté",  "TI", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté",  "TI", N.T, 2, G2),
+  bc("Histoire",                  "TI", N.P, 2, G2), // 1ère: Histoire seulement
+  bc("Géographie",                "TI", N.T, 2, G2), // Tle: Géographie seulement
+  bc("Éducation à la Citoyenneté et à la Morale",  "TI", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale",  "TI", N.T, 2, G2),
   bc("Philosophie",                 "TI", N.P, 1, G2),
   bc("Philosophie",                 "TI", N.T, 2, G2),
   bc("EPS",                         "TI", N.P, 2, G2),
@@ -495,9 +499,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Anglais",                    "SH", N.S, 4, G1),
   bc("Anglais",                    "SH", N.P, 4, G1),
   bc("Anglais",                    "SH", N.T, 4, G1),
-  bc("Éducation à la Citoyenneté", "SH", N.S, 2, G1),
-  bc("Éducation à la Citoyenneté", "SH", N.P, 2, G1),
-  bc("Éducation à la Citoyenneté", "SH", N.T, 2, G1),
+  bc("Éducation à la Citoyenneté et à la Morale", "SH", N.S, 2, G1),
+  bc("Éducation à la Citoyenneté et à la Morale", "SH", N.P, 2, G1),
+  bc("Éducation à la Citoyenneté et à la Morale", "SH", N.T, 2, G1),
   // Groupe 2
   bc("Informatique",              "SH", N.S, 2, G2),
   bc("Informatique",              "SH", N.P, 2, G2),
@@ -511,9 +515,9 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Sciences",                  "SH", N.S, 2, G2),
   bc("Sciences",                  "SH", N.P, 2, G2),
   bc("Sciences",                  "SH", N.T, 2, G2),
-  bc("Langue Nationale",          "SH", N.S, 1, G2),
-  bc("Langue Nationale",          "SH", N.P, 1, G2),
-  bc("Langue Nationale",          "SH", N.T, 1, G2),
+  bc("Langues Nationales",          "SH", N.S, 1, G2),
+  bc("Langues Nationales",          "SH", N.P, 1, G2),
+  bc("Langues Nationales",          "SH", N.T, 1, G2),
   bc("Cultures Nationales",       "SH", N.S, 1, G2),
   bc("Cultures Nationales",       "SH", N.P, 1, G2),
   bc("Cultures Nationales",       "SH", N.T, 1, G2),
@@ -553,15 +557,15 @@ const bacCoefficients: BacCoeffEntry[] = [
   bc("Physique",                   "AC", N.S, 2, G2),
   bc("Physique",                   "AC", N.P, 2, G2),
   bc("Physique",                   "AC", N.T, 0, G2),
-  bc("Langue Nationale",           "AC", N.S, 1, G2),
-  bc("Langue Nationale",           "AC", N.P, 1, G2),
-  bc("Langue Nationale",           "AC", N.T, 1, G2),
+  bc("Langues Nationales",           "AC", N.S, 1, G2),
+  bc("Langues Nationales",           "AC", N.P, 1, G2),
+  bc("Langues Nationales",           "AC", N.T, 1, G2),
   bc("Cultures Nationales",        "AC", N.S, 1, G2),
   bc("Cultures Nationales",        "AC", N.P, 1, G2),
   bc("Cultures Nationales",        "AC", N.T, 1, G2),
-  bc("Éducation à la Citoyenneté", "AC", N.S, 2, G2),
-  bc("Éducation à la Citoyenneté", "AC", N.P, 2, G2),
-  bc("Éducation à la Citoyenneté", "AC", N.T, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale", "AC", N.S, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale", "AC", N.P, 2, G2),
+  bc("Éducation à la Citoyenneté et à la Morale", "AC", N.T, 2, G2),
   bc("Philosophie",                "AC", N.S, 1, G2),
   bc("Philosophie",                "AC", N.P, 1, G2),
   bc("Philosophie",                "AC", N.T, 1, G2),
@@ -1470,29 +1474,7 @@ const defaultMentionRules = [
 async function main() {
   console.log("🚀 EduNexus — Phase 0 seed\n");
 
-  // 1. BacCoefficients
-  console.log("🎓 Seeding BacCoefficients...");
-  for (const coeff of bacCoefficients) {
-    await prisma.bacCoefficient.upsert({
-      where: {
-        subjectName_serie_niveau: {
-          subjectName: coeff.subjectName,
-          serie: coeff.serie,
-          niveau: coeff.niveau,
-        },
-      },
-      update: {
-        coefficient: coeff.coefficient,
-        groupe: coeff.groupe,
-        source: coeff.source,
-        isOfficialMinesec: coeff.isOfficialMinesec,
-      },
-      create: coeff,
-    });
-  }
-  console.log(`   ✓ ${bacCoefficients.length} entrées`);
-
-  // 2. SchoolTemplates (17) — config enrichie avec defaultSubjects + subjectPacks
+  // 0. SchoolTemplates (17) — seed FIRST to satisfy FK constraints on reference data
   console.log("\n🏫 Seeding SchoolTemplates...");
   for (const t of schoolTemplates) {
     const subs = TEMPLATE_SUBJECTS[t.code] ?? {}
@@ -1521,6 +1503,424 @@ async function main() {
   }
   console.log(`   → ${schoolTemplates.length} templates seeded`);
 
+  // 0b. Sentinel template pour les données référençant "__ALL__"
+  await prisma.schoolTemplate.upsert({
+    where:  { code: "__ALL__" },
+    update: { name: "Sentinel (tous templates)" },
+    create: { code: "__ALL__", name: "Sentinel (tous templates)", subsystem: "FRANCOPHONE", educationType: "GENERAL", level: "SECONDARY", config: {} },
+  });
+
+  // ─── 1. Données de référence (FK → SchoolTemplate) ─────────────────────────
+
+  // 1a. BacCoefficients
+  console.log("\n🎓 Seeding BacCoefficients...");
+  for (const coeff of bacCoefficients) {
+    await prisma.bacCoefficient.upsert({
+      where: {
+        subjectName_serie_niveau_templateCode: {
+          subjectName: coeff.subjectName,
+          serie: coeff.serie,
+          niveau: coeff.niveau,
+          templateCode: coeff.templateCode,
+        },
+      },
+      update: {
+        coefficient: coeff.coefficient,
+        groupe: coeff.groupe,
+        source: coeff.source,
+        isOfficialMinesec: coeff.isOfficialMinesec,
+      },
+      create: coeff,
+    });
+  }
+  console.log(`   ✓ ${bacCoefficients.length} entrées`);
+
+  // 1b. CycleCoefficients — 1er cycle français (6e→3e), données officielles MINESEC
+  const CYCLE_COEFFS: { templateCode: string; classLevel: string; subjectName: string; coefficient: number; weeklyPeriods?: number; filiere: string }[] = [];
+  const CYCLE1_TEMPLATES = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'LYCEE_BILINGUE'];
+
+  // ── FR_GENERAL (programme général) ─────────────────────────────────────────
+  // Matières pour 6e/5e
+  const GEN_65: { name: string; coeff: number; hours: number }[] = [
+    { name: 'Anglais',                              coeff: 3, hours: 3 },
+    { name: 'Français',                              coeff: 6, hours: 6 },
+    { name: 'Lettres classiques (Latin/Grec)',       coeff: 2, hours: 2 },
+    { name: 'Éducation à la Citoyenneté et à la Morale',                                    coeff: 2, hours: 2 },
+    { name: 'Histoire',                              coeff: 2, hours: 2 },
+    { name: 'Géographie',                            coeff: 2, hours: 2 },
+    { name: 'Informatique',                           coeff: 2, hours: 2 },
+    { name: 'Mathématiques',                          coeff: 4, hours: 4 },
+    { name: 'Sciences',                               coeff: 2, hours: 2 },
+    { name: 'Éducation Artistique et Culturelle',     coeff: 1, hours: 1 },
+    { name: 'Cultures Nationales',                    coeff: 1, hours: 1 },
+    { name: 'Langues Nationales',                     coeff: 1, hours: 1 },
+    { name: 'EPS',                                    coeff: 2, hours: 2 },
+    { name: 'Travail Manuel',                         coeff: 1, hours: 2 },
+  ];
+  // Matières pour 4e/3e
+  const GEN_43: { name: string; coeff: number; hours: number }[] = [
+    { name: 'Anglais',                              coeff: 3, hours: 3 },
+    { name: 'Français',                              coeff: 4, hours: 4 },
+    { name: 'LV2',                                    coeff: 2, hours: 2 },
+    { name: 'Lettres classiques (Latin/Grec)',       coeff: 1, hours: 1 },
+    { name: 'Éducation à la Citoyenneté et à la Morale',                                    coeff: 2, hours: 2 },
+    { name: 'Histoire',                              coeff: 2, hours: 2 },
+    { name: 'Géographie',                            coeff: 2, hours: 2 },
+    { name: 'Informatique',                           coeff: 2, hours: 2 },
+    { name: 'Mathématiques',                          coeff: 4, hours: 4 },
+    { name: 'Physique-Chimie-Technologie',            coeff: 2, hours: 2 },
+    { name: 'SVTEEHB',                                coeff: 2, hours: 2 },
+    { name: 'Éducation Artistique et Culturelle',     coeff: 1, hours: 1 },
+    { name: 'Cultures Nationales',                    coeff: 1, hours: 1 },
+    { name: 'Langues Nationales',                     coeff: 1, hours: 1 },
+    { name: 'EPS',                                    coeff: 2, hours: 2 },
+    { name: 'Travail Manuel',                         coeff: 1, hours: 2 },
+  ];
+
+  // ── FR_PEBS (Programme d'Éducation Bilingue Spécial) ──────────────────────
+  const PEBS_65: { name: string; coeff: number; hours: number }[] = [
+    { name: 'Intensive English',                      coeff: 5, hours: 5 },
+    { name: 'Français',                              coeff: 4, hours: 4 },
+    { name: 'Lettres classiques (Latin/Grec)',       coeff: 2, hours: 2 },
+    { name: 'Citizenship Education',                 coeff: 2, hours: 2 },
+    { name: 'Géographie',                            coeff: 2, hours: 2 },
+    { name: 'Histoire',                               coeff: 2, hours: 2 },
+    { name: 'Informatique',                           coeff: 2, hours: 2 },
+    { name: 'Mathématiques',                          coeff: 4, hours: 4 },
+    { name: 'Sciences',                               coeff: 2, hours: 2 },
+    { name: 'Éducation Artistique et Culturelle',     coeff: 1, hours: 1 },
+    { name: 'Cultures Nationales',                    coeff: 1, hours: 1 },
+    { name: 'Langues Nationales',                     coeff: 1, hours: 1 },
+    { name: 'Sport and Physical Education',           coeff: 2, hours: 2 },
+    { name: 'Travail Manuel',                         coeff: 1, hours: 2 },
+  ];
+  const PEBS_43: { name: string; coeff: number; hours: number }[] = [
+    { name: 'Intensive English',                      coeff: 5, hours: 5 },
+    { name: 'Français',                              coeff: 4, hours: 4 },
+    { name: 'LV2',                                    coeff: 2, hours: 2 },
+    { name: 'Lettres classiques (Latin/Grec)',       coeff: 1, hours: 1 },
+    { name: 'Citizenship Education',                 coeff: 2, hours: 2 },
+    { name: 'Géographie',                            coeff: 1, hours: 1 },
+    { name: 'Histoire',                               coeff: 1, hours: 1 },
+    { name: 'Informatique',                           coeff: 2, hours: 2 },
+    { name: 'Mathématiques',                          coeff: 4, hours: 4 },
+    { name: 'Physique-Chimie-Technologie',            coeff: 2, hours: 2 },
+    { name: 'SVTEEHB',                                coeff: 2, hours: 2 },
+    { name: 'Éducation Artistique et Culturelle',     coeff: 1, hours: 1 },
+    { name: 'Cultures Nationales',                    coeff: 1, hours: 1 },
+    { name: 'Langues Nationales',                     coeff: 1, hours: 1 },
+    { name: 'Sport and Physical Education',           coeff: 2, hours: 2 },
+    { name: 'Travail Manuel',                         coeff: 1, hours: 2 },
+  ];
+
+  for (const tc of CYCLE1_TEMPLATES) {
+    for (const level of ['6e', '5e'] as const) {
+      for (const s of GEN_65) {
+        CYCLE_COEFFS.push({ templateCode: tc, classLevel: level, subjectName: s.name, coefficient: s.coeff, weeklyPeriods: s.hours, filiere: 'FR_GENERAL' });
+      }
+      for (const s of PEBS_65) {
+        CYCLE_COEFFS.push({ templateCode: tc, classLevel: level, subjectName: s.name, coefficient: s.coeff, weeklyPeriods: s.hours, filiere: 'FR_PEBS' });
+      }
+    }
+    for (const level of ['4e', '3e'] as const) {
+      for (const s of GEN_43) {
+        CYCLE_COEFFS.push({ templateCode: tc, classLevel: level, subjectName: s.name, coefficient: s.coeff, weeklyPeriods: s.hours, filiere: 'FR_GENERAL' });
+      }
+      for (const s of PEBS_43) {
+        CYCLE_COEFFS.push({ templateCode: tc, classLevel: level, subjectName: s.name, coefficient: s.coeff, weeklyPeriods: s.hours, filiere: 'FR_PEBS' });
+      }
+    }
+  }
+  console.log(`\n📊 Seeding CycleCoefficients (${CYCLE1_TEMPLATES.length} templates × GENERAL 6e/5e:${GEN_65.length} + 4e/3e:${GEN_43.length} + PEBS 6e/5e:${PEBS_65.length} + 4e/3e:${PEBS_43.length} matières)...`);
+  for (const cc of CYCLE_COEFFS) {
+    await prisma.cycleCoefficient.upsert({
+      where: {
+        templateCode_classLevel_subjectName_filiere: {
+          templateCode: cc.templateCode,
+          classLevel: cc.classLevel,
+          subjectName: cc.subjectName,
+          filiere: cc.filiere,
+        },
+      },
+      update: { coefficient: cc.coefficient, weeklyPeriods: cc.weeklyPeriods },
+      create: cc,
+    });
+  }
+  console.log(`   ✓ ${CYCLE_COEFFS.length} entrées`);
+
+  // 1c. AnglophoneSubjectLoad — coefficients + horaires hebdo (Form1→UpperSixth)
+  console.log("\n📚 Seeding AnglophoneSubjectLoad...");
+  const LEVEL_SHORT_TO_FULL: Record<string, string> = {
+    F1: "Form1", F2: "Form2", F3: "Form3", F4: "Form4", F5: "Form5",
+    L6: "LowerSixth", U6: "UpperSixth",
+  };
+  const ASL_TEMPLATES = ['GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE'];
+
+  // ── EN_GENERAL (programme général) ─────────────────────────────────────────
+  const ASL_DATA_GEN: Record<string, Record<string, { c: number; w: number }>> = {
+    "English Language":       { F1:{c:3,w:5}, F2:{c:3,w:5}, F3:{c:3,w:5}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Literature in English":  { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "French":                 { F1:{c:3,w:5}, F2:{c:3,w:5}, F3:{c:3,w:5}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Geography":              { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Economics":              {                                     F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "History":                { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Citizenship Education":  { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:5,w:5}, F5:{c:5,w:5} },
+    "Commerce":               {                                                       F4:{c:5,w:5}, F5:{c:5,w:5} },
+    "Biology":                { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Chemistry":              { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Mathematics":            { F1:{c:3,w:5}, F2:{c:3,w:5}, F3:{c:3,w:5}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Physics":                { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:4}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Computer Science":       { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Geology":                {                                                                  F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Food and Nutrition":     { F1:{c:2,w:3}, F2:{c:2,w:3}, F3:{c:2,w:3}, F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6}, U6:{c:5,w:6} },
+    "Human Biology":          {                                                                  F4:{c:5,w:5}, F5:{c:5,w:5} },
+    "Additional Mathematics": {                                                                  F4:{c:5,w:5}, F5:{c:5,w:5}, L6:{c:5,w:6} },
+    "Logic":                  {                                               F3:{c:2,w:2}, F4:{c:5,w:5}, F5:{c:5,w:5} },
+    "Philosophy":             {                                                                                             L6:{c:5,w:6}, U6:{c:5,w:6} },
+  };
+
+  // ── EN_PEBS (Programme d'Éducation Bilingue Spécial, Form1→Form5 uniquement) ─
+  const ASL_DATA_PEBS: Record<string, Record<string, { c: number; w: number }>> = {
+    "Français intensif (Langue)":     { F1:{c:3,w:3}, F2:{c:3,w:3}, F3:{c:3,w:3}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Français intensif (Littérature)":{ F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:2,w:2}, F5:{c:2,w:2} },
+    "English Language":               { F1:{c:4,w:4}, F2:{c:4,w:4}, F3:{c:4,w:4}, F4:{c:4,w:4}, F5:{c:4,w:4} },
+    "Economics":                      {                                     F3:{c:2,w:2}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Éducation à la Citoyenneté et à la Morale":                            { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:2,w:2}, F5:{c:2,w:2} },
+    "Geography":                      { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "History":                        { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Computer Sciences":              { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:3,w:3}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Biology":                        { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Chemistry":                      { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Food and Nutrition":             {                                     F3:{c:2,w:2}, F4:{c:2,w:2}, F5:{c:2,w:2} },
+    "Home Economics":                 { F1:{c:2,w:2}, F2:{c:2,w:2} },
+    "Mathematics":                    { F1:{c:4,w:4}, F2:{c:4,w:4}, F3:{c:4,w:4}, F4:{c:4,w:4}, F5:{c:4,w:4} },
+    "Physics":                        { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Geology":                        {                                                                  F4:{c:3,w:3}, F5:{c:3,w:3} },
+    "Logic":                          {                                               F3:{c:2,w:2}, F4:{c:2,w:2}, F5:{c:2,w:2} },
+    "Sport and Physical Education":   { F1:{c:2,w:2}, F2:{c:2,w:2}, F3:{c:2,w:2}, F4:{c:2,w:2}, F5:{c:2,w:2} },
+    "Manual Labour":                  { F1:{c:1,w:1}, F2:{c:1,w:1}, F3:{c:1,w:1}, F4:{c:1,w:1}, F5:{c:1,w:1} },
+  };
+
+  const aslEntries: { templateCode: string; classLevel: string; subjectName: string; coefficient: number; weeklyPeriods: number; filiere: string }[] = [];
+  for (const tc of ASL_TEMPLATES) {
+    // EN_GENERAL
+    for (const [subjectName, levels] of Object.entries(ASL_DATA_GEN)) {
+      for (const [shortLevel, data] of Object.entries(levels)) {
+        const classLevel = LEVEL_SHORT_TO_FULL[shortLevel];
+        if (!classLevel) continue;
+        if (tc === 'GSS_EN' && (classLevel === 'LowerSixth' || classLevel === 'UpperSixth')) continue;
+        aslEntries.push({ templateCode: tc, classLevel, subjectName, coefficient: data.c, weeklyPeriods: data.w, filiere: 'EN_GENERAL' });
+      }
+    }
+    // EN_PEBS
+    for (const [subjectName, levels] of Object.entries(ASL_DATA_PEBS)) {
+      for (const [shortLevel, data] of Object.entries(levels)) {
+        const classLevel = LEVEL_SHORT_TO_FULL[shortLevel];
+        if (!classLevel) continue;
+        if (tc === 'GSS_EN' && (classLevel === 'LowerSixth' || classLevel === 'UpperSixth')) continue;
+        aslEntries.push({ templateCode: tc, classLevel, subjectName, coefficient: data.c, weeklyPeriods: data.w, filiere: 'EN_PEBS' });
+      }
+    }
+  }
+  for (const entry of aslEntries) {
+    await prisma.anglophoneSubjectLoad.upsert({
+      where: {
+        templateCode_classLevel_subjectName_filiere: {
+          templateCode: entry.templateCode,
+          classLevel: entry.classLevel,
+          subjectName: entry.subjectName,
+          filiere: entry.filiere,
+        },
+      },
+      update: { coefficient: entry.coefficient, weeklyPeriods: entry.weeklyPeriods },
+      create: entry,
+    });
+  }
+  console.log(`   ✓ ${aslEntries.length} entrées`);
+
+  // 1d. OLevelSubject — codes d'examens officiels GCE O-Level (P2)
+  console.log("\n📋 Seeding OLevelSubject...");
+  const O_LEVEL_CODES: { subjectName: string; examCode: string }[] = [
+    { subjectName: "English Language",        examCode: "0530" },
+    { subjectName: "Literature in English",   examCode: "0531" },
+    { subjectName: "French",                  examCode: "0570" },
+    { subjectName: "Geography",               examCode: "0460" },
+    { subjectName: "Economics",               examCode: "0455" },
+    { subjectName: "History",                 examCode: "0470" },
+    { subjectName: "Mathematics",             examCode: "0705" },
+    { subjectName: "Additional Mathematics",  examCode: "0606" },
+    { subjectName: "Biology",                 examCode: "0650" },
+    { subjectName: "Chemistry",               examCode: "0651" },
+    { subjectName: "Physics",                 examCode: "0652" },
+    { subjectName: "Computer Science",        examCode: "0653" },
+    { subjectName: "Geology",                 examCode: "0654" },
+    { subjectName: "Food and Nutrition",      examCode: "0648" },
+    { subjectName: "Human Biology",           examCode: "0655" },
+    { subjectName: "Commerce",                examCode: "0710" },
+    { subjectName: "Citizenship Education",   examCode: "0533" },
+    { subjectName: "Logic",                   examCode: "0535" },
+  ];
+  let oLevelCount = 0;
+  for (const entry of O_LEVEL_CODES) {
+    await prisma.oLevelSubject.upsert({
+      where:  { subjectName: entry.subjectName },
+      update: { examCode: entry.examCode },
+      create: entry,
+    });
+    oLevelCount++;
+  }
+  console.log(`   ✓ ${oLevelCount} entrées`);
+
+  // 1e. ALevelSubject — codes d'examens officiels GCE A-Level (P2)
+  console.log("\n📋 Seeding ALevelSubject...");
+  const A_LEVEL_CODES: { subjectName: string; examCode: string }[] = [
+    { subjectName: "English Language",        examCode: "9070" },
+    { subjectName: "Literature in English",   examCode: "9071" },
+    { subjectName: "French",                  examCode: "9090" },
+    { subjectName: "Geography",               examCode: "9095" },
+    { subjectName: "Economics",               examCode: "9080" },
+    { subjectName: "History",                 examCode: "9091" },
+    { subjectName: "Mathematics",             examCode: "9231" },
+    { subjectName: "Additional Mathematics",  examCode: "9232" },
+    { subjectName: "Biology",                 examCode: "9260" },
+    { subjectName: "Chemistry",               examCode: "9261" },
+    { subjectName: "Physics",                 examCode: "9262" },
+    { subjectName: "Computer Science",        examCode: "9263" },
+    { subjectName: "Geology",                 examCode: "9265" },
+    { subjectName: "Food and Nutrition",      examCode: "9248" },
+    { subjectName: "Philosophy",              examCode: "9074" },
+  ];
+  let aLevelCount = 0;
+  for (const entry of A_LEVEL_CODES) {
+    await prisma.aLevelSubject.upsert({
+      where:  { subjectName: entry.subjectName },
+      update: { examCode: entry.examCode },
+      create: entry,
+    });
+    aLevelCount++;
+  }
+  console.log(`   ✓ ${aLevelCount} entrées`);
+
+  // 1f. AnglophoneStreamCombination — combinaisons indicatives A1-A5 / S1-S5 (P3)
+  console.log("\n🧪 Seeding AnglophoneStreamCombination...");
+  const STREAM_COMBOS: { filiere: string; type: string; coreSubjects: string[]; electiveGroup?: string[][]; description: string }[] = [
+    {
+      filiere: "A1", type: "ARTS",
+      coreSubjects: ["English Language", "Literature in English", "French", "History", "Geography"],
+      electiveGroup: [["Economics", "Logic"], ["Computer Science", "Food and Nutrition"]],
+      description: "Lettres classiques — langues + littérature + histoire-géo",
+    },
+    {
+      filiere: "A2", type: "ARTS",
+      coreSubjects: ["English Language", "Literature in English", "French", "History"],
+      electiveGroup: [["Geography", "Economics"], ["Logic", "Computer Science"]],
+      description: "Lettres modernes — littérature + langues",
+    },
+    {
+      filiere: "A3", type: "ARTS",
+      coreSubjects: ["English Language", "French", "History", "Geography"],
+      electiveGroup: [["Literature in English", "Economics"], ["Food and Nutrition", "Logic"]],
+      description: "Sciences sociales — histoire-géo + langues",
+    },
+    {
+      filiere: "A4", type: "ARTS",
+      coreSubjects: ["English Language", "French", "Geography", "Economics"],
+      electiveGroup: [["History", "Literature in English"], ["Commerce", "Logic"]],
+      description: "Économie et commerce",
+    },
+    {
+      filiere: "A5", type: "ARTS",
+      coreSubjects: ["English Language", "French", "Literature in English"],
+      electiveGroup: [["History", "Geography"], ["Economics", "Logic", "Food and Nutrition"]],
+      description: "Lettres et arts appliqués",
+    },
+    {
+      filiere: "S1", type: "SCIENCES",
+      coreSubjects: ["Mathematics", "Physics", "Chemistry", "Biology", "English Language"],
+      electiveGroup: [["Additional Mathematics", "Computer Science"], ["Geology", "Food and Nutrition"]],
+      description: "Sciences pures — Maths + PC + SVT",
+    },
+    {
+      filiere: "S2", type: "SCIENCES",
+      coreSubjects: ["Mathematics", "Physics", "Chemistry", "English Language"],
+      electiveGroup: [["Biology", "Computer Science"], ["Geology", "Additional Mathematics"]],
+      description: "Sciences physiques et technologies",
+    },
+    {
+      filiere: "S3", type: "SCIENCES",
+      coreSubjects: ["Mathematics", "Biology", "Chemistry", "English Language"],
+      electiveGroup: [["Physics", "Computer Science"], ["Food and Nutrition", "Human Biology"]],
+      description: "Sciences de la vie et de la terre",
+    },
+    {
+      filiere: "S4", type: "SCIENCES",
+      coreSubjects: ["Mathematics", "Physics", "Computer Science", "English Language"],
+      electiveGroup: [["Chemistry", "Additional Mathematics"], ["Commerce", "Economics"]],
+      description: "Informatique et sciences numériques",
+    },
+  ];
+  let streamCount = 0;
+  for (const sc of STREAM_COMBOS) {
+    await prisma.anglophoneStreamCombination.upsert({
+      where:  { filiere: sc.filiere },
+      update: {
+        type: sc.type,
+        coreSubjects: sc.coreSubjects,
+        electiveGroup: sc.electiveGroup ?? null,
+        description: sc.description,
+      },
+      create: {
+        filiere: sc.filiere,
+        type: sc.type,
+        coreSubjects: sc.coreSubjects,
+        electiveGroup: sc.electiveGroup ?? null,
+        description: sc.description,
+      },
+    });
+    streamCount++;
+  }
+  console.log(`   ✓ ${streamCount} entrées`);
+
+  // 1g. OLevelGrade — barème notation GCE O-Level A→U (P4)
+  console.log("\n📊 Seeding OLevelGrade (barème A→U)...");
+  const O_LEVEL_GRADES: { grade: string; minScore: number; maxScore: number; description: string }[] = [
+    { grade: "A", minScore: 75, maxScore: 100, description: "Excellent" },
+    { grade: "B", minScore: 65, maxScore: 74.99, description: "Very Good" },
+    { grade: "C", minScore: 55, maxScore: 64.99, description: "Good" },
+    { grade: "D", minScore: 45, maxScore: 54.99, description: "Credit" },
+    { grade: "E", minScore: 40, maxScore: 44.99, description: "Pass" },
+    { grade: "F", minScore: 30, maxScore: 39.99, description: "Fail" },
+    { grade: "U", minScore: 0, maxScore: 29.99, description: "Ungraded / Unclassified" },
+  ];
+  for (const g of O_LEVEL_GRADES) {
+    await prisma.oLevelGrade.upsert({
+      where:  { grade: g.grade },
+      update: { minScore: g.minScore, maxScore: g.maxScore, description: g.description },
+      create: g,
+    });
+  }
+  console.log(`   ✓ ${O_LEVEL_GRADES.length} entrées`);
+
+  // 1h. ALevelGrade — barème notation GCE A-Level A→F (P4)
+  console.log("\n📊 Seeding ALevelGrade (barème A→F)...");
+  const A_LEVEL_GRADES: { grade: string; minScore: number; maxScore: number; description: string }[] = [
+    { grade: "A", minScore: 80, maxScore: 100, description: "Excellent" },
+    { grade: "B", minScore: 70, maxScore: 79.99, description: "Very Good" },
+    { grade: "C", minScore: 60, maxScore: 69.99, description: "Good" },
+    { grade: "D", minScore: 50, maxScore: 59.99, description: "Credit" },
+    { grade: "E", minScore: 40, maxScore: 49.99, description: "Pass" },
+    { grade: "F", minScore: 0, maxScore: 39.99, description: "Fail" },
+  ];
+  for (const g of A_LEVEL_GRADES) {
+    await prisma.aLevelGrade.upsert({
+      where:  { grade: g.grade },
+      update: { minScore: g.minScore, maxScore: g.maxScore, description: g.description },
+      create: g,
+    });
+  }
+  console.log(`   ✓ ${A_LEVEL_GRADES.length} entrées`);
+
+  // 2. Autres seeds (pas de FK vers SchoolTemplate)
   // 3. École système de référence pour les données globales
   // Certains modèles exigent désormais un schoolId non nul au niveau DB.
   const systemSchool = await prisma.school.upsert({

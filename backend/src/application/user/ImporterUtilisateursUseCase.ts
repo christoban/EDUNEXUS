@@ -2,7 +2,6 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
-
 export interface ImportRow {
   ligne: number
   nom: string
@@ -12,9 +11,12 @@ export interface ImportRow {
   matricule?: string
   dateNaissance?: string
   classe?: string
+  nomParent?: string
+  prenomParent?: string
   emailParent?: string
   telephoneParent?: string
   matieres?: string
+  classePrincipale?: string
 }
 
 export interface ImportErreur {
@@ -22,13 +24,21 @@ export interface ImportErreur {
   erreur: string
 }
 
+export interface ImportWarning {
+  ligne: number
+  avertissement: string
+}
+
 export interface ImportResultat {
   total: number
   success: number
+  professeursPrincipauxAssignes: number
+  affectationsPedagogiquesPreremplies: number
   errors: ImportErreur[]
+  warnings: ImportWarning[]
 }
 
-const PASS_TEMPORAIRE = 'EduNexus2025!'
+const DEV_PASS = 'chris123456789'
 
 export class ImporterUtilisateursUseCase {
   constructor(
@@ -42,14 +52,40 @@ export class ImporterUtilisateursUseCase {
     role: 'STUDENT' | 'TEACHER',
   ): Promise<ImportResultat> {
     const errors: ImportErreur[] = []
+    const warnings: ImportWarning[] = []
     let success = 0
+    let professeursPrincipauxAssignes = 0
+    let affectationsPedagogiquesPreremplies = 0
+
+    const isDevMode = process.env.EMAIL_DISABLED === 'true'
+
+    // Dev : mot de passe fixe connu (chris123456789), cohérent avec l'invite individuelle
+    // Prod : hash aléatoire — l'utilisateur DOIT passer par le lien d'invitation pour se connecter
+    let sharedHash: string
+    if (isDevMode) {
+      sharedHash = await bcrypt.hash(DEV_PASS, 10)
+    } else {
+      const { randomBytes } = await import('crypto')
+      sharedHash = await bcrypt.hash(randomBytes(32).toString('hex'), 10)
+    }
+
+    // Résoudre le nom de l'école une seule fois pour éviter N requêtes dans la boucle
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true, subdomain: true } })
+    const schoolName = school?.name ?? 'EduNexus'
+
+    // Cache classes : 1 requête pour toutes au lieu de 1 par ligne
+    const allClasses = await this.prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true } })
+    const classeCache = new Map(allClasses.map(c => [c.name, c.id]))
 
     for (const row of rows) {
       try {
         if (role === 'STUDENT') {
-          await this.traiterLigneStudent(schoolId, row)
+          await this.traiterLigneStudent(schoolId, row, sharedHash, isDevMode, schoolName, classeCache)
         } else {
-          await this.traiterLigneTeacher(schoolId, row)
+          const result = await this.traiterLigneTeacher(schoolId, row, sharedHash, isDevMode, schoolName, classeCache)
+          if (result.ppAssigned) professeursPrincipauxAssignes++
+          if (result.ppError) errors.push({ ligne: row.ligne, erreur: result.ppError })
+          affectationsPedagogiquesPreremplies += result.affectationsCreees ?? 0
         }
         success++
       } catch (err) {
@@ -60,27 +96,21 @@ export class ImporterUtilisateursUseCase {
       }
     }
 
-    return { total: rows.length, success, errors }
+    return { total: rows.length, success, professeursPrincipauxAssignes, affectationsPedagogiquesPreremplies, errors, warnings }
   }
 
-  private async traiterLigneStudent(schoolId: string, row: ImportRow): Promise<void> {
+  private async traiterLigneStudent(schoolId: string, row: ImportRow, passwordHash: string, isDevMode: boolean, schoolName: string, classeCache: Map<string, string>): Promise<void> {
     if (!row.nom?.trim()) throw new Error('Nom obligatoire')
     if (!row.prenom?.trim()) throw new Error('Prénom obligatoire')
 
     const email = row.email?.trim().toLowerCase()
-    const phone = row.telephone?.trim()
+    const phone = row.telephone?.trim() || undefined
     if (!email && !phone) throw new Error('Email ou téléphone obligatoire')
-
-    const passwordHash = await bcrypt.hash(PASS_TEMPORAIRE, 10)
 
     let classeId: string | undefined
     if (row.classe?.trim()) {
-      const classe = await this.prisma.class.findFirst({
-        where: { schoolId, name: row.classe.trim() },
-        select: { id: true },
-      })
-      if (!classe) throw new Error(`Classe "${row.classe.trim()}" introuvable`)
-      classeId = classe.id
+      classeId = classeCache.get(row.classe.trim())
+      if (!classeId) throw new Error(`Classe "${row.classe.trim()}" introuvable`)
     }
 
     let dateOfBirth: Date | undefined
@@ -98,17 +128,16 @@ export class ImporterUtilisateursUseCase {
       if (existingParent) {
         parentUserId = existingParent.id
       } else {
-        const parentPwd = await bcrypt.hash(PASS_TEMPORAIRE, 10)
         const parentUser = User.create({
           schoolId,
           role: 'PARENT',
           email: parentEmail,
           phone: row.telephoneParent?.trim() || undefined,
-          firstName: `Parent ${row.prenom.trim()}`,
-          lastName: row.nom.trim(),
+          firstName: row.prenomParent?.trim() || `Parent de ${row.prenom.trim()}`,
+          lastName: row.nomParent?.trim() || row.nom.trim(),
         })
         await this.userRepository.saveAvecProfil(parentUser, {
-          passwordHash: parentPwd,
+          passwordHash,
         })
         parentUserId = parentUser.id
       }
@@ -130,16 +159,22 @@ export class ImporterUtilisateursUseCase {
       parentOfStudentIds: parentUserId ? [parentUserId] : [],
     })
 
-    await this.envoyerEmailInvitation(
-      email || '',
-      row.prenom.trim(),
-      row.nom.trim(),
-      schoolId,
-      PASS_TEMPORAIRE,
-    )
+    // Fire-and-forget : les emails ne bloquent pas la boucle d'import
+    if (isDevMode) {
+      this.envoyerEmailDevMode(email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {})
+    } else {
+      this.envoyerEmailLienInvitation(studentUser.id, email || '', row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {})
+    }
   }
 
-  private async traiterLigneTeacher(schoolId: string, row: ImportRow): Promise<void> {
+  private async traiterLigneTeacher(
+    schoolId: string,
+    row: ImportRow,
+    passwordHash: string,
+    isDevMode: boolean,
+    schoolName: string,
+    classeCache: Map<string, string>,
+  ): Promise<{ ppAssigned: boolean; ppError?: string; affectationsCreees?: number }> {
     if (!row.nom?.trim()) throw new Error('Nom obligatoire')
     if (!row.prenom?.trim()) throw new Error('Prénom obligatoire')
     if (!row.email?.trim()) throw new Error('Email obligatoire pour les enseignants')
@@ -148,8 +183,6 @@ export class ImporterUtilisateursUseCase {
 
     const existe = await this.userRepository.existsByEmail(email, schoolId)
     if (existe) throw new Error(`Email déjà utilisé`)
-
-    const passwordHash = await bcrypt.hash(PASS_TEMPORAIRE, 10)
 
     let subjectIds: string[] = []
     if (row.matieres?.trim()) {
@@ -175,18 +208,78 @@ export class ImporterUtilisateursUseCase {
       lastName: row.nom.trim(),
     })
 
-    await this.userRepository.saveAvecProfil(teacherUser, {
-      passwordHash,
-      subjectIds,
-    })
+    await this.userRepository.saveAvecProfil(teacherUser, { passwordHash, subjectIds })
 
-    await this.envoyerEmailInvitation(
-      email,
-      row.prenom.trim(),
-      row.nom.trim(),
-      schoolId,
-      PASS_TEMPORAIRE,
-    )
+    // Fire-and-forget : les emails ne bloquent pas la boucle d'import
+    if (isDevMode) {
+      this.envoyerEmailDevMode(email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {})
+    } else {
+      this.envoyerEmailLienInvitation(teacherUser.id, email, row.prenom.trim(), row.nom.trim(), schoolId, schoolName).catch(() => {})
+    }
+
+    // ── Désignation PP ────────────────────────────────────────────────────
+    let ppAssigned = false
+    let ppError: string | undefined
+    if (row.classePrincipale?.trim()) {
+      const className = row.classePrincipale.trim()
+      const classe = await this.prisma.class.findFirst({
+        where: { schoolId, name: className },
+        select: { id: true, professorPrincipalId: true },
+      })
+      if (!classe) {
+        ppError = `Classe '${className}' introuvable pour classe_principale`
+      } else if (classe.professorPrincipalId) {
+        const existingPP = await this.prisma.user.findUnique({
+          where: { id: classe.professorPrincipalId },
+          select: { firstName: true, lastName: true },
+        })
+        const ppName = existingPP ? `${existingPP.firstName} ${existingPP.lastName}` : 'inconnu'
+        ppError = `Classe '${className}' a déjà un Professeur Principal (${ppName})`
+      } else {
+        await this.prisma.class.update({
+          where: { id: classe.id },
+          data: { professorPrincipalId: teacherUser.id },
+        })
+        ppAssigned = true
+      }
+    }
+
+    // ── Pré-remplissage affectations pédagogiques ─────────────────────────
+    // Si PP assigné ET matières connues : créer TeachingAssignment pour chaque
+    // matière qui fait partie du programme de la classe_principale
+    let affectationsCreees = 0
+    if (ppAssigned && subjectIds.length > 0 && row.classePrincipale?.trim()) {
+      const classe = await this.prisma.class.findFirst({
+        where: { schoolId, name: row.classePrincipale.trim() },
+        select: { id: true, level: true, serie: true, filiere: true },
+      })
+      if (classe) {
+        // Matières du programme de cette classe (serie pour 2nd cycle, filiere pour 1er cycle)
+        const codeSerie = classe.serie ?? classe.filiere ?? null
+        const coefficients = await this.prisma.subjectCoefficient.findMany({
+          where: {
+            schoolId,
+            classLevel: classe.level ?? undefined,
+            OR: [{ serieCode: codeSerie }, { serieCode: null }],
+          },
+          select: { subjectId: true },
+        })
+        const programmSubjectIds = new Set(coefficients.map(c => c.subjectId))
+
+        const subjectsInProgramme = subjectIds.filter(id => programmSubjectIds.has(id))
+        if (subjectsInProgramme.length > 0) {
+          const result = await this.prisma.teachingAssignment.createMany({
+            data: subjectsInProgramme.map(subjectId => ({
+              classId: classe.id, subjectId, teacherId: teacherUser.id, schoolId,
+            })),
+            skipDuplicates: true, // ignore si matière déjà affectée à quelqu'un d'autre
+          })
+          affectationsCreees = result.count
+        }
+      }
+    }
+
+    return { ppAssigned, ppError, affectationsCreees }
   }
 
   private parserDate(dateStr: string): Date {
@@ -205,25 +298,47 @@ export class ImporterUtilisateursUseCase {
     return d
   }
 
-  private async envoyerEmailInvitation(
-    email: string,
-    prenom: string,
-    nom: string,
-    schoolId: string,
-    motDePasse: string,
-  ): Promise<void> {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { name: true, subdomain: true },
-    })
-    const schoolName = school?.name ?? 'votre établissement'
-    const loginUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/login?subdomain=${encodeURIComponent(school?.subdomain ?? '')}`
-
+  // Dev mode : juste logué en console, aucun email réel envoyé
+  private async envoyerEmailDevMode(email: string, prenom: string, nom: string, schoolId: string, schoolName: string): Promise<void> {
     try {
       const { sendTransactionalEmail } = await import('../../services/emailService')
       await sendTransactionalEmail({
         recipientEmail: email,
-        subject: `Bienvenue sur EduNexus — ${schoolName}`,
+        subject: `[DEV] Compte créé — ${schoolName}`,
+        html: `<p>Bonjour ${prenom} ${nom}, compte créé. Mot de passe dev : <strong>${DEV_PASS}</strong></p>`,
+        template: 'user_invitation',
+        eventType: 'user_import',
+        metadata: { schoolId },
+      })
+    } catch { /* non bloquant */ }
+  }
+
+  // Prod : lien JWT valable 7 jours, l'utilisateur crée son propre mot de passe
+  private async envoyerEmailLienInvitation(
+    userId: string,
+    email: string,
+    prenom: string,
+    nom: string,
+    schoolId: string,
+    schoolName: string,
+  ): Promise<void> {
+    try {
+      const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'
+
+      const jwt = await import('jsonwebtoken')
+      const inviteToken = jwt.default.sign(
+        { sub: userId, email, schoolId, type: 'user_invite' },
+        process.env.JWT_SECRET!,
+        { expiresIn: '7d' },
+      )
+      const inviteUrl = `${frontendUrl}/invite/set-password?token=${inviteToken}`
+
+      console.log(`[Import] Lien invitation ${email}: ${inviteUrl}`)
+
+      const { sendTransactionalEmail } = await import('../../services/emailService')
+      await sendTransactionalEmail({
+        recipientEmail: email,
+        subject: `EduNexus — Créez votre mot de passe · ${schoolName}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
             <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
@@ -232,22 +347,17 @@ export class ImporterUtilisateursUseCase {
             <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
               <h2 style="color:#1a1209;margin-top:0;">Bonjour ${prenom} ${nom},</h2>
               <p style="color:#6b5c45;font-size:15px;line-height:1.6;">
-                Votre compte a été créé sur <strong>EduNexus — ${schoolName}</strong>.
+                Vous avez été ajouté(e) sur <strong>EduNexus — ${schoolName}</strong>.
+                Cliquez ci-dessous pour créer votre mot de passe et accéder à votre espace.
               </p>
-              <div style="background:#f0fdf4;padding:18px 22px;border-radius:10px;margin:20px 0;">
-                <div style="font-size:13px;color:#065f46;font-weight:600;">Identifiant :</div>
-                <div style="font-size:18px;color:#059669;font-weight:800;margin-top:4px;">${email}</div>
-                <div style="font-size:13px;color:#065f46;font-weight:600;margin-top:12px;">Mot de passe temporaire :</div>
-                <div style="font-size:18px;color:#059669;font-weight:800;margin-top:4px;font-family:monospace;">${motDePasse}</div>
-              </div>
-              <p style="color:#6b5c45;font-size:14px;">Connectez-vous et modifiez votre mot de passe dès la première connexion.</p>
               <div style="text-align:center;margin:28px 0 16px;">
-                <a href="${loginUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">
-                  🚀 Accéder à mon espace
+                <a href="${inviteUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">
+                  🔑 Créer mon mot de passe
                 </a>
               </div>
+              <p style="color:#a89478;font-size:13px;text-align:center;">Ce lien expire dans 7 jours.</p>
               <hr style="border:none;border-top:1px solid #e8e0d4;margin:20px 0;" />
-              <p style="color:#a89478;font-size:12px;margin:0;">
+              <p style="color:#a89478;font-size:12px;margin:0;text-align:center;">
                 EduNexus · Plateforme de gestion scolaire · Cameroun
               </p>
             </div>
@@ -255,9 +365,8 @@ export class ImporterUtilisateursUseCase {
         `,
         template: 'user_invitation',
         eventType: 'user_import',
+        metadata: { schoolId },
       })
-    } catch {
-      // Échec d'envoi email — non bloquant
-    }
+    } catch { /* non bloquant */ }
   }
 }

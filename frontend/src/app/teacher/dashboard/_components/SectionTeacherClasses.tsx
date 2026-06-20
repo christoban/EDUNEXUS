@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onNav: (s: string) => void
@@ -26,7 +27,7 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
   const fetchData = async () => {
     setLoading(true); setError(null)
     try {
-      const res = await fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json())
+      const res = await fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json())
       if (res.success) {
         setClasses(res.data)
         fetchStats(res.data as any[])
@@ -43,7 +44,7 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
     const gradeMap: Record<string, { total: number; submitted: number; draft: number }> = {}
     await Promise.all(classList.map(async (cls) => {
       try {
-        const res = await fetch(`/api/v2/attendance/stats?classId=${cls.id}`, { credentials: 'include' })
+        const res = await fetchApi(`/api/v2/attendance/stats?classId=${cls.id}`, { credentials: 'include' })
         const d = await res.json()
         statsMap[cls.id] = {
           classId: cls.id,
@@ -52,7 +53,7 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
         }
       } catch { statsMap[cls.id] = { classId: cls.id, average: null, attendanceRate: null } }
       try {
-        const gr = await fetch(`/api/v2/grades/status/${cls.id}`, { credentials: 'include' })
+        const gr = await fetchApi(`/api/v2/grades/status/${cls.id}`, { credentials: 'include' })
         const gd = await gr.json()
         if (gr.ok && gd.stats) {
           gradeMap[cls.id] = {

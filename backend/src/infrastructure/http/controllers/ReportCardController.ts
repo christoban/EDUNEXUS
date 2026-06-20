@@ -4,6 +4,7 @@ import type { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBul
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import type { BulletinTemplate } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { notifyBulletinSms } from '@infrastructure/services/SmsNotificationService';
 import { generateBulletinPdf } from '../../../utils/reportCards/index';
 import { getMentionFr } from '../../../utils/reportCards/helpers';
 import { getEffectiveSchoolSettings } from '../../../utils/schoolSettings';
@@ -28,6 +29,9 @@ export class ReportCardController {
         return;
       }
 
+      // Horodatage capturé AVANT la génération pour filtrer uniquement les nouveaux bulletins
+      const generationStartedAt = new Date()
+
       const resultat = await this.generer.execute({
         schoolId: user.schoolId,
         classId,
@@ -40,9 +44,43 @@ export class ReportCardController {
       });
 
       res.json({ success: true, data: resultat });
+
+      // Fire-and-forget SMS bulletin disponible — hors du try principal
+      if (resultat.bulletinsGeneres > 0) {
+        const schoolId = user.schoolId as string
+        void (async () => {
+          try {
+            const period = await prisma.academicPeriod.findUnique({
+              where: { id: academicPeriodId },
+              select: { name: true },
+            })
+            const periodName = period?.name ?? 'Période'
+            const bulletins = await prisma.reportCard.findMany({
+              where: { schoolId, academicPeriodId, createdAt: { gte: generationStartedAt } },
+              include: { student: { select: { id: true, firstName: true, lastName: true } } },
+            })
+            await Promise.all(
+              bulletins.map((b) =>
+                notifyBulletinSms({
+                  schoolId,
+                  studentId: b.studentId,
+                  studentName: `${b.student.firstName ?? ''} ${b.student.lastName ?? ''}`.trim(),
+                  periodName,
+                }),
+              ),
+            )
+          } catch (err) {
+            console.error('[SMS Bulletin fire-and-forget]', err)
+          }
+        })()
+      }
     } catch (error) {
       if (error instanceof BulletinBloqueError) {
-        res.status(422).json({ success: false, message: error.message, notesBloquantes: error.notesBloquantes });
+        res.status(422).json({ success: false, code: 'NOTES_NON_VALIDEES', message: error.message, notesBloquantes: error.notesBloquantes });
+        return;
+      }
+      if (error instanceof Error && error.message.includes('Conseil de Classe')) {
+        res.status(422).json({ success: false, code: 'CONSEIL_REQUIS', message: error.message });
         return;
       }
       next(error);
@@ -200,6 +238,54 @@ export class ReportCardController {
       }
 
       await archive.finalize();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // PATCH /api/v2/report-cards/:id/comment
+  // Réservé au Professeur Principal de la classe du bulletin.
+  // Un Admin peut aussi corriger un commentaire.
+  ajouterCommentaire = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const role: string = (user.role as string).toUpperCase();
+      const { classMasterComment } = req.body;
+
+      if (typeof classMasterComment !== 'string' || !classMasterComment.trim()) {
+        res.status(400).json({ success: false, message: 'classMasterComment (string non vide) requis' });
+        return;
+      }
+
+      const reportCard = await prisma.reportCard.findFirst({
+        where: { id: req.params.id as string, schoolId: user.schoolId },
+        include: {
+          student: { include: { studentProfile: { include: { class: { select: { professorPrincipalId: true } } } } } },
+        },
+      }) as any;
+
+      if (!reportCard) {
+        res.status(404).json({ success: false, message: 'Bulletin introuvable' });
+        return;
+      }
+
+      // Seul le Professeur Principal de la classe ou un Admin peut écrire le commentaire
+      const professorPrincipalId = reportCard.student?.studentProfile?.class?.professorPrincipalId;
+      const isPP = professorPrincipalId === user.userId;
+      if (role !== 'ADMIN' && !isPP) {
+        res.status(403).json({
+          success: false,
+          message: "Seul le Professeur Principal de cette classe ou un Admin peut écrire ce commentaire",
+        });
+        return;
+      }
+
+      await prisma.reportCard.update({
+        where: { id: req.params.id as string },
+        data: { classMasterComment: classMasterComment.trim() },
+      });
+
+      res.json({ success: true, message: 'Commentaire enregistré' });
     } catch (error) {
       next(error);
     }

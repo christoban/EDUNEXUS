@@ -47,7 +47,7 @@ const BADGE_STYLES = {
   amber: 'bg-amber-500/20 text-amber-300',
 }
 
-export default function TeacherSidebar({ current, onChange, schoolName, logoUrl, onLogout, user, pendingGrades }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null; onLogout?: () => void; user?: UserInfo | null; pendingGrades?: number }) {
+export default function TeacherSidebar({ current, onChange, schoolName, logoUrl, onLogout, user, pendingGrades, pendingCount }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null; onLogout?: () => void; user?: UserInfo | null; pendingGrades?: number; pendingCount?: number }) {
   const displayName = schoolName || 'Mon établissement'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0].toUpperCase()).join('')
 
@@ -112,6 +112,30 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
               ))}
             </div>
           ))}
+
+          {/* Section Synchronisation — visible uniquement si actions en attente */}
+          {pendingCount != null && pendingCount > 0 && (
+            <div>
+              <div className="text-[14px] font-black text-white/30 tracking-[1.2px] uppercase" style={{ padding: '11px 0 0 0' }}>
+                Synchronisation
+              </div>
+              <button onClick={() => onChange('sync')}
+                className={cn(
+                  'w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
+                  'text-[16px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer font-nunito',
+                  current === 'sync'
+                    ? 'bg-[#3a6b44] text-white'
+                    : 'bg-transparent text-white/52 hover:bg-[#243b29] hover:text-white/82'
+                )}
+                style={{ padding: '6px 9px' }}>
+                <span className="text-[23px] w-[18px] text-center flex-shrink-0">📶</span>
+                <span className="truncate flex-1">Synchronisation</span>
+                <span className={cn('ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.amber)} style={{ padding: '3px 6px' }}>
+                  {pendingCount}
+                </span>
+              </button>
+            </div>
+          )}
         </nav>
       </div>
 

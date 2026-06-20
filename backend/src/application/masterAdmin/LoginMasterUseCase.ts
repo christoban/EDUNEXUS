@@ -42,7 +42,7 @@ export class LoginMasterUseCase {
       },
     });
 
-    await this.sendEmail({ recipientEmail: normalizedEmail, otp });
+    void this.sendEmail({ recipientEmail: normalizedEmail, otp }).catch(err => console.error('[Email] Échec OTP login:', (err as Error)?.message));
   }
 
   async executeVerifyOtp(
@@ -129,7 +129,7 @@ export class LoginMasterUseCase {
       },
     });
 
-    await this.sendEmail({ recipientEmail: masterUser.email, otp });
+    void this.sendEmail({ recipientEmail: masterUser.email, otp }).catch(err => console.error('[Email] Échec OTP password-change:', (err as Error)?.message));
     return { email: masterUser.email };
   }
 
@@ -207,6 +207,6 @@ export class LoginMasterUseCase {
       },
     });
 
-    await this.sendEmail({ recipientEmail: normalizedEmail, otp });
+    void this.sendEmail({ recipientEmail: normalizedEmail, otp }).catch(err => console.error('[Email] Échec OTP resend:', (err as Error)?.message));
   }
 }

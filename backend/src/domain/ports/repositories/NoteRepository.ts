@@ -48,4 +48,10 @@ export interface NoteRepository {
 
   // Bulk operations
   findNotesEnAttenteDepuis(heures: number): Promise<Note[]>; // Pour les alertes Inngest
+
+  /**
+   * Verrouille toutes les notes VALIDATED d'un élève pour une classe/période.
+   * Appelé après la génération du bulletin — Loi 6.
+   */
+  verrouillerNotesValidees(studentId: string, classId: string, academicPeriodId: string): Promise<void>;
 }

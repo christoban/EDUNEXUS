@@ -22,6 +22,7 @@ import {
   handleGradeSubmitted,
   sendPaymentReminders,
   computeStudentHealthScores,
+  markOverdueLoans,
 } from "./inngest/functions.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
@@ -121,6 +122,7 @@ app.use(
       handleGradeSubmitted,
       sendPaymentReminders,
       computeStudentHealthScores,
+      markOverdueLoans,
     ],
   })
 );

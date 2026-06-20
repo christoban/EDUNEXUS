@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
 import { Bell } from 'lucide-react'
@@ -11,7 +11,11 @@ import SectionParentAttendance from './_components/SectionParentAttendance'
 import SectionParentPayments from './_components/SectionParentPayments'
 import SectionParentTimetable from './_components/SectionParentTimetable'
 import SectionParentSettings from './_components/SectionParentSettings'
+import SectionParentLibrary from './_components/SectionParentLibrary'
 import type { ParentSection, Toast } from './_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
+import { db } from '@/lib/offline/db'
 
 let toastId = 0
 
@@ -22,6 +26,7 @@ const TITLES: Record<ParentSection, string> = {
   payments:   'Paiements Mobile Money',
   timetable:  'Emploi du temps',
   settings:   'Paramètres',
+  library:    'Lectures',
 }
 
 interface UserInfo { id: string; firstName: string; lastName: string; role: string }
@@ -34,11 +39,28 @@ export default function ParentDashboard() {
   const [school, setSchool] = useState<SchoolInfo | null>(null)
 
   useEffect(() => {
-    fetch('/api/v2/users/me', { credentials: 'include' })
+    fetchApi('/api/v2/users/me', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.success) setUser(d.data) }).catch(() => {})
-    fetch('/api/v2/school/me', { credentials: 'include' })
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.success) setSchool(d.data) }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!user || !navigator.onLine) return
+    const uid = user.id
+    ;(async () => {
+      try {
+        const childrenRes = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
+        if (!childrenRes.success) return
+        const children = childrenRes.data
+        const now = Date.now()
+        await db.cachedData.put({ key: `parent:children:${uid}`, data: children, cachedAt: now })
+        await db.cachedData.put({ key: `parent:attendance:${uid}`, data: children, cachedAt: now })
+        const rcRes = await fetchApi('/api/v2/report-cards', { credentials: 'include' }).then(r => r.json())
+        await db.cachedData.put({ key: `parent:grades:${uid}`, data: { children, bulletins: rcRes.reportCards ?? [] }, cachedAt: now })
+      } catch { /* silent */ }
+    })()
+  }, [user])
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -69,16 +91,18 @@ export default function ParentDashboard() {
         </header>
 
         <main style={{ flex: 1, overflow: 'hidden', background: '#f7f3ee' }}>
-          {section === 'children'   && <SectionParentChildren onNav={s => setSection(s as ParentSection)} {...sProps} />}
-          {section === 'grades'     && <SectionParentGrades {...sProps} />}
-          {section === 'attendance' && <SectionParentAttendance {...sProps} />}
+          {section === 'children'   && <SectionParentChildren onNav={s => setSection(s as ParentSection)} {...sProps} userId={user?.id} />}
+          {section === 'grades'     && <SectionParentGrades {...sProps} userId={user?.id} />}
+          {section === 'attendance' && <SectionParentAttendance {...sProps} userId={user?.id} />}
           {section === 'payments'   && <SectionParentPayments {...sProps} />}
-          {section === 'timetable'  && <SectionParentTimetable {...sProps} />}
-          {section === 'settings'  && <SectionParentSettings />}
+          {section === 'timetable'  && <SectionParentTimetable {...sProps} userId={user?.id} />}
+          {section === 'settings'   && <SectionParentSettings />}
+          {section === 'library'    && <SectionParentLibrary userId={user?.id} />}
         </main>
       </div>
 
       <ParentToast toasts={toasts} onRemove={removeToast} />
+      <OfflineIndicator />
     </div>
   )
 }

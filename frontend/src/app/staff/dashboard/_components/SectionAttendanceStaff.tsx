@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -38,7 +39,7 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/v2/attendance/stats', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/attendance/stats', { credentials: 'include' })
       const data = await res.json()
       if (res.ok && data.stats) setStats(data.stats)
     } catch { /* silencieux */ }
@@ -46,7 +47,7 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
 
   const fetchClasses = useCallback(async () => {
     try {
-      const res = await fetch('/api/v2/classes', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/classes', { credentials: 'include' })
       const data = await res.json()
       if (res.ok) setClasses(data.data || [])
     } catch { /* silencieux */ }
@@ -64,7 +65,7 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
       const params = new URLSearchParams({ limit: '50' })
       if (classId) params.set('classId', classId)
       if (date) params.set('date', date)
-      const res = await fetch(`/api/v2/attendance?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/attendance?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setRecords(data.records || [])
@@ -78,7 +79,7 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
   const justify = async (recordId: string) => {
     setJustifyingId(recordId)
     try {
-      const res = await fetch(`/api/v2/attendance/${recordId}/justify`, {
+      const res = await fetchApi(`/api/v2/attendance/${recordId}/justify`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ justification: 'Justifiée par le personnel' }),

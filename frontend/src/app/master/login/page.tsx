@@ -116,6 +116,12 @@ export default function SuperAdminLogin() {
   const handlersRef = useRef({ s1: () => {}, s2: () => {}, s3: () => {} })
   useEffect(() => { stepRef.current = step }, [step])
 
+  // Empêcher le remplissage automatique du navigateur (sécurité)
+  useEffect(() => {
+    const t = setTimeout(() => { setEmail(''); setPassword('') }, 50)
+    return () => clearTimeout(t)
+  }, [])
+
   // TOTP interval
   useEffect(() => {
     if (step === 3 && !isRecovery) {
@@ -427,14 +433,14 @@ export default function SuperAdminLogin() {
                 </div>
                 {alert1 && <Alert a={alert1} />}
                 <Field label="Adresse email">
-                  <input type="email" value={email} autoComplete="email" placeholder="admin@edunexus.cm"
+                  <input type="email" value={email} autoComplete="off" placeholder="admin@edunexus.cm"
                     className="edu-field"
                     onChange={e => { setEmail(e.target.value); setAlert1(null) }}
                     style={fieldInputStyle} />
                 </Field>
                 <Field label="Mot de passe">
                   <div style={{ position: 'relative' }}>
-                    <input type={showPwd ? 'text' : 'password'} value={password} autoComplete="current-password" placeholder="••••••••••••"
+                    <input type={showPwd ? 'text' : 'password'} value={password} autoComplete="new-password" placeholder="••••••••••••"
                       className="edu-field"
                       onChange={e => { setPassword(e.target.value); setAlert1(null) }}
                       style={fieldInputStyle} />
@@ -511,7 +517,7 @@ export default function SuperAdminLogin() {
                       </div>
                     </div>
                     <Field label="Code TOTP (6 chiffres)">
-                      <input type="tel" maxLength={6} value={totpCode} placeholder="123456"
+                      <input type="tel" maxLength={6} value={totpCode} placeholder="123456" autoComplete="one-time-code"
                         className="edu-field"
                         onChange={e => { setTotpCode(e.target.value.replace(/\D/g, '')); setAlert3(null) }}
                         style={{ ...fieldInputStyle, textAlign: 'center', fontSize: 29, fontWeight: 900, letterSpacing: 8 }} />
@@ -522,7 +528,7 @@ export default function SuperAdminLogin() {
                 {/* Recovery mode */}
                 {isRecovery && (
                   <Field label="Code de récupération">
-                    <input type="text" value={recoveryCode} placeholder="ABCD-1234-EFGH-5678"
+                    <input type="text" value={recoveryCode} placeholder="ABCD-1234-EFGH-5678" autoComplete="off"
                       className="edu-field"
                       onChange={e => { setRecoveryCode(e.target.value); setAlert3(null) }}
                       style={{ ...fieldInputStyle, letterSpacing: 2, fontSize: 28, fontWeight: 700 }} />

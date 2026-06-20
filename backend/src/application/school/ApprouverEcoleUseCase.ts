@@ -37,10 +37,13 @@ export class ApprouverEcoleUseCase {
     await this.schoolRepository.update(school);
 
     // 3. Notifier l'Admin — invitation à finaliser la configuration
+    const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const configUrl = `${frontendUrl}/admin/configuration?subdomain=${encodeURIComponent(school.subdomain)}`;
+
     const admins = await this.userRepository.findByRole(school.id, 'ADMIN');
     for (const admin of admins) {
       if (admin.email) {
-        await this.emailService.envoyer({
+        void this.emailService.envoyer({
           destinataire: admin.email,
           sujet: `✅ Votre école est approuvée — Finalisez la configuration`,
           contenuHtml: `
@@ -57,12 +60,12 @@ export class ApprouverEcoleUseCase {
                   Connectez-vous pour configurer votre espace et finaliser la mise en place de votre établissement sur EduNexus.
                 </p>
                 <div style="text-align:center;margin:32px 0;">
-                  <a href="https://${school.subdomain}.edunexus.cm/admin/configuration" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
+                  <a href="${configUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">
                     ⚙️ Configurer mon espace
                   </a>
                 </div>
                 <p style="color:#a89478;font-size:13px;">
-                  Lien direct : <a href="https://${school.subdomain}.edunexus.cm/admin/configuration" style="color:#059669;">https://${school.subdomain}.edunexus.cm/admin/configuration</a>
+                  Lien direct : <a href="${configUrl}" style="color:#059669;">${configUrl}</a>
                 </p>
                 <hr style="border:none;border-top:1px solid #e8e0d4;margin:24px 0;" />
                 <p style="color:#a89478;font-size:12px;margin:0;">
@@ -71,7 +74,7 @@ export class ApprouverEcoleUseCase {
               </div>
             </div>
           `,
-        });
+        }).catch(err => console.error('[Email] Échec notification approbation:', (err as Error)?.message));
       }
     }
 

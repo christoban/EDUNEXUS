@@ -79,13 +79,25 @@ export class PrismaMatiereRepository implements MatiereRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.subject.delete({ where: { id } });
+    await this.prisma.$transaction([
+      this.prisma.subjectCoefficient.deleteMany({ where: { subjectId: id } }),
+      this.prisma.teacherSubject.deleteMany({ where: { subjectId: id } }),
+      this.prisma.exam.deleteMany({ where: { subjectId: id } }),
+      this.prisma.grade.deleteMany({ where: { subjectId: id } }),
+      this.prisma.reportCardSubjectLine.deleteMany({ where: { subjectId: id } }),
+      this.prisma.attendance.updateMany({ where: { subjectId: id }, data: { subjectId: null } }),
+      this.prisma.subject.delete({ where: { id } }),
+    ]);
   }
 
   async assignerEnseignant(teacherProfileId: string, subjectId: string): Promise<void> {
+    const profile = await this.prisma.teacherProfile.findUnique({
+      where: { userId: teacherProfileId },
+    });
+    const profileId = profile?.id ?? teacherProfileId;
     await this.prisma.teacherSubject.upsert({
-      where: { teacherProfileId_subjectId: { teacherProfileId, subjectId } },
-      create: { teacherProfileId, subjectId },
+      where: { teacherProfileId_subjectId: { teacherProfileId: profileId, subjectId } },
+      create: { teacherProfileId: profileId, subjectId },
       update: {},
     });
   }

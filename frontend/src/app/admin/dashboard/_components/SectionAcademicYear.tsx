@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -68,7 +69,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch('/api/v2/academic-years', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/academic-years', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       const list: AcademicYear[] = data.data || []
@@ -99,10 +100,10 @@ export default function SectionAcademicYear({ onToast }: Props) {
     if (!confirm('Clôturer cette année ? Cette action est irréversible.')) return
     setClosingId(yearId)
     try {
-      const checkRes = await fetch(`/api/v2/academic-years/${yearId}/pre-close-check`, { method: 'POST', credentials: 'include' })
+      const checkRes = await fetchApi(`/api/v2/academic-years/${yearId}/pre-close-check`, { method: 'POST', credentials: 'include' })
       const checkData = await checkRes.json()
       if (!checkRes.ok) throw new Error(checkData.message || 'Vérification échouée')
-      const closeRes = await fetch(`/api/v2/academic-years/${yearId}/close`, { method: 'POST', credentials: 'include' })
+      const closeRes = await fetchApi(`/api/v2/academic-years/${yearId}/close`, { method: 'POST', credentials: 'include' })
       const closeData = await closeRes.json()
       if (!closeRes.ok) throw new Error(closeData.message || 'Clôture échouée')
       onToast('Année scolaire clôturée', 'success')
@@ -117,7 +118,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
   const handleSetCurrent = async (periodId: string) => {
     setSettingCurrentId(periodId)
     try {
-      const res = await fetch(`/api/v2/academic-years/periods/${periodId}/set-current`, {
+      const res = await fetchApi(`/api/v2/academic-years/periods/${periodId}/set-current`, {
         method: 'PATCH', credentials: 'include',
       })
       const data = await res.json()
@@ -134,7 +135,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
   const handleSetSequenceCurrent = async (sequenceId: string) => {
     setSettingSequenceId(sequenceId)
     try {
-      const res = await fetch(`/api/v2/academic-years/sequences/${sequenceId}/set-current`, {
+      const res = await fetchApi(`/api/v2/academic-years/sequences/${sequenceId}/set-current`, {
         method: 'PATCH', credentials: 'include',
       })
       const data = await res.json()
@@ -154,7 +155,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
     }
     setForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/academic-years', {
+      const res = await fetchApi('/api/v2/academic-years', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: form.name.trim(), startDate: form.startDate, endDate: form.endDate }),
@@ -215,7 +216,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
           })),
         })),
       }
-      const res = await fetch(`/api/v2/academic-years/${calForm.yearId}/calendar`, {
+      const res = await fetchApi(`/api/v2/academic-years/${calForm.yearId}/calendar`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

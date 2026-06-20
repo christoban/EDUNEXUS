@@ -67,4 +67,10 @@ export interface UserRepository {
     demandeurId: string;
     schoolId: string;
   }): Promise<void>;
+
+  /**
+   * Retourne les adresses email de tous les parents d'un élève.
+   * Utilisé par EnvoyerBulletinsUseCase pour envoyer aux parents, pas à l'élève.
+   */
+  findEmailsParentsParEleve(studentId: string): Promise<string[]>;
 }

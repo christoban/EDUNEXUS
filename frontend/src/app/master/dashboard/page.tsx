@@ -11,6 +11,7 @@ import MasterToast from './_components/MasterToast'
 import type { Section, SchoolTab, ModalId, Toast, KpiData, ActivityRow, SchoolRow } from './_types'
 import {
   fetchMe, fetchSchools, fetchSchoolDetail, fetchLogs, logout, fetchMasterMfaStatus,
+  ApiError,
   type MasterUserDto, type SchoolDetailDto, type AuditLogDto,
 } from './_api'
 
@@ -22,6 +23,7 @@ let toastId = 0
 const TAB_STATUS_MAP: Record<SchoolTab, string | undefined> = {
   all:       undefined,
   pending:   undefined,
+  approved:  undefined,
   active:    undefined,
   suspended: undefined,
   draft:     undefined,
@@ -51,12 +53,12 @@ function toSchoolRow(s: { id: string; name: string; subdomain: string; type: str
   // Calcul du statut effectif affiché :
   // • PENDING  + invite active  → 'draft'   (école invitée, onboarding pas encore fait)
   // • PENDING  + pas d'invite   → 'pending' (onboarding fait, attend approbation master)
-  // • APPROVED                  → 'pending' (approuvée côté domaine, attend activation)
+  // • APPROVED                  → 'approved' (approuvée, attend que l'admin se connecte)
   // • Autres (ACTIVE/SUSPENDED/REJECTED/DRAFT natif) → inchangé
   let status: SchoolRow['status']
   if (rawStatus === 'draft' || (rawStatus === 'pending' && hasPendingInvite)) {
     status = 'draft'
-  } else if (rawStatus === 'pending' || rawStatus === 'approved') {
+  } else if (rawStatus === 'pending') {
     status = 'pending'
   } else {
     status = rawStatus as SchoolRow['status']
@@ -137,7 +139,15 @@ export default function SuperAdminDashboard() {
   }, [showToast])
 
   useEffect(() => {
-    fetchMe().then(setUser).catch(() => {})
+    fetchMe()
+      .then(setUser)
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && err.status === 401) {
+          logout().catch(() => {}).finally(() => {
+            window.location.replace('/master/login?logout=1')
+          })
+        }
+      })
     fetchMasterMfaStatus().then(d => setMfaEnabled(d.mfaEnabled)).catch(() => {})
     refreshSchools()
     refreshLogs()

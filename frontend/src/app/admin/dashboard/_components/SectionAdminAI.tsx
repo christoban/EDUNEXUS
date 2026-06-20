@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -33,7 +34,7 @@ export default function SectionAdminAI({ onToast }: Props) {
 
   const fetchClasses = useCallback(async () => {
     try {
-      const res = await fetch('/api/v2/classes', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/classes', { credentials: 'include' })
       const d = await res.json()
       if (res.ok) setClasses(d.data || [])
     } catch { /* silencieux */ }
@@ -44,7 +45,7 @@ export default function SectionAdminAI({ onToast }: Props) {
     try {
       const params = new URLSearchParams()
       if (classFilter) params.set('classId', classFilter)
-      const res = await fetch(`/api/v2/ai/students-health?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/ai/students-health?${params}`, { credentials: 'include' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur serveur')
       setStudents(d.students || [])

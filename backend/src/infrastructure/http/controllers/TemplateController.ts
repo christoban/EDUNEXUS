@@ -16,15 +16,15 @@ export class TemplateController {
 
       const wb = XLSX.utils.book_new();
 
-      const headers = ['matricule', 'nom', 'prenom', 'date_naissance', 'classe', 'email_parent', 'telephone_parent'];
+      const headers = ['matricule', 'nom', 'prenom', 'email', 'date_naissance', 'classe', 'nom_parent', 'prenom_parent', 'email_parent', 'telephone_parent'];
       const ws = XLSX.utils.aoa_to_sheet([
         headers,
-        ['2025001', 'NGONO', 'Marie', '15/03/2010', '6e A', 'parent@email.cm', '+237690000001'],
-        ['', 'ESSOMBA', 'Jean', '22/07/2009', '5e B', '', '+237690000002'],
-        ['2025003', 'BELA', 'Paul', '10/01/2011', '6e A', 'paul.parent@email.cm', ''],
+        ['2025001', 'NGONO', 'Marie', 'marie.ngono@eleve.cm', '15/03/2010', '6e A', 'NGONO', 'Robert', 'robert.ngono@email.cm', '+237690000001'],
+        ['', 'ESSOMBA', 'Jean', '', '22/07/2009', '5e B', 'ESSOMBA', 'Cécile', '', '+237690000002'],
+        ['2025003', 'BELA', 'Paul', 'paul.bela@eleve.cm', '10/01/2011', '6e A', 'BELA', 'Hortense', 'hortense.bela@email.cm', ''],
       ]);
 
-      ws['!cols'] = headers.map(() => ({ wch: 18 }));
+      ws['!cols'] = headers.map((h) => ({ wch: h.startsWith('email') ? 28 : 18 }));
 
       XLSX.utils.book_append_sheet(wb, ws, 'Élèves');
 
@@ -32,11 +32,12 @@ export class TemplateController {
         ['INSTRUCTIONS — Import des élèves'],
         [''],
         ['Colonnes obligatoires : nom, prenom'],
-        ['Colonnes recommandées : matricule, date_naissance, classe'],
-        ['Colonnes optionnelles : email_parent, telephone_parent'],
+        ['Colonnes recommandées : matricule, email, date_naissance, classe'],
+        ['Colonnes optionnelles : nom_parent, prenom_parent, email_parent, telephone_parent'],
         [''],
         ['Format date : JJ/MM/AAAA (ex: 15/03/2010)'],
         ['Format téléphone : +237XXXXXXXXX (9 chiffres après +237)'],
+        ['Email élève : optionnel, mais recommandé — permet à l\'élève de se connecter par email'],
         ['Email parent : optionnel, mais recommandé pour lier le parent automatiquement'],
         [''],
         ['Classes disponibles dans votre établissement :'],
@@ -71,15 +72,21 @@ export class TemplateController {
 
       const wb = XLSX.utils.book_new();
 
-      const headers = ['nom', 'prenom', 'email', 'telephone', 'matieres'];
+      const classes = await this.prisma.class.findMany({
+        where: { schoolId },
+        select: { name: true },
+        orderBy: { name: 'asc' },
+      });
+
+      const headers = ['nom', 'prenom', 'email', 'telephone', 'matieres', 'classe_principale'];
       const ws = XLSX.utils.aoa_to_sheet([
         headers,
-        ['NGONO', 'Jean', 'jean.ngono@lycee.cm', '+237690000001', 'Mathématiques,Physique-Chimie'],
-        ['ESSOMBA', 'Marie', 'marie.essomba@lycee.cm', '', 'Français,Histoire-Géographie'],
-        ['BELA', 'Paul', 'paul.bela@lycee.cm', '+237690000003', 'SVT'],
+        ['NGONO', 'Jean', 'jean.ngono@lycee.cm', '+237690000001', 'Mathématiques,Physique-Chimie', '6e A'],
+        ['ESSOMBA', 'Marie', 'marie.essomba@lycee.cm', '', 'Français,Histoire-Géographie', ''],
+        ['BELA', 'Paul', 'paul.bela@lycee.cm', '+237690000003', 'SVT', ''],
       ]);
 
-      ws['!cols'] = headers.map(() => ({ wch: 22 }));
+      ws['!cols'] = headers.map((_, i) => ({ wch: i >= 5 ? 26 : 22 }));
 
       XLSX.utils.book_append_sheet(wb, ws, 'Enseignants');
 
@@ -87,7 +94,7 @@ export class TemplateController {
         ['INSTRUCTIONS — Import des enseignants'],
         [''],
         ['Colonnes obligatoires : nom, prenom, email'],
-        ['Colonnes optionnelles : telephone, matieres'],
+        ['Colonnes optionnelles : telephone, matieres, classe_principale'],
         [''],
         ['Email : obligatoire — l\'enseignant recevra son invitation par email'],
         ['Format téléphone : +237XXXXXXXXX (9 chiffres après +237)'],
@@ -96,8 +103,19 @@ export class TemplateController {
         ['  Séparez les matières par des virgules'],
         ['  Exemple : "Mathématiques,Physique-Chimie,SVT"'],
         [''],
+        ['Colonnes optionnelles avancées :'],
+        [''],
+        ['  classe_principale :'],
+        ['    Désigne cet enseignant comme Professeur Principal d\'une classe.'],
+        ['    Indiquez le nom exact de la classe (ex: "6e A").'],
+        ['    Une seule personne peut être PP par classe.'],
+        [''],
+
         ['Matières disponibles dans votre établissement :'],
         ...subjects.map(s => [`  • ${s.name}`]),
+        [''],
+        ['Classes disponibles dans votre établissement :'],
+        ...classes.map(c => [`  • ${c.name}`]),
         [''],
         ['Important :'],
         ['  • Un mot de passe temporaire sera généré automatiquement'],

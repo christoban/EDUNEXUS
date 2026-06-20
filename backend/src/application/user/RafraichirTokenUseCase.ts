@@ -39,18 +39,16 @@ export class RafraichirTokenUseCase {
       throw new Error("Cet établissement n'est plus actif");
     }
 
-    // 4. Rotation : invalider l'ancien token en incrémentant la version
-    result.user.invaliderTokens();
-    await this.userRepository.update(result.user);
-
-    // 5. Générer nouveau couple de tokens avec la nouvelle version
+    // 4. Ré-émettre les tokens avec la même version — pas de rotation
+    // La rotation (invaliderTokens) est réservée au logout et au changement de mot de passe.
+    // Une rotation à chaque refresh provoque des déconnexions sur plusieurs onglets simultanés.
     return this.tokenService.genererTokens({
       userId: result.user.id,
       schoolId: result.user.schoolId,
       role: result.user.role,
       permissions: result.user.staffPermissions,
       tokenType: 'access',
-      refreshTokenVersion: result.refreshTokenVersion + 1,
+      refreshTokenVersion: result.refreshTokenVersion,
     });
   }
 }

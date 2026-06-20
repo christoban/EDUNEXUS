@@ -5,12 +5,13 @@ import { sendContactRequestEmail, sendTransactionalEmail } from '../../../servic
 export class PublicController {
   constructor(private readonly prisma: PrismaClient) {}
 
-  // GET /api/v2/public/schools — liste publique des écoles ACTIVE + SUSPENDED
+  // GET /api/v2/public/schools — liste publique des écoles joignables (APPROVED, ACTIVE, SUSPENDED)
+  // Retourne uniquement les champs nécessaires au sélecteur — jamais le statut ni le motif de suspension
   listSchools = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schools = await this.prisma.school.findMany({
-        where: { status: { in: ['ACTIVE', 'SUSPENDED'] } },
-        select: { id: true, name: true, subdomain: true, status: true, city: true, region: true, logoUrl: true },
+        where: { status: { in: ['APPROVED', 'ACTIVE', 'SUSPENDED'] } },
+        select: { id: true, name: true, subdomain: true, city: true, region: true, logoUrl: true },
         orderBy: { name: 'asc' },
       });
       res.json({ success: true, data: schools });
@@ -166,15 +167,15 @@ export class PublicController {
         </table>
       `;
 
-      await sendTransactionalEmail({
+      res.json({ success: true, message: 'Demande envoyée avec succès.' });
+
+      void sendTransactionalEmail({
         recipientEmail: superAdminEmail,
         subject: `🎓 Demande de démo — ${nom.trim()} · ${nomEtablissement.trim()}`,
         html,
         template: 'demo_request',
         eventType: 'demo_request',
-      });
-
-      res.json({ success: true, message: 'Demande envoyée avec succès.' });
+      }).catch(err => console.error('[Email] Échec demande démo:', (err as Error)?.message));
     } catch (error) {
       next(error);
     }

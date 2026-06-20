@@ -14,6 +14,15 @@ import { InMemoryMatiereRepository } from './helpers/InMemoryMatiereRepository';
 import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository';
 import { InMemoryPresenceRepository } from './helpers/InMemoryPresenceRepository';
 import { InMemoryPdfService } from './helpers/InMemoryPdfService';
+import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
+
+class InMemoryClassCouncilRepository implements ClassCouncilRepository {
+  private locked = true;
+  setLocked(v: boolean) { this.locked = v; }
+  async sessionVerrouilleeExiste(_classId: string, _periodId: string): Promise<boolean> {
+    return this.locked;
+  }
+}
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -140,6 +149,7 @@ describe('GenererBulletinUseCase', () => {
   let anneeRepo: InMemoryAnneeAcademiqueRepository;
   let presenceRepo: InMemoryPresenceRepository;
   let pdfService: InMemoryPdfService;
+  let classCouncilRepo: InMemoryClassCouncilRepository;
   let useCase: GenererBulletinUseCase;
 
   beforeEach(() => {
@@ -151,11 +161,12 @@ describe('GenererBulletinUseCase', () => {
     anneeRepo = new InMemoryAnneeAcademiqueRepository();
     presenceRepo = new InMemoryPresenceRepository();
     pdfService = new InMemoryPdfService();
+    classCouncilRepo = new InMemoryClassCouncilRepository();
 
     useCase = new GenererBulletinUseCase(
       noteRepo, bulletinRepo, classeRepo,
       userRepo, matiereRepo, anneeRepo,
-      presenceRepo, pdfService,
+      presenceRepo, pdfService, classCouncilRepo,
     );
 
     // Setup de base commun

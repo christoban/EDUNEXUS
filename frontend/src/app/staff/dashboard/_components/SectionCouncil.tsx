@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -66,7 +67,7 @@ export default function SectionCouncil({ onToast }: Props) {
   const fetchSessions = useCallback(async () => {
     try {
       setLoading(true); setError(null)
-      const res = await fetch('/api/v2/class-councils', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/class-councils', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setSessions(data.sessions || [])
@@ -83,7 +84,7 @@ export default function SectionCouncil({ onToast }: Props) {
     setLoadingDetail(true)
     setSelected(null)
     try {
-      const res = await fetch(`/api/v2/class-councils/${sessionId}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/class-councils/${sessionId}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       const sess: SessionDetail = data.session
@@ -109,7 +110,7 @@ export default function SectionCouncil({ onToast }: Props) {
         decision: val.decision,
         observations: val.obs || undefined,
       }))
-      const res = await fetch(`/api/v2/class-councils/${selected.id}/decisions/bulk`, {
+      const res = await fetchApi(`/api/v2/class-councils/${selected.id}/decisions/bulk`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decisions: payload }),
@@ -129,7 +130,7 @@ export default function SectionCouncil({ onToast }: Props) {
     if (!confirm('Verrouiller ce conseil ? Aucune modification ne sera possible après.')) return
     setLocking(true)
     try {
-      const res = await fetch(`/api/v2/class-councils/${selected.id}/lock`, {
+      const res = await fetchApi(`/api/v2/class-councils/${selected.id}/lock`, {
         method: 'POST', credentials: 'include',
       })
       const data = await res.json()
@@ -149,7 +150,7 @@ export default function SectionCouncil({ onToast }: Props) {
     if (!createPeriodId) { setCreateError('Sélectionnez une période'); return }
     setCreateLoading(true); setCreateError('')
     try {
-      const res = await fetch('/api/v2/class-councils', {
+      const res = await fetchApi('/api/v2/class-councils', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ classId: createClassId, academicPeriodId: createPeriodId }),
@@ -187,13 +188,13 @@ export default function SectionCouncil({ onToast }: Props) {
           setCreateOpen(true)
           setFetchingFormData(true)
           Promise.all([
-            fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
-            fetch('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
+            fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+            fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
           ]).then(([cRes, yRes]) => {
             const classes = (cRes.data || []).map((c: any) => ({ id: c.id, name: c.name }))
             setClassList(classes)
             if (classes.length > 0) setCreateClassId(classes[0].id)
-            const current = (yRes.data || []).find((y: any) => y.isCurrent)
+            const current = (yRes.data || []).find((y: any) => y.isCurrent) ?? (yRes.data || [])[0]
             const periods = current ? (current.periods || []).map((p: any) => ({ id: p.id, name: p.name })) : []
             setPeriodList(periods)
             if (periods.length > 0) setCreatePeriodId(periods[0].id)

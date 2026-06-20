@@ -1,6 +1,6 @@
 export type TeacherSection =
   | 'dashboard' | 'classes' | 'attendance' | 'grades'
-  | 'bulletins' | 'timetable' | 'resources'
+  | 'bulletins' | 'timetable' | 'resources' | 'sync'
 
 export interface Toast {
   id: number

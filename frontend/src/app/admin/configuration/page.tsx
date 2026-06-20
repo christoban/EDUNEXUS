@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { fetchApi } from '@/lib/fetchApi'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -102,6 +103,21 @@ const BTN_SECONDARY: React.CSSProperties = {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
+type ActivationPhase = 'config' | 'activating' | 'success'
+
+interface ActivationStats {
+  classCount: number
+  subjectCount: number
+  academicYear: string
+}
+
+const PROGRESS_STEPS = [
+  'Création de l\'année scolaire',
+  'Création des classes',
+  'Configuration des matières',
+  'Configuration des règles MINESEC',
+]
+
 export default function ConfigurationPage() {
   const router = useRouter()
 
@@ -110,12 +126,15 @@ export default function ConfigurationPage() {
   const [school, setSchool] = useState<SchoolData | null>(null)
   const [classes, setClasses] = useState<ClassPreview[]>([])
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [activating, setActivating] = useState(false)
+  const [activationPhase, setActivationPhase] = useState<ActivationPhase>('config')
+  const [completedSteps, setCompletedSteps] = useState(0)
+  const [activationStats, setActivationStats] = useState<ActivationStats | null>(null)
   const [activateError, setActivateError] = useState('')
+  const [redirectCountdown, setRedirectCountdown] = useState(3)
 
   // ── Load school info ──────────────────────────────────────────────────
   useEffect(() => {
-    fetch('/api/v2/school/me', { credentials: 'include' })
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
         if (!d.success) { router.replace('/login'); return }
@@ -132,7 +151,7 @@ export default function ConfigurationPage() {
   useEffect(() => {
     if (step !== 2 || !school || classes.length > 0) return
     setPreviewLoading(true)
-    fetch(`/api/v2/schools/${school.id}/configuration/preview`, { credentials: 'include' })
+    fetchApi(`/api/v2/schools/${school.id}/configuration/preview`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setClasses(d.data.classes) })
       .catch(() => {})
@@ -142,22 +161,66 @@ export default function ConfigurationPage() {
   // ── Activate ──────────────────────────────────────────────────────────
   async function handleActivate() {
     if (!school) return
-    setActivating(true)
     setActivateError('')
+    setActivationPhase('activating')
+    setCompletedSteps(0)
+
+    // Animation séquentielle des étapes (même si backend répond instantanément)
+    const STEP_DELAY = 600
+    const stepTimers: ReturnType<typeof setTimeout>[] = []
+    for (let i = 1; i <= PROGRESS_STEPS.length; i++) {
+      stepTimers.push(setTimeout(() => setCompletedSteps(i), i * STEP_DELAY))
+    }
+    const minDisplayTime = PROGRESS_STEPS.length * STEP_DELAY + 400
+
+    const startTime = Date.now()
     try {
-      const res = await fetch(`/api/v2/schools/${school.id}/activate`, {
+      const res = await fetchApi(`/api/v2/schools/${school.id}/activate`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       })
       const data = await res.json()
       if (!data.success) throw new Error(data.message || 'Erreur lors de l\'activation')
-      router.replace('/admin/dashboard?activated=1')
+
+      const stats: ActivationStats = {
+        classCount:   data.data?.classCount   ?? 0,
+        subjectCount: data.data?.subjectCount ?? 0,
+        academicYear: data.data?.academicYear ?? `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+      }
+
+      // Attendre que l'animation soit terminée avant de passer en succès
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, minDisplayTime - elapsed)
+      setTimeout(() => {
+        stepTimers.forEach(clearTimeout)
+        setCompletedSteps(PROGRESS_STEPS.length)
+        setActivationStats(stats)
+        setActivationPhase('success')
+      }, remaining)
     } catch (e: any) {
+      stepTimers.forEach(clearTimeout)
       setActivateError(e.message || 'Erreur réseau. Réessayez.')
-      setActivating(false)
+      setActivationPhase('config')
     }
   }
+
+  // ── Compte à rebours auto-redirect (phase success) ────────────────────
+  useEffect(() => {
+    if (activationPhase !== 'success') return
+    setRedirectCountdown(3)
+    const interval = setInterval(() => {
+      setRedirectCountdown(n => {
+        if (n <= 1) {
+          clearInterval(interval)
+          router.replace('/admin/dashboard?activated=1')
+          return 0
+        }
+        return n - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [activationPhase, router])
 
   // ── Loading / error screens ───────────────────────────────────────────
 
@@ -171,6 +234,105 @@ export default function ConfigurationPage() {
   }
 
   if (loadState === 'error' || !school) return null
+
+  // ── Phase 2 : écran de progression ───────────────────────────────────
+  if (activationPhase === 'activating') {
+    return (
+      <div style={{ ...PAGE, justifyContent: 'center' }}>
+        <style>{`
+          @keyframes edu-spin { to { transform: rotate(360deg); } }
+          @keyframes edu-fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+          @keyframes edu-checkIn { 0% { transform:scale(0.4); opacity:0; } 70% { transform:scale(1.15); } 100% { transform:scale(1); opacity:1; } }
+        `}</style>
+        <div style={{ ...CARD, maxWidth: 480, animation: 'edu-fadeUp 0.35s ease both' }}>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ width: 52, height: 52, border: '4px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: '#1a1209' }}>
+              Création de votre espace…
+            </div>
+            <div style={{ fontSize: 14, color: '#a89478', marginTop: 4 }}>Quelques secondes</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {PROGRESS_STEPS.map((label, i) => {
+              const done = completedSteps > i
+              const active = completedSteps === i
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: done ? '#f0fdf4' : active ? '#fafaf8' : '#f7f3ee', borderRadius: 10, border: `1.5px solid ${done ? 'rgba(5,150,105,0.2)' : '#e8e0d4'}`, transition: 'all 0.3s' }}>
+                  <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {done ? (
+                      <span style={{ fontSize: 20, animation: 'edu-checkIn 0.3s ease both' }}>✅</span>
+                    ) : active ? (
+                      <div style={{ width: 20, height: 20, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.8s linear infinite' }} />
+                    ) : (
+                      <span style={{ fontSize: 18, opacity: 0.35 }}>⏳</span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: done ? 700 : 500, color: done ? '#059669' : active ? '#1a1209' : '#a89478' }}>
+                    {i === 0 ? `${label} ${school.subdomain ? new Date().getFullYear() + '–' + (new Date().getFullYear() + 1) : ''}` : label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Phase 3 : écran de succès ────────────────────────────────────────
+  if (activationPhase === 'success' && activationStats) {
+    return (
+      <div style={{ ...PAGE, justifyContent: 'center' }}>
+        <style>{`
+          @keyframes edu-popIn { 0% { transform:scale(0.7); opacity:0; } 70% { transform:scale(1.05); } 100% { transform:scale(1); opacity:1; } }
+          @keyframes edu-fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+        `}</style>
+        <div style={{ ...CARD, maxWidth: 480, textAlign: 'center', animation: 'edu-fadeUp 0.4s ease both' }}>
+          <div style={{ fontSize: 64, marginBottom: 12, animation: 'edu-popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>🎉</div>
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
+            Votre espace EduNexus est prêt !
+          </div>
+          <div style={{ fontSize: 15, color: '#6b5c45', marginBottom: 24, lineHeight: 1.6 }}>
+            <strong>{school.name}</strong> est maintenant actif sur la plateforme.
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
+            {activationStats.classCount > 0 && (
+              <div style={{ background: '#f0fdf4', border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, padding: '12px 20px', minWidth: 110 }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{activationStats.classCount}</div>
+                <div style={{ fontSize: 13, color: '#6b5c45', fontWeight: 600 }}>classes</div>
+              </div>
+            )}
+            {activationStats.subjectCount > 0 && (
+              <div style={{ background: '#eff6ff', border: '1.5px solid rgba(29,78,216,0.15)', borderRadius: 12, padding: '12px 20px', minWidth: 110 }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#1d4ed8' }}>{activationStats.subjectCount}</div>
+                <div style={{ fontSize: 13, color: '#6b5c45', fontWeight: 600 }}>matières</div>
+              </div>
+            )}
+            <div style={{ background: '#fefce8', border: '1.5px solid rgba(234,179,8,0.25)', borderRadius: 12, padding: '12px 20px', minWidth: 110 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#92400e' }}>{activationStats.academicYear}</div>
+              <div style={{ fontSize: 13, color: '#6b5c45', fontWeight: 600 }}>année scolaire</div>
+            </div>
+          </div>
+
+          {/* Barre de countdown */}
+          <div style={{ background: '#e8e0d4', borderRadius: 8, overflow: 'hidden', height: 5, marginBottom: 10 }}>
+            <div style={{ height: '100%', background: '#059669', width: `${((3 - redirectCountdown) / 3) * 100}%`, transition: 'width 0.9s linear', borderRadius: 8 }} />
+          </div>
+          <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginBottom: 20 }}>
+            Redirection dans {redirectCountdown} seconde{redirectCountdown > 1 ? 's' : ''}…
+          </div>
+
+          <button
+            onClick={() => router.replace('/admin/dashboard?activated=1')}
+            style={{ ...BTN_PRIMARY, width: '100%', justifyContent: 'center', fontSize: 16, padding: '15px 28px' }}>
+            Accéder à mon tableau de bord →
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // ── Step labels ───────────────────────────────────────────────────────
 
@@ -383,25 +545,15 @@ export default function ConfigurationPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
               <button
                 className="cfg-btn-primary"
-                style={{ ...BTN_PRIMARY, width: '100%', justifyContent: 'center', fontSize: 16, padding: '16px 28px', opacity: activating ? 0.7 : 1 }}
+                style={{ ...BTN_PRIMARY, width: '100%', justifyContent: 'center', fontSize: 16, padding: '16px 28px' }}
                 onClick={handleActivate}
-                disabled={activating}
               >
-                {activating ? (
-                  <>
-                    <div style={{ width: 18, height: 18, border: '3px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'edu-spin 0.8s linear infinite' }} />
-                    Activation en cours…
-                  </>
-                ) : (
-                  '🚀 Activer mon espace EduNexus'
-                )}
+                🚀 Activer mon espace EduNexus
               </button>
 
-              {!activating && (
-                <button className="cfg-btn-secondary" style={BTN_SECONDARY} onClick={() => setStep(3)}>
-                  ← Retour
-                </button>
-              )}
+              <button className="cfg-btn-secondary" style={BTN_SECONDARY} onClick={() => setStep(3)}>
+                ← Retour
+              </button>
             </div>
           </div>
         )}

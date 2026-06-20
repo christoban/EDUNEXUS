@@ -9,6 +9,7 @@ export function creerSubjectRoutes(controller: SubjectController): Router {
   router.put('/:id', requireAuth, requireRole('ADMIN'), controller.modifierMatiere);
   router.post('/teachers/:teacherId/assign', requireAuth, requireRole('ADMIN'), controller.assignerOuRetirer);
   router.post('/:id/coefficients', requireAuth, requireRole('ADMIN'), controller.definirCoefficients);
+  router.delete('/:id', requireAuth, requireRole('ADMIN'), controller.supprimerMatiere);
 
   return router;
 }

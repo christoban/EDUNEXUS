@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -12,9 +13,59 @@ interface ClassItem {
   _count: { students: number }
 }
 
+interface SchoolInfo {
+  id: string
+  subsystem: string
+  hasPEBSFrancophone: boolean
+  hasPEBSAnglophone: boolean
+}
+
 interface Teacher { id: string; firstName: string; lastName: string }
 interface SubGroup { id: string; name: string }
 interface StudentItem { id: string; firstName: string; lastName: string; studentProfile?: { id: string } | null }
+
+const SECOND_CYCLE_SERIES = [
+  { value: 'A4-Allemand', label: 'A4 – Allemand' },
+  { value: 'A4-Arabe', label: 'A4 – Arabe' },
+  { value: 'A4-Chinois', label: 'A4 – Chinois' },
+  { value: 'A4-Espagnol', label: 'A4 – Espagnol' },
+  { value: 'A', label: 'A' },
+  { value: 'C', label: 'C' },
+  { value: 'D', label: 'D' },
+  { value: 'TI', label: 'TI' },
+]
+
+const FILIERE_OPTIONS = [
+  { value: 'Scientifique', label: 'Scientifique' },
+  { value: 'Littéraire', label: 'Littéraire' },
+  { value: 'Technique', label: 'Technique' },
+]
+
+function serieToFiliere(serie: string): string {
+  if (/^A4/.test(serie)) return 'Littéraire'
+  if (serie === 'A') return 'Littéraire'
+  if (serie === 'C' || serie === 'D') return 'Scientifique'
+  if (serie === 'TI') return 'Technique'
+  return ''
+}
+
+function isCollegLevel(level: string, name: string): boolean {
+  const src = (level || name).trim()
+  return /^[3456](e|ème|e\s|$)/i.test(src)
+}
+
+function inferFromName(name: string): { filiere: string; serie: string } {
+  const n = name.trim()
+  const a4Match = n.match(/A4[-\s](\w+)/i)
+  if (a4Match) return { filiere: 'Littéraire', serie: `A4-${a4Match[1]}` }
+  if (/\bA4\b/i.test(n)) return { filiere: 'Littéraire', serie: 'A4' }
+  if (/\bTI\b/.test(n)) return { filiere: 'Technique', serie: 'TI' }
+  if (/^(Tle|Terminale|1[eèê]re?|Première)\s/i.test(n)) {
+    if (/\bC$/i.test(n)) return { filiere: 'Scientifique', serie: 'C' }
+    if (/\bD$/i.test(n)) return { filiere: 'Scientifique', serie: 'D' }
+  }
+  return { filiere: '', serie: '' }
+}
 
 function getLevelBadge(name: string): { bg: string; color: string; label: string } {
   const u = name.toUpperCase()
@@ -26,9 +77,9 @@ function getLevelBadge(name: string): { bg: string; color: string; label: string
   return { bg: '#f1f5f9', color: '#475569', label: name.split(' ')[0] ?? '' }
 }
 
-const EMPTY_FORM = { name: '', level: '', serie: '', capacity: '40', loading: false, error: '' }
+const EMPTY_FORM = { name: '', level: '', filiere: '', serie: '', capacity: '40', loading: false, error: '' }
 const EMPTY_PP   = { open: false, classId: '', className: '', teacherSearch: '', teachers: [] as Teacher[], selected: null as Teacher | null, loading: false, error: '' }
-const EMPTY_MOD  = { open: false, classId: '', name: '', level: '', serie: '', capacity: '', loading: false, error: '' }
+const EMPTY_MOD  = { open: false, classId: '', name: '', level: '', filiere: '', serie: '', capacity: '', loading: false, error: '' }
 const EMPTY_SG   = { open: false, classId: '', className: '', subgroups: [] as SubGroup[], newName: '', creating: false, error: '' }
 const EMPTY_ASSIGN = { open: false, subGroupId: '', subGroupName: '', classId: '', students: [] as StudentItem[], selected: new Set<string>(), loading: false, submitting: false, error: '' }
 
@@ -44,11 +95,12 @@ export default function SectionClasses({ onToast }: Props) {
   const [deleting, setDeleting]       = useState(false)
   const [sgForm, setSgForm]           = useState(EMPTY_SG)
   const [assignForm, setAssignForm]   = useState(EMPTY_ASSIGN)
+  const [schoolInfo, setSchoolInfo]   = useState<SchoolInfo | null>(null)
 
   const fetchClasses = useCallback(async () => {
     try {
       setLoading(true); setError(null)
-      const res = await fetch('/api/v2/classes', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/classes', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setClasses(data.data || [])
@@ -59,6 +111,13 @@ export default function SectionClasses({ onToast }: Props) {
 
   useEffect(() => { fetchClasses() }, [fetchClasses])
 
+  useEffect(() => {
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data?.data) setSchoolInfo(data.data) })
+      .catch(() => {})
+  }, [])
+
   const totalEleves = classes.reduce((s, c) => s + c._count.students, 0)
 
   // ── Créer une classe ──────────────────────────────────────────────────────
@@ -66,12 +125,13 @@ export default function SectionClasses({ onToast }: Props) {
     if (!form.name.trim()) { setForm(f => ({ ...f, error: 'Nom de la classe obligatoire' })); return }
     setForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/classes', {
+      const res = await fetchApi('/api/v2/classes', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(),
           level: form.level || undefined,
+          filiere: form.filiere || undefined,
           serie: form.serie || undefined,
           capacity: parseInt(form.capacity) || 40,
         }),
@@ -88,19 +148,36 @@ export default function SectionClasses({ onToast }: Props) {
 
   // ── Modifier une classe ───────────────────────────────────────────────────
   const openMod = (cls: ClassItem) => {
-    setModForm({ open: true, classId: cls.id, name: cls.name, level: cls.level ?? '', serie: cls.serie ?? '', capacity: String(cls.capacity), loading: false, error: '' })
+    const college = isCollegLevel(cls.level ?? '', cls.name)
+    let filiere = cls.filiere ?? ''
+    let serie = cls.serie ?? ''
+    if (!college) {
+      if (!filiere && !serie) {
+        const inferred = inferFromName(cls.name)
+        filiere = inferred.filiere
+        serie = inferred.serie
+      } else if (!filiere && serie) {
+        filiere = serieToFiliere(serie)
+      }
+    }
+    setModForm({
+      open: true, classId: cls.id, name: cls.name, level: cls.level ?? '',
+      filiere, serie,
+      capacity: String(cls.capacity), loading: false, error: '',
+    })
   }
 
   const submitMod = async () => {
     if (!modForm.name.trim()) { setModForm(f => ({ ...f, error: 'Nom obligatoire' })); return }
     setModForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/classes/${modForm.classId}`, {
+      const res = await fetchApi(`/api/v2/classes/${modForm.classId}`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: modForm.name.trim(),
           level: modForm.level || undefined,
+          filiere: modForm.filiere || undefined,
           serie: modForm.serie || undefined,
           capacity: parseInt(modForm.capacity) || 40,
         }),
@@ -118,7 +195,7 @@ export default function SectionClasses({ onToast }: Props) {
   const openPP = async (cls: ClassItem) => {
     setPPForm({ open: true, classId: cls.id, className: cls.name, teacherSearch: '', teachers: [], selected: null, loading: false, error: '' })
     try {
-      const res = await fetch('/api/v2/users?role=TEACHER&limit=100', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/users?role=TEACHER&limit=100', { credentials: 'include' })
       const data = await res.json()
       if (res.ok) setPPForm(f => ({ ...f, teachers: data.data || [] }))
     } catch { /* silencieux */ }
@@ -128,7 +205,7 @@ export default function SectionClasses({ onToast }: Props) {
     if (!ppForm.selected) { setPPForm(f => ({ ...f, error: 'Sélectionnez un enseignant' })); return }
     setPPForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/classes/${ppForm.classId}/professor-principal`, {
+      const res = await fetchApi(`/api/v2/classes/${ppForm.classId}/professor-principal`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teacherUserId: ppForm.selected.id }),
@@ -142,6 +219,17 @@ export default function SectionClasses({ onToast }: Props) {
     }
   }
 
+  function getFiliereOptions(college: boolean): { value: string; label: string }[] {
+    if (!college || !schoolInfo) return []
+    const isFR = schoolInfo.subsystem === 'FRANCOPHONE'
+    const opts: { value: string; label: string }[] = isFR
+      ? [{ value: 'FR_GENERAL', label: 'Général FR' }]
+      : [{ value: 'EN_GENERAL', label: 'Général EN' }]
+    if (isFR && schoolInfo.hasPEBSFrancophone) opts.push({ value: 'FR_PEBS', label: 'PEBS FR' })
+    if (!isFR && schoolInfo.hasPEBSAnglophone) opts.push({ value: 'EN_PEBS', label: 'PEBS EN' })
+    return opts
+  }
+
   const filteredTeachers = ppForm.teacherSearch
     ? ppForm.teachers.filter(t => `${t.firstName} ${t.lastName}`.toLowerCase().includes(ppForm.teacherSearch.toLowerCase()))
     : ppForm.teachers
@@ -151,7 +239,7 @@ export default function SectionClasses({ onToast }: Props) {
     if (!delConfirm) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/v2/classes/${delConfirm.classId}`, {
+      const res = await fetchApi(`/api/v2/classes/${delConfirm.classId}`, {
         method: 'DELETE', credentials: 'include',
       })
       const data = await res.json()
@@ -175,7 +263,7 @@ export default function SectionClasses({ onToast }: Props) {
     if (!sgForm.newName.trim()) { setSgForm(f => ({ ...f, error: 'Nom du sous-groupe obligatoire' })); return }
     setSgForm(f => ({ ...f, creating: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/classes/${sgForm.classId}/subgroups`, {
+      const res = await fetchApi(`/api/v2/classes/${sgForm.classId}/subgroups`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: sgForm.newName.trim() }),
@@ -194,7 +282,7 @@ export default function SectionClasses({ onToast }: Props) {
   const openAssign = async (sg: SubGroup) => {
     setAssignForm({ open: true, subGroupId: sg.id, subGroupName: sg.name, classId: sgForm.classId, students: [], selected: new Set(), loading: true, submitting: false, error: '' })
     try {
-      const res = await fetch(`/api/v2/users?role=STUDENT&classId=${sgForm.classId}&limit=200`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/users?role=STUDENT&classId=${sgForm.classId}&limit=200`, { credentials: 'include' })
       const data = await res.json()
       setAssignForm(f => ({ ...f, students: data.data ?? [], loading: false }))
     } catch {
@@ -214,7 +302,7 @@ export default function SectionClasses({ onToast }: Props) {
     if (assignForm.selected.size === 0) { setAssignForm(f => ({ ...f, error: 'Sélectionnez au moins un élève' })); return }
     setAssignForm(f => ({ ...f, submitting: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/classes/subgroups/${assignForm.subGroupId}/students`, {
+      const res = await fetchApi(`/api/v2/classes/subgroups/${assignForm.subGroupId}/students`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentProfileIds: Array.from(assignForm.selected) }),
@@ -283,11 +371,16 @@ export default function SectionClasses({ onToast }: Props) {
                 <div style={{ fontSize: 15, color: '#a89478', fontWeight: 600, marginBottom: 14 }}>
                   🧑‍💼 Prof. principal : <strong style={{ color: cls.professorPrincipal ? '#6b5c45' : '#a89478', fontStyle: cls.professorPrincipal ? 'normal' : 'italic' }}>{ppName}</strong>
                 </div>
-                {cls.serie && (
-                  <div style={{ marginBottom: 12 }}>
+                <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {cls.filiere && (
+                    <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+                      {cls.filiere === 'FR_PEBS' ? 'PEBS FR' : cls.filiere === 'EN_PEBS' ? 'PEBS EN' : cls.filiere === 'FR_GENERAL' ? 'Général FR' : cls.filiere === 'EN_GENERAL' ? 'Général EN' : cls.filiere}
+                    </span>
+                  )}
+                  {cls.serie && (
                     <span style={{ background: '#f0ebe3', color: '#6b5c45', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>Série {cls.serie}</span>
-                  </div>
-                )}
+                  )}
+                </div>
                 <div style={{ paddingTop: 12, borderTop: '1px solid #e8e0d4', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   <button onClick={() => openPP(cls)} style={btnSecSm}>🧑‍💼 PP</button>
                   <button onClick={() => openMod(cls)} style={btnSecSm}>✏️ Modifier</button>
@@ -301,20 +394,50 @@ export default function SectionClasses({ onToast }: Props) {
       )}
 
       {/* ── Modal créer ── */}
-      {createOpen && (
+      {createOpen && (() => {
+        const college = isCollegLevel(form.level, form.name)
+        return (
         <ModalOverlay onClose={() => { setCreateOpen(false); setForm(EMPTY_FORM) }}>
           <div style={sModalTitle}>Créer une classe</div>
           <div style={sLabel}>Nom de la classe *</div>
           <input style={sInput} placeholder="Ex: Tle D, 3ème B, Form 5 Science" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <div style={sLabel}>Niveau</div>
-              <input style={sInput} placeholder="Ex: Tle, 3ème" value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} />
+              <input style={sInput} placeholder="Ex: Tle, 1ère, 6e" value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Série</div>
-              <input style={sInput} placeholder="Ex: C, D, A4" value={form.serie} onChange={e => setForm(f => ({ ...f, serie: e.target.value }))} />
+              <div style={sLabel}>Filière</div>
+              {college ? (
+                <select style={sInput} value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}>
+                  <option value="">Sélectionner</option>
+                  {getFiliereOptions(college).map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <select style={sInput} value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}>
+                  <option value="">— Sélectionner —</option>
+                  {FILIERE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              )}
             </div>
+            {!college && (
+              <div>
+                <div style={sLabel}>Série</div>
+                <select style={sInput} value={form.serie} onChange={e => {
+                  const serie = e.target.value
+                  setForm(f => ({ ...f, serie, filiere: f.filiere || serieToFiliere(serie) }))
+                }}>
+                  <option value="">— Sélectionner —</option>
+                  {SECOND_CYCLE_SERIES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <div style={sLabel}>Capacité</div>
               <input style={sInput} type="number" min="1" max="200" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} />
@@ -328,23 +451,54 @@ export default function SectionClasses({ onToast }: Props) {
             </button>
           </div>
         </ModalOverlay>
-      )}
+        )
+      })()}
 
       {/* ── Modal modifier ── */}
-      {modForm.open && (
+      {modForm.open && (() => {
+        const college = isCollegLevel(modForm.level, modForm.name)
+        return (
         <ModalOverlay onClose={() => setModForm(EMPTY_MOD)}>
           <div style={sModalTitle}>Modifier la classe</div>
           <div style={sLabel}>Nom *</div>
           <input style={sInput} value={modForm.name} onChange={e => setModForm(f => ({ ...f, name: e.target.value }))} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <div style={sLabel}>Niveau</div>
-              <input style={sInput} value={modForm.level} onChange={e => setModForm(f => ({ ...f, level: e.target.value }))} />
+              <input style={sInput} placeholder="Ex: Tle, 1ère, 6e" value={modForm.level} onChange={e => setModForm(f => ({ ...f, level: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Série</div>
-              <input style={sInput} value={modForm.serie} onChange={e => setModForm(f => ({ ...f, serie: e.target.value }))} />
+              <div style={sLabel}>Filière</div>
+              {college ? (
+                <select style={sInput} value={modForm.filiere} onChange={e => setModForm(f => ({ ...f, filiere: e.target.value }))}>
+                  <option value="">Sélectionner</option>
+                  {getFiliereOptions(college).map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              ) : (
+                <select style={sInput} value={modForm.filiere} onChange={e => setModForm(f => ({ ...f, filiere: e.target.value }))}>
+                  <option value="">— Sélectionner —</option>
+                  {FILIERE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              )}
             </div>
+            {!college && (
+              <div>
+                <div style={sLabel}>Série</div>
+                <select style={sInput} value={modForm.serie} onChange={e => {
+                  const serie = e.target.value
+                  setModForm(f => ({ ...f, serie, filiere: f.filiere || serieToFiliere(serie) }))
+                }}>
+                  <option value="">— Sélectionner —</option>
+                  {SECOND_CYCLE_SERIES.map(s => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <div style={sLabel}>Capacité</div>
               <input style={sInput} type="number" min="1" value={modForm.capacity} onChange={e => setModForm(f => ({ ...f, capacity: e.target.value }))} />
@@ -358,7 +512,8 @@ export default function SectionClasses({ onToast }: Props) {
             </button>
           </div>
         </ModalOverlay>
-      )}
+        )
+      })()}
 
       {/* ── Modal assigner PP ── */}
       {ppForm.open && (

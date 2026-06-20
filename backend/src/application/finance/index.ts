@@ -21,3 +21,9 @@ export { RembourserCautionUseCase } from './RembourserCautionUseCase';
 export type { RembourserCautionCommande } from './RembourserCautionUseCase';
 export { EnregistrerDepenseUseCase } from './EnregistrerDepenseUseCase';
 export type { EnregistrerDepenseCommande } from './EnregistrerDepenseUseCase';
+
+export { EnregistrerPaiementCashUseCase } from './EnregistrerPaiementCashUseCase';
+export type {
+  EnregistrerPaiementCashCommande,
+  EnregistrerPaiementCashResultat,
+} from './EnregistrerPaiementCashUseCase';

@@ -40,18 +40,33 @@ export class EnvoyerBulletinsUseCase {
     for (const bulletin of generes) {
       try {
         const eleve = await this.userRepository.findById(bulletin.studentId);
-        if (!eleve?.email) continue;
+        if (!eleve) continue;
 
-        await this.emailService.envoyer({
-          destinataire: eleve.email,
-          sujet: `Bulletin scolaire — ${commande.nomPeriode} — ${commande.nomEtablissement}`,
-          contenuHtml: `
-            <p>Bonjour,</p>
-            <p>Veuillez trouver ci-joint le bulletin scolaire de <strong>${eleve.nomComplet}</strong>
-            pour la période : <strong>${commande.nomPeriode}</strong>.</p>
-            <p>Cordialement,<br/>${commande.nomEtablissement}</p>
-          `,
-        });
+        // Envoi aux parents — pas à l'élève (qui souvent n'a pas d'email au Cameroun)
+        const emailsParents = await this.userRepository.findEmailsParentsParEleve(bulletin.studentId);
+
+        // Fallback : si aucun parent avec email, essayer l'email de l'élève lui-même
+        const destinataires = emailsParents.length > 0
+          ? emailsParents
+          : eleve.email ? [eleve.email] : [];
+
+        if (destinataires.length === 0) continue;
+
+        const sujet = `Bulletin scolaire — ${commande.nomPeriode} — ${commande.nomEtablissement}`;
+        const contenuHtml = `
+          <p>Bonjour,</p>
+          <p>Veuillez trouver ci-joint le bulletin scolaire de <strong>${eleve.nomComplet}</strong>
+          pour la période : <strong>${commande.nomPeriode}</strong>.</p>
+          <p>Cordialement,<br/>${commande.nomEtablissement}</p>
+        `;
+
+        for (const email of destinataires) {
+          await this.emailService.envoyer({
+            destinataire: email,
+            sujet,
+            contenuHtml,
+          });
+        }
 
         bulletin.marquerEnvoye();
         await this.bulletinRepository.update(bulletin);

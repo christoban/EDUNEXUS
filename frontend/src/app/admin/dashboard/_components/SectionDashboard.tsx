@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onNav: (s: string) => void
@@ -24,7 +25,7 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch('/api/v2/dashboard/stats', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/dashboard/stats', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setStats(data.stats)

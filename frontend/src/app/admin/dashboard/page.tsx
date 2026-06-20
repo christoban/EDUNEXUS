@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { logoutUser } from '@/lib/userAuth'
+import { fetchApi } from '@/lib/fetchApi'
 import AdminSidebar from './_components/AdminSidebar'
 import AdminTopbar from './_components/AdminTopbar'
 import SectionDashboard from './_components/SectionDashboard'
@@ -19,8 +20,10 @@ import SectionPlaceholder from './_components/SectionPlaceholder'
 import SectionAdminAttendance from './_components/SectionAdminAttendance'
 import SectionAdminCouncil from './_components/SectionAdminCouncil'
 import SectionAdminAI from './_components/SectionAdminAI'
+import SectionAIAssistant from './_components/SectionAIAssistant'
 import AdminToast from './_components/AdminToast'
 import type { AdminSection, Toast } from './_types'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
 
 let toastId = 0
 
@@ -38,12 +41,15 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   finance:         'Mobile Money',
   ai:              'IA Santé scolaire',
   settings:        'Paramètres',
+  'ai-assistant':  '🤖 Assistant IA Dev',
 }
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {
 }
 
-interface SchoolInfo { name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string }
+interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string }
+interface AdminBadges { users?: string; classes?: string; grades?: string; finance?: string }
+interface SessionUser { nomComplet?: string; firstName?: string; role?: string }
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -51,6 +57,8 @@ export default function AdminDashboard() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [badges, setBadges] = useState<AdminBadges>({})
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -62,23 +70,44 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/v2/school/me', { credentials: 'include' })
-      .then(r => r.json())
+    try {
+      const raw = localStorage.getItem('edunexus_user')
+      if (raw) setSessionUser(JSON.parse(raw) as SessionUser)
+    } catch { /* ignore */ }
+
+    fetchApi('/api/v2/school/me')
+      .then(r => {
+        if (r.status === 401) { router.replace('/login'); return Promise.reject('auth') }
+        return r.json()
+      })
       .then(d => {
-        if (!d.success) { router.replace('/login'); return }
+        if (!d || !d.success) { router.replace('/login'); return }
         const { status } = d.data as { status: string }
         if (status === 'APPROVED') { router.replace('/admin/configuration'); return }
         if (status !== 'ACTIVE') { router.replace('/login'); return }
         setSchoolInfo(d.data)
 
-        // Toast de bienvenue après activation
         const params = new URLSearchParams(window.location.search)
         if (params.get('activated') === '1') {
           showToast('Votre espace est maintenant actif ! Bienvenue sur EduNexus 🎉', 'success')
           window.history.replaceState(null, '', '/admin/dashboard')
         }
       })
-      .catch(() => router.replace('/login'))
+      .catch(err => { if (err !== 'auth') console.warn('[dashboard] Erreur réseau:', err) })
+
+    fetchApi('/api/v2/dashboard/admin-badges')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.success) return
+        const { users, classes, pendingGrades, pendingInvoices } = d.data as { users: number; classes: number; pendingGrades: number; pendingInvoices: number }
+        setBadges({
+          users:   users > 0         ? String(users)         : undefined,
+          classes: classes > 0       ? String(classes)       : undefined,
+          grades:  pendingGrades > 0 ? String(pendingGrades) : undefined,
+          finance: pendingInvoices > 0 ? String(pendingInvoices) : undefined,
+        })
+      })
+      .catch(() => { /* badges not critical */ })
   }, [router, showToast])
 
   useEffect(() => {
@@ -91,7 +120,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: '#f7f3ee' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} />
@@ -105,8 +134,8 @@ export default function AdminDashboard() {
             />
           )}
           {section === 'users'     && <SectionUsers     onToast={showToast} openInviteOnMount={inviteOpen} onInviteMounted={() => setInviteOpen(false)} />}
-          {section === 'classes'   && <SectionClasses   onToast={showToast} />}
-          {section === 'subjects'  && <SectionSubjects  onToast={showToast} />}
+          {section === 'classes'      && <SectionClasses      onToast={showToast} />}
+          {section === 'subjects'     && <SectionSubjects     onToast={showToast} />}
           {section === 'grades'    && <SectionGrades    onToast={showToast} />}
           {section === 'bulletins' && <SectionBulletins onToast={showToast} />}
           {section === 'timetable'      && <SectionTimetable     onToast={showToast} />}
@@ -115,6 +144,7 @@ export default function AdminDashboard() {
           {section === 'attendance'    && <SectionAdminAttendance onToast={showToast} />}
           {section === 'council'       && <SectionAdminCouncil  onToast={showToast} />}
           {section === 'ai'            && <SectionAdminAI       onToast={showToast} />}
+          {section === 'ai-assistant' && process.env.NODE_ENV === 'development' && <SectionAIAssistant onToast={showToast} />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
@@ -131,6 +161,7 @@ export default function AdminDashboard() {
       </div>
 
       <AdminToast toasts={toasts} onRemove={removeToast} />
+      <OfflineIndicator />
     </div>
   )
 }

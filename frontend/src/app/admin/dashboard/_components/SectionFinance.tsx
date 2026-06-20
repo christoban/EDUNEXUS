@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -73,7 +74,7 @@ export default function SectionFinance({ onToast }: Props) {
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true); setError(null)
-      const res = await fetch('/api/v2/finance/fee-plans', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/finance/fee-plans', { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setPlans(data.data || [])
@@ -86,7 +87,7 @@ export default function SectionFinance({ onToast }: Props) {
       setLoading(true); setError(null)
       const params = new URLSearchParams({ limit: '20', page: String(pg) })
       if (invStatus) params.set('status', invStatus)
-      const res = await fetch(`/api/v2/finance/invoices?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/finance/invoices?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setInvoices(data.data || [])
@@ -102,7 +103,7 @@ export default function SectionFinance({ onToast }: Props) {
 
   const fetchYearsForBulk = async () => {
     try {
-      const res = await fetch('/api/v2/academic-years', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/academic-years', { credentials: 'include' })
       const d = await res.json()
       return (d.data || []) as { id: string; name: string }[]
     } catch { return [] }
@@ -113,7 +114,7 @@ export default function SectionFinance({ onToast }: Props) {
     if (!planForm.name.trim() || !planForm.amount) { setPlanForm(f => ({ ...f, error: 'Nom et montant obligatoires' })); return }
     setPlanForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/finance/fee-plans', {
+      const res = await fetchApi('/api/v2/finance/fee-plans', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -143,7 +144,7 @@ export default function SectionFinance({ onToast }: Props) {
     if (!modPlan.name.trim() || !modPlan.amount) { setModPlan(f => ({ ...f, error: 'Nom et montant obligatoires' })); return }
     setModPlan(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch(`/api/v2/finance/fee-plans/${modPlan.planId}`, {
+      const res = await fetchApi(`/api/v2/finance/fee-plans/${modPlan.planId}`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: modPlan.name.trim(), amount: parseFloat(modPlan.amount), feeType: modPlan.feeType, description: modPlan.description || undefined, dueDate: modPlan.dueDate || undefined }),
@@ -167,7 +168,7 @@ export default function SectionFinance({ onToast }: Props) {
     if (!bulkForm.academicYearId) { setBulkForm(f => ({ ...f, error: 'Sélectionnez une année scolaire' })); return }
     setBulkForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/finance/invoices/bulk', {
+      const res = await fetchApi('/api/v2/finance/invoices/bulk', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feePlanId: bulkForm.planId, academicYearId: bulkForm.academicYearId }),
@@ -186,8 +187,8 @@ export default function SectionFinance({ onToast }: Props) {
     setInvoiceOpen(true); setInvoiceForm(EMPTY_INVOICE); setInvModalLoading(true)
     try {
       const [sRes, pRes] = await Promise.all([
-        fetch('/api/v2/users?role=STUDENT', { credentials: 'include' }),
-        fetch('/api/v2/finance/fee-plans', { credentials: 'include' }),
+        fetchApi('/api/v2/users?role=STUDENT', { credentials: 'include' }),
+        fetchApi('/api/v2/finance/fee-plans', { credentials: 'include' }),
       ])
       const [sData, pData] = await Promise.all([sRes.json(), pRes.json()])
       setInvStudents(sData.data || [])
@@ -204,7 +205,7 @@ export default function SectionFinance({ onToast }: Props) {
     try {
       const body: Record<string, string> = { studentId: invoiceForm.studentId, feePlanId: invoiceForm.feePlanId }
       if (invoiceForm.description.trim()) body.description = invoiceForm.description.trim()
-      const res = await fetch('/api/v2/finance/invoices', {
+      const res = await fetchApi('/api/v2/finance/invoices', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

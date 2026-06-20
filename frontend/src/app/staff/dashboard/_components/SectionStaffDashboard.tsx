@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { StaffSection, SessionUser } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   sessionUser: SessionUser | null
@@ -24,10 +25,10 @@ export default function SectionStaffDashboard({ sessionUser, allowedSections, on
   const fetchKpis = useCallback(async () => {
     setLoading(true)
     const results = await Promise.allSettled([
-      can('grades')     ? fetch('/api/v2/grades/pending',                { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
-      can('council')    ? fetch('/api/v2/class-councils',                { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
-      can('finance')    ? fetch('/api/v2/finance/invoices?status=PENDING&limit=1', { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
-      can('attendance') ? fetch('/api/v2/attendance/stats',              { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
+      can('grades')     ? fetchApi('/api/v2/grades/pending',                { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
+      can('council')    ? fetchApi('/api/v2/class-councils',                { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
+      can('finance')    ? fetchApi('/api/v2/finance/invoices?status=PENDING&limit=1', { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
+      can('attendance') ? fetchApi('/api/v2/attendance/stats',              { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
     ])
 
     const [gradesRes, councilRes, financeRes, attendanceRes] = results

@@ -1,6 +1,7 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onNav: (s: string) => void
@@ -24,11 +25,11 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
     setError(null)
     try {
       const [classesRes, gradesPendingRes, statsRes, timetableRes, gradesRejectedRes] = await Promise.all([
-        fetch('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
-        fetch(`/api/v2/grades?validationStatus=SUBMITTED`, { credentials: 'include' }).then(r => r.json()),
-        fetch(`/api/v2/attendance/stats`, { credentials: 'include' }).then(r => r.json()),
-        fetch(`/api/v2/timetables`, { credentials: 'include' }).then(r => r.json()),
-        fetch(`/api/v2/grades?validationStatus=REJECTED`, { credentials: 'include' }).then(r => r.json()),
+        fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+        fetchApi(`/api/v2/grades?validationStatus=SUBMITTED`, { credentials: 'include' }).then(r => r.json()),
+        fetchApi(`/api/v2/attendance/stats`, { credentials: 'include' }).then(r => r.json()),
+        fetchApi(`/api/v2/timetables`, { credentials: 'include' }).then(r => r.json()),
+        fetchApi(`/api/v2/grades?validationStatus=REJECTED`, { credentials: 'include' }).then(r => r.json()),
       ])
 
       if (classesRes.success) {
@@ -43,10 +44,19 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
         setAttendanceRate(statsRes.stats.attendanceRate)
       }
       if (timetableRes.success) {
-        const dayNames = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi']
-        const todayIdx = new Date().getDay() - 1 // 0=Lundi
+        const todayIdx = new Date().getDay() - 1 // 0=Lundi, -1=Dimanche (ignoré)
+        const mySubjectIds = new Set(
+          (user?.teacherProfile?.teacherSubjects || []).map((ts: any) => ts.subject.id)
+        )
         const slots = timetableRes.data.flatMap((t: any) =>
-          (t.slots || []).filter((s: any) => s.dayOfWeek === todayIdx)
+          (t.slots || [])
+            .filter((s: any) => {
+              if (s.dayOfWeek !== todayIdx) return false
+              // Filtre : créneau appartenant à cet enseignant
+              if (s.teacher?.id) return s.teacher.id === user?.id
+              // Fallback : matière dans la liste de l'enseignant
+              return s.subject?.id ? mySubjectIds.has(s.subject.id) : false
+            })
             .map((s: any) => ({
               time: `${s.startTime}–${s.endTime}`,
               classe: t.class?.name || '',

@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -38,8 +39,8 @@ export default function SectionGrades({ onToast }: Props) {
   // Charger classes + matières au montage
   useEffect(() => {
     Promise.all([
-      fetch('/api/v2/classes',  { credentials: 'include' }).then(r => r.json()),
-      fetch('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/classes',  { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
     ]).then(([cd, sd]) => {
       setClasses(cd.data  || [])
       setSubjects(sd.data || [])
@@ -54,7 +55,7 @@ export default function SectionGrades({ onToast }: Props) {
       if (classId)   params.set('classId', classId)
       if (subjectId) params.set('subjectId', subjectId)
       if (status)    params.set('validationStatus', status)
-      const res = await fetch(`/api/v2/grades?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/grades?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setGrades(data.grades || [])
@@ -67,7 +68,7 @@ export default function SectionGrades({ onToast }: Props) {
 
   const handleValidate = async (gradeId: string) => {
     try {
-      const res = await fetch(`/api/v2/grades/${gradeId}/validate`, {
+      const res = await fetchApi(`/api/v2/grades/${gradeId}/validate`, {
         method: 'PATCH', credentials: 'include',
       })
       const data = await res.json()
@@ -86,7 +87,7 @@ export default function SectionGrades({ onToast }: Props) {
     let ok = 0
     for (const g of pending) {
       try {
-        const res = await fetch(`/api/v2/grades/${g.id}/validate`, { method: 'PATCH', credentials: 'include' })
+        const res = await fetchApi(`/api/v2/grades/${g.id}/validate`, { method: 'PATCH', credentials: 'include' })
         if (res.ok) ok++
       } catch { /* continue */ }
     }

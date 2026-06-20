@@ -79,6 +79,7 @@ import { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierP
 import { TraiterWebhookCampayUseCase } from '@application/finance/TraiterWebhookCampayUseCase';
 import { RembourserCautionUseCase } from '@application/finance/RembourserCautionUseCase';
 import { EnregistrerDepenseUseCase } from '@application/finance/EnregistrerDepenseUseCase';
+import { EnregistrerPaiementCashUseCase } from '@application/finance/EnregistrerPaiementCashUseCase';
 
 // --- Adapters Persistence Classe + Matière ---
 import { PrismaSousGroupeRepository } from '@infrastructure/persistence/prisma/PrismaSousGroupeRepository';
@@ -91,6 +92,7 @@ import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/Pr
 
 // --- Adapters Persistence AI ---
 import { PrismaSanteEleveRepository } from '@infrastructure/persistence/prisma/PrismaSanteEleveRepository';
+import { PrismaClassCouncilRepository } from '@infrastructure/persistence/prisma/PrismaClassCouncilRepository';
 
 // --- Adapter Service IA ---
 import { GeminiIAService } from '@infrastructure/services/GeminiIAService';
@@ -137,6 +139,7 @@ import { CreerMatiereUseCase } from '@application/subject/CreerMatiereUseCase';
 import { ModifierMatiereUseCase } from '@application/subject/ModifierMatiereUseCase';
 import { AssignerEnseignantMatiereUseCase } from '@application/subject/AssignerEnseignantMatiereUseCase';
 import { DefinirCoefficientUseCase } from '@application/subject/DefinirCoefficientUseCase';
+import { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUseCase';
 
 // --- Adapter Persistence Orientation ---
 import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
@@ -210,10 +213,12 @@ export function creerContainer() {
   );
 
   // 7. Use Cases — Bulletins
+  const classCouncilRepository = new PrismaClassCouncilRepository(prisma);
+
   const genererBulletinUseCase = new GenererBulletinUseCase(
     noteRepository, bulletinRepository, classeRepository,
     userRepository, matiereRepository, anneeRepository,
-    presenceRepository, pdfService
+    presenceRepository, pdfService, classCouncilRepository
   );
   const envoyerBulletinsUseCase = new EnvoyerBulletinsUseCase(
     bulletinRepository, userRepository, emailService
@@ -265,6 +270,9 @@ export function creerContainer() {
   const enregistrerDepenseUseCase = new EnregistrerDepenseUseCase(
     depenseRepository, userRepository,
   );
+  const enregistrerPaiementCashUseCase = new EnregistrerPaiementCashUseCase(
+    factureRepository, paiementRepository,
+  );
 
   // 11. Use Cases — Classe + Matière
   const sousGroupeRepository = new PrismaSousGroupeRepository(prisma);
@@ -286,6 +294,7 @@ export function creerContainer() {
     matiereRepository, userRepository
   );
   const definirCoefficientUseCase = new DefinirCoefficientUseCase(matiereRepository);
+  const supprimerMatiereUseCase = new SupprimerMatiereUseCase(matiereRepository);
 
   // 12. Use Cases — Timetable
   const timetableRepository = new PrismaTimetableRepository(prisma);
@@ -397,6 +406,7 @@ export function creerContainer() {
       modifier: modifierMatiereUseCase,
       assignerEnseignant: assignerEnseignantUseCase,
       definirCoefficient: definirCoefficientUseCase,
+      supprimer: supprimerMatiereUseCase,
     },
     timetable: {
       creer: creerEmploiDuTempsUseCase,
@@ -420,6 +430,8 @@ export function creerContainer() {
       traiterWebhook: traiterWebhookUseCase,
       rembourserCaution: rembourserCautionUseCase,
       enregistrerDepense: enregistrerDepenseUseCase,
+      enregistrerPaiementCash: enregistrerPaiementCashUseCase,
+      factureRepository,
     },
     ai: {
       calculerIndiceSante: calculerIndiceSanteUseCase,

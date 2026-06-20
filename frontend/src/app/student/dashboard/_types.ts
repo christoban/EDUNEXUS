@@ -1,4 +1,4 @@
-export type StudentSection = 'dashboard' | 'grades' | 'bulletins' | 'timetable' | 'attendance'
+export type StudentSection = 'dashboard' | 'grades' | 'bulletins' | 'timetable' | 'attendance' | 'library'
 
 export interface Toast {
   id: number

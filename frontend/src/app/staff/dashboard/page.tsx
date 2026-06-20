@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
 import type { StaffSection, SessionUser, Toast } from './_types'
@@ -11,12 +11,17 @@ import SectionStaffDashboard   from './_components/SectionStaffDashboard'
 import SectionCouncil          from './_components/SectionCouncil'
 import SectionGradeValidation  from './_components/SectionGradeValidation'
 import SectionAttendanceStaff  from './_components/SectionAttendanceStaff'
+import SectionGrilleHoraire    from './_components/SectionGrilleHoraire'
+import SectionAffectations     from './_components/SectionAffectations'
 import SectionTimetableStaff   from './_components/SectionTimetableStaff'
 import SectionFinanceStaff     from './_components/SectionFinanceStaff'
 import SectionCautions         from './_components/SectionCautions'
 import SectionDiscipline       from './_components/SectionDiscipline'
 import SectionLibrary          from './_components/SectionLibrary'
 import SectionOrientation      from './_components/SectionOrientation'
+import SectionDepartementsStaff from './_components/SectionDepartementsStaff'
+import { fetchApi } from '@/lib/fetchApi'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
 
 let toastId = 0
 
@@ -26,6 +31,7 @@ export default function StaffDashboard() {
   const [sessionUser, setSessionUser]   = useState<SessionUser | null>(null)
   const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard']))
   const [schoolName, setSchoolName]     = useState<string | undefined>(undefined)
+  const [logoUrl,    setLogoUrl]        = useState<string | null>(null)
 
   // Lecture session depuis localStorage (stockée au login)
   useEffect(() => {
@@ -41,9 +47,9 @@ export default function StaffDashboard() {
 
   // Infos école depuis l'API
   useEffect(() => {
-    fetch('/api/v2/school/me', { credentials: 'include' })
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json())
-      .then(d => { if (d.success) setSchoolName(d.data.name) })
+      .then(d => { if (d.success) { setSchoolName(d.data.name); setLogoUrl(d.data.logoUrl ?? null) } })
       .catch(() => {})
   }, [])
 
@@ -71,6 +77,7 @@ export default function StaffDashboard() {
         allowedSections={allowedSections}
         sessionUser={sessionUser}
         schoolName={schoolName}
+        logoUrl={logoUrl}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
@@ -99,6 +106,14 @@ export default function StaffDashboard() {
             <SectionAttendanceStaff onToast={showToast} />
           )}
 
+          {section === 'grille-horaire' && can('grille-horaire') && (
+            <SectionGrilleHoraire onToast={showToast} />
+          )}
+
+          {section === 'affectations' && can('affectations') && (
+            <SectionAffectations onToast={showToast} />
+          )}
+
           {section === 'timetable' && can('timetable') && (
             <SectionTimetableStaff onToast={showToast} />
           )}
@@ -123,10 +138,15 @@ export default function StaffDashboard() {
             <SectionOrientation onToast={showToast} />
           )}
 
+          {section === 'departements' && can('departements') && (
+            <SectionDepartementsStaff onToast={showToast} />
+          )}
+
         </main>
       </div>
 
       <StaffToast toasts={toasts} onRemove={removeToast} />
+      <OfflineIndicator />
     </div>
   )
 }

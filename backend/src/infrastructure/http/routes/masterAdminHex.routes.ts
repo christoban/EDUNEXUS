@@ -20,7 +20,9 @@ export function creerMasterAdminHexRoutes(controller: MasterAdminHexController):
   router.post('/schools/:id/reject',        requireMasterSensitiveAuth, controller.rejeterEcole);
   router.post('/schools/:id/suspend',       requireMasterSensitiveAuth, controller.suspendreEcole);
   router.post('/schools/:id/reactivate',    requireMasterSensitiveAuth, controller.reactiverEcole);
-  router.post('/schools/:id/reexamine',     requireMasterSensitiveAuth, controller.reexaminerEcole);
+  router.post('/schools/:id/cancel-approval', requireMasterSensitiveAuth, controller.annulerApprobationEcole);
+  router.post('/schools/:id/reexamine',       requireMasterSensitiveAuth, controller.reexaminerEcole);
+  router.post('/schools/:id/sync-subjects',   controller.syncSubjects);
   router.post('/schools/:id/resend-invite', requireMasterSensitiveAuth, controller.renvoyerInvitation);
   router.delete('/schools/:id',             requireMasterSensitiveAuth, controller.supprimerEcole);
 

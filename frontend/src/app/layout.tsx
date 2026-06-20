@@ -19,6 +19,12 @@ const spectral = Spectral({
 export const metadata: Metadata = {
   title: 'EduNexus',
   description: 'Plateforme de gestion scolaire multi-établissement',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'EduNexus',
+  },
 }
 
 export default function RootLayout({

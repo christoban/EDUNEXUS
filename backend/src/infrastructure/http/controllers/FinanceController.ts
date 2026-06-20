@@ -6,9 +6,12 @@ import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/Ini
 import type { TraiterWebhookCampayUseCase } from '@application/finance/TraiterWebhookCampayUseCase';
 import type { RembourserCautionUseCase } from '@application/finance/RembourserCautionUseCase';
 import type { EnregistrerDepenseUseCase } from '@application/finance/EnregistrerDepenseUseCase';
+import type { EnregistrerPaiementCashUseCase } from '@application/finance/EnregistrerPaiementCashUseCase';
 import { SeuilLegalDepasseError } from '@domain/errors/SeuilLegalDepasseError';
 import { SeparationOrdonnateurError } from '@domain/errors/SeparationOrdonnateurError';
 import type { PaymentMethod } from '@domain/types/enums';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { notifyPaymentSms } from '@infrastructure/services/SmsNotificationService';
 
 export class FinanceController {
   constructor(
@@ -19,6 +22,7 @@ export class FinanceController {
     private readonly traiterWebhook: TraiterWebhookCampayUseCase,
     private readonly rembourserCaution: RembourserCautionUseCase,
     private readonly enregistrerDepense: EnregistrerDepenseUseCase,
+    private readonly enregistrerPaiementCash: EnregistrerPaiementCashUseCase,
   ) {}
 
   // POST /api/v2/finance/fee-plans
@@ -135,6 +139,28 @@ export class FinanceController {
 
       // Campay attend un 200 pour ne pas retenter l'envoi
       res.status(200).json({ success: true });
+
+      // Fire-and-forget SMS confirmation paiement — jamais bloquant
+      if (status === 'SUCCESSFUL') {
+        void (async () => {
+          try {
+            const payment = await prisma.payment.findFirst({
+              where: { campayRef: reference },
+              include: { student: { select: { id: true, firstName: true, lastName: true } } },
+            })
+            if (!payment) return
+            await notifyPaymentSms({
+              schoolId: payment.schoolId,
+              studentId: payment.studentId,
+              studentName: `${payment.student?.firstName ?? ''} ${payment.student?.lastName ?? ''}`.trim(),
+              amount: payment.amount,
+              parentPhone: phone_number ?? payment.phoneNumber ?? undefined,
+            })
+          } catch (err) {
+            console.error('[SMS Payment fire-and-forget]', err)
+          }
+        })()
+      }
     } catch (error) {
       console.error('[Webhook Campay]', error);
       res.status(200).json({ success: false });
@@ -187,6 +213,34 @@ export class FinanceController {
         date: date ? new Date(date) : undefined,
         createdById: user.userId,
         ordonnateurId,
+      });
+
+      res.status(201).json({ success: true, data: resultat });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/finance/payments/cash
+  creerPaiementCash = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { factureId, studentId, montant } = req.body;
+
+      if (!factureId || !studentId || montant == null) {
+        res.status(400).json({
+          success: false,
+          message: 'factureId, studentId et montant requis',
+        });
+        return;
+      }
+
+      const resultat = await this.enregistrerPaiementCash.execute({
+        schoolId: user.schoolId,
+        factureId,
+        studentId,
+        montant: Number(montant),
+        enregistreurId: user.userId,
       });
 
       res.status(201).json({ success: true, data: resultat });

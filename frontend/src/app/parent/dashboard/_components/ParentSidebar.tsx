@@ -32,6 +32,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Services',
     items: [
       { id: 'payments', icon: '📱', label: 'Paiements' },
+      { id: 'library',  icon: '📚', label: 'Lectures'  },
       { id: 'settings', icon: '⚙️', label: 'Paramètres' },
     ]
   },

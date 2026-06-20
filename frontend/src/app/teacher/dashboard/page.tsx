@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
 import { Bell, Search } from 'lucide-react'
@@ -11,7 +11,11 @@ import SectionTeacherAttendance from './_components/SectionTeacherAttendance'
 import SectionTeacherGrades from './_components/SectionTeacherGrades'
 
 import SectionTeacherTimetable from './_components/SectionTeacherTimetable'
+import SectionOfflineStatus from './_components/SectionOfflineStatus'
 import type { TeacherSection, Toast, UserInfo } from './_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
 
 let toastId = 0
 
@@ -23,6 +27,7 @@ const TITLES: Record<TeacherSection, string> = {
   bulletins:  'Bulletins',
   timetable:  'Emploi du temps',
   resources:  'Ressources',
+  sync:       'Synchronisation',
 }
 
 const PLACEHOLDERS: Partial<Record<TeacherSection, { icon: string }>> = {
@@ -36,13 +41,14 @@ export default function TeacherDashboard() {
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
   const [pendingGrades, setPendingGrades] = useState<number>(0)
+  const { pendingCount } = useSyncQueue()
 
   useEffect(() => {
-    fetch('/api/v2/school/me', { credentials: 'include' })
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.success) setSchoolInfo(d.data) }).catch(() => {})
-    fetch('/api/v2/users/me', { credentials: 'include' })
+    fetchApi('/api/v2/users/me', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.success) setUser(d.data) }).catch(() => {})
-    fetch('/api/v2/grades?validationStatus=SUBMITTED&limit=1', { credentials: 'include' })
+    fetchApi('/api/v2/grades?validationStatus=SUBMITTED&limit=1', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.pagination) setPendingGrades(d.pagination.total ?? 0) }).catch(() => {})
   }, [])
 
@@ -59,7 +65,7 @@ export default function TeacherDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f7f3ee', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
-      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} pendingGrades={pendingGrades} />
+      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} pendingGrades={pendingGrades} pendingCount={pendingCount} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {/* Topbar */}
@@ -90,6 +96,7 @@ export default function TeacherDashboard() {
           {section === 'grades'     && <SectionTeacherGrades {...sProps} />}
 
           {section === 'timetable'  && <SectionTeacherTimetable {...sProps} />}
+          {section === 'sync'       && <SectionOfflineStatus onToast={showToast} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -109,6 +116,7 @@ export default function TeacherDashboard() {
       </div>
 
       <TeacherToast toasts={toasts} onRemove={removeToast} />
+      <OfflineIndicator />
     </div>
   )
 }

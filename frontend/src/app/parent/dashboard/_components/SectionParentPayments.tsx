@@ -1,6 +1,9 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { Toast } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: Toast['type']) => void
@@ -30,6 +33,8 @@ function fmtCFA(n: number) {
 }
 
 export default function SectionParentPayments({ onToast }: Props) {
+  const isOnline = useOnlineStatus()
+
   const [children, setChildren]     = useState<Child[]>([])
   const [invoices, setInvoices]     = useState<Invoice[]>([])
   const [childFilter, setChildFilter] = useState('')
@@ -44,7 +49,7 @@ export default function SectionParentPayments({ onToast }: Props) {
 
   const fetchChildren = useCallback(async () => {
     try {
-      const res = await fetch('/api/v2/parent/children', { credentials: 'include' })
+      const res = await fetchApi('/api/v2/parent/children', { credentials: 'include' })
       const d = await res.json()
       if (d.success) setChildren(d.data || [])
     } catch { /* silencieux */ }
@@ -55,7 +60,7 @@ export default function SectionParentPayments({ onToast }: Props) {
     try {
       const params = new URLSearchParams({ limit: '50' })
       if (childFilter) params.set('studentId', childFilter)
-      const res = await fetch(`/api/v2/parent/invoices?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/parent/invoices?${params}`, { credentials: 'include' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur serveur')
       setInvoices(d.data || [])
@@ -81,7 +86,7 @@ export default function SectionParentPayments({ onToast }: Props) {
     if (!modal.phone.trim()) { setModal(m => ({ ...m, error: 'Numéro de téléphone obligatoire' })); return }
     setModal(m => ({ ...m, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/parent/pay', {
+      const res = await fetchApi('/api/v2/parent/pay', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoiceId: modal.invoiceId, method: modal.method, phoneNumber: modal.phone }),
@@ -95,6 +100,8 @@ export default function SectionParentPayments({ onToast }: Props) {
       setModal(m => ({ ...m, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
     }
   }
+
+  if (!isOnline) return <OfflineEmptyState message="Les informations de paiement nécessitent une connexion internet pour rester à jour." />
 
   const unpaid = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE' || i.status === 'PARTIAL')
   const totalDu = unpaid.reduce((s, i) => {

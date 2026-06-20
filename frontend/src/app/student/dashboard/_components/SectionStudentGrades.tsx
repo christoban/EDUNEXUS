@@ -1,10 +1,19 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import type { UserInfo } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
   user?: UserInfo | null
+}
+
+interface GradesData {
+  grades: any[]
+  avg: number | null
+  rank: { pos: number; total: number } | null
 }
 
 const MENTION_LEVELS = [
@@ -12,7 +21,7 @@ const MENTION_LEVELS = [
   { min: 14, label: 'B' },
   { min: 12, label: 'AB' },
   { min: 10, label: 'P' },
-  { min: 0, label: 'I' },
+  { min: 0,  label: 'I' },
 ]
 
 const MENTION_COLOR = (m: string): [string, string] => ({
@@ -29,55 +38,56 @@ function getMention(avg: number): string {
   return 'I'
 }
 
+function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  if (!cachedAt) return null
+  const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      📦 Données du {date} — hors-ligne
+    </div>
+  )
+}
+
 export default function SectionStudentGrades({ onToast, user }: Props) {
-  const [grades, setGrades] = useState<any[]>([])
-  const [avg, setAvg] = useState<number | null>(null)
-  const [rank, setRank] = useState<{ pos: number; total: number } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const cacheKey = user ? `student:grades:${user.id}` : ''
 
-  const fetchData = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
-    setError(null)
+  const fetchFn = useCallback(async (): Promise<GradesData> => {
+    const classId = user!.studentProfile?.class?.id
+    const userId = user!.id
 
-    const classId = user.studentProfile?.class?.id
-    const userId = user.id
-
-    try {
-      const ayRes = await fetch('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json())
-      let sequenceId = ''
-      if (ayRes.success) {
-        const curYear = ayRes.data.find((y: any) => y.isCurrent)
-        if (curYear) {
-          const curPeriod = curYear.periods?.find((p: any) => p.isCurrent)
-          if (curPeriod) {
-            const curSeq = curPeriod.sequences?.find((s: any) => s.isCurrent)
-            if (curSeq) sequenceId = curSeq.id
-          }
+    const ayRes = await fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json())
+    let sequenceId = ''
+    if (ayRes.success && ayRes.data?.length) {
+      // Préférer l'année courante, sinon la première disponible
+      const curYear = ayRes.data.find((y: any) => y.isCurrent) ?? ayRes.data[0]
+      if (curYear) {
+        const periods = curYear.periods ?? []
+        const curPeriod = periods.find((p: any) => p.isCurrent) ?? periods[0]
+        if (curPeriod) {
+          const seqs = curPeriod.sequences ?? []
+          const curSeq = seqs.find((s: any) => s.isCurrent) ?? seqs[seqs.length - 1]
+          if (curSeq) sequenceId = curSeq.id
         }
       }
+    }
 
-      const [gradesRes, avgRes] = await Promise.all([
-        fetch(`/api/v2/grades?sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
-        classId && sequenceId
-          ? fetch(`/api/v2/grades/average/${userId}?classId=${classId}&sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json())
-          : Promise.resolve(null),
-      ])
+    const [gradesRes, avgRes] = await Promise.all([
+      fetchApi(`/api/v2/grades?sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
+      classId && sequenceId
+        ? fetchApi(`/api/v2/grades/average/${userId}?classId=${classId}&sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json())
+        : Promise.resolve(null),
+    ])
 
-      if (gradesRes.grades) setGrades(gradesRes.grades)
-      if (avgRes?.average !== undefined) setAvg(avgRes.average)
-      if (avgRes?.rank !== undefined) setRank({ pos: avgRes.rank, total: avgRes.totalStudents || 0 })
-    } catch (err: any) {
-      setError(err.message || 'Erreur de chargement')
-    } finally {
-      setLoading(false)
+    return {
+      grades: gradesRes.grades ?? [],
+      avg: avgRes?.average ?? null,
+      rank: avgRes?.rank != null ? { pos: avgRes.rank, total: avgRes.totalStudents || 0 } : null,
     }
   }, [user])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<GradesData>(cacheKey, fetchFn)
 
-  if (loading) {
+  if (!user || loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
@@ -85,12 +95,14 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
     )
   }
 
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
+
   if (error) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
-          <button onClick={fetchData}
+          <button onClick={refetch}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
@@ -99,6 +111,9 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
     )
   }
 
+  const grades = data?.grades ?? []
+  const avg = data?.avg ?? null
+  const rank = data?.rank ?? null
   const displayAvg = avg ?? 0
   const mention = getMention(displayAvg)
   const mentionFull = mention === 'TB' ? 'Très Bien' : mention === 'B' ? 'Bien' : mention === 'AB' ? 'Assez Bien' : mention === 'P' ? 'Passable' : 'Insuffisant'
@@ -108,26 +123,27 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
   const subjectRows = grades
     .filter(g => g.subject)
     .reduce((acc: any[], g: any) => {
-      const existing = acc.find(a => a.subjectId === g.subjectId)
-      if (existing) return acc
-      const score = g.sequenceScore ?? g.sequenceAverage ?? 0
+      if (acc.find(a => a.subjectId === g.subjectId)) return acc
       acc.push({
         subjectId: g.subjectId,
         name: g.subject?.name || '',
         coeff: g.coefficient || g.subject?.coefficient || 1,
-        note: score,
-        teacher: '',
+        note: g.sequenceScore ?? g.sequenceAverage ?? 0,
       })
       return acc
     }, [])
     .sort((a: any, b: any) => a.name.localeCompare(b.name))
 
+  void mBg; void mC
+
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: fromCache ? 8 : 26 }}>
         <div style={sTitle}>Mes notes</div>
         <div style={sSub}>Résultats par matière</div>
       </div>
+
+      {fromCache && <CacheBadge cachedAt={cachedAt} />}
 
       <div style={{ background: 'linear-gradient(135deg,#1a2e1e,#243b29)', borderRadius: 16, padding: '22px 28px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 28 }}>
         <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -139,7 +155,7 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
           {[
             { label: 'Rang', val: rank ? `${rank.pos}e / ${rank.total}` : '—' },
             { label: 'Mention', val: mentionFull },
-            { label: 'Matières > 10', val: `${subjectsAbove10}/${grades.length ? subjectRows.length : 0}` },
+            { label: 'Matières > 10', val: `${subjectsAbove10}/${subjectRows.length}` },
           ].map((s, i) => (
             <div key={i}>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>{s.label}</div>
@@ -160,7 +176,7 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
               ))}</tr>
             </thead>
             <tbody>
-              {subjectRows.map((sub, i) => {
+              {subjectRows.map((sub) => {
                 const subMention = getMention(sub.note)
                 const [smBg, smC] = MENTION_COLOR(subMention)
                 return (

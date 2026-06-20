@@ -1,10 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { PrismaClient } from '@prisma/client';
 import type { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';
 import type { ModifierClasseUseCase } from '@application/class/ModifierClasseUseCase';
 import type { SupprimerClasseUseCase } from '@application/class/SupprimerClasseUseCase';
 import type { AssignerProfesseurPrincipalUseCase } from '@application/class/AssignerProfesseurPrincipalUseCase';
 import type { CreerSousGroupeTPUseCase } from '@application/class/CreerSousGroupeTPUseCase';
 import type { AssignerElevesAuSousGroupeUseCase } from '@application/class/AssignerElevesAuSousGroupeUseCase';
+import { CYCLE2_LEVELS, parseSerie } from '@application/school/SubjectAssignmentHelper';
 
 export class ClasseController {
   constructor(
@@ -14,6 +16,7 @@ export class ClasseController {
     private readonly assignerProfesseur: AssignerProfesseurPrincipalUseCase,
     private readonly creerSousGroupe: CreerSousGroupeTPUseCase,
     private readonly assignerEleves: AssignerElevesAuSousGroupeUseCase,
+    private readonly prisma: PrismaClient,
   ) {}
 
   creerClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -116,6 +119,87 @@ export class ClasseController {
         demandeurRole: user.role,
       });
       res.json({ success: true, data: resultat });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /:classId/subjects — Ajouter ou modifier une matière dans une classe
+  ajouterMatiereClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.params.classId as string;
+      const { subjectId, coefficient } = req.body as { subjectId?: string; coefficient?: number };
+
+      if (!subjectId || coefficient == null) {
+        res.status(400).json({ success: false, message: 'subjectId et coefficient requis' });
+        return;
+      }
+
+      const classe = await this.prisma.class.findFirst({
+        where: { id: classId, schoolId },
+        select: { id: true, level: true, serie: true, filiere: true, name: true },
+      });
+      if (!classe) {
+        res.status(404).json({ success: false, message: 'Classe introuvable' });
+        return;
+      }
+
+      // Déterminer le serieCode : serie (2nd cycle), filiere (1er cycle), ou null
+      const serieCode: string | null =
+        classe.serie ??
+        classe.filiere ??
+        ((classe.level && (CYCLE2_LEVELS as string[]).includes(classe.level))
+          ? parseSerie(classe.name ?? '', classe.level) : null);
+
+      const coeff = await this.prisma.subjectCoefficient.upsert({
+        where: {
+          schoolId_subjectId_classLevel_serieCode: {
+            schoolId, subjectId, classLevel: classe.level ?? '', serieCode: serieCode ?? '',
+          },
+        },
+        create: {
+          schoolId, subjectId, classLevel: classe.level ?? '', serieCode, coefficient,
+        },
+        update: { coefficient },
+      });
+
+      res.json({ success: true, data: coeff });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // DELETE /:classId/subjects/:subjectId — Retirer une matière d'une classe
+  supprimerMatiereClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.params.classId as string;
+      const subjectId = req.params.subjectId as string;
+
+      const classe = await this.prisma.class.findFirst({
+        where: { id: classId, schoolId },
+        select: { id: true, level: true, serie: true, filiere: true, name: true },
+      });
+      if (!classe) {
+        res.status(404).json({ success: false, message: 'Classe introuvable' });
+        return;
+      }
+
+      const serieCode: string | null =
+        classe.serie ??
+        classe.filiere ??
+        ((classe.level && (CYCLE2_LEVELS as string[]).includes(classe.level))
+          ? parseSerie(classe.name ?? '', classe.level) : null);
+
+      await this.prisma.subjectCoefficient.deleteMany({
+        where: {
+          schoolId, subjectId, classLevel: classe.level ?? undefined,
+          ...(serieCode !== null ? { serieCode } : { serieCode: null }),
+        },
+      });
+
+      res.json({ success: true, message: 'Matière retirée de la classe' });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

@@ -1,5 +1,6 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -27,6 +28,14 @@ const LOAN_STATUS: Record<string, { bg: string; color: string; label: string }> 
   OVERDUE:  { bg: '#fee2e2', color: '#991b1b', label: '⏰ En retard'  },
 }
 
+const CATEGORIES = [
+  'Manuel / Ouvrage au programme',
+  'Roman / Œuvre littéraire au programme',
+  'Lecture libre / Culture générale',
+  'Référence / Encyclopédie / Dictionnaire',
+  'Autre',
+]
+
 export default function SectionLibrary({ onToast }: Props) {
   const [tab, setTab]             = useState<'books' | 'loans'>('books')
   const [books, setBooks]         = useState<Book[]>([])
@@ -36,8 +45,10 @@ export default function SectionLibrary({ onToast }: Props) {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [bookSearch, setBookSearch] = useState('')
+  const [bookCategory, setBookCategory] = useState('')
   const [loanStatus, setLoanStatus] = useState('ACTIVE')
   const [returningId, setReturningId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // ── Modal ajout livre ──
   const [addBookOpen, setAddBookOpen] = useState(false)
@@ -53,7 +64,8 @@ export default function SectionLibrary({ onToast }: Props) {
     try {
       const params = new URLSearchParams({ limit: '20', page: String(page) })
       if (bookSearch) params.set('search', bookSearch)
-      const res = await fetch(`/api/v2/library/books?${params}`, { credentials: 'include' })
+      if (bookCategory) params.set('category', bookCategory)
+      const res = await fetchApi(`/api/v2/library/books?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setBooks(data.data || [])
@@ -67,7 +79,7 @@ export default function SectionLibrary({ onToast }: Props) {
     try {
       const params = new URLSearchParams({ limit: '20', page: String(page) })
       if (loanStatus) params.set('status', loanStatus)
-      const res = await fetch(`/api/v2/library/loans?${params}`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/library/loans?${params}`, { credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
       setLoans(data.data || [])
@@ -85,7 +97,7 @@ export default function SectionLibrary({ onToast }: Props) {
     if (!bookForm.title.trim()) { onToast('Le titre est obligatoire', 'error'); return }
     setSavingBook(true)
     try {
-      const res = await fetch('/api/v2/library/books', {
+      const res = await fetchApi('/api/v2/library/books', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: bookForm.title.trim(), author: bookForm.author || undefined, isbn: bookForm.isbn || undefined, quantity: bookForm.quantity, category: bookForm.category || undefined }),
@@ -104,7 +116,7 @@ export default function SectionLibrary({ onToast }: Props) {
   const searchStudents = async (q: string) => {
     if (q.trim().length < 2) { setBorrowForm(f => ({ ...f, studentResults: [] })); return }
     try {
-      const res = await fetch(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      const res = await fetchApi(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
       const data = await res.json()
       setBorrowForm(f => ({ ...f, studentResults: data.data || [] }))
     } catch { setBorrowForm(f => ({ ...f, studentResults: [] })) }
@@ -114,7 +126,7 @@ export default function SectionLibrary({ onToast }: Props) {
     if (!borrowForm.bookId || !borrowForm.selectedStudent) { setBorrowForm(f => ({ ...f, error: 'Livre et élève requis' })); return }
     setBorrowForm(f => ({ ...f, loading: true, error: '' }))
     try {
-      const res = await fetch('/api/v2/library/loans', {
+      const res = await fetchApi('/api/v2/library/loans', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bookId: borrowForm.bookId, studentId: borrowForm.selectedStudent.id, dueDate: borrowForm.dueDate || undefined }),
@@ -131,11 +143,25 @@ export default function SectionLibrary({ onToast }: Props) {
     }
   }
 
+  const deleteBook = async (bookId: string, bookTitle: string) => {
+    if (!confirm(`Supprimer "${bookTitle}" du catalogue ?`)) return
+    setDeletingId(bookId)
+    try {
+      const res = await fetchApi(`/api/v2/library/books/${bookId}`, { method: 'DELETE', credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur')
+      onToast(`"${bookTitle}" supprimé`, 'success')
+      fetchBooks(bookPag.page)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally { setDeletingId(null) }
+  }
+
   const returnLoan = async (loanId: string, bookTitle: string) => {
     if (!confirm(`Confirmer le retour de "${bookTitle}" ?`)) return
     setReturningId(loanId)
     try {
-      const res = await fetch(`/api/v2/library/loans/${loanId}/return`, { method: 'PATCH', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/library/loans/${loanId}/return`, { method: 'PATCH', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       onToast('Retour enregistré', 'success')
@@ -208,15 +234,20 @@ export default function SectionLibrary({ onToast }: Props) {
       {/* Catalogue */}
       {!loading && !error && tab === 'books' && (
         <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 18px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 10, padding: '8px 12px', flex: 1 }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 10, padding: '8px 12px', flex: 1, minWidth: 180 }}>
               <span>🔍</span>
               <input value={bookSearch} onChange={e => setBookSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchBooks(1)}
                 placeholder="Titre, auteur ou ISBN…"
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
             </div>
+            <select value={bookCategory} onChange={e => setBookCategory(e.target.value)} style={filterSt}>
+              <option value="">Toutes catégories</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
             <button style={btnSec} onClick={() => fetchBooks(1)}>Rechercher</button>
+            {bookCategory && <button style={{ ...btnSec, color: '#dc2626', borderColor: 'rgba(220,38,38,0.3)' }} onClick={() => { setBookCategory(''); fetchBooks(1) }}>✕ Réinitialiser</button>}
           </div>
 
           {books.length === 0 ? (
@@ -247,12 +278,18 @@ export default function SectionLibrary({ onToast }: Props) {
                         {b.available === 0 ? 'Épuisé' : `${b.available} dispo.`}
                       </span>
                     </td>
-                    <td style={tdSt}>
+                    <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
                       <button
-                        style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#dbeafe', color: '#1e40af', border: '1px solid rgba(29,78,216,0.2)', cursor: b.available === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: b.available === 0 ? 0.5 : 1 }}
+                        style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#dbeafe', color: '#1e40af', border: '1px solid rgba(29,78,216,0.2)', cursor: b.available === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: b.available === 0 ? 0.5 : 1, marginRight: 6 }}
                         disabled={b.available === 0}
                         onClick={() => { setBorrowForm(f => ({ ...f, bookId: b.id, bookTitle: b.title })); setBorrowOpen(true) }}>
                         📖 Emprunter
+                      </button>
+                      <button
+                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#fee2e2', color: '#991b1b', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
+                        disabled={deletingId === b.id}
+                        onClick={() => deleteBook(b.id, b.title)}>
+                        {deletingId === b.id ? '⏳' : '🗑️'}
                       </button>
                     </td>
                   </tr>
@@ -353,18 +390,24 @@ export default function SectionLibrary({ onToast }: Props) {
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'white', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 22 }}>Ajouter un ouvrage</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {[
+              {([
                 { label: 'Titre *', key: 'title', placeholder: 'Mathématiques 1re C' },
                 { label: 'Auteur', key: 'author', placeholder: 'Jean Dupont' },
                 { label: 'ISBN', key: 'isbn', placeholder: '978-2-...' },
-                { label: 'Catégorie', key: 'category', placeholder: 'Sciences, Littérature…' },
-              ].map(f => (
+              ] as { label: string; key: keyof typeof bookForm; placeholder: string }[]).map(f => (
                 <div key={f.key}>
                   <label style={labelSt}>{f.label}</label>
-                  <input value={bookForm[f.key as keyof typeof bookForm]} onChange={e => setBookForm(p => ({ ...p, [f.key]: e.target.value }))}
+                  <input value={bookForm[f.key]} onChange={e => setBookForm(p => ({ ...p, [f.key]: e.target.value }))}
                     placeholder={f.placeholder} style={inputSt} />
                 </div>
               ))}
+              <div>
+                <label style={labelSt}>Catégorie</label>
+                <select value={bookForm.category} onChange={e => setBookForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputSt, cursor: 'pointer' }}>
+                  <option value="">— Sélectionner —</option>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
               <div>
                 <label style={labelSt}>Nombre d&apos;exemplaires</label>
                 <input type="number" min="1" value={bookForm.quantity} onChange={e => setBookForm(p => ({ ...p, quantity: e.target.value }))} style={inputSt} />

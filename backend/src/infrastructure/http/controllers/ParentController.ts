@@ -1,11 +1,16 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ObtenirEnfantsUseCase } from '@application/parent/ObtenirEnfantsUseCase';
 import type { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAccesEnfantUseCase';
+import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
+import type { FactureRepository } from '@domain/ports/repositories/FactureRepository';
+import type { PaymentMethod } from '@domain/types/enums';
 
 export class ParentController {
   constructor(
     private readonly obtenirEnfants: ObtenirEnfantsUseCase,
     private readonly verifierAcces: VerifierAccesEnfantUseCase,
+    private readonly initierPaiement: InitierPaiementMobileMoneyUseCase,
+    private readonly factureRepository: FactureRepository,
   ) {}
 
   // GET /api/v2/parent/children
@@ -17,6 +22,60 @@ export class ParentController {
         schoolId: user.schoolId,
       });
       res.json({ success: true, data: enfants });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/parent/payments/mobile
+  // Le parent initie lui-même son paiement MTN/Orange — son studentId est vérifié ici.
+  initierPaiementMobile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { factureId, phoneNumber, method } = req.body;
+
+      if (!factureId || !phoneNumber || !method) {
+        res.status(400).json({
+          success: false,
+          message: 'factureId, phoneNumber et method requis',
+        });
+        return;
+      }
+
+      // Résoudre le studentId à partir de la facture et vérifier que c'est bien son enfant
+      const facture = await this.factureRepository.findById(factureId);
+      if (!facture) {
+        res.status(404).json({ success: false, message: 'Facture introuvable' });
+        return;
+      }
+      if (facture.schoolId !== user.schoolId) {
+        res.status(403).json({ success: false, message: 'Accès non autorisé' });
+        return;
+      }
+
+      // Vérifier que la facture appartient bien à un des enfants du parent
+      try {
+        await this.verifierAcces.execute(user.userId, facture.studentId);
+      } catch {
+        res.status(403).json({
+          success: false,
+          message: "Cette facture ne concerne pas l'un de vos enfants",
+        });
+        return;
+      }
+
+      const digits = phoneNumber.replace(/[\s+]/g, '');
+      const numeroNormalise = digits.startsWith('237') ? digits : `237${digits}`;
+
+      const resultat = await this.initierPaiement.execute({
+        schoolId: user.schoolId,
+        factureId,
+        studentId: facture.studentId,
+        phoneNumber: numeroNormalise,
+        method: method as PaymentMethod,
+      });
+
+      res.status(201).json({ success: true, data: resultat });
     } catch (error) {
       next(error);
     }

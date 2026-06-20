@@ -33,7 +33,7 @@ export class RejeterEcoleUseCase {
     const admins = await this.userRepository.findByRole(school.id, 'ADMIN');
     for (const admin of admins) {
       if (admin.email) {
-        await this.emailService.envoyer({
+        void this.emailService.envoyer({
           destinataire: admin.email,
           sujet: `Demande d'accès EduNexus — ${school.name}`,
           contenuHtml: `
@@ -43,7 +43,7 @@ export class RejeterEcoleUseCase {
             <p><strong>Motif :</strong> ${commande.motif}</p>
             <p>Contactez-nous pour plus d'informations.</p>
           `,
-        });
+        }).catch(err => console.error('[Email] Échec notification rejet:', (err as Error)?.message));
       }
     }
   }

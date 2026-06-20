@@ -24,6 +24,7 @@ interface Props {
 const TABS: { id: SchoolTab; label: string; urgent?: boolean }[] = [
   { id: 'all',       label: 'Toutes' },
   { id: 'pending',   label: 'À approuver', urgent: true },
+  { id: 'approved',  label: 'Approuvées' },
   { id: 'active',    label: 'Actives' },
   { id: 'suspended', label: 'Suspendues' },
   { id: 'draft',     label: 'Invitations en cours' },
@@ -33,6 +34,7 @@ const TABS: { id: SchoolTab; label: string; urgent?: boolean }[] = [
 const STATUS_LABELS: Record<string, string> = {
   active:    'ACTIVE',
   pending:   'À APPROUVER',
+  approved:  'APPROUVÉE',
   draft:     'INVITÉE',
   suspended: 'SUSPENDUE',
   rejected:  'REJETÉE',
@@ -44,12 +46,13 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const countsByTab: Record<SchoolTab, number> = {
-    all: schools.length,
-    pending: schools.filter(s => s.status === 'pending').length,
-    active: schools.filter(s => s.status === 'active').length,
+    all:       schools.length,
+    pending:   schools.filter(s => s.status === 'pending').length,
+    approved:  schools.filter(s => s.status === 'approved').length,
+    active:    schools.filter(s => s.status === 'active').length,
     suspended: schools.filter(s => s.status === 'suspended').length,
-    draft: schools.filter(s => s.status === 'draft').length,
-    rejected: schools.filter(s => s.status === 'rejected').length,
+    draft:     schools.filter(s => s.status === 'draft').length,
+    rejected:  schools.filter(s => s.status === 'rejected').length,
   }
 
   const filtered = activeTab === 'all' ? schools : schools.filter(s => s.status === activeTab)
@@ -242,6 +245,29 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                           {/* ── Écoles À APPROUVER (pending) ─────────────── */}
                           {school.status === 'pending' && (
                             <>
+                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                            </>
+                          )}
+
+                          {/* ── Écoles APPROUVÉES (approved) ─────────────── */}
+                          {school.status === 'approved' && (
+                            <>
+                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                              <DropdownItem onClick={() => {
+                                setOpenDropdown(null)
+                                onConfirmAction({
+                                  title: "Annuler l'approbation",
+                                  description: `Remettre «${school.name}» en attente d'approbation. L'admin ne pourra plus se connecter tant que l'école n'est pas ré-approuvée.`,
+                                  icon: '↩️',
+                                  successMsg: `L'approbation de ${school.name} a été annulée`,
+                                  execute: async (auth) => {
+                                    const { cancelApproval } = await import('../_api')
+                                    await cancelApproval(school.id, auth)
+                                    onRefresh()
+                                  },
+                                })
+                              }} color="#92400e">↩️ Annuler l'approbation</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
                               <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
                             </>

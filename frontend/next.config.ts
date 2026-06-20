@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
+import withPWA from "@ducanh2912/next-pwa";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 
@@ -41,4 +42,10 @@ const nextConfig: NextConfig = {
 
 };
 
-export default nextConfig;
+export default withPWA({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+})(nextConfig);

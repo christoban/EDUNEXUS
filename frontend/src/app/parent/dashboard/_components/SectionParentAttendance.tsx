@@ -1,34 +1,34 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import type { ChildWithStats } from '../_types'
+import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+  userId?: string
 }
 
-export default function SectionParentAttendance({ onToast }: Props) {
-  const [children, setChildren] = useState<ChildWithStats[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  if (!cachedAt) return null
+  const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
+  return (
+    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      📦 Données du {date} — hors-ligne
+    </div>
+  )
+}
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
-      if (res.success) {
-        setChildren(res.data)
-      } else {
-        setError('Erreur de chargement')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erreur réseau')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+export default function SectionParentAttendance({ onToast, userId }: Props) {
+  const cacheKey = userId ? `parent:attendance:${userId}` : ''
+  const fetchFn = useCallback(async () => {
+    const res = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
+    if (!res.success) throw new Error('Erreur de chargement')
+    return res.data as ChildWithStats[]
+  }, [userId])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const { data: children, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<ChildWithStats[]>(cacheKey, fetchFn)
 
   if (loading) {
     return (
@@ -38,12 +38,14 @@ export default function SectionParentAttendance({ onToast }: Props) {
     )
   }
 
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
+
   if (error) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
-          <button onClick={fetchData}
+          <button onClick={refetch}
             style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
@@ -52,13 +54,16 @@ export default function SectionParentAttendance({ onToast }: Props) {
     )
   }
 
-  if (!children.length) {
+  const list = children ?? []
+
+  if (!list.length) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ marginBottom: 26 }}>
           <div style={sTitle}>Présences</div>
           <div style={sSub}>Suivi de l&apos;assiduité</div>
         </div>
+        {fromCache && <CacheBadge cachedAt={cachedAt} />}
         <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucune donnée de présence</div>
@@ -69,13 +74,15 @@ export default function SectionParentAttendance({ onToast }: Props) {
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      <div style={{ marginBottom: 26 }}>
+      <div style={{ marginBottom: fromCache ? 8 : 26 }}>
         <div style={sTitle}>Présences</div>
         <div style={sSub}>Suivi de l&apos;assiduité de vos enfants</div>
       </div>
 
+      {fromCache && <CacheBadge cachedAt={cachedAt} />}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 18 }}>
-        {children.map((child) => (
+        {list.map((child) => (
           <div key={child.studentId} style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
             <div style={{ padding: '16px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>👤 {child.prenom} {child.nom}</span>
@@ -96,7 +103,6 @@ export default function SectionParentAttendance({ onToast }: Props) {
                   </div>
                 </div>
               ))}
-
               <div style={{ display: 'flex', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid #e8e0d4' }}>
                 {[
                   { label: 'Jours absents', val: child.joursAbsent, bg: '#fee2e2', c: '#991b1b' },
