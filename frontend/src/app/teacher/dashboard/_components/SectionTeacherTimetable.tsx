@@ -12,7 +12,7 @@ const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
 const TIMES = ['07:30', '08:30', '09:30', '10:30', '12:00', '13:00', '14:00']
 const TIMES_END = ['08:30', '09:30', '10:30', '11:30', '13:00', '14:00', '15:00']
 
-type SlotType = { subject: string; classe: string; mine: boolean } | null
+type SlotType = { subject: string; classe: string } | null
 
 const EMPTY_CATCHUP = { open: false, classId: '', proposedDate: '', subjectId: '', proposedStartTime: '', proposedEndTime: '', reason: '', loading: false, error: '' }
 
@@ -30,20 +30,17 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
       const res = await fetchApi('/api/v2/timetables', { credentials: 'include' }).then(r => r.json())
       if (res.success) {
         const slotMap: Record<string, SlotType> = {}
-        const teacherName = user ? `${user.firstName} ${user.lastName}`.toLowerCase() : ''
+        const teacherProfileId = user?.teacherProfile?.id
 
         res.data.forEach((tt: any) => {
           (tt.slots || []).forEach((s: any) => {
+            if (!teacherProfileId || s.teacher?.id !== teacherProfileId) return
             const startIdx = TIMES.indexOf(s.startTime)
             if (startIdx === -1) return
-            const isMine = user?.teacherProfile?.teacherSubjects?.some(
-              (ts: any) => ts.subject.id === s.subject?.id
-            ) || false
             const key = `${s.dayOfWeek}-${startIdx}`
             slotMap[key] = {
               subject: s.subject?.name || '',
               classe: tt.class?.name || '',
-              mine: isMine,
             }
           })
         })
@@ -145,7 +142,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#a89478' }}>
             <div style={{ width: 14, height: 14, borderRadius: 4, background: '#f0ebe3', border: '2px solid #d4c8b8' }} />
-            Autres
+            Libre
           </span>
           <button onClick={openCatchupModal}
             style={{ padding: '9px 16px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'white', color: '#059669', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -218,15 +215,12 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
                         {slot ? (
                           <div
                             style={{
-                              padding: 10, height: '100%', cursor: slot.mine ? 'pointer' : 'default',
-                              background: slot.mine
-                                ? 'linear-gradient(135deg,rgba(5,150,105,0.1),rgba(5,150,105,0.05))'
-                                : 'rgba(0,0,0,0.02)',
-                              borderLeft: slot.mine ? '3px solid #059669' : 'none',
-                              opacity: slot.mine ? 1 : 0.5
+                              padding: 10, height: '100%', cursor: 'pointer',
+                              background: 'linear-gradient(135deg,rgba(5,150,105,0.1),rgba(5,150,105,0.05))',
+                              borderLeft: '3px solid #059669',
                             }}
-                            onClick={() => slot.mine && onToast(`${slot.subject} — ${slot.classe}`, 'info')}>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: slot.mine ? '#047857' : '#6b5c45' }}>{slot.subject}</div>
+                            onClick={() => onToast(`${slot.subject} — ${slot.classe}`, 'info')}>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: '#047857' }}>{slot.subject}</div>
                             <div style={{ fontSize: 12, color: '#a89478', marginTop: 3 }}>{slot.classe}</div>
                           </div>
                         ) : (

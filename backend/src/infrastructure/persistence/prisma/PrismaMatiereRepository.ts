@@ -80,8 +80,11 @@ export class PrismaMatiereRepository implements MatiereRepository {
 
   async delete(id: string): Promise<void> {
     await this.prisma.$transaction([
+      this.prisma.classSubjectOverride.deleteMany({ where: { subjectId: id } }),
       this.prisma.subjectCoefficient.deleteMany({ where: { subjectId: id } }),
       this.prisma.teacherSubject.deleteMany({ where: { subjectId: id } }),
+      this.prisma.teachingAssignment.deleteMany({ where: { subjectId: id } }),
+      this.prisma.timetableSlot.deleteMany({ where: { subjectId: id } }),
       this.prisma.exam.deleteMany({ where: { subjectId: id } }),
       this.prisma.grade.deleteMany({ where: { subjectId: id } }),
       this.prisma.reportCardSubjectLine.deleteMany({ where: { subjectId: id } }),

@@ -37,7 +37,12 @@
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"\\\\d \\\\\"BacCoefficient\\\\\"\")",
       "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"SELECT COUNT\\(*\\) FROM \\\\\"BacCoefficient\\\\\";\" -c \"SELECT serie, COUNT\\(*\\) FROM \\\\\"BacCoefficient\\\\\" GROUP BY serie ORDER BY serie;\")",
-      "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"\\\\dt\")"
+      "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"\\\\dt\")",
+      "Bash(curl -s -b /tmp/edunexus_cookies.txt -X POST http://localhost:5000/api/v2/dev/generate-timetables -H 'Content-Type: application/json')",
+      "Bash(psql postgresql://postgres:123456@localhost:5432/edunexus -c ' *)",
+      "Bash(psql \"postgresql://postgres:123456@localhost:5432/edunexus\" -c \"SELECT u.\\\\\"firstName\\\\\", u.\\\\\"lastName\\\\\", tp.\\\\\"classePrincipaleId\\\\\", c.name as classe_principale FROM \\\\\"TeacherProfile\\\\\" tp JOIN \\\\\"User\\\\\" u ON tp.\\\\\"userId\\\\\" = u.id LEFT JOIN \\\\\"Class\\\\\" c ON tp.\\\\\"classePrincipaleId\\\\\" = c.id WHERE u.\\\\\"schoolId\\\\\" = '576001ff-1227-4a04-b340-e3993da24489' AND tp.\\\\\"classePrincipaleId\\\\\" IS NOT NULL LIMIT 10;\")",
+      "Bash(grep -v \"^.*//\\\\|cors\\\\|static\\\\|morgan\\\\|helmet\\\\|cookie\\\\|json\\\\|urlencoded\\\\|express\\\\|err\\\\|inngest\")",
+      "Bash(node -e \"const m = require\\('framer-motion'\\); console.log\\(Object.keys\\(m\\).slice\\(0,10\\)\\)\")"
     ]
   }
 }

@@ -6,7 +6,7 @@ import type { SupprimerClasseUseCase } from '@application/class/SupprimerClasseU
 import type { AssignerProfesseurPrincipalUseCase } from '@application/class/AssignerProfesseurPrincipalUseCase';
 import type { CreerSousGroupeTPUseCase } from '@application/class/CreerSousGroupeTPUseCase';
 import type { AssignerElevesAuSousGroupeUseCase } from '@application/class/AssignerElevesAuSousGroupeUseCase';
-import { CYCLE2_LEVELS, parseSerie } from '@application/school/SubjectAssignmentHelper';
+import { CYCLE2_LEVELS, NIVEAU_MAP, parseSerie } from '@application/school/SubjectAssignmentHelper';
 
 export class ClasseController {
   constructor(
@@ -22,6 +22,28 @@ export class ClasseController {
   creerClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as any).user;
+      const { level, serie } = req.body as { level?: string; serie?: string };
+
+      // Validation : pour le 2nd cycle, la combinaison (niveau, série) doit exister
+      // dans les BacCoefficients (source de vérité MINESEC Cameroun)
+      if (level && serie && (CYCLE2_LEVELS as string[]).includes(level)) {
+        const niveauBac = NIVEAU_MAP[level];
+        if (niveauBac) {
+          const seriePart = serie.includes('-') ? serie.split('-')[0] : serie;
+          const exists = await this.prisma.bacCoefficient.findFirst({
+            where: { serie: seriePart, niveau: niveauBac as any },
+            select: { id: true },
+          });
+          if (!exists) {
+            res.status(400).json({
+              success: false,
+              message: `La série "${serie}" n'existe pas au niveau "${level}" dans le programme officiel MINESEC. Vérifiez la combinaison niveau/série.`,
+            });
+            return;
+          }
+        }
+      }
+
       const resultat = await this.creer.execute({
         schoolId: user.schoolId,
         ...req.body,
@@ -65,14 +87,29 @@ export class ClasseController {
     try {
       const user = (req as any).user;
       const { teacherUserId } = req.body;
+      const classeId = req.params.id as string;
 
       if (!teacherUserId) {
         res.status(400).json({ success: false, message: 'teacherUserId requis' });
         return;
       }
 
+      // Un PP doit obligatoirement enseigner au moins une matière dans cette classe
+      const assignment = await this.prisma.teachingAssignment.findFirst({
+        where: { classId: classeId, teacherId: teacherUserId, schoolId: user.schoolId },
+        select: { id: true },
+      });
+      if (!assignment) {
+        res.status(400).json({
+          success: false,
+          code: 'PP_SANS_MATIERE',
+          message: 'Cet enseignant n\'enseigne aucune matière dans cette classe. Assignez-lui d\'abord une matière avant de le désigner Professeur Principal.',
+        });
+        return;
+      }
+
       await this.assignerProfesseur.execute({
-        classeId: req.params.id as string,
+        classeId,
         teacherUserId,
         schoolId: user.schoolId,
         demandeurRole: user.role,
@@ -125,11 +162,14 @@ export class ClasseController {
   };
 
   // POST /:classId/subjects — Ajouter ou modifier une matière dans une classe
+  // body: { subjectId, coefficient, classOnly?: boolean }
+  // classOnly=true  → ClassSubjectOverride (uniquement cette classe)
+  // classOnly=false → SubjectCoefficient   (toutes les classes du même niveau)
   ajouterMatiereClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId;
       const classId = req.params.classId as string;
-      const { subjectId, coefficient } = req.body as { subjectId?: string; coefficient?: number };
+      const { subjectId, coefficient, classOnly } = req.body as { subjectId?: string; coefficient?: number; classOnly?: boolean };
 
       if (!subjectId || coefficient == null) {
         res.status(400).json({ success: false, message: 'subjectId et coefficient requis' });
@@ -145,7 +185,22 @@ export class ClasseController {
         return;
       }
 
-      // Déterminer le serieCode : serie (2nd cycle), filiere (1er cycle), ou null
+      // Si un ClassSubjectOverride existe déjà pour cette classe+matière, on le met à jour
+      const existingOverride = await this.prisma.classSubjectOverride.findUnique({
+        where: { classId_subjectId: { classId, subjectId } },
+      });
+
+      if (classOnly || existingOverride) {
+        const override = await this.prisma.classSubjectOverride.upsert({
+          where: { classId_subjectId: { classId, subjectId } },
+          create: { schoolId, classId, subjectId, coefficient },
+          update: { coefficient },
+        });
+        res.json({ success: true, data: { ...override, classOnly: true } });
+        return;
+      }
+
+      // Comportement par défaut : SubjectCoefficient partagé par niveau
       const serieCode: string | null =
         classe.serie ??
         classe.filiere ??
@@ -158,13 +213,11 @@ export class ClasseController {
             schoolId, subjectId, classLevel: classe.level ?? '', serieCode: serieCode ?? '',
           },
         },
-        create: {
-          schoolId, subjectId, classLevel: classe.level ?? '', serieCode, coefficient,
-        },
+        create: { schoolId, subjectId, classLevel: classe.level ?? '', serieCode, coefficient },
         update: { coefficient },
       });
 
-      res.json({ success: true, data: coeff });
+      res.json({ success: true, data: { ...coeff, classOnly: false } });
     } catch (error) {
       this.gererErreur(error, res, next);
     }
@@ -177,6 +230,17 @@ export class ClasseController {
       const classId = req.params.classId as string;
       const subjectId = req.params.subjectId as string;
 
+      // Vérifier d'abord si c'est un override spécifique à cette classe
+      const override = await this.prisma.classSubjectOverride.findUnique({
+        where: { classId_subjectId: { classId, subjectId } },
+      });
+      if (override) {
+        await this.prisma.classSubjectOverride.delete({ where: { classId_subjectId: { classId, subjectId } } });
+        res.json({ success: true, message: 'Matière spécifique retirée de cette classe' });
+        return;
+      }
+
+      // Sinon supprimer le SubjectCoefficient partagé (affecte toutes les classes du niveau)
       const classe = await this.prisma.class.findFirst({
         where: { id: classId, schoolId },
         select: { id: true, level: true, serie: true, filiere: true, name: true },

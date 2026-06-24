@@ -89,8 +89,26 @@ export class DepartmentController {
             }
           }
 
+          // Retirer supervisedSubjectIds de l'ancien head
+          if (department.headId) {
+            await this.prisma.teacherProfile.updateMany({
+              where: { userId: department.headId },
+              data: { supervisedSubjectIds: [] },
+            });
+          }
+
           // Ajouter les permissions AP au nouveau head
           if (newHeadId) {
+            // Vérifier que le nouveau head est un enseignant
+            const newHead = await this.prisma.user.findUnique({
+              where: { id: newHeadId },
+              select: { role: true },
+            });
+            if (!newHead || newHead.role !== 'TEACHER') {
+              res.status(400).json({ success: false, message: 'L\'Animateur Pédagogique doit être un enseignant (TEACHER).' });
+              return;
+            }
+
             const apPermissions = getPermissionsPourTitre('Animateur Pédagogique');
             let staffProfile = await this.prisma.staffProfile.findUnique({
               where: { userId: newHeadId },
@@ -102,8 +120,18 @@ export class DepartmentController {
               });
             }
             await this.prisma.staffPermission.createMany({
-              data: apPermissions.map(p => ({ staffProfileId: staffProfile.id, permission: p })),
+              data: apPermissions.map(p => ({ staffProfileId: staffProfile!.id, permission: p })),
               skipDuplicates: true,
+            });
+
+            // Synchroniser supervisedSubjectIds avec les matières actuelles du département
+            const deptSubjects = await this.prisma.subject.findMany({
+              where: { departmentId },
+              select: { id: true },
+            });
+            await this.prisma.teacherProfile.updateMany({
+              where: { userId: newHeadId },
+              data: { supervisedSubjectIds: deptSubjects.map(s => s.id) },
             });
           }
         }
@@ -122,6 +150,14 @@ export class DepartmentController {
           await this.prisma.subject.updateMany({
             where: { id: { in: subjectIds }, schoolId: user.schoolId },
             data: { departmentId },
+          });
+        }
+        // Synchroniser supervisedSubjectIds du head courant (ou futur)
+        const effectiveHeadId = data.headId !== undefined ? data.headId : department.headId;
+        if (effectiveHeadId) {
+          await this.prisma.teacherProfile.updateMany({
+            where: { userId: effectiveHeadId },
+            data: { supervisedSubjectIds: subjectIds },
           });
         }
       }

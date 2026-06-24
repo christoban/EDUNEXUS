@@ -81,9 +81,9 @@ export class TemplateController {
       const headers = ['nom', 'prenom', 'email', 'telephone', 'matieres', 'classe_principale'];
       const ws = XLSX.utils.aoa_to_sheet([
         headers,
-        ['NGONO', 'Jean', 'jean.ngono@lycee.cm', '+237690000001', 'Mathématiques,Physique-Chimie', '6e A'],
+        ['NGONO', 'Jean', 'jean.ngono@lycee.cm', '+237690000001', 'Mathématiques,Physique', '6e A'],
         ['ESSOMBA', 'Marie', 'marie.essomba@lycee.cm', '', 'Français,Histoire-Géographie', ''],
-        ['BELA', 'Paul', 'paul.bela@lycee.cm', '+237690000003', 'SVT', ''],
+        ['BELA', 'Paul', 'paul.bela@lycee.cm', '+237690000003', 'SVTEEHB', ''],
       ]);
 
       ws['!cols'] = headers.map((_, i) => ({ wch: i >= 5 ? 26 : 22 }));
@@ -101,7 +101,7 @@ export class TemplateController {
         [''],
         ['Colonne "matieres" :'],
         ['  Séparez les matières par des virgules'],
-        ['  Exemple : "Mathématiques,Physique-Chimie,SVT"'],
+        ['  Exemple : "Mathématiques,Physique,SVTEEHB"'],
         [''],
         ['Colonnes optionnelles avancées :'],
         [''],

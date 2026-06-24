@@ -45,18 +45,12 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
       }
       if (timetableRes.success) {
         const todayIdx = new Date().getDay() - 1 // 0=Lundi, -1=Dimanche (ignoré)
-        const mySubjectIds = new Set(
-          (user?.teacherProfile?.teacherSubjects || []).map((ts: any) => ts.subject.id)
-        )
+        const teacherProfileId = user?.teacherProfile?.id
         const slots = timetableRes.data.flatMap((t: any) =>
           (t.slots || [])
-            .filter((s: any) => {
-              if (s.dayOfWeek !== todayIdx) return false
-              // Filtre : créneau appartenant à cet enseignant
-              if (s.teacher?.id) return s.teacher.id === user?.id
-              // Fallback : matière dans la liste de l'enseignant
-              return s.subject?.id ? mySubjectIds.has(s.subject.id) : false
-            })
+            .filter((s: any) =>
+              s.dayOfWeek === todayIdx && teacherProfileId && s.teacher?.id === teacherProfileId
+            )
             .map((s: any) => ({
               time: `${s.startTime}–${s.endTime}`,
               classe: t.class?.name || '',
@@ -138,6 +132,57 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
           </div>
         ))}
       </div>
+
+      {/* ── Rôles spéciaux : Professeur Principal + Animateur Pédagogique ── */}
+      {((user?.classesProfessorPrincipal?.length ?? 0) > 0 || (user?.headedDepartments?.length ?? 0) > 0) && (
+        <div style={{ display: 'flex', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
+
+          {user?.classesProfessorPrincipal?.map(cls => (
+            <div key={cls.id} style={{ flex: '1 1 300px', background: 'linear-gradient(135deg,#d1fae5,#a7f3d0)', borderRadius: 16, border: '1.5px solid rgba(5,150,105,0.35)', padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(5,150,105,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🏅</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 2 }}>Professeur Principal</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#064e3b', lineHeight: 1.1 }}>{cls.name}</div>
+                {cls._count && (
+                  <div style={{ fontSize: 13, color: '#047857', fontWeight: 700, marginTop: 3 }}>{cls._count.students} élève{cls._count.students > 1 ? 's' : ''}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <button onClick={() => onNav('bulletins')}
+                  style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, background: 'rgba(5,150,105,0.15)', color: '#065f46', border: '1.5px solid rgba(5,150,105,0.3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  📄 Bulletins
+                </button>
+                <button onClick={() => onNav('grades')}
+                  style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, background: 'white', color: '#065f46', border: '1.5px solid rgba(5,150,105,0.3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  📝 Notes classe
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {user?.headedDepartments?.map(dept => (
+            <div key={dept.id} style={{ flex: '1 1 300px', background: `linear-gradient(135deg,${dept.color}20,${dept.color}08)`, borderRadius: 16, border: `1.5px solid ${dept.color}55`, padding: '18px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: `${dept.color}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>🎯</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: dept.color, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 2 }}>Animateur Pédagogique</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#1a1209', lineHeight: 1.1 }}>Dép. {dept.name}</div>
+                {dept.subjects && dept.subjects.length > 0 && (
+                  <div style={{ fontSize: 12, color: '#6b5c45', fontWeight: 600, marginTop: 3 }}>
+                    {dept.subjects.slice(0, 3).map(s => s.name).join(' · ')}{dept.subjects.length > 3 ? ` +${dept.subjects.length - 3}` : ''}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <button onClick={() => onNav('classes')}
+                  style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, background: `${dept.color}18`, color: dept.color, border: `1.5px solid ${dept.color}40`, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  👥 Mes classes
+                </button>
+              </div>
+            </div>
+          ))}
+
+        </div>
+      )}
 
       {/* 2 colonnes */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>

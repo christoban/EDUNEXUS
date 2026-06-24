@@ -197,7 +197,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
       <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '14px 22px', marginBottom: 18, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <select style={filterSt} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
           <option value="">Sélectionne une classe</option>
-          {classes.map((c: any) => <option key={c.id} value={c.id}>{c.level || ''} {c.name} {c.serie || ''}</option>)}
+          {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select style={filterSt} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
           <option value="">Matière (optionnelle)</option>

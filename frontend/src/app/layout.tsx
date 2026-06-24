@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Nunito, Spectral } from 'next/font/google'
 import './globals.css'
+import { SmoothScrollProvider } from '@/components/SmoothScrollProvider'
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -35,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${nunito.variable} ${spectral.variable}`}>
       <body className="font-nunito antialiased">
-        {children}
+        <SmoothScrollProvider>{children}</SmoothScrollProvider>
       </body>
     </html>
   )

@@ -19,4 +19,6 @@ export interface UserInfo {
     specialization: string[]
     teacherSubjects: { subject: { id: string; name: string } }[]
   } | null
+  classesProfessorPrincipal?: { id: string; name: string; _count?: { students: number } }[]
+  headedDepartments?: { id: string; name: string; color: string; subjects?: { id: string; name: string }[] }[]
 }

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect, useRef, Fragment } from 'react'
 import type { CSSProperties } from 'react'
+import { motion, AnimatePresence, useMotionValue, animate as motionAnimate, useInView, useReducedMotion } from 'framer-motion'
 import DemoModal from './DemoModal'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,6 +253,35 @@ const SH: CSSProperties = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ANIMATION HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function parseStatVal(v: string): { num: number; suffix: string } {
+  const m = v.match(/^([\d\s,]+)(.*)$/)
+  if (!m) return { num: 0, suffix: v }
+  const num = parseInt(m[1].replace(/[\s,]/g, ''), 10)
+  return { num: isNaN(num) ? 0 : num, suffix: m[2].trim() }
+}
+
+function CompteurAnime({ valeur, suffix = '' }: { valeur: number; suffix?: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const enVue = useInView(ref, { once: true, amount: 0.5 })
+  const count = useMotionValue(0)
+  const [displayed, setDisplayed] = useState('0')
+  const reduced = useReducedMotion()
+
+  useEffect(() => count.on('change', (v) => setDisplayed(Math.round(v).toLocaleString('fr-FR'))), [count])
+
+  useEffect(() => {
+    if (!enVue) return
+    if (reduced) { count.set(valeur); return }
+    const controls = motionAnimate(count, valeur, { duration: 1.8, ease: 'easeOut' })
+    return controls.stop
+  }, [enVue, valeur, reduced, count])
+
+  return <span ref={ref}>{displayed}{suffix}</span>
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HERO MOCKUP (pure HTML, no external images)
 // ─────────────────────────────────────────────────────────────────────────────
 function HeroMockup() {
@@ -445,35 +475,58 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1280, margin: '0 auto', padding: '100px 64px 112px', display: 'flex', alignItems: 'center', gap: 80 }}>
           {/* Left */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'inline-block', background: '#d1fae5', color: '#065f46', fontSize: 12, fontWeight: 900, borderRadius: 20, padding: '6px 16px', marginBottom: 26 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              style={{ display: 'inline-block', background: '#d1fae5', color: '#065f46', fontSize: 12, fontWeight: 900, borderRadius: 20, padding: '6px 16px', marginBottom: 26 }}>
               {tx.hero.badge}
-            </div>
-            <h1 style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 66, fontWeight: 700, color: '#1a1209', lineHeight: 1.08, maxWidth: 660, marginBottom: 26 }}>
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
+              style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 66, fontWeight: 700, color: '#1a1209', lineHeight: 1.08, maxWidth: 660, marginBottom: 26 }}>
               {tx.hero.title}
-            </h1>
-            <p style={{ fontSize: 18, color: '#6b5c45', maxWidth: 540, lineHeight: 1.7, marginBottom: 36, fontWeight: 500 }}>
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.22, ease: 'easeOut' }}
+              style={{ fontSize: 18, color: '#6b5c45', maxWidth: 540, lineHeight: 1.7, marginBottom: 36, fontWeight: 500 }}>
               {tx.hero.subtitle}
-            </p>
+            </motion.p>
             {/* CTAs */}
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 32 }}>
-              <button onClick={openDemo} style={{ ...btnPrimary, fontSize: 16, padding: '16px 32px' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(5,150,105,0.32)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 3px 12px rgba(5,150,105,0.22)' }}
-              >{tx.hero.cta1}</button>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.34, ease: 'easeOut' }}
+              style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 32 }}>
+              <motion.button onClick={openDemo}
+                style={{ ...btnPrimary, fontSize: 16, padding: '16px 32px' }}
+                whileHover={{ scale: 1.04, boxShadow: '0 6px 20px rgba(5,150,105,0.38)' }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 20 }}
+              >{tx.hero.cta1}</motion.button>
               <a href="#comment" style={{ ...btnSecondary, fontSize: 16, padding: '16px 32px' }}>{tx.hero.cta2}</a>
-            </div>
+            </motion.div>
             {/* Trust badges */}
-            <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.44 }}
+              style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
               {tx.hero.trust.map(badge => (
                 <span key={badge} style={{ fontSize: 14, color: '#6b5c45', fontWeight: 700 }}>{badge}</span>
               ))}
-            </div>
+            </motion.div>
           </div>
 
           {/* Right — mockup flottant */}
-          <div style={{ flexShrink: 0, animation: 'float 4s ease-in-out infinite' }}>
-            <HeroMockup />
-          </div>
+          <motion.div style={{ flexShrink: 0 }}
+            initial={{ opacity: 0, x: 36 }} animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}>
+            <motion.div
+              animate={{ y: [0, -14, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}>
+              <HeroMockup />
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
@@ -482,13 +535,21 @@ export default function LandingPage() {
       ══════════════════════════════════════════════════ */}
       <section style={{ background: 'white', padding: '72px 64px', borderTop: '1.5px solid #e8e0d4', borderBottom: '1.5px solid #e8e0d4' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 32 }}>
-          {tx.stats.items.map(s => (
-            <div key={s.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>{s.icon}</div>
-              <div style={{ fontFamily: 'var(--font-nunito),Nunito,sans-serif', fontSize: 52, fontWeight: 900, color: '#1a1209', lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 14, color: '#a89478', fontWeight: 600, marginTop: 8 }}>{s.label}</div>
-            </div>
-          ))}
+          {tx.stats.items.map((s, i) => {
+            const { num, suffix } = parseStatVal(s.value)
+            return (
+              <motion.div key={s.label} style={{ textAlign: 'center' }}
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.55, delay: i * 0.1, ease: 'easeOut' }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>{s.icon}</div>
+                <div style={{ fontFamily: 'var(--font-nunito),Nunito,sans-serif', fontSize: 52, fontWeight: 900, color: '#1a1209', lineHeight: 1 }}>
+                  <CompteurAnime valeur={num} suffix={suffix} />
+                </div>
+                <div style={{ fontSize: 14, color: '#a89478', fontWeight: 600, marginTop: 8 }}>{s.label}</div>
+              </motion.div>
+            )
+          })}
         </div>
       </section>
 
@@ -503,15 +564,19 @@ export default function LandingPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
-            {tx.features.items.map(f => (
-              <div key={f.title} style={{ ...CARD, padding: 32, transition: 'box-shadow 200ms,transform 200ms', cursor: 'default' }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 8px 28px rgba(0,0,0,0.09)'; el.style.transform = 'translateY(-4px)' }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; el.style.transform = 'translateY(0)' }}
+            {tx.features.items.map((f, i) => (
+              <motion.div key={f.title}
+                style={{ ...CARD, padding: 32, cursor: 'default' }}
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
+                whileHover={{ y: -5, boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: { duration: 0.2 } }}
               >
                 <div style={{ fontSize: 36, marginBottom: 16 }}>{f.icon}</div>
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 700, color: '#1a1209', marginBottom: 10 }}>{f.title}</div>
                 <div style={{ fontSize: 14, color: '#6b5c45', lineHeight: 1.7 }}>{f.desc}</div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -571,20 +636,25 @@ export default function LandingPage() {
           </div>
 
           {/* Tab content */}
-          <div key={tabRole} style={{ ...CARD, padding: 40, animation: 'fadeIn 0.18s ease' }}>
-            <div style={{ fontSize: 52, marginBottom: 14 }}>{tx.roles.items[tabRole].icon}</div>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: '#1a1209', marginBottom: 24 }}>
-              Espace {tx.roles.items[tabRole].label}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              {tx.roles.items[tabRole].benefits.map((b, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#d1fae5', color: '#059669', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</div>
-                  <div style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.6 }}>{b}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div key={tabRole}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }}
+              style={{ ...CARD, padding: 40 }}>
+              <div style={{ fontSize: 52, marginBottom: 14 }}>{tx.roles.items[tabRole].icon}</div>
+              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: '#1a1209', marginBottom: 24 }}>
+                Espace {tx.roles.items[tabRole].label}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {tx.roles.items[tabRole].benefits.map((b, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#d1fae5', color: '#059669', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</div>
+                    <div style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.6 }}>{b}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </section>
 
@@ -651,8 +721,11 @@ export default function LandingPage() {
           <h2 style={{ ...SH, marginBottom: 68 }}>{tx.testimonials.title}</h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
-            {tx.testimonials.items.map(item => (
-              <div key={item.author} style={{ ...CARD, padding: 32 }}>
+            {tx.testimonials.items.map((item, i) => (
+              <motion.div key={item.author} style={{ ...CARD, padding: 32 }}
+                initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.5, delay: i * 0.1, ease: 'easeOut' }}>
                 <div style={{ fontSize: 52, color: '#059669', fontWeight: 900, fontFamily: 'Georgia,serif', lineHeight: 1, marginBottom: 14 }}>&ldquo;</div>
                 <p style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.75, marginBottom: 24, fontStyle: 'italic' }}>{item.quote}</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -664,7 +737,7 @@ export default function LandingPage() {
                     <div style={{ fontSize: 13, color: '#a89478', marginTop: 2 }}>{item.role}</div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -843,19 +916,25 @@ export default function LandingPage() {
       />
 
       {/* ── TOAST ────────────────────────────────────── */}
-      {toast && (
-        <div style={{
-          position: 'fixed', bottom: 32, right: 32, zIndex: 300,
-          background: toast.type === 'success' ? '#059669' : '#dc2626',
-          color: 'white', padding: '14px 22px', borderRadius: 12,
-          fontSize: 15, fontWeight: 700,
-          boxShadow: '0 8px 28px rgba(0,0,0,0.16)',
-          animation: 'fadeIn 0.2s ease', maxWidth: 400,
-          lineHeight: 1.5,
-        }}>
-          {toast.msg}
-        </div>
-      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div key="toast"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+            style={{
+              position: 'fixed', bottom: 32, right: 32, zIndex: 300,
+              background: toast.type === 'success' ? '#059669' : '#dc2626',
+              color: 'white', padding: '14px 22px', borderRadius: 12,
+              fontSize: 15, fontWeight: 700,
+              boxShadow: '0 8px 28px rgba(0,0,0,0.16)',
+              maxWidth: 400, lineHeight: 1.5,
+            }}>
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

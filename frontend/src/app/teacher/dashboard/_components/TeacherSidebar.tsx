@@ -1,4 +1,5 @@
 'use client'
+import { motion } from 'framer-motion'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeacherSection, UserInfo } from '../_types'
@@ -94,17 +95,22 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
               {group.items.map(item => (
                 <button key={item.id} onClick={() => onChange(item.id)}
                   className={cn(
-                    'w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
-                    'text-[16px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer font-nunito',
+                    'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
+                    'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
                     current === item.id
-                      ? 'bg-[#3a6b44] text-white'
-                      : 'bg-transparent text-white/52 hover:bg-[#243b29] hover:text-white/82'
+                      ? 'text-white'
+                      : 'text-white/52 hover:bg-[#243b29] hover:text-white/82'
                   )}
                   style={{ padding: '6px 9px' }}>
-                  <span className="text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
-                  <span className="truncate flex-1">{item.label}</span>
+                  {current === item.id && (
+                    <motion.div layoutId="teacher-nav-active"
+                      className="absolute inset-0 rounded-lg bg-[#3a6b44]"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                  )}
+                  <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
+                  <span className="relative z-10 truncate flex-1">{item.label}</span>
                   {item.id === 'grades' && pendingGrades != null && pendingGrades > 0 && (
-                    <span className={cn('ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.red)} style={{ padding: '3px 6px' }}>
+                    <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.red)} style={{ padding: '3px 6px' }}>
                       {pendingGrades}
                     </span>
                   )}
@@ -121,16 +127,21 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
               </div>
               <button onClick={() => onChange('sync')}
                 className={cn(
-                  'w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
-                  'text-[16px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer font-nunito',
+                  'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
+                  'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
                   current === 'sync'
-                    ? 'bg-[#3a6b44] text-white'
-                    : 'bg-transparent text-white/52 hover:bg-[#243b29] hover:text-white/82'
+                    ? 'text-white'
+                    : 'text-white/52 hover:bg-[#243b29] hover:text-white/82'
                 )}
                 style={{ padding: '6px 9px' }}>
-                <span className="text-[23px] w-[18px] text-center flex-shrink-0">📶</span>
-                <span className="truncate flex-1">Synchronisation</span>
-                <span className={cn('ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.amber)} style={{ padding: '3px 6px' }}>
+                {current === 'sync' && (
+                  <motion.div layoutId="teacher-nav-active"
+                    className="absolute inset-0 rounded-lg bg-[#3a6b44]"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                )}
+                <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">📶</span>
+                <span className="relative z-10 truncate flex-1">Synchronisation</span>
+                <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.amber)} style={{ padding: '3px 6px' }}>
                   {pendingCount}
                 </span>
               </button>

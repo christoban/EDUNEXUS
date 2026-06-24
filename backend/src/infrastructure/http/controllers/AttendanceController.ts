@@ -31,6 +31,12 @@ export class AttendanceController {
 
     let resultat: { enregistrees: number; absents: string[]; retards: string[] };
     try {
+      // Mapper EXCUSED → ABSENT_JUSTIFIED (le frontend enseignant peut envoyer EXCUSED)
+      const normalizeStatus = (s: string): AttendanceStatus => {
+        if (s === 'EXCUSED') return 'ABSENT_JUSTIFIED';
+        return s as AttendanceStatus;
+      };
+
       resultat = await this.enregistrerPresence.execute({
         schoolId: user.schoolId,
         classId,
@@ -42,7 +48,7 @@ export class AttendanceController {
         period: period as AttendancePeriod,
         presences: presences.map((p: any) => ({
           studentId: p.studentId,
-          statut: p.statut as AttendanceStatus,
+          statut: normalizeStatus(p.statut),
         })),
         isOfflineSync: isOfflineSync ?? false,
       });
@@ -201,7 +207,7 @@ export class AttendanceController {
 
       const updated = await prisma.attendance.update({
         where: { id: attendanceId },
-        data: { status: 'ABSENT' as any },
+        data: { status: 'ABSENT_JUSTIFIED' },
         include: {
           student: { select: { id: true, firstName: true, lastName: true } },
           class: { select: { id: true, name: true } },

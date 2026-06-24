@@ -31,9 +31,33 @@ export function parseSerie(className: string, level: string): string | null {
 }
 
 // ─────────────────────────────────────────────
+// Matières 1er cycle FR — fallback si CycleCoefficient est vide
+// Programme officiel MINESEC Cameroun
+// ─────────────────────────────────────────────
+type SubjectDef = { name: string; coefficient: number; hoursPerWeek: number }
+const CYCLE1_FR_BASE: SubjectDef[] = [
+  { name: 'Français',                        coefficient: 5, hoursPerWeek: 5 },
+  { name: 'Mathématiques',                   coefficient: 4, hoursPerWeek: 4 },
+  { name: 'Anglais',                         coefficient: 3, hoursPerWeek: 3 },
+  { name: 'Histoire-Géographie-ECM',         coefficient: 3, hoursPerWeek: 3 },
+  { name: 'Sciences de la Vie et de la Terre', coefficient: 2, hoursPerWeek: 2 },
+  { name: 'Sciences Physiques et Chimiques', coefficient: 2, hoursPerWeek: 2 },
+  { name: 'Éducation Physique et Sportive',  coefficient: 2, hoursPerWeek: 2 },
+  { name: 'Expression Artistique',           coefficient: 1, hoursPerWeek: 1 },
+]
+const CYCLE1_FR_WITH_LV2: SubjectDef[] = [
+  ...CYCLE1_FR_BASE,
+  { name: 'LV2',                             coefficient: 2, hoursPerWeek: 2 },
+]
+const CYCLE1_FR_SUBJECTS: Record<string, SubjectDef[]> = {
+  '6e': CYCLE1_FR_BASE,
+  '5e': CYCLE1_FR_BASE,
+  '4e': CYCLE1_FR_WITH_LV2,
+  '3e': CYCLE1_FR_WITH_LV2,
+}
+
+// ─────────────────────────────────────────────
 // Sous-ensembles Sixth Form (Arts / Sciences)
-// Utilisés en complément des données DB pour filtrer
-// les matières selon la filière de la classe.
 // ─────────────────────────────────────────────
 const TOUTES_MATIERES_SIXTH = [
   "English Language","Literature in English","French","Geography",
@@ -208,22 +232,28 @@ export async function assignerMatieresPourClasse(
     const cycleCoeffs = await db.cycleCoefficient.findMany({
       where: { templateCode, classLevel: level, filiere: filiere1er },
     });
+
     if (cycleCoeffs.length > 0) {
+      // Données officielles depuis CycleCoefficient (DB)
       for (const cc of cycleCoeffs) {
         const subjectId = await getOrCreateSubject(db, schoolId, cc.subjectName, cc.coefficient, subjectByName, subjectCountRef, cc.weeklyPeriods ?? 2);
         await upsertSubjectCoeff(db, schoolId, subjectId, level, filiere1er, cc.coefficient);
       }
+    } else if (!isAnglophone && CYCLE1_FR_SUBJECTS[level]) {
+      // Fallback : programme 1er cycle FR en dur (CycleCoefficient non encore seedé)
+      for (const def of CYCLE1_FR_SUBJECTS[level]!) {
+        const subjectId = await getOrCreateSubject(db, schoolId, def.name, def.coefficient, subjectByName, subjectCountRef, def.hoursPerWeek);
+        await upsertSubjectCoeff(db, schoolId, subjectId, level, filiere1er, def.coefficient);
+      }
     }
-
-    // LV2 optionnelle — uniquement le générique "LV2" depuis CycleCoefficients pour le 1er cycle
-    await ensureCoefficients();
+    // Si aucune donnée disponible → on ne touche rien (évite la contamination cross-niveau)
     return;
   }
 
   // ── B.2 Deuxième cycle ────────────────────────────────────────────────────
   const niveauBac = NIVEAU_MAP[level];
   if (!niveauBac) {
-    await ensureCoefficients();
+    // Niveau inconnu (technique, primaire, etc.) → on ne touche rien
     return;
   }
 
@@ -231,10 +261,8 @@ export async function assignerMatieresPourClasse(
   // "1ère C A"     → seriePart="C",  langueA4=null
   const nameParts = classe.name.split(' ');
   const serieRaw  = nameParts[1];
-  if (!serieRaw) {
-    await ensureCoefficients();
-    return;
-  }
+  if (!serieRaw) return; // Nom de classe malformé → on skip
+
   const dashIdx   = serieRaw.indexOf('-');
   const seriePart = dashIdx >= 0 ? serieRaw.slice(0, dashIdx) : serieRaw;
   const langueA4  = seriePart === 'A4' && dashIdx >= 0 ? serieRaw.slice(dashIdx + 1) : null;
@@ -253,8 +281,5 @@ export async function assignerMatieresPourClasse(
     const effectiveSerieCode = seriePart === 'A4' ? serieRaw : seriePart;
     await upsertSubjectCoeff(db, schoolId, subjectId, level, effectiveSerieCode, bc.coefficient);
   }
-
-  // Les coefficients BacCoefficient ont serieCode != null, donc le fallback avec
-  // serieCode=null ne créera pas de doublons
-  await ensureCoefficients();
+  // Pas de fallback ensureCoefficients() ici — évite la contamination cross-série
 }

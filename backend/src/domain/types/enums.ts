@@ -17,7 +17,7 @@ export type GradeValidationStatus = 'DRAFT' | 'SUBMITTED' | 'VALIDATED' | 'LOCKE
 export type BulletinTemplate = 'FR_SECONDARY' | 'EN_SECONDARY' | 'TECHNICAL_FR' | 'PRIMARY' | 'ANNUAL' | 'MONTHLY';
 export type ReportCardStatus = 'DRAFT' | 'GENERATED' | 'SENT';
 
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'ABSENT_JUSTIFIED';
 export type AttendancePeriod = 'MORNING' | 'AFTERNOON';
 
 export type DisciplineType = 'WARNING_ORAL' | 'WARNING_WRITTEN' | 'TEMP_EXCLUSION' | 'COUNCIL_DECISION' | 'PERMANENT_EXCLUSION';

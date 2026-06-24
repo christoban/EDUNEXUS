@@ -1,4 +1,5 @@
 'use client'
+import { motion } from 'framer-motion'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ParentSection } from '../_types'
@@ -88,15 +89,20 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
               {group.items.map(item => (
                 <button key={item.id} onClick={() => onChange(item.id)}
                   className={cn(
-                    'w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
-                    'text-[16px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer font-nunito',
+                    'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
+                    'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
                     current === item.id
-                      ? 'bg-[#3a6b44] text-white'
-                      : 'bg-transparent text-white/52 hover:bg-[#243b29] hover:text-white/82'
+                      ? 'text-white'
+                      : 'text-white/52 hover:bg-[#243b29] hover:text-white/82'
                   )}
                   style={{ padding: '6px 9px' }}>
-                  <span className="text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
-                  <span className="truncate flex-1">{item.label}</span>
+                  {current === item.id && (
+                    <motion.div layoutId="parent-nav-active"
+                      className="absolute inset-0 rounded-lg bg-[#3a6b44]"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                  )}
+                  <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
+                  <span className="relative z-10 truncate flex-1">{item.label}</span>
                 </button>
               ))}
             </div>

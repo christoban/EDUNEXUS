@@ -10,7 +10,7 @@ interface Props {
 interface ClassItem { id: string; name: string; level: string | null }
 interface ClassSubjectItem {
   id: string; subjectId: string; name: string; code: string | null
-  coefficient: number; serieCode: string | null
+  coefficient: number; serieCode: string | null; classOnly: boolean
 }
 
 interface SubjectItem {
@@ -74,6 +74,7 @@ export default function SectionSubjects({ onToast }: Props) {
   const [addSubjectOpen, setAddSubjectOpen] = useState(false)
   const [addSubjectId, setAddSubjectId]     = useState('')
   const [addCoefficient, setAddCoefficient] = useState('')
+  const [addClassOnly, setAddClassOnly]     = useState(false)
   const [addLoading, setAddLoading]         = useState(false)
   const [addError, setAddError]             = useState('')
   const [deletingSubjId, setDeletingSubjId] = useState<string | null>(null)
@@ -211,12 +212,12 @@ export default function SectionSubjects({ onToast }: Props) {
       const res = await fetchApi(`/api/v2/classes/${selectedClass}/subjects`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subjectId: addSubjectId, coefficient: parseFloat(addCoefficient) }),
+        body: JSON.stringify({ subjectId: addSubjectId, coefficient: parseFloat(addCoefficient), classOnly: addClassOnly }),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
-      onToast('Matière ajoutée à la classe', 'success')
-      setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient('')
+      onToast(addClassOnly ? 'Matière ajoutée uniquement à cette classe' : 'Matière ajoutée à toutes les classes du même niveau', 'success')
+      setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient(''); setAddClassOnly(false)
       handleSelectClass(selectedClass)
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Erreur')
@@ -645,7 +646,7 @@ export default function SectionSubjects({ onToast }: Props) {
                   <span style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
                     {classSubjects.length} matière{classSubjects.length > 1 ? 's' : ''}
                   </span>
-                  <button onClick={() => { setAddSubjectOpen(true); setAddError(''); setAddSubjectId(''); setAddCoefficient('') }}
+                  <button onClick={() => { setAddSubjectOpen(true); setAddError(''); setAddSubjectId(''); setAddCoefficient(''); setAddClassOnly(false) }}
                     style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: '1.5px solid #059669', background: '#d1fae5', color: '#065f46', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                     + Ajouter
                   </button>
@@ -664,7 +665,15 @@ export default function SectionSubjects({ onToast }: Props) {
                     <tr key={s.id}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                      <td style={{ ...tdStyle, fontWeight: 700, color: '#1a1209', fontSize: 16 }}>{s.name}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700, color: '#1a1209', fontSize: 16 }}>
+                        {s.name}
+                        {s.classOnly && (
+                          <span title="Matière spécifique à cette classe uniquement"
+                            style={{ marginLeft: 6, background: '#ede9fe', color: '#6d28d9', padding: '2px 7px', borderRadius: 12, fontSize: 11, fontWeight: 800, verticalAlign: 'middle' }}>
+                            📌 cette classe
+                          </span>
+                        )}
+                      </td>
                       <td style={tdStyle}>
                         {s.code ? <code style={{ background: '#f0ebe3', padding: '3px 8px', borderRadius: 6, fontSize: 13 }}>{s.code}</code> : <span style={{ color: '#a89478' }}>—</span>}
                       </td>
@@ -1268,7 +1277,7 @@ export default function SectionSubjects({ onToast }: Props) {
 
       {/* ── Modal ajouter matière à la classe ── */}
       {addSubjectOpen && (
-        <ModalOverlay onClose={() => { setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient(''); setAddError('') }}>
+        <ModalOverlay onClose={() => { setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient(''); setAddError(''); setAddClassOnly(false) }}>
           <div style={sModalTitle}>Ajouter une matière</div>
           <div style={{ fontSize: 15, color: '#a89478', marginBottom: 18 }}>
             à <strong>{selectedClassName}</strong>
@@ -1285,9 +1294,35 @@ export default function SectionSubjects({ onToast }: Props) {
           <input type="number" min="0.5" step="0.5" value={addCoefficient}
             onChange={e => setAddCoefficient(e.target.value)}
             style={sInput} placeholder="Ex: 1, 2, 3…" />
+
+          {/* Toggle portée */}
+          <div style={{ display: 'flex', background: '#f0ebe3', borderRadius: 10, padding: 3, gap: 2, marginBottom: 4, marginTop: 4 }}>
+            <button type="button"
+              onClick={() => setAddClassOnly(false)}
+              style={{ flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                background: !addClassOnly ? 'white' : 'transparent',
+                color:      !addClassOnly ? '#1a1209' : '#a89478',
+                boxShadow:  !addClassOnly ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+              Pour toutes les {classList.find(c => c.id === selectedClass)?.level ?? 'classes du même niveau'}
+            </button>
+            <button type="button"
+              onClick={() => setAddClassOnly(true)}
+              style={{ flex: 1, padding: '7px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                background: addClassOnly ? 'white' : 'transparent',
+                color:      addClassOnly ? '#6d28d9' : '#a89478',
+                boxShadow:  addClassOnly ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+              📌 Cette classe uniquement
+            </button>
+          </div>
+          {!addClassOnly && (
+            <div style={{ fontSize: 12, color: '#a89478', marginBottom: 8 }}>
+              ⚠️ Sera ajoutée à toutes les classes du même niveau et série
+            </div>
+          )}
+
           {addError && <div style={sError}>{addError}</div>}
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button style={{ ...btnSec2, flex: 1 }} onClick={() => { setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient(''); setAddError('') }}>
+            <button style={{ ...btnSec2, flex: 1 }} onClick={() => { setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient(''); setAddError(''); setAddClassOnly(false) }}>
               Annuler
             </button>
             <button style={{ ...btnPrim, flex: 1, opacity: addLoading ? 0.7 : 1 }} onClick={handleAddSubject} disabled={addLoading}>

@@ -408,6 +408,118 @@ export function bootstrapHexagonal(app: Application): void {
     } catch (err) { next(err); }
   });
 
+  // ── PATCH /api/v2/schools/:id/structure ──────────────────────────────────
+  // Met à jour le nombre de classes par niveau et crée les nouvelles classes manquantes.
+  // Non-destructif : ne supprime jamais de classes existantes.
+  // Les nouvelles classes héritent automatiquement des SubjectCoefficients du niveau
+  // (qui sont partagés par niveau, pas par classe individuelle).
+  app.patch('/api/v2/schools/:id/structure', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+      const schoolId = req.params['id'] as string;
+      if (req.user!.schoolId !== schoolId) {
+        res.status(403).json({ success: false, message: 'Accès refusé' });
+        return;
+      }
+
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { onboardingConfig: true, templateCode: true },
+      });
+      if (!school) {
+        res.status(404).json({ success: false, message: 'École introuvable' });
+        return;
+      }
+
+      const currentConfig = (school.onboardingConfig ?? {}) as Record<string, unknown>;
+      const body = req.body as {
+        classesParNiveau?: Record<string, number>;
+        classesParNiveauPrimaire?: Record<string, number>;
+      };
+
+      if (!body.classesParNiveau && !body.classesParNiveauPrimaire) {
+        res.status(400).json({ success: false, message: 'Aucune mise à jour fournie' });
+        return;
+      }
+
+      // Fusionner les nouvelles valeurs dans le config existant
+      const newConfig: Record<string, unknown> = { ...currentConfig };
+      if (body.classesParNiveau) {
+        newConfig['classesParNiveau'] = {
+          ...(currentConfig['classesParNiveau'] as Record<string, number> | undefined ?? {}),
+          ...body.classesParNiveau,
+        };
+      }
+      if (body.classesParNiveauPrimaire) {
+        newConfig['classesParNiveauPrimaire'] = {
+          ...(currentConfig['classesParNiveauPrimaire'] as Record<string, number> | undefined ?? {}),
+          ...body.classesParNiveauPrimaire,
+        };
+      }
+
+      await prisma.school.update({ where: { id: schoolId }, data: { onboardingConfig: newConfig } });
+
+      // Calculer la liste complète des classes attendues depuis la config mise à jour
+      const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const conv = (newConfig['conventionNommage'] as string | undefined) ?? 'LETTRES';
+      const expectedClasses: { name: string; level: string }[] = [];
+
+      const niveaux1er = (newConfig['niveaux1erCycle'] as string[] | undefined) ?? [];
+      const cpn = newConfig['classesParNiveau'] as Record<string, number> | undefined;
+      for (const n of niveaux1er) {
+        const c = cpn?.[n] ?? 2;
+        for (let i = 0; i < Math.min(c, 26); i++) {
+          const s = conv === 'LETTRES' ? L[i]! : conv === 'CHIFFRES' ? `${i + 1}` : `${L[i]!}1`;
+          expectedClasses.push({ name: `${n} ${s}`, level: n });
+        }
+      }
+      const niveauxPrimaire = (newConfig['niveauxPrimaire'] as string[] | undefined) ?? [];
+      const cpnp = newConfig['classesParNiveauPrimaire'] as Record<string, number> | undefined;
+      for (const n of niveauxPrimaire) {
+        const c = cpnp?.[n] ?? 1;
+        for (let i = 0; i < Math.min(c, 26); i++) {
+          expectedClasses.push({ name: `${n} ${L[i]!}`, level: n });
+        }
+      }
+
+      // Trouver les classes manquantes
+      const existingClasses = await prisma.class.findMany({ where: { schoolId }, select: { name: true } });
+      const existingNames = new Set(existingClasses.map(c => c.name));
+      const toCreate = expectedClasses.filter(c => !existingNames.has(c.name));
+      const created: string[] = [];
+
+      if (toCreate.length > 0) {
+        const templateCode = (newConfig['templateCode'] as string | undefined) ?? school.templateCode ?? '';
+        const isAnglophone = getTemplateMeta(templateCode).isAnglophone;
+        const schoolSubjects = await prisma.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
+        const subjectByName = new Map(schoolSubjects.map(s => [s.name, s.id]));
+        const subjectCountRef = { value: 0 };
+
+        for (const cls of toCreate) {
+          await prisma.class.create({ data: { schoolId, name: cls.name, level: cls.level } });
+          created.push(cls.name);
+
+          // Si aucun SubjectCoefficient n'existe encore pour ce niveau, bootstrapper depuis le template.
+          // Sinon, la nouvelle classe hérite automatiquement des coefficients existants du niveau.
+          const existingCoeffs = await prisma.subjectCoefficient.count({ where: { schoolId, classLevel: cls.level } });
+          if (existingCoeffs === 0) {
+            await assignerMatieresPourClasse(
+              prisma, { name: cls.name, level: cls.level, filiere: null },
+              schoolId, newConfig, isAnglophone, subjectByName, subjectCountRef, templateCode,
+            );
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        message: created.length > 0
+          ? `${created.length} classe(s) créée(s) avec succès.`
+          : 'Aucune nouvelle classe à créer.',
+        data: { classesCreated: created, totalCreated: created.length },
+      });
+    } catch (err) { next(err); }
+  });
+
   // ── GET  /api/v2/schools/:id/notification-settings ───────────────────────
   app.get('/api/v2/schools/:id/notification-settings', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
     try {
@@ -736,9 +848,22 @@ export function bootstrapHexagonal(app: Application): void {
 
       const slot = await prisma.timetableSlot.findFirst({
         where: { id: slotId },
-        include: { timetable: { select: { schoolId: true } } },
+        include: { timetable: { select: { schoolId: true, classId: true } } },
       });
       if (!slot || slot.timetable.schoolId !== schoolId) { res.status(404).json({ success: false, message: 'Créneau introuvable.' }); return; }
+
+      // Vérifier que l'enseignant est bien assigné à cette matière pour cette classe
+      if (teacherId && subjectId) {
+        const assignment = await prisma.teachingAssignment.findUnique({
+          where: { classId_subjectId: { classId: slot.timetable.classId, subjectId } },
+        });
+        if (!assignment || assignment.teacherId !== teacherId) {
+          const msg = assignment
+            ? 'Cette matière est assignée à un autre enseignant pour cette classe.'
+            : 'Aucune affectation n\'existe pour cette matière dans cette classe. Assignez d\'abord l\'enseignant à la matière via la gestion des classes.';
+          res.status(400).json({ success: false, code: 'ENSEIGNANT_NON_ASSIGNE', message: msg }); return;
+        }
+      }
 
       if (teacherId) {
         // Vérification conflit horaire
@@ -761,11 +886,13 @@ export function bootstrapHexagonal(app: Application): void {
         }
 
         // Vérification volume AP (14h/semaine max)
-        const teacherProfile = await prisma.teacherProfile.findFirst({
-          where: { userId: teacherId },
-          select: { supervisedSubjectIds: true },
-        });
-        const isAP = teacherProfile && teacherProfile.supervisedSubjectIds.length > 0;
+        // Un enseignant est AP s'il a supervisedSubjectIds (via DesignerAPUseCase)
+        // OU s'il est headId d'un département (via DepartmentController)
+        const [teacherProfile, isHeadOfDept] = await Promise.all([
+          prisma.teacherProfile.findFirst({ where: { userId: teacherId }, select: { supervisedSubjectIds: true } }),
+          prisma.department.findFirst({ where: { headId: teacherId, schoolId }, select: { id: true } }),
+        ]);
+        const isAP = (teacherProfile && teacherProfile.supervisedSubjectIds.length > 0) || !!isHeadOfDept;
         if (isAP) {
           const slotsAP = await prisma.timetableSlot.count({
             where: {
@@ -921,6 +1048,8 @@ export function bootstrapHexagonal(app: Application): void {
           },
           studentProfile: { select: { id: true, class: { select: { id: true, name: true } } } },
           staffProfile: { select: { id: true, title: true } },
+          classesProfessorPrincipal: { select: { id: true, name: true, _count: { select: { students: true } } } },
+          headedDepartments: { select: { id: true, name: true, color: true, subjects: { select: { id: true, name: true } } } },
         },
       });
       if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return; }
@@ -997,27 +1126,57 @@ export function bootstrapHexagonal(app: Application): void {
             ? syncParseSerie(cls.name, cls.level)
             : null);
 
-        const coefficients = await prisma.subjectCoefficient.findMany({
-          where: {
-            schoolId,
-            classLevel: cls.level ?? undefined,
-            OR: resolvedSerie
-              ? [{ serieCode: resolvedSerie }, { serieCode: null }]
-              : [{ serieCode: null }],
-          },
-          include: { subject: { select: { id: true, name: true, code: true } } },
-          orderBy: { subject: { name: 'asc' } },
-        });
+        // 1er cycle FR : stocké avec serieCode='FR_GENERAL' (ou filière si définie)
+        const isCycle1 = cls.level != null && (['6e','5e','4e','3e'] as string[]).includes(cls.level);
+        const cycle1Filiere = cls.filiere ?? 'FR_GENERAL';
 
-        const data = coefficients.map(c => ({
-          id:          c.id,
-          subjectId:   c.subjectId,
-          name:        c.subject.name,
-          code:        c.subject.code,
-          coefficient: c.coefficient,
-          classLevel:  c.classLevel,
-          serieCode:   c.serieCode,
-        }));
+        const [coefficients, overrides] = await Promise.all([
+          prisma.subjectCoefficient.findMany({
+            where: {
+              schoolId,
+              classLevel: cls.level ?? undefined,
+              OR: isCycle1
+                ? [{ serieCode: cycle1Filiere }, { serieCode: null }]
+                : resolvedSerie
+                  ? [{ serieCode: resolvedSerie }, { serieCode: null }]
+                  : [{ serieCode: null }],
+            },
+            include: { subject: { select: { id: true, name: true, code: true } } },
+            orderBy: { subject: { name: 'asc' } },
+          }),
+          prisma.classSubjectOverride.findMany({
+            where: { classId, schoolId },
+            include: { subject: { select: { id: true, name: true, code: true } } },
+            orderBy: { subject: { name: 'asc' } },
+          }),
+        ]);
+
+        // Les overrides prennent priorité : on exclut les matières déjà couvertes par un override
+        const overrideSubjectIds = new Set(overrides.map(o => o.subjectId));
+        const sharedCoeffs = coefficients.filter(c => !overrideSubjectIds.has(c.subjectId));
+
+        const data = [
+          ...sharedCoeffs.map(c => ({
+            id:          c.id,
+            subjectId:   c.subjectId,
+            name:        c.subject.name,
+            code:        c.subject.code,
+            coefficient: c.coefficient,
+            classLevel:  c.classLevel,
+            serieCode:   c.serieCode,
+            classOnly:   false,
+          })),
+          ...overrides.map(o => ({
+            id:          o.id,
+            subjectId:   o.subjectId,
+            name:        o.subject.name,
+            code:        o.subject.code,
+            coefficient: o.coefficient,
+            classLevel:  cls.level ?? null,
+            serieCode:   null,
+            classOnly:   true,
+          })),
+        ].sort((a, b) => a.name.localeCompare(b.name));
 
         res.json({ success: true, data, className: cls.name });
         return;

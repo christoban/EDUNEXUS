@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, ChevronDown, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -284,7 +285,10 @@ export default function LoginPage() {
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 40, background: '#f7f3ee', position: 'relative'
       }}>
-        <div style={{ width: '100%', maxWidth: 530, position: 'relative', zIndex: 1 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          style={{ width: '100%', maxWidth: 530, position: 'relative', zIndex: 1 }}>
 
           {/* ══ BLOC SUSPENSION — remplace le formulaire ══ */}
           {suspended ? (
@@ -556,7 +560,7 @@ export default function LoginPage() {
         </>
         )}
 
-        </div>
+        </motion.div>
       </div>
 
       {/* ══ MODAL SUCCÈS ══ */}

@@ -97,8 +97,9 @@ model School {
   studentPromotions    StudentPromotion[]
   subjects             Subject[]
   departments          Department[]
-  subjectCoefficients  SubjectCoefficient[]
-  timetables           Timetable[]
+  subjectCoefficients    SubjectCoefficient[]
+  classSubjectOverrides  ClassSubjectOverride[]
+  timetables             Timetable[]
   timetableGridConfig  TimetableGridConfig?
   users                User[]
   submissions          Submission[]
@@ -379,6 +380,20 @@ model SubjectCoefficient {
   @@index([schoolId])
 }
 
+model ClassSubjectOverride {
+  id          String  @id @default(cuid())
+  schoolId    String
+  classId     String
+  subjectId   String
+  coefficient Float
+  school      School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class       Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([classId, subjectId])
+  @@index([schoolId])
+}
+
 model BacCoefficient {
   id                String         @id @default(cuid())
   subjectName       String
@@ -562,6 +577,7 @@ model Class {
   fromPromotions        ClassPromotion[]      @relation("FromClass")
   toPromotions          ClassPromotion[]      @relation("ToClass")
   teachingAssignments   TeachingAssignment[]
+  subjectOverrides      ClassSubjectOverride[]
 
   @@index([schoolId])
 }
@@ -582,6 +598,7 @@ model Subject {
   reportCardSubjectLines ReportCardSubjectLine[]
   school                 School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   subjectCoefficients    SubjectCoefficient[]
+  classSubjectOverrides  ClassSubjectOverride[]
   teacherSubjects        TeacherSubject[]
   timetableSlots         TimetableSlot[]
   teachingAssignments    TeachingAssignment[]
@@ -1365,6 +1382,7 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
+  ABSENT_JUSTIFIED
 }
 
 enum TimetableStatus {

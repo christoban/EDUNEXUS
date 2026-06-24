@@ -9,6 +9,7 @@ import type { PrismaClient } from '@prisma/client';
 import {
   assignerMatieresPourClasse,
   parseSerie,
+  NIVEAU_MAP,
 } from './SubjectAssignmentHelper';
 import { getTemplateMeta, isPEBSFrancophoneEligible, isPEBSAnglophoneEligible } from './schoolTemplateConfig';
 
@@ -198,17 +199,30 @@ export class ActiverEtablissementUseCase {
 
         if (config.niveaux2eCycle?.length > 0 && config.filieres?.length > 0) {
           const nbClasses = config.classesParFiliere === '3+' ? 3 : parseInt(config.classesParFiliere ?? '1');
+
+          // Pré-charger les combinaisons (niveauBac, serie) valides — source de vérité MINESEC
+          const bacCombosRaw = await tx.bacCoefficient.findMany({
+            select: { serie: true, niveau: true },
+            distinct: ['serie', 'niveau'],
+          });
+          const validBacCombos = new Set(bacCombosRaw.map(b => `${b.niveau}|${b.serie}`));
+
           for (const niveau of config.niveaux2eCycle) {
+            const niveauBac = NIVEAU_MAP[niveau];
             for (const filiere of config.filieres) {
               if (niveau === '2nde' && estFiliereTechnique(filiere)) continue;
 
               if (filiere.startsWith('A4') || filiere.includes('A4')) {
+                // Vérifie que A4 existe à ce niveau avant de créer
+                if (niveauBac && !validBacCombos.has(`${niveauBac}|A4`)) continue;
                 const langs = config.a4Languages?.length ? config.a4Languages : ['LV'];
                 for (const lang of langs) {
                   classesACreer.push({ name: `${niveau} A4-${lang}`, level: niveau, schoolId, serie: `A4-${lang}` });
                 }
               } else {
                 const serie = extraireSerie(filiere);
+                // Rejeter les séries inexistantes à ce niveau (ex: D en 2nde, TI en 2nde)
+                if (niveauBac && !validBacCombos.has(`${niveauBac}|${serie}`)) continue;
                 for (let i = 0; i < nbClasses; i++) {
                   const suffix = nbClasses > 1 ? ` ${LETTRES[i]}` : '';
                   classesACreer.push({ name: `${niveau} ${serie}${suffix}`, level: niveau, schoolId, serie });

@@ -14,7 +14,7 @@ interface AuditLog  { id: string; createdAt: string; action: string; description
 interface NotifSettings { smsAbsences: boolean; smsPayments: boolean; smsBulletins: boolean; emailDigestAdmin: boolean; smsLowBalance: boolean }
 interface SecSettings   { passwordMinLength: number; passwordRequireUpper: boolean; passwordRequireDigit: boolean; sessionTimeoutMin: number }
 
-const TABS = ['Profil', 'Notifications', 'Sécurité', 'Pédagogie', 'Préférences', 'Activités', 'Emails']
+const TABS = ['Profil', 'Notifications', 'Sécurité', 'Pédagogie', 'Préférences', 'Activités', 'Emails', 'Structure']
 
 const NOTIF_ROWS: Array<{ key: keyof NotifSettings; icon: string; label: string; sub: string }> = [
   { key: 'smsAbsences',      icon: '📱', label: 'SMS Absences',              sub: 'Envoyer un SMS au parent quand son enfant est marqué absent' },
@@ -92,6 +92,15 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [actData, setActData]               = useState<{ logs: ActivityLog[]; page: number; pages: number; total: number } | null>(null)
   const [actLoading, setActLoading]         = useState(false)
 
+  // ── Structure ────────────────────────────────────────────────────────────
+  const [structConfig, setStructConfig] = useState<{
+    niveaux1erCycle: string[]; classesParNiveau: Record<string, number>
+    niveauxPrimaire: string[]; classesParNiveauPrimaire: Record<string, number>
+  } | null>(null)
+  const [structEdit, setStructEdit]   = useState<Record<string, number>>({})
+  const [structSaving, setStructSaving] = useState(false)
+  const [structResult, setStructResult] = useState<string[] | null>(null)
+
   // ── Email logs ────────────────────────────────────────────────────────────
   const [emlPage, setEmlPage]               = useState(1)
   const [emlSearchInput, setEmlSearchInput] = useState('')
@@ -99,6 +108,57 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [emlStatus, setEmlStatus]           = useState('')
   const [emlData, setEmlData]               = useState<{ logs: EmailLog[]; pagination: { total: number; page: number; pages: number; limit: number } } | null>(null)
   const [emlLoading, setEmlLoading]         = useState(false)
+
+  // ── Structure load ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== 7 || structConfig !== null || !schoolInfo?.id) return
+    fetchApi('/api/v2/school/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        const cfg = d.data?.onboardingConfig
+        if (!cfg) return
+        const parsed = {
+          niveaux1erCycle: cfg.niveaux1erCycle ?? [],
+          classesParNiveau: cfg.classesParNiveau ?? {},
+          niveauxPrimaire: cfg.niveauxPrimaire ?? [],
+          classesParNiveauPrimaire: cfg.classesParNiveauPrimaire ?? {},
+        }
+        setStructConfig(parsed)
+        setStructEdit({ ...parsed.classesParNiveau, ...parsed.classesParNiveauPrimaire })
+      })
+      .catch(() => onToast('Erreur chargement structure', 'error'))
+  }, [activeTab, schoolInfo?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleStructSave = async () => {
+    if (!schoolInfo?.id || !structConfig) return
+    setStructSaving(true); setStructResult(null)
+    try {
+      const classesParNiveau: Record<string, number> = {}
+      const classesParNiveauPrimaire: Record<string, number> = {}
+      for (const n of structConfig.niveaux1erCycle) {
+        const v = structEdit[n]
+        if (v !== undefined) classesParNiveau[n] = Math.max(1, Math.min(26, v))
+      }
+      for (const n of structConfig.niveauxPrimaire) {
+        const v = structEdit[n]
+        if (v !== undefined) classesParNiveauPrimaire[n] = Math.max(1, Math.min(26, v))
+      }
+      const res = await fetchApi(`/api/v2/schools/${schoolInfo.id}/structure`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classesParNiveau, classesParNiveauPrimaire }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message ?? 'Erreur serveur')
+      setStructResult(d.data?.classesCreated ?? [])
+      setStructConfig(null) // forcer rechargement
+      onToast(d.message, 'success')
+    } catch (e) {
+      onToast(String(e), 'error')
+    } finally {
+      setStructSaving(false)
+    }
+  }
 
   // ── Init profil from schoolInfo ─────────────────────────────────────────
   useEffect(() => {
@@ -885,6 +945,81 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Onglet Structure ── */}
+      {activeTab === 7 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ background: '#fef3c7', border: '1.5px solid #f59e0b', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
+            ⚠️ Cette action crée uniquement les classes manquantes. Elle ne supprime aucune classe existante ni aucune matière déjà configurée.
+          </div>
+
+          {!structConfig && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+              <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
+            </div>
+          )}
+
+          {structConfig && (
+            <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+              <div style={cardHeader}>
+                <span style={cardTitle}>🏫 Nombre de classes par niveau</span>
+              </div>
+              <div style={{ padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[...structConfig.niveaux1erCycle, ...structConfig.niveauxPrimaire].length === 0 && (
+                  <div style={{ color: '#a89478', fontSize: 15 }}>Aucun niveau configuré.</div>
+                )}
+                {[...structConfig.niveaux1erCycle, ...structConfig.niveauxPrimaire].map(niveau => (
+                  <div key={niveau} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <span style={{ minWidth: 60, fontSize: 16, fontWeight: 800, color: '#1a1209' }}>{niveau}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button onClick={() => setStructEdit(e => ({ ...e, [niveau]: Math.max(1, (e[niveau] ?? structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1) - 1) }))}
+                        style={{ width: 34, height: 34, borderRadius: 8, border: '1.5px solid #d4c8b8', background: 'white', fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontFamily: 'inherit' }}>−</button>
+                      <span style={{ minWidth: 32, textAlign: 'center', fontSize: 18, fontWeight: 800, color: '#059669' }}>
+                        {structEdit[niveau] ?? structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1}
+                      </span>
+                      <button onClick={() => setStructEdit(e => ({ ...e, [niveau]: Math.min(26, (e[niveau] ?? structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1) + 1) }))}
+                        style={{ width: 34, height: 34, borderRadius: 8, border: '1.5px solid #d4c8b8', background: 'white', fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontFamily: 'inherit' }}>+</button>
+                    </div>
+                    <span style={{ fontSize: 13, color: '#a89478' }}>
+                      {(() => {
+                        const current = structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1
+                        const next = structEdit[niveau] ?? current
+                        const diff = next - current
+                        if (diff > 0) return `+${diff} classe(s) à créer`
+                        if (diff < 0) return `(réduction ignorée — classes existantes conservées)`
+                        return `actuel : ${current} classe(s)`
+                      })()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {structResult !== null && structResult.length > 0 && (
+            <div style={{ background: '#d1fae5', border: '1.5px solid #059669', borderRadius: 12, padding: '14px 18px' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#047857', marginBottom: 8 }}>✅ Classes créées :</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {structResult.map(n => (
+                  <span key={n} style={{ padding: '4px 12px', borderRadius: 20, background: 'white', border: '1px solid #059669', fontSize: 14, fontWeight: 700, color: '#047857' }}>{n}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {structResult !== null && structResult.length === 0 && (
+            <div style={{ background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: '#6b5c45', fontWeight: 600 }}>
+              ℹ️ Aucune nouvelle classe à créer — toutes les classes attendues existent déjà.
+            </div>
+          )}
+
+          {structConfig && (
+            <button onClick={handleStructSave} disabled={structSaving}
+              style={{ ...btnPrim, alignSelf: 'flex-start', opacity: structSaving ? 0.7 : 1, cursor: structSaving ? 'wait' : 'pointer' }}>
+              {structSaving ? '⏳ Mise à jour…' : '🏗️ Appliquer la structure'}
+            </button>
+          )}
         </div>
       )}
 
