@@ -236,11 +236,20 @@ export class ImporterUtilisateursUseCase {
         const ppName = existingPP ? `${existingPP.firstName} ${existingPP.lastName}` : 'inconnu'
         ppError = `Classe '${className}' a déjà un Professeur Principal (${ppName})`
       } else {
-        await this.prisma.class.update({
-          where: { id: classe.id },
-          data: { professorPrincipalId: teacherUser.id },
+        // Vérifier que cet enseignant n'est pas déjà PP d'une autre classe
+        const autreClasse = await this.prisma.class.findFirst({
+          where: { professorPrincipalId: teacherUser.id, schoolId, id: { not: classe.id } },
+          select: { name: true },
         })
-        ppAssigned = true
+        if (autreClasse) {
+          ppError = `Cet enseignant est déjà Professeur Principal de '${autreClasse.name}'. Un enseignant ne peut être PP que d'une seule classe.`
+        } else {
+          await this.prisma.class.update({
+            where: { id: classe.id },
+            data: { professorPrincipalId: teacherUser.id },
+          })
+          ppAssigned = true
+        }
       }
     }
 

@@ -102,10 +102,23 @@ export class DepartmentController {
             // Vérifier que le nouveau head est un enseignant
             const newHead = await this.prisma.user.findUnique({
               where: { id: newHeadId },
-              select: { role: true },
+              select: { role: true, firstName: true, lastName: true },
             });
             if (!newHead || newHead.role !== 'TEACHER') {
               res.status(400).json({ success: false, message: 'L\'Animateur Pédagogique doit être un enseignant (TEACHER).' });
+              return;
+            }
+
+            // Un enseignant ne peut être Animateur Pédagogique que d'un seul département
+            const deptExistant = await this.prisma.department.findFirst({
+              where: { headId: newHeadId, id: { not: departmentId } },
+              select: { name: true },
+            });
+            if (deptExistant) {
+              res.status(409).json({
+                success: false,
+                message: `${newHead.firstName} ${newHead.lastName} est déjà Animateur Pédagogique du département "${deptExistant.name}". Un enseignant ne peut être AP que d'un seul département.`,
+              });
               return;
             }
 

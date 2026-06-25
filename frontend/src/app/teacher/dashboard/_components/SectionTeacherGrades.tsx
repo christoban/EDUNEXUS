@@ -181,6 +181,9 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
   const submitGrades = async () => {
     if (!selectedClass || !selectedSubject || !selectedSequence) return
     const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
+    const gradesPayload = Object.entries(notes).map(([studentId, value]) => ({
+      studentId, value, observation: observations[studentId] || '',
+    }))
 
     if (!isOnline) {
       await addToQueue({
@@ -196,6 +199,17 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
     setSaving(true)
     try {
+      const draftRes = await fetchApi('/api/v2/grades/draft', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload }),
+      }).then(r => r.json())
+      if (!draftRes.success) {
+        onToast(draftRes.message || 'Erreur lors de la sauvegarde', 'error')
+        return
+      }
+
       const res = await fetchApi('/api/v2/grades/submit', {
         method: 'POST',
         credentials: 'include',
@@ -203,7 +217,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence }),
       }).then(r => r.json())
       if (res.success) {
-        onToast('Notes soumises pour validation', 'success')
+        onToast(`Notes soumises pour validation (${res.data?.count ?? '?'} note(s))`, 'success')
         await db.cachedData.delete(draftKey)
         loadGrades()
       } else {
@@ -216,7 +230,10 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     }
   }
 
-  const validatedCount = grades.filter((g: any) => g.validationStatus === 'VALIDATED' || g.validationStatus === 'SUBMITTED').length
+  const validatedCount = grades.filter((g: any) => g.validationStatus === 'VALIDATED' || g.validationStatus === 'LOCKED').length
+  const draftCount = grades.filter((g: any) => g.validationStatus === 'DRAFT' || !g.validationStatus).length
+  const rejectedCount = grades.filter((g: any) => g.validationStatus === 'REJECTED').length
+  const modifiableCount = draftCount + rejectedCount
 
   if (loading && !grades.length) {
     return (
@@ -292,7 +309,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         <div style={{ padding: '14px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <select style={filterSt} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
             <option value="">Classe</option>
-            {classes.map((c: any) => <option key={c.id} value={c.id}>{c.level || ''} {c.name} {c.serie || ''}</option>)}
+            {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select style={filterSt} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
             <option value="">Matière</option>
@@ -368,15 +385,23 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
             <div style={{ padding: '14px 22px', borderTop: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: 15, color: '#a89478', fontWeight: 600 }}>
-                {grades.filter((g: any) => g.validationStatus === 'DRAFT' || !g.validationStatus).length} brouillon{grades.filter((g: any) => g.validationStatus === 'DRAFT' || !g.validationStatus).length > 1 ? 's' : ''} · {grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length} soumise{grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length > 1 ? 's' : ''}
+                {draftCount} brouillon{draftCount > 1 ? 's' : ''}{rejectedCount > 0 ? ` · ${rejectedCount} rejetée${rejectedCount > 1 ? 's' : ''}` : ''} · {grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length} soumise{grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length > 1 ? 's' : ''}
               </span>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button style={btnSec} onClick={saveDraft} disabled={saving}>
-                  {saving ? '...' : '💾 Brouillon'}
-                </button>
-                <button style={btnPrim} onClick={submitGrades} disabled={saving}>
-                  {saving ? '...' : isOnline ? '📤 Soumettre pour validation' : '📶 Mettre en file d\'attente'}
-                </button>
+                {modifiableCount > 0 ? (
+                  <>
+                    <button style={btnSec} onClick={saveDraft} disabled={saving}>
+                      {saving ? '...' : '💾 Brouillon'}
+                    </button>
+                    <button style={btnPrim} onClick={submitGrades} disabled={saving}>
+                      {saving ? '...' : isOnline ? '📤 Soumettre pour validation' : '📶 Mettre en file d\'attente'}
+                    </button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 15, color: '#059669', fontWeight: 700 }}>
+                    ✅ Toutes les notes sont soumises ou en cours de validation
+                  </span>
+                )}
               </div>
             </div>
           </>

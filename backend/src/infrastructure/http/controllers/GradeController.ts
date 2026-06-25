@@ -5,10 +5,12 @@ import type { ValiderNoteUseCase } from '@application/grade/ValiderNoteUseCase';
 import type { RejeterNoteUseCase } from '@application/grade/RejeterNoteUseCase';
 import type { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
 import { validerSaisirNoteDto } from '@infrastructure/http/dto/grade.dto';
+import { Note } from '@domain/entities/Note';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import type { GradeValidationStatus } from '@domain/types/enums';
 
 export class GradeController {
   constructor(
@@ -129,7 +131,14 @@ export class GradeController {
         where: { id: sequenceId },
         include: { academicPeriod: { select: { academicYearId: true } } },
       });
-      const academicYearId = sequence?.academicPeriod?.academicYearId || '';
+      const academicYearId = sequence?.academicPeriod?.academicYearId;
+      if (!academicYearId) {
+        res.status(400).json({
+          success: false,
+          message: `Séquence introuvable (id: ${sequenceId}) — impossible de déterminer l'année académique`,
+        });
+        return;
+      }
 
       const results = [];
       for (const g of grades) {
@@ -138,7 +147,36 @@ export class GradeController {
           where: { schoolId: user.schoolId, classId, subjectId, sequenceId, studentId: g.studentId },
         });
         if (existing) {
-          if (existing.validationStatus !== 'DRAFT' && existing.validationStatus !== 'REJECTED') continue;
+          const noteEntity = Note.reconstituer({
+            id: existing.id,
+            schoolId: existing.schoolId,
+            studentId: existing.studentId,
+            subjectId: existing.subjectId,
+            classId: existing.classId,
+            academicYearId: existing.academicYearId,
+            sequenceId: existing.sequenceId,
+            recordedById: existing.recordedById ?? undefined,
+            sequenceScore: existing.sequenceScore ?? undefined,
+            classTestScore: existing.classTestScore ?? undefined,
+            terminalExamScore: existing.terminalExamScore ?? undefined,
+            theoreticalScore: existing.theoreticalScore ?? undefined,
+            practicalScore: existing.practicalScore ?? undefined,
+            professionalAttitude: existing.professionalAttitude ?? undefined,
+            oralScore: existing.oralScore ?? undefined,
+            selfDevelopmentScore: existing.selfDevelopmentScore ?? undefined,
+            coefficient: existing.coefficient,
+            maxValue: existing.maxValue,
+            sequenceAverage: existing.sequenceAverage ?? undefined,
+            validationStatus: existing.validationStatus as GradeValidationStatus,
+            validatedById: existing.validatedById ?? undefined,
+            validatedAt: existing.validatedAt ?? undefined,
+            rejectionReason: existing.rejectionReason ?? undefined,
+            observation: existing.observation ?? undefined,
+            isOfflineSync: existing.isOfflineSync,
+            syncedAt: existing.syncedAt ?? undefined,
+            createdAt: existing.createdAt,
+          });
+          if (!noteEntity.peutEtreModifiee()) continue;
           const updated = await prisma.grade.update({
             where: { id: existing.id },
             data: {
@@ -146,6 +184,7 @@ export class GradeController {
               sequenceAverage: Number(g.value),
               maxValue: 20,
               rejectionReason: null,
+              observation: g.observation || null,
               validationStatus: 'DRAFT',
               recordedById: user.userId,
             } as any,
@@ -163,6 +202,7 @@ export class GradeController {
               sequenceScore: Number(g.value),
               sequenceAverage: Number(g.value),
               maxValue: 20,
+              observation: g.observation || null,
               validationStatus: 'DRAFT',
               recordedById: user.userId,
             } as any,
@@ -202,11 +242,16 @@ export class GradeController {
           classId,
           subjectId,
           sequenceId,
-          validationStatus: 'DRAFT',
+          validationStatus: { in: ['DRAFT', 'REJECTED'] },
           recordedById: user.userId,
         },
-        data: { validationStatus: 'SUBMITTED' },
+        data: { validationStatus: 'SUBMITTED', rejectionReason: null },
       });
+
+      if (result.count === 0) {
+        res.status(404).json({ success: false, message: 'Aucune note à soumettre (DRAFT ou REJECTED) trouvée pour cette classe/matière/séquence. Vérifie que les notes ont bien été sauvegardées.' });
+        return;
+      }
 
       res.json({ success: true, data: { count: result.count } });
     } catch (error) {
@@ -242,7 +287,14 @@ export class GradeController {
           res.json({ grades: [], pagination: { total: 0, page: 1, pages: 0 } });
           return;
         }
-        where.subjectId = { in: assignedSubjectIds };
+        if (subjectId) {
+          if (!assignedSubjectIds.includes(subjectId)) {
+            res.json({ grades: [], pagination: { total: 0, page: 1, pages: 0 } });
+            return;
+          }
+        } else {
+          where.subjectId = { in: assignedSubjectIds };
+        }
       } else if (role === 'PARENT') {
         const parentProfile = await prisma.parentProfile.findUnique({
           where: { userId },

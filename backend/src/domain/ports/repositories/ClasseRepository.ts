@@ -17,6 +17,12 @@ export interface ClasseRepository {
    */
   existsByName(schoolId: string, name: string, excludeId?: string): Promise<boolean>;
 
+  /**
+   * Retourne la classe dont cet enseignant est professeur principal (null si aucune).
+   * Utilisé pour la règle : un enseignant ne peut être PP que d'une seule classe.
+   */
+  findClasseDeProfPrincipal(teacherUserId: string): Promise<Classe | null>;
+
   // Écriture
   save(classe: Classe): Promise<void>;
   update(classe: Classe): Promise<void>;

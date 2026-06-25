@@ -7,6 +7,9 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   console.error(`[ERROR] ${error.name} : ${error.message}`);
+  if ('meta' in error) {
+    try { console.error(`[ERROR_META] ${JSON.stringify((error as any).meta)}`); } catch {}
+  }
 
   res.status(500).json({
     success: false,
@@ -14,6 +17,7 @@ export function errorHandler(
     ...(process.env.NODE_ENV === 'development' && {
       detail: error.message,
       stack: error.stack,
+      meta: 'meta' in error ? (error as any).meta : undefined,
     }),
   });
 }

@@ -38,6 +38,7 @@ export interface NoteProps {
   validatedById?: string;
   validatedAt?: Date;
   rejectionReason?: string;
+  observation?: string;
 
   isOfflineSync: boolean;
   syncedAt?: Date;

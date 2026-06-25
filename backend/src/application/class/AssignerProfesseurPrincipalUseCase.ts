@@ -36,6 +36,14 @@ export class AssignerProfesseurPrincipalUseCase {
       throw new Error("Cet enseignant n'appartient pas à votre établissement");
     }
 
+    // Un enseignant ne peut être Professeur Principal que d'une seule classe
+    const classeExistante = await this.classeRepository.findClasseDeProfPrincipal(commande.teacherUserId);
+    if (classeExistante && classeExistante.id !== commande.classeId) {
+      throw new Error(
+        `L'enseignant "${enseignant.nomComplet}" est déjà Professeur Principal de la classe "${classeExistante.name}". Un enseignant ne peut être PP que d'une seule classe.`
+      );
+    }
+
     classe.assignerProfesseurPrincipal(commande.teacherUserId);
     await this.classeRepository.update(classe);
   }

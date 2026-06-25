@@ -81,6 +81,13 @@ export class PrismaClasseRepository implements ClasseRepository {
     return existing !== null;
   }
 
+  async findClasseDeProfPrincipal(teacherUserId: string): Promise<Classe | null> {
+    const data = await this.prisma.class.findFirst({
+      where: { professorPrincipalId: teacherUserId },
+    });
+    return data ? this.toDomain(data) : null;
+  }
+
   async supprimerAvecCascade(classeId: string): Promise<void> {
     const classe = await this.prisma.class.findUnique({
       where: { id: classeId },

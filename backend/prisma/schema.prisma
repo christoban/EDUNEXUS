@@ -561,7 +561,7 @@ model Class {
   createdAt             DateTime              @default(now())
   filiere               String?
   serie                 String?
-  professorPrincipalId  String?
+  professorPrincipalId  String?               @unique
   attendances           Attendance[]
   school                School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   section               Section?              @relation(fields: [sectionId], references: [id])
@@ -612,7 +612,7 @@ model Department {
   schoolId  String
   name      String
   color     String    @default("#6b7280")
-  headId    String?
+  headId    String?   @unique
 
   school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   head      User?     @relation("DepartmentHead", fields: [headId], references: [id])
@@ -696,6 +696,7 @@ model Grade {
   validatedById        String?
   validatedAt          DateTime?
   rejectionReason      String?
+  observation          String?
   isOfflineSync        Boolean               @default(false)
   syncedAt             DateTime?
   createdAt            DateTime              @default(now())

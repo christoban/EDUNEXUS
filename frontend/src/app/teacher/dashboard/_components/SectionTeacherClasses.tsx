@@ -112,7 +112,7 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
 
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 }}>
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 33, fontWeight: 700, color: '#1a1209' }}>
-                  {cls.level || ''} {cls.name} {cls.serie || ''}
+                  {cls.name}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {isPP && (
