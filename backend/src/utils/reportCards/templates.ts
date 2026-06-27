@@ -41,6 +41,21 @@ type BulletinData = {
   isOfficial?: boolean;
 };
 
+// ─── Helper : finalise un PDFDocument et retourne le Buffer ──────
+function finalizePdf(
+  doc: InstanceType<typeof PDFDocument>,
+  build: (doc: InstanceType<typeof PDFDocument>) => void
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const buffers: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => buffers.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(buffers)));
+    doc.on("error", reject);
+    build(doc);
+    doc.end();
+  });
+}
+
 // ─── COLONNES MATIÈRES (tableau) ─────────────────────────────
 const drawSubjectTable = (
   doc: InstanceType<typeof PDFDocument>,
@@ -52,7 +67,6 @@ const drawSubjectTable = (
   let x = 36;
   columns.forEach((col) => { colX.push(x); x += col.width; });
 
-  // En-têtes colonnes
   const headerY = doc.y;
   doc.rect(36, headerY, 524, 16).fill("#1e293b");
   columns.forEach((col, i) => {
@@ -62,7 +76,6 @@ const drawSubjectTable = (
   doc.fillColor("black");
   doc.y = headerY + 18;
 
-  // Lignes matières
   subjectLines.forEach((line, rowIndex) => {
     const rowY = doc.y;
     if (rowIndex % 2 === 0) {
@@ -95,220 +108,170 @@ const drawSubjectTable = (
 };
 
 // ─── TEMPLATE 1 : FR_SECONDARY ───────────────────────────────
-export const generateFrSecondaryBulletin = (data: BulletinData): Buffer => {
+export const generateFrSecondaryBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
-  const buffers: Buffer[] = [];
-  doc.on("data", (chunk) => buffers.push(chunk));
-
-  drawBulletinHeader(doc, { ...data, template: "FR_SECONDARY" });
-
-  const columns = [
-    { label: "MATIÈRE", key: "subjectName" as keyof SubjectLine, width: 150 },
-    { label: "COEFF", key: "coefficient" as keyof SubjectLine, width: 40 },
-    { label: "DS 1", key: "seq1Score" as keyof SubjectLine, width: 50 },
-    { label: "DS 2", key: "seq2Score" as keyof SubjectLine, width: 50 },
-    { label: "COMPO", key: "compositionScore" as keyof SubjectLine, width: 50 },
-    { label: "MOY /20", key: "average" as keyof SubjectLine, width: 60 },
-    { label: "APPRÉCIATION", key: "teacherComment" as keyof SubjectLine, width: 124 },
-  ];
-
-  drawSubjectTable(doc, data.subjectLines, columns, "fr");
-
-  drawBulletinFooter(doc, {
-    generalAverage: data.generalAverage,
-    mention: data.mention || getMentionFr(data.generalAverage),
-    classMasterComment: data.classMasterComment,
-    isOfficial: data.isOfficial,
-    language: "fr",
+  return finalizePdf(doc, (d) => {
+    drawBulletinHeader(d, { ...data, template: "FR_SECONDARY" });
+    drawSubjectTable(d, data.subjectLines, [
+      { label: "MATIÈRE", key: "subjectName", width: 150 },
+      { label: "COEFF",   key: "coefficient", width: 40  },
+      { label: "DS 1",    key: "seq1Score",   width: 50  },
+      { label: "DS 2",    key: "seq2Score",   width: 50  },
+      { label: "COMPO",   key: "compositionScore", width: 50 },
+      { label: "MOY /20", key: "average",     width: 60  },
+      { label: "APPRÉCIATION", key: "teacherComment", width: 124 },
+    ], "fr");
+    drawBulletinFooter(d, {
+      generalAverage: data.generalAverage,
+      mention: data.mention || getMentionFr(data.generalAverage),
+      classMasterComment: data.classMasterComment,
+      isOfficial: data.isOfficial,
+      language: "fr",
+    });
   });
-
-  doc.end();
-  return Buffer.concat(buffers);
 };
 
 // ─── TEMPLATE 2 : EN_SECONDARY ───────────────────────────────
-export const generateEnSecondaryBulletin = (data: BulletinData): Buffer => {
+export const generateEnSecondaryBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
-  const buffers: Buffer[] = [];
-  doc.on("data", (chunk) => buffers.push(chunk));
-
-  drawBulletinHeader(doc, { ...data, template: "EN_SECONDARY" });
-
-  const columns = [
-    { label: "SUBJECT", key: "subjectName" as keyof SubjectLine, width: 160 },
-    { label: "COEFF", key: "coefficient" as keyof SubjectLine, width: 40 },
-    { label: "CLASS TEST", key: "classTestScore" as keyof SubjectLine, width: 65 },
-    { label: "EXAM", key: "terminalExamScore" as keyof SubjectLine, width: 65 },
-    { label: "AVG /20", key: "average" as keyof SubjectLine, width: 60 },
-    { label: "TEACHER COMMENT", key: "teacherComment" as keyof SubjectLine, width: 134 },
-  ];
-
-  drawSubjectTable(doc, data.subjectLines, columns, "en");
-
-  drawBulletinFooter(doc, {
-    generalAverage: data.generalAverage,
-    mention: data.mention || getMentionEn(data.generalAverage),
-    classMasterComment: data.classMasterComment,
-    isOfficial: data.isOfficial,
-    language: "en",
+  return finalizePdf(doc, (d) => {
+    drawBulletinHeader(d, { ...data, template: "EN_SECONDARY" });
+    drawSubjectTable(d, data.subjectLines, [
+      { label: "SUBJECT",          key: "subjectName",      width: 160 },
+      { label: "COEFF",            key: "coefficient",      width: 40  },
+      { label: "CLASS TEST",       key: "classTestScore",   width: 65  },
+      { label: "EXAM",             key: "terminalExamScore",width: 65  },
+      { label: "AVG /20",          key: "average",          width: 60  },
+      { label: "TEACHER COMMENT",  key: "teacherComment",   width: 134 },
+    ], "en");
+    drawBulletinFooter(d, {
+      generalAverage: data.generalAverage,
+      mention: data.mention || getMentionEn(data.generalAverage),
+      classMasterComment: data.classMasterComment,
+      isOfficial: data.isOfficial,
+      language: "en",
+    });
   });
-
-  doc.end();
-  return Buffer.concat(buffers);
 };
 
 // ─── TEMPLATE 3 : TECHNICAL_FR ───────────────────────────────
-export const generateTechnicalBulletin = (data: BulletinData): Buffer => {
+export const generateTechnicalBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
-  const buffers: Buffer[] = [];
-  doc.on("data", (chunk) => buffers.push(chunk));
-
-  drawBulletinHeader(doc, { ...data, template: "TECHNICAL_FR" });
-
-  const columns = [
-    { label: "MATIÈRE", key: "subjectName" as keyof SubjectLine, width: 150 },
-    { label: "COEFF", key: "coefficient" as keyof SubjectLine, width: 35 },
-    { label: "EVAL 1", key: "seq1Score" as keyof SubjectLine, width: 45 },
-    { label: "EVAL 2", key: "seq2Score" as keyof SubjectLine, width: 45 },
-    { label: "THÉORIE", key: "theoreticalScore" as keyof SubjectLine, width: 50 },
-    { label: "PRATIQUE", key: "practicalScore" as keyof SubjectLine, width: 50 },
-    { label: "MOY /20", key: "average" as keyof SubjectLine, width: 55 },
-    { label: "APPRÉCIATION", key: "teacherComment" as keyof SubjectLine, width: 94 },
-  ];
-
-  drawSubjectTable(doc, data.subjectLines, columns, "fr");
-
-  // Attitude professionnelle
-  const attitudeLine = data.subjectLines.find((l) => l.professionalAttitude !== null && l.professionalAttitude !== undefined);
-  if (attitudeLine?.professionalAttitude !== undefined && attitudeLine.professionalAttitude !== null) {
-    doc.moveDown(0.3);
-    doc.fontSize(9).font("Helvetica-Bold")
-      .text(`Attitude professionnelle en atelier : ${attitudeLine.professionalAttitude}/20`);
-  }
-
-  drawBulletinFooter(doc, {
-    generalAverage: data.generalAverage,
-    mention: data.mention || getMentionFr(data.generalAverage),
-    classMasterComment: data.classMasterComment,
-    isOfficial: data.isOfficial,
-    language: "fr",
+  return finalizePdf(doc, (d) => {
+    drawBulletinHeader(d, { ...data, template: "TECHNICAL_FR" });
+    drawSubjectTable(d, data.subjectLines, [
+      { label: "MATIÈRE",      key: "subjectName",       width: 150 },
+      { label: "COEFF",        key: "coefficient",       width: 35  },
+      { label: "EVAL 1",       key: "seq1Score",         width: 45  },
+      { label: "EVAL 2",       key: "seq2Score",         width: 45  },
+      { label: "THÉORIE",      key: "theoreticalScore",  width: 50  },
+      { label: "PRATIQUE",     key: "practicalScore",    width: 50  },
+      { label: "MOY /20",      key: "average",           width: 55  },
+      { label: "APPRÉCIATION", key: "teacherComment",    width: 94  },
+    ], "fr");
+    const attitudeLine = data.subjectLines.find((l) => l.professionalAttitude !== null && l.professionalAttitude !== undefined);
+    if (attitudeLine?.professionalAttitude !== undefined && attitudeLine.professionalAttitude !== null) {
+      d.moveDown(0.3);
+      d.fontSize(9).font("Helvetica-Bold")
+        .text(`Attitude professionnelle en atelier : ${attitudeLine.professionalAttitude}/20`);
+    }
+    drawBulletinFooter(d, {
+      generalAverage: data.generalAverage,
+      mention: data.mention || getMentionFr(data.generalAverage),
+      classMasterComment: data.classMasterComment,
+      isOfficial: data.isOfficial,
+      language: "fr",
+    });
   });
-
-  doc.end();
-  return Buffer.concat(buffers);
 };
 
 // ─── TEMPLATE 4 : PRIMARY ────────────────────────────────────
-export const generatePrimaryBulletin = (data: BulletinData): Buffer => {
+export const generatePrimaryBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
-  const buffers: Buffer[] = [];
-  doc.on("data", (chunk) => buffers.push(chunk));
-
-  drawBulletinHeader(doc, { ...data, template: "PRIMARY" });
-
-  const columns = [
-    { label: "MATIÈRE / COMPÉTENCE", key: "subjectName" as keyof SubjectLine, width: 180 },
-    { label: "ORAL", key: "oralScore" as keyof SubjectLine, width: 50 },
-    { label: "ÉCRIT", key: "seq1Score" as keyof SubjectLine, width: 50 },
-    { label: "SAVOIR-FAIRE", key: "seq2Score" as keyof SubjectLine, width: 65 },
-    { label: "SAVOIR-ÊTRE", key: "selfDevelopmentScore" as keyof SubjectLine, width: 65 },
-    { label: "TOTAL", key: "average" as keyof SubjectLine, width: 60 },
-    { label: "COTE", key: "competenceLabel" as keyof SubjectLine, width: 54 },
-  ];
-
-  drawSubjectTable(doc, data.subjectLines, columns, "fr");
-
-  drawBulletinFooter(doc, {
-    generalAverage: data.generalAverage,
-    mention: data.mention || getMentionFr(data.generalAverage),
-    classMasterComment: data.classMasterComment,
-    isOfficial: data.isOfficial,
-    language: "fr",
+  return finalizePdf(doc, (d) => {
+    drawBulletinHeader(d, { ...data, template: "PRIMARY" });
+    drawSubjectTable(d, data.subjectLines, [
+      { label: "MATIÈRE / COMPÉTENCE", key: "subjectName",          width: 180 },
+      { label: "ORAL",                 key: "oralScore",             width: 50  },
+      { label: "ÉCRIT",                key: "seq1Score",             width: 50  },
+      { label: "SAVOIR-FAIRE",         key: "seq2Score",             width: 65  },
+      { label: "SAVOIR-ÊTRE",          key: "selfDevelopmentScore",  width: 65  },
+      { label: "TOTAL",                key: "average",               width: 60  },
+      { label: "COTE",                 key: "competenceLabel",       width: 54  },
+    ], "fr");
+    drawBulletinFooter(d, {
+      generalAverage: data.generalAverage,
+      mention: data.mention || getMentionFr(data.generalAverage),
+      classMasterComment: data.classMasterComment,
+      isOfficial: data.isOfficial,
+      language: "fr",
+    });
   });
-
-  doc.end();
-  return Buffer.concat(buffers);
 };
 
 // ─── TEMPLATE 5 : ANNUAL ─────────────────────────────────────
-export const generateAnnualBulletin = (data: BulletinData): Buffer => {
+export const generateAnnualBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36, layout: "landscape" });
-  const buffers: Buffer[] = [];
-  doc.on("data", (chunk) => buffers.push(chunk));
-
-  drawBulletinHeader(doc, { ...data, template: "ANNUAL" });
-
-  const columns = [
-    { label: "MATIÈRE", key: "subjectName" as keyof SubjectLine, width: 120 },
-    { label: "COEFF", key: "coefficient" as keyof SubjectLine, width: 35 },
-    { label: "DS1", key: "seq1Score" as keyof SubjectLine, width: 40 },
-    { label: "DS2", key: "seq2Score" as keyof SubjectLine, width: 40 },
-    { label: "T1", key: "compositionScore" as keyof SubjectLine, width: 40 },
-    { label: "DS3", key: "seq3Score" as keyof SubjectLine, width: 40 },
-    { label: "DS4", key: "seq4Score" as keyof SubjectLine, width: 40 },
-    { label: "T2", key: "classTestScore" as keyof SubjectLine, width: 40 },
-    { label: "DS5", key: "seq5Score" as keyof SubjectLine, width: 40 },
-    { label: "DS6", key: "seq6Score" as keyof SubjectLine, width: 40 },
-    { label: "T3", key: "terminalExamScore" as keyof SubjectLine, width: 40 },
-    { label: "MOY AN", key: "average" as keyof SubjectLine, width: 55 },
-  ];
-
-  drawSubjectTable(doc, data.subjectLines, columns, "fr");
-
-  drawBulletinFooter(doc, {
-    generalAverage: data.generalAverage,
-    mention: data.mention || getMentionFr(data.generalAverage),
-    classMasterComment: data.classMasterComment,
-    isOfficial: data.isOfficial,
-    language: "fr",
+  return finalizePdf(doc, (d) => {
+    drawBulletinHeader(d, { ...data, template: "ANNUAL" });
+    drawSubjectTable(d, data.subjectLines, [
+      { label: "MATIÈRE", key: "subjectName",      width: 120 },
+      { label: "COEFF",   key: "coefficient",      width: 35  },
+      { label: "DS1",     key: "seq1Score",         width: 40  },
+      { label: "DS2",     key: "seq2Score",         width: 40  },
+      { label: "T1",      key: "compositionScore",  width: 40  },
+      { label: "DS3",     key: "seq3Score",         width: 40  },
+      { label: "DS4",     key: "seq4Score",         width: 40  },
+      { label: "T2",      key: "classTestScore",    width: 40  },
+      { label: "DS5",     key: "seq5Score",         width: 40  },
+      { label: "DS6",     key: "seq6Score",         width: 40  },
+      { label: "T3",      key: "terminalExamScore", width: 40  },
+      { label: "MOY AN",  key: "average",           width: 55  },
+    ], "fr");
+    drawBulletinFooter(d, {
+      generalAverage: data.generalAverage,
+      mention: data.mention || getMentionFr(data.generalAverage),
+      classMasterComment: data.classMasterComment,
+      isOfficial: data.isOfficial,
+      language: "fr",
+    });
   });
-
-  doc.end();
-  return Buffer.concat(buffers);
 };
 
 // ─── TEMPLATE 6 : MONTHLY ────────────────────────────────────
-export const generateMonthlyBulletin = (data: BulletinData): Buffer => {
+export const generateMonthlyBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
-  const buffers: Buffer[] = [];
-  doc.on("data", (chunk) => buffers.push(chunk));
-
-  drawBulletinHeader(doc, { ...data, template: "MONTHLY" });
-
-  const columns = [
-    { label: "SUBJECT", key: "subjectName" as keyof SubjectLine, width: 180 },
-    { label: "TOTAL MARKS", key: "seq1Score" as keyof SubjectLine, width: 80 },
-    { label: "OUT OF", key: "seq2Score" as keyof SubjectLine, width: 70 },
-    { label: "AVERAGE", key: "average" as keyof SubjectLine, width: 70 },
-    { label: "GRADE", key: "competenceLabel" as keyof SubjectLine, width: 60 },
-    { label: "COMMENT", key: "teacherComment" as keyof SubjectLine, width: 64 },
-  ];
-
-  drawSubjectTable(doc, data.subjectLines, columns, "en");
-
-  drawBulletinFooter(doc, {
-    generalAverage: data.generalAverage,
-    mention: data.mention || getMentionEn(data.generalAverage),
-    classMasterComment: data.classMasterComment,
-    isOfficial: data.isOfficial,
-    language: "en",
+  return finalizePdf(doc, (d) => {
+    drawBulletinHeader(d, { ...data, template: "MONTHLY" });
+    drawSubjectTable(d, data.subjectLines, [
+      { label: "SUBJECT",      key: "subjectName",   width: 180 },
+      { label: "TOTAL MARKS",  key: "seq1Score",     width: 80  },
+      { label: "OUT OF",       key: "seq2Score",     width: 70  },
+      { label: "AVERAGE",      key: "average",       width: 70  },
+      { label: "GRADE",        key: "competenceLabel",width: 60 },
+      { label: "COMMENT",      key: "teacherComment",width: 64  },
+    ], "en");
+    drawBulletinFooter(d, {
+      generalAverage: data.generalAverage,
+      mention: data.mention || getMentionEn(data.generalAverage),
+      classMasterComment: data.classMasterComment,
+      isOfficial: data.isOfficial,
+      language: "en",
+    });
   });
-
-  doc.end();
-  return Buffer.concat(buffers);
 };
 
 // ─── DISPATCHER ──────────────────────────────────────────────
 export const generateBulletinPdf = (
   template: string,
   data: BulletinData
-): Buffer => {
+): Promise<Buffer> => {
   switch (template) {
     case "EN_SECONDARY": return generateEnSecondaryBulletin(data);
     case "TECHNICAL_FR": return generateTechnicalBulletin(data);
-    case "PRIMARY": return generatePrimaryBulletin(data);
-    case "ANNUAL": return generateAnnualBulletin(data);
-    case "MONTHLY": return generateMonthlyBulletin(data);
-    default: return generateFrSecondaryBulletin(data);
+    case "PRIMARY":      return generatePrimaryBulletin(data);
+    case "ANNUAL":       return generateAnnualBulletin(data);
+    case "MONTHLY":      return generateMonthlyBulletin(data);
+    default:             return generateFrSecondaryBulletin(data);
   }
 };

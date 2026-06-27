@@ -10,10 +10,12 @@ export class PdfKitBulletinService implements PdfService {
   async genererBulletinsEnMasse(
     contextes: ContexteBulletin[]
   ): Promise<{ bulletinId: string; pdf: Buffer }[]> {
-    return contextes.map(contexte => ({
-      bulletinId: contexte.bulletin.id,
-      pdf: generateBulletinPdf(contexte.bulletin.template, this.mapperContexte(contexte)),
-    }));
+    return Promise.all(
+      contextes.map(async (contexte) => ({
+        bulletinId: contexte.bulletin.id,
+        pdf: await generateBulletinPdf(contexte.bulletin.template, this.mapperContexte(contexte)),
+      }))
+    );
   }
 
   private mapperContexte(contexte: ContexteBulletin) {

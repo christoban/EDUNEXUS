@@ -70,12 +70,21 @@ export class GenererBulletinUseCase {
       );
     }
 
-    // 2. Récupérer les élèves de la classe
+    // 2. Récupérer les élèves ayant des notes dans cette classe sur la période
+    // findByRole renvoie TOUS les élèves de l'école — on filtre via les notes par séquence
+    const sequences = await this.anneeRepository.findSequencesByPeriode(commande.academicPeriodId);
+    const notesDeClasse: import('@domain/entities/Note').Note[] = [];
+    for (const seq of sequences) {
+      const notes = await this.noteRepository.findByClasse(commande.classId, seq.id);
+      notesDeClasse.push(...notes);
+    }
+    const studentIdsClasse = [...new Set(notesDeClasse.map((n) => n.studentId))];
+
     const eleves = await this.userRepository.findByRole(commande.schoolId, 'STUDENT');
-    const elevesClasse = eleves.filter((e) => e.isActive);
+    const elevesClasse = eleves.filter((e) => e.isActive && studentIdsClasse.includes(e.id));
 
     if (elevesClasse.length === 0) {
-      return { bulletinsGeneres: 0, bulletinsIgnores: 0, message: 'Aucun élève dans cette classe' };
+      return { bulletinsGeneres: 0, bulletinsIgnores: 0, message: 'Aucun élève avec des notes validées dans cette classe' };
     }
 
     // 3. Récupérer les matières et la période

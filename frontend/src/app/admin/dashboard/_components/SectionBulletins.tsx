@@ -10,6 +10,9 @@ interface ClassItem { id: string; name: string }
 
 interface CheckResult {
   canGenerateReportCard: boolean
+  periodId: string
+  conseilLocked: boolean
+  reason: string | null
   stats: {
     total: number
     VALIDATED: number
@@ -78,7 +81,10 @@ export default function SectionBulletins({ onToast }: Props) {
       const res = await fetchApi('/api/v2/report-cards/generate', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classId }),
+        body: JSON.stringify({
+          classId,
+          academicPeriodId: check.periodId,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
@@ -143,11 +149,18 @@ export default function SectionBulletins({ onToast }: Props) {
         : `${check.stats.SUBMITTED} en attente · ${check.stats.DRAFT} brouillons · ${check.stats.REJECTED} rejetées`,
     },
     {
+      warn: !check.conseilLocked,
+      title: check.conseilLocked ? 'Conseil de classe verrouillé' : 'Conseil de classe non verrouillé',
+      sub: check.conseilLocked
+        ? 'Le conseil de classe du Trimestre 1 est validé'
+        : 'Le censeur doit verrouiller le conseil de classe avant la génération',
+    },
+    {
       warn: !check.canGenerateReportCard,
-      title: check.canGenerateReportCard ? '✅ Prêt pour la génération' : 'Notes non entièrement validées',
+      title: check.canGenerateReportCard ? '✅ Prêt pour la génération' : (check.reason ?? 'Non prêt'),
       sub: check.canGenerateReportCard
-        ? 'Toutes les notes sont validées ou verrouillées'
-        : 'Validez toutes les notes avant de générer les bulletins',
+        ? 'Toutes les conditions sont remplies'
+        : 'Réglez les points ci-dessus avant de générer',
     },
   ] : []
 

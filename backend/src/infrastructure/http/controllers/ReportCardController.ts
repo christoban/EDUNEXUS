@@ -19,14 +19,37 @@ export class ReportCardController {
   genererBulletins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as any).user;
-      const { classId, academicPeriodId, academicYearId, template, nomEtablissement, logoUrl } = req.body;
+      let { classId, academicPeriodId, academicYearId, template, nomEtablissement, logoUrl } = req.body;
 
-      if (!classId || !academicPeriodId || !academicYearId || !template || !nomEtablissement) {
-        res.status(400).json({
-          success: false,
-          message: 'classId, academicPeriodId, academicYearId, template et nomEtablissement requis',
-        });
+      if (!classId) {
+        res.status(400).json({ success: false, message: 'classId requis' });
         return;
+      }
+
+      // Auto-détection des paramètres manquants
+      if (!academicPeriodId || !academicYearId) {
+        const currentYear = await prisma.academicYear.findFirst({
+          where: { schoolId: user.schoolId, isCurrent: true },
+          include: { periods: { orderBy: { id: 'asc' }, take: 1 } },
+        });
+        if (!currentYear) {
+          res.status(400).json({ success: false, message: 'Aucune année académique courante trouvée' });
+          return;
+        }
+        academicYearId = academicYearId || currentYear.id;
+        academicPeriodId = academicPeriodId || currentYear.periods?.[0]?.id;
+        if (!academicPeriodId) {
+          res.status(400).json({ success: false, message: 'Aucune période académique trouvée' });
+          return;
+        }
+      }
+      if (!template) {
+        const settings = await getEffectiveSchoolSettings(user.schoolId);
+        template = (settings as any)?.bulletinTemplate ?? 'FR_SECONDARY';
+      }
+      if (!nomEtablissement) {
+        const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { name: true } });
+        nomEtablissement = school?.name ?? 'Établissement';
       }
 
       // Horodatage capturé AVANT la génération pour filtrer uniquement les nouveaux bulletins
@@ -113,40 +136,63 @@ export class ReportCardController {
     try {
       const user = (req as any).user;
       const classId = req.params.classId as string;
-      const sequenceId = req.query.sequenceId as string | undefined;
-      const periodId = req.query.periodId as string | undefined;
+      let periodId = req.query.periodId as string | undefined;
 
-      if (!sequenceId && !periodId) {
-        res.status(400).json({ success: false, message: 'sequenceId ou periodId requis' });
+      // Auto-détection de la période courante si non fournie
+      if (!periodId) {
+        const currentYear = await prisma.academicYear.findFirst({
+          where: { schoolId: user.schoolId, isCurrent: true },
+          include: { periods: { orderBy: { id: 'asc' }, take: 1 } },
+        });
+        periodId = currentYear?.periods?.[0]?.id;
+      }
+
+      if (!periodId) {
+        res.status(400).json({ success: false, message: 'Aucune période académique trouvée' });
         return;
       }
+
+      // Séquences rattachées à cette période
+      const sequences = await prisma.academicSequence.findMany({
+        where: { academicPeriodId: periodId },
+        select: { id: true },
+      });
+      const sequenceIds = sequences.map((s) => s.id);
 
       const grades = await prisma.grade.findMany({
         where: {
           schoolId: user.schoolId,
           classId,
-          ...(sequenceId ? { sequenceId } : {}),
+          ...(sequenceIds.length > 0 ? { sequenceId: { in: sequenceIds } } : {}),
         },
-        include: {
-          subject: { select: { name: true } },
-          student: { select: { firstName: true, lastName: true } },
-        },
-      }) as any[];
+        select: { validationStatus: true },
+      });
 
-      const notValidated = grades.filter(
-        (g) => g.validationStatus !== 'VALIDATED' && g.validationStatus !== 'LOCKED',
-      );
+      const stats = { total: grades.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+      for (const g of grades) {
+        const s = g.validationStatus as keyof typeof stats;
+        if (s in stats) (stats[s] as number)++;
+      }
+
+      // Vérifier conseil de classe verrouillé
+      const conseilLocked = await prisma.classCouncilSession.findFirst({
+        where: { classId, academicPeriodId: periodId, status: 'LOCKED' },
+        select: { id: true },
+      });
+
+      const allValidated = stats.total > 0 && stats.DRAFT === 0 && stats.SUBMITTED === 0 && stats.REJECTED === 0;
+      const canGenerateReportCard = allValidated && !!conseilLocked;
 
       res.json({
-        canGenerate: notValidated.length === 0 && grades.length > 0,
-        totalGrades: grades.length,
-        notValidatedCount: notValidated.length,
-        notValidated: notValidated.map((g) => ({
-          gradeId: g.id,
-          studentName: `${g.student.firstName} ${g.student.lastName}`,
-          subjectName: g.subject.name,
-          status: g.validationStatus,
-        })),
+        canGenerateReportCard,
+        periodId,
+        stats,
+        conseilLocked: !!conseilLocked,
+        reason: !allValidated
+          ? 'Notes non entièrement validées'
+          : !conseilLocked
+          ? 'Conseil de classe non verrouillé'
+          : null,
       });
     } catch (error) {
       next(error);
@@ -196,7 +242,7 @@ export class ReportCardController {
         const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`.trim();
         const template = (reportCard.template ?? 'FR_SECONDARY') as BulletinTemplate;
 
-        const pdfBuffer = generateBulletinPdf(template, {
+        const pdfBuffer = await generateBulletinPdf(template, {
           schoolName: settings.schoolName ?? 'École',
           schoolMotto: settings.schoolMotto ?? '',
           logoUrl: settings.schoolLogoUrl ?? undefined,
@@ -375,7 +421,7 @@ export class ReportCardController {
         include: {
           academicYear: true,
           academicPeriod: true,
-          student: { select: { id: true, firstName: true, lastName: true } },
+          student: { select: { id: true, firstName: true, lastName: true, studentProfile: { select: { class: { select: { name: true } } } } } },
           subjectLines: { orderBy: { subjectName: 'asc' } },
           school: { include: { schoolConfig: true, schoolSettings: true } },
         },
@@ -407,12 +453,12 @@ export class ReportCardController {
       const periodName = reportCard.academicPeriod?.name ?? '—';
       const template = (reportCard.template ?? 'FR_SECONDARY') as BulletinTemplate;
 
-      const pdfBuffer = generateBulletinPdf(template, {
+      const pdfBuffer = await generateBulletinPdf(template, {
         schoolName: settings.schoolName ?? reportCard.school?.name ?? 'École',
         schoolMotto: settings.schoolMotto ?? '',
         logoUrl: settings.schoolLogoUrl ?? undefined,
         studentName,
-        className: (reportCard as any).class?.name ?? '—',
+        className: reportCard.student?.studentProfile?.class?.name ?? '—',
         periodName,
         yearName: reportCard.academicYear?.name ?? '—',
         generalAverage: reportCard.generalAverage ?? 0,
