@@ -214,6 +214,70 @@ export class DepartmentController {
     }
   };
 
+  // GET /:id/performance — moyennes par enseignant·matière·classe dans ce département
+  performance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const departmentId = req.params.id as string;
+
+      const dept = await this.prisma.department.findFirst({
+        where: { id: departmentId, schoolId: user.schoolId },
+        select: { id: true, subjects: { select: { id: true, name: true } } },
+      });
+      if (!dept) {
+        res.status(404).json({ success: false, message: 'Département introuvable' });
+        return;
+      }
+
+      const subjectIds = dept.subjects.map(s => s.id);
+      if (subjectIds.length === 0) {
+        res.json({ success: true, data: [] });
+        return;
+      }
+
+      const assignments = await this.prisma.teachingAssignment.findMany({
+        where: { subjectId: { in: subjectIds }, schoolId: user.schoolId },
+        select: {
+          teacherId: true,
+          subjectId: true,
+          classId: true,
+          teacher: { select: { firstName: true, lastName: true } },
+          subject: { select: { name: true } },
+          class: { select: { name: true } },
+        },
+      });
+
+      const grades = await this.prisma.grade.findMany({
+        where: { schoolId: user.schoolId, subjectId: { in: subjectIds }, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+        select: { subjectId: true, classId: true, sequenceAverage: true },
+      });
+
+      const gradeIndex = new Map<string, number[]>();
+      for (const g of grades) {
+        const key = `${g.subjectId}__${g.classId}`;
+        if (!gradeIndex.has(key)) gradeIndex.set(key, []);
+        if (g.sequenceAverage !== null) gradeIndex.get(key)!.push(g.sequenceAverage);
+      }
+
+      const data = assignments.map(a => {
+        const key = `${a.subjectId}__${a.classId}`;
+        const avgs = gradeIndex.get(key) ?? [];
+        const moyenne = avgs.length > 0 ? Math.round((avgs.reduce((s, v) => s + v, 0) / avgs.length) * 100) / 100 : null;
+        return {
+          teacherName: `${a.teacher.firstName} ${a.teacher.lastName}`,
+          subjectName: a.subject.name,
+          className: a.class.name,
+          moyenne,
+          nbEleves: avgs.length,
+        };
+      });
+
+      res.json({ success: true, data });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
   private gererErreur(error: unknown, res: Response, next: NextFunction): void {
     if (error instanceof Error) {
       if (error.message.includes('existe déjà')) {

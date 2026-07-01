@@ -30,42 +30,15 @@ export function parseSerie(className: string, level: string): string | null {
   return dashIdx >= 0 ? raw.slice(0, dashIdx) : raw;
 }
 
-// ─────────────────────────────────────────────
-// Matières 1er cycle FR — fallback si CycleCoefficient est vide
-// Programme officiel MINESEC Cameroun
-// ─────────────────────────────────────────────
+// Matières 1er cycle FR — données dans curriculum/francophone/premier-cycle.ts
+// Le seed peuple CycleCoefficient depuis ce fichier → ce fallback n'est plus nécessaire
+// (gardé vide pour compatibilité si CycleCoefficient non encore seedé)
 type SubjectDef = { name: string; coefficient: number; hoursPerWeek: number }
-const CYCLE1_FR_BASE: SubjectDef[] = [
-  { name: 'Français',                        coefficient: 5, hoursPerWeek: 5 },
-  { name: 'Mathématiques',                   coefficient: 4, hoursPerWeek: 4 },
-  { name: 'Anglais',                         coefficient: 3, hoursPerWeek: 3 },
-  { name: 'Histoire-Géographie-ECM',         coefficient: 3, hoursPerWeek: 3 },
-  { name: 'Sciences de la Vie et de la Terre', coefficient: 2, hoursPerWeek: 2 },
-  { name: 'Sciences Physiques et Chimiques', coefficient: 2, hoursPerWeek: 2 },
-  { name: 'Éducation Physique et Sportive',  coefficient: 2, hoursPerWeek: 2 },
-  { name: 'Expression Artistique',           coefficient: 1, hoursPerWeek: 1 },
-]
-const CYCLE1_FR_WITH_LV2: SubjectDef[] = [
-  ...CYCLE1_FR_BASE,
-  { name: 'LV2',                             coefficient: 2, hoursPerWeek: 2 },
-]
-const CYCLE1_FR_SUBJECTS: Record<string, SubjectDef[]> = {
-  '6e': CYCLE1_FR_BASE,
-  '5e': CYCLE1_FR_BASE,
-  '4e': CYCLE1_FR_WITH_LV2,
-  '3e': CYCLE1_FR_WITH_LV2,
-}
+const CYCLE1_FR_SUBJECTS: Record<string, SubjectDef[]> = {};
 
 // ─────────────────────────────────────────────
 // Sous-ensembles Sixth Form (Arts / Sciences)
 // ─────────────────────────────────────────────
-const TOUTES_MATIERES_SIXTH = [
-  "English Language","Literature in English","French","Geography",
-  "Economics","History","Biology","Chemistry","Mathematics","Physics",
-  "Computer Science","Geology","Food and Nutrition",
-  "Additional Mathematics","Philosophy"
-]
-
 const MATIERES_SIXTH_ARTS = [
   "English Language","Literature in English","French","History",
   "Geography","Economics","Philosophy","Additional Mathematics"

@@ -62,6 +62,13 @@ export default function LoginPage() {
   const [progress, setProgress]     = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
 
+  // Forgot password modal
+  const [forgotOpen,    setForgotOpen]    = useState(false)
+  const [forgotEmail,   setForgotEmail]   = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotDone,    setForgotDone]    = useState(false)
+  const [forgotError,   setForgotError]   = useState('')
+
   useEffect(() => { emailRef.current?.focus() }, [])
 
   // Empêcher le remplissage automatique du navigateur (sécurité)
@@ -97,6 +104,29 @@ export default function LoginPage() {
       return () => { clearTimeout(t); clearTimeout(r) }
     }
   }, [success, router])
+
+  const handleForgotSubmit = async () => {
+    setForgotError('')
+    if (!forgotEmail.trim()) { setForgotError('Entrez votre adresse email.'); return }
+    if (!selectedSchool) { setForgotError("Sélectionnez d'abord votre établissement."); return }
+    setForgotLoading(true)
+    try {
+      const res = await fetch('/api/v2/users/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim(), subdomain: selectedSchool.subdomain }),
+      })
+      if (res.ok) setForgotDone(true)
+      else {
+        const d = await res.json()
+        setForgotError(d.message || 'Erreur lors de l\'envoi.')
+      }
+    } catch {
+      setForgotError('Erreur réseau. Veuillez réessayer.')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
 
   const submit = async () => {
     setAlert(null)
@@ -536,7 +566,10 @@ export default function LoginPage() {
 
           {/* Mot de passe oublié */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -10, marginBottom: 18 }}>
-            <button style={{ fontSize: 15, fontWeight: 700, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button
+              type="button"
+              onClick={() => { setForgotOpen(true); setForgotDone(false); setForgotError(''); setForgotEmail(email) }}
+              style={{ fontSize: 15, fontWeight: 700, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               Mot de passe oublié ?
             </button>
           </div>
@@ -615,6 +648,78 @@ export default function LoginPage() {
               style={{ width: '100%', padding: 12, background: '#059669', color: 'white', fontSize: 14, fontWeight: 800, border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
               Accéder au tableau de bord →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══ MODAL MOT DE PASSE OUBLIÉ ══ */}
+      {forgotOpen && (
+        <div
+          onClick={() => !forgotLoading && setForgotOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: 20, padding: '36px 40px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', animation: 'popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+
+            {forgotDone ? (
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <div style={{ fontSize: 52, marginBottom: 14 }}>📧</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#1a1209', marginBottom: 10 }}>Email envoyé !</div>
+                <div style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.7, marginBottom: 24 }}>
+                  Si un compte correspond à cet email, vous recevrez un lien de réinitialisation valable <strong>1 heure</strong>. Vérifiez aussi vos spams.
+                </div>
+                <button onClick={() => setForgotOpen(false)}
+                  style={{ padding: '11px 28px', borderRadius: 11, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Retour à la connexion
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
+                  🔑 Mot de passe oublié ?
+                </div>
+                <div style={{ fontSize: 14, color: '#a89478', marginBottom: 24, lineHeight: 1.6 }}>
+                  Entrez votre adresse email. Nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#6b5c45', marginBottom: 6, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>
+                    Adresse email *
+                  </label>
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleForgotSubmit() }}
+                    placeholder="votre@email.com"
+                    autoFocus
+                    style={{ width: '100%', padding: '12px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 10, color: '#1a1209', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}
+                  />
+                </div>
+
+                {!selectedSchool && (
+                  <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#c2410c', fontWeight: 600, marginBottom: 16, lineHeight: 1.5 }}>
+                    ⚠️ Sélectionnez d&apos;abord votre établissement sur la page de connexion.
+                  </div>
+                )}
+
+                {forgotError && (
+                  <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '10px 14px', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+                    {forgotError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setForgotOpen(false)} disabled={forgotLoading}
+                    style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Annuler
+                  </button>
+                  <button onClick={handleForgotSubmit} disabled={forgotLoading || !selectedSchool}
+                    style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: (!selectedSchool || forgotLoading) ? '#9ca3af' : 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: (!selectedSchool || forgotLoading) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    {forgotLoading ? '⏳ Envoi…' : 'Envoyer le lien'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

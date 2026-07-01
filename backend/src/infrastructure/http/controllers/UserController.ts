@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { passwordError } from '../../../utils/passwordValidator';
+import { sendTransactionalEmail } from '../../../services/emailService';
+import { createHash, randomBytes } from 'crypto';
 import type { ConnecterUtilisateurUseCase } from '@application/user/ConnecterUtilisateurUseCase';
 import type { InscrireUtilisateurUseCase } from '@application/user/InscrireUtilisateurUseCase';
 import type { RafraichirTokenUseCase } from '@application/user/RafraichirTokenUseCase';
@@ -305,8 +308,9 @@ export class UserController {
         res.status(400).json({ success: false, message: 'Les mots de passe ne correspondent pas.' });
         return;
       }
-      if (password.length < 8) {
-        res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères.' });
+      const pwdErr = passwordError(password);
+      if (pwdErr) {
+        res.status(400).json({ success: false, message: pwdErr });
         return;
       }
 
@@ -333,6 +337,185 @@ export class UserController {
       });
 
       res.json({ success: true, message: 'Mot de passe créé avec succès. Vous pouvez maintenant vous connecter.' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/users/auth/forgot-password
+  forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email, subdomain } = req.body as { email?: string; subdomain?: string };
+      if (!email || !subdomain) {
+        res.status(400).json({ success: false, message: 'email et subdomain requis.' });
+        return;
+      }
+
+      const school = await this.schoolRepository.findBySubdomain(subdomain);
+      if (!school) {
+        // Réponse identique pour ne pas révéler l'existence du sous-domaine
+        res.json({ success: true, message: 'Si ce compte existe, un email de réinitialisation a été envoyé.' });
+        return;
+      }
+
+      const user = await (this.prisma as any).user.findFirst({
+        where: { schoolId: school.id, email: email.toLowerCase().trim() },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      });
+
+      if (user?.email) {
+        const plainToken = randomBytes(32).toString('hex');
+        const tokenHash = createHash('sha256').update(plainToken).digest('hex');
+        const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+        await (this.prisma as any).user.update({
+          where: { id: user.id },
+          data: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: expiry },
+        });
+
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+        const resetUrl = `${clientUrl}/reset-password?token=${plainToken}&subdomain=${subdomain}`;
+        const name = `${user.firstName} ${user.lastName}`;
+
+        await sendTransactionalEmail({
+          recipientEmail: user.email,
+          subject: 'Réinitialisation de votre mot de passe — EduNexus',
+          template: 'password_reset',
+          eventType: 'password_reset',
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;background:#f9f7f4;border-radius:12px">
+              <div style="background:linear-gradient(135deg,#059669,#047857);border-radius:10px;padding:24px 28px;margin-bottom:28px">
+                <h1 style="color:white;margin:0;font-size:22px;font-weight:800">🔐 Réinitialisation du mot de passe</h1>
+              </div>
+              <p style="color:#374151;font-size:16px">Bonjour <strong>${name}</strong>,</p>
+              <p style="color:#374151;font-size:15px">Vous avez demandé la réinitialisation de votre mot de passe pour votre compte EduNexus.</p>
+              <p style="color:#374151;font-size:15px">Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Ce lien expirera dans <strong>1 heure</strong>.</p>
+              <div style="text-align:center;margin:32px 0">
+                <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#047857);color:white;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:800">
+                  Réinitialiser mon mot de passe
+                </a>
+              </div>
+              <p style="color:#6b7280;font-size:13px">Si vous n'avez pas fait cette demande, ignorez simplement cet email. Votre mot de passe ne sera pas modifié.</p>
+              <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+              <p style="color:#9ca3af;font-size:12px;text-align:center">EduNexus — Système de gestion scolaire</p>
+            </div>`,
+          metadata: { schoolId: school.id },
+        });
+      }
+
+      res.json({ success: true, message: 'Si ce compte existe, un email de réinitialisation a été envoyé.' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/users/auth/reset-password
+  resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token, password, confirmPassword } = req.body as {
+        token?: string; password?: string; confirmPassword?: string;
+      };
+
+      if (!token || !password) {
+        res.status(400).json({ success: false, message: 'Token et mot de passe requis.' });
+        return;
+      }
+      if (password !== confirmPassword) {
+        res.status(400).json({ success: false, message: 'Les mots de passe ne correspondent pas.' });
+        return;
+      }
+      const pwdErr = passwordError(password);
+      if (pwdErr) {
+        res.status(400).json({ success: false, message: pwdErr });
+        return;
+      }
+
+      const tokenHash = createHash('sha256').update(token).digest('hex');
+      const user = await (this.prisma as any).user.findFirst({
+        where: {
+          resetPasswordToken: tokenHash,
+          resetPasswordTokenExpiry: { gt: new Date() },
+        },
+        select: { id: true },
+      });
+
+      if (!user) {
+        res.status(400).json({ success: false, message: 'Lien invalide ou expiré. Demandez un nouveau lien.' });
+        return;
+      }
+
+      const bcrypt = await import('bcryptjs');
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      await (this.prisma as any).user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          resetPasswordToken: null,
+          resetPasswordTokenExpiry: null,
+          refreshTokenVersion: { increment: 1 },
+        },
+      });
+
+      res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/users/auth/change-password  (authentifié)
+  changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const authUser = (req as any).user as { userId: string };
+      const { currentPassword, newPassword, confirmPassword } = req.body as {
+        currentPassword?: string; newPassword?: string; confirmPassword?: string;
+      };
+
+      if (!currentPassword || !newPassword) {
+        res.status(400).json({ success: false, message: 'Mot de passe actuel et nouveau mot de passe requis.' });
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        res.status(400).json({ success: false, message: 'Les mots de passe ne correspondent pas.' });
+        return;
+      }
+      if (newPassword === currentPassword) {
+        res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit être différent de l\'ancien.' });
+        return;
+      }
+      const pwdErr = passwordError(newPassword);
+      if (pwdErr) {
+        res.status(400).json({ success: false, message: pwdErr });
+        return;
+      }
+
+      const user = await (this.prisma as any).user.findUnique({
+        where: { id: authUser.userId },
+        select: { id: true, passwordHash: true },
+      });
+      if (!user) {
+        res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
+        return;
+      }
+      if (!user.passwordHash) {
+        res.status(400).json({ success: false, message: 'Aucun mot de passe défini. Contactez votre administrateur.' });
+        return;
+      }
+
+      const bcrypt = await import('bcryptjs');
+      const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!ok) {
+        res.status(401).json({ success: false, message: 'Mot de passe actuel incorrect.' });
+        return;
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await (this.prisma as any).user.update({
+        where: { id: user.id },
+        data: { passwordHash, refreshTokenVersion: { increment: 1 } },
+      });
+
+      res.json({ success: true, message: 'Mot de passe modifié avec succès.' });
     } catch (error) {
       next(error);
     }

@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.60",
+    "@ai-sdk/groq": "^3.0.0",
     "@prisma/client": "6",
     "@types/multer": "^2.1.0",
     "@types/xlsx": "^0.0.36",

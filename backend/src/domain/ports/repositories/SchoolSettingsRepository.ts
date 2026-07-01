@@ -21,6 +21,7 @@ export interface SchoolSettingsComplets {
   timezone: string;
   locale: string;
   currency: string;
+  logRetentionDays: number;
 
   // Système éducatif (CORRIGÉ : lus depuis DB, pas hardcodés)
   schoolLanguageMode: SchoolLanguageMode;

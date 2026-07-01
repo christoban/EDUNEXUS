@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { prisma } from "../config/prisma.ts";
 import type { EmailEventType } from "../types/email.ts";
 
@@ -14,27 +15,30 @@ const getSmtpConfig = () => {
   return { host, port, user, pass, secure };
 };
 
+const isResendConfigured = () => Boolean(process.env.RESEND_API_KEY);
+
 export const isEmailConfigured = () => {
+  if (isResendConfigured()) return true;
   const config = getSmtpConfig();
   return Boolean(config.host && config.port && config.user && config.pass);
 };
 
-// Dev mode - log OTP to console instead of sending
+// Dev mode - log email to console instead of sending
 export const devModeSendEmail = async (
   recipientEmail: string,
   subject: string,
   html: string
 ): Promise<{ status: "sent"; messageId: string }> => {
   const otpMatch = html.match(/\b\d{6}\b/);
+  const linkMatch = html.match(/href="([^"]*(?:reset|token|verify)[^"]*)"/i);
   console.log("\n" + "=".repeat(60));
-  console.log("📧 [DEV MODE] Email zouant etre envoye:");
+  console.log("📧 [DEV MODE] Email simulé (non envoyé):");
   console.log("   To:", recipientEmail);
   console.log("   Subject:", subject);
-  if (otpMatch) {
-    console.log("   OTP:", otpMatch[0]);
-  }
+  if (otpMatch) console.log("   OTP:", otpMatch[0]);
+  if (linkMatch) console.log("   Lien:", linkMatch[1]);
   console.log("=".repeat(60) + "\n");
-  
+
   return { status: "sent", messageId: `dev-${Date.now()}` };
 };
 
@@ -100,7 +104,7 @@ const resolveSchoolId = (metadata?: Record<string, unknown>) => {
 export const sendTransactionalEmail = async (
   input: SendEmailInput
 ): Promise<SendEmailResult> => {
-  const fromName = process.env.SMTP_FROM_NAME || "EDUNEXUS";
+  const fromName = process.env.EMAIL_FROM_NAME || process.env.SMTP_FROM_NAME || "EDUNEXUS";
   const recipientEmail = String(input.recipientEmail).toLowerCase();
 
   let status: SendEmailResult["status"] = "failed";
@@ -122,30 +126,57 @@ export const sendTransactionalEmail = async (
       return { status, messageId };
     }
 
-    // SMTP
-    const smtpConfig = getSmtpConfig();
-    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
-      throw new Error("SMTP non configuré — vérifiez SMTP_HOST, SMTP_USER, SMTP_PASS dans .env");
-    }
-    const transporter = getTransporter();
-    const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
-    console.log(`[Email] SMTP → ${recipientEmail} via ${smtpConfig.host}:${smtpConfig.port}`);
-    try {
-      const sent = await transporter.sendMail({
+    // Resend (priorité)
+    if (isResendConfigured()) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const fromAddress = process.env.EMAIL_FROM || "onboarding@resend.dev";
+      console.log(`[Email] Resend → ${recipientEmail} from ${fromAddress}`);
+      const { data: resendData, error: resendError } = await resend.emails.send({
         from: `${fromName} <${fromAddress}>`,
-        to: input.recipientEmail,
+        to: [input.recipientEmail],
         subject: input.subject,
         html: input.html,
         text: input.text,
-        ...(input.attachments && { attachments: input.attachments }),
+        ...(input.attachments && {
+          attachments: input.attachments.map((a) => ({
+            filename: a.filename,
+            content: a.content,
+          })),
+        }),
       });
+      if (resendError) {
+        console.error(`[Email] ERREUR Resend:`, resendError);
+        throw new Error(resendError.message);
+      }
       status = "sent";
-      messageId = sent.messageId;
-      console.log(`[Email] SUCCÈS messageId=${sent.messageId}`);
-    } catch (smtpErr: any) {
-      console.error(`[Email] ERREUR SMTP:`, smtpErr?.message, smtpErr?.code, smtpErr?.response);
-      cachedTransporter = null;
-      throw smtpErr;
+      messageId = resendData?.id;
+      console.log(`[Email] Resend SUCCÈS id=${resendData?.id}`);
+    } else {
+      // SMTP fallback
+      const smtpConfig = getSmtpConfig();
+      if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.pass) {
+        throw new Error("Aucun provider email configuré — ajoutez RESEND_API_KEY ou les variables SMTP_* dans .env");
+      }
+      const transporter = getTransporter();
+      const fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
+      console.log(`[Email] SMTP → ${recipientEmail} via ${smtpConfig.host}:${smtpConfig.port}`);
+      try {
+        const sent = await transporter.sendMail({
+          from: `${fromName} <${fromAddress}>`,
+          to: input.recipientEmail,
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+          ...(input.attachments && { attachments: input.attachments }),
+        });
+        status = "sent";
+        messageId = sent.messageId;
+        console.log(`[Email] SMTP SUCCÈS messageId=${sent.messageId}`);
+      } catch (smtpErr: any) {
+        console.error(`[Email] ERREUR SMTP:`, smtpErr?.message, smtpErr?.code, smtpErr?.response);
+        cachedTransporter = null;
+        throw smtpErr;
+      }
     }
   } catch (error: any) {
     status = "failed";
@@ -161,8 +192,9 @@ export const sendTransactionalEmail = async (
 
   const schoolId = resolveSchoolId(input.metadata);
   if (schoolId) {
+    const provider = isResendConfigured() ? "resend" : "smtp";
     await prisma.emailLog.create({
-      data: { schoolId, to: input.recipientEmail, subject: input.subject, status, provider: "smtp" },
+      data: { schoolId, to: input.recipientEmail, subject: input.subject, status, provider },
     });
   }
 

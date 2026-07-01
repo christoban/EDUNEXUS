@@ -12,7 +12,9 @@ export function creerClassCouncilRoutes(controller: ClassCouncilController): Rou
   router.post('/:id/decisions', requireAuth, controller.ajouterDecision);
   router.post('/:id/decisions/bulk', requireAuth, controller.ajouterDecisionsEnBloc);
   router.post('/:id/lock', sensitiveWriteLimiter, requireAuth, controller.verrouiller);
+  router.post('/:id/publish-bulletins', sensitiveWriteLimiter, requireAuth, controller.publicerBulletins);
   router.get('/:id/report', requireAuth, controller.genererRapport);
+  router.get('/:id/pv', requireAuth, controller.genererPV);
 
   return router;
 }

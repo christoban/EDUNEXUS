@@ -1,6 +1,15 @@
 import PDFDocument from "pdfkit";
-import { drawBulletinHeader, drawBulletinFooter, getMentionFr, getMentionEn } from "./helpers.ts";
+import {
+  drawBulletinHeader,
+  drawBulletinFooter,
+  drawTable,
+  getMentionFr,
+  getMentionEn,
+  getMentionApc,
+  type TableColumnDef,
+} from "./helpers.ts";
 
+// ─── Types ────────────────────────────────────────────────────
 type SubjectLine = {
   subjectName: string;
   coefficient: number;
@@ -41,10 +50,10 @@ type BulletinData = {
   isOfficial?: boolean;
 };
 
-// ─── Helper : finalise un PDFDocument et retourne le Buffer ──────
+// ─── Helper : finalise un PDFDocument → Buffer ────────────────
 function finalizePdf(
   doc: InstanceType<typeof PDFDocument>,
-  build: (doc: InstanceType<typeof PDFDocument>) => void
+  build: (doc: InstanceType<typeof PDFDocument>) => void,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const buffers: Buffer[] = [];
@@ -56,71 +65,24 @@ function finalizePdf(
   });
 }
 
-// ─── COLONNES MATIÈRES (tableau) ─────────────────────────────
-const drawSubjectTable = (
-  doc: InstanceType<typeof PDFDocument>,
-  subjectLines: SubjectLine[],
-  columns: { label: string; key: keyof SubjectLine | "average"; width: number }[],
-  language: "fr" | "en" = "fr"
-) => {
-  const colX: number[] = [];
-  let x = 36;
-  columns.forEach((col) => { colX.push(x); x += col.width; });
-
-  const headerY = doc.y;
-  doc.rect(36, headerY, 524, 16).fill("#1e293b");
-  columns.forEach((col, i) => {
-    doc.fontSize(7).font("Helvetica-Bold").fillColor("white")
-      .text(col.label, colX[i] ?? 36, headerY + 4, { width: col.width, align: "center" });
-  });
-  doc.fillColor("black");
-  doc.y = headerY + 18;
-
-  subjectLines.forEach((line, rowIndex) => {
-    const rowY = doc.y;
-    if (rowIndex % 2 === 0) {
-      doc.rect(36, rowY, 524, 15).fill("#f8fafc").stroke("#e2e8f0");
-    } else {
-      doc.rect(36, rowY, 524, 15).stroke("#e2e8f0");
-    }
-    doc.fillColor("black");
-
-    columns.forEach((col, i) => {
-      const colXi = colX[i] ?? 36;
-      if (col.key === "subjectName") {
-        doc.fontSize(8).font("Helvetica").text(line.subjectName, colXi + 2, rowY + 3, { width: col.width - 4, ellipsis: true });
-      } else if (col.key === "coefficient") {
-        doc.fontSize(8).font("Helvetica").text(String(line.coefficient), colXi, rowY + 3, { width: col.width, align: "center" });
-      } else if (col.key === "average" || col.key === "subjectAverage") {
-        const avg = line.subjectAverage ?? 0;
-        const color = avg >= 14 ? "#16a34a" : avg >= 10 ? "#d97706" : "#dc2626";
-        doc.fontSize(8).font("Helvetica-Bold").fillColor(color)
-          .text(avg > 0 ? avg.toFixed(2) : "—", colXi, rowY + 3, { width: col.width, align: "center" });
-        doc.fillColor("black");
-      } else {
-        const val = line[col.key as keyof SubjectLine];
-        const display = (val !== null && val !== undefined && val !== "") ? String(Number(val).toFixed(2)) : "—";
-        doc.fontSize(8).font("Helvetica").text(display, colXi, rowY + 3, { width: col.width, align: "center" });
-      }
-    });
-    doc.y = rowY + 16;
-  });
-};
-
 // ─── TEMPLATE 1 : FR_SECONDARY ───────────────────────────────
+// Portrait A4, tableau à 7 colonnes
+// Ratios : 30 + 8 + 10 + 10 + 10 + 12 + 20 = 100
+const COLS_FR_SECONDARY: TableColumnDef[] = [
+  { label: "MATIÈRE",      key: "subjectName",      ratio: 30, type: "subject"     },
+  { label: "COEFF",        key: "coefficient",      ratio:  8, type: "score"       },
+  { label: "DS 1",         key: "seq1Score",        ratio: 10, type: "score"       },
+  { label: "DS 2",         key: "seq2Score",        ratio: 10, type: "score"       },
+  { label: "COMPO",        key: "compositionScore", ratio: 10, type: "score"       },
+  { label: "MOY /20",      key: "subjectAverage",   ratio: 12, type: "average"     },
+  { label: "APPRÉCIATION", key: "teacherComment",   ratio: 20, type: "text"        },
+];
+
 export const generateFrSecondaryBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
   return finalizePdf(doc, (d) => {
     drawBulletinHeader(d, { ...data, template: "FR_SECONDARY" });
-    drawSubjectTable(d, data.subjectLines, [
-      { label: "MATIÈRE", key: "subjectName", width: 150 },
-      { label: "COEFF",   key: "coefficient", width: 40  },
-      { label: "DS 1",    key: "seq1Score",   width: 50  },
-      { label: "DS 2",    key: "seq2Score",   width: 50  },
-      { label: "COMPO",   key: "compositionScore", width: 50 },
-      { label: "MOY /20", key: "average",     width: 60  },
-      { label: "APPRÉCIATION", key: "teacherComment", width: 124 },
-    ], "fr");
+    drawTable(d, COLS_FR_SECONDARY, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
       mention: data.mention || getMentionFr(data.generalAverage),
@@ -132,18 +94,22 @@ export const generateFrSecondaryBulletin = (data: BulletinData): Promise<Buffer>
 };
 
 // ─── TEMPLATE 2 : EN_SECONDARY ───────────────────────────────
+// Portrait A4, tableau à 6 colonnes
+// Ratios : 30 + 8 + 14 + 14 + 12 + 22 = 100
+const COLS_EN_SECONDARY: TableColumnDef[] = [
+  { label: "SUBJECT",         key: "subjectName",       ratio: 30, type: "subject"  },
+  { label: "COEFF",           key: "coefficient",       ratio:  8, type: "score"    },
+  { label: "CLASS TEST",      key: "classTestScore",    ratio: 14, type: "score"    },
+  { label: "EXAM",            key: "terminalExamScore", ratio: 14, type: "score"    },
+  { label: "AVG /20",         key: "subjectAverage",    ratio: 12, type: "average"  },
+  { label: "TEACHER COMMENT", key: "teacherComment",    ratio: 22, type: "text"     },
+];
+
 export const generateEnSecondaryBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
   return finalizePdf(doc, (d) => {
     drawBulletinHeader(d, { ...data, template: "EN_SECONDARY" });
-    drawSubjectTable(d, data.subjectLines, [
-      { label: "SUBJECT",          key: "subjectName",      width: 160 },
-      { label: "COEFF",            key: "coefficient",      width: 40  },
-      { label: "CLASS TEST",       key: "classTestScore",   width: 65  },
-      { label: "EXAM",             key: "terminalExamScore",width: 65  },
-      { label: "AVG /20",          key: "average",          width: 60  },
-      { label: "TEACHER COMMENT",  key: "teacherComment",   width: 134 },
-    ], "en");
+    drawTable(d, COLS_EN_SECONDARY, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
       mention: data.mention || getMentionEn(data.generalAverage),
@@ -155,26 +121,35 @@ export const generateEnSecondaryBulletin = (data: BulletinData): Promise<Buffer>
 };
 
 // ─── TEMPLATE 3 : TECHNICAL_FR ───────────────────────────────
+// Portrait A4, tableau à 8 colonnes
+// Ratios : 28 + 7 + 9 + 9 + 10 + 10 + 11 + 16 = 100
+const COLS_TECHNICAL_FR: TableColumnDef[] = [
+  { label: "MATIÈRE",      key: "subjectName",      ratio: 28, type: "subject"  },
+  { label: "COEFF",        key: "coefficient",      ratio:  7, type: "score"    },
+  { label: "EVAL 1",       key: "seq1Score",        ratio:  9, type: "score"    },
+  { label: "EVAL 2",       key: "seq2Score",        ratio:  9, type: "score"    },
+  { label: "THÉORIE",      key: "theoreticalScore", ratio: 10, type: "score"    },
+  { label: "PRATIQUE",     key: "practicalScore",   ratio: 10, type: "score"    },
+  { label: "MOY /20",      key: "subjectAverage",   ratio: 11, type: "average"  },
+  { label: "APPRÉCIATION", key: "teacherComment",   ratio: 16, type: "text"     },
+];
+
 export const generateTechnicalBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
   return finalizePdf(doc, (d) => {
     drawBulletinHeader(d, { ...data, template: "TECHNICAL_FR" });
-    drawSubjectTable(d, data.subjectLines, [
-      { label: "MATIÈRE",      key: "subjectName",       width: 150 },
-      { label: "COEFF",        key: "coefficient",       width: 35  },
-      { label: "EVAL 1",       key: "seq1Score",         width: 45  },
-      { label: "EVAL 2",       key: "seq2Score",         width: 45  },
-      { label: "THÉORIE",      key: "theoreticalScore",  width: 50  },
-      { label: "PRATIQUE",     key: "practicalScore",    width: 50  },
-      { label: "MOY /20",      key: "average",           width: 55  },
-      { label: "APPRÉCIATION", key: "teacherComment",    width: 94  },
-    ], "fr");
-    const attitudeLine = data.subjectLines.find((l) => l.professionalAttitude !== null && l.professionalAttitude !== undefined);
-    if (attitudeLine?.professionalAttitude !== undefined && attitudeLine.professionalAttitude !== null) {
+    drawTable(d, COLS_TECHNICAL_FR, data.subjectLines as Record<string, unknown>[]);
+
+    // Attitude professionnelle — champ spécifique aux filières techniques
+    const attitudeLine = data.subjectLines.find(
+      (l) => l.professionalAttitude != null,
+    );
+    if (attitudeLine?.professionalAttitude != null) {
       d.moveDown(0.3);
       d.fontSize(9).font("Helvetica-Bold")
         .text(`Attitude professionnelle en atelier : ${attitudeLine.professionalAttitude}/20`);
     }
+
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
       mention: data.mention || getMentionFr(data.generalAverage),
@@ -186,22 +161,26 @@ export const generateTechnicalBulletin = (data: BulletinData): Promise<Buffer> =
 };
 
 // ─── TEMPLATE 4 : PRIMARY ────────────────────────────────────
+// Portrait A4, tableau à 7 colonnes (APC primaire)
+// Ratios : 33 + 10 + 10 + 13 + 13 + 10 + 11 = 100
+const COLS_PRIMARY: TableColumnDef[] = [
+  { label: "MATIÈRE / COMPÉTENCE", key: "subjectName",         ratio: 33, type: "subject",    align: "left" },
+  { label: "ORAL",                 key: "oralScore",            ratio: 10, type: "score"                     },
+  { label: "ÉCRIT",                key: "seq1Score",            ratio: 10, type: "score"                     },
+  { label: "SAVOIR-FAIRE",         key: "seq2Score",            ratio: 13, type: "score"                     },
+  { label: "SAVOIR-ÊTRE",          key: "selfDevelopmentScore", ratio: 13, type: "score"                     },
+  { label: "TOTAL",                key: "subjectAverage",       ratio: 10, type: "average"                   },
+  { label: "COTE",                 key: "competenceLabel",      ratio: 11, type: "competence"                },
+];
+
 export const generatePrimaryBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
   return finalizePdf(doc, (d) => {
     drawBulletinHeader(d, { ...data, template: "PRIMARY" });
-    drawSubjectTable(d, data.subjectLines, [
-      { label: "MATIÈRE / COMPÉTENCE", key: "subjectName",          width: 180 },
-      { label: "ORAL",                 key: "oralScore",             width: 50  },
-      { label: "ÉCRIT",                key: "seq1Score",             width: 50  },
-      { label: "SAVOIR-FAIRE",         key: "seq2Score",             width: 65  },
-      { label: "SAVOIR-ÊTRE",          key: "selfDevelopmentScore",  width: 65  },
-      { label: "TOTAL",                key: "average",               width: 60  },
-      { label: "COTE",                 key: "competenceLabel",       width: 54  },
-    ], "fr");
+    drawTable(d, COLS_PRIMARY, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
-      mention: data.mention || getMentionFr(data.generalAverage),
+      mention: data.mention || getMentionApc(data.generalAverage),
       classMasterComment: data.classMasterComment,
       isOfficial: data.isOfficial,
       language: "fr",
@@ -210,24 +189,30 @@ export const generatePrimaryBulletin = (data: BulletinData): Promise<Buffer> => 
 };
 
 // ─── TEMPLATE 5 : ANNUAL ─────────────────────────────────────
+// Paysage A4 (~770px utile), tableau à 12 colonnes
+// Ratios : 20 + 6 + (9 × 7) + 11 = 100
+// En paysage les colonnes reçoivent ~770px de largeur réelle
+// → chaque séquence ≈ 54px, matière ≈ 154px, coeff ≈ 46px, moy ≈ 85px
+const COLS_ANNUAL: TableColumnDef[] = [
+  { label: "MATIÈRE", key: "subjectName",      ratio: 20, type: "subject"  },
+  { label: "COEFF",   key: "coefficient",      ratio:  6, type: "score"    },
+  { label: "DS1",     key: "seq1Score",        ratio:  7, type: "score"    },
+  { label: "DS2",     key: "seq2Score",        ratio:  7, type: "score"    },
+  { label: "T1",      key: "compositionScore", ratio:  7, type: "score"    },
+  { label: "DS3",     key: "seq3Score",        ratio:  7, type: "score"    },
+  { label: "DS4",     key: "seq4Score",        ratio:  7, type: "score"    },
+  { label: "T2",      key: "classTestScore",   ratio:  7, type: "score"    },
+  { label: "DS5",     key: "seq5Score",        ratio:  7, type: "score"    },
+  { label: "DS6",     key: "seq6Score",        ratio:  7, type: "score"    },
+  { label: "T3",      key: "terminalExamScore",ratio:  7, type: "score"    },
+  { label: "MOY AN",  key: "subjectAverage",   ratio: 11, type: "average"  },
+];
+
 export const generateAnnualBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36, layout: "landscape" });
   return finalizePdf(doc, (d) => {
     drawBulletinHeader(d, { ...data, template: "ANNUAL" });
-    drawSubjectTable(d, data.subjectLines, [
-      { label: "MATIÈRE", key: "subjectName",      width: 120 },
-      { label: "COEFF",   key: "coefficient",      width: 35  },
-      { label: "DS1",     key: "seq1Score",         width: 40  },
-      { label: "DS2",     key: "seq2Score",         width: 40  },
-      { label: "T1",      key: "compositionScore",  width: 40  },
-      { label: "DS3",     key: "seq3Score",         width: 40  },
-      { label: "DS4",     key: "seq4Score",         width: 40  },
-      { label: "T2",      key: "classTestScore",    width: 40  },
-      { label: "DS5",     key: "seq5Score",         width: 40  },
-      { label: "DS6",     key: "seq6Score",         width: 40  },
-      { label: "T3",      key: "terminalExamScore", width: 40  },
-      { label: "MOY AN",  key: "average",           width: 55  },
-    ], "fr");
+    drawTable(d, COLS_ANNUAL, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
       mention: data.mention || getMentionFr(data.generalAverage),
@@ -239,18 +224,22 @@ export const generateAnnualBulletin = (data: BulletinData): Promise<Buffer> => {
 };
 
 // ─── TEMPLATE 6 : MONTHLY ────────────────────────────────────
+// Portrait A4, tableau à 6 colonnes
+// Ratios : 30 + 16 + 14 + 13 + 12 + 15 = 100
+const COLS_MONTHLY: TableColumnDef[] = [
+  { label: "SUBJECT",      key: "subjectName",    ratio: 30, type: "subject",    align: "left" },
+  { label: "TOTAL MARKS",  key: "seq1Score",      ratio: 16, type: "score"                     },
+  { label: "OUT OF",       key: "seq2Score",      ratio: 14, type: "score"                     },
+  { label: "AVERAGE",      key: "subjectAverage", ratio: 13, type: "average"                   },
+  { label: "GRADE",        key: "competenceLabel",ratio: 12, type: "competence"                },
+  { label: "COMMENT",      key: "teacherComment", ratio: 15, type: "text"                      },
+];
+
 export const generateMonthlyBulletin = (data: BulletinData): Promise<Buffer> => {
   const doc = new PDFDocument({ size: "A4", margin: 36 });
   return finalizePdf(doc, (d) => {
     drawBulletinHeader(d, { ...data, template: "MONTHLY" });
-    drawSubjectTable(d, data.subjectLines, [
-      { label: "SUBJECT",      key: "subjectName",   width: 180 },
-      { label: "TOTAL MARKS",  key: "seq1Score",     width: 80  },
-      { label: "OUT OF",       key: "seq2Score",     width: 70  },
-      { label: "AVERAGE",      key: "average",       width: 70  },
-      { label: "GRADE",        key: "competenceLabel",width: 60 },
-      { label: "COMMENT",      key: "teacherComment",width: 64  },
-    ], "en");
+    drawTable(d, COLS_MONTHLY, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
       mention: data.mention || getMentionEn(data.generalAverage),
@@ -264,7 +253,7 @@ export const generateMonthlyBulletin = (data: BulletinData): Promise<Buffer> => 
 // ─── DISPATCHER ──────────────────────────────────────────────
 export const generateBulletinPdf = (
   template: string,
-  data: BulletinData
+  data: BulletinData,
 ): Promise<Buffer> => {
   switch (template) {
     case "EN_SECONDARY": return generateEnSecondaryBulletin(data);

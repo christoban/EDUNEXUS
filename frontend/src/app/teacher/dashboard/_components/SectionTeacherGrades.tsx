@@ -26,6 +26,8 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
   const [saving, setSaving] = useState(false)
   const [showDraftPrompt, setShowDraftPrompt] = useState(false)
   const [localDraft, setLocalDraft] = useState<{ notes: Record<string, number>; observations: Record<string, string> } | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; errors: { line: number; matricule: string; error: string }[]; total: number } | null>(null)
 
   const { isOnline, addToQueue } = useSyncQueue()
 
@@ -230,6 +232,52 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     }
   }
 
+  const downloadTemplate = () => {
+    if (!selectedClass || !selectedSubject || !selectedSequence) {
+      onToast('Sélectionne classe, matière et séquence avant de télécharger le template', 'warning')
+      return
+    }
+    const url = `/api/v2/grades/template?classId=${selectedClass}&subjectId=${selectedSubject}&sequenceId=${selectedSequence}`
+    const a = document.createElement('a')
+    a.href = url
+    a.click()
+  }
+
+  const importFromExcel = async (file: File) => {
+    if (!selectedClass || !selectedSubject || !selectedSequence) {
+      onToast('Sélectionne classe, matière et séquence avant d\'importer', 'warning')
+      return
+    }
+    setImporting(true)
+    setImportResult(null)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('classId', selectedClass)
+    formData.append('subjectId', selectedSubject)
+    formData.append('sequenceId', selectedSequence)
+    try {
+      const res = await fetchApi('/api/v2/grades/import', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      }).then(r => r.json())
+      if (res.success) {
+        setImportResult(res)
+        onToast(
+          `${res.imported} note(s) importée(s)${res.errors.length > 0 ? ` · ${res.errors.length} erreur(s)` : ''}`,
+          res.errors.length > 0 ? 'warning' : 'success',
+        )
+        loadGrades()
+      } else {
+        onToast(res.message || 'Erreur lors de l\'import', 'error')
+      }
+    } catch (err: any) {
+      onToast(err.message, 'error')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const validatedCount = grades.filter((g: any) => g.validationStatus === 'VALIDATED' || g.validationStatus === 'LOCKED').length
   const draftCount = grades.filter((g: any) => g.validationStatus === 'DRAFT' || !g.validationStatus).length
   const rejectedCount = grades.filter((g: any) => g.validationStatus === 'REJECTED').length
@@ -320,7 +368,65 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
             {sequences.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <button style={btnPrim} onClick={loadGrades} disabled={loading}>Charger</button>
+          <div style={{ flex: 1 }} />
+          <button
+            style={{ ...btnSec, fontSize: 14 }}
+            onClick={downloadTemplate}
+            title="Télécharger le template Excel à remplir hors-ligne">
+            📥 Template Excel
+          </button>
+          <label style={{ ...btnSec, fontSize: 14, cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+            {importing ? '⏳ Import...' : '📤 Importer Excel'}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: 'none' }}
+              disabled={importing}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) { importFromExcel(file); e.target.value = '' }
+              }}
+            />
+          </label>
         </div>
+
+        {importResult && (
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e8e0d4' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: importResult.errors.length > 0 ? 10 : 0 }}>
+              <span style={{ fontWeight: 800, fontSize: 15, color: importResult.errors.length > 0 ? '#b45309' : '#059669' }}>
+                {importResult.errors.length > 0 ? '⚠️' : '✅'} {importResult.imported} note{importResult.imported > 1 ? 's' : ''} importée{importResult.imported > 1 ? 's' : ''}
+                {importResult.errors.length > 0 && ` · ${importResult.errors.length} erreur${importResult.errors.length > 1 ? 's' : ''}`}
+              </span>
+              <button
+                onClick={() => setImportResult(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#a89478' }}>
+                ✕
+              </button>
+            </div>
+            {importResult.errors.length > 0 && (
+              <div style={{ background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {['Ligne', 'Matricule', 'Erreur'].map(h => (
+                        <th key={h} style={{ ...thSt, background: '#fef2f2', color: '#991b1b', padding: '8px 14px' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importResult.errors.map((e, i) => (
+                      <tr key={i} style={{ borderTop: '1px solid rgba(220,38,38,0.1)' }}>
+                        <td style={{ ...tdSt, color: '#dc2626', fontWeight: 700, width: 60 }}>{e.line}</td>
+                        <td style={{ ...tdSt, fontWeight: 700 }}>{e.matricule || '—'}</td>
+                        <td style={{ ...tdSt, color: '#dc2626' }}>{e.error}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         {grades.length > 0 && (
           <>

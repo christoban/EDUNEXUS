@@ -95,19 +95,23 @@ export class GenererBulletinUseCase {
     const annee = await this.anneeRepository.findById(commande.academicYearId);
     if (!annee) throw new Error('Année académique introuvable');
 
+    // Lookup rapide matière par subjectId
+    const matiereParId = new Map(matieres.map(m => [m.id, m]));
+
     // 4. Calculer les moyennes générales de tous les élèves (pour les rangs)
+    // On utilise notesDeClasse (déjà chargé par findByClasse — classId garanti correct)
     const moyennesEleves: { studentId: string; moyenne: number }[] = [];
 
     for (const eleve of elevesClasse) {
-      const notes = await this.noteRepository.findByEleve(eleve.id, commande.academicYearId);
-      const notesClasse = notes.filter((n) =>
-        n.classId === commande.classId && n.estValidee()
+      const notesEleve = notesDeClasse.filter((n) =>
+        n.studentId === eleve.id &&
+        (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED')
       );
 
       let sommeCoefficients = 0;
       let sommePonderee = 0;
 
-      for (const note of notesClasse) {
+      for (const note of notesEleve) {
         if (note.sequenceAverage !== undefined) {
           sommePonderee += note.sequenceAverage * note.coefficient;
           sommeCoefficients += note.coefficient;
@@ -128,8 +132,23 @@ export class GenererBulletinUseCase {
       rangs.set(item.studentId, index + 1);
     });
 
-    // 6. Calculer la mention selon les règles MINESEC
+    // 6. Calculer la mention selon le template de l'école
     const calculerMention = (moyenne: number): string => {
+      if (commande.template === 'EN_SECONDARY') {
+        if (moyenne >= 18) return 'Excellent';
+        if (moyenne >= 16) return 'Very Good';
+        if (moyenne >= 14) return 'Good';
+        if (moyenne >= 12) return 'Fair';
+        if (moyenne >= 10) return 'Pass';
+        return 'Poor';
+      }
+      if (commande.template === 'PRIMARY' || commande.template === 'MONTHLY') {
+        if (moyenne >= 18) return 'Expert';
+        if (moyenne >= 15) return 'Acquis';
+        if (moyenne >= 11) return 'ECA';
+        return 'NA';
+      }
+      // FR_SECONDARY, TECHNICAL_FR, ANNUAL, bilingue → mentions FR /20
       if (moyenne >= 18) return 'Excellent';
       if (moyenne >= 16) return 'Très Bien';
       if (moyenne >= 14) return 'Bien';
@@ -174,25 +193,32 @@ export class GenererBulletinUseCase {
         template: commande.template,
       });
 
-      // Construire les lignes matière
-      const notes = await this.noteRepository.findByEleve(eleve.id, commande.academicYearId);
-      const lignes = matieres.map((matiere) => {
-        const note = notes.find((n) =>
-          n.subjectId === matiere.id &&
-          n.classId === commande.classId
-        );
+      // Construire les lignes matière depuis notesDeClasse (classId garanti correct)
+      const notesEleve = notesDeClasse.filter((n) =>
+        n.studentId === eleve.id &&
+        (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED') &&
+        n.sequenceAverage !== undefined
+      );
+
+      // Grouper par subjectId — première note rencontrée avec sequenceAverage
+      const noteParSubject = new Map<string, typeof notesEleve[0]>();
+      for (const n of notesEleve) {
+        if (!noteParSubject.has(n.subjectId)) noteParSubject.set(n.subjectId, n);
+      }
+
+      const lignes = Array.from(noteParSubject.entries()).map(([subjectId, note]) => {
+        const matiere = matiereParId.get(subjectId);
+        const coeff = matiere?.coefficient ?? note.coefficient;
         return {
           id: crypto.randomUUID(),
-          subjectId: matiere.id,
-          subjectName: matiere.name,
-          coefficient: matiere.coefficient,
-          seq1Score: note?.toObject().sequenceScore,
-          subjectAverage: note?.sequenceAverage,
-          weightedScore: note?.sequenceAverage
-            ? note.sequenceAverage * matiere.coefficient
-            : undefined,
+          subjectId,
+          subjectName: matiere?.name ?? `Matière (${subjectId.slice(0, 6)})`,
+          coefficient: coeff,
+          seq1Score: note.toObject().sequenceScore,
+          subjectAverage: note.sequenceAverage!,
+          weightedScore: note.sequenceAverage! * coeff,
         };
-      }).filter((l) => l.subjectAverage !== undefined);
+      });
 
       bulletin.definirLignesMatiere(lignes);
       bulletin.definirResultats({

@@ -13,6 +13,7 @@ export function creerMasterAdminHexRoutes(controller: MasterAdminHexController):
   router.get('/schools/:id',  controller.detailEcole);
   router.get('/auth/logs',    controller.listerLogs);
   router.get('/email-logs',   controller.listerEmailLogs);
+  router.get('/backup/list',  controller.listerSauvegardes);
   router.patch('/schools/:id/plan', controller.changerPlanEcole);
 
   // ── Actions décisives — vérification identité obligatoire ──────────────
@@ -24,6 +25,7 @@ export function creerMasterAdminHexRoutes(controller: MasterAdminHexController):
   router.post('/schools/:id/reexamine',       requireMasterSensitiveAuth, controller.reexaminerEcole);
   router.post('/schools/:id/sync-subjects',   controller.syncSubjects);
   router.post('/schools/:id/resend-invite', requireMasterSensitiveAuth, controller.renvoyerInvitation);
+  router.post('/backup/trigger', requireMasterSensitiveAuth, controller.declencherSauvegarde);
   router.delete('/schools/:id',             requireMasterSensitiveAuth, controller.supprimerEcole);
 
   return router;

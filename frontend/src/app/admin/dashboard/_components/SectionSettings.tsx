@@ -11,6 +11,7 @@ interface Props {
 interface ActivityLog { id: string; createdAt: string; action: string; description: string; user?: { firstName?: string; lastName?: string } | null }
 interface EmailLog { id: string; createdAt: string; to: string; subject: string; status: string }
 interface AuditLog  { id: string; createdAt: string; action: string; description: string | null; user: { id: string; firstName: string; lastName: string } | null }
+interface BackupInfo { lastBackupAt: string | null; lastBackupFile: string | null; latestFileExists?: boolean }
 interface NotifSettings { smsAbsences: boolean; smsPayments: boolean; smsBulletins: boolean; emailDigestAdmin: boolean; smsLowBalance: boolean }
 interface SecSettings   { passwordMinLength: number; passwordRequireUpper: boolean; passwordRequireDigit: boolean; sessionTimeoutMin: number }
 
@@ -100,6 +101,12 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [structEdit, setStructEdit]   = useState<Record<string, number>>({})
   const [structSaving, setStructSaving] = useState(false)
   const [structResult, setStructResult] = useState<string[] | null>(null)
+  const [backupInfo, setBackupInfo] = useState<BackupInfo | null>(null)
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [logRetentionDays, setLogRetentionDays] = useState<number>(90)
+  const [logRetentionLoading, setLogRetentionLoading] = useState(false)
+  const [logRetentionSaving, setLogRetentionSaving] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
 
   // ── Email logs ────────────────────────────────────────────────────────────
   const [emlPage, setEmlPage]               = useState(1)
@@ -127,6 +134,30 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         setStructEdit({ ...parsed.classesParNiveau, ...parsed.classesParNiveauPrimaire })
       })
       .catch(() => onToast('Erreur chargement structure', 'error'))
+  }, [activeTab, schoolInfo?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== 7 || backupInfo !== null || !schoolInfo?.id) return
+    setBackupLoading(true)
+    fetchApi('/api/v2/school/last-backup', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setBackupInfo(d.data) })
+      .catch(() => onToast('Erreur chargement dernière sauvegarde', 'error'))
+      .finally(() => setBackupLoading(false))
+  }, [activeTab, schoolInfo?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== 7 || logRetentionLoading || !schoolInfo?.id) return
+    setLogRetentionLoading(true)
+    fetchApi('/api/v2/school-settings', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          setLogRetentionDays(Number(d.data?.logRetentionDays ?? 90))
+        }
+      })
+      .catch(() => onToast('Erreur chargement rétention des logs', 'error'))
+      .finally(() => setLogRetentionLoading(false))
   }, [activeTab, schoolInfo?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStructSave = async () => {
@@ -157,6 +188,55 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       onToast(String(e), 'error')
     } finally {
       setStructSaving(false)
+    }
+  }
+
+  const handleLogRetentionSave = async () => {
+    if (!schoolInfo?.id) return
+    setLogRetentionSaving(true)
+    try {
+      const res = await fetchApi('/api/v2/school-settings', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logRetentionDays }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message || 'Erreur')
+      onToast('Rétention des logs mise à jour', 'success')
+    } catch (e) {
+      onToast(String(e), 'error')
+    } finally {
+      setLogRetentionSaving(false)
+    }
+  }
+
+  const handleRgpdExport = async () => {
+    if (!schoolInfo?.id) return
+    setExportLoading(true)
+    try {
+      const res = await fetchApi('/api/v2/school/export', { credentials: 'include' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || 'Erreur export RGPD')
+      }
+      const blob = await res.blob()
+      const contentDisposition = res.headers.get('content-disposition') || ''
+      const match = contentDisposition.match(/filename="?([^";]+)"?/i)
+      const fileName = match?.[1] ?? 'edunexus-rgpd.json'
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      onToast('Export RGPD téléchargé', 'success')
+    } catch (e) {
+      onToast(String(e), 'error')
+    } finally {
+      setExportLoading(false)
     }
   }
 
@@ -951,6 +1031,75 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* ── Onglet Structure ── */}
       {activeTab === 7 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+            <div style={cardHeader}><span style={cardTitle}>🗂️ Dernière sauvegarde</span></div>
+            {backupLoading && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 36 }}>
+                <div style={{ width: 28, height: 28, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
+              </div>
+            )}
+            {!backupLoading && !backupInfo && (
+              <div style={{ padding: '20px 26px', color: '#a89478', fontSize: 15 }}>Aucune sauvegarde enregistrée pour le moment.</div>
+            )}
+            {!backupLoading && backupInfo && (
+              <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <div style={fieldLabel}>Date</div>
+                  <div style={{ padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 15, fontWeight: 600 }}>
+                    {backupInfo.lastBackupAt ? new Date(backupInfo.lastBackupAt).toLocaleString('fr-FR') : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div style={fieldLabel}>Fichier</div>
+                  <div style={{ padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 15, fontWeight: 600, wordBreak: 'break-word' }}>
+                    {backupInfo.lastBackupFile ?? '—'}
+                  </div>
+                </div>
+                <div style={{ gridColumn: '1 / -1', fontSize: 13, color: '#a89478' }}>
+                  {backupInfo.latestFileExists ? 'Le dernier fichier de sauvegarde est disponible.' : 'Le dernier fichier n\'est pas encore accessible sur disque.'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+            <div style={cardHeader}><span style={cardTitle}>🛡️ RGPD et rétention des logs</span></div>
+            <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div>
+                <div style={fieldLabel}>Conservation des logs (jours)</div>
+                {logRetentionLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48 }}>
+                    <div style={{ width: 24, height: 24, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    value={logRetentionDays}
+                    onChange={e => setLogRetentionDays(Math.max(1, parseInt(e.target.value || '90', 10) || 90))}
+                    style={fieldInput}
+                  />
+                )}
+                <div style={{ marginTop: 6, fontSize: 12, color: '#a89478' }}>Les activités, emails et SMS plus vieux que cette durée seront purgés chaque dimanche.</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={fieldLabel}>Export RGPD</div>
+                  <div style={{ fontSize: 14, color: '#a89478', lineHeight: 1.6 }}>Téléchargez les données de l&apos;établissement dans un fichier JSON attaché.</div>
+                </div>
+                <button style={btnSec} onClick={handleRgpdExport} disabled={exportLoading}>
+                  {exportLoading ? '⏳ Export en cours…' : '⬇️ Exporter mes données (RGPD)'}
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: '16px 26px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'flex-end' }}>
+              <button style={btnPrim} onClick={handleLogRetentionSave} disabled={logRetentionSaving || logRetentionLoading}>
+                {logRetentionSaving ? '⏳ Enregistrement…' : '💾 Enregistrer la rétention'}
+              </button>
+            </div>
+          </div>
+
           <div style={{ background: '#fef3c7', border: '1.5px solid #f59e0b', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: '#92400e', fontWeight: 600 }}>
             ⚠️ Cette action crée uniquement les classes manquantes. Elle ne supprime aucune classe existante ni aucune matière déjà configurée.
           </div>

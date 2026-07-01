@@ -6,7 +6,7 @@ import type { BulletinTemplate } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { notifyBulletinSms } from '@infrastructure/services/SmsNotificationService';
 import { generateBulletinPdf } from '../../../utils/reportCards/index';
-import { getMentionFr } from '../../../utils/reportCards/helpers';
+import { getMention } from '../../../utils/reportCards/helpers';
 import { getEffectiveSchoolSettings } from '../../../utils/schoolSettings';
 
 export class ReportCardController {
@@ -254,7 +254,7 @@ export class ReportCardController {
           rank: reportCard.rank,
           totalStudents: reportCard.totalStudents,
           absenceCount: reportCard.absenceCount,
-          mention: reportCard.mention ?? getMentionFr(reportCard.generalAverage ?? 0),
+          mention: reportCard.mention ?? getMention(reportCard.generalAverage ?? 0, template),
           classMasterComment: reportCard.classMasterComment,
           subjectLines: reportCard.subjectLines.map((line) => ({
             subjectName: line.subjectName,
@@ -369,10 +369,12 @@ export class ReportCardController {
       const yearId = req.query.yearId as string | undefined;
       const periodId = req.query.periodId as string | undefined;
       const studentId = req.query.studentId as string | undefined;
+      const classId = req.query.classId as string | undefined;
 
       const where: any = { schoolId: user.schoolId };
       if (yearId) where.academicYearId = yearId;
       if (periodId) where.academicPeriodId = periodId;
+      if (classId) where.student = { studentProfile: { classId } };
 
       if (role === 'STUDENT') {
         where.studentId = user.userId;
@@ -465,7 +467,7 @@ export class ReportCardController {
         rank: reportCard.rank,
         totalStudents: reportCard.totalStudents,
         absenceCount: reportCard.absenceCount,
-        mention: reportCard.mention ?? getMentionFr(reportCard.generalAverage ?? 0),
+        mention: reportCard.mention ?? getMention(reportCard.generalAverage ?? 0, template),
         classMasterComment: reportCard.classMasterComment,
         subjectLines: reportCard.subjectLines.map((line) => ({
           subjectName: line.subjectName,

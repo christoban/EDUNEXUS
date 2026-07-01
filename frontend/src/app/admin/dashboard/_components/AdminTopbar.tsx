@@ -14,6 +14,7 @@ interface Props {
   title: string
   onInvite: () => void
   onNavigate?: (section: string) => void
+  onChangePassword?: () => void
 }
 
 const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon: string }> = {
@@ -25,7 +26,7 @@ const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon:
 
 const CATEGORY_ORDER = ['user', 'class', 'subject', 'activity']
 
-export default function AdminTopbar({ title, onInvite, onNavigate }: Props) {
+export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassword }: Props) {
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
 
@@ -136,6 +137,12 @@ export default function AdminTopbar({ title, onInvite, onNavigate }: Props) {
           <Bell size={18} color="#6b5c45" />
           <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: '#dc2626', borderRadius: '50%', border: '2px solid white' }} />
         </div>
+        {onChangePassword && (
+          <button onClick={onChangePassword} title="Changer le mot de passe"
+            style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
+            🔐
+          </button>
+        )}
         <button onClick={onInvite} style={{
           padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800,
           background: 'linear-gradient(135deg,#059669,#047857)', color: 'white',

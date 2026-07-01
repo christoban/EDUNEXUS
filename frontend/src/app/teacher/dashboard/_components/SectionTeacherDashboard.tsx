@@ -148,13 +148,13 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <button onClick={() => onNav('bulletins')}
+                <button onClick={() => onNav('pp-appreciations')}
                   style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, background: 'rgba(5,150,105,0.15)', color: '#065f46', border: '1.5px solid rgba(5,150,105,0.3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                  📄 Bulletins
+                  ✍️ Appréciations
                 </button>
-                <button onClick={() => onNav('grades')}
+                <button onClick={() => onNav('pp-classe')}
                   style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, background: 'white', color: '#065f46', border: '1.5px solid rgba(5,150,105,0.3)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                  📝 Notes classe
+                  📋 Ma classe
                 </button>
               </div>
             </div>
@@ -173,9 +173,9 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <button onClick={() => onNav('classes')}
+                <button onClick={() => onNav('ap-departement')}
                   style={{ padding: '7px 14px', borderRadius: 9, fontSize: 13, fontWeight: 800, background: `${dept.color}18`, color: dept.color, border: `1.5px solid ${dept.color}40`, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                  👥 Mes classes
+                  🎯 Mon département
                 </button>
               </div>
             </div>

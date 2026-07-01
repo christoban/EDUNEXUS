@@ -393,6 +393,7 @@ export const upsertSchoolSettingsBodySchema = z.object({
   officialLanguages: z.array(z.enum(["fr", "en"])).min(1).optional(),
   mode: z.enum(["simple_fr", "simple_en", "bilingual", "complex"]).optional(),
   cycles: z.array(cycleEnum).min(1).optional(),
+  logRetentionDays: z.coerce.number().int().min(1).max(3650).optional(),
   hasMultipleCycles: z.boolean().optional(),
   attendanceLateAsAbsence: z.boolean().optional(),
   attendanceExcusedCountsAsAbsence: z.boolean().optional(),

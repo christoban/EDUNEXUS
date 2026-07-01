@@ -28,6 +28,7 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
       timezone: settings?.timezone ?? MINESEC_DEFAULTS.TIMEZONE,
       locale: settings?.locale ?? MINESEC_DEFAULTS.LOCALE_FR,
       currency: settings?.currency ?? MINESEC_DEFAULTS.CURRENCY,
+      logRetentionDays: (settings as any)?.logRetentionDays ?? 90,
 
       // Champs lus depuis DB (corrige le bug des valeurs hardcodées)
       schoolLanguageMode: (
@@ -81,12 +82,14 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
           timezone: updates.timezone ?? MINESEC_DEFAULTS.TIMEZONE,
           locale: updates.locale ?? MINESEC_DEFAULTS.LOCALE_FR,
           currency: updates.currency ?? MINESEC_DEFAULTS.CURRENCY,
-        },
+          logRetentionDays: updates.logRetentionDays ?? 90,
+        } as any,
         update: {
           ...(updates.timezone && { timezone: updates.timezone }),
           ...(updates.locale && { locale: updates.locale }),
           ...(updates.currency && { currency: updates.currency }),
-        },
+          ...(updates.logRetentionDays !== undefined && { logRetentionDays: updates.logRetentionDays }),
+        } as any,
       });
 
       await tx.schoolConfig.upsert({

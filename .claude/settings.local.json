@@ -44,7 +44,9 @@
       "Bash(grep -v \"^.*//\\\\|cors\\\\|static\\\\|morgan\\\\|helmet\\\\|cookie\\\\|json\\\\|urlencoded\\\\|express\\\\|err\\\\|inngest\")",
       "Bash(node -e \"const m = require\\('framer-motion'\\); console.log\\(Object.keys\\(m\\).slice\\(0,10\\)\\)\")",
       "Bash(curl -s http://localhost:5000/health)",
-      "Bash(curl -s http://localhost:5000/api/v2)"
+      "Bash(curl -s http://localhost:5000/api/v2)",
+      "WebSearch",
+      "Bash(node -e ' *)"
     ]
   }
 }

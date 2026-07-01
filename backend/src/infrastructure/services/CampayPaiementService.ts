@@ -102,7 +102,7 @@ export class CampayPaiementService implements PaiementService {
   async verifierStatut(campayRef: string): Promise<ResultatPaiement> {
     const token = await getCampayToken();
 
-    const response = await fetch(`${BASE_URL}/payment/${campayRef}/`, {
+    const response = await fetch(`${BASE_URL}/transaction/${campayRef}/`, {
       headers: { Authorization: `Token ${token}` },
     });
 

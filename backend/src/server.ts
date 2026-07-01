@@ -23,6 +23,8 @@ import {
   sendPaymentReminders,
   computeStudentHealthScores,
   markOverdueLoans,
+  checkAbsenceThreshold,
+  BackupSchoolDataJob,
 } from "./inngest/functions.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
@@ -123,6 +125,8 @@ app.use(
       sendPaymentReminders,
       computeStudentHealthScores,
       markOverdueLoans,
+      checkAbsenceThreshold,
+      BackupSchoolDataJob,
     ],
   })
 );

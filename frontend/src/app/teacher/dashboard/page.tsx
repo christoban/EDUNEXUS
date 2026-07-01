@@ -12,22 +12,31 @@ import SectionTeacherGrades from './_components/SectionTeacherGrades'
 
 import SectionTeacherTimetable from './_components/SectionTeacherTimetable'
 import SectionOfflineStatus from './_components/SectionOfflineStatus'
+import SectionProfesseurPrincipal from './_components/SectionProfesseurPrincipal'
+import SectionAppreciationsPP from './_components/SectionAppreciationsPP'
+import SectionDepartementAP from './_components/SectionDepartementAP'
+import SectionCahierDeTexte from './_components/SectionCahierDeTexte'
 import type { TeacherSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
+import ChangePasswordModal from '@/components/ChangePasswordModal'
 
 let toastId = 0
 
 const TITLES: Record<TeacherSection, string> = {
-  dashboard:  'Tableau de bord',
-  classes:    'Mes classes',
-  attendance: 'Présences',
-  grades:     'Notes',
-  bulletins:  'Bulletins',
-  timetable:  'Emploi du temps',
-  resources:  'Ressources',
-  sync:       'Synchronisation',
+  dashboard:           'Tableau de bord',
+  classes:             'Mes classes',
+  attendance:          'Présences',
+  grades:              'Notes',
+  bulletins:           'Bulletins',
+  timetable:           'Emploi du temps',
+  resources:           'Ressources',
+  sync:                'Synchronisation',
+  'pp-classe':         'Ma classe',
+  'pp-appreciations':  'Appréciations',
+  'ap-departement':    'Mon département',
+  'cahier-de-texte':   'Cahier de texte',
 }
 
 const PLACEHOLDERS: Partial<Record<TeacherSection, { icon: string }>> = {
@@ -41,6 +50,7 @@ export default function TeacherDashboard() {
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
   const [pendingGrades, setPendingGrades] = useState<number>(0)
+  const [changePwdOpen, setChangePwdOpen] = useState(false)
   const { pendingCount } = useSyncQueue()
 
   useEffect(() => {
@@ -81,6 +91,10 @@ export default function TeacherDashboard() {
               <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#a89478' }} />
               <input placeholder="Rechercher..." style={{ background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 10, padding: '8px 14px 8px 34px', fontSize: 15, fontWeight: 600, color: '#1a1209', outline: 'none', width: 260, fontFamily: 'inherit' }} />
             </div>
+            <button onClick={() => setChangePwdOpen(true)} title="Changer le mot de passe"
+              style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
+              🔐
+            </button>
             <div style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
               <Bell size={18} color="#6b5c45" />
               <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: '#dc2626', borderRadius: '50%', border: '2px solid white' }} />
@@ -97,6 +111,19 @@ export default function TeacherDashboard() {
 
           {section === 'timetable'  && <SectionTeacherTimetable {...sProps} />}
           {section === 'sync'       && <SectionOfflineStatus onToast={showToast} />}
+          {section === 'pp-classe' && (() => {
+            const cls = user?.classesProfessorPrincipal?.[0]
+            return cls ? <SectionProfesseurPrincipal user={user!} classeId={cls.id} classeNom={cls.name} /> : null
+          })()}
+          {section === 'pp-appreciations' && (() => {
+            const cls = user?.classesProfessorPrincipal?.[0]
+            return cls ? <SectionAppreciationsPP user={user!} classeId={cls.id} /> : null
+          })()}
+          {section === 'ap-departement' && (() => {
+            const dept = user?.headedDepartments?.[0]
+            return dept ? <SectionDepartementAP user={user!} departementId={dept.id} departementNom={dept.name} /> : null
+          })()}
+          {section === 'cahier-de-texte' && <SectionCahierDeTexte user={user} onToast={showToast} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
@@ -117,6 +144,7 @@ export default function TeacherDashboard() {
 
       <TeacherToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
+      {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
     </div>
   )
 }

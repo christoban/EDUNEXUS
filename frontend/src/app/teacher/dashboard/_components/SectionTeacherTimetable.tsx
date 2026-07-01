@@ -9,15 +9,15 @@ interface Props {
 }
 
 const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
-const TIMES = ['07:30', '08:30', '09:30', '10:30', '12:00', '13:00', '14:00']
-const TIMES_END = ['08:30', '09:30', '10:30', '11:30', '13:00', '14:00', '15:00']
 
 type SlotType = { subject: string; classe: string } | null
+type GridRow = { start: string; end: string }
 
 const EMPTY_CATCHUP = { open: false, classId: '', proposedDate: '', subjectId: '', proposedStartTime: '', proposedEndTime: '', reason: '', loading: false, error: '' }
 
 export default function SectionTeacherTimetable({ onToast, user }: Props) {
   const [slots, setSlots] = useState<Record<string, SlotType>>({})
+  const [grid, setGrid] = useState<GridRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [catchup, setCatchup] = useState(EMPTY_CATCHUP)
@@ -29,21 +29,32 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
     try {
       const res = await fetchApi('/api/v2/timetables', { credentials: 'include' }).then(r => r.json())
       if (res.success) {
+        // Clé = "dayOfWeek-startTime" (1-5, heure exacte)
         const slotMap: Record<string, SlotType> = {}
-        const teacherProfileId = user?.teacherProfile?.id
+        // Dériver la grille horaire depuis les données réelles (startTime uniques triés)
+        const rowMap = new Map<string, string>() // startTime → endTime
+
+        const userId = user?.id
 
         res.data.forEach((tt: any) => {
           (tt.slots || []).forEach((s: any) => {
-            if (!teacherProfileId || s.teacher?.id !== teacherProfileId) return
-            const startIdx = TIMES.indexOf(s.startTime)
-            if (startIdx === -1) return
-            const key = `${s.dayOfWeek}-${startIdx}`
+            // Collecter toutes les plages horaires pour construire la grille
+            if (s.startTime && s.endTime) rowMap.set(s.startTime, s.endTime)
+            // Filtrer uniquement les créneaux de cet enseignant (User.id)
+            if (!userId || s.teacher?.id !== userId) return
+            const key = `${s.dayOfWeek}-${s.startTime}`
             slotMap[key] = {
               subject: s.subject?.name || '',
               classe: tt.class?.name || '',
             }
           })
         })
+
+        const sortedGrid: GridRow[] = [...rowMap.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([start, end]) => ({ start, end }))
+
+        setGrid(sortedGrid)
         setSlots(slotMap)
       } else {
         setError('Erreur de chargement')
@@ -193,48 +204,54 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
         </div>
       )}
 
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
-            <thead>
-              <tr>
-                <th style={{ ...thSt, width: 100 }}>Horaire</th>
-                {DAYS.map(d => <th key={d} style={thSt}>{d}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {TIMES.map((time, ti) => (
-                <tr key={ti}>
-                  <td style={{ padding: '10px 11px', background: '#f0ebe3', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
-                    {time}<br /><span style={{ fontSize: 11, color: '#d4c8b8' }}>{TIMES_END[ti]}</span>
-                  </td>
-                  {DAYS.map((_, di) => {
-                    const slot = slots[`${di}-${ti}`]
-                    return (
-                      <td key={di} style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 140, height: 76 }}>
-                        {slot ? (
-                          <div
-                            style={{
-                              padding: 10, height: '100%', cursor: 'pointer',
-                              background: 'linear-gradient(135deg,rgba(5,150,105,0.1),rgba(5,150,105,0.05))',
-                              borderLeft: '3px solid #059669',
-                            }}
-                            onClick={() => onToast(`${slot.subject} — ${slot.classe}`, 'info')}>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: '#047857' }}>{slot.subject}</div>
-                            <div style={{ fontSize: 12, color: '#a89478', marginTop: 3 }}>{slot.classe}</div>
-                          </div>
-                        ) : (
-                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d4c8b8', fontSize: 20 }}>·</div>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {grid.length === 0 ? (
+        <div style={{ padding: 32, textAlign: 'center', color: '#a89478', fontSize: 14 }}>
+          Aucun emploi du temps disponible pour le moment.
         </div>
-      </div>
+      ) : (
+        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thSt, width: 100 }}>Horaire</th>
+                  {DAYS.map(d => <th key={d} style={thSt}>{d}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {grid.map((row) => (
+                  <tr key={row.start}>
+                    <td style={{ padding: '10px 11px', background: '#f0ebe3', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
+                      {row.start}<br /><span style={{ fontSize: 11, color: '#d4c8b8' }}>{row.end}</span>
+                    </td>
+                    {[1, 2, 3, 4, 5].map((day) => {
+                      const slot = slots[`${day}-${row.start}`]
+                      return (
+                        <td key={day} style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 140, height: 76 }}>
+                          {slot ? (
+                            <div
+                              style={{
+                                padding: 10, height: '100%', cursor: 'pointer',
+                                background: 'linear-gradient(135deg,rgba(5,150,105,0.1),rgba(5,150,105,0.05))',
+                                borderLeft: '3px solid #059669',
+                              }}
+                              onClick={() => onToast(`${slot.subject} — ${slot.classe}`, 'info')}>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: '#047857' }}>{slot.subject}</div>
+                              <div style={{ fontSize: 12, color: '#a89478', marginTop: 3 }}>{slot.classe}</div>
+                            </div>
+                          ) : (
+                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d4c8b8', fontSize: 20 }}>·</div>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

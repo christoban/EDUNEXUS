@@ -17,6 +17,8 @@ import { creerAttendanceRoutes } from '@infrastructure/http/routes/attendance.ro
 import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.routes';
 import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.routes';
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
+import { StudentDocumentController } from '@infrastructure/http/controllers/StudentDocumentController';
+import { creerStudentDocumentRoutes } from '@infrastructure/http/routes/studentDocument.routes';
 import { protectMaster, authorizeMaster } from '../../middleware/authMultiTenant';
 import { errorHandler } from '@infrastructure/http/middlewares/errorHandler';
 import { DevController } from '@infrastructure/http/controllers/DevController';
@@ -33,6 +35,7 @@ import { AcademicYearController } from '@infrastructure/http/controllers/Academi
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
 import { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';
+import { buildPayload, getLatestSchoolBackup } from '../../utils/schoolBackup';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
@@ -55,8 +58,18 @@ import { TimetableGridConfigController, calculerSqelette } from '@infrastructure
 import { creerTimetableGridConfigRoutes } from '@infrastructure/http/routes/timetable-grid-config.routes';
 import { DepartmentController } from '@infrastructure/http/controllers/DepartmentController';
 import { creerDepartmentRoutes } from '@infrastructure/http/routes/department.routes';
+import { StatisticsController } from '@infrastructure/http/controllers/StatisticsController';
+import { creerStatisticsRoutes } from '@infrastructure/http/routes/statistics.routes';
+import { CommunicationsController } from '@infrastructure/http/controllers/CommunicationsController';
+import { creerCommunicationsRoutes } from '@infrastructure/http/routes/communications.routes';
+import { TimetableAutoController } from '@infrastructure/http/controllers/TimetableAutoController';
+import { PedagogieController } from '@infrastructure/http/controllers/PedagogieController';
+import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
+import { HRController } from '@infrastructure/http/controllers/HRController';
+import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
 import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
+import { getStaffTitlesForTemplate } from '@domain/rules/StaffPermissionRules';
 import {
   assignerMatieresPourClasse,
   CYCLE2_LEVELS as SYNC_CYCLE2_LEVELS,
@@ -80,6 +93,7 @@ import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
 import { MasterAuthController } from '@infrastructure/http/controllers/MasterAuthController';
 import { creerMasterAuthRoutes } from '@infrastructure/http/routes/masterAuth.routes';
 import { sendTransactionalEmail } from '../../services/emailService';
+import { notifyDisciplineSms } from '../services/SmsNotificationService';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
 
@@ -131,6 +145,73 @@ export function bootstrapHexagonal(app: Application): void {
       });
       if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
       res.json({ success: true, data: school });
+    } catch (err) { next(err); }
+  });
+
+  app.get('/api/v2/school/last-backup', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const settings = await (prisma as any).schoolSettings.findUnique({
+        where: { schoolId },
+        select: { lastBackupAt: true, lastBackupFile: true },
+      });
+      const latest = await getLatestSchoolBackup(schoolId);
+      res.json({
+        success: true,
+        data: {
+          lastBackupAt: settings?.lastBackupAt ?? latest?.createdAt ?? null,
+          lastBackupFile: settings?.lastBackupFile ?? latest?.filePath ?? null,
+          latestFileExists: Boolean(settings?.lastBackupFile || latest),
+        },
+      });
+    } catch (err) { next(err); }
+  });
+
+  app.get('/api/v2/school/export', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const school = await prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { name: true },
+      });
+
+      if (!school) {
+        res.status(404).json({ success: false, message: 'École introuvable' });
+        return;
+      }
+
+      const payload = await buildPayload(prisma, schoolId);
+      const exportedAt = new Date().toISOString().replace(/[:.]/g, '-');
+      const safeName = school.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'ecole';
+
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeName}-rgpd-${exportedAt}.json"`);
+      res.send(JSON.stringify({
+        success: true,
+        data: {
+          exportedAt: new Date().toISOString(),
+          schoolId,
+          schoolName: school.name,
+          export: payload,
+        },
+      }, null, 2));
+    } catch (err) { next(err); }
+  });
+
+  // ── Titres de staff disponibles selon le template de l'école ────────────
+  // Retourne uniquement les titres appropriés (pas de rôles EN dans une école FR, etc.)
+  app.get('/api/v2/school/staff-titles', requireAuth, async (req, res, next) => {
+    try {
+      const school = await prisma.school.findUnique({
+        where: { id: req.user!.schoolId },
+        select: { templateCode: true, onboardingConfig: true },
+      });
+      const templateCode = school?.templateCode
+        ?? (school?.onboardingConfig as any)?.templateCode
+        ?? undefined;
+      const meta = getTemplateMeta(templateCode);
+      const titles = getStaffTitlesForTemplate(meta, templateCode);
+      res.json({ success: true, data: titles });
     } catch (err) { next(err); }
   });
 
@@ -456,7 +537,7 @@ export function bootstrapHexagonal(app: Application): void {
         };
       }
 
-      await prisma.school.update({ where: { id: schoolId }, data: { onboardingConfig: newConfig } });
+      await prisma.school.update({ where: { id: schoolId }, data: { onboardingConfig: newConfig as any } });
 
       // Calculer la liste complète des classes attendues depuis la config mise à jour
       const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -650,6 +731,10 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/report-cards', creerReportCardRoutes(reportCardController));
   app.use('/api/v2/class-councils', creerClassCouncilRoutes(classCouncilController));
 
+  // ── Documents scolaires vérifiables (certificat, carte, transfert) ────────
+  const studentDocumentController = new StudentDocumentController(prisma);
+  app.use('/api/v2', creerStudentDocumentRoutes(studentDocumentController));
+
   const designerAPUseCase = new DesignerAPUseCase(prisma);
 
   const userController = new UserController(
@@ -736,6 +821,12 @@ export function bootstrapHexagonal(app: Application): void {
 
   const departmentController = new DepartmentController(prisma);
   app.use('/api/v2/departments', creerDepartmentRoutes(departmentController));
+
+  const statisticsController = new StatisticsController(prisma);
+  app.use('/api/v2/statistics', creerStatisticsRoutes(statisticsController));
+
+  const communicationsController = new CommunicationsController(prisma);
+  app.use('/api/v2/communications', creerCommunicationsRoutes(communicationsController));
 
   const teachingAssignmentController = new TeachingAssignmentController(prisma);
   app.use('/api/v2/teaching-assignments', creerTeachingAssignmentRoutes(teachingAssignmentController));
@@ -922,7 +1013,20 @@ export function bootstrapHexagonal(app: Application): void {
     } catch (err) { next(err); }
   });
 
+  // ── POST /api/v2/timetables/auto-generate — génération automatique par backtracking ──
+  const timetableAutoController = new TimetableAutoController(prisma);
+  app.post('/api/v2/timetables/auto-generate', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.autoGenerate);
+  app.post('/api/v2/timetables/:id/adjust', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.adjust);
+
   app.use('/api/v2/timetables', creerTimetableRoutes(timetableController));
+
+  // ── Module Pédagogie (C.1) ────────────────────────────────────────────────
+  const pedagogieController = new PedagogieController(prisma);
+  app.use('/api/v2/pedagogie', requireAuth, creerPedagogieRoutes(pedagogieController));
+
+  // ── Module RH (C.2) ───────────────────────────────────────────────────────
+  const hrController = new HRController(prisma);
+  app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
 
   const parentController = new ParentController(
     container.parent.obtenirEnfants,
@@ -1370,6 +1474,42 @@ export function bootstrapHexagonal(app: Application): void {
         },
       });
       res.status(201).json({ success: true, data: record });
+
+      // Fire-and-forget : notification SMS + email aux parents
+      void (async () => {
+        try {
+          const studentName = `${record.student.firstName} ${record.student.lastName}`.trim();
+          await notifyDisciplineSms({
+            schoolId,
+            studentId,
+            studentName,
+            type,
+            reason,
+          });
+
+          const parentLinks = await prisma.parentStudent.findMany({
+            where: { studentProfile: { userId: studentId } },
+            include: { parentProfile: { include: { user: { select: { email: true } } } } },
+          });
+          const parentEmails = parentLinks
+            .map((l) => l.parentProfile?.user?.email)
+            .filter((e): e is string => Boolean(e));
+
+          for (const email of [...new Set(parentEmails)]) {
+            await sendTransactionalEmail({
+              recipientEmail: email,
+              subject: `Notification disciplinaire — ${studentName}`,
+              html: `<p>Bonjour,</p><p><b>${studentName}</b> a fait l'objet d'une sanction disciplinaire.</p><p><b>Type :</b> ${type}</p><p><b>Motif :</b> ${reason}</p><p>Merci de contacter l'établissement pour plus d'informations.</p>`,
+              text: `Sanction disciplinaire pour ${studentName} : ${type} — ${reason}`,
+              template: 'discipline_notification',
+              eventType: 'discipline_notification',
+              metadata: { schoolId },
+            });
+          }
+        } catch (err) {
+          console.error('[Notification discipline fire-and-forget]', err);
+        }
+      })();
     } catch (err) { next(err); }
   });
 

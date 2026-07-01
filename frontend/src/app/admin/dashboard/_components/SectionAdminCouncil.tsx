@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 
@@ -7,19 +7,28 @@ interface Props {
 }
 
 interface CouncilSession {
-  id: string; status: 'OPEN' | 'LOCKED'; createdAt: string; validatedAt: string | null
-  class: { id: string; name: string }; academicPeriod: { id: string; name: string }
+  id: string
+  status: 'OPEN' | 'LOCKED'
+  createdAt: string
+  validatedAt: string | null
+  class: { id: string; name: string }
+  academicPeriod: { id: string; name: string }
   _count: { decisions: number }
+  publishedCount?: number
 }
 
 interface Decision {
-  studentId: string; decision: string; observations: string | null
+  studentId: string
+  decision: string
+  observations: string | null
   student: { id: string; firstName: string; lastName: string }
 }
 
 interface SessionDetail {
-  id: string; status: string
-  class: { id: string; name: string }; academicPeriod: { id: string; name: string }
+  id: string
+  status: string
+  class: { id: string; name: string }
+  academicPeriod: { id: string; name: string }
   presidedBy: { id: string; firstName: string; lastName: string } | null
   decisions: Decision[]
 }
@@ -40,7 +49,8 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   const [loading, setLoading]             = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError]                 = useState<string | null>(null)
-  const [locking, setLocking]             = useState(false)
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('all')
+  const [publishing, setPublishing]       = useState(false)
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -68,35 +78,81 @@ export default function SectionAdminCouncil({ onToast }: Props) {
     } finally { setLoadingDetail(false) }
   }
 
-  const lockSession = async () => {
-    if (!selected) return
-    if (!confirm('Verrouiller ce conseil ? Aucune modification ne sera possible après.')) return
-    setLocking(true)
+  const publishBulletins = async (sessionId: string) => {
+    setPublishing(true)
     try {
-      const res = await fetchApi(`/api/v2/class-councils/${selected.id}/lock`, { method: 'POST', credentials: 'include' })
+      const res = await fetchApi(`/api/v2/class-councils/${sessionId}/publish-bulletins`, {
+        method: 'POST', credentials: 'include',
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast('Conseil de classe verrouillé', 'success')
-      setSelected(prev => prev ? { ...prev, status: 'LOCKED' } : null)
+      onToast(data.count > 0
+        ? `✅ ${data.count} bulletin${data.count > 1 ? 's' : ''} publié${data.count > 1 ? 's' : ''} — SMS envoyés aux parents`
+        : 'Aucun bulletin généré à publier pour cette classe',
+        data.count > 0 ? 'success' : 'info')
       fetchSessions()
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de verrouillage', 'error')
-    } finally { setLocking(false) }
+      onToast(err instanceof Error ? err.message : 'Erreur de publication', 'error')
+    } finally { setPublishing(false) }
   }
 
-  const openCount   = sessions.filter(s => s.status === 'OPEN').length
-  const lockedCount = sessions.filter(s => s.status === 'LOCKED').length
+  // Derive unique periods from all sessions (not filtered)
+  const periodsMap = new Map<string, { id: string; name: string }>()
+  sessions.forEach(s => {
+    if (!periodsMap.has(s.academicPeriod.id)) periodsMap.set(s.academicPeriod.id, s.academicPeriod)
+  })
+  const periods = Array.from(periodsMap.values())
+
+  const filteredSessions = selectedPeriodId === 'all'
+    ? sessions
+    : sessions.filter(s => s.academicPeriod.id === selectedPeriodId)
+
+  // KPIs computed on filteredSessions
+  const totalSessions  = filteredSessions.length
+  const openCount      = filteredSessions.filter(s => s.status === 'OPEN').length
+  const lockedCount    = filteredSessions.filter(s => s.status === 'LOCKED').length
+  const publishedCount = filteredSessions.reduce((sum, s) => sum + (s.publishedCount ?? 0), 0)
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <div style={sTitle}>Conseil de classe</div>
-          <div style={sSub}>{openCount} ouvert{openCount > 1 ? 's' : ''} · {lockedCount} verrouillé{lockedCount > 1 ? 's' : ''}</div>
+          <div style={sSub}>
+            {totalSessions} session{totalSessions !== 1 ? 's' : ''} · {openCount} ouvert{openCount !== 1 ? 's' : ''} · {lockedCount} verrouillé{lockedCount !== 1 ? 's' : ''}
+          </div>
         </div>
+        {periods.length > 0 && (
+          <select
+            value={selectedPeriodId}
+            onChange={e => { setSelectedPeriodId(e.target.value); setSelected(null) }}
+            style={{ padding: '8px 14px', border: '1.5px solid #d4c8b8', borderRadius: 10, background: '#f0ebe3', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, color: '#1a1209', outline: 'none', cursor: 'pointer' }}>
+            <option value="all">Tous les trimestres</option>
+            {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        )}
       </div>
+
+      {/* KPI cards */}
+      {!loading && !error && sessions.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+          {([
+            { icon: '📋', value: totalSessions,  label: 'Sessions au total' },
+            { icon: '⏳', value: openCount,       label: 'En cours' },
+            { icon: '🔒', value: lockedCount,     label: 'Verrouillés' },
+            { icon: '📤', value: publishedCount,  label: 'Bulletins publiés' },
+          ] as const).map(({ icon, value, label }) => (
+            <div key={label} style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', padding: '16px 18px' }}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#1a1209', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
+              <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -111,19 +167,21 @@ export default function SectionAdminCouncil({ onToast }: Props) {
         </div>
       )}
 
-      {!loading && !error && sessions.length === 0 && (
+      {!loading && !error && filteredSessions.length === 0 && (
         <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 32px', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: 14 }}>🎓</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucun conseil de classe</div>
-          <div style={{ fontSize: 16, color: '#a89478' }}>Les sessions seront créées par le personnel.</div>
+          <div style={{ fontSize: 16, color: '#a89478' }}>
+            {selectedPeriodId !== 'all' ? 'Aucune session pour ce trimestre.' : 'Les sessions seront créées par le personnel.'}
+          </div>
         </div>
       )}
 
-      {!loading && !error && sessions.length > 0 && (
+      {!loading && !error && filteredSessions.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: selected ? '340px 1fr' : 'repeat(3,1fr)', gap: 18, alignItems: 'start' }}>
           {/* Liste */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {sessions.map(s => (
+            {filteredSessions.map(s => (
               <div key={s.id} onClick={() => openSession(s.id)}
                 style={{ background: selected?.id === s.id ? '#f0fdf4' : 'white', borderRadius: 14, border: `1.5px solid ${selected?.id === s.id ? '#059669' : '#e8e0d4'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: '#d4c8b8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }) }}
@@ -153,16 +211,39 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                     <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>
                       🗳️ {selected.class.name} · {selected.academicPeriod.name}
                     </span>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {selected.status !== 'LOCKED' && (
-                        <button style={btnPrim} onClick={lockSession} disabled={locking}>
-                          {locking ? '⏳…' : '🔒 Verrouiller'}
-                        </button>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {selected.status === 'LOCKED' && (
+                        <>
+                          <button style={btnPrim} onClick={() => publishBulletins(selected.id)} disabled={publishing}>
+                            {publishing ? '⏳ Publication…' : '📤 Publier les bulletins'}
+                          </button>
+                          <button style={{ ...btnSec, fontSize: 14 }}
+                            onClick={() => window.open(`/api/v2/class-councils/${selected.id}/pv`, '_blank')}
+                            title="Procès-Verbal officiel de la délibération">
+                            📋 PV officiel
+                          </button>
+                          <button style={{ ...btnSec, fontSize: 14 }}
+                            onClick={() => window.open(`/api/v2/classes/${selected.class.id}/tableau-honneur?periodId=${selected.academicPeriod.id}`, '_blank')}
+                            title="Tableau d'honneur du trimestre">
+                            🏆 Tableau d'honneur
+                          </button>
+                          <button style={{ ...btnSec, fontSize: 14 }}
+                            onClick={() => window.open(`/api/v2/classes/${selected.class.id}/tableau-honneur-annuel`, '_blank')}
+                            title="Tableau d'honneur annuel (disponible uniquement si tous les conseils sont verrouillés)">
+                            🏆 Annuel
+                          </button>
+                        </>
                       )}
-                      <button style={btnSec} onClick={() => window.open(`/api/v2/class-councils/${selected.id}/report`, '_blank')}>📄 PDF</button>
+                      <button style={btnSec} onClick={() => window.open(`/api/v2/class-councils/${selected.id}/report`, '_blank')}>📄 Rapport</button>
                       <button style={{ ...btnSec, fontSize: 14 }} onClick={() => setSelected(null)}>✕</button>
                     </div>
                   </div>
+
+                  {selected.status === 'OPEN' && (
+                    <div style={{ background: '#fff7ed', borderBottom: '1px solid #fed7aa', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: '#c2410c' }}>
+                      ⏳ En attente du verrouillage par le Censeur
+                    </div>
+                  )}
 
                   {selected.status === 'LOCKED' && (
                     <div style={{ background: '#d1fae5', borderBottom: '1px solid #e8e0d4', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: '#065f46' }}>
@@ -181,14 +262,14 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                       </thead>
                       <tbody>
                         {selected.decisions.map(d => {
-                          const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS
+                          const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS!
                           return (
                             <tr key={d.studentId}
                               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
                               <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{d.student.firstName} {d.student.lastName}</td>
                               <td style={tdSt}>
-                                <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc.bg, color: dc.color }}>
+                                <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc?.bg, color: dc?.color }}>
                                   {DEC_LABEL[d.decision] ?? d.decision}
                                 </span>
                               </td>

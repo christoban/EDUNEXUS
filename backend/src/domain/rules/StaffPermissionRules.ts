@@ -2,11 +2,20 @@
  * DOMAIN LAYER — Règles de permissions STAFF
  * Mapping officiel : titre terrain → permissions système
  * Source : Spécification EduNexus + terrain Cameroun
+ *
+ * ─── Règle de nommage ────────────────────────────────────────────────────────
+ *   Titres FR    → utilisés dans les templates francophones
+ *   Titres EN    → utilisés dans les templates anglophones
+ *   Titres MIXTE → utilisés dans les templates bilingues (les deux sections)
  */
 import type { StaffPermissionType } from '@domain/types/enums';
+import type { TemplateMeta } from '@application/school/schoolTemplateConfig';
+
+// ─── Mapping titre → permissions ──────────────────────────────────────────────
 
 export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
-  // Francophone
+
+  // ── Secondaire francophone ──────────────────────────────────────────────────
   'Censeur': [
     'MANAGE_TIMETABLE', 'VALIDATE_GRADES', 'MANAGE_EXAMS',
     'SUPERVISE_TEACHERS', 'MANAGE_ATTENDANCE', 'MANAGE_CLASS_COUNCIL',
@@ -22,10 +31,6 @@ export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
   'Économe': [
     'MANAGE_FINANCE', 'VALIDATE_PAYMENTS', 'GENERATE_REPORTS',
   ],
-  'Chef des Travaux': [
-    'MANAGE_ATELIERS', 'MANAGE_PRACTICAL_GRADES', 'MANAGE_INTERNSHIPS',
-    'MANAGE_STAGE_CONVENTIONS', 'MANAGE_WORKSHOP_STOCK', 'GENERATE_REPORTS',
-  ],
   'Animateur Pédagogique': [
     'VIEW_DEPARTMENT_GRADES', 'SUPERVISE_DEPARTMENT_TEACHERS',
     'VALIDATE_DEPARTMENT_TIMETABLE', 'GENERATE_DEPARTMENT_REPORTS',
@@ -36,7 +41,24 @@ export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
   "Conseiller d'Orientation": ['MANAGE_ORIENTATION'],
   'Comptable-Matières': ['MANAGE_PATRIMOINE', 'MANAGE_DEGRADATIONS'],
 
-  // Anglophone
+  // ── Technique francophone (en plus du pool secondaire FR) ──────────────────
+  'Chef des Travaux': [
+    'MANAGE_ATELIERS', 'MANAGE_PRACTICAL_GRADES', 'MANAGE_INTERNSHIPS',
+    'MANAGE_STAGE_CONVENTIONS', 'MANAGE_WORKSHOP_STOCK', 'GENERATE_REPORTS',
+  ],
+
+  // ── Primaire francophone ────────────────────────────────────────────────────
+  'Directeur Adjoint': [
+    'MANAGE_TIMETABLE', 'VALIDATE_GRADES', 'MANAGE_ATTENDANCE',
+    'SUPERVISE_TEACHERS', 'GENERATE_REPORTS', 'SUPERVISE_LESSON_PLANS',
+    'MANAGE_CLASS_COUNCIL',
+  ],
+  'Conseiller Pédagogique': [
+    'VIEW_SUPERVISED_GRADES', 'SUPERVISE_LESSON_PLANS',
+    'GENERATE_PEDAGOGICAL_REPORTS', 'MANAGE_PEDAGOGICAL_BRIEF',
+  ],
+
+  // ── Secondaire anglophone ───────────────────────────────────────────────────
   'Vice-Principal': [
     'MANAGE_TIMETABLE', 'VALIDATE_GRADES', 'MANAGE_EXAMS',
     'SUPERVISE_TEACHERS', 'MANAGE_ATTENDANCE', 'MANAGE_CLASS_COUNCIL',
@@ -55,7 +77,118 @@ export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
     'VIEW_SUPERVISED_GRADES', 'SUPERVISE_LESSON_PLANS',
     'GENERATE_PEDAGOGICAL_REPORTS', 'MANAGE_CE_REPORTS', 'MANAGE_PEDAGOGICAL_BRIEF',
   ],
+  'Librarian': ['MANAGE_LIBRARY'],
+  'Guidance Counsellor': ['MANAGE_ORIENTATION'],
+
+  // ── Primaire anglophone ─────────────────────────────────────────────────────
+  'Deputy Head Teacher': [
+    'MANAGE_TIMETABLE', 'VALIDATE_GRADES', 'MANAGE_ATTENDANCE',
+    'SUPERVISE_TEACHERS', 'GENERATE_REPORTS', 'SUPERVISE_LESSON_PLANS',
+    'MANAGE_CLASS_COUNCIL',
+  ],
 };
+
+// ─── Titres par type d'établissement ─────────────────────────────────────────
+
+export type StaffTitleDef = {
+  key: string;
+  label: string;
+  permissions: StaffPermissionType[];
+};
+
+const FR_SECONDARY_TITLES: StaffTitleDef[] = [
+  { key: 'Censeur',                 label: 'Censeur',                           permissions: PERMISSIONS_PAR_TITRE['Censeur'] },
+  { key: 'Surveillant Général',     label: 'Surveillant Général',               permissions: PERMISSIONS_PAR_TITRE['Surveillant Général'] },
+  { key: 'Intendant',               label: 'Intendant',                         permissions: PERMISSIONS_PAR_TITRE['Intendant'] },
+  { key: 'Animateur Pédagogique',   label: 'Animateur Pédagogique',             permissions: PERMISSIONS_PAR_TITRE['Animateur Pédagogique'] },
+  { key: 'Documentaliste',          label: 'Documentaliste / Bibliothécaire',   permissions: PERMISSIONS_PAR_TITRE['Documentaliste'] },
+  { key: "Conseiller d'Orientation",label: "Conseiller d'Orientation",          permissions: PERMISSIONS_PAR_TITRE["Conseiller d'Orientation"] },
+  { key: 'Comptable-Matières',      label: 'Comptable-Matières',                permissions: PERMISSIONS_PAR_TITRE['Comptable-Matières'] },
+];
+
+const FR_TECHNIQUE_TITLES: StaffTitleDef[] = [
+  { key: 'Censeur',                 label: 'Censeur',                           permissions: PERMISSIONS_PAR_TITRE['Censeur'] },
+  { key: 'Chef des Travaux',        label: 'Chef des Travaux',                  permissions: PERMISSIONS_PAR_TITRE['Chef des Travaux'] },
+  { key: 'Surveillant Général',     label: 'Surveillant Général',               permissions: PERMISSIONS_PAR_TITRE['Surveillant Général'] },
+  { key: 'Intendant',               label: 'Intendant',                         permissions: PERMISSIONS_PAR_TITRE['Intendant'] },
+  { key: 'Animateur Pédagogique',   label: 'Animateur Pédagogique',             permissions: PERMISSIONS_PAR_TITRE['Animateur Pédagogique'] },
+  { key: 'Documentaliste',          label: 'Documentaliste / Bibliothécaire',   permissions: PERMISSIONS_PAR_TITRE['Documentaliste'] },
+  { key: 'Comptable-Matières',      label: 'Comptable-Matières',                permissions: PERMISSIONS_PAR_TITRE['Comptable-Matières'] },
+];
+
+const FR_PRIMAIRE_TITLES: StaffTitleDef[] = [
+  { key: 'Directeur Adjoint',       label: 'Directeur(trice) Adjoint(e)',       permissions: PERMISSIONS_PAR_TITRE['Directeur Adjoint'] },
+  { key: 'Économe',                 label: 'Économe / Intendant',               permissions: PERMISSIONS_PAR_TITRE['Économe'] },
+  { key: 'Conseiller Pédagogique',  label: 'Conseiller(ère) Pédagogique',       permissions: PERMISSIONS_PAR_TITRE['Conseiller Pédagogique'] },
+  { key: 'Documentaliste',          label: 'Documentaliste / Bibliothécaire',   permissions: PERMISSIONS_PAR_TITRE['Documentaliste'] },
+];
+
+const EN_SECONDARY_TITLES: StaffTitleDef[] = [
+  { key: 'Vice-Principal',          label: 'Vice-Principal',                    permissions: PERMISSIONS_PAR_TITRE['Vice-Principal'] },
+  { key: 'Discipline Master',       label: 'Discipline Master',                 permissions: PERMISSIONS_PAR_TITRE['Discipline Master'] },
+  { key: 'Bursar',                  label: 'Bursar',                            permissions: PERMISSIONS_PAR_TITRE['Bursar'] },
+  { key: 'HOD',                     label: 'Head of Department (HOD)',           permissions: PERMISSIONS_PAR_TITRE['HOD'] },
+  { key: 'Librarian',               label: 'Librarian / Documentalist',         permissions: PERMISSIONS_PAR_TITRE['Librarian'] },
+  { key: 'Guidance Counsellor',     label: 'Guidance Counsellor',               permissions: PERMISSIONS_PAR_TITRE['Guidance Counsellor'] },
+];
+
+const EN_PRIMARY_TITLES: StaffTitleDef[] = [
+  { key: 'Deputy Head Teacher',     label: 'Deputy Head Teacher',               permissions: PERMISSIONS_PAR_TITRE['Deputy Head Teacher'] },
+  { key: 'Bursar',                  label: 'Bursar',                            permissions: PERMISSIONS_PAR_TITRE['Bursar'] },
+  { key: 'Librarian',               label: 'Librarian / Teacher-Librarian',     permissions: PERMISSIONS_PAR_TITRE['Librarian'] },
+];
+
+// Bilingue secondaire : les deux sections cohabitent dans le même établissement
+const BILINGUAL_SECONDARY_TITLES: StaffTitleDef[] = [
+  { key: 'Censeur',                 label: 'Censeur (section FR)',               permissions: PERMISSIONS_PAR_TITRE['Censeur'] },
+  { key: 'Vice-Principal',          label: 'Vice-Principal (EN section)',        permissions: PERMISSIONS_PAR_TITRE['Vice-Principal'] },
+  { key: 'Surveillant Général',     label: 'Surveillant Général',               permissions: PERMISSIONS_PAR_TITRE['Surveillant Général'] },
+  { key: 'Discipline Master',       label: 'Discipline Master (EN)',             permissions: PERMISSIONS_PAR_TITRE['Discipline Master'] },
+  { key: 'Intendant',               label: 'Intendant / Bursar',                permissions: PERMISSIONS_PAR_TITRE['Intendant'] },
+  { key: 'Animateur Pédagogique',   label: 'Animateur Pédagogique / HOD',       permissions: PERMISSIONS_PAR_TITRE['Animateur Pédagogique'] },
+  { key: 'Documentaliste',          label: 'Documentaliste / Librarian',        permissions: PERMISSIONS_PAR_TITRE['Documentaliste'] },
+  { key: "Conseiller d'Orientation",label: "Conseiller d'Orientation / Guidance Counsellor", permissions: PERMISSIONS_PAR_TITRE["Conseiller d'Orientation"] },
+  { key: 'Comptable-Matières',      label: 'Comptable-Matières',                permissions: PERMISSIONS_PAR_TITRE['Comptable-Matières'] },
+];
+
+const BILINGUAL_PRIMARY_TITLES: StaffTitleDef[] = [
+  { key: 'Directeur Adjoint',       label: 'Directeur(trice) Adjoint(e) / Deputy Head', permissions: PERMISSIONS_PAR_TITRE['Directeur Adjoint'] },
+  { key: 'Économe',                 label: 'Économe / Bursar',                  permissions: PERMISSIONS_PAR_TITRE['Économe'] },
+  { key: 'Documentaliste',          label: 'Documentaliste / Librarian',        permissions: PERMISSIONS_PAR_TITRE['Documentaliste'] },
+];
+
+// COMPLEXE_SCOLAIRE : école multi-niveaux francophone — staff peut être du secondaire ou du primaire
+const COMPLEXE_TITLES: StaffTitleDef[] = [
+  ...FR_SECONDARY_TITLES,
+  { key: 'Directeur Adjoint',       label: 'Directeur(trice) Adjoint(e) (section primaire)', permissions: PERMISSIONS_PAR_TITRE['Directeur Adjoint'] },
+  { key: 'Économe',                 label: 'Économe / Intendant',               permissions: PERMISSIONS_PAR_TITRE['Économe'] },
+];
+
+// ─── Fonction principale de sélection ────────────────────────────────────────
+
+/**
+ * Retourne la liste des titres de staff appropriés pour un type d'établissement.
+ * @param meta  TemplateMeta issu de getTemplateMeta(school.templateCode)
+ * @param templateCode  Code du template (pour cas spéciaux comme COMPLEXE_SCOLAIRE)
+ */
+export function getStaffTitlesForTemplate(meta: TemplateMeta, templateCode?: string): StaffTitleDef[] {
+  if (templateCode === 'COMPLEXE_SCOLAIRE') return COMPLEXE_TITLES;
+
+  const { isAnglophone, isPrimaire, isTechnique, langMode } = meta;
+
+  if (langMode === 'bilingual') {
+    return isPrimaire ? BILINGUAL_PRIMARY_TITLES : BILINGUAL_SECONDARY_TITLES;
+  }
+  if (isAnglophone) {
+    return isPrimaire ? EN_PRIMARY_TITLES : EN_SECONDARY_TITLES;
+  }
+  // Francophone
+  if (isPrimaire) return FR_PRIMAIRE_TITLES;
+  if (isTechnique) return FR_TECHNIQUE_TITLES;
+  return FR_SECONDARY_TITLES;
+}
+
+// ─── Helpers utilitaires ──────────────────────────────────────────────────────
 
 /**
  * Retourne les permissions pour un titre donné.

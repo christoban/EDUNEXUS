@@ -11,6 +11,7 @@ import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import type { GradeValidationStatus } from '@domain/types/enums';
+import * as XLSX from 'xlsx';
 
 export class GradeController {
   constructor(
@@ -524,6 +525,269 @@ export class GradeController {
       });
 
       res.json({ success: true, grade: updated });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/v2/grades/template?classId=&subjectId=&sequenceId=
+  genererTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { classId, subjectId, sequenceId } = req.query as Record<string, string>;
+
+      if (!classId || !subjectId || !sequenceId) {
+        res.status(400).json({ success: false, message: 'classId, subjectId et sequenceId sont requis' });
+        return;
+      }
+
+      const [classe, subject, sequence] = await Promise.all([
+        prisma.class.findUnique({ where: { id: classId }, select: { name: true } }),
+        prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
+        prisma.academicSequence.findUnique({ where: { id: sequenceId }, select: { name: true } }),
+      ]);
+
+      const students = await prisma.studentProfile.findMany({
+        where: { classId, user: { schoolId: user.schoolId } },
+        include: { user: { select: { firstName: true, lastName: true } } },
+        orderBy: { user: { lastName: 'asc' } },
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      const headers = ['matricule', 'nom', 'prenom', 'note (/20)', 'observation'];
+      const dataRows = students.map((s) => [
+        s.matricule ?? '',
+        s.user.lastName,
+        s.user.firstName,
+        '',
+        '',
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+      ws['!cols'] = [{ wch: 16 }, { wch: 24 }, { wch: 20 }, { wch: 12 }, { wch: 32 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'Notes');
+
+      const ws2 = XLSX.utils.aoa_to_sheet([
+        [`Classe : ${classe?.name ?? classId}`],
+        [`Matière : ${subject?.name ?? subjectId}`],
+        [`Séquence : ${sequence?.name ?? sequenceId}`],
+        [''],
+        ['Instructions :'],
+        ['  • Remplissez la colonne "note (/20)" pour chaque élève (0 à 20)'],
+        ['  • La colonne "observation" est optionnelle'],
+        ['  • Ne modifiez pas le matricule, le nom ou le prénom'],
+        ['  • Les lignes sans note seront ignorées à l\'import'],
+        ['  • Les élèves sans matricule ne peuvent pas être importés'],
+        ['  • Ne supprimez pas la première ligne (en-têtes)'],
+      ]);
+      ws2['!cols'] = [{ wch: 64 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Instructions');
+
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      const safeName = (s?: string) => (s ?? '').replace(/[^a-z0-9]/gi, '-');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="notes-${safeName(classe?.name)}-${safeName(subject?.name)}.xlsx"`,
+      );
+      res.send(buffer);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/grades/import (multipart/form-data)
+  importerDepuisExcel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const { classId, subjectId, sequenceId } = req.body;
+
+      if (!classId || !subjectId || !sequenceId) {
+        res.status(400).json({ success: false, message: 'classId, subjectId et sequenceId sont requis' });
+        return;
+      }
+
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        res.status(400).json({ success: false, message: 'Fichier Excel requis (champ "file")' });
+        return;
+      }
+
+      if (user.role === 'TEACHER') {
+        const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
+        if (!assigned) {
+          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
+          return;
+        }
+      }
+
+      const wb = XLSX.read(file.buffer, { type: 'buffer' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+
+      if (rows.length < 2) {
+        res.status(400).json({ success: false, message: 'Le fichier est vide ou ne contient pas de données' });
+        return;
+      }
+
+      const headers = (rows[0] as string[]).map((h) => h.toString().toLowerCase().trim());
+      const matriculeIdx = headers.findIndex((h) => h.includes('matricule'));
+      const noteIdx = headers.findIndex((h) => h.includes('note'));
+      const obsIdx = headers.findIndex((h) => h.includes('observation'));
+
+      if (matriculeIdx === -1 || noteIdx === -1) {
+        res.status(400).json({
+          success: false,
+          message: 'Colonnes "matricule" et "note" introuvables — utilisez le template téléchargé',
+        });
+        return;
+      }
+
+      const sequence = await prisma.academicSequence.findUnique({
+        where: { id: sequenceId },
+        include: { academicPeriod: { select: { academicYearId: true } } },
+      });
+      if (!sequence) {
+        res.status(400).json({ success: false, message: 'Séquence introuvable' });
+        return;
+      }
+      const academicYearId = sequence.academicPeriod.academicYearId;
+
+      const studentProfiles = await prisma.studentProfile.findMany({
+        where: { classId, user: { schoolId: user.schoolId } },
+        select: { matricule: true, userId: true },
+      });
+      const matriculeToUserId = new Map(
+        studentProfiles.filter((s) => s.matricule).map((s) => [s.matricule!.trim(), s.userId]),
+      );
+
+      const existingGrades = await prisma.grade.findMany({
+        where: { schoolId: user.schoolId, classId, subjectId, sequenceId },
+      });
+      const existingByStudentId = new Map(existingGrades.map((g) => [g.studentId, g]));
+
+      interface GradeRow {
+        studentUserId: string;
+        matricule: string;
+        value: number;
+        observation: string;
+        line: number;
+      }
+      const toProcess: GradeRow[] = [];
+      const errors: { line: number; matricule: string; error: string }[] = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i] as any[];
+        const matricule = row[matriculeIdx]?.toString().trim() ?? '';
+        const noteRaw = row[noteIdx];
+        const observation = obsIdx >= 0 ? (row[obsIdx]?.toString().trim() ?? '') : '';
+
+        if (!matricule && (noteRaw === '' || noteRaw === undefined || noteRaw === null)) continue;
+
+        if (!matricule) {
+          errors.push({ line: i + 1, matricule: '', error: 'Matricule manquant' });
+          continue;
+        }
+
+        const studentUserId = matriculeToUserId.get(matricule);
+        if (!studentUserId) {
+          errors.push({ line: i + 1, matricule, error: `Élève introuvable pour ce matricule dans la classe` });
+          continue;
+        }
+
+        if (noteRaw === '' || noteRaw === undefined || noteRaw === null) continue;
+
+        const value = Number(noteRaw);
+        if (isNaN(value) || value < 0 || value > 20) {
+          errors.push({ line: i + 1, matricule, error: `Note invalide : "${noteRaw}" (doit être entre 0 et 20)` });
+          continue;
+        }
+
+        toProcess.push({ studentUserId, matricule, value, observation, line: i + 1 });
+      }
+
+      let imported = 0;
+      for (const g of toProcess) {
+        const existing = existingByStudentId.get(g.studentUserId);
+        if (existing) {
+          const noteEntity = Note.reconstituer({
+            id: existing.id,
+            schoolId: existing.schoolId,
+            studentId: existing.studentId,
+            subjectId: existing.subjectId,
+            classId: existing.classId,
+            academicYearId: existing.academicYearId,
+            sequenceId: existing.sequenceId,
+            recordedById: existing.recordedById ?? undefined,
+            sequenceScore: existing.sequenceScore ?? undefined,
+            classTestScore: existing.classTestScore ?? undefined,
+            terminalExamScore: existing.terminalExamScore ?? undefined,
+            theoreticalScore: existing.theoreticalScore ?? undefined,
+            practicalScore: existing.practicalScore ?? undefined,
+            professionalAttitude: existing.professionalAttitude ?? undefined,
+            oralScore: existing.oralScore ?? undefined,
+            selfDevelopmentScore: existing.selfDevelopmentScore ?? undefined,
+            coefficient: existing.coefficient,
+            maxValue: existing.maxValue,
+            sequenceAverage: existing.sequenceAverage ?? undefined,
+            validationStatus: existing.validationStatus as GradeValidationStatus,
+            validatedById: existing.validatedById ?? undefined,
+            validatedAt: existing.validatedAt ?? undefined,
+            rejectionReason: existing.rejectionReason ?? undefined,
+            observation: existing.observation ?? undefined,
+            isOfflineSync: existing.isOfflineSync,
+            syncedAt: existing.syncedAt ?? undefined,
+            createdAt: existing.createdAt,
+          });
+          if (!noteEntity.peutEtreModifiee()) {
+            errors.push({
+              line: g.line,
+              matricule: g.matricule,
+              error: `Note en statut ${existing.validationStatus} — non modifiable`,
+            });
+            continue;
+          }
+          await prisma.grade.update({
+            where: { id: existing.id },
+            data: {
+              sequenceScore: g.value,
+              sequenceAverage: g.value,
+              maxValue: 20,
+              rejectionReason: null,
+              observation: g.observation || null,
+              validationStatus: 'DRAFT',
+              recordedById: user.userId,
+            } as any,
+          });
+        } else {
+          await prisma.grade.create({
+            data: {
+              schoolId: user.schoolId,
+              classId,
+              subjectId,
+              sequenceId,
+              studentId: g.studentUserId,
+              academicYearId,
+              sequenceScore: g.value,
+              sequenceAverage: g.value,
+              maxValue: 20,
+              observation: g.observation || null,
+              validationStatus: 'DRAFT',
+              recordedById: user.userId,
+            } as any,
+          });
+        }
+        imported++;
+      }
+
+      res.json({
+        success: true,
+        imported,
+        errors,
+        total: toProcess.length + errors.length,
+        skipped: errors.length,
+      });
     } catch (error) {
       next(error);
     }

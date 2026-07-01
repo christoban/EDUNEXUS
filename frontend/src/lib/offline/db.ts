@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie'
 
 export interface PendingAction {
   id?: number
-  type: 'ATTENDANCE' | 'GRADE'
+  type: 'ATTENDANCE' | 'GRADE' | 'CAHIER_DE_TEXTE_CREATE'
   payload: unknown
   endpoint: string
   method: 'POST' | 'PATCH'

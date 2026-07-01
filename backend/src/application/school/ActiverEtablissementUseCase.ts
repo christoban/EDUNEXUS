@@ -12,6 +12,7 @@ import {
   NIVEAU_MAP,
 } from './SubjectAssignmentHelper';
 import { getTemplateMeta, isPEBSFrancophoneEligible, isPEBSAnglophoneEligible } from './schoolTemplateConfig';
+import { APC_COMPETENCES, APC_UNITES } from './curriculum/primaire-apc';
 
 export interface ActiverEtablissementCommande {
   schoolId: string;
@@ -125,17 +126,22 @@ export class ActiverEtablissementUseCase {
           },
         });
 
-        // 3. Créer 2 séquences par période (nommage FR vs EN)
-        type SeqDef = { name: string; type: 'DS' | 'COMPOSITION' | 'CLASS_TEST' | 'TERMINAL_EXAM' };
-        const seqDefs: SeqDef[] = isAnglophone
-          ? [
-              { name: 'Sequence 1', type: 'CLASS_TEST'    },
-              { name: 'Sequence 2', type: 'TERMINAL_EXAM' },
-            ]
-          : [
-              { name: i < 2 ? `DS${i * 2 + 1}` : 'DS5',       type: 'DS'          },
-              { name: i < 2 ? `DS${i * 2 + 2}` : 'Composition', type: i < 2 ? 'DS' : 'COMPOSITION' },
-            ];
+        // 3. Créer les séquences/UA par période
+        // APC primaire : UA1-UA8 distribuées 3-3-2 (UA1-3 / Trim1, UA4-6 / Trim2, UA7-8 / Trim3)
+        // FR : "Séquence 1...Séquence 6" — nommage standard modifiable par l'établissement
+        // EN : "Sequence 1 / Sequence 2" par terme (Class Test + Terminal Exam)
+        type SeqDef = { name: string; type: 'DS' | 'COMPOSITION' | 'CLASS_TEST' | 'TERMINAL_EXAM' | 'UA' };
+        const seqDefs: SeqDef[] = isPrimaire
+          ? APC_UNITES[i].unites.map(ua => ({ name: ua, type: 'UA' as const }))
+          : isAnglophone
+            ? [
+                { name: 'Sequence 1', type: 'CLASS_TEST'    },
+                { name: 'Sequence 2', type: 'TERMINAL_EXAM' },
+              ]
+            : [
+                { name: `Séquence ${i * 2 + 1}`, type: 'DS' },
+                { name: `Séquence ${i * 2 + 2}`, type: 'DS' },
+              ];
 
         for (let j = 0; j < seqDefs.length; j++) {
           await tx.academicSequence.create({
@@ -273,7 +279,28 @@ export class ActiverEtablissementUseCase {
         classCount = classesACreer.length;
       }
 
-      // 4f. Créer les matières depuis template.config.defaultSubjects
+      // 4f. Primaire APC — créer une Matière par Sous-Compétence (11 au total)
+      // Structure terrain : 6 Compétences → 11 Sous-Compétences évaluées par UA (UA1-UA8)
+      // Le coefficient ici = totalPoints de la sous-compétence (poids dans /260)
+      if (isPrimaire) {
+        for (const comp of APC_COMPETENCES) {
+          for (const sc of comp.sousCompetences) {
+            await tx.subject.create({
+              data: {
+                schoolId,
+                name:         sc.label,
+                code:         sc.code,
+                coefficient:  sc.totalPoints,
+                hoursPerWeek: 0,
+                subjectType:  'THEORETICAL',
+              },
+            });
+            subjectCount++;
+          }
+        }
+      }
+
+      // 4f-bis. Secondaire/Technique — créer les matières depuis template.config.defaultSubjects
       // Fallback : si school.templateCode n'était pas renseigné au moment de l'activation,
       // on récupère le template via onboardingConfig.templateCode
       let effectiveTemplate: any = school.template;
@@ -281,10 +308,10 @@ export class ActiverEtablissementUseCase {
         effectiveTemplate = await tx.schoolTemplate.findUnique({ where: { code: templateCode } });
       }
       // Templates with full reference data (CycleCoefficients, BacCoefficients, AnglophoneSubjectLoad)
-      // skip 4f — section 4g below creates subjects on-demand from correct reference data instead.
+      // skip 4f-bis — section 4g below creates subjects on-demand from correct reference data instead.
       const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE'];
       const hasReferenceData = templateCode && TEMPLATES_WITH_REFERENCE_DATA.includes(templateCode);
-      if (effectiveTemplate && !hasReferenceData) {
+      if (effectiveTemplate && !hasReferenceData && !isPrimaire) {
         const tCfg = effectiveTemplate.config as any;
         const frSubjects: any[] = tCfg.defaultSubjects   ?? [];
         const enSubjects: any[] = tCfg.defaultSubjectsEN ?? [];
@@ -317,8 +344,9 @@ export class ActiverEtablissementUseCase {
         subjectCount = frSubjects.length + enSubjects.length;
       }
 
-      // 4g. SubjectCoefficients pour toutes les classes (1er cycle + 2e cycle)
-      if (classesACreer.length > 0) {
+      // 4g. SubjectCoefficients pour toutes les classes — secondaire uniquement
+      // Primaire APC : pas de SubjectCoefficient par classe (toutes les classes ont les mêmes sous-compétences)
+      if (classesACreer.length > 0 && !isPrimaire) {
         const schoolSubjects = await tx.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
         const subjectByName  = new Map(schoolSubjects.map(s => [s.name, s.id]));
         const subjectCountRef = { value: 0 };
@@ -417,6 +445,37 @@ export class ActiverEtablissementUseCase {
         }
       }
 
+      // 4h-APC. Primaire — créer un Département par Compétence APC (6 compétences)
+      // Les Sujets (sous-compétences) créés à l'étape 4f sont rattachés à leur compétence.
+      if (isPrimaire) {
+        const APC_DEPT_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#10b981', '#f97316'];
+        const apcSubjects = await tx.subject.findMany({
+          where: { schoolId },
+          select: { id: true, code: true },
+        });
+        const subjectByCode = new Map(apcSubjects.map(s => [s.code, s.id]));
+
+        for (let ci = 0; ci < APC_COMPETENCES.length; ci++) {
+          const comp = APC_COMPETENCES[ci];
+          const dept = await tx.department.create({
+            data: {
+              schoolId,
+              name:  `Compétence ${comp.numero}`,
+              color: APC_DEPT_COLORS[ci] ?? '#9ca3af',
+            },
+          });
+          for (const sc of comp.sousCompetences) {
+            const subjectId = subjectByCode.get(sc.code);
+            if (subjectId) {
+              await tx.subject.update({
+                where: { id: subjectId },
+                data:  { departmentId: dept.id },
+              });
+            }
+          }
+        }
+      }
+
       // 5. Cloner la GradeFormula adaptée au type de template
       if (school.templateCode) {
         const formulaId = isTechnique    ? 'default-technique-fr'
@@ -431,8 +490,10 @@ export class ActiverEtablissementUseCase {
         }
 
         // 6. Cloner la MentionRule adaptée
-        const mentionId = (isPrimaire && !isAnglophone) ? 'default-apc-mentions'
-          : isAnglophone                                ? 'default-en-mentions'
+        // Primaire FR et EN : les deux utilisent l'échelle APC (Expert/Acquis/ECA/NA sur /20)
+        // Source terrain : bulletin CM2 FR + rapport Class V anglophone Le Québécois
+        const mentionId = isPrimaire    ? 'default-apc-mentions'
+          : isAnglophone                ? 'default-en-mentions'
           : 'default-fr-mentions';
 
         const rule = await tx.mentionRule.findUnique({ where: { id: mentionId } });

@@ -1,0 +1,297 @@
+'use client'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts'
+import { fetchApi } from '@/lib/fetchApi'
+
+interface Props {
+  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
+}
+
+interface ClassItem { id: string; name: string; level?: string | null }
+interface SubjectItem { id: string; name: string }
+interface TeacherItem { id: string; firstName: string; lastName: string }
+
+interface EvolutionPoint { sequenceName: string; periodName: string; moyenne: number; nbNotes: number }
+interface ClassComparisonRow { classId: string; className: string; level: string | null; moyenne: number | null; nbEleves: number }
+interface DistributionRow { label: string; count: number }
+interface TeacherPerf {
+  teacherName: string
+  heuresPrevuesParSemaine: number
+  seancesEnregistrees: number
+  tauxPresence: number | null
+  moyennesParClasse: { subjectName: string; className: string; moyenne: number | null; nbEleves: number }[]
+}
+
+const PIE_COLORS = ['#059669', '#d97706', '#1d4ed8', '#dc2626', '#7c3aed', '#a89478']
+
+const card: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }
+const cardHeader: React.CSSProperties = { padding: '16px 22px', borderBottom: '1px solid #e8e0d4' }
+const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: '#1a1209' }
+const select: React.CSSProperties = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid #d4c8b8', fontFamily: 'inherit', fontSize: 14, color: '#1a1209', background: 'white' }
+
+export default function SectionStatistics({ onToast }: Props) {
+  const [classes, setClasses] = useState<ClassItem[]>([])
+  const [subjects, setSubjects] = useState<SubjectItem[]>([])
+  const [teachers, setTeachers] = useState<TeacherItem[]>([])
+
+  const [evoClassId, setEvoClassId] = useState('')
+  const [evoSubjectId, setEvoSubjectId] = useState('')
+  const [evolution, setEvolution] = useState<EvolutionPoint[]>([])
+  const [evoLoading, setEvoLoading] = useState(true)
+
+  const [level, setLevel] = useState('')
+  const [comparison, setComparison] = useState<ClassComparisonRow[]>([])
+  const [compLoading, setCompLoading] = useState(true)
+
+  const [criteria, setCriteria] = useState<'gender' | 'level' | 'paymentStatus'>('gender')
+  const [distribution, setDistribution] = useState<DistributionRow[]>([])
+  const [distLoading, setDistLoading] = useState(true)
+
+  const [teacherId, setTeacherId] = useState('')
+  const [teacherPerf, setTeacherPerf] = useState<TeacherPerf | null>(null)
+  const [teacherLoading, setTeacherLoading] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/users?role=TEACHER&limit=200', { credentials: 'include' }).then(r => r.json()),
+    ]).then(([cd, sd, td]) => {
+      setClasses(cd.data || [])
+      setSubjects(sd.data || [])
+      setTeachers(td.data || [])
+    }).catch(() => {})
+  }, [])
+
+  const fetchEvolution = useCallback(async () => {
+    try {
+      setEvoLoading(true)
+      const params = new URLSearchParams()
+      if (evoClassId) params.set('classId', evoClassId)
+      if (evoSubjectId) params.set('subjectId', evoSubjectId)
+      const res = await fetchApi(`/api/v2/statistics/grades-evolution?${params}`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+      setEvolution(data.data || [])
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
+    } finally { setEvoLoading(false) }
+  }, [evoClassId, evoSubjectId, onToast])
+
+  const fetchComparison = useCallback(async () => {
+    try {
+      setCompLoading(true)
+      const params = new URLSearchParams()
+      if (level) params.set('level', level)
+      const res = await fetchApi(`/api/v2/statistics/classes-comparison?${params}`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+      setComparison(data.data || [])
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
+    } finally { setCompLoading(false) }
+  }, [level, onToast])
+
+  const fetchDistribution = useCallback(async () => {
+    try {
+      setDistLoading(true)
+      const res = await fetchApi(`/api/v2/statistics/students-distribution?criteria=${criteria}`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+      setDistribution(data.data || [])
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
+    } finally { setDistLoading(false) }
+  }, [criteria, onToast])
+
+  const fetchTeacherPerf = useCallback(async (id: string) => {
+    if (!id) { setTeacherPerf(null); return }
+    try {
+      setTeacherLoading(true)
+      const res = await fetchApi(`/api/v2/statistics/teacher-performance/${id}`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+      setTeacherPerf(data.data)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
+    } finally { setTeacherLoading(false) }
+  }, [onToast])
+
+  useEffect(() => { fetchEvolution() }, [fetchEvolution])
+  useEffect(() => { fetchComparison() }, [fetchComparison])
+  useEffect(() => { fetchDistribution() }, [fetchDistribution])
+  useEffect(() => { fetchTeacherPerf(teacherId) }, [teacherId, fetchTeacherPerf])
+
+  const levels = Array.from(new Set(classes.map(c => c.level).filter(Boolean))) as string[]
+
+  return (
+    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+      <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
+
+      <div style={{ marginBottom: 26 }}>
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }}>
+          Statistiques
+        </div>
+        <div style={{ fontSize: 17, color: '#a89478', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+
+        {/* Évolution des moyennes */}
+        <div style={card}>
+          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <span style={cardTitle}>📈 Évolution des moyennes</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
+                <option value="">Toutes les classes</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <select style={select} value={evoSubjectId} onChange={e => setEvoSubjectId(e.target.value)}>
+                <option value="">Toutes les matières</option>
+                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ padding: '18px 22px', height: 300 }}>
+            {evoLoading ? (
+              <Spinner />
+            ) : evolution.length === 0 ? (
+              <EmptyState text="Aucune séquence clôturée avec des notes validées" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={evolution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e8e0d4" />
+                  <XAxis dataKey="sequenceName" tick={{ fontSize: 12 }} />
+                  <YAxis domain={[0, 20]} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="moyenne" name="Moyenne" stroke="#059669" strokeWidth={2.5} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Comparaison entre classes */}
+        <div style={card}>
+          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <span style={cardTitle}>📊 Comparaison entre classes</span>
+            <select style={select} value={level} onChange={e => setLevel(e.target.value)}>
+              <option value="">Tous les niveaux</option>
+              {levels.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+          <div style={{ padding: '18px 22px', height: 300 }}>
+            {compLoading ? (
+              <Spinner />
+            ) : comparison.length === 0 ? (
+              <EmptyState text="Aucune classe trouvée" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={comparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e8e0d4" />
+                  <XAxis dataKey="className" tick={{ fontSize: 12 }} />
+                  <YAxis domain={[0, 20]} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="moyenne" name="Moyenne générale" fill="#1d4ed8" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Répartition des effectifs */}
+        <div style={card}>
+          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={cardTitle}>🥧 Répartition des effectifs</span>
+            <select style={select} value={criteria} onChange={e => setCriteria(e.target.value as typeof criteria)}>
+              <option value="gender">Par sexe</option>
+              <option value="level">Par niveau</option>
+              <option value="paymentStatus">Par statut de paiement</option>
+            </select>
+          </div>
+          <div style={{ padding: '18px 22px', height: 300 }}>
+            {distLoading ? (
+              <Spinner />
+            ) : distribution.length === 0 ? (
+              <EmptyState text="Aucune donnée disponible" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={distribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90} label>
+                    {distribution.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Performance enseignant */}
+        <div style={card}>
+          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={cardTitle}>🍎 Performance enseignant</span>
+            <select style={select} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
+              <option value="">Sélectionner un enseignant</option>
+              {teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
+            </select>
+          </div>
+          <div style={{ padding: '18px 22px', minHeight: 300 }}>
+            {!teacherId ? (
+              <EmptyState text="Sélectionnez un enseignant pour voir ses statistiques" />
+            ) : teacherLoading ? (
+              <Spinner />
+            ) : !teacherPerf ? (
+              <EmptyState text="Aucune donnée disponible" />
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 18 }}>
+                  <Kpi label="Heures prévues/sem" value={String(teacherPerf.heuresPrevuesParSemaine)} />
+                  <Kpi label="Séances enregistrées" value={String(teacherPerf.seancesEnregistrees)} />
+                  <Kpi label="Taux de présence" value={teacherPerf.tauxPresence !== null ? `${teacherPerf.tauxPresence}%` : '—'} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
+                  {teacherPerf.moyennesParClasse.map((m, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', background: '#faf7f2', borderRadius: 8 }}>
+                      <span style={{ color: '#6b5c45', fontWeight: 600 }}>{m.subjectName} · {m.className}</span>
+                      <span style={{ fontWeight: 800, color: '#1a1209' }}>{m.moyenne !== null ? `${m.moyenne}/20` : '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Spinner() {
+  return (
+    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+    </div>
+  )
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 14, color: '#a89478', textAlign: 'center', padding: '0 20px' }}>
+      {text}
+    </div>
+  )
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ background: '#faf7f2', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
+      <div style={{ fontSize: 22, fontWeight: 900, color: '#1a1209' }}>{value}</div>
+      <div style={{ fontSize: 12, color: '#a89478', fontWeight: 600, marginTop: 2 }}>{label}</div>
+    </div>
+  )
+}

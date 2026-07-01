@@ -3,9 +3,11 @@ import { prisma } from "../config/prisma.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
 import { resolveUserLanguage } from "../utils/languageHelper.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
+import { createSchoolBackup, purgeSchoolLogsByRetention } from "../utils/schoolBackup.ts";
+import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms } from "../infrastructure/services/SmsNotificationService.ts";
 
 import { NonRetriableError } from "inngest";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 
 interface GenSettings {
@@ -201,9 +203,9 @@ export const generateTimeTable = inngest.createFunction(
 
     // generate timetable logic would go here
       const aiSchedule = await step.run("generate-timetable-logic", async () => {
-      const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) {
-        throw new NonRetriableError("GOOGLE_GENERATIVE_AI_API_KEY is missing");
+        throw new NonRetriableError("GROQ_API_KEY is missing");
       }
 
       const allTimetables = await prisma.timetable.findMany({
@@ -248,12 +250,8 @@ export const generateTimeTable = inngest.createFunction(
         }
       `;
 
-      const google = createGoogleGenerativeAI({
-        apiKey,
-      });
-
-      // I will show you how to get one if these does not work for you
-      const activeModel = google("gemini-flash-latest");
+      const groqClient = createGroq({ apiKey });
+      const activeModel = groqClient("llama-3.3-70b-versatile");
 
       const { text } = await generateText({
         prompt,
@@ -724,10 +722,11 @@ export const sendPaymentReminders = inngest.createFunction(
         );
 
         let subject = "";
+        const isOverdue = daysUntilDue < 0;
         if (daysUntilDue === 7) subject = "Rappel : Paiement dû dans 7 jours";
         else if (daysUntilDue === 3) subject = "Urgent : Paiement dû dans 3 jours";
         else if (daysUntilDue === 0) subject = "Aujourd'hui : Dernier délai de paiement";
-        else if (daysUntilDue < 0) subject = `Retard de paiement — ${Math.abs(daysUntilDue)} jour(s)`;
+        else if (isOverdue) subject = `Retard de paiement — ${Math.abs(daysUntilDue)} jour(s)`;
         else continue;
 
         const label = invoice.feePlan?.name || invoice.description || "Facture";
@@ -765,9 +764,101 @@ export const sendPaymentReminders = inngest.createFunction(
             console.error("Reminder email error:", err);
           }
         }
+
+        // SMS supplémentaire pour les factures vraiment en retard
+        if (isOverdue && invoice.studentId) {
+          const studentName = `${invoice.student?.firstName ?? ''} ${invoice.student?.lastName ?? ''}`.trim();
+          void notifyOverdueInvoiceSms({
+            schoolId: invoice.schoolId,
+            studentId: invoice.studentId,
+            studentName,
+            amount: invoice.amount,
+            daysOverdue: Math.abs(daysUntilDue),
+            invoiceLabel: label,
+          });
+        }
       }
 
       return { processed };
+    });
+  }
+);
+
+export const checkAbsenceThreshold = inngest.createFunction(
+  { id: "check-absence-threshold", name: "Vérification seuil d'absences", triggers: [{ cron: "0 7 * * *" }] },
+  async ({ step }) => {
+    return await step.run("check-thresholds", async () => {
+      const schools = await prisma.school.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true },
+      });
+
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      let alertsSent = 0;
+
+      for (const school of schools) {
+        const config = await prisma.schoolConfig.findUnique({
+          where: { schoolId: school.id },
+          select: { absenceAlertThreshold: true },
+        });
+        const threshold = config?.absenceAlertThreshold ?? 3;
+
+        const absenceCounts = await prisma.attendance.groupBy({
+          by: ["studentId"],
+          where: { schoolId: school.id, status: "ABSENT", date: { gte: since } },
+          _count: { id: true },
+        });
+
+        const overThreshold = absenceCounts.filter((a) => a._count.id >= threshold);
+        if (overThreshold.length === 0) continue;
+
+        const surveillants = await prisma.staffProfile.findMany({
+          where: {
+            schoolId: school.id,
+            permissions: { some: { permission: "MANAGE_ATTENDANCE" } },
+          },
+          include: { user: { select: { email: true, firstName: true } } },
+        });
+
+        for (const entry of overThreshold) {
+          const student = await prisma.user.findUnique({
+            where: { id: entry.studentId },
+            select: { firstName: true, lastName: true },
+          });
+          if (!student) continue;
+
+          const studentName = `${student.firstName} ${student.lastName}`.trim();
+          const count = entry._count.id;
+
+          for (const s of surveillants) {
+            if (!s.user.email) continue;
+            try {
+              await sendTransactionalEmail({
+                recipientEmail: s.user.email,
+                subject: `Alerte absences — ${studentName} (${count} absences non justifiées)`,
+                html: `<p>Bonjour ${s.user.firstName},</p><p><b>${studentName}</b> cumule <b>${count} absences non justifiées</b> sur les 30 derniers jours (seuil configuré : ${threshold}).</p><p>Une action est requise.</p>`,
+                text: `${studentName} : ${count} absences non justifiées (seuil ${threshold})`,
+                template: "absence_alert",
+                eventType: "absence_alert",
+              });
+            } catch (err) {
+              console.error("Absence alert email error:", err);
+            }
+          }
+
+          void notifyAbsenceThresholdSms({
+            schoolId: school.id,
+            studentId: entry.studentId,
+            studentName,
+            count,
+            threshold,
+          });
+
+          alertsSent++;
+        }
+      }
+
+      return { alertsSent };
     });
   }
 );
@@ -781,6 +872,26 @@ export const markOverdueLoans = inngest.createFunction(
         data: { status: "OVERDUE" },
       });
       return { updated: result.count };
+    });
+  }
+);
+
+export const purgeSchoolLogs = inngest.createFunction(
+  { id: "purge-school-logs", name: "Purge hebdomadaire des journaux", triggers: [{ cron: "0 0 * * 0" }] },
+  async ({ step }) => {
+    return await step.run("purge-school-logs-by-retention", async () => {
+      const schools = await prisma.school.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true, name: true },
+      });
+
+      const results = [] as Array<Awaited<ReturnType<typeof purgeSchoolLogsByRetention>>>;
+
+      for (const school of schools) {
+        results.push(await purgeSchoolLogsByRetention(prisma, school.id));
+      }
+
+      return { schoolsProcessed: schools.length, results };
     });
   }
 );
@@ -859,5 +970,38 @@ export const handleGradeSubmitted = inngest.createFunction(
         });
       }
     });
+  }
+);
+
+export const BackupSchoolDataJob = inngest.createFunction(
+  {
+    id: "Backup-School-Data",
+    name: "Sauvegarde des données établissement",
+    triggers: [{ event: "backup/school.requested" }, { cron: "0 3 * * *" }],
+  },
+  async ({ event, step }) => {
+    const payload = (event.data ?? {}) as {
+      schoolId?: string;
+      requestedByMasterId?: string | null;
+      source?: "cron" | "manual";
+    };
+
+    const schools = payload.schoolId
+      ? await prisma.school.findMany({ where: { id: payload.schoolId }, select: { id: true, name: true } })
+      : await prisma.school.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true } });
+
+    const backups = await step.run("create-school-backups", async () => {
+      const results: Array<{ schoolId: string; fileName: string; filePath: string; createdAt: string }> = [];
+      for (const school of schools) {
+        results.push(await createSchoolBackup(prisma, {
+          schoolId: school.id,
+          requestedByMasterId: payload.requestedByMasterId ?? null,
+          source: payload.source ?? (payload.schoolId ? "manual" : "cron"),
+        }));
+      }
+      return results;
+    });
+
+    return { requestedSchoolId: payload.schoolId ?? null, schoolsProcessed: schools.length, backups };
   }
 );

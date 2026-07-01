@@ -1,6 +1,9 @@
 export type TeacherSection =
   | 'dashboard' | 'classes' | 'attendance' | 'grades'
   | 'bulletins' | 'timetable' | 'resources' | 'sync'
+  | 'pp-classe' | 'pp-appreciations'
+  | 'ap-departement'
+  | 'cahier-de-texte'
 
 export interface Toast {
   id: number

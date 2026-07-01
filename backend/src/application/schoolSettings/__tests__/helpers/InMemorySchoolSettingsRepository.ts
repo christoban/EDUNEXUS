@@ -15,6 +15,7 @@ export class InMemorySchoolSettingsRepository implements SchoolSettingsRepositor
       timezone: MINESEC_DEFAULTS.TIMEZONE,
       locale: MINESEC_DEFAULTS.LOCALE_FR,
       currency: MINESEC_DEFAULTS.CURRENCY,
+      logRetentionDays: 90,
       schoolLanguageMode: 'francophone',
       academicCalendarType: 'trimester',
       preferredLanguage: 'fr',

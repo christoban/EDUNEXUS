@@ -17,30 +17,52 @@ interface NavGroup {
   items: NavItem[]
 }
 
-const NAV: NavGroup[] = [
-  {
-    items: [
-      { id: 'dashboard', icon: '⊞', label: 'Tableau de bord' },
-    ]
-  },
-  {
-    label: 'Académique',
-    items: [
-      { id: 'classes',    icon: '🏫', label: 'Mes classes' },
-      { id: 'attendance', icon: '✅', label: 'Présences' },
-      { id: 'grades',     icon: '📝', label: 'Notes' },
-      { id: 'bulletins',  icon: '📄', label: 'Bulletins' },
-      { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
+function buildNav(user: UserInfo | null | undefined, pendingGrades?: number): NavGroup[] {
+  const groups: NavGroup[] = [
+    {
+      items: [{ id: 'dashboard', icon: '⊞', label: 'Tableau de bord' }],
+    },
+    {
+      label: 'Académique',
+      items: [
+        { id: 'classes',    icon: '🏫', label: 'Mes classes' },
+        { id: 'attendance', icon: '✅', label: 'Présences' },
+        { id: 'grades',     icon: '📝', label: 'Notes', ...(pendingGrades ? { badge: String(pendingGrades), badgeColor: 'red' as const } : {}) },
+        { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
+      ],
+    },
+    {
+      label: 'Pédagogie',
+      items: [{ id: 'cahier-de-texte', icon: '📓', label: 'Cahier de texte' }],
+    },
+    {
+      label: 'Ressources',
+      items: [{ id: 'resources', icon: '📦', label: 'Ressources pédagogiques' }],
+    },
+  ]
 
-    ]
-  },
-  {
-    label: 'Ressources',
-    items: [
-      { id: 'resources', icon: '📦', label: 'Ressources pédagogiques' },
-    ]
-  },
-]
+  const ppClasses = user?.classesProfessorPrincipal ?? []
+  if (ppClasses.length > 0) {
+    const cls = ppClasses[0]!
+    groups.push({
+      label: 'Professeur Principal',
+      items: [
+        { id: 'pp-classe',        icon: '📋', label: `Ma classe · ${cls.name}` },
+        { id: 'pp-appreciations', icon: '✍️',  label: 'Appréciations' },
+      ],
+    })
+  }
+
+  const depts = user?.headedDepartments ?? []
+  if (depts.length > 0) {
+    groups.push({
+      label: 'Animateur Pédagogique',
+      items: depts.map(d => ({ id: 'ap-departement' as TeacherSection, icon: '🎯', label: d.name })),
+    })
+  }
+
+  return groups
+}
 
 const BADGE_STYLES = {
   red:   'bg-red-500/25 text-red-300',
@@ -48,9 +70,21 @@ const BADGE_STYLES = {
   amber: 'bg-amber-500/20 text-amber-300',
 }
 
-export default function TeacherSidebar({ current, onChange, schoolName, logoUrl, onLogout, user, pendingGrades, pendingCount }: { current: TeacherSection; onChange: (s: TeacherSection) => void; schoolName?: string; logoUrl?: string | null; onLogout?: () => void; user?: UserInfo | null; pendingGrades?: number; pendingCount?: number }) {
+export default function TeacherSidebar({
+  current, onChange, schoolName, logoUrl, onLogout, user, pendingGrades, pendingCount,
+}: {
+  current: TeacherSection
+  onChange: (s: TeacherSection) => void
+  schoolName?: string
+  logoUrl?: string | null
+  onLogout?: () => void
+  user?: UserInfo | null
+  pendingGrades?: number
+  pendingCount?: number
+}) {
   const displayName = schoolName || 'Mon établissement'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0].toUpperCase()).join('')
+  const nav = buildNav(user, pendingGrades)
 
   return (
     <aside className="w-[320px] min-w-[320px] bg-[#1a2e1e] flex flex-col h-screen flex-shrink-0 relative overflow-hidden">
@@ -85,15 +119,15 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto px-[10px] py-1">
-          {NAV.map((group, gi) => (
+          {nav.map((group, gi) => (
             <div key={gi}>
               {group.label && (
-                <div className="text-[14px] font-black text-white/30 tracking-[1.2px] uppercase" style={{ padding: '11px 0 0 0' }}>
+                <div className="text-[11px] font-black text-white/30 tracking-[1.2px] uppercase" style={{ padding: '14px 0 4px 0' }}>
                   {group.label}
                 </div>
               )}
               {group.items.map(item => (
-                <button key={item.id} onClick={() => onChange(item.id)}
+                <button key={`${gi}-${item.id}`} onClick={() => onChange(item.id)}
                   className={cn(
                     'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
                     'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
@@ -109,9 +143,9 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
                   )}
                   <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
-                  {item.id === 'grades' && pendingGrades != null && pendingGrades > 0 && (
-                    <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.red)} style={{ padding: '3px 6px' }}>
-                      {pendingGrades}
+                  {item.badge && item.badgeColor && (
+                    <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES[item.badgeColor])} style={{ padding: '3px 6px' }}>
+                      {item.badge}
                     </span>
                   )}
                 </button>
@@ -119,19 +153,17 @@ export default function TeacherSidebar({ current, onChange, schoolName, logoUrl,
             </div>
           ))}
 
-          {/* Section Synchronisation — visible uniquement si actions en attente */}
+          {/* Synchronisation */}
           {pendingCount != null && pendingCount > 0 && (
             <div>
-              <div className="text-[14px] font-black text-white/30 tracking-[1.2px] uppercase" style={{ padding: '11px 0 0 0' }}>
+              <div className="text-[11px] font-black text-white/30 tracking-[1.2px] uppercase" style={{ padding: '14px 0 4px 0' }}>
                 Synchronisation
               </div>
               <button onClick={() => onChange('sync')}
                 className={cn(
                   'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
                   'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
-                  current === 'sync'
-                    ? 'text-white'
-                    : 'text-white/52 hover:bg-[#243b29] hover:text-white/82'
+                  current === 'sync' ? 'text-white' : 'text-white/52 hover:bg-[#243b29] hover:text-white/82'
                 )}
                 style={{ padding: '6px 9px' }}>
                 {current === 'sync' && (

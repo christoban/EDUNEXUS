@@ -50,6 +50,9 @@ export interface MettreAJourParametresCommande {
   timezone?: string;
   locale?: string;
   currency?: string;
+
+  // Rétention des logs
+  logRetentionDays?: number;
 }
 
 const CYCLES_VALIDES: SchoolCycle[] = [
@@ -98,6 +101,10 @@ export class MettreAJourParametresEcoleUseCase {
 
     if (commande.maxAbsences !== undefined && commande.maxAbsences < 0) {
       throw new Error('maxAbsences doit être ≥ 0');
+    }
+
+    if (commande.logRetentionDays !== undefined && commande.logRetentionDays < 1) {
+      throw new Error('logRetentionDays doit être supérieur ou égal à 1');
     }
 
     const { demandeurRole: _, ...settingsAMettreAJour } = commande;

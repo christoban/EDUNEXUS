@@ -63,6 +63,8 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'bulletins',  icon: '📄', label: 'Bulletins' },
         { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
         { id: 'council',    icon: '🎓', label: 'Conseil de classe' },
+        { id: 'pedagogie',  icon: '📓', label: 'Pédagogie' },
+        { id: 'rh',         icon: '👔', label: 'Ressources Humaines' },
       ]
     },
     {
@@ -71,7 +73,9 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'academic-year', icon: '📆', label: 'Année scolaire' },
         { id: 'finance',       icon: '📱', label: 'Mobile Money',      badge: badges.finance, badgeColor: 'amber' },
         { id: 'ai',            icon: '🤖', label: 'IA Santé scolaire' },
-        { id: 'settings',      icon: '⚙️', label: 'Paramètres' },
+        { id: 'statistics',      icon: '📊', label: 'Statistiques' },
+        { id: 'communications',  icon: '📣', label: 'Communications' },
+        { id: 'settings',        icon: '⚙️', label: 'Paramètres' },
       ]
     }
   ]
@@ -142,25 +146,6 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
             </div>
           ))}
         </nav>
-
-        {/* Assistant IA Dev — visible uniquement en développement */}
-        {process.env.NODE_ENV === 'development' && (
-          <div style={{ borderTop: '1px dashed rgba(245,158,11,0.4)', marginTop: 8, paddingTop: 10 }}>
-            <button onClick={() => onChange('ai-assistant')}
-              className={cn(
-                'w-full flex items-center gap-[20px] rounded-lg',
-                'text-[16px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer',
-                'font-nunito',
-                current === 'ai-assistant'
-                  ? 'bg-[#3a6b44] text-white'
-                  : 'bg-transparent hover:bg-[#243b29]'
-              )}
-              style={{ padding: '6px 9px', color: current === 'ai-assistant' ? 'white' : '#f59e0b' }}>
-              <span className="text-[23px] w-[18px] text-center flex-shrink-0">🤖</span>
-              <span className="truncate flex-1">Assistant IA Dev</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* User */}

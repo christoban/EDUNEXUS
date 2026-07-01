@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import PDFDocument from 'pdfkit';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { logActivity } from '../../../utils/activitieslog';
+import { notifyBulletinSms } from '../../services/SmsNotificationService';
 
 type AuthUser = { schoolId: string; userId: string; role: string; permissions?: string[] };
 
@@ -73,11 +74,28 @@ export class ClassCouncilController {
         },
       });
 
+      // Pré-peupler une décision DELIBERATION pour chaque élève de la classe
+      const students = await prisma.studentProfile.findMany({
+        where: { classId },
+        select: { userId: true },
+      });
+      if (students.length > 0) {
+        await prisma.classCouncilDecision.createMany({
+          data: students.map(s => ({
+            sessionId: session.id,
+            studentId: s.userId,
+            decision: 'DELIBERATION' as any,
+            observations: null,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
       await logActivity({
         userId: user.userId,
         schoolId: user.schoolId,
         action: 'Class council session created',
-        details: `Classe ${schoolClass.name} — période ${academicPeriodId}`,
+        details: `Classe ${schoolClass.name} — période ${academicPeriodId} — ${students.length} élève(s) pré-peuplé(s)`,
       });
 
       res.status(201).json({ session });
@@ -259,6 +277,254 @@ export class ClassCouncilController {
       });
 
       res.json({ session: updated, message: 'Session verrouillée' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/class-councils/:id/publish-bulletins
+  publicerBulletins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = this.user(req);
+      if (user.role.toUpperCase() !== 'ADMIN') {
+        res.status(403).json({ message: 'Réservé aux administrateurs' });
+        return;
+      }
+
+      const sessionId = req.params.id as string;
+      const session = await prisma.classCouncilSession.findFirst({
+        where: { id: sessionId, schoolId: user.schoolId },
+        include: { academicPeriod: { select: { id: true, name: true } } },
+      }) as any;
+      if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
+      if (session.status !== 'LOCKED') {
+        res.status(409).json({ message: 'Le conseil doit être verrouillé avant de publier les bulletins' });
+        return;
+      }
+
+      const bulletins = await prisma.reportCard.findMany({
+        where: {
+          schoolId: user.schoolId,
+          academicPeriodId: session.academicPeriodId,
+          validationStatus: 'GENERATED' as any,
+          student: { studentProfile: { classId: session.classId } },
+        },
+        select: {
+          id: true,
+          studentId: true,
+          student: { select: { firstName: true, lastName: true } },
+        },
+      }) as { id: string; studentId: string; student: { firstName: string; lastName: string } }[];
+
+      if (bulletins.length > 0) {
+        await prisma.reportCard.updateMany({
+          where: { id: { in: bulletins.map(b => b.id) } },
+          data: { validationStatus: 'SENT' as any },
+        });
+
+        const periodName: string = session.academicPeriod?.name ?? 'cette période';
+        Promise.all(
+          bulletins.map(b =>
+            notifyBulletinSms({
+              schoolId: user.schoolId,
+              studentId: b.studentId,
+              studentName: `${b.student.firstName} ${b.student.lastName}`,
+              periodName,
+            })
+          )
+        ).catch(() => {});
+      }
+
+      res.json({
+        count: bulletins.length,
+        message: `${bulletins.length} bulletin${bulletins.length !== 1 ? 's' : ''} publié${bulletins.length !== 1 ? 's' : ''}`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/v2/class-councils/:id/pv
+  genererPV = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = this.user(req);
+      const sessionId = req.params.id as string;
+
+      if (!this.canManage(user)) {
+        res.status(403).json({ message: 'Permission VALIDATE_GRADES requise' });
+        return;
+      }
+
+      const session = await prisma.classCouncilSession.findFirst({
+        where: { id: sessionId, schoolId: user.schoolId },
+        include: {
+          class: { select: { id: true, name: true } },
+          academicPeriod: {
+            select: {
+              id: true, name: true, orderIndex: true,
+              academicYear: { select: { name: true } },
+            },
+          },
+          presidedBy: { select: { firstName: true, lastName: true } },
+          decisions: {
+            include: { student: { select: { firstName: true, lastName: true } } },
+            orderBy: { student: { lastName: 'asc' } },
+          },
+          school: { select: { name: true, city: true, phone: true } },
+        },
+      }) as any;
+
+      if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
+
+      // Moyennes depuis les bulletins générés (ReportCard), fallback sur notes brutes
+      const reportCards = await prisma.reportCard.findMany({
+        where: {
+          schoolId: user.schoolId,
+          academicPeriodId: session.academicPeriodId,
+          student: { studentProfile: { classId: session.classId } },
+        },
+        select: { studentId: true, generalAverage: true, mention: true, rank: true },
+      });
+      const rcByStudentId = new Map(reportCards.map(r => [r.studentId, r]));
+
+      const schoolName: string = session.school?.name ?? 'Établissement';
+      const schoolCity: string = session.school?.city ?? '';
+      const yearName: string = session.academicPeriod?.academicYear?.name ?? '—';
+      const periodName: string = session.academicPeriod?.name ?? '—';
+      const className: string = session.class?.name ?? '—';
+      const presidedBy: string = session.presidedBy
+        ? `${session.presidedBy.firstName} ${session.presidedBy.lastName}` : '—';
+      const dateConseil = session.validatedAt
+        ? new Date(session.validatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+        : new Date(session.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+      const totalStudents = session.decisions.length;
+      const passCount    = session.decisions.filter((d: any) => d.decision === 'PASS').length;
+      const repeatCount  = session.decisions.filter((d: any) => d.decision === 'REPEAT').length;
+      const deliCount    = session.decisions.filter((d: any) => d.decision === 'DELIBERATION').length;
+      const successRate  = totalStudents > 0 ? Math.round(((passCount + deliCount) / totalStudents) * 100) : 0;
+
+      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      const buffers: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+
+      // ── En-tête bilingue ──────────────────────────────────────────
+      const lineY = doc.y;
+      doc.fontSize(7.5).font('Helvetica').fillColor('#1e293b');
+      doc.text('République du Cameroun\nPaix – Travail – Patrie', 40, lineY, { width: 180, align: 'center' });
+      doc.text('Republic of Cameroon\nPeace – Work – Fatherland', 375, lineY, { width: 180, align: 'center' });
+      doc.moveDown(0.2);
+
+      const lineAfterHeader = doc.y;
+      doc.moveTo(40, lineAfterHeader).lineTo(555, lineAfterHeader).strokeColor('#1e293b').lineWidth(0.5).stroke();
+      doc.moveDown(0.3);
+
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b').text(schoolName.toUpperCase(), { align: 'center' });
+      if (schoolCity) doc.fontSize(9).font('Helvetica').text(schoolCity, { align: 'center' });
+      doc.moveDown(0.5);
+
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b')
+        .text('PROCÈS-VERBAL DU CONSEIL DE CLASSE', { align: 'center' });
+      doc.moveDown(0.15);
+      doc.fontSize(10).font('Helvetica').fillColor('#334155')
+        .text(`Année scolaire ${yearName}  —  ${periodName}`, { align: 'center' });
+      doc.moveDown(0.6);
+
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#334155').lineWidth(0.5).stroke();
+      doc.moveDown(0.4);
+
+      // ── Infos séance ─────────────────────────────────────────────
+      doc.fontSize(10).font('Helvetica');
+      const infoStart = doc.y;
+      doc.text(`Classe :`, 40, infoStart, { continued: true }).font('Helvetica-Bold').text(` ${className}`, { continued: false });
+      doc.font('Helvetica').text(`Date du conseil :`, { continued: true }).font('Helvetica-Bold').text(` ${dateConseil}`);
+      doc.font('Helvetica').text(`Président de séance :`, { continued: true }).font('Helvetica-Bold').text(` ${presidedBy}`);
+      doc.font('Helvetica').text(`Effectif total :`, { continued: true }).font('Helvetica-Bold').text(` ${totalStudents} élève(s)`);
+      doc.moveDown(0.6);
+
+      // ── Tableau des décisions ────────────────────────────────────
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#334155').lineWidth(0.4).stroke();
+      doc.moveDown(0.3);
+      doc.fontSize(10).font('Helvetica-Bold').text('DÉLIBÉRATIONS PAR ÉLÈVE', { underline: true });
+      doc.moveDown(0.3);
+
+      const colX = { nom: 40, moy: 270, decision: 340, obs: 430 };
+      const tableHeaderY = doc.y;
+      doc.rect(40, tableHeaderY, 515, 16).fill('#1e293b');
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('white');
+      doc.text('NOM ET PRÉNOM', colX.nom + 4, tableHeaderY + 4, { width: 226 });
+      doc.text('MOY.', colX.moy + 2, tableHeaderY + 4, { width: 66, align: 'center' });
+      doc.text('DÉCISION', colX.decision, tableHeaderY + 4, { width: 86, align: 'center' });
+      doc.text('OBSERVATIONS', colX.obs, tableHeaderY + 4, { width: 121 });
+      doc.fillColor('black');
+      doc.y = tableHeaderY + 18;
+
+      const decisionLabel: Record<string, string> = {
+        PASS: 'ADMIS(E)', REPEAT: 'REDOUBLE', DELIBERATION: 'DÉLIBÉRATION',
+      };
+      const decisionColor: Record<string, string> = {
+        PASS: '#15803d', REPEAT: '#b91c1c', DELIBERATION: '#b45309',
+      };
+
+      session.decisions.forEach((d: any, i: number) => {
+        if (doc.y > 720) {
+          doc.addPage();
+          doc.y = 40;
+        }
+        const rowY = doc.y;
+        const rc = rcByStudentId.get(d.studentId);
+        const avgText = rc?.generalAverage != null ? rc.generalAverage.toFixed(2) : '—';
+
+        if (i % 2 === 0) doc.rect(40, rowY, 515, 15).fill('#f8fafc');
+        doc.rect(40, rowY, 515, 15).strokeColor('#e2e8f0').lineWidth(0.3).stroke();
+
+        doc.fillColor('#1e293b').fontSize(8.5).font('Helvetica');
+        doc.text(`${d.student.lastName} ${d.student.firstName}`, colX.nom + 4, rowY + 3, { width: 222, ellipsis: true });
+        doc.text(avgText, colX.moy + 2, rowY + 3, { width: 66, align: 'center' });
+        doc.fillColor(decisionColor[d.decision] ?? '#1e293b').font('Helvetica-Bold');
+        doc.text(decisionLabel[d.decision] ?? d.decision, colX.decision, rowY + 3, { width: 86, align: 'center' });
+        doc.fillColor('#334155').font('Helvetica');
+        doc.text(d.observations ?? '', colX.obs, rowY + 3, { width: 119, ellipsis: true });
+        doc.y = rowY + 16;
+      });
+
+      doc.moveDown(0.7);
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#334155').lineWidth(0.4).stroke();
+      doc.moveDown(0.3);
+
+      // ── Bilan statistique ────────────────────────────────────────
+      doc.fontSize(9).font('Helvetica-Bold').text('BILAN DE LA DÉLIBÉRATION', { underline: true });
+      doc.moveDown(0.2);
+      doc.font('Helvetica').fontSize(9);
+      doc.text(`Admis(es) (PASS) : ${passCount}   |   En délibération : ${deliCount}   |   Redoublants : ${repeatCount}   |   Taux de réussite : ${successRate}%`);
+      doc.moveDown(0.8);
+
+      // ── Signatures ───────────────────────────────────────────────
+      if (doc.y > 680) doc.addPage();
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#334155').lineWidth(0.4).stroke();
+      doc.moveDown(0.4);
+      doc.fontSize(9).font('Helvetica-Bold').text('SIGNATURES', { underline: true });
+      doc.moveDown(0.5);
+
+      const sigY = doc.y;
+      const sigCols = [40, 210, 390];
+      const sigLabels = ['Le Président de séance', 'Le Secrétaire', 'Le Chef d\'Établissement'];
+      sigLabels.forEach((label, i) => {
+        const x = sigCols[i] ?? 40;
+        doc.fontSize(8.5).font('Helvetica').fillColor('#334155').text(label, x, sigY, { width: 150, align: 'center' });
+        doc.moveTo(x, sigY + 38).lineTo(x + 150, sigY + 38).strokeColor('#94a3b8').lineWidth(0.5).stroke();
+      });
+
+      doc.end();
+      const pdfBuffer = Buffer.concat(buffers);
+
+      const filename = `PV-conseil-${className.replace(/\s+/g, '-')}-${periodName.replace(/\s+/g, '-')}.pdf`;
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${filename}"`,
+        'Content-Length': pdfBuffer.length,
+      });
+      res.end(pdfBuffer);
     } catch (error) {
       next(error);
     }

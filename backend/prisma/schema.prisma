@@ -106,6 +106,16 @@ model School {
   books                Book[]
   bookLoans            BookLoan[]
   ficheOrientations    FicheOrientation[]
+  verifiableDocuments  VerifiableDocument[]
+  broadcastLogs        BroadcastLog[]
+  programmes           Programme[]
+  cahierDeTexte        CahierDeTexte[]
+  employeeFiles        EmployeeFile[]
+  careerEvents         CareerEvent[]
+  staffAttendances     StaffAttendance[]
+  leaveRequests        LeaveRequest[]
+  leaveBalances        LeaveBalance[]
+  missionOrders        MissionOrder[]
 }
 
 model SchoolInvite {
@@ -172,6 +182,9 @@ model SchoolSettings {
   timezone  String   @default("Africa/Douala")
   locale    String   @default("fr-CM")
   currency  String   @default("XAF")
+  lastBackupAt   DateTime?
+  lastBackupFile String?
+  logRetentionDays Int      @default(90)
   updatedAt DateTime @updatedAt
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
@@ -229,7 +242,9 @@ model User {
   role                 UserRole
   email                String?
   phone                String?
-  passwordHash         String?
+  passwordHash              String?
+  resetPasswordToken        String?   @unique
+  resetPasswordTokenExpiry  DateTime?
   firstName            String
   lastName             String
   avatarUrl            String?
@@ -276,6 +291,14 @@ model User {
   ficheOrientationsConseille FicheOrientation[] @relation("conseillerFiches")
   teachingAssignments       TeachingAssignment[] @relation("TeacherAssignments")
   headedDepartments         Department[]         @relation("DepartmentHead")
+  cahierDeTexte             CahierDeTexte[]      @relation("TeacherCahierDeTexte")
+  employeeFile              EmployeeFile?        @relation("EmployeeFileUser")
+  employeeCareerEvents      CareerEvent[]         @relation("EmployeeCareerEvents")
+  staffAttendances          StaffAttendance[]     @relation("StaffAttendanceUser")
+  employeeLeaveRequests     LeaveRequest[]        @relation("EmployeeLeaveRequests")
+  leaveRequestsValidated    LeaveRequest[]        @relation("LeaveRequestValidator")
+  employeeLeaveBalances     LeaveBalance[]        @relation("EmployeeLeaveBalance")
+  employeeMissionOrders     MissionOrder[]        @relation("EmployeeMissionOrders")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -291,12 +314,14 @@ model StudentProfile {
   classId             String?
   exitYear            String?
   studentStatus       StudentStatus               @default(ACTIVE)
-   healthScore         Int?                        @default(75)
-   pebsFiliere         String?
-   parents             ParentStudent[]
-   class               Class?                      @relation(fields: [classId], references: [id])
+  healthScore         Int?                        @default(75)
+  pebsFiliere         String?
+  photoUrl            String?
+  parents             ParentStudent[]
+  class               Class?                      @relation(fields: [classId], references: [id])
   user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   subGroupAssignments StudentSubGroupAssignment[]
+  verifiableDocuments VerifiableDocument[]
 }
 
 model TeacherProfile {
@@ -513,6 +538,8 @@ model AcademicYear {
   timetables        Timetable[]
   studentPromotions StudentPromotion[]
   classPromotions   ClassPromotion[]
+  programmes        Programme[]
+  cahierDeTexte     CahierDeTexte[]
 
   @@index([schoolId])
 }
@@ -578,6 +605,8 @@ model Class {
   toPromotions          ClassPromotion[]      @relation("ToClass")
   teachingAssignments   TeachingAssignment[]
   subjectOverrides      ClassSubjectOverride[]
+  programmes            Programme[]
+  cahierDeTexte         CahierDeTexte[]
 
   @@index([schoolId])
 }
@@ -603,6 +632,8 @@ model Subject {
   timetableSlots         TimetableSlot[]
   teachingAssignments    TeachingAssignment[]
   department             Department?             @relation(fields: [departmentId], references: [id])
+  programmes             Programme[]
+  cahierDeTexte          CahierDeTexte[]
 
   @@index([schoolId])
 }
@@ -1175,6 +1206,24 @@ model SmsLog {
   @@index([createdAt])
 }
 
+model BroadcastLog {
+  id             String   @id @default(cuid())
+  schoolId       String
+  channel        String
+  target         Json
+  message        String
+  recipientCount Int      @default(0)
+  sentCount      Int      @default(0)
+  failedCount    Int      @default(0)
+  status         String   @default("completed")
+  createdAt      DateTime @default(now())
+  createdById    String?
+  school         School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([schoolId, createdAt])
+}
+
 model ActivitiesLog {
   id          String   @id @default(cuid())
   schoolId    String?
@@ -1185,6 +1234,132 @@ model ActivitiesLog {
   createdAt   DateTime @default(now())
   school      School?  @relation(fields: [schoolId], references: [id])
 
+  @@index([schoolId])
+}
+
+model EmployeeFile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  schoolId      String
+  dateNaissance DateTime?
+  diplomes      Json     @default("[]")
+  numeroCNPS    String?
+  typeContrat   String?
+  dateEmbauche  DateTime?
+  echelonActuel String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation("EmployeeFileUser", fields: [userId], references: [id], onDelete: Cascade)
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+}
+
+enum CareerEventType {
+  PROMOTION
+  MUTATION
+  AVANCEMENT_ECHELON
+  SANCTION
+}
+
+model CareerEvent {
+  id          String          @id @default(cuid())
+  userId      String
+  schoolId    String
+  type        CareerEventType
+  date        DateTime
+  observation String?
+  createdAt   DateTime        @default(now())
+  user        User            @relation("EmployeeCareerEvents", fields: [userId], references: [id], onDelete: Cascade)
+  school      School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([schoolId])
+}
+
+enum StaffAttendanceStatus {
+  PRESENT
+  ABSENT
+  RETARD
+}
+
+model StaffAttendance {
+  id        String                @id @default(cuid())
+  userId    String
+  schoolId  String
+  date      DateTime
+  statut    StaffAttendanceStatus @default(PRESENT)
+  note      String?
+  createdAt DateTime              @default(now())
+  user      User                  @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  school    School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([schoolId])
+}
+
+enum LeaveType {
+  CONGE_ANNUEL
+  MALADIE
+  MATERNITE
+  AUTORISATION
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id          String      @id @default(cuid())
+  userId      String
+  schoolId    String
+  type        LeaveType
+  dateDebut   DateTime
+  dateFin     DateTime
+  motif       String?
+  statut      LeaveStatus @default(PENDING)
+  validatedBy String?
+  validatedAt DateTime?
+  createdAt   DateTime    @default(now())
+  user        User        @relation("EmployeeLeaveRequests", fields: [userId], references: [id], onDelete: Cascade)
+  school      School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  validator   User?       @relation("LeaveRequestValidator", fields: [validatedBy], references: [id])
+
+  @@index([userId])
+  @@index([schoolId])
+}
+
+model LeaveBalance {
+  id           String   @id @default(cuid())
+  userId       String
+  schoolId     String
+  annee        Int
+  soldeInitial Float    @default(30)
+  soldeRestant Float    @default(30)
+  updatedAt    DateTime @updatedAt
+  user         User     @relation("EmployeeLeaveBalance", fields: [userId], references: [id], onDelete: Cascade)
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, annee])
+  @@index([schoolId])
+}
+
+model MissionOrder {
+  id         String   @id @default(cuid())
+  userId     String
+  schoolId   String
+  motif      String
+  lieu       String
+  dateDebut  DateTime
+  dateFin    DateTime
+  signataire String?
+  createdAt  DateTime @default(now())
+  user       User     @relation("EmployeeMissionOrders", fields: [userId], references: [id], onDelete: Cascade)
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([schoolId])
 }
 
@@ -1267,6 +1442,7 @@ enum SequenceType {
   COMPOSITION
   CLASS_TEST
   TERMINAL_EXAM
+  UA            // Unité d'Apprentissage — APC primaire (UA1 → UA8)
 }
 
 enum GradeValidationStatus {
@@ -1641,6 +1817,29 @@ model SuiviOrientation {
   @@index([ficheOrientationId])
 }
 
+// ── Documents vérifiables (certificats, cartes, bulletins) ───────────────────
+
+enum VerifiableDocumentType {
+  CERTIFICATE
+  STUDENT_CARD
+  TRANSFER_LETTER
+  REPORT_CARD
+}
+
+model VerifiableDocument {
+  id               String                 @id @default(cuid())
+  type             VerifiableDocumentType
+  studentId        String
+  schoolId         String
+  generatedAt      DateTime               @default(now())
+  dataSnapshot     Json
+  student          StudentProfile         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  school           School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([schoolId])
+}
+
 // ── Bibliothèque ─────────────────────────────────────────────────────────────
 
 enum LoanStatus {
@@ -1680,4 +1879,68 @@ model BookLoan {
 
   @@index([schoolId])
   @@index([bookId])
+}
+
+// ── Pédagogie ─────────────────────────────────────────────────────────────────
+
+model Programme {
+  id             String       @id @default(cuid())
+  schoolId       String
+  subjectId      String
+  classId        String?
+  level          String?
+  academicYearId String
+  titre          String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class          Class?       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  chapitres      Chapitre[]
+
+  @@index([schoolId])
+  @@index([subjectId])
+  @@index([academicYearId])
+}
+
+model Chapitre {
+  id                   String          @id @default(cuid())
+  programmeId          String
+  titre                String
+  ordre                Int
+  volumeHeuresPrevu    Int             @default(2)
+  sequenceCibleFin     Int?
+  createdAt            DateTime        @default(now())
+  programme            Programme       @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  cahierDeTexteEntries CahierDeTexte[]
+
+  @@index([programmeId])
+}
+
+model CahierDeTexte {
+  id             String       @id @default(cuid())
+  schoolId       String
+  teacherId      String
+  classId        String
+  subjectId      String
+  academicYearId String
+  chapitreId     String?
+  date           DateTime     @default(now())
+  contenuRealise String?
+  contenuLibre   String?
+  devoirsDonnes  String?
+  createdAt      DateTime     @default(now())
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacher        User         @relation("TeacherCahierDeTexte", fields: [teacherId], references: [id], onDelete: Cascade)
+  class          Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  chapitre       Chapitre?    @relation(fields: [chapitreId], references: [id])
+
+  @@index([schoolId])
+  @@index([teacherId])
+  @@index([classId])
+  @@index([subjectId])
+  @@index([academicYearId])
 }

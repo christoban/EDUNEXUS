@@ -52,7 +52,7 @@ export const initiatePayment = async (params: {
 export const checkPaymentStatus = async (reference: string) => {
   const token = await getCampayToken();
 
-  const response = await axios.get(`${CAMPAY_BASE_URL}/payment/${reference}/`, {
+  const response = await axios.get(`${CAMPAY_BASE_URL}/transaction/${reference}/`, {
     headers: { Authorization: `Token ${token}` },
   });
 

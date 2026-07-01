@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
+import PasswordStrengthBar, { getPasswordStrength } from '@/components/PasswordStrengthBar'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -600,7 +601,7 @@ export default function OnboardingPage() {
     if (!form.adminPrenom.trim()) return 'Le prénom est requis.'
     if (!form.adminNom.trim())    return 'Le nom de famille est requis.'
     if (!form.adminEmail.trim() || !form.adminEmail.includes('@')) return 'Adresse email invalide.'
-    if (form.password.length < 8)  return 'Le mot de passe doit contenir au moins 8 caractères.'
+    if (getPasswordStrength(form.password) < 5) return 'Le mot de passe ne respecte pas toutes les règles de sécurité (12 car., majuscule, minuscule, chiffre, caractère spécial).'
     if (form.password !== form.confirmPassword) return 'Les mots de passe ne correspondent pas.'
     return ''
   }
@@ -1064,7 +1065,7 @@ export default function OnboardingPage() {
                   {showPwd ? '🙈' : '👁'}
                 </button>
               </div>
-              <div style={{ fontSize: 12, color: '#a89478', marginTop: 4, fontWeight: 600 }}>Minimum 8 caractères.</div>
+              {form.password && <PasswordStrengthBar password={form.password} />}
             </Field>
 
             <Field label="Confirmer le mot de passe" required>

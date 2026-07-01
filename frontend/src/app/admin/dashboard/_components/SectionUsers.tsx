@@ -58,44 +58,21 @@ const PERMISSION_LABELS: Record<StaffPermission, string> = {
 type StaffTitle = {
   key: string
   label: string
-  emoji: string
   permissions: StaffPermission[]
 }
 
-const STAFF_TITLES: StaffTitle[] = [
-  {
-    key: 'Censeur', label: 'Censeur', emoji: '🔍',
-    permissions: ['MANAGE_TIMETABLE','VALIDATE_GRADES','MANAGE_EXAMS','SUPERVISE_TEACHERS','MANAGE_ATTENDANCE','MANAGE_CLASS_COUNCIL','MANAGE_CATCHUP_REQUESTS','GENERATE_REPORTS','VIEW_SUPERVISED_GRADES','SUPERVISE_LESSON_PLANS'],
-  },
-  {
-    key: 'Vice-Principal', label: 'Vice-Principal (anglophone)', emoji: '🔍',
-    permissions: ['MANAGE_TIMETABLE','VALIDATE_GRADES','MANAGE_EXAMS','SUPERVISE_TEACHERS','MANAGE_ATTENDANCE','MANAGE_CLASS_COUNCIL','MANAGE_CATCHUP_REQUESTS','GENERATE_REPORTS','VIEW_SUPERVISED_GRADES','SUPERVISE_LESSON_PLANS'],
-  },
-  {
-    key: 'Surveillant Général', label: 'Surveillant Général', emoji: '👁',
-    permissions: ['MANAGE_ATTENDANCE','MANAGE_DISCIPLINE','MANAGE_INCIDENTS'],
-  },
-  {
-    key: 'Intendant', label: 'Intendant / Bursar', emoji: '💰',
-    permissions: ['MANAGE_FINANCE','VALIDATE_PAYMENTS','GENERATE_REPORTS'],
-  },
-  {
-    key: 'Chef des Travaux', label: 'Chef des Travaux', emoji: '🔧',
-    permissions: ['MANAGE_ATELIERS','MANAGE_PRACTICAL_GRADES','MANAGE_INTERNSHIPS','MANAGE_STAGE_CONVENTIONS','MANAGE_WORKSHOP_STOCK','GENERATE_REPORTS'],
-  },
-  {
-    key: 'Documentaliste', label: 'Documentaliste / Bibliothécaire', emoji: '📚',
-    permissions: ['MANAGE_LIBRARY'],
-  },
-  {
-    key: "Conseiller d'Orientation", label: "Conseiller d'Orientation", emoji: '🧭',
-    permissions: ['MANAGE_ORIENTATION'],
-  },
-  {
-    key: 'Comptable-Matières', label: 'Comptable-Matières', emoji: '📦',
-    permissions: ['MANAGE_PATRIMOINE','MANAGE_DEGRADATIONS'],
-  },
-]
+// Emoji par titre (fallback générique selon les permissions typiques)
+function emojiForTitle(key: string): string {
+  if (key.includes('Censeur') || key.includes('Vice-Principal') || key.includes('Deputy Head') || key.includes('Directeur Adjoint')) return '🔍'
+  if (key.includes('Surveillant') || key.includes('Discipline')) return '👁'
+  if (key.includes('Intendant') || key.includes('Économe') || key.includes('Bursar')) return '💰'
+  if (key.includes('Chef des Travaux')) return '🔧'
+  if (key.includes('Documentaliste') || key.includes('Librarian')) return '📚'
+  if (key.includes('Orientation') || key.includes('Counsellor') || key.includes('Pédagogique')) return '🧭'
+  if (key.includes('Comptable') || key.includes('Matières')) return '📦'
+  if (key.includes('HOD') || key.includes('Animateur')) return '🏫'
+  return '🔑'
+}
 
 const ROLE_TABS: { label: string; role: string }[] = [
   { label: 'Tous',        role: ''        },
@@ -128,10 +105,10 @@ interface UserItem {
 }
 
 // ── Fusion permissions sans doublon ──
-function mergePermissions(selectedTitles: string[], customPerms: StaffPermission[]): StaffPermission[] {
+function mergePermissions(selectedTitles: string[], customPerms: StaffPermission[], titles: StaffTitle[]): StaffPermission[] {
   const set = new Set<StaffPermission>(customPerms)
   for (const tk of selectedTitles) {
-    const title = STAFF_TITLES.find(t => t.key === tk)
+    const title = titles.find(t => t.key === tk)
     title?.permissions.forEach(p => set.add(p))
   }
   return Array.from(set)
@@ -156,7 +133,7 @@ const EMPTY_FORM: InviteForm = {
   loading: false, error: '',
 }
 
-function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (msg: string) => void }) {
+function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void; onSuccess: (msg: string) => void; staffTitles: StaffTitle[] }) {
   const [form, setForm] = useState<InviteForm>(EMPTY_FORM)
 
   const set = (field: keyof InviteForm, val: unknown) =>
@@ -181,7 +158,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     set('customPerms', next)
   }
 
-  const mergedPerms = mergePermissions(form.selectedTitles, form.customPerms)
+  const mergedPerms = mergePermissions(form.selectedTitles, form.customPerms, staffTitles)
   const isStaff = form.role === 'STAFF'
 
   const submit = async () => {
@@ -291,17 +268,21 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                   Postes (cochez un ou plusieurs)
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {STAFF_TITLES.map(title => {
+                  {staffTitles.length === 0 && (
+                    <div style={{ fontSize: 13, color: '#a89478', padding: '8px 0' }}>Chargement des postes…</div>
+                  )}
+                  {staffTitles.map(title => {
                     const checked = form.selectedTitles.includes(title.key)
+                    const emoji = emojiForTitle(title.key)
                     return (
                       <label key={title.key}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${checked ? '#059669' : '#e8e0d4'}`, background: checked ? '#f0fdf4' : 'white', cursor: 'pointer', transition: 'all 0.12s' }}>
                         <input type="checkbox" checked={checked} onChange={() => toggleTitle(title.key)}
                           style={{ marginTop: 3, accentColor: '#059669', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1209' }}>{title.emoji} {title.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1209' }}>{emoji} {title.label}</div>
                           <div style={{ fontSize: 13, color: '#a89478', marginTop: 3, lineHeight: 1.5 }}>
-                            {title.permissions.slice(0, 4).map(p => PERMISSION_LABELS[p]).join(' · ')}
+                            {(title.permissions as StaffPermission[]).slice(0, 4).map(p => PERMISSION_LABELS[p]).join(' · ')}
                             {title.permissions.length > 4 ? ` + ${title.permissions.length - 4}` : ''}
                           </div>
                         </div>
@@ -329,7 +310,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       {(Object.keys(PERMISSION_LABELS) as StaffPermission[]).map(perm => {
-                        const isInherited = mergePermissions(form.selectedTitles, []).includes(perm)
+                        const isInherited = mergePermissions(form.selectedTitles, [], staffTitles).includes(perm)
                         const isChecked = mergedPerms.includes(perm)
                         return (
                           <label key={perm}
@@ -754,6 +735,7 @@ interface ClassItem { id: string; name: string }
 
 const EMPTY_MOD_USER = { open: false, userId: '', firstName: '', lastName: '', email: '', phone: '', loading: false, error: '' }
 const EMPTY_TRANSFER = { open: false, userId: '', userName: '', classId: '', classes: [] as ClassItem[], loading: false, error: '' }
+const EMPTY_DOC_MODAL = { open: false, userId: '', userName: '', status: '', loading: false, error: '' }
 
 const EMPTY_CREATE_USER = {
   open: false, firstName: '', lastName: '', email: '', phone: '', role: 'TEACHER' as 'TEACHER' | 'STUDENT' | 'PARENT' | 'STAFF',
@@ -769,12 +751,22 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   const [inviteOpen, setInviteOpen] = useState(false)
   const [modUser, setModUser]       = useState(EMPTY_MOD_USER)
   const [transfer, setTransfer]     = useState(EMPTY_TRANSFER)
+  const [docModal, setDocModal]     = useState(EMPTY_DOC_MODAL)
   const [createOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState(EMPTY_CREATE_USER)
 
   const [availClasses, setAvailClasses] = useState<ClassItem[]>([])
   const [availSubjects, setAvailSubjects] = useState<SubjectItem2[]>([])
   const [importOpen, setImportOpen] = useState(false)
+  const [staffTitles, setStaffTitles] = useState<StaffTitle[]>([])
+
+  // Fetch des titres staff filtrés selon le template de l'école (une seule fois)
+  useEffect(() => {
+    fetchApi('/api/v2/school/staff-titles')
+      .then(r => r.json())
+      .then(d => { if (d.success) setStaffTitles(d.data as StaffTitle[]) })
+      .catch(() => { /* non bloquant */ })
+  }, [])
 
   useEffect(() => {
     if (openInviteOnMount) {
@@ -813,6 +805,33 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   useEffect(() => {
     fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
   }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Générer un document scolaire ────────────────────────────────────────
+  const openDocModal = (user: UserItem) => {
+    setOpenDD(null)
+    setDocModal({ open: true, userId: user.id, userName: `${user.firstName} ${user.lastName}`, status: (user as any).studentStatus ?? 'ACTIVE', loading: false, error: '' })
+  }
+
+  const generateDoc = async (type: 'certificat' | 'carte' | 'lettre-transfert') => {
+    setDocModal(f => ({ ...f, loading: true, error: '' }))
+    try {
+      const url = type === 'lettre-transfert'
+        ? `/api/v2/students/${docModal.userId}/${type}?motif=Demande de transfert`
+        : `/api/v2/students/${docModal.userId}/${type}`
+      const res = await fetchApi(url, { credentials: 'include' })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setDocModal(f => ({ ...f, loading: false, error: (d as any).message ?? 'Erreur génération PDF' }))
+        return
+      }
+      const blob = await res.blob()
+      const objUrl = URL.createObjectURL(blob)
+      window.open(objUrl, '_blank')
+      setDocModal(EMPTY_DOC_MODAL)
+    } catch (e: any) {
+      setDocModal(f => ({ ...f, loading: false, error: e.message ?? 'Erreur réseau' }))
+    }
+  }
 
   // ── Modifier utilisateur ────────────────────────────────────────────────
   const openModUser = (user: UserItem) => {
@@ -1076,7 +1095,10 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                           <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 200, zIndex: 100, overflow: 'hidden' }}>
                             {[
                               { icon: '✏️', label: 'Modifier', danger: false, onClick: () => openModUser(user) },
-                              ...(user.role === 'STUDENT' ? [{ icon: '🔄', label: 'Changer de classe', danger: false, onClick: () => openTransfer(user) }] : []),
+                              ...(user.role === 'STUDENT' ? [
+                                { icon: '🔄', label: 'Changer de classe', danger: false, onClick: () => openTransfer(user) },
+                                { icon: '📄', label: 'Générer document', danger: false, onClick: () => openDocModal(user) },
+                              ] : []),
                               { icon: '🗑', label: 'Supprimer', danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
                             ].map((item, j) => (
                               <div key={j} onClick={item.onClick}
@@ -1103,6 +1125,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         <InviteModal
           onClose={() => setInviteOpen(false)}
           onSuccess={msg => { onToast(msg, 'success'); setInviteOpen(false); fetchUsers(ROLE_TABS[activeTab]?.role ?? '') }}
+          staffTitles={staffTitles}
         />
       )}
 
@@ -1152,6 +1175,38 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                 {transfer.loading ? 'Transfert…' : '🔄 Transférer'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Générer document scolaire ── */}
+      {docModal.open && (
+        <div onClick={() => setDocModal(EMPTY_DOC_MODAL)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, padding: '32px 36px', width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 4 }}>Générer un document</div>
+            <div style={{ fontSize: 15, color: '#a89478', marginBottom: 24 }}>{docModal.userName}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { icon: '📋', label: 'Certificat de scolarité', sub: 'Atteste l\'inscription de l\'élève', type: 'certificat' as const },
+                { icon: '🪪', label: 'Carte d\'identité scolaire', sub: 'Recto (photo, classe) + Verso (règlement)', type: 'carte' as const },
+                { icon: '📤', label: 'Lettre de transfert', sub: 'Uniquement pour élève transféré / sorti', type: 'lettre-transfert' as const, disabled: !['TRANSFERRED', 'LEFT', 'GRADUATED'].includes(docModal.status) },
+              ].map(item => (
+                <button key={item.type} disabled={item.disabled || docModal.loading}
+                  onClick={() => generateDoc(item.type)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 12, border: `1.5px solid ${item.disabled ? '#f0ebe3' : '#d4c8b8'}`, background: item.disabled ? '#fafaf9' : 'white', cursor: item.disabled || docModal.loading ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: 'inherit', opacity: item.disabled ? 0.45 : 1, transition: 'all 0.12s' }}
+                  onMouseEnter={e => { if (!item.disabled && !docModal.loading) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: '#059669', background: '#f0fdf4' }) }}
+                  onMouseLeave={e => { if (!item.disabled) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: '#d4c8b8', background: 'white' }) }}>
+                  <span style={{ fontSize: 28 }}>{item.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1209' }}>{item.label}</div>
+                    <div style={{ fontSize: 12, color: '#a89478', marginTop: 2 }}>{item.sub}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {docModal.loading && <div style={{ marginTop: 16, textAlign: 'center', color: '#059669', fontSize: 14, fontWeight: 600 }}>⏳ Génération du PDF en cours…</div>}
+            {docModal.error && <div style={{ marginTop: 12, padding: '10px 14px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, color: '#dc2626', fontSize: 13 }}>{docModal.error}</div>}
+            <button style={{ marginTop: 20, width: '100%', padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#6b5c45', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setDocModal(EMPTY_DOC_MODAL)}>Fermer</button>
           </div>
         </div>
       )}
@@ -1245,7 +1300,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               <Field label="Poste">
                 <select value={createForm.staffTitle} onChange={e => setCreate('staffTitle', e.target.value)} style={sIn}>
                   <option value="">Sélectionner un poste…</option>
-                  {STAFF_TITLES.map(t => <option key={t.key} value={t.key}>{t.emoji} {t.label}</option>)}
+                  {staffTitles.map(t => <option key={t.key} value={t.key}>{emojiForTitle(t.key)} {t.label}</option>)}
                 </select>
               </Field>
             )}

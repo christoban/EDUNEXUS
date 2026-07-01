@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sendTransactionalEmail } from '../../../services/emailService';
+import { passwordError } from '../../../utils/passwordValidator';
 
 const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -141,8 +142,9 @@ export class InviteOnboardingController {
         res.status(400).json({ success: false, message: `Champs manquants : ${missing.join(', ')}` });
         return;
       }
-      if (String(password).length < 8) {
-        res.status(400).json({ success: false, message: 'Le mot de passe doit contenir au moins 8 caractères.' });
+      const pwdErr = passwordError(String(password));
+      if (pwdErr) {
+        res.status(400).json({ success: false, message: pwdErr });
         return;
       }
 

@@ -1,67 +1,69 @@
 import axios from "axios";
 
-const BASE_URL = process.env.TECHSOFT_BASE_URL || "https://app.techsoft-web-agency.com/sms/api";
+const BASE_URL = process.env.TECHSOFT_BASE_URL || "https://app.techsoft-sms.com/api/http";
 const API_KEY = process.env.TECHSOFT_API_KEY || "";
-const SENDER_ID = process.env.TECHSOFT_SENDER_ID || "TECHSOF-SMS";
+const SENDER_ID = process.env.TECHSOFT_SENDER_ID || "TechSoft";
+
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/[\s+]/g, "");
+  return digits.startsWith("237") ? digits : `237${digits}`;
+}
 
 // ─── ENVOYER UN SMS ──────────────────────────────────────────
 export const sendSMS = async (to: string, message: string): Promise<{ success: boolean; msgId?: string; error?: string }> => {
   try {
-    const phone = to.replace(/\s+/g, "").replace(/^\+/, "");
-    const normalized = phone.startsWith("237") ? phone : `237${phone}`;
-
-    const params = new URLSearchParams({
-      action: "send-sms",
-      api_key: API_KEY,
-      to: normalized,
-      from: SENDER_ID,
-      sms: message,
+    const response = await axios.post(`${BASE_URL}/sms/send`, {
+      api_token: API_KEY,
+      recipient: normalizePhone(to),
+      sender_id: SENDER_ID,
+      type: "plain",
+      message,
+    }, {
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
     });
 
-    const response = await axios.get(`${BASE_URL}?${params.toString()}`);
     const data = response.data;
-
-    if (data.code === "ok") {
-      return { success: true, msgId: data.msgId };
+    if (data.status === "success") {
+      const uid = Array.isArray(data.data) ? data.data[0]?.uid : data.data?.uid;
+      return { success: true, msgId: uid };
     }
-
     return { success: false, error: data.message || "Erreur inconnue" };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 };
 
-// ─── ENVOYER SMS EN MASSE (max 100 numéros) ──────────────────
+// ─── ENVOYER SMS EN MASSE (max 100 numéros par lot) ──────────
 export const sendBulkSMS = async (numbers: string[], message: string): Promise<{ success: number; failed: number }> => {
   const chunks: string[][] = [];
-  for (let index = 0; index < numbers.length; index += 100) {
-    chunks.push(numbers.slice(index, index + 100));
+  for (let i = 0; i < numbers.length; i += 100) {
+    chunks.push(numbers.slice(i, i + 100));
   }
 
   let success = 0;
   let failed = 0;
 
   for (const chunk of chunks) {
-    const normalized = chunk
-      .map((n) => n.replace(/\s+/g, "").replace(/^\+/, ""))
-      .map((n) => (n.startsWith("237") ? n : `237${n}`))
-      .join(",");
-
-    const params = new URLSearchParams({
-      action: "send-sms",
-      api_key: API_KEY,
-      to: normalized,
-      from: SENDER_ID,
-      sms: message,
-    });
+    const recipient = chunk.map(normalizePhone).join(",");
 
     try {
-      const response = await axios.get(`${BASE_URL}?${params.toString()}`);
-      const results = Array.isArray(response.data) ? response.data : [response.data];
-      results.forEach((result: any) => {
-        if (result.code === "ok") success += 1;
-        else failed += 1;
+      const response = await axios.post(`${BASE_URL}/sms/send`, {
+        api_token: API_KEY,
+        recipient,
+        sender_id: SENDER_ID,
+        type: "plain",
+        message,
+      }, {
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
       });
+
+      const data = response.data;
+      if (data.status === "success") {
+        const sent = Array.isArray(data.data) ? data.data.length : 1;
+        success += sent;
+      } else {
+        failed += chunk.length;
+      }
     } catch {
       failed += chunk.length;
     }
@@ -190,7 +192,10 @@ export const processSMSAttendance = async (
     success: true,
     message: `✅ ${attendanceRecords.length} présences enregistrées pour ${cls.name}`,
   };
-};type SendSmsInput = {
+};
+
+// ─── TYPES ───────────────────────────────────────────────────
+type SendSmsInput = {
   to: string;
   message: string;
 };
@@ -201,217 +206,69 @@ type SendSmsResult = {
   error?: string;
 };
 
-const getSmsConfig = () => ({
-  provider: (process.env.SMS_PROVIDER || "techsoft").toLowerCase(),
-  apiUrl: process.env.TECHSOFT_BASE_URL || "https://app.techsoft-web-agency.com/sms/api",
-  apiKey: process.env.TECHSOFT_API_KEY,
-  username: process.env.SMS_USERNAME || "sandbox",
-  senderId: process.env.TECHSOFT_SENDER_ID || "EDUNEXUS",
-});
+// ─── VÉRIFIER CONFIGURATION SMS ──────────────────────────────
+export const isSmsConfigured = () => Boolean(API_KEY);
 
-export const isSmsConfigured = () => {
-  const { apiKey } = getSmsConfig();
-  return Boolean(apiKey);
-};
-
-const parseAfricasTalkingResponse = (payload: any) => {
-  const smsData = payload?.SMSMessageData;
-  const recipients = smsData?.Recipients;
-  if (Array.isArray(recipients) && recipients.length > 0) {
-    return {
-      providerMessageId: String(recipients[0]?.messageId || recipients[0]?.messageID || ""),
-    };
-  }
-  return { providerMessageId: payload?.messageId || payload?.id };
-};
-
-const parseTechsoftResponse = (payload: any) => {
-  const providerMessageId =
-    payload?.msgId ||
-    payload?.messageId ||
-    payload?.messageID ||
-    payload?.id ||
-    payload?.data?.msgId;
-
-  const normalizedStatus = String(payload?.status || payload?.state || "").toLowerCase();
-  const hasFailure =
-    normalizedStatus.includes("fail") ||
-    normalizedStatus.includes("error") ||
-    Boolean(payload?.error) ||
-    Boolean(payload?.errors);
-
-  return {
-    providerMessageId: providerMessageId ? String(providerMessageId) : undefined,
-    failed: hasFailure,
-    errorMessage:
-      payload?.message || payload?.error || payload?.errors?.[0] || "Techsoft SMS error",
-  };
-};
-
+// ─── ENVOYER SMS (API secondaire compatible hexagonal) ───────
 export const sendSms = async (input: SendSmsInput): Promise<SendSmsResult> => {
+  if (!isSmsConfigured()) {
+    return { status: "failed", error: "SMS API key is missing" };
+  }
+
   try {
-    if (!isSmsConfigured()) {
-      return { status: "failed", error: "SMS API key is missing" };
-    }
-
-    const config = getSmsConfig();
-
-    if (config.provider === "africastalking") {
-      const body = new URLSearchParams({
-        username: config.username,
-        to: input.to,
-        message: input.message,
-      });
-
-      if (config.senderId) {
-        body.set("from", config.senderId);
-      }
-
-      const response = await fetch(config.apiUrl, {
-        method: "POST",
-        headers: {
-          apiKey: String(config.apiKey),
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body,
-      });
-
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        return {
-          status: "failed",
-          error:
-            payload?.errorMessage ||
-            payload?.message ||
-            `Africa's Talking SMS error (${response.status})`,
-        };
-      }
-
-      return {
-        status: "sent",
-        ...parseAfricasTalkingResponse(payload),
-      };
-    }
-
-    if (config.provider === "techsoft") {
-      const url = new URL(String(config.apiUrl));
-      url.searchParams.set("action", "send-sms");
-      url.searchParams.set("api_key", String(config.apiKey));
-      url.searchParams.set("to", input.to);
-      url.searchParams.set("sms", input.message);
-
-      if (config.senderId) {
-        url.searchParams.set("from", config.senderId);
-      }
-
-      const response = await fetch(url.toString(), {
-        method: "GET",
-      });
-
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        return {
-          status: "failed",
-          error:
-            payload?.message ||
-            payload?.error ||
-            `Techsoft SMS error (${response.status})`,
-        };
-      }
-
-      const parsed = parseTechsoftResponse(payload);
-
-      if (parsed.failed) {
-        return {
-          status: "failed",
-          error: parsed.errorMessage,
-          providerMessageId: parsed.providerMessageId,
-        };
-      }
-
-      return {
-        status: "sent",
-        providerMessageId: parsed.providerMessageId,
-      };
-    }
-
-    const response = await fetch(String(config.apiUrl), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        to: input.to,
-        message: input.message,
-        senderId: config.senderId,
-      }),
+    const response = await axios.post(`${BASE_URL}/sms/send`, {
+      api_token: API_KEY,
+      recipient: normalizePhone(input.to),
+      sender_id: SENDER_ID,
+      type: "plain",
+      message: input.message,
+    }, {
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
     });
 
-    const payload = await response.json().catch(() => ({}));
+    const data = response.data;
 
-    if (!response.ok) {
-      return {
-        status: "failed",
-        error: payload?.message || `SMS provider error (${response.status})`,
-      };
+    if (data.status === "success") {
+      const uid = Array.isArray(data.data) ? data.data[0]?.uid : data.data?.uid;
+      return { status: "sent", providerMessageId: uid ? String(uid) : undefined };
     }
 
     return {
-      status: "sent",
-      providerMessageId: payload?.messageId || payload?.id,
+      status: "failed",
+      error: data.message || "Echec d'envoi TechSoft",
     };
   } catch (error: any) {
-    return {
-      status: "failed",
-      error: error?.message || "Unknown SMS error",
-    };
+    return { status: "failed", error: error?.message || "Unknown SMS error" };
   }
 };
 
+// ─── STATUT DE LIVRAISON SMS ─────────────────────────────────
 export const getSmsDeliveryStatus = async (providerMessageId: string) => {
-  const config = getSmsConfig();
-
-  if (config.provider !== "techsoft") {
-    return {
-      status: "unsupported",
-      error: "SMS status polling is currently supported only for Techsoft",
-    };
-  }
-
   if (!isSmsConfigured()) {
-    return {
-      status: "failed",
-      error: "SMS API key is missing",
-    };
+    return { status: "failed", error: "SMS API key is missing" };
   }
 
   try {
-    const url = new URL(String(config.apiUrl));
-    url.searchParams.set("action", "sms-status");
-    url.searchParams.set("api_key", String(config.apiKey));
-    url.searchParams.set("sms_uid", providerMessageId);
+    // GET /sms/{uid} — api_token envoyé dans le corps JSON selon la doc TechSoft
+    const response = await axios.get(`${BASE_URL}/sms/${providerMessageId}`, {
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      data: { api_token: API_KEY },
+    });
 
-    const response = await fetch(url.toString(), { method: "GET" });
-    const payload = await response.json().catch(() => ({}));
+    const data = response.data;
 
-    if (!response.ok) {
+    if (data.status === "success") {
       return {
-        status: "failed",
-        error:
-          payload?.message ||
-          payload?.error ||
-          `Techsoft status error (${response.status})`,
-        raw: payload,
+        status: "ok",
+        providerStatus: data.data?.status || data.data?.delivery_status,
+        raw: data,
       };
     }
 
     return {
-      status: "ok",
-      providerStatus: payload?.status || payload?.state || payload?.deliveryStatus,
-      raw: payload,
+      status: "failed",
+      error: data.message || "Erreur récupération statut",
+      raw: data,
     };
   } catch (error: any) {
     return {

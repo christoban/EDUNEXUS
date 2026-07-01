@@ -1,8 +1,8 @@
 /**
- * INFRASTRUCTURE LAYER — Adapter Google Gemini
- * Implémente IAService. Migré depuis src/services/gemini.ts.
+ * INFRASTRUCTURE LAYER — Adapter Groq (remplace Google Gemini)
+ * Implémente IAService.
  */
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
 import type {
   IAService,
@@ -10,9 +10,11 @@ import type {
   ResultatIndiceSante,
 } from '@domain/ports/services/IAService';
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_AI_API_KEY ?? '',
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY ?? '',
 });
+
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 function nettoyerMarkdown(texte: string): string {
   return texte
@@ -27,9 +29,9 @@ function nettoyerMarkdown(texte: string): string {
     .trim();
 }
 
-async function genererAvecGemini(prompt: string, systemPrompt?: string): Promise<string> {
+async function genererAvecGroq(prompt: string, systemPrompt?: string): Promise<string> {
   const { text } = await generateText({
-    model: google('gemini-flash-latest'),
+    model: groq(GROQ_MODEL),
     system: systemPrompt ?? 'Tu es un conseiller pédagogique camerounais. Réponds en français, sans Markdown.',
     prompt,
     maxOutputTokens: 1000,
@@ -63,7 +65,7 @@ Niveau de santé scolaire : ${niveau} (score ${score}/100).
 Donne 2-3 recommandations courtes et concrètes pour l'enseignant.
     `.trim();
 
-    const analyse = await genererAvecGemini(prompt);
+    const analyse = await genererAvecGroq(prompt);
     const recommandations = analyse
       .split(/[.!?]+/)
       .map(s => s.trim())
@@ -90,7 +92,7 @@ Points faibles : ${params.pointsFaibles.join(', ') || 'aucun identifié'}.
 2-3 phrases, ton encourageant et professionnel.
     `.trim();
 
-    return genererAvecGemini(prompt);
+    return genererAvecGroq(prompt);
   }
 
   async genererEmploiDuTemps(
@@ -102,7 +104,7 @@ ${JSON.stringify(contraintes, null, 2)}
 Retourne un JSON structuré avec les créneaux.
     `.trim();
 
-    const resultat = await genererAvecGemini(prompt);
+    const resultat = await genererAvecGroq(prompt);
     try {
       return JSON.parse(resultat) as Record<string, unknown>;
     } catch {

@@ -22,6 +22,7 @@ import SectionOrientation      from './_components/SectionOrientation'
 import SectionDepartementsStaff from './_components/SectionDepartementsStaff'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
+import ChangePasswordModal from '@/components/ChangePasswordModal'
 
 let toastId = 0
 
@@ -32,6 +33,7 @@ export default function StaffDashboard() {
   const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard']))
   const [schoolName, setSchoolName]     = useState<string | undefined>(undefined)
   const [logoUrl,    setLogoUrl]        = useState<string | null>(null)
+  const [changePwdOpen, setChangePwdOpen] = useState(false)
 
   // Lecture session depuis localStorage (stockée au login)
   useEffect(() => {
@@ -81,7 +83,7 @@ export default function StaffDashboard() {
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <StaffTopbar section={section} />
+        <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} />
 
         <main style={{ flex: 1, overflow: 'hidden', background: '#f7f3ee' }}>
 
@@ -147,6 +149,7 @@ export default function StaffDashboard() {
 
       <StaffToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
+      {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
     </div>
   )
 }

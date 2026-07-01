@@ -20,6 +20,9 @@ export function creerFinanceRoutes(controller: FinanceController): Router {
 
   router.post('/payments/caution/:id/rembourser', requireAuth, requireRole('ADMIN', 'STAFF'), controller.rembourserCautionEleve);
 
+  // Reçu de paiement PDF
+  router.get('/payments/:paymentId/receipt', requireAuth, controller.genererRecu);
+
   // Webhook Campay — pas d'auth (appelé par Campay directement)
   router.post('/payments/webhook/campay', controller.webhookCampay);
 

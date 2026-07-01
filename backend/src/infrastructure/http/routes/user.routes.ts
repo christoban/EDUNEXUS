@@ -25,6 +25,13 @@ export function creerUserRoutes(controller: UserController): Router {
   router.post('/auth/logout', controller.logout);
   router.post('/auth/refresh', controller.refresh);
 
+  // Récupération de mot de passe — publique
+  router.post('/auth/forgot-password', controller.forgotPassword);
+  router.post('/auth/reset-password', controller.resetPassword);
+
+  // Changement de mot de passe — authentifié
+  router.post('/auth/change-password', requireAuth, controller.changePassword);
+
   // Invitation utilisateur — publique (pas de session)
   router.get('/auth/invite/validate', controller.validateInvite);
   router.post('/auth/invite/complete', controller.completeInvite);

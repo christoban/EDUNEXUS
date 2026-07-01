@@ -8,7 +8,15 @@
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
 import { sendSMS, isSmsConfigured } from '../../services/smsService'
 
-type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN'
+type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE'
+
+const DISCIPLINE_TYPE_LABELS: Record<string, string> = {
+  WARNING_ORAL: 'Avertissement oral',
+  WARNING_WRITTEN: 'Avertissement écrit',
+  TEMP_EXCLUSION: 'Exclusion temporaire',
+  COUNCIL_DECISION: 'Décision du conseil de discipline',
+  PERMANENT_EXCLUSION: 'Exclusion définitive',
+}
 
 // ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -153,6 +161,72 @@ export async function notifyPaymentSms(opts: {
     await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'PAYMENT')))
   } catch (err) {
     console.error('[SMS Paiement] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyOverdueInvoiceSms(opts: {
+  schoolId: string
+  studentId: string
+  studentName: string
+  amount: number
+  daysOverdue: number
+  invoiceLabel: string
+}): Promise<void> {
+  try {
+    const settings = await getNotifSettings(opts.schoolId)
+    if (!settings.smsPayments) return
+
+    const phones = await getParentPhones(opts.studentId)
+    if (phones.length === 0) return
+
+    const amountStr = new Intl.NumberFormat('fr-FR').format(opts.amount)
+    const message = `EduNexus: RAPPEL — Facture "${opts.invoiceLabel}" de ${amountStr} XAF pour ${opts.studentName} est en retard de ${opts.daysOverdue} jour(s). Veuillez régulariser.`
+
+    await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'PAYMENT')))
+  } catch (err) {
+    console.error('[SMS Overdue Invoice] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyDisciplineSms(opts: {
+  schoolId: string
+  studentId: string
+  studentName: string
+  type: string
+  reason: string
+}): Promise<void> {
+  try {
+    const phones = await getParentPhones(opts.studentId)
+    if (phones.length === 0) return
+
+    const typeLabel = DISCIPLINE_TYPE_LABELS[opts.type] ?? opts.type
+    const message = `EduNexus: ${opts.studentName} a fait l'objet d'une sanction (${typeLabel}). Motif : ${opts.reason}. Contactez l'établissement pour plus d'informations.`
+
+    await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'DISCIPLINE')))
+  } catch (err) {
+    console.error('[SMS Discipline] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyAbsenceThresholdSms(opts: {
+  schoolId: string
+  studentId: string
+  studentName: string
+  count: number
+  threshold: number
+}): Promise<void> {
+  try {
+    const settings = await getNotifSettings(opts.schoolId)
+    if (!settings.smsAbsences) return
+
+    const phones = await getParentPhones(opts.studentId)
+    if (phones.length === 0) return
+
+    const message = `EduNexus: ALERTE — ${opts.studentName} cumule ${opts.count} absences non justifiées (seuil : ${opts.threshold}). Merci de contacter l'établissement.`
+
+    await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'ABSENCE')))
+  } catch (err) {
+    console.error('[SMS Seuil Absences] Erreur inattendue:', err)
   }
 }
 

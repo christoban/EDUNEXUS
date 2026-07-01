@@ -1,8 +1,8 @@
 export type AdminSection =
   | 'dashboard' | 'users' | 'classes' | 'subjects'
   | 'attendance' | 'grades' | 'bulletins' | 'timetable'
-  | 'council' | 'academic-year' | 'finance' | 'ai' | 'settings'
-  | 'ai-assistant'
+  | 'council' | 'academic-year' | 'finance' | 'ai' | 'statistics' | 'communications' | 'settings'
+  | 'pedagogie' | 'rh'
 
 export interface Toast {
   id: number

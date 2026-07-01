@@ -7,7 +7,9 @@ import type { ReactiverEcoleUseCase } from '@application/masterAdmin/ReactiverEc
 import type { RejeterEcoleUseCase } from '@application/masterAdmin/RejeterEcoleUseCase';
 import type { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/ChangerPlanAbonnementUseCase';
 import type { PlanType } from '@domain/types/enums';
+import { inngest } from '../../../inngest/index.ts';
 import { sendTransactionalEmail } from '../../../services/emailService';
+import { listSchoolBackups } from '../../../utils/schoolBackup';
 import { logMasterAction } from '../../../utils/masterAuthAudit';
 
 export class MasterAdminHexController {
@@ -492,6 +494,46 @@ export class MasterAdminHexController {
         message: `Synchronisation terminée pour "${school.name}"`,
         data: { subjectsCreated: subjectCount, subjectCoefficientsUpserted: subjectCoeffCount },
       });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/master/backup/trigger
+  declencherSauvegarde = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const master = (req as any).masterUser;
+      const schoolId = typeof req.body?.schoolId === 'string' && req.body.schoolId.trim() ? req.body.schoolId.trim() : undefined;
+
+      const response = await inngest.send({
+        name: 'backup/school.requested',
+        data: {
+          schoolId,
+          requestedByMasterId: master?.id ?? null,
+          source: 'manual',
+        },
+      });
+
+      void logMasterAction({
+        req,
+        masterUserId: master?.id,
+        action: 'backup_triggered',
+        targetId: schoolId ?? 'all-schools',
+        description: schoolId ? `Sauvegarde déclenchée pour l'école ${schoolId}` : 'Sauvegarde globale déclenchée',
+      });
+
+      res.status(202).json({ success: true, message: 'Sauvegarde déclenchée', data: { eventId: response.ids?.[0] ?? null } });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // GET /api/v2/master/backup/list
+  listerSauvegardes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schoolId = typeof req.query.schoolId === 'string' && req.query.schoolId.trim() ? req.query.schoolId.trim() : undefined;
+      const backups = await listSchoolBackups(schoolId);
+      res.json({ success: true, data: backups });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

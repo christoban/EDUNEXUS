@@ -20,10 +20,14 @@ import SectionPlaceholder from './_components/SectionPlaceholder'
 import SectionAdminAttendance from './_components/SectionAdminAttendance'
 import SectionAdminCouncil from './_components/SectionAdminCouncil'
 import SectionAdminAI from './_components/SectionAdminAI'
-import SectionAIAssistant from './_components/SectionAIAssistant'
+import SectionStatistics from './_components/SectionStatistics'
+import SectionCommunications from './_components/SectionCommunications'
+import SectionPedagogie from './_components/SectionPedagogie'
+import SectionRH from './_components/SectionRH'
 import AdminToast from './_components/AdminToast'
 import type { AdminSection, Toast } from './_types'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
+import ChangePasswordModal from '@/components/ChangePasswordModal'
 
 let toastId = 0
 
@@ -37,11 +41,14 @@ const SECTION_TITLES: Record<AdminSection, string> = {
   bulletins:       'Bulletins',
   timetable:       'Emploi du temps',
   council:         'Conseil de classe',
+  pedagogie:       'Gestion de la Pédagogie',
   'academic-year': 'Année scolaire',
   finance:         'Mobile Money',
   ai:              'IA Santé scolaire',
+  statistics:      'Statistiques',
+  communications:  'Communications',
   settings:        'Paramètres',
-  'ai-assistant':  '🤖 Assistant IA Dev',
+  rh:              'Ressources Humaines',
 }
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {
@@ -57,6 +64,7 @@ export default function AdminDashboard() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [changePwdOpen, setChangePwdOpen] = useState(false)
   const [badges, setBadges] = useState<AdminBadges>({})
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
 
@@ -123,7 +131,7 @@ export default function AdminDashboard() {
       <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} />
+        <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {section === 'dashboard' && (
@@ -144,7 +152,10 @@ export default function AdminDashboard() {
           {section === 'attendance'    && <SectionAdminAttendance onToast={showToast} />}
           {section === 'council'       && <SectionAdminCouncil  onToast={showToast} />}
           {section === 'ai'            && <SectionAdminAI       onToast={showToast} />}
-          {section === 'ai-assistant' && process.env.NODE_ENV === 'development' && <SectionAIAssistant onToast={showToast} />}
+          {section === 'statistics'    && <SectionStatistics    onToast={showToast} />}
+          {section === 'communications' && <SectionCommunications onToast={showToast} />}
+          {section === 'pedagogie'     && <SectionPedagogie     onToast={showToast} />}
+          {section === 'rh'            && <SectionRH            onToast={showToast} />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
@@ -162,6 +173,7 @@ export default function AdminDashboard() {
 
       <AdminToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
+      {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
     </div>
   )
 }

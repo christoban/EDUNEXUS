@@ -1,11 +1,11 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY || "",
+const groq = createGroq({
+  apiKey: process.env.GROQ_API_KEY || "",
 });
 
-export const geminiModel = google("gemini-flash-latest");
+export const geminiModel = groq("llama-3.3-70b-versatile");
 
 const cleanMarkdownArtifacts = (text: string): string => {
   return text
@@ -32,7 +32,7 @@ export const generateWithGemini = async (prompt: string, systemPrompt?: string):
     });
     return cleanMarkdownArtifacts(text);
   } catch (error: any) {
-    console.error("Gemini error:", error.message);
+    console.error("Groq error:", error.message);
     throw new Error("Service IA temporairement indisponible");
   }
 };
