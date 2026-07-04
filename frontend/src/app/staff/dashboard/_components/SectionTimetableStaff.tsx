@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -14,6 +15,7 @@ interface TimetableSlot {
   room: string | null; kind: string
   subject: { id: string; name: string } | null
   teacher: { id: string; firstName: string; lastName: string } | null
+  isLV2Slot?: boolean
 }
 
 interface Timetable {
@@ -51,14 +53,14 @@ const DAY_MAP: Record<string, number> = {
 
 // Palette de couleurs par matière (hash stable)
 const SUBJECT_PALETTES = [
-  { bg: 'rgba(5,150,105,0.10)', border: '#059669', text: '#047857' },
-  { bg: 'rgba(37,99,235,0.09)', border: '#2563eb', text: '#1d4ed8' },
-  { bg: 'rgba(217,119,6,0.09)', border: '#d97706', text: '#b45309' },
-  { bg: 'rgba(139,92,246,0.09)', border: '#7c3aed', text: '#6d28d9' },
+  { bg: 'rgba(5,150,105,0.10)', border: 'var(--green)', text: 'var(--green2)' },
+  { bg: 'rgba(37,99,235,0.09)', border: 'var(--blue)', text: 'var(--blue)' },
+  { bg: 'rgba(217,119,6,0.09)', border: 'var(--amber)', text: 'var(--amber)' },
+  { bg: 'rgba(139,92,246,0.09)', border: 'var(--purple)', text: '#6d28d9' },
   { bg: 'rgba(236,72,153,0.09)', border: '#db2777', text: '#be185d' },
-  { bg: 'rgba(20,184,166,0.09)', border: '#0d9488', text: '#0f766e' },
-  { bg: 'rgba(239,68,68,0.09)', border: '#dc2626', text: '#b91c1c' },
-  { bg: 'rgba(251,146,60,0.09)', border: '#ea580c', text: '#c2410c' },
+  { bg: 'rgba(20,184,166,0.09)', border: 'var(--teal)', text: 'var(--teal)' },
+  { bg: 'rgba(239,68,68,0.09)', border: 'var(--red)', text: 'var(--red)' },
+  { bg: 'rgba(251,146,60,0.09)', border: 'var(--orange)', text: 'var(--orange)' },
 ]
 function subjectColor(id: string) {
   let hash = 0
@@ -68,6 +70,7 @@ function subjectColor(id: string) {
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 export default function SectionTimetable({ onToast }: Props) {
+  const t = useT('staff')
   const [classes, setClasses]             = useState<ClassItem[]>([])
   const [classId, setClassId]             = useState('')
   const [timetable, setTimetable]         = useState<Timetable | null>(null)
@@ -89,16 +92,24 @@ export default function SectionTimetable({ onToast }: Props) {
   const [conflictMsg, setConflictMsg]     = useState<string | null>(null)
   const conflictTimerRef                  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Matières LV2 (isLV2=true) — pour proposer la case "Créneau LV2" au bon moment
+  const [lv2SubjectIds, setLv2SubjectIds] = useState<Set<string>>(new Set())
+  const [modalIsLV2Slot, setModalIsLV2Slot] = useState(false)
+
   // Charger classes et config grille au montage
   useEffect(() => {
     Promise.all([
       fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
       fetchApi('/api/v2/timetable-grid-config', { credentials: 'include' }).then(r => r.json()),
-    ]).then(([classData, configData]) => {
+      fetchApi('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()).catch(() => null),
+    ]).then(([classData, configData, subjectData]) => {
       setClasses(classData.data || [])
       if (configData.data) {
         setGridConfig(configData.data.config)
         setSquelette(configData.data.squelette)
+      }
+      if (Array.isArray(subjectData?.data)) {
+        setLv2SubjectIds(new Set(subjectData.data.filter((s: any) => s.isLV2).map((s: any) => s.id)))
       }
     }).catch(() => {})
       .finally(() => setLoadingClasses(false))
@@ -116,7 +127,7 @@ export default function SectionTimetable({ onToast }: Props) {
       ])
       const tmData  = await tmRes.json()
       const assData = await assRes.json()
-      if (!tmRes.ok) throw new Error(tmData.message || 'Erreur chargement EDT')
+      if (!tmRes.ok) throw new Error(tmData.message || t('timetable.loading'))
       const list: Timetable[] = tmData.data || []
       setTimetable(list[0] ?? null)
       setAssignments(assData.data || [])
@@ -149,10 +160,10 @@ export default function SectionTimetable({ onToast }: Props) {
         if (res.status === 409 && data.data?.timetableId) { fetchTimetable(); return; }
         throw new Error(data.message || 'Erreur génération')
       }
-      onToast('Squelette généré !', 'success')
+      onToast(t('timetable.skeletonGenerated'), 'success')
       setTimetable(data.data)
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur génération', 'error')
+      onToast(err instanceof Error ? err.message : t('timetable.generationError'), 'error')
     } finally {
       setGenerating(false)
     }
@@ -167,10 +178,10 @@ export default function SectionTimetable({ onToast }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur publication')
-      onToast('Emploi du temps publié !', 'success')
+      onToast(t('timetable.publishSuccess'), 'success')
       fetchTimetable()
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de publication', 'error')
+      onToast(err instanceof Error ? err.message : t('timetable.publishError'), 'error')
     } finally {
       setPublishing(false)
     }
@@ -182,16 +193,19 @@ export default function SectionTimetable({ onToast }: Props) {
     setModalSubjectId(slot.subject?.id ?? '')
     setModalTeacherId(slot.teacher?.id ?? '')
     setModalTeacherName(slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : '')
+    setModalIsLV2Slot(slot.isLV2Slot ?? false) // reflète la valeur actuelle à l'édition
     setConflictMsg(null)
   }
 
   const handleSubjectSelect = (subjectId: string) => {
     setModalSubjectId(subjectId)
     setConflictMsg(null)
+    // Matière de langue LV2 → case proposée cochée par défaut ; sinon pas de case
+    setModalIsLV2Slot(lv2SubjectIds.has(subjectId))
     if (!subjectId) { setModalTeacherId(''); setModalTeacherName(''); return; }
     const aff = assignments.find(a => a.subjectId === subjectId)
     setModalTeacherId(aff?.currentTeacherId ?? '')
-    setModalTeacherName(aff?.currentTeacherName ?? (aff?.currentTeacherId ? '(enseignant assigné)' : 'Non assigné'))
+    setModalTeacherName(aff?.currentTeacherName ?? (aff?.currentTeacherId ? t('timetable.assignedTeacher') : t('timetable.unassigned')))
   }
 
   const handleSaveSlot = async () => {
@@ -206,7 +220,7 @@ export default function SectionTimetable({ onToast }: Props) {
         )
         const chkData = await chkRes.json()
         if (chkData.data?.hasConflict) {
-          setConflictMsg(`⚠️ Conflit : cet enseignant est déjà en cours dans la classe ${chkData.data.conflictClass} à ce créneau.`)
+          setConflictMsg(t('timetable.conflictPrefix', { conflictClass: chkData.data.conflictClass }))
           setSaving(false); return
         }
       }
@@ -217,6 +231,7 @@ export default function SectionTimetable({ onToast }: Props) {
         body: JSON.stringify({
           subjectId: modalSubjectId || null,
           teacherId: modalTeacherId || null,
+          isLV2Slot: lv2SubjectIds.has(modalSubjectId) ? modalIsLV2Slot : false,
         }),
       })
       const data = await res.json()
@@ -233,7 +248,7 @@ export default function SectionTimetable({ onToast }: Props) {
       } : prev)
 
       setModalSlot(null)
-      onToast('Créneau mis à jour', 'success')
+      onToast(t('timetable.slotUpdated'), 'success')
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur', 'error')
     } finally {
@@ -289,21 +304,21 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={sTitle}>Emploi du temps</div>
+          <div style={sTitle}>{t('timetable.title')}</div>
           <div style={sSub}>
             {timetable
-              ? `${timetable.class.name} — ${remplis}/${totalCours} créneaux remplis (${pct}%) · ${timetable.status === 'PUBLISHED' ? '✅ Publié' : '📝 Brouillon'}`
-              : gridConfig ? 'Sélectionnez une classe pour afficher son emploi du temps' : '⚠️ Grille horaire non configurée'}
+              ? t('timetable.subtitleFilled', { className: timetable.class.name, filled: remplis, total: totalCours, pct, status: timetable.status === 'PUBLISHED' ? t('timetable.statusPublished') : t('timetable.statusDraft') })
+              : gridConfig ? t('timetable.selectClass') : t('timetable.gridNotConfigured')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <select value={classId} onChange={e => handleClassChange(e.target.value)} style={selectSt} disabled={loadingClasses}>
-            <option value="">{loadingClasses ? 'Chargement…' : 'Sélectionner une classe'}</option>
+            <option value="">{loadingClasses ? t('timetable.loading') : t('timetable.selectClassOption')}</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           {timetable && timetable.status !== 'PUBLISHED' && (
             <button style={btnPrim} onClick={handlePublish} disabled={publishing}>
-              {publishing ? <Spinner /> : '📤 Valider et publier'}
+              {publishing ? <><Spinner /> {t('timetable.publishing')}</> : t('timetable.validateAndPublish')}
             </button>
           )}
         </div>
@@ -311,8 +326,7 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Grille non configurée */}
       {!gridConfig && !loadingClasses && (
-        <div style={{ background: '#fff7ed', border: '1.5px solid #fed7aa', borderRadius: 14, padding: '18px 22px', marginBottom: 20, fontSize: 14, color: '#92400e' }}>
-          <strong>Grille horaire non configurée.</strong> Rendez-vous dans <strong>Grille horaire</strong> pour définir les horaires de la journée scolaire avant de créer des emplois du temps.
+        <div style={{ background: 'var(--orange-light)', border: '1.5px solid var(--orange-light)', borderRadius: 14, padding: '18px 22px', marginBottom: 20, fontSize: 14, color: 'var(--amber)' }} dangerouslySetInnerHTML={{ __html: t('timetable.gridNotConfiguredDesc') }}>
         </div>
       )}
 
@@ -321,52 +335,50 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Erreur */}
       {!loading && error && (
-        <div style={{ background: '#fee2e2', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>⚠️</span>
-          <span style={{ fontWeight: 700, color: '#dc2626', flex: 1 }}>{error}</span>
-          <button onClick={() => fetchTimetable()} style={btnSec}>Réessayer</button>
+          <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <button onClick={() => fetchTimetable()} style={btnSec}>{t('timetable.retry')}</button>
         </div>
       )}
 
       {/* Aucune classe */}
       {!loading && !error && !classId && (
-        <EmptyState icon="🗓️" title="Sélectionnez une classe" sub="Choisissez une classe pour afficher ou créer son emploi du temps." />
+        <EmptyState icon="🗓️" title={t('timetable.emptyStateTitle')} sub={t('timetable.emptyStateSub')} />
       )}
 
       {/* Classe sélectionnée, pas d'EDT */}
       {!loading && !error && classId && !timetable && gridConfig && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 32px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: 14 }}>📅</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucun emploi du temps</div>
-          <div style={{ fontSize: 15, color: '#a89478', marginBottom: 28 }}>
-            Générez le squelette de l'emploi du temps à partir de la grille horaire configurée.<br />
-            Vous pourrez ensuite remplir chaque créneau avec une matière et un enseignant.
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetableTitle')}</div>
+          <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 28 }} dangerouslySetInnerHTML={{ __html: t('timetable.noTimetableDesc') }}>
           </div>
           <button style={{ ...btnPrim, fontSize: 17, padding: '13px 28px' }} onClick={handleGenerate} disabled={generating}>
-            {generating ? <><Spinner /> Génération…</> : '✨ Générer le squelette'}
+            {generating ? <><Spinner /> {t('timetable.generating')}</> : t('timetable.generateSkeleton')}
           </button>
         </div>
       )}
 
       {/* Grille EDT */}
       {!loading && !error && timetable && squelette.length > 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           {/* Barre de progression */}
-          <div style={{ background: '#f8f5f0', borderBottom: '1px solid #e8e0d4', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45', whiteSpace: 'nowrap' }}>
-              {remplis}/{totalCours} créneaux
+          <div style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+              {t('timetable.slotsFilled', { filled: remplis, total: totalCours })}
             </span>
-            <div style={{ flex: 1, background: '#e8e0d4', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#059669' : '#d97706', transition: 'width 0.3s', borderRadius: 4 }} />
+            <div style={{ flex: 1, background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--green)' : 'var(--amber)', transition: 'width 0.3s', borderRadius: 4 }} />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? '#059669' : '#d97706' }}>{pct}%</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? 'var(--green)' : 'var(--amber)' }}>{pct}%</span>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
                 <tr>
-                  <th style={{ ...thSt, width: 100 }}>Horaire</th>
+                  <th style={{ ...thSt, width: 100 }}>{t('timetable.scheduleHeader')}</th>
                   {joursActifs.map(j => <th key={j} style={thSt}>{DAY_NAME[j] ?? j}</th>)}
                 </tr>
               </thead>
@@ -378,8 +390,8 @@ export default function SectionTimetable({ onToast }: Props) {
                     return (
                       <tr key={`pause-${idx}`}>
                         <td colSpan={joursActifs.length + 1}
-                          style={{ textAlign: 'center', padding: '5px 12px', background: isPetite ? '#fef9f0' : '#fef3e2', borderTop: '1px solid #e8e0d4', borderBottom: '1px solid #e8e0d4', fontSize: 12, fontWeight: 700, color: isPetite ? '#b45309' : '#92400e', letterSpacing: '0.5px' }}>
-                          {isPetite ? '☕' : '🍽️'} {isPetite ? 'Petite pause' : 'Grande pause'} — {periode.debut} à {periode.fin} ({periode.duree} min)
+                          style={{ textAlign: 'center', padding: '5px 12px', background: isPetite ? '#fef9f0' : '#fef3e2', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: isPetite ? 'var(--amber)' : 'var(--amber)', letterSpacing: '0.5px' }}>
+                          {isPetite ? '☕' : '🍽️'} {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} à {periode.fin} ({periode.duree} min)
                         </td>
                       </tr>
                     )
@@ -387,7 +399,7 @@ export default function SectionTimetable({ onToast }: Props) {
 
                   return (
                     <tr key={`cours-${periode.debut}`}>
-                      <td style={{ padding: '8px 10px', background: '#f8f5f0', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 10px', background: 'var(--bg)', fontSize: 13, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
                         {periode.debut}<br /><span style={{ fontSize: 11, fontWeight: 600 }}>{periode.fin}</span>
                       </td>
                       {joursActifs.map(jour => {
@@ -398,25 +410,30 @@ export default function SectionTimetable({ onToast }: Props) {
 
                         return (
                           <td key={jour}
-                            style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 120, height: 68 }}
+                            style={{ padding: 0, border: '1px solid var(--border)', verticalAlign: 'top', minWidth: 120, height: 68 }}
                             onClick={() => slot && openModal(slot)}>
                             {slot ? (
                               filled ? (
                                 <div className="tt-cell-filled"
                                   style={{ padding: '8px 10px', height: '100%', background: col!.bg, borderLeft: `3px solid ${col!.border}`, boxSizing: 'border-box' }}>
-                                  <div style={{ fontSize: 13, fontWeight: 800, color: col!.text, lineHeight: 1.2 }}>{slot.subject!.name}</div>
-                                  <div style={{ fontSize: 11, color: '#a89478', marginTop: 2 }}>
-                                    {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : <span style={{ color: '#f59e0b' }}>Sans enseignant</span>}
+                                  <div style={{ fontSize: 13, fontWeight: 800, color: col!.text, lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span>{slot.subject!.name}</span>
+                                    {slot.isLV2Slot && (
+                                      <span title={t('timetable.lv2Tooltip')} style={{ background: 'rgba(3,105,161,0.14)', color: 'var(--blue)', fontSize: 9.5, fontWeight: 900, padding: '1px 5px', borderRadius: 6, letterSpacing: '0.3px', flexShrink: 0 }}>{t('timetable.lv2Badge')}</span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                                    {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : <span style={{ color: 'var(--amber)' }}>{t('timetable.noTeacher')}</span>}
                                   </div>
                                 </div>
                               ) : (
                                 <div className="tt-cell-hover"
                                   style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
-                                  <span style={{ fontSize: 20, color: '#d4c8b8' }}>+</span>
+                                  <span style={{ fontSize: 20, color: 'var(--border2)' }}>+</span>
                                 </div>
                               )
                             ) : (
-                              <div style={{ height: '100%', background: '#fafaf9' }} />
+                              <div style={{ height: '100%', background: 'var(--bg)' }} />
                             )}
                           </td>
                         )
@@ -434,49 +451,64 @@ export default function SectionTimetable({ onToast }: Props) {
       {modalSlot && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
           onClick={e => { if (e.target === e.currentTarget) setModalSlot(null) }}>
-          <div style={{ background: 'white', borderRadius: 18, padding: '28px 30px', width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 21, fontWeight: 700, color: '#1a1209', marginBottom: 4 }}>
-              Remplir le créneau
+          <div style={{ background: 'var(--surface)', borderRadius: 18, padding: '28px 30px', width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 21, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+              {t('timetable.fillSlotTitle')}
             </div>
-            <div style={{ fontSize: 13, color: '#a89478', marginBottom: 22 }}>
+            <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 22 }}>
               {['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][modalSlot.dayOfWeek]} · {modalSlot.startTime}–{modalSlot.endTime}
             </div>
 
             {conflictMsg && (
-              <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+              <div style={{ background: 'var(--orange-light)', border: '1px solid var(--orange-light)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--amber)', fontWeight: 600 }}>
                 {conflictMsg}
               </div>
             )}
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelSt}>Matière</label>
+              <label style={labelSt}>{t('timetable.subjectLabel')}</label>
               <select value={modalSubjectId} onChange={e => handleSubjectSelect(e.target.value)} style={inputSt}>
-                <option value="">— Sélectionner une matière —</option>
+                <option value="">{t('timetable.selectSubjectPlaceholder')}</option>
                 {assignments.map(a => (
                   <option key={a.subjectId} value={a.subjectId}>
-                    {a.subjectName} {a.coefficient > 0 ? `(coeff. ${a.coefficient})` : ''}
+                    {a.subjectName} {a.coefficient > 0 ? t('timetable.coefficientTag', { coeff: a.coefficient }) : ''}
                     {a.currentTeacherId ? '' : ' ⚠️'}
                   </option>
                 ))}
               </select>
             </div>
 
+            {lv2SubjectIds.has(modalSubjectId) && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', background: modalIsLV2Slot ? 'rgba(3,105,161,0.06)' : 'var(--bg)', border: `1.5px solid ${modalIsLV2Slot ? 'rgba(3,105,161,0.35)' : 'var(--border)'}`, borderRadius: 10, padding: '11px 13px' }}>
+                  <input type="checkbox" checked={modalIsLV2Slot} onChange={e => setModalIsLV2Slot(e.target.checked)}
+                    style={{ width: 17, height: 17, marginTop: 1, cursor: 'pointer', accentColor: 'var(--blue)', flexShrink: 0 }} />
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', lineHeight: 1.45 }}>
+                    {t('timetable.lv2SlotLabel')}
+                    <span style={{ display: 'block', fontWeight: 400, color: 'var(--text3)', fontSize: 12.5, marginTop: 2 }}>
+                      {t('timetable.lv2SlotDesc')}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            )}
+
             <div style={{ marginBottom: 24 }}>
-              <label style={labelSt}>Enseignant <span style={{ fontWeight: 400, color: '#b8a898' }}>(déterminé par les affectations)</span></label>
-              <div style={{ ...inputSt, background: '#f8f5f0', color: modalTeacherId ? '#1a1209' : '#c4b8a4', pointerEvents: 'none' as const }}>
-                {modalTeacherId ? modalTeacherName : 'Sera déterminé par les affectations pédagogiques'}
+              <label style={labelSt}>{t('timetable.teacherLabel')} <span style={{ fontWeight: 400, color: '#b8a898' }}>{t('timetable.teacherSubLabel')}</span></label>
+              <div style={{ ...inputSt, background: 'var(--bg)', color: modalTeacherId ? 'var(--text)' : '#c4b8a4', pointerEvents: 'none' as const }}>
+                {modalTeacherId ? modalTeacherName : t('timetable.determinedByAssignments')}
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               {modalSlot.subject && (
-                <button style={{ ...btnSec, color: '#dc2626', borderColor: 'rgba(220,38,38,0.3)' }} onClick={handleClearSlot} disabled={saving}>
-                  Vider
+                <button style={{ ...btnSec, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)' }} onClick={handleClearSlot} disabled={saving}>
+                  {t('timetable.clear')}
                 </button>
               )}
-              <button style={btnSec} onClick={() => setModalSlot(null)} disabled={saving}>Annuler</button>
+              <button style={btnSec} onClick={() => setModalSlot(null)} disabled={saving}>{t('timetable.cancel')}</button>
               <button style={btnPrim} onClick={handleSaveSlot} disabled={saving || !modalSubjectId}>
-                {saving ? <><Spinner /> Sauvegarde…</> : 'Confirmer'}
+                {saving ? <><Spinner /> {t('timetable.savingSlot')}</> : t('timetable.confirm')}
               </button>
             </div>
           </div>
@@ -489,10 +521,10 @@ export default function SectionTimetable({ onToast }: Props) {
 // ─── Petits composants ────────────────────────────────────────────────────────
 function EmptyState({ icon, title, sub }: { icon: string; title: string; sub: string }) {
   return (
-    <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 32px', textAlign: 'center' }}>
+    <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
       <div style={{ fontSize: 52, marginBottom: 14 }}>{icon}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>{title}</div>
-      <div style={{ fontSize: 16, color: '#a89478' }}>{sub}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 16, color: 'var(--text3)' }}>{sub}</div>
     </div>
   )
 }
@@ -504,12 +536,12 @@ function Spinner() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const sTitle:   React.CSSProperties = { fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub:     React.CSSProperties = { fontSize: 16, color: '#a89478', marginTop: 3 }
-const btnPrim:  React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center' }
-const btnSec:   React.CSSProperties = { padding: '9px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const selectSt: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
-const thSt:     React.CSSProperties = { padding: '10px 8px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', border: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.5px' }
-const labelSt:  React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 7 }
-const inputSt:  React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid #d4c8b8', fontSize: 15, fontWeight: 600, color: '#1a1209', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', background: 'white' }
-const spinnerStyle: React.CSSProperties = { width: 36, height: 36, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }
+const sTitle:   React.CSSProperties = { fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub:     React.CSSProperties = { fontSize: 16, color: 'var(--text3)', marginTop: 3 }
+const btnPrim:  React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center' }
+const btnSec:   React.CSSProperties = { padding: '9px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const selectSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const thSt:     React.CSSProperties = { padding: '10px 8px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.5px' }
+const labelSt:  React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 7 }
+const inputSt:  React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border2)', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', background: 'var(--surface)' }
+const spinnerStyle: React.CSSProperties = { width: 36, height: 36, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }

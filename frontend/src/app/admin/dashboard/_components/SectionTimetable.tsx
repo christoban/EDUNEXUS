@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -36,21 +37,17 @@ interface GenResults {
   stats: { classesTraitees: number; classesIgnorees: number; slotsTotal: number; coursNonPlaces: number }
 }
 
-const DAY_NAME: Record<string, string> = {
-  LUNDI: 'Lundi', MARDI: 'Mardi', MERCREDI: 'Mercredi',
-  JEUDI: 'Jeudi', VENDREDI: 'Vendredi', SAMEDI: 'Samedi',
-}
 const DAY_MAP: Record<string, number> = {
   LUNDI: 1, MARDI: 2, MERCREDI: 3, JEUDI: 4, VENDREDI: 5, SAMEDI: 6,
 }
 
 const SUBJECT_PALETTES = [
-  { bg: 'rgba(5,150,105,0.10)', border: '#059669', text: '#047857' },
-  { bg: 'rgba(37,99,235,0.09)', border: '#2563eb', text: '#1d4ed8' },
-  { bg: 'rgba(217,119,6,0.09)', border: '#d97706', text: '#b45309' },
-  { bg: 'rgba(139,92,246,0.09)', border: '#7c3aed', text: '#6d28d9' },
+  { bg: 'rgba(5,150,105,0.10)', border: 'var(--green)', text: 'var(--green2)' },
+  { bg: 'rgba(37,99,235,0.09)', border: 'var(--blue)', text: 'var(--blue)' },
+  { bg: 'rgba(217,119,6,0.09)', border: 'var(--amber)', text: 'var(--amber)' },
+  { bg: 'rgba(139,92,246,0.09)', border: 'var(--purple)', text: '#6d28d9' },
   { bg: 'rgba(236,72,153,0.09)', border: '#db2777', text: '#be185d' },
-  { bg: 'rgba(20,184,166,0.09)', border: '#0d9488', text: '#0f766e' },
+  { bg: 'rgba(20,184,166,0.09)', border: 'var(--teal)', text: 'var(--teal)' },
 ]
 function subjectColor(id: string) {
   let hash = 0
@@ -59,6 +56,7 @@ function subjectColor(id: string) {
 }
 
 export default function SectionTimetable({ onToast }: Props) {
+  const t = useT('admin')
   const [classes, setClasses]                 = useState<ClassItem[]>([])
   const [classId, setClassId]                 = useState('')
   const [timetable, setTimetable]             = useState<Timetable | null>(null)
@@ -101,11 +99,11 @@ export default function SectionTimetable({ onToast }: Props) {
     try {
       const res = await fetchApi(`/api/v2/timetables?classId=${id}`, { credentials: 'include' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
+      if (!res.ok) throw new Error(data.message || t('timetable.err'))
       const list: Timetable[] = data.data || []
       setTimetable(list[0] ?? null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
+      setError(err instanceof Error ? err.message : t('timetable.errLoad'))
     } finally {
       setLoading(false)
     }
@@ -124,11 +122,11 @@ export default function SectionTimetable({ onToast }: Props) {
         method: 'PUT', credentials: 'include',
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast('Emploi du temps publié — visible par enseignants, élèves et parents !', 'success')
+      if (!res.ok) throw new Error(data.message || t('timetable.err'))
+      onToast(t('timetable.published'), 'success')
       fetchTimetable()
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de publication', 'error')
+      onToast(err instanceof Error ? err.message : t('timetable.errPublish'), 'error')
     } finally {
       setPublishing(false)
     }
@@ -144,17 +142,17 @@ export default function SectionTimetable({ onToast }: Props) {
         body: JSON.stringify({}),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
+      if (!res.ok) throw new Error(data.message || t('timetable.err'))
       setGenResults(data.data)
       setShowGenPanel(true)
       const s = data.data.stats
       onToast(
-        `${s.classesTraitees} classe(s) générée(s) · ${s.slotsTotal} créneaux placés${s.coursNonPlaces > 0 ? ` · ${s.coursNonPlaces} cours non placés` : ''}`,
+        `${t('timetable.genToast', { classes: s.classesTraitees, slots: s.slotsTotal })}${s.coursNonPlaces > 0 ? t('timetable.genUnplacedSuffix', { n: s.coursNonPlaces }) : ''}`,
         s.coursNonPlaces > 0 ? 'info' : 'success',
       )
       if (classId) fetchTimetable()
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de génération', 'error')
+      onToast(err instanceof Error ? err.message : t('timetable.errGen'), 'error')
     } finally {
       setAutoGenerating(false)
     }
@@ -171,7 +169,7 @@ export default function SectionTimetable({ onToast }: Props) {
         body: JSON.stringify({ instruction: adjustInstruction }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
+      if (!res.ok) throw new Error(data.message || t('timetable.err'))
       setAdjustResult(data.data)
       if (data.data.applied?.length) {
         onToast(data.data.message, 'success')
@@ -181,7 +179,7 @@ export default function SectionTimetable({ onToast }: Props) {
         onToast(data.data.message, 'info')
       }
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur IA', 'error')
+      onToast(err instanceof Error ? err.message : t('timetable.errAI'), 'error')
     } finally {
       setAdjusting(false)
     }
@@ -206,16 +204,16 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={sTitle}>Emploi du temps</div>
+          <div style={sTitle}>{t('timetable.title')}</div>
           <div style={sSub}>
             {timetable
-              ? `${timetable.class.name} — ${remplis}/${totalCours} créneaux remplis · ${timetable.status === 'PUBLISHED' ? '✅ Publié' : timetable.generatedByAI ? '🤖 Généré par IA · Brouillon' : '📝 Brouillon'}`
-              : 'Sélectionnez une classe ou lancez la génération automatique'}
+              ? `${timetable.class.name} — ${t('timetable.slotsFilled', { filled: remplis, total: totalCours })} · ${timetable.status === 'PUBLISHED' ? t('timetable.statusPublished') : timetable.generatedByAI ? t('timetable.statusAIDraft') : t('timetable.statusDraft')}`
+              : t('timetable.selectOrGen')}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={classId} onChange={e => handleClassChange(e.target.value)} style={selectSt} disabled={loadingClasses}>
-            <option value="">{loadingClasses ? 'Chargement…' : 'Sélectionner une classe'}</option>
+            <option value="">{loadingClasses ? t('timetable.loading') : t('timetable.selectClass')}</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
@@ -224,55 +222,55 @@ export default function SectionTimetable({ onToast }: Props) {
             <button style={{ ...btnAI, opacity: autoGenerating ? 0.7 : 1 }} disabled={autoGenerating}
               onClick={() => setConfirmReset(true)}>
               {autoGenerating
-                ? <><span style={spinInline} />Génération…</>
-                : '🤖 Générer automatiquement'}
+                ? <><span style={spinInline} />{t('timetable.generating')}</>
+                : t('timetable.autoGen')}
             </button>
           ) : (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff8ed', border: '1.5px solid #f59e0b', borderRadius: 10, padding: '6px 10px' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Écraser les brouillons existants ?</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff8ed', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '6px 10px' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>{t('timetable.overwriteConfirm')}</span>
               <button style={{ ...btnPrim, padding: '5px 12px', fontSize: 13 }} onClick={handleAutoGenerate} disabled={autoGenerating}>
-                {autoGenerating ? <><span style={spinInline} />…</> : 'Oui, générer'}
+                {autoGenerating ? <><span style={spinInline} />…</> : t('timetable.yesGenerate')}
               </button>
-              <button style={{ ...btnSec, padding: '5px 10px', fontSize: 13 }} onClick={() => setConfirmReset(false)}>Annuler</button>
+              <button style={{ ...btnSec, padding: '5px 10px', fontSize: 13 }} onClick={() => setConfirmReset(false)}>{t('timetable.cancel')}</button>
             </div>
           )}
 
           {timetable && timetable.status !== 'PUBLISHED' && (
             <button style={btnPrim} onClick={handlePublish} disabled={publishing}>
-              {publishing ? <><span style={spinInline} />Publication…</> : '✅ Valider et publier'}
+              {publishing ? <><span style={spinInline} />{t('timetable.publishing')}</> : t('timetable.publishBtn')}
             </button>
           )}
         </div>
       </div>
 
       {/* Bandeau info rôle */}
-      <div style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#1e40af' }}>
-        <strong>Vue Proviseur</strong> — Le remplissage manuel est effectué par le <strong>Censeur</strong> dans son espace. Ici vous pouvez <strong>générer automatiquement</strong> pour toutes les classes, puis <strong>valider et publier</strong>.
+      <div style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: 'var(--blue)' }}>
+        <strong>{t('timetable.bannerRole')}</strong> {t('timetable.bannerText1')} <strong>{t('timetable.bannerCenseur')}</strong> {t('timetable.bannerText2')} <strong>{t('timetable.bannerAutoGen')}</strong> {t('timetable.bannerText3')} <strong>{t('timetable.bannerPublish')}</strong>.
       </div>
 
       {/* Panel résultats génération */}
       {showGenPanel && genResults && (
-        <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #d4c8b8', marginBottom: 20, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: '#f8f5f0', borderBottom: '1px solid #e8e0d4' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border2)', marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
             <div>
-              <span style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>🤖 Résultats de la génération automatique</span>
-              <span style={{ marginLeft: 12, fontSize: 13, color: '#a89478' }}>
-                {genResults.stats.classesTraitees} classes · {genResults.stats.slotsTotal} créneaux
-                {genResults.stats.coursNonPlaces > 0 && <span style={{ color: '#dc2626', fontWeight: 700 }}> · {genResults.stats.coursNonPlaces} cours non placés</span>}
+              <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('timetable.genResultsTitle')}</span>
+              <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text3)' }}>
+                {t('timetable.genPanelSummary', { classes: genResults.stats.classesTraitees, slots: genResults.stats.slotsTotal })}
+                {genResults.stats.coursNonPlaces > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{t('timetable.genUnplacedSuffix', { n: genResults.stats.coursNonPlaces })}</span>}
               </span>
             </div>
-            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#a89478', padding: 4 }}>✕</button>
+            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)', padding: 4 }}>✕</button>
           </div>
 
           <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {/* Classes générées */}
             {genResults.results.length > 0 && (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#059669', marginBottom: 6 }}>✅ Classes générées</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', marginBottom: 6 }}>{t('timetable.classesGenerated')}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {genResults.results.map(r => (
-                    <div key={r.classId} style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, color: '#166534' }}>
-                      {r.className} · {r.slotsCreated} cours
+                    <div key={r.classId} style={{ background: 'var(--green-light)', border: '1px solid #86efac', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
+                      {r.className} · {t('timetable.lessonsCount', { n: r.slotsCreated })}
                     </div>
                   ))}
                 </div>
@@ -282,10 +280,10 @@ export default function SectionTimetable({ onToast }: Props) {
             {/* Classes ignorées */}
             {genResults.skipped.length > 0 && (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#d97706', marginBottom: 6 }}>⏭️ Ignorées</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>{t('timetable.skipped')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {genResults.skipped.map(s => (
-                    <div key={s.classId} style={{ fontSize: 13, color: '#92400e' }}><strong>{s.className}</strong> — {s.reason}</div>
+                    <div key={s.classId} style={{ fontSize: 13, color: 'var(--amber)' }}><strong>{s.className}</strong> — {s.reason}</div>
                   ))}
                 </div>
               </div>
@@ -294,14 +292,14 @@ export default function SectionTimetable({ onToast }: Props) {
             {/* Cours non placés avec explication Groq */}
             {genResults.unplaced.length > 0 && (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#dc2626', marginBottom: 8 }}>❌ Cours impossibles à placer</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--red)', marginBottom: 8 }}>{t('timetable.unplacedTitle')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {genResults.unplaced.map((u, i) => (
-                    <div key={i} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px' }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: '#991b1b', marginBottom: 4 }}>
+                    <div key={i} style={{ background: 'var(--red-light)', border: '1px solid var(--red-light)', borderRadius: 10, padding: '10px 14px' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--red)', marginBottom: 4 }}>
                         {u.className} — {u.subjectName} ({u.teacherName})
                       </div>
-                      <div style={{ fontSize: 13, color: '#7f1d1d', lineHeight: 1.5 }}>{u.explication}</div>
+                      <div style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1.5 }}>{u.explication}</div>
                     </div>
                   ))}
                 </div>
@@ -314,68 +312,68 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* Chargement */}
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <div style={{ width: 36, height: 36, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+          <div style={{ width: 36, height: 36, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
         </div>
       )}
 
       {/* Erreur */}
       {!loading && error && (
-        <div style={{ background: '#fee2e2', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>⚠️</span>
-          <span style={{ fontWeight: 700, color: '#dc2626', flex: 1 }}>{error}</span>
-          <button onClick={() => fetchTimetable()} style={btnSec}>Réessayer</button>
+          <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <button onClick={() => fetchTimetable()} style={btnSec}>{t('timetable.retry')}</button>
         </div>
       )}
 
       {/* Pas de classe */}
       {!loading && !error && !classId && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 32px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: 14 }}>🗓️</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Sélectionnez une classe</div>
-          <div style={{ fontSize: 15, color: '#a89478', marginBottom: 24 }}>ou lancez la génération automatique pour créer tous les emplois du temps en une fois.</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.selectClassTitle')}</div>
+          <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{t('timetable.selectClassHint')}</div>
           <button style={{ ...btnAI, fontSize: 16, padding: '12px 24px' }} disabled={autoGenerating}
             onClick={() => setConfirmReset(true)}>
-            {autoGenerating ? <><span style={spinInline} />Génération en cours…</> : '🤖 Générer automatiquement pour toutes les classes'}
+            {autoGenerating ? <><span style={spinInline} />{t('timetable.genInProgress')}</> : t('timetable.autoGenAll')}
           </button>
         </div>
       )}
 
       {/* Classe sélectionnée, pas d'EDT */}
       {!loading && !error && classId && !timetable && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 32px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: 14 }}>📅</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucun emploi du temps</div>
-          <div style={{ fontSize: 15, color: '#a89478' }}>Le Censeur n'a pas encore élaboré l'emploi du temps pour cette classe.</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetable')}</div>
+          <div style={{ fontSize: 15, color: 'var(--text3)' }}>{t('timetable.noTimetableHint')}</div>
         </div>
       )}
 
       {/* Grille lecture seule */}
       {!loading && !error && timetable && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           {/* Barre progression */}
-          <div style={{ background: '#f8f5f0', borderBottom: '1px solid #e8e0d4', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45', whiteSpace: 'nowrap' }}>{remplis}/{totalCours} créneaux</span>
-            <div style={{ flex: 1, background: '#e8e0d4', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#059669' : '#d97706', transition: 'width 0.3s', borderRadius: 4 }} />
+          <div style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{t('timetable.slotsCount', { filled: remplis, total: totalCours })}</span>
+            <div style={{ flex: 1, background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--green)' : 'var(--amber)', transition: 'width 0.3s', borderRadius: 4 }} />
             </div>
-            <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? '#059669' : '#d97706' }}>{pct}%</span>
-            {timetable.generatedByAI && <span style={{ fontSize: 12, background: '#ede9fe', color: '#5b21b6', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>🤖 IA</span>}
-            {timetable.status === 'PUBLISHED' && <span style={{ fontSize: 12, background: '#dcfce7', color: '#166534', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>✅ Publié</span>}
-            {timetable.status !== 'PUBLISHED' && <span style={{ fontSize: 12, background: '#fef9c3', color: '#713f12', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>📝 Brouillon</span>}
+            <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? 'var(--green)' : 'var(--amber)' }}>{pct}%</span>
+            {timetable.generatedByAI && <span style={{ fontSize: 12, background: 'var(--purple-light)', color: 'var(--purple)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>🤖 IA</span>}
+            {timetable.status === 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--green-light)', color: 'var(--green)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusPublished')}</span>}
+            {timetable.status !== 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--amber-light)', color: '#713f12', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusDraft')}</span>}
           </div>
 
           {slots.length === 0 ? (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>
-              Le squelette a été généré mais aucun créneau n'a encore été rempli.
+            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 16 }}>
+              {t('timetable.skeletonEmpty')}
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                 <thead>
                   <tr>
-                    <th style={{ ...thSt, width: 100 }}>Horaire</th>
+                    <th style={{ ...thSt, width: 100 }}>{t('timetable.schedule')}</th>
                     {(hasGridConfig ? joursActifs : ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI']).map(j => (
-                      <th key={j} style={thSt}>{DAY_NAME[j] ?? j}</th>
+                      <th key={j} style={thSt}>{t(`timetable.days.${j}`)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -387,31 +385,31 @@ export default function SectionTimetable({ onToast }: Props) {
                         return (
                           <tr key={`pause-${idx}`}>
                             <td colSpan={joursActifs.length + 1}
-                              style={{ textAlign: 'center', padding: '5px 12px', background: isPetite ? '#fef9f0' : '#fef3e2', borderTop: '1px solid #e8e0d4', borderBottom: '1px solid #e8e0d4', fontSize: 12, fontWeight: 700, color: isPetite ? '#b45309' : '#92400e' }}>
-                              {isPetite ? '☕ Petite pause' : '🍽️ Grande pause'} — {periode.debut} à {periode.fin}
+                              style={{ textAlign: 'center', padding: '5px 12px', background: isPetite ? '#fef9f0' : '#fef3e2', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: isPetite ? 'var(--amber)' : 'var(--amber)' }}>
+                              {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} {t('timetable.to')} {periode.fin}
                             </td>
                           </tr>
                         )
                       }
                       return (
                         <tr key={`cours-${periode.debut}`}>
-                          <td style={{ padding: '8px 10px', background: '#f8f5f0', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '8px 10px', background: 'var(--bg)', fontSize: 13, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
                             {periode.debut}<br /><span style={{ fontSize: 11 }}>{periode.fin}</span>
                           </td>
                           {joursActifs.map(jour => {
                             const slot = slotMap.get(`${DAY_MAP[jour]}-${periode.debut}`)
                             const col = slot?.subject ? subjectColor(slot.subject.id) : null
                             return (
-                              <td key={jour} style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 110, height: 64 }}>
+                              <td key={jour} style={{ padding: 0, border: '1px solid var(--border)', verticalAlign: 'top', minWidth: 110, height: 64 }}>
                                 {slot?.subject ? (
                                   <div style={{ padding: '8px 10px', height: '100%', background: col!.bg, borderLeft: `3px solid ${col!.border}`, boxSizing: 'border-box' }}>
                                     <div style={{ fontSize: 13, fontWeight: 800, color: col!.text, lineHeight: 1.2 }}>{slot.subject.name}</div>
-                                    <div style={{ fontSize: 11, color: '#a89478', marginTop: 2 }}>
-                                      {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : <span style={{ color: '#f59e0b' }}>Sans enseignant</span>}
+                                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                                      {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : <span style={{ color: 'var(--amber)' }}>{t('timetable.noTeacher')}</span>}
                                     </div>
                                   </div>
                                 ) : (
-                                  <div style={{ height: '100%', background: '#fafaf9' }} />
+                                  <div style={{ height: '100%', background: 'var(--bg)' }} />
                                 )}
                               </td>
                             )
@@ -422,18 +420,18 @@ export default function SectionTimetable({ onToast }: Props) {
                   ) : (
                     fallbackTimes.map(time => (
                       <tr key={time}>
-                        <td style={{ padding: '8px 10px', background: '#f8f5f0', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '8px 10px', background: 'var(--bg)', fontSize: 13, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
                           {time}
                         </td>
                         {[1,2,3,4,5].map(d => {
                           const slot = slotMap.get(`${d}-${time}`)
                           const col = slot?.subject ? subjectColor(slot.subject.id) : null
                           return (
-                            <td key={d} style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 110, height: 64 }}>
+                            <td key={d} style={{ padding: 0, border: '1px solid var(--border)', verticalAlign: 'top', minWidth: 110, height: 64 }}>
                               {slot?.subject ? (
                                 <div style={{ padding: '8px 10px', height: '100%', background: col!.bg, borderLeft: `3px solid ${col!.border}`, boxSizing: 'border-box' }}>
                                   <div style={{ fontSize: 13, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
-                                  <div style={{ fontSize: 11, color: '#a89478', marginTop: 2 }}>
+                                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
                                     {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : '—'}
                                   </div>
                                 </div>
@@ -455,44 +453,44 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Ajustement IA — visible si EDT DRAFT sélectionné */}
       {timetable && timetable.status !== 'PUBLISHED' && (
-        <div style={{ marginTop: 20, background: 'white', borderRadius: 14, border: '1.5px solid #d4c8b8', padding: '18px 20px' }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#1a1209', marginBottom: 4 }}>🤖 Ajustement en langage naturel (Groq)</div>
-          <div style={{ fontSize: 13, color: '#a89478', marginBottom: 12 }}>
-            Décrivez un ajustement à apporter en français, ex : "Déplace tous les cours de M. Dupont du lundi au mardi" ou "Mets les mathématiques le matin"
+        <div style={{ marginTop: 20, background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border2)', padding: '18px 20px' }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{t('timetable.adjustTitle')}</div>
+          <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 12 }}>
+            {t('timetable.adjustHint')}
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <textarea
               value={adjustInstruction}
               onChange={e => setAdjustInstruction(e.target.value)}
-              placeholder="Votre instruction en français…"
+              placeholder={t('timetable.adjustPlaceholder')}
               rows={2}
-              style={{ flex: 1, padding: '10px 13px', border: '1.5px solid #d4c8b8', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: '#1a1209' }}
+              style={{ flex: 1, padding: '10px 13px', border: '1.5px solid var(--border2)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text)' }}
             />
             <button
               style={{ ...btnAI, alignSelf: 'flex-end', opacity: adjusting || !adjustInstruction.trim() ? 0.6 : 1 }}
               disabled={adjusting || !adjustInstruction.trim()}
               onClick={handleAdjust}
             >
-              {adjusting ? <><span style={spinInline} />Traitement…</> : '✨ Appliquer'}
+              {adjusting ? <><span style={spinInline} />{t('timetable.processing')}</> : t('timetable.apply')}
             </button>
           </div>
 
           {adjustResult && (
             <div style={{ marginTop: 12 }}>
               {adjustResult.applied.length > 0 && (
-                <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#166534', marginBottom: 4 }}>✅ Modifications appliquées</div>
-                  {adjustResult.applied.map((a, i) => <div key={i} style={{ fontSize: 13, color: '#166534' }}>• {a}</div>)}
+                <div style={{ background: 'var(--green-light)', border: '1px solid #86efac', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', marginBottom: 4 }}>{t('timetable.changesApplied')}</div>
+                  {adjustResult.applied.map((a, i) => <div key={i} style={{ fontSize: 13, color: 'var(--green)' }}>• {a}</div>)}
                 </div>
               )}
               {adjustResult.errors.length > 0 && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#991b1b', marginBottom: 4 }}>⚠️ Conflits non résolus</div>
-                  {adjustResult.errors.map((e, i) => <div key={i} style={{ fontSize: 13, color: '#7f1d1d' }}>• {e}</div>)}
+                <div style={{ background: 'var(--red-light)', border: '1px solid var(--red-light)', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--red)', marginBottom: 4 }}>{t('timetable.conflicts')}</div>
+                  {adjustResult.errors.map((e, i) => <div key={i} style={{ fontSize: 13, color: 'var(--red)' }}>• {e}</div>)}
                 </div>
               )}
               {adjustResult.applied.length === 0 && adjustResult.errors.length === 0 && (
-                <div style={{ fontSize: 13, color: '#a89478', fontStyle: 'italic' }}>{adjustResult.message}</div>
+                <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic' }}>{adjustResult.message}</div>
               )}
             </div>
           )}
@@ -502,11 +500,11 @@ export default function SectionTimetable({ onToast }: Props) {
   )
 }
 
-const sTitle:    React.CSSProperties = { fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub:      React.CSSProperties = { fontSize: 16, color: '#a89478', marginTop: 3 }
-const btnPrim:   React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
-const btnAI:     React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#7c3aed,#5b21b6)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
-const btnSec:    React.CSSProperties = { padding: '9px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const selectSt:  React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
-const thSt:      React.CSSProperties = { padding: '10px 8px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', border: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.5px' }
+const sTitle:    React.CSSProperties = { fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub:      React.CSSProperties = { fontSize: 16, color: 'var(--text3)', marginTop: 3 }
+const btnPrim:   React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
+const btnAI:     React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--purple),var(--purple))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
+const btnSec:    React.CSSProperties = { padding: '9px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const selectSt:  React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const thSt:      React.CSSProperties = { padding: '10px 8px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.5px' }
 const spinInline: React.CSSProperties = { display: 'inline-block', width: 13, height: 13, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite', verticalAlign: 'middle' }

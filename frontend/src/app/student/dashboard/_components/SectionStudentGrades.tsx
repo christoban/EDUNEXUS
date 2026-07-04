@@ -4,6 +4,7 @@ import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import OfflineEmptyState from '@/components/OfflineEmptyState'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -25,11 +26,11 @@ const MENTION_LEVELS = [
 ]
 
 const MENTION_COLOR = (m: string): [string, string] => ({
-  TB: ['#d1fae5', '#065f46'], B: ['#dbeafe', '#1e40af'],
-  AB: ['#fef3c7', '#92400e'], P: ['#ffedd5', '#9a3412'], I: ['#fee2e2', '#991b1b'],
-} as Record<string, [string, string]>)[m] ?? ['#f1f5f9', '#475569']
+  TB: ['var(--green-light)', 'var(--green)'], B: ['var(--blue-light)', 'var(--blue)'],
+  AB: ['var(--amber-light)', 'var(--amber)'], P: ['var(--orange-light)', 'var(--orange)'], I: ['var(--red-light)', 'var(--red)'],
+} as Record<string, [string, string]>)[m] ?? ['var(--bg2)', 'var(--text2)']
 
-const NOTE_COLOR = (n: number) => n >= 14 ? '#059669' : n >= 10 ? '#1d4ed8' : '#dc2626'
+const NOTE_COLOR = (n: number) => n >= 14 ? 'var(--green)' : n >= 10 ? 'var(--blue)' : 'var(--red)'
 
 function getMention(avg: number): string {
   for (const level of MENTION_LEVELS) {
@@ -39,16 +40,19 @@ function getMention(avg: number): string {
 }
 
 function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  const t = useT('student')
   if (!cachedAt) return null
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
-    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      📦 Données du {date} — hors-ligne
+    <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      {t('common.offline_badge').replace('{date}', date)}
     </div>
   )
 }
 
 export default function SectionStudentGrades({ onToast, user }: Props) {
+  const t = useT('student')
+  const tcommon = useT('common')
   const cacheKey = user ? `student:grades:${user.id}` : ''
 
   const fetchFn = useCallback(async (): Promise<GradesData> => {
@@ -90,7 +94,7 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
   if (!user || loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{tcommon('status.loading')}</div>
       </div>
     )
   }
@@ -101,10 +105,10 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={refetch}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -116,7 +120,7 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
   const rank = data?.rank ?? null
   const displayAvg = avg ?? 0
   const mention = getMention(displayAvg)
-  const mentionFull = mention === 'TB' ? 'Très Bien' : mention === 'B' ? 'Bien' : mention === 'AB' ? 'Assez Bien' : mention === 'P' ? 'Passable' : 'Insuffisant'
+  const mentionFull = ({ TB: t('grades.mention_tb'), B: t('grades.mention_b'), AB: t('grades.mention_ab'), P: t('grades.mention_p'), I: t('grades.mention_i') } as Record<string, string>)[mention] ?? t('grades.mention_i')
   const [mBg, mC] = MENTION_COLOR(mention)
   const subjectsAbove10 = grades.filter(g => (g.sequenceScore ?? g.sequenceAverage ?? 0) >= 10).length
 
@@ -139,23 +143,23 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <div style={{ marginBottom: fromCache ? 8 : 26 }}>
-        <div style={sTitle}>Mes notes</div>
-        <div style={sSub}>Résultats par matière</div>
+        <div style={sTitle}>{t('grades.title')}</div>
+        <div style={sSub}>{t('grades.subtitle')}</div>
       </div>
 
       {fromCache && <CacheBadge cachedAt={cachedAt} />}
 
-      <div style={{ background: 'linear-gradient(135deg,#1a2e1e,#243b29)', borderRadius: 16, padding: '22px 28px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 28 }}>
+      <div style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--sidebar2))', borderRadius: 16, padding: '22px 28px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 28 }}>
         <div style={{ textAlign: 'center', flexShrink: 0 }}>
           <div style={{ fontSize: 48, fontWeight: 900, color: 'white', lineHeight: 1 }}>{displayAvg.toFixed(1)}</div>
-          <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', marginTop: 5 }}>Moyenne / 20</div>
+          <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', marginTop: 5 }}>{t('grades.average_label')}</div>
         </div>
         <div style={{ width: 1, height: 60, background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />
         <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
           {[
-            { label: 'Rang', val: rank ? `${rank.pos}e / ${rank.total}` : '—' },
-            { label: 'Mention', val: mentionFull },
-            { label: 'Matières > 10', val: `${subjectsAbove10}/${subjectRows.length}` },
+            { label: t('grades.rank_label'), val: rank ? `${rank.pos}e / ${rank.total}` : '—' },
+            { label: t('grades.mention_label'), val: mentionFull },
+            { label: t('grades.subjects_above_10'), val: `${subjectsAbove10}/${subjectRows.length}` },
           ].map((s, i) => (
             <div key={i}>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>{s.label}</div>
@@ -165,13 +169,18 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
         </div>
       </div>
 
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
         {subjectRows.length === 0 ? (
-          <div style={{ padding: 48, textAlign: 'center', color: '#a89478', fontSize: 15, fontWeight: 600 }}>Aucune note disponible pour le moment</div>
+          <div style={{ padding: 48, textAlign: 'center', color: 'var(--text3)', fontSize: 15, fontWeight: 600 }}>{t('grades.empty')}</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Matière', 'Coeff.', 'Note /20', 'Mention'].map(h => (
+              <tr>{[
+                t('grades.table_header_subject'),
+                t('grades.table_header_coeff'),
+                t('grades.table_header_grade'),
+                t('grades.table_header_mention'),
+              ].map(h => (
                 <th key={h} style={thSt}>{h}</th>
               ))}</tr>
             </thead>
@@ -181,11 +190,11 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
                 const [smBg, smC] = MENTION_COLOR(subMention)
                 return (
                   <tr key={sub.subjectId}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{sub.name}</td>
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{sub.name}</td>
                     <td style={tdSt}>
-                      <span style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: 22, fontSize: 14, fontWeight: 900 }}>×{sub.coeff}</span>
+                      <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 10px', borderRadius: 22, fontSize: 14, fontWeight: 900 }}>×{sub.coeff}</span>
                     </td>
                     <td style={tdSt}>
                       <span style={{ fontSize: 22, fontWeight: 900, color: NOTE_COLOR(sub.note) }}>{sub.note.toFixed(1)}</span>
@@ -204,7 +213,7 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }

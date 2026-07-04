@@ -1,0 +1,162 @@
+{
+  "grades": {
+    "title": "Notes",
+    "subtitle": "Consultation et validation des notes",
+    "status_labels": {
+      "DRAFT": "Brouillon",
+      "SUBMITTED": "En attente",
+      "VALIDATED": "✓ Validée",
+      "LOCKED": "🔒 Verrouillée",
+      "REJECTED": "✕ Rejetée"
+    },
+    "filters": {
+      "all_classes": "Toutes les classes",
+      "all_subjects": "Toutes les matières",
+      "all_statuses": "Tous les statuts",
+      "load": "Charger"
+    },
+    "actions": {
+      "validate": "✓ Valider",
+      "validate_all": "✅ Valider tout ({count})",
+      "retry": "Réessayer"
+    },
+    "table_headers": {
+      "student": "Élève",
+      "subject": "Matière",
+      "grade": "Note /20",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "toasts": {
+      "validate_success": "Note validée avec succès",
+      "validate_error": "Erreur de validation",
+      "load_error": "Erreur de chargement",
+      "select_class_first": "Sélectionnez une classe",
+      "no_pending_grades": "Aucune note en attente",
+      "bulk_validate_result": "{ok}/{total} note(s) validée(s)"
+    },
+    "empty_state": "Sélectionnez des filtres puis cliquez sur « Charger »"
+  },
+  "council": {
+    "title": "Conseil de classe",
+    "subtitle_template": "{total} session(s) · {open} ouverte(s) · {locked} verrouillée(s)",
+    "filters": {
+      "all_periods": "Tous les trimestres"
+    },
+    "decisions": {
+      "PASS": "✅ Admis(e)",
+      "REPEAT": "↩️ Redoublant(e)",
+      "DELIBERATION": "⚖️ En délibération"
+    },
+    "kpi": {
+      "total_sessions": "Sessions au total",
+      "in_progress": "En cours",
+      "locked": "Verrouillés",
+      "bulletins_published": "Bulletins publiés"
+    },
+    "actions": {
+      "publishing": "⏳ Publication…",
+      "publish_bulletins": "📤 Publier les bulletins",
+      "official_report": "📋 PV officiel",
+      "honor_roll": "🏆 Tableau d'honneur",
+      "honor_roll_annual": "🏆 Annuel",
+      "report": "📄 Rapport",
+      "close": "✕",
+      "retry": "Réessayer"
+    },
+    "tooltips": {
+      "official_report": "Procès-Verbal officiel de la délibération",
+      "honor_roll": "Tableau d'honneur du trimestre",
+      "honor_roll_annual": "Tableau d'honneur annuel (disponible uniquement si tous les conseils sont verrouillés)"
+    },
+    "student_list": {
+      "header_student": "Élève",
+      "header_decision": "Décision",
+      "header_observation": "Observation",
+      "observation_placeholder": "—",
+      "empty": "Aucun élève dans cette session."
+    },
+    "status_banners": {
+      "OPEN": "⏳ En attente du verrouillage par le Censeur",
+      "LOCKED": "🔒 Ce conseil est verrouillé."
+    },
+    "session_badges": {
+      "LOCKED": "🔒 Verrouillé",
+      "OPEN": "📖 Ouvert"
+    },
+    "empty_states": {
+      "title": "Aucun conseil de classe",
+      "no_period_sessions": "Aucune session pour ce trimestre."
+    },
+    "toasts": {
+      "server_error": "Erreur serveur",
+      "load_error": "Erreur de chargement",
+      "publish_success": "✅ {count} bulletin(s) publié(s) — SMS envoyés aux parents",
+      "nothing_to_publish": "Aucun bulletin généré à publier pour cette classe",
+      "publish_error": "Erreur de publication"
+    }
+  },
+  "bulletins": {
+    "celebrate": {
+      "title": "Génération lancée !",
+      "subtitle": "Les bulletins de la classe sont en cours de génération. Vous serez notifié dès qu'ils sont prêts.",
+      "cta": "Continuer"
+    },
+    "title": "Bulletins",
+    "subtitle": "Génération et distribution",
+    "class_selector": {
+      "loading": "Chargement…",
+      "select_placeholder": "Sélectionner une classe",
+      "load": "Charger",
+      "loading_button": "⏳ Chargement…"
+    },
+    "checks": {
+      "section_title": "🔍 Pré-vérification — {className}",
+      "notes": {
+        "no_grades_title": "Aucune note enregistrée",
+        "no_grades_sub": "Saisissez les notes avant de générer",
+        "has_grades_title": "Notes : {validated}/{total} validées",
+        "has_grades_sub": "{submitted} en attente · {draft} brouillons · {rejected} rejetées"
+      },
+      "council": {
+        "locked_title": "Conseil de classe verrouillé",
+        "locked_sub": "Le conseil de classe du Trimestre 1 est validé",
+        "unlocked_title": "Conseil de classe non verrouillé",
+        "unlocked_sub": "Le censeur doit verrouiller le conseil de classe avant la génération"
+      },
+      "readiness": {
+        "ready_title": "✅ Prêt pour la génération",
+        "ready_sub": "Toutes les conditions sont remplies",
+        "not_ready_title": "Non prêt",
+        "not_ready_sub": "Réglez les points ci-dessus avant de générer"
+      }
+    },
+    "actions": {
+      "generate": "📄 Générer les bulletins →",
+      "generating": "⏳ Génération en cours…",
+      "export_zip": "📦 ZIP",
+      "send": "📤 Envoyer",
+      "view_pdf": "👁 PDF"
+    },
+    "table_headers": {
+      "student": "Élève",
+      "average": "Moy. gén.",
+      "rank": "Rang",
+      "pdf": "PDF"
+    },
+    "empty_states": {
+      "no_bulletins": "Aucun bulletin généré pour cette classe",
+      "no_class_selected_title": "Sélectionnez une classe",
+      "no_class_selected_desc": "Choisissez une classe et cliquez sur « Charger » pour voir les bulletins."
+    },
+    "toasts": {
+      "select_class": "Sélectionnez une classe",
+      "load_error": "Erreur de chargement",
+      "generate_success": "Génération des bulletins lancée",
+      "generate_error": "Erreur de génération",
+      "export_success": "ZIP téléchargé",
+      "send_success": "Bulletins envoyés aux parents",
+      "send_error": "Erreur d'envoi"
+    }
+  }
+}

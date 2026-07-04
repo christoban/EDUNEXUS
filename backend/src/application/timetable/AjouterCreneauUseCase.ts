@@ -14,6 +14,8 @@ export interface AjouterCreneauCommande {
   room?: string;
   kind?: SlotKind;
   subGroupId?: string;
+  isLV2Slot?: boolean;
+  isElectiveSlot?: boolean;
 }
 
 export interface AjouterCreneauResultat {
@@ -70,6 +72,8 @@ export class AjouterCreneauUseCase {
       room: commande.room,
       kind: commande.kind,
       subGroupId: commande.subGroupId,
+      isLV2Slot: commande.isLV2Slot,
+      isElectiveSlot: commande.isElectiveSlot,
     });
 
     // 5. Détection de conflit enseignant (filtre schoolId — correction bug legacy)

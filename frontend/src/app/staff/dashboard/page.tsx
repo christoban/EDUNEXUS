@@ -71,7 +71,7 @@ export default function StaffDashboard() {
   const can = (s: StaffSection) => allowedSections.has(s)
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f7f3ee', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
 
       <StaffSidebar
         current={section}
@@ -85,7 +85,7 @@ export default function StaffDashboard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} />
 
-        <main style={{ flex: 1, overflow: 'hidden', background: '#f7f3ee' }}>
+        <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
 
           {section === 'dashboard' && (
             <SectionStaffDashboard

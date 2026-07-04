@@ -35,6 +35,13 @@ export type SousCompetence = {
   label: string;          // libellé court affiché sur le bulletin
   totalPoints: number;    // total de la sous-compétence
   composantes: EvalComposante[];
+  /**
+   * Code de la sous-compétence mutuellement exclusive avec celle-ci.
+   * Exemple : 6A1 (aptes) et 6A2 (inaptes) sont exclusifs — l'enseignant
+   * n'évalue qu'une seule des deux par apprenant. Le bulletin n'affiche
+   * que la rangée pertinente pour chaque élève.
+   */
+  mutuallyExclusiveWith?: string;
 };
 
 export type Competence = {
@@ -204,6 +211,7 @@ export const APC_COMPETENCES: Competence[] = [
         code: '6A1',
         label: 'Pratiquer les activités physiques (apprenants aptes)',
         totalPoints: 20,
+        mutuallyExclusiveWith: '6A2',
         composantes: [
           { label: 'Oral',        points: 2  },
           { label: 'Écrit',       points: 2  },
@@ -215,6 +223,7 @@ export const APC_COMPETENCES: Competence[] = [
         code: '6A2',
         label: 'Pratiquer les activités physiques (apprenants inaptes)',
         totalPoints: 20,
+        mutuallyExclusiveWith: '6A1',
         composantes: [
           { label: 'Oral',        points: 3  },
           { label: 'Écrit',       points: 15 },

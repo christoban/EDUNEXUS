@@ -18,22 +18,6 @@ export interface Toast {
   type: 'success' | 'error' | 'info' | 'warning'
 }
 
-export const SECTION_TITLES: Record<StaffSection, string> = {
-  dashboard:        'Tableau de bord',
-  council:          'Conseil de classe',
-  grades:           'Validation des notes',
-  'grille-horaire': 'Configuration grille horaire',
-  affectations:     'Affectations pédagogiques',
-  timetable:        'Emploi du temps',
-  attendance:       'Présences',
-  finance:          'Mobile Money',
-  cautions:         'Cautions',
-  discipline:       'Discipline',
-  library:          'Bibliothèque',
-  orientation:      'Orientation',
-  departements:     'Départements',
-}
-
 export const PERM_TO_SECTION: { perm: string; section: StaffSection }[] = [
   { perm: 'MANAGE_CLASS_COUNCIL',       section: 'council'          },
   { perm: 'VALIDATE_GRADES',            section: 'grades'           },

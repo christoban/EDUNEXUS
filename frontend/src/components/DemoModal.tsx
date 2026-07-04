@@ -7,11 +7,11 @@ import type { CSSProperties, ReactNode } from 'react'
 function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <div>
-      <label style={{ display: 'block', fontSize: 15, fontWeight: 700, color: '#6b5c45', marginBottom: 7 }}>
+      <label style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--text2)', marginBottom: 7 }}>
         {label}
       </label>
       {children}
-      {error && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>{error}</div>}
+      {error && <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 4 }}>{error}</div>}
     </div>
   )
 }
@@ -97,21 +97,21 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
     width: '100%',
     padding: '13px 16px',
     borderRadius: 10,
-    border: '1.5px solid #e8e0d4',
+    border: '1.5px solid var(--border)',
     fontSize: 17,
     fontFamily: 'inherit',
-    color: '#1a1209',
-    background: '#fafaf8',
+    color: 'var(--text)',
+    background: 'var(--bg2)',
     outline: 'none',
     transition: 'border-color 150ms',
     boxSizing: 'border-box',
   }
 
   const focusGreen = (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) => {
-    el.style.borderColor = '#059669'
+    el.style.borderColor = 'var(--green)'
   }
   const blurDefault = (el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, hasError: boolean) => {
-    el.style.borderColor = hasError ? '#dc2626' : '#e8e0d4'
+    el.style.borderColor = hasError ? 'var(--red)' : 'var(--border)'
   }
 
   return (
@@ -137,7 +137,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
       }}>
         {/* ── Contenu animé ─────────────────────────────── */}
         <div style={{
-          background: 'white', borderRadius: 20,
+          background: 'var(--surface)', borderRadius: 20,
           padding: '44px 48px',
           animation: 'popIn 0.22s ease',
           boxShadow: '0 32px 80px rgba(0,0,0,0.22)',
@@ -148,14 +148,14 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
                 width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                background: 'linear-gradient(135deg,#059669,#047857)',
+                background: 'linear-gradient(135deg,var(--green),var(--green2))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
               }}>🎓</div>
               <div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: '#1a1209', lineHeight: 1.2 }}>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>
                   {isFr ? 'Demander une démo gratuite' : 'Request a free demo'}
                 </div>
-                <div style={{ fontSize: 14, color: '#a89478', marginTop: 4 }}>
+                <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>
                   {isFr ? 'Notre équipe vous contacte dans les 24h ouvrables.' : 'Our team contacts you within 24 business hours.'}
                 </div>
               </div>
@@ -163,19 +163,19 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
             <button
               onClick={onClose}
               style={{
-                background: '#f0ebe3', border: 'none', cursor: 'pointer',
-                color: '#6b5c45', fontSize: 19, padding: '7px 11px',
+                background: 'var(--bg2)', border: 'none', cursor: 'pointer',
+                color: 'var(--text2)', fontSize: 19, padding: '7px 11px',
                 borderRadius: 9, lineHeight: 1, marginLeft: 16, flexShrink: 0,
                 transition: 'background 150ms',
               }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e8e0d4' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f0ebe3' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--border)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg2)' }}
               title={isFr ? 'Fermer' : 'Close'}
             >✕</button>
           </div>
 
           {/* Séparateur */}
-          <div style={{ height: 1, background: '#e8e0d4', marginBottom: 28 }} />
+          <div style={{ height: 1, background: 'var(--border)', marginBottom: 28 }} />
 
           {/* ── Formulaire ──────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
@@ -186,7 +186,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
                 <input
                   value={nom} onChange={e => setNom(e.target.value)}
                   placeholder={isFr ? 'Jean Nguema' : 'John Doe'}
-                  style={{ ...inputBase, borderColor: errors.nom ? '#dc2626' : '#e8e0d4' }}
+                  style={{ ...inputBase, borderColor: errors.nom ? 'var(--red)' : 'var(--border)' }}
                   onFocus={e => focusGreen(e.currentTarget)}
                   onBlur={e => blurDefault(e.currentTarget, !!errors.nom)}
                 />
@@ -195,7 +195,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
                 <input
                   value={nomEtablissement} onChange={e => setNomEtablissement(e.target.value)}
                   placeholder="Lycée de la Réussite"
-                  style={{ ...inputBase, borderColor: errors.nomEtablissement ? '#dc2626' : '#e8e0d4' }}
+                  style={{ ...inputBase, borderColor: errors.nomEtablissement ? 'var(--red)' : 'var(--border)' }}
                   onFocus={e => focusGreen(e.currentTarget)}
                   onBlur={e => blurDefault(e.currentTarget, !!errors.nomEtablissement)}
                 />
@@ -208,7 +208,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
                 <input
                   type="email" value={email} onChange={e => setEmail(e.target.value)}
                   placeholder="contact@lycee.cm"
-                  style={{ ...inputBase, borderColor: errors.email ? '#dc2626' : '#e8e0d4' }}
+                  style={{ ...inputBase, borderColor: errors.email ? 'var(--red)' : 'var(--border)' }}
                   onFocus={e => focusGreen(e.currentTarget)}
                   onBlur={e => blurDefault(e.currentTarget, !!errors.email)}
                 />
@@ -271,8 +271,8 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
               disabled={loading}
               style={{
                 width: '100%',
-                background: loading ? '#6b9e8e' : 'linear-gradient(135deg,#059669,#047857)',
-                color: 'white', fontWeight: 800, fontSize: 18,
+                background: loading ? '#6b9e8e' : 'linear-gradient(135deg,var(--green),var(--green2))',
+                color: 'var(--surface)', fontWeight: 800, fontSize: 18,
                 padding: '17px 28px', borderRadius: 11, border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 boxShadow: loading ? 'none' : '0 4px 14px rgba(5,150,105,0.24)',
@@ -286,7 +286,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
                 <>
                   <span style={{
                     display: 'inline-block', width: 18, height: 18, flexShrink: 0,
-                    border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: 'white',
+                    border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--surface)',
                     borderRadius: '50%', animation: 'spin 0.7s linear infinite',
                   }} />
                   {isFr ? 'Envoi en cours...' : 'Sending...'}

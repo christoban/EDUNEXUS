@@ -5,6 +5,7 @@ import {
   generateCertificatTravailPdf,
   generateMissionOrderPdf,
 } from '../../../utils/hrDocuments';
+import { resolveLanguage } from '../../../utils/languageHelper';
 
 type EmployeeRole = 'TEACHER' | 'STAFF';
 type LeaveStatusValue = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -69,9 +70,20 @@ export class HRController {
         updatedAt: true,
         teacherProfile: { select: { id: true, specialization: true, supervisedSubjectIds: true } },
         staffProfile: { select: { id: true, title: true, sectionId: true } },
-        school: { select: { id: true, name: true } },
+        school: { select: { id: true, name: true, subsystem: true } },
       },
     });
+  }
+
+  private async getEmployeeSectionCode(userId: string, schoolId: string): Promise<string | null> {
+    try {
+      const staff = await (this.prisma as any).staffProfile.findUnique({ where: { userId } });
+      if (!staff?.sectionId) return null;
+      const section = await (this.prisma as any).section.findUnique({ where: { id: staff.sectionId } });
+      return section?.code ?? null;
+    } catch {
+      return null;
+    }
   }
 
   private async fetchEmployeeFile(userId: string) {
@@ -530,16 +542,21 @@ export class HRController {
       }
 
       const file = await this.fetchEmployeeFile(employeeId);
+      const sectionCode = await this.getEmployeeSectionCode(employeeId, schoolId);
+      const lang = resolveLanguage(employee.school.subsystem, sectionCode);
+      const roleLabelEn = employee.role === 'TEACHER' ? 'teacher' : 'staff member';
       const pdf = await generateAttestationTravailPdf({
         schoolName: employee.school.name,
         employeeName: formatEmployeeName(employee),
         roleLabel: employee.role === 'TEACHER' ? 'enseignant(e)' : 'membre du personnel',
+        roleLabelEn,
         dateEmbauche: file?.dateEmbauche ?? null,
         dateNaissance: file?.dateNaissance ?? null,
         numeroCNPS: file?.numeroCNPS ?? null,
         typeContrat: file?.typeContrat ?? null,
         echelonActuel: file?.echelonActuel ?? null,
         signataire: currentUser?.nomComplet ?? currentUser?.firstName ?? null,
+        language: lang,
       });
 
       await this.sendPdf(res, `attestation-travail-${slugify(formatEmployeeName(employee))}.pdf`, pdf);
@@ -561,16 +578,21 @@ export class HRController {
       }
 
       const file = await this.fetchEmployeeFile(employeeId);
+      const sectionCode = await this.getEmployeeSectionCode(employeeId, schoolId);
+      const lang = resolveLanguage(employee.school.subsystem, sectionCode);
+      const roleLabelEn = employee.role === 'TEACHER' ? 'teacher' : 'staff member';
       const pdf = await generateCertificatTravailPdf({
         schoolName: employee.school.name,
         employeeName: formatEmployeeName(employee),
         roleLabel: employee.role === 'TEACHER' ? 'enseignant(e)' : 'membre du personnel',
+        roleLabelEn,
         dateEmbauche: file?.dateEmbauche ?? null,
         dateNaissance: file?.dateNaissance ?? null,
         numeroCNPS: file?.numeroCNPS ?? null,
         typeContrat: file?.typeContrat ?? null,
         echelonActuel: file?.echelonActuel ?? null,
         signataire: currentUser?.nomComplet ?? currentUser?.firstName ?? null,
+        language: lang,
       });
 
       await this.sendPdf(res, `certificat-travail-${slugify(formatEmployeeName(employee))}.pdf`, pdf);
@@ -622,7 +644,7 @@ export class HRController {
         where: { id: missionId, schoolId },
         include: {
           user: { select: { id: true, firstName: true, lastName: true, role: true } },
-          school: { select: { id: true, name: true } },
+          school: { select: { id: true, name: true, subsystem: true } },
         },
       });
 
@@ -631,6 +653,8 @@ export class HRController {
         return;
       }
 
+      const sectionCode = await this.getEmployeeSectionCode(missionOrder.user.id, schoolId);
+      const lang = resolveLanguage(missionOrder.school.subsystem, sectionCode);
       const pdf = await generateMissionOrderPdf({
         schoolName: missionOrder.school.name,
         employeeName: formatEmployeeName(missionOrder.user),
@@ -639,6 +663,7 @@ export class HRController {
         dateDebut: missionOrder.dateDebut,
         dateFin: missionOrder.dateFin,
         signataire: missionOrder.signataire ?? null,
+        language: lang,
       });
 
       await this.sendPdf(res, `ordre-mission-${slugify(formatEmployeeName(missionOrder.user))}.pdf`, pdf);

@@ -19,6 +19,8 @@ export interface ContexteBulletin {
   moyenneDernier?: number;
   nbAdmis?: number;
   tauxReussite?: number;
+  /** Langue de rendu (templates partagés PRIMARY/ANNUAL). Résolue via resolveLanguage(). Défaut "fr". */
+  langue?: "fr" | "en";
 }
 
 export interface PdfService {

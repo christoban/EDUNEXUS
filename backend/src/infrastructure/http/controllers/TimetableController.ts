@@ -6,6 +6,8 @@ import type { PublierEmploiDuTempsUseCase } from '@application/timetable/Publier
 import type { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { resolveLanguage } from '../../../utils/languageHelper';
 
 export class TimetableController {
   constructor(
@@ -89,6 +91,8 @@ export class TimetableController {
         return;
       }
 
+      const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { subsystem: true } })
+      const lang = resolveLanguage(school?.subsystem)
       await this.demanderRattrapage.execute({
         schoolId: user.schoolId,
         classId,
@@ -98,6 +102,7 @@ export class TimetableController {
         proposedStartTime,
         proposedEndTime,
         reason,
+        lang,
       });
 
       res.json({ success: true, statut: 'pending' });

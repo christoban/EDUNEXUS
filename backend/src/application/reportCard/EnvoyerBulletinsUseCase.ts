@@ -12,6 +12,8 @@ export interface EnvoyerBulletinsCommande {
   academicPeriodId: string;
   nomEtablissement: string;
   nomPeriode: string;
+  /** Langue de l'email (résolue par l'appelant : sous-système + section de la classe). Défaut 'fr'. */
+  langue?: 'fr' | 'en';
 }
 
 export interface EnvoyerBulletinsResultat {
@@ -52,12 +54,22 @@ export class EnvoyerBulletinsUseCase {
 
         if (destinataires.length === 0) continue;
 
-        const sujet = `Bulletin scolaire — ${commande.nomPeriode} — ${commande.nomEtablissement}`;
-        const contenuHtml = `
+        const langue = commande.langue ?? 'fr';
+        const sujet = langue === 'fr'
+          ? `Bulletin scolaire — ${commande.nomPeriode} — ${commande.nomEtablissement}`
+          : `Report card — ${commande.nomPeriode} — ${commande.nomEtablissement}`;
+        const contenuHtml = langue === 'fr'
+          ? `
           <p>Bonjour,</p>
           <p>Veuillez trouver ci-joint le bulletin scolaire de <strong>${eleve.nomComplet}</strong>
           pour la période : <strong>${commande.nomPeriode}</strong>.</p>
           <p>Cordialement,<br/>${commande.nomEtablissement}</p>
+        `
+          : `
+          <p>Hello,</p>
+          <p>Please find attached the report card of <strong>${eleve.nomComplet}</strong>
+          for the period: <strong>${commande.nomPeriode}</strong>.</p>
+          <p>Best regards,<br/>${commande.nomEtablissement}</p>
         `;
 
         for (const email of destinataires) {

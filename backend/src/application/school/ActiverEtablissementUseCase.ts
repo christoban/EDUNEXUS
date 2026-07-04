@@ -85,51 +85,61 @@ export class ActiverEtablissementUseCase {
     let academicYearName = '';
 
     await this.prisma.$transaction(async (tx) => {
-      // 1. Créer l'année académique courante
+      // 1. Créer l'année académique
+      // Calendrier configurable (onboarding conversationnel) avec repli sur les valeurs par défaut
+      // pour l'ancien chemin d'activation (config sans champs calendrier).
       const now = new Date();
-      const currentYear = now.getFullYear();
-      academicYearName = `${currentYear}-${currentYear + 1}`;
+      const yStart = config?.academicYearStart ? new Date(config.academicYearStart) : new Date(`${now.getFullYear()}-09-01`);
+      const startYear = yStart.getFullYear();
+      const yEnd = config?.academicYearEnd ? new Date(config.academicYearEnd) : new Date(`${startYear + 1}-06-30`);
+      academicYearName = `${startYear}-${yEnd.getFullYear()}`;
       const academicYear = await tx.academicYear.create({
         data: {
           schoolId,
-          name: `${currentYear}-${currentYear + 1}`,
-          startDate: new Date(`${currentYear}-09-01`),
-          endDate: new Date(`${currentYear + 1}-06-30`),
+          name: academicYearName,
+          startDate: yStart,
+          endDate: yEnd,
           isCurrent: true,
           status: 'ACTIVE',
         },
       });
 
-      // 2. Créer 3 périodes (Trimestre FR / Term EN)
-      const periodType  = isAnglophone ? 'TERM' as const : 'TRIMESTER' as const;
-      const periodNames = isAnglophone
-        ? ['Term 1', 'Term 2', 'Term 3']
-        : ['Trimestre 1', 'Trimestre 2', 'Trimestre 3'];
+      // 2. Créer les périodes.
+      // Primaire (APC) et anglophone restent sur 3 périodes (l'APC dépend d'un découpage en 3 trimestres).
+      // FR secondaire/technique : nombre de périodes configurable (2 semestres OU 3 trimestres).
+      const canConfigurePeriods = !isPrimaire && !isAnglophone;
+      const requestedPeriods = Number(config?.periodsCount);
+      const periodsCount = canConfigurePeriods && requestedPeriods === 2 ? 2 : 3;
+      const isSemester = periodsCount === 2;
+      const periodType = isAnglophone ? 'TERM' as const : 'TRIMESTER' as const;
+      const periodLabel = isAnglophone ? 'Term' : isSemester ? 'Semestre' : 'Trimestre';
 
-      const trimestres = [
-        { name: periodNames[0], startDate: new Date(`${currentYear}-09-01`),     endDate: new Date(`${currentYear}-12-31`)     },
-        { name: periodNames[1], startDate: new Date(`${currentYear + 1}-01-01`), endDate: new Date(`${currentYear + 1}-03-31`) },
-        { name: periodNames[2], startDate: new Date(`${currentYear + 1}-04-01`), endDate: new Date(`${currentYear + 1}-06-30`) },
-      ];
+      // Nombre de séquences par période (FR secondaire/technique uniquement) — défaut 2
+      const requestedSeq = Number(config?.sequencesPerPeriod);
+      const seqPerPeriod = canConfigurePeriods && requestedSeq >= 1 && requestedSeq <= 6 ? Math.floor(requestedSeq) : 2;
 
-      for (let i = 0; i < trimestres.length; i++) {
-        const t = trimestres[i];
+      // Découpage des dates : parts égales sur [yStart, yEnd]
+      const msTotal = yEnd.getTime() - yStart.getTime();
+      let runningSeq = 0;
+      for (let i = 0; i < periodsCount; i++) {
+        const pStart = i === 0 ? yStart : new Date(yStart.getTime() + Math.round((msTotal * i) / periodsCount));
+        const pEnd = i === periodsCount - 1 ? yEnd : new Date(yStart.getTime() + Math.round((msTotal * (i + 1)) / periodsCount) - 86400000);
         const period = await tx.academicPeriod.create({
           data: {
             academicYearId: academicYear.id,
-            name: t.name,
+            name: `${periodLabel} ${i + 1}`,
             type: periodType,
             orderIndex: i + 1,
-            startDate: t.startDate,
-            endDate: t.endDate,
+            startDate: pStart,
+            endDate: pEnd,
             isCurrent: i === 0,
           },
         });
 
         // 3. Créer les séquences/UA par période
-        // APC primaire : UA1-UA8 distribuées 3-3-2 (UA1-3 / Trim1, UA4-6 / Trim2, UA7-8 / Trim3)
-        // FR : "Séquence 1...Séquence 6" — nommage standard modifiable par l'établissement
-        // EN : "Sequence 1 / Sequence 2" par terme (Class Test + Terminal Exam)
+        // APC primaire : UA1-UA8 distribuées 3-3-2
+        // EN : Sequence 1 (Class Test) + Sequence 2 (Terminal Exam) par terme
+        // FR : "Séquence 1...N" — N = seqPerPeriod × periodsCount
         type SeqDef = { name: string; type: 'DS' | 'COMPOSITION' | 'CLASS_TEST' | 'TERMINAL_EXAM' | 'UA' };
         const seqDefs: SeqDef[] = isPrimaire
           ? APC_UNITES[i].unites.map(ua => ({ name: ua, type: 'UA' as const }))
@@ -138,10 +148,10 @@ export class ActiverEtablissementUseCase {
                 { name: 'Sequence 1', type: 'CLASS_TEST'    },
                 { name: 'Sequence 2', type: 'TERMINAL_EXAM' },
               ]
-            : [
-                { name: `Séquence ${i * 2 + 1}`, type: 'DS' },
-                { name: `Séquence ${i * 2 + 2}`, type: 'DS' },
-              ];
+            : Array.from({ length: seqPerPeriod }, () => {
+                runningSeq += 1;
+                return { name: `Séquence ${runningSeq}`, type: 'DS' as const };
+              });
 
         for (let j = 0; j < seqDefs.length; j++) {
           await tx.academicSequence.create({
@@ -161,26 +171,38 @@ export class ActiverEtablissementUseCase {
 
       // 4. Créer les classes depuis onboardingConfig
       let classesACreer: { name: string; level: string; schoolId: string; serie?: string | null; filiere?: string | null }[] = [];
+      const enSixthClassNames = new Set<string>(); // classes Sixth anglophones (matières gérées à part, exclues de 4g)
       if (config) {
 
-        // 4a. 1er cycle (avec filiere PEBS/GENERAL)
+        // 4a. 1er cycle (filière technique propre OU filière PEBS/GENERAL)
         if (config.niveaux1erCycle?.length > 0) {
           const conv = config.conventionNommage ?? 'LETTRES';
+          const filieresTech: string[] = config.filieresTechniques ?? [];
           for (const niveau of config.niveaux1erCycle) {
-            const count = config.classesParNiveau?.[niveau] ?? 2;
-            for (let i = 0; i < Math.min(count, 26); i++) {
-              const suffix = conv === 'LETTRES' ? LETTRES[i]
-                : conv === 'CHIFFRES' ? `${i + 1}`
-                : `${LETTRES[i]}1`;
-              // PEBS: première classe (A) = FR_PEBS/EN_PEBS, reste = GENERAL
-              const isPEBSClass = i === 0 && (
-                (hasPEBSFrancophone && !isAnglophone) ||
-                (hasPEBSAnglophone && isAnglophone)
-              );
-              const filiere = isPEBSClass
-                ? (isAnglophone ? 'EN_PEBS' : 'FR_PEBS')
-                : (isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL');
-              classesACreer.push({ name: `${niveau} ${suffix}`, level: niveau, schoolId, filiere });
+            if (isTechnique && filieresTech.length > 0) {
+              // Lycées techniques / CETIC : une classe par combinaison (niveau × filière)
+              // La filière (ex: 'F1', 'G2') doit correspondre aux CycleCoefficients seedés.
+              for (const fil of filieresTech) {
+                classesACreer.push({ name: `${niveau} ${fil}`, level: niveau, schoolId, filiere: fil });
+              }
+            } else {
+              const count = config.classesParNiveau?.[niveau] ?? 2;
+              // Anglophone : level sans espaces pour matcher AnglophoneSubjectLoad (seeded 'Form1' etc.)
+              const levelNorm = isAnglophone ? niveau.replace(/\s+/g, '') : niveau;
+              for (let i = 0; i < Math.min(count, 26); i++) {
+                const suffix = conv === 'LETTRES' ? LETTRES[i]
+                  : conv === 'CHIFFRES' ? `${i + 1}`
+                  : `${LETTRES[i]}1`;
+                // PEBS: première classe (A) = FR_PEBS/EN_PEBS, reste = GENERAL
+                const isPEBSClass = i === 0 && (
+                  (hasPEBSFrancophone && !isAnglophone) ||
+                  (hasPEBSAnglophone && isAnglophone)
+                );
+                const filiere = isPEBSClass
+                  ? (isAnglophone ? 'EN_PEBS' : 'FR_PEBS')
+                  : (isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL');
+                classesACreer.push({ name: `${niveau} ${suffix}`, level: levelNorm, schoolId, filiere });
+              }
             }
           }
         }
@@ -213,8 +235,28 @@ export class ActiverEtablissementUseCase {
           });
           const validBacCombos = new Set(bacCombosRaw.map(b => `${b.niveau}|${b.serie}`));
 
+          // Issue #7: enStreamStartLevel — niveaux anglophone avant ce seuil = classe générale
+          const EN_LEVEL_ORDER = ['Form4', 'Form5', 'LowerSixth', 'UpperSixth'];
+          const streamStartMap: Record<string, string> = { FORM4: 'Form4', FORM5: 'Form5', SIXTH: 'LowerSixth' };
+          const streamThreshold: string | null = isAnglophone && config.enStreamStartLevel
+            ? (streamStartMap[config.enStreamStartLevel as string] ?? null)
+            : null;
+
           for (const niveau of config.niveaux2eCycle) {
             const niveauBac = NIVEAU_MAP[niveau];
+            // Anglophone : level sans espaces pour matcher AnglophoneSubjectLoad
+            const levelNorm2 = isAnglophone ? niveau.replace(/\s+/g, '') : niveau;
+
+            // Anglophone : si le niveau est en-dessous du seuil de streaming, 1 classe générale
+            if (streamThreshold) {
+              const levelIdx = EN_LEVEL_ORDER.indexOf(levelNorm2);
+              const threshIdx = EN_LEVEL_ORDER.indexOf(streamThreshold);
+              if (levelIdx >= 0 && levelIdx < threshIdx) {
+                classesACreer.push({ name: niveau, level: levelNorm2, schoolId });
+                continue;
+              }
+            }
+
             for (const filiere of config.filieres) {
               if (niveau === '2nde' && estFiliereTechnique(filiere)) continue;
 
@@ -223,7 +265,7 @@ export class ActiverEtablissementUseCase {
                 if (niveauBac && !validBacCombos.has(`${niveauBac}|A4`)) continue;
                 const langs = config.a4Languages?.length ? config.a4Languages : ['LV'];
                 for (const lang of langs) {
-                  classesACreer.push({ name: `${niveau} A4-${lang}`, level: niveau, schoolId, serie: `A4-${lang}` });
+                  classesACreer.push({ name: `${niveau} A4-${lang}`, level: levelNorm2, schoolId, serie: `A4-${lang}` });
                 }
               } else {
                 const serie = extraireSerie(filiere);
@@ -231,7 +273,7 @@ export class ActiverEtablissementUseCase {
                 if (niveauBac && !validBacCombos.has(`${niveauBac}|${serie}`)) continue;
                 for (let i = 0; i < nbClasses; i++) {
                   const suffix = nbClasses > 1 ? ` ${LETTRES[i]}` : '';
-                  classesACreer.push({ name: `${niveau} ${serie}${suffix}`, level: niveau, schoolId, serie });
+                  classesACreer.push({ name: `${niveau} ${serie}${suffix}`, level: levelNorm2, schoolId, serie });
                 }
               }
             }
@@ -242,12 +284,13 @@ export class ActiverEtablissementUseCase {
         if (config.templateCode === 'LYCEE_BILINGUE' && config.bilingualEnLevels?.length > 0) {
           const enFilieres: string[] = config.bilingualEnFilieres ?? [];
           for (const niveau of config.bilingualEnLevels as string[]) {
+            const levelNormEn = niveau.replace(/\s+/g, '');
             if (enFilieres.length === 0) {
-              classesACreer.push({ name: `${niveau} EN`, level: niveau, schoolId });
+              classesACreer.push({ name: `${niveau} EN`, level: levelNormEn, schoolId });
             } else {
               for (const filiere of enFilieres) {
                 const serie = filiere.match(/^([A-Z][0-9])/)?.[1] ?? filiere;
-                classesACreer.push({ name: `${niveau} ${serie}`, level: niveau, schoolId });
+                classesACreer.push({ name: `${niveau} ${serie}`, level: levelNormEn, schoolId });
               }
             }
           }
@@ -256,7 +299,7 @@ export class ActiverEtablissementUseCase {
         // 4d. PRIMARY_BILINGUAL — EN section classes
         if (config.templateCode === 'PRIMARY_BILINGUAL' && config.bilingualEnLevels?.length > 0) {
           for (const niveau of config.bilingualEnLevels as string[]) {
-            classesACreer.push({ name: `${niveau} EN`, level: niveau, schoolId });
+            classesACreer.push({ name: `${niveau} EN`, level: niveau.replace(/\s+/g, ''), schoolId });
           }
         }
 
@@ -266,6 +309,54 @@ export class ActiverEtablissementUseCase {
             const count = config.classesParNiveauPrimaire?.[niveau] ?? 1;
             for (let i = 0; i < Math.min(count, 26); i++) {
               classesACreer.push({ name: `${niveau} ${LETTRES[i]}`, level: niveau, schoolId });
+            }
+          }
+        }
+
+        // 4e-pro. SAR_SM + CFM : classes par filière (codes SAR/SM/COUTURE) × années
+        if (templateCode === 'SAR_SM') {
+          for (const fil of ['SAR', 'SM'] as const) {
+            classesACreer.push({ name: `Année1 ${fil}`, level: 'Année1', schoolId, filiere: fil });
+            classesACreer.push({ name: `Année2 ${fil}`, level: 'Année2', schoolId, filiere: fil });
+          }
+        }
+        if (templateCode === 'CFM') {
+          // cfmFilieres = noms libres soumis par l'admin ; fallback vers les filières seeded
+          const cfmFils: string[] = (config.cfmFilieres as string[] | undefined)?.length
+            ? config.cfmFilieres
+            : ['SAR', 'SM', 'COUTURE'];
+          for (const fil of cfmFils) {
+            classesACreer.push({ name: `Année1 ${fil}`, level: 'Année1', schoolId, filiere: fil });
+            classesACreer.push({ name: `Année2 ${fil}`, level: 'Année2', schoolId, filiere: fil });
+          }
+        }
+
+        // 4e-nur. Nursery_EN : classes par niveau (normalisation espaces pour level)
+        if (templateCode === 'NURSERY_EN' && (config.nurseryLevels as string[] | undefined)?.length) {
+          for (const lvl of config.nurseryLevels as string[]) {
+            classesACreer.push({ name: lvl, level: lvl.replace(/\s+/g, ''), schoolId });
+          }
+        }
+
+        // 4e-mat. Maternelle_FR : classes par section
+        if (templateCode === 'MATERNELLE_FR' && (config.maternelleSections as string[] | undefined)?.length) {
+          for (const section of config.maternelleSections as string[]) {
+            classesACreer.push({ name: section, level: section, schoolId });
+          }
+        }
+
+        // 4e-EN. Second cycle anglophone (Sixth Form) — classes par stream/combinaison.
+        // Chemin dédié (séparé du 2e cycle FR) : évite la collision du code "A4".
+        if (Array.isArray(config.anglophoneStreams) && (config.anglophoneStreams as string[]).length > 0) {
+          const sixthLevels: string[] = (config.niveauxSixth as string[] | undefined)?.length
+            ? (config.niveauxSixth as string[])
+            : ['LowerSixth', 'UpperSixth'];
+          for (const niveau of sixthLevels) {
+            const levelNorm = niveau.replace(/\s+/g, '');
+            for (const combo of config.anglophoneStreams as string[]) {
+              const name = `${levelNorm} ${combo}`;
+              enSixthClassNames.add(name);
+              classesACreer.push({ name, level: levelNorm, schoolId, serie: combo, filiere: 'EN_GENERAL' });
             }
           }
         }
@@ -355,6 +446,7 @@ export class ActiverEtablissementUseCase {
         // mais A4 doit être traité par (level, serie, langue) pour créer les LV2 réels
         const processedKeys = new Set<string>();
         for (const c of classesACreer) {
+          if (enSixthClassNames.has(c.name)) continue; // matières Sixth EN gérées en 4g-EN
           const seriePart = parseSerie(c.name, c.level);
           // 1er cycle : clé inclut la filière (FR_PEBS ≠ FR_GENERAL)
           // A4 2nd cycle : clé inclut le nom complet pour distinguer les langues
@@ -372,6 +464,70 @@ export class ActiverEtablissementUseCase {
           );
         }
         subjectCount += subjectCountRef.value;
+      }
+
+      // 4g-EN. Matières Sixth Form anglophone (stream combinations) — coefficients déterministes.
+      // Consomme AnglophoneStreamCombination (matières de la filière) + AnglophoneSubjectLoad (coeffs officiels /20).
+      if (Array.isArray(config?.anglophoneStreams) && config.anglophoneStreams.length > 0 && templateCode) {
+        const comboCodes = config.anglophoneStreams as string[];
+        const sixthLevels: string[] = (config.niveauxSixth as string[] | undefined)?.length
+          ? (config.niveauxSixth as string[])
+          : ['LowerSixth', 'UpperSixth'];
+
+        const combos = await tx.anglophoneStreamCombination.findMany({ where: { filiere: { in: comboCodes } } });
+
+        const existingSubjects = await tx.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
+        const subjectByName = new Map(existingSubjects.map(s => [s.name, s.id]));
+
+        for (const niveau of sixthLevels) {
+          const levelNorm = niveau.replace(/\s+/g, '');
+          const loads = await tx.anglophoneSubjectLoad.findMany({
+            where: { templateCode, classLevel: levelNorm, filiere: 'EN_GENERAL' },
+          });
+          const loadMap = new Map(loads.map(l => [l.subjectName, l]));
+
+          for (const combo of combos) {
+            const core = Array.isArray(combo.coreSubjects) ? combo.coreSubjects as string[] : [];
+            // Une option représentative par groupe d'électifs (l'élève affine son choix ensuite, max 5 au A-Level)
+            const electives: string[] = Array.isArray(combo.electiveGroup)
+              ? (combo.electiveGroup as string[][]).map(g => Array.isArray(g) ? g[0] : null).filter((x): x is string => !!x)
+              : [];
+            const subjectNames = [...new Set([...core, ...electives])];
+
+            for (const name of subjectNames) {
+              const load = loadMap.get(name);
+              const coeff = load?.coefficient ?? 1;
+              const hours = load?.weeklyPeriods ?? 2;
+
+              let subjectId = subjectByName.get(name);
+              if (!subjectId) {
+                const created = await tx.subject.create({
+                  data: {
+                    schoolId,
+                    name,
+                    code: name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
+                    coefficient: coeff,
+                    hoursPerWeek: hours,
+                    subjectType: 'THEORETICAL',
+                  },
+                });
+                subjectId = created.id;
+                subjectByName.set(name, subjectId);
+                subjectCount++;
+              }
+
+              const existing = await tx.subjectCoefficient.findFirst({
+                where: { schoolId, subjectId, classLevel: levelNorm, serieCode: combo.filiere },
+                select: { id: true },
+              });
+              if (!existing) {
+                await tx.subjectCoefficient.create({
+                  data: { schoolId, subjectId, classLevel: levelNorm, serieCode: combo.filiere, coefficient: coeff },
+                });
+              }
+            }
+          }
+        }
       }
 
       // 4h. Créer les départements pédagogiques selon le template (uniquement secondaire)
@@ -510,7 +666,7 @@ export class ActiverEtablissementUseCase {
           schoolId,
           passMark: finalPassMark,
           councilPassMark: finalPassMark,
-          termsPerYear: 3,
+          termsPerYear: periodsCount,
           maxAbsences: 10,
           gradesPerTerm,
           attendanceLateAsAbsence: false,
@@ -529,10 +685,155 @@ export class ActiverEtablissementUseCase {
         },
       });
 
-      // 9. Passer le statut à ACTIVE + sauvegarder les flags PEBS
+      // ── 8b. Onboarding conversationnel — étapes additionnelles ──────────────
+      // Gated : ne s'exécutent que si les champs correspondants existent dans le config.
+      // L'ancien chemin d'activation (formulaire statique) n'a pas ces champs → sauté.
+
+      // LV2 : réconcilier la matière générique "LV2" du curriculum.
+      // Le curriculum ne place la LV2 QU'EN 4e et 3e (jamais 6e/5e) — cf. premier-cycle.ts.
+      //   CAS A (lv2Active + langues) : créer une matière-langue réelle (isLV2=true) par langue déclarée,
+      //     copier les coefficients LV2 officiels du premier cycle, puis retirer l'entrée générique.
+      //   CAS B (pas de LV2) : retirer l'entrée générique sans créer aucune matière de langue.
+      //   CAS C (2nd cycle) : NON touché — on ne transforme que les coefficients de niveau 4e/3e.
+      //     Les langues du 2e cycle (A4…) sont déjà des matières réelles gérées par SubjectAssignmentHelper.
+      {
+        const PREMIER_CYCLE_LV2_LEVELS = ['4e', '3e'];
+        const abstractLV2 = await tx.subject.findFirst({ where: { schoolId, name: 'LV2' } });
+
+        if (abstractLV2) {
+          // Coefficients LV2 du premier cycle uniquement (4e/3e) — jamais 6e/5e, jamais 2nd cycle
+          const premierCoeffs = await tx.subjectCoefficient.findMany({
+            where: { schoolId, subjectId: abstractLV2.id, classLevel: { in: PREMIER_CYCLE_LV2_LEVELS } },
+          });
+
+          const languesActives: string[] = config?.lv2Active === true && Array.isArray(config?.lv2Languages)
+            ? (config.lv2Languages as unknown[])
+                .filter((l): l is string => typeof l === 'string' && l.trim().length > 0)
+                .map((l) => l.trim())
+            : [];
+
+          // ── CAS A : matières-langues réelles (partagées entre tous les niveaux, créées une seule fois) ──
+          // Uniquement s'il existe réellement une LV2 de premier cycle (4e/3e) à transformer.
+          if (languesActives.length > 0 && premierCoeffs.length > 0) {
+            const langDept = await tx.department.findFirst({
+              where: { schoolId, name: { in: ['Langues Vivantes', 'Languages'] } },
+              select: { id: true },
+            });
+            const lv2Coeff = abstractLV2.coefficient ?? 2;
+            const lv2Hours = abstractLV2.hoursPerWeek ?? 2;
+
+            for (const langue of languesActives) {
+              // Anti-doublon : réutiliser une matière existante du même nom (ex. "Allemand" déjà créée en A4)
+              const existing = await tx.subject.findFirst({ where: { schoolId, name: langue } });
+              const langSubject = existing ?? await tx.subject.create({
+                data: {
+                  schoolId,
+                  name: langue,
+                  code: langue.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
+                  coefficient: lv2Coeff,
+                  hoursPerWeek: lv2Hours,
+                  subjectType: 'THEORETICAL',
+                  departmentId: langDept?.id ?? null,
+                  isLV2: true,
+                } as any,
+              });
+              if (existing) {
+                await tx.subject.update({
+                  where: { id: langSubject.id },
+                  data: { isLV2: true, ...(langDept ? { departmentId: langDept.id } : {}) } as any,
+                });
+              }
+              // Copier UNIQUEMENT les coefficients LV2 du premier cycle (4e/3e)
+              for (const pc of premierCoeffs) {
+                const already = await tx.subjectCoefficient.findFirst({
+                  where: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode },
+                  select: { id: true },
+                });
+                if (!already) {
+                  await tx.subjectCoefficient.create({
+                    data: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode, coefficient: pc.coefficient },
+                  });
+                }
+              }
+            }
+          }
+
+          // ── CAS A & CAS B : retirer les coefficients LV2 du premier cycle de la matière générique ──
+          if (premierCoeffs.length > 0) {
+            await tx.subjectCoefficient.deleteMany({
+              where: { schoolId, subjectId: abstractLV2.id, classLevel: { in: PREMIER_CYCLE_LV2_LEVELS } },
+            });
+          }
+          // Supprimer la matière générique seulement si plus AUCUN coefficient ne la référence
+          // (préserve un éventuel usage 2nd cycle A2/A5/ABI — CAS C).
+          const remaining = await tx.subjectCoefficient.count({ where: { schoolId, subjectId: abstractLV2.id } });
+          if (remaining === 0) {
+            await tx.subject.delete({ where: { id: abstractLV2.id } });
+          }
+        }
+      }
+
+      // FeePlans de base depuis feesTypes (montant à définir plus tard par l'admin)
+      if (Array.isArray(config?.feesTypes) && config.feesTypes.length > 0) {
+        const FEE_MAP: Record<string, { feeType: string; name: string; refundable?: boolean }> = {
+          TUITION:          { feeType: 'TUITION',          name: 'Frais de scolarité' },
+          APEE_PTA:         { feeType: 'APEE_PTA',         name: 'Frais APEE / PTA' },
+          EXAM:             { feeType: 'EXAM',             name: "Frais d'examen" },
+          UNIFORM:          { feeType: 'UNIFORM',          name: "Frais d'uniforme" },
+          INSCRIPTION:      { feeType: 'INSCRIPTION',      name: "Frais d'inscription / réinscription" },
+          CAUTION:          { feeType: 'CAUTION',          name: 'Caution', refundable: true },
+          DEVELOPMENT_LEVY: { feeType: 'DEVELOPMENT_LEVY', name: 'Frais de développement' },
+          SPORTS_LEVY:      { feeType: 'SPORTS_LEVY',      name: 'Frais de sport / activités' },
+        };
+        for (const t of config.feesTypes as string[]) {
+          const def = FEE_MAP[t];
+          if (!def) continue;
+          const exists = await tx.feePlan.findFirst({ where: { schoolId, feeType: def.feeType as any }, select: { id: true } });
+          if (exists) continue;
+          await tx.feePlan.create({
+            data: {
+              schoolId,
+              name: def.name,
+              amount: 0,
+              feeType: def.feeType as any,
+              isRefundable: def.refundable ?? false,
+              description: 'Créé à la configuration — montant à définir',
+            },
+          });
+        }
+      }
+
+      // Services + rôles de direction → School.features (Json)
+      const featuresPatch: Record<string, unknown> = {};
+      const hasServiceFlags = ['hasCanteen', 'hasTransport', 'hasLibrary', 'hasBoarding']
+        .some((k) => typeof (config as any)?.[k] === 'boolean');
+      if (hasServiceFlags) {
+        featuresPatch['services'] = {
+          canteen: !!config?.hasCanteen,
+          transport: !!config?.hasTransport,
+          library: !!config?.hasLibrary,
+          boarding: !!config?.hasBoarding,
+        };
+      }
+      if (config?.directionRoles && typeof config.directionRoles === 'object') {
+        featuresPatch['directionRoles'] = config.directionRoles;
+      }
+      if (config?.paymentTranches) {
+        featuresPatch['paymentTranches'] = Number(config.paymentTranches) || 1;
+      }
+
+      // 9. Passer le statut à ACTIVE + sauvegarder les flags PEBS (+ features fusionnées)
+      const mergedFeatures = Object.keys(featuresPatch).length > 0
+        ? { ...(typeof school.features === 'object' && school.features ? school.features as Record<string, unknown> : {}), ...featuresPatch }
+        : undefined;
       await tx.school.update({
         where: { id: schoolId },
-        data: { status: 'ACTIVE', hasPEBSFrancophone, hasPEBSAnglophone },
+        data: {
+          status: 'ACTIVE',
+          hasPEBSFrancophone,
+          hasPEBSAnglophone,
+          ...(mergedFeatures ? { features: mergedFeatures as any } : {}),
+        },
       });
 
       // 10. Marquer le formulaire de configuration comme complété

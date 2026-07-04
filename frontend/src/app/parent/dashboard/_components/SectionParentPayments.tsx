@@ -4,6 +4,7 @@ import type { Toast } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import OfflineEmptyState from '@/components/OfflineEmptyState'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: Toast['type']) => void
@@ -20,12 +21,14 @@ interface Invoice {
   payments: Payment[]
 }
 
-const INV_STATUS: Record<string, { bg: string; color: string; label: string }> = {
-  PENDING:   { bg: '#fef3c7', color: '#92400e', label: 'En attente'  },
-  PAID:      { bg: '#d1fae5', color: '#065f46', label: '✓ Payée'     },
-  OVERDUE:   { bg: '#fee2e2', color: '#991b1b', label: 'En retard'   },
-  CANCELLED: { bg: '#f1f5f9', color: '#475569', label: 'Annulée'     },
-  PARTIAL:   { bg: '#dbeafe', color: '#1e40af', label: 'Partielle'   },
+function invStatus(tf: (k: string) => string): Record<string, { bg: string; color: string; label: string }> {
+  return {
+    PENDING:   { bg: 'var(--amber-light)', color: 'var(--amber)', label: tf('invoice_status.PENDING')  },
+    PAID:      { bg: 'var(--green-light)', color: 'var(--green)', label: tf('invoice_status.PAID')     },
+    OVERDUE:   { bg: 'var(--red-light)', color: 'var(--red)', label: tf('invoice_status.OVERDUE')   },
+    CANCELLED: { bg: 'var(--bg2)', color: 'var(--text2)', label: tf('invoice_status.CANCELLED') },
+    PARTIAL:   { bg: 'var(--blue-light)', color: 'var(--blue)', label: tf('invoice_status.PARTIAL')   },
+  }
 }
 
 function fmtCFA(n: number) {
@@ -33,6 +36,9 @@ function fmtCFA(n: number) {
 }
 
 export default function SectionParentPayments({ onToast }: Props) {
+  const t = useT('parent')
+  const tf = useT('finance')
+  const tc = useT('common')
   const isOnline = useOnlineStatus()
 
   const [children, setChildren]     = useState<Child[]>([])
@@ -53,7 +59,7 @@ export default function SectionParentPayments({ onToast }: Props) {
       const d = await res.json()
       if (d.success) setChildren(d.data || [])
     } catch { /* silencieux */ }
-  }, [])
+  }, [t, tf, tc])
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true); setError(null)
@@ -62,10 +68,10 @@ export default function SectionParentPayments({ onToast }: Props) {
       if (childFilter) params.set('studentId', childFilter)
       const res = await fetchApi(`/api/v2/parent/invoices?${params}`, { credentials: 'include' })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.message || 'Erreur serveur')
+      if (!res.ok) throw new Error(d.message || tf('errors.server_error'))
       setInvoices(d.data || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
+      setError(err instanceof Error ? err.message : t('errorLoad'))
     } finally { setLoading(false) }
   }, [childFilter])
 
@@ -83,7 +89,7 @@ export default function SectionParentPayments({ onToast }: Props) {
   }
 
   const submitPayment = async () => {
-    if (!modal.phone.trim()) { setModal(m => ({ ...m, error: 'Numéro de téléphone obligatoire' })); return }
+    if (!modal.phone.trim()) { setModal(m => ({ ...m, error: t('payments.phoneRequired') })); return }
     setModal(m => ({ ...m, loading: true, error: '' }))
     try {
       const res = await fetchApi('/api/v2/parent/pay', {
@@ -92,16 +98,16 @@ export default function SectionParentPayments({ onToast }: Props) {
         body: JSON.stringify({ invoiceId: modal.invoiceId, method: modal.method, phoneNumber: modal.phone }),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.message || 'Erreur')
-      onToast('Paiement initié — confirmez sur votre téléphone', 'success')
+      if (!res.ok) throw new Error(d.message || tf('errors.generic_error'))
+      onToast(t('payments.paymentInitiated'), 'success')
       setModal(m => ({ ...m, open: false }))
       fetchInvoices()
     } catch (err) {
-      setModal(m => ({ ...m, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
+      setModal(m => ({ ...m, error: err instanceof Error ? err.message : tf('errors.generic_error'), loading: false }))
     }
   }
 
-  if (!isOnline) return <OfflineEmptyState message="Les informations de paiement nécessitent une connexion internet pour rester à jour." />
+  if (!isOnline) return <OfflineEmptyState message={t('payments.offlineMessage')} />
 
   const unpaid = invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE' || i.status === 'PARTIAL')
   const totalDu = unpaid.reduce((s, i) => {
@@ -114,12 +120,12 @@ export default function SectionParentPayments({ onToast }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>Paiements Mobile Money</div>
-          <div style={sSub}>Frais scolaires · MTN MoMo &amp; Orange Money</div>
+          <div style={sTitle}>{t('payments.title')}</div>
+          <div style={sSub}>{t('payments.subtitle')}</div>
         </div>
         {children.length > 0 && (
           <select value={childFilter} onChange={e => setChildFilter(e.target.value)} style={sSelect}>
-            <option value="">Tous les enfants</option>
+            <option value="">{t('payments.allChildren')}</option>
             {children.map(c => <option key={c.studentId} value={c.studentId}>{c.prenom} {c.nom}</option>)}
           </select>
         )}
@@ -127,56 +133,57 @@ export default function SectionParentPayments({ onToast }: Props) {
 
       {/* Alerte si factures impayées */}
       {unpaid.length > 0 && (
-        <div style={{ background: '#fef3c7', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 14, padding: '16px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 14, padding: '16px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ fontSize: 22 }}>⚠️</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: '#92400e' }}>
-              {unpaid.length} paiement{unpaid.length > 1 ? 's' : ''} en attente
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--amber)' }}>
+              {t('payments.pendingPayment').replace('{count}', String(unpaid.length))}
             </div>
-            <div style={{ fontSize: 15, color: '#d97706', marginTop: 3 }}>
-              Montant restant dû : {fmtCFA(totalDu)}
+            <div style={{ fontSize: 15, color: 'var(--amber)', marginTop: 3 }}>
+              {t('payments.remainingDue').replace('{amount}', fmtCFA(totalDu))}
             </div>
           </div>
         </div>
       )}
 
       {/* Table */}
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
         {loading ? (
-          <div style={{ padding: '50px 20px', textAlign: 'center', color: '#a89478' }}>Chargement…</div>
+          <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text3)' }}>{tc('status.loading')}</div>
         ) : error ? (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#dc2626', fontWeight: 700 }}>{error}</div>
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--red)', fontWeight: 700 }}>{error}</div>
         ) : invoices.length === 0 ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#a89478' }}>
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text3)' }}>
             <div style={{ fontSize: 44, marginBottom: 14 }}>📱</div>
-            <div style={{ fontSize: 17 }}>Aucune facture trouvée</div>
+            <div style={{ fontSize: 17 }}>{t('payments.noInvoices')}</div>
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Élève', 'Libellé', 'Montant', 'Payé', 'Reste dû', 'Statut', 'Actions'].map(h => (
+              <tr>{[tf('table_headers.student'), t('payments.libelle'), tf('table_headers.amount'), tf('table_headers.paid'), t('payments.remaining'), tf('table_headers.status'), tf('table_headers.actions')].map(h => (
                 <th key={h} style={thSt}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
               {invoices.map(inv => {
-                const st = INV_STATUS[inv.status] ?? { bg: '#f1f5f9', color: '#475569', label: inv.status }
+                const INV_STATUS = invStatus(tf)
+                const st = INV_STATUS[inv.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: inv.status }
                 const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
                 const remaining = Math.max(0, inv.amount - paid)
                 const canPay = (inv.status === 'PENDING' || inv.status === 'OVERDUE' || inv.status === 'PARTIAL') && remaining > 0
                 return (
                   <tr key={inv.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
                       {inv.student.firstName} {inv.student.lastName}
                     </td>
                     <td style={tdSt}>{inv.feePlan?.name ?? inv.description ?? '—'}</td>
-                    <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{fmtCFA(inv.amount)}</td>
-                    <td style={{ ...tdSt, fontWeight: 700, color: paid > 0 ? '#059669' : '#a89478' }}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{fmtCFA(inv.amount)}</td>
+                    <td style={{ ...tdSt, fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
                       {paid > 0 ? fmtCFA(paid) : '—'}
                     </td>
-                    <td style={{ ...tdSt, fontWeight: 700, color: remaining > 0 ? '#dc2626' : '#059669' }}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: remaining > 0 ? 'var(--red)' : 'var(--green)' }}>
                       {remaining > 0 ? fmtCFA(remaining) : '✓'}
                     </td>
                     <td style={tdSt}>
@@ -184,7 +191,7 @@ export default function SectionParentPayments({ onToast }: Props) {
                     </td>
                     <td style={tdSt}>
                       {canPay && (
-                        <button style={btnPay} onClick={() => openModal(inv)}>📱 Payer</button>
+                        <button style={btnPay} onClick={() => openModal(inv)}>{t('payments.payButton')}</button>
                       )}
                     </td>
                   </tr>
@@ -200,45 +207,45 @@ export default function SectionParentPayments({ onToast }: Props) {
         <div onClick={() => !modal.loading && setModal(m => ({ ...m, open: false }))}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background: 'white', borderRadius: 18, padding: '32px 36px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 6 }}>
-              Payer par Mobile Money
+            style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+              {t('payments.modalTitle')}
             </div>
-            <div style={{ fontSize: 15, color: '#a89478', marginBottom: 22 }}>{modal.label}</div>
+            <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 22 }}>{modal.label}</div>
 
-            <div style={{ background: '#f0ebe3', borderRadius: 12, padding: '14px 18px', marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: '#6b5c45' }}>Montant à payer</span>
-              <span style={{ fontSize: 22, fontWeight: 900, color: '#059669' }}>{fmtCFA(modal.amount)}</span>
+            <div style={{ background: 'var(--bg2)', borderRadius: 12, padding: '14px 18px', marginBottom: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text2)' }}>{t('payments.amountToPay')}</span>
+              <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--green)' }}>{fmtCFA(modal.amount)}</span>
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>Opérateur</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }}>{t('payments.operator')}</div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
               {(['MTN_MOMO', 'ORANGE_MONEY'] as const).map(m => (
                 <button key={m} onClick={() => setModal(s => ({ ...s, method: m }))}
-                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', borderColor: modal.method === m ? '#059669' : '#e8e0d4', background: modal.method === m ? '#d1fae5' : 'white', color: modal.method === m ? '#065f46' : '#6b7280', transition: 'all 0.12s' }}>
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', borderColor: modal.method === m ? 'var(--green)' : 'var(--border)', background: modal.method === m ? 'var(--green-light)' : 'white', color: modal.method === m ? 'var(--green)' : 'var(--text3)', transition: 'all 0.12s' }}>
                   {m === 'MTN_MOMO' ? '🟡 MTN MoMo' : '🟠 Orange Money'}
                 </button>
               ))}
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>Numéro de téléphone *</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }}>{t('payments.phoneLabel')}</div>
             <input
-              style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 15, border: '1.5px solid #e8e0d4', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 18, outline: 'none' }}
-              type="tel" placeholder="Ex: 677000000" value={modal.phone}
+              style={{ width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 15, border: '1.5px solid var(--border)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 18, outline: 'none' }}
+              type="tel" placeholder={t('payments.phonePlaceholder')} value={modal.phone}
               onChange={e => setModal(m => ({ ...m, phone: e.target.value }))} />
 
             {modal.error && (
-              <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>{modal.error}</div>
+              <div style={{ background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>{modal.error}</div>
             )}
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} disabled={modal.loading}
-                style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Annuler
+                style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {tc('actions.cancel')}
               </button>
               <button onClick={submitPayment} disabled={modal.loading}
-                style={{ flex: 2, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: modal.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: modal.loading ? 0.7 : 1 }}>
-                {modal.loading ? 'Initiation…' : '📱 Confirmer le paiement'}
+                style={{ flex: 2, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: modal.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: modal.loading ? 0.7 : 1 }}>
+                {modal.loading ? t('payments.initiating') : t('payments.confirmPayment')}
               </button>
             </div>
           </div>
@@ -248,9 +255,9 @@ export default function SectionParentPayments({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const sSelect: React.CSSProperties = { padding: '9px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid #e8e0d4', background: 'white', color: '#374151', fontFamily: 'inherit', cursor: 'pointer' }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 16, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
-const btnPay: React.CSSProperties = { padding: '6px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sSelect: React.CSSProperties = { padding: '9px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text2)', fontFamily: 'inherit', cursor: 'pointer' }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 16, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }
+const btnPay: React.CSSProperties = { padding: '6px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }

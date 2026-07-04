@@ -35,7 +35,7 @@ export const getTemplateLabels = (template: BulletinTemplateType, language: "fr"
       absences: "Absences",
       late: "Late",
       signatures: "Signatures",
-      teacherSignature: "Class Teacher",
+      teacherSignature: "Class Master",
       principalSignature: "Principal",
       note: "Summary based on available assessments.",
     };
@@ -51,7 +51,7 @@ export const getTemplateLabels = (template: BulletinTemplateType, language: "fr"
       absences: isFr ? "Absences" : "Absences",
       late: isFr ? "Retards" : "Late",
       signatures: isFr ? "Signatures" : "Signatures",
-      teacherSignature: isFr ? "Titulaire" : "Class Teacher",
+      teacherSignature: isFr ? "Titulaire" : "Class Master",
       principalSignature: isFr ? "Direction" : "Principal",
       note: isFr
         ? "Synthèse basée sur les évaluations de la période."

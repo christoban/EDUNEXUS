@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { WifiOff, RefreshCw, Clock, CheckCircle2 } from 'lucide-react'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { useT } from '@/lib/i18n'
 
 export function OfflineIndicator() {
+  const t = useT('common')
   const { pendingCount, syncing, isOnline, syncQueue } = useSyncQueue()
   const [syncedCount, setSyncedCount] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -45,13 +47,13 @@ export function OfflineIndicator() {
 
   if (!isOnline) {
     return (
-      <div style={{ ...base, background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
+      <div style={{ ...base, background: 'var(--red-light)', borderColor: 'var(--red)', color: 'var(--red)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <WifiOff size={16} />
-          <span>Hors-ligne</span>
+          <span>{t('offline.title')}</span>
         </div>
-        <div style={{ fontSize: 12, fontWeight: 500, color: '#b91c1c' }}>
-          Vos actions seront synchronisées à la reconnexion
+        <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--red)' }}>
+          {t('offline.description')}
         </div>
       </div>
     )
@@ -59,14 +61,14 @@ export function OfflineIndicator() {
 
   if (syncing) {
     return (
-      <div style={{ ...base, background: '#eff6ff', borderColor: '#93c5fd', color: '#1d4ed8' }}>
+      <div style={{ ...base, background: 'var(--blue-light)', borderColor: 'var(--blue)', color: 'var(--blue)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <RefreshCw size={16} className="animate-spin" />
-          <span>Synchronisation en cours...</span>
+          <span>{t('offline.syncing')}</span>
         </div>
         {pendingCount > 0 && (
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#3b82f6' }}>
-            {pendingCount} élément{pendingCount > 1 ? 's' : ''} à synchroniser
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--blue)' }}>
+            {pendingCount} {t('offline.element')}{pendingCount > 1 ? 's' : ''} {t('offline.toSync')}
           </div>
         )}
       </div>
@@ -75,16 +77,16 @@ export function OfflineIndicator() {
 
   if (pendingCount > 0) {
     return (
-      <div style={{ ...base, background: '#fffbeb', borderColor: '#fcd34d', color: '#92400e' }}>
+      <div style={{ ...base, background: 'var(--amber-light)', borderColor: 'var(--amber)', color: 'var(--amber)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Clock size={16} />
-          <span>{pendingCount} élément{pendingCount > 1 ? 's' : ''} en attente</span>
+          <span>{pendingCount} {t('offline.element')}{pendingCount > 1 ? 's' : ''} {t('offline.pending')}</span>
         </div>
         <button
           onClick={() => syncQueue()}
           style={{
             marginTop: 2,
-            background: '#f59e0b',
+            background: 'var(--amber)',
             color: 'white',
             border: 'none',
             borderRadius: 8,
@@ -96,7 +98,7 @@ export function OfflineIndicator() {
             textAlign: 'left',
           }}
         >
-          Synchroniser maintenant
+          {t('offline.syncNow')}
         </button>
       </div>
     )
@@ -104,11 +106,11 @@ export function OfflineIndicator() {
 
   if (showSuccess) {
     return (
-      <div style={{ ...base, background: '#f0fdf4', borderColor: '#86efac', color: '#14532d' }}>
+      <div style={{ ...base, background: 'var(--green-light)', borderColor: 'var(--green)', color: 'var(--green)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <CheckCircle2 size={16} />
           <span>
-            {syncedCount} élément{syncedCount > 1 ? 's' : ''} synchronisé{syncedCount > 1 ? 's' : ''}
+            {syncedCount} {t('offline.element')}{syncedCount > 1 ? 's' : ''} {t('offline.synced')}{syncedCount > 1 ? 's' : ''}
           </span>
         </div>
       </div>

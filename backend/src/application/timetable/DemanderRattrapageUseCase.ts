@@ -1,5 +1,6 @@
 import type { NotificationService } from '@domain/ports/services/NotificationService';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { Language } from '../../utils/languageHelper';
 
 export interface DemanderRattrapageCommande {
   schoolId: string;
@@ -10,6 +11,7 @@ export interface DemanderRattrapageCommande {
   proposedStartTime?: string;
   proposedEndTime?: string;
   reason?: string;
+  lang?: Language;
 }
 
 export class DemanderRattrapageUseCase {
@@ -27,20 +29,24 @@ export class DemanderRattrapageUseCase {
       u => u.aPermission('MANAGE_TIMETABLE') || u.aPermission('MANAGE_ATTENDANCE')
     );
 
-    const dateStr = commande.proposedDate.toLocaleDateString('fr-FR');
+    const lang = commande.lang ?? 'fr';
+    const dateStr = commande.proposedDate.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR');
     const horaire = commande.proposedStartTime
-      ? ` de ${commande.proposedStartTime} à ${commande.proposedEndTime}`
+      ? (lang === 'en'
+        ? ` from ${commande.proposedStartTime} to ${commande.proposedEndTime}`
+        : ` de ${commande.proposedStartTime} à ${commande.proposedEndTime}`)
       : '';
+    const titre = lang === 'en' ? 'Make-up class request' : 'Demande de cours de rattrapage';
 
     for (const destinataire of censeursEtSG) {
       await this.notificationService.envoyer({
         schoolId: commande.schoolId,
         userId: destinataire.id,
         type: 'SYSTEM',
-        titre: 'Demande de cours de rattrapage',
+        titre,
         corps:
-          `${enseignant.nomComplet} demande un rattrapage le ${dateStr}${horaire}.` +
-          (commande.reason ? ` Motif : ${commande.reason}` : ''),
+          `${enseignant.nomComplet} ${lang === 'en' ? 'requests a make-up class on' : 'demande un rattrapage le'} ${dateStr}${horaire}.` +
+          (commande.reason ? (lang === 'en' ? ` Reason: ${commande.reason}` : ` Motif : ${commande.reason}`) : ''),
         canal: 'IN_APP',
         metadata: {
           classId: commande.classId,

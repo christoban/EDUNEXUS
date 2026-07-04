@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Bell, Search, Loader2 } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT, useLanguage } from '@/lib/i18n'
+import ThemeToggle from '@/components/ThemeToggle'
 
 interface SearchResult {
   id: string
@@ -17,18 +19,19 @@ interface Props {
   onChangePassword?: () => void
 }
 
-const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon: string }> = {
-  user:     { label: 'Utilisateurs', section: 'users',   icon: '👤' },
-  class:    { label: 'Classes',      section: 'classes', icon: '🏫' },
-  subject:  { label: 'Matières',     section: 'subjects',icon: '📚' },
-  activity: { label: 'Activités',    section: null,      icon: '📋' },
-}
-
-const CATEGORY_ORDER = ['user', 'class', 'subject', 'activity']
-
 export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassword }: Props) {
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1)
+  const t = useT('admin')
+
+  const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon: string }> = {
+    user:     { label: t('topbar.type_labels.user'), section: 'users',   icon: '👤' },
+    class:    { label: t('topbar.type_labels.class'), section: 'classes', icon: '🏫' },
+    subject:  { label: t('topbar.type_labels.subject'), section: 'subjects',icon: '📚' },
+    activity: { label: t('topbar.type_labels.activity'), section: null,      icon: '📋' },
+  }
+
+  const CATEGORY_ORDER = ['user', 'class', 'subject', 'activity']
+
+  const [todayLabel, setTodayLabel] = useState('')
 
   const [query, setQuery]           = useState('')
   const [results, setResults]       = useState<SearchResult[]>([])
@@ -50,6 +53,13 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
     } catch { /* silencieux */ }
     finally { setLoading(false) }
   }, [])
+
+  const { lang } = useLanguage()
+  useEffect(() => {
+    const locale = lang === 'en' ? 'en-US' : 'fr-FR'
+    const d = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    setTodayLabel(d.charAt(0).toUpperCase() + d.slice(1))
+  }, [lang])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -82,50 +92,52 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
 
   return (
     <header style={{
-      height: 68, background: 'white', borderBottom: '1.5px solid #e8e0d4',
+      height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)',
       display: 'flex', alignItems: 'center', padding: '0 28px',
       gap: 14, flexShrink: 0,
       '--keyframes-edu-spin': 'edu-spin',
     } as React.CSSProperties & { '--keyframes-edu-spin': string }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209' }}>
+      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
         {title}
       </div>
-      <span style={{ background: '#f0ebe3', border: '1px solid #e8e0d4', borderRadius: 20, padding: '4px 12px', fontSize: 15, fontWeight: 600, color: '#a89478' }}>
-        📅 {todayCapitalized}
-      </span>
+      {todayLabel && (
+        <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text3)' }}>
+          📅 {todayLabel}
+        </span>
+      )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div ref={searchRef} style={{ position: 'relative' }}>
           {loading ? (
-            <Loader2 size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#059669', animation: 'edu-spin 0.7s linear infinite' }} />
+            <Loader2 size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--green)', animation: 'edu-spin 0.7s linear infinite' }} />
           ) : (
-            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#a89478' }} />
+            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
           )}
-          <input type="text" placeholder="Rechercher..." value={query}
+          <input type="text" placeholder={t('topbar.search_placeholder')} value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => { if (results.length > 0) setOpen(true) }}
-            style={{ background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 10, padding: '8px 14px 8px 34px', fontSize: 15, fontWeight: 600, color: '#1a1209', outline: 'none', width: 260, fontFamily: 'inherit' }} />
+            style={{ background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px 8px 34px', fontSize: 15, fontWeight: 600, color: 'var(--text)', outline: 'none', width: 260, fontFamily: 'inherit' }} />
 
           {open && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', boxShadow: '0 12px 40px rgba(0,0,0,0.12)', zIndex: 1000, maxHeight: 420, overflowY: 'auto' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, right: 0, background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', boxShadow: 'var(--shadow-lg)', zIndex: 1000, maxHeight: 420, overflowY: 'auto' }}>
               {grouped.length === 0 ? (
-                <div style={{ padding: '18px 20px', textAlign: 'center', color: '#a89478', fontSize: 14 }}>
-                  Aucun résultat pour <strong>"{query}"</strong>
+                <div style={{ padding: '18px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
+                  {t('topbar.no_results_for')} <strong>"{query}"</strong>
                 </div>
               ) : grouped.map(g => (
                 <div key={g.type}>
-                  <div style={{ padding: '10px 18px 6px', fontSize: 12, fontWeight: 800, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <div style={{ padding: '10px 18px 6px', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     {TYPE_CONFIG[g.type]?.icon} {TYPE_CONFIG[g.type]?.label}
                   </div>
                   {g.items.map(r => (
                     <div key={`${r.type}_${r.id}`} onClick={() => handleSelect(r)}
                       style={{ padding: '9px 18px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 1, transition: 'background 0.1s' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f0ebe3'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1a1209' }}>{r.title}</span>
-                      {r.subtitle && <span style={{ fontSize: 12, color: '#a89478' }}>{r.subtitle}</span>}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg2)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{r.title}</span>
+                      {r.subtitle && <span style={{ fontSize: 12, color: 'var(--text3)' }}>{r.subtitle}</span>}
                     </div>
                   ))}
                 </div>
@@ -133,21 +145,22 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
             </div>
           )}
         </div>
-        <div style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-          <Bell size={18} color="#6b5c45" />
-          <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: '#dc2626', borderRadius: '50%', border: '2px solid white' }} />
+        <ThemeToggle />
+        <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
+          <Bell size={18} color="var(--text2)" />
+          <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%', border: '2px solid white' }} />
         </div>
         {onChangePassword && (
-          <button onClick={onChangePassword} title="Changer le mot de passe"
-            style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
+          <button onClick={onChangePassword} title={t('topbar.change_password')}
+            style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
             🔐
           </button>
         )}
         <button onClick={onInvite} style={{
           padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800,
-          background: 'linear-gradient(135deg,#059669,#047857)', color: 'white',
+          background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'var(--surface)',
           border: 'none', cursor: 'pointer', fontFamily: 'inherit'
-        }}>+ Inviter</button>
+        }}>{t('topbar.invite')}</button>
       </div>
     </header>
   )

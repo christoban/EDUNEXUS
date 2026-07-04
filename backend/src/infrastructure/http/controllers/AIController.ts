@@ -1,9 +1,16 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { generateWithGemini } from '../../../services/gemini';
+import { resolveLanguage, instructionLangue, type Language } from '../../../utils/languageHelper';
 
 export class AIController {
   constructor(private readonly prisma: PrismaClient) {}
+
+  /** Résout la langue de l'école courante (via son sous-système) pour les prompts Groq. */
+  private async langueEcole(schoolId: string): Promise<Language> {
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { subsystem: true } });
+    return resolveLanguage(school?.subsystem);
+  }
 
   generateInsight = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -38,7 +45,10 @@ export class AIController {
         insight = "Les insights IA ne sont pas disponibles pour ce rôle.";
       }
 
-      if (prompt) insight = await generateWithGemini(prompt);
+      if (prompt) {
+        const lang = await this.langueEcole(schoolId);
+        insight = await generateWithGemini(prompt, instructionLangue(lang));
+      }
       res.json({ success: true, insight, timestamp: new Date() });
     } catch (error) {
       next(error);
@@ -87,8 +97,13 @@ export class AIController {
       }
       const weakSubjects = (subjectLines || []).filter((s: any) => (s.subjectAverage ?? 0) < 10).map((s: any) => s.subjectName).slice(0, 3);
       const strongSubjects = (subjectLines || []).filter((s: any) => (s.subjectAverage ?? 0) >= 14).map((s: any) => s.subjectName).slice(0, 3);
-      const prompt = `Tu es un professeur principal dans un lycée camerounais.\nGénère un commentaire de bulletin bienveillant pour :\n- Élève : ${studentName}, Classe : ${className || 'N/A'}\n- Moyenne : ${average}/20, Mention : ${mention || 'N/A'}\n- Points forts : ${strongSubjects.join(', ') || 'aucun'}\n- À améliorer : ${weakSubjects.join(', ') || 'aucun'}\nEn français, 2-4 phrases, encourageant, adapté au contexte camerounais.`;
-      const comment = await generateWithGemini(prompt);
+      // Le commentaire doit être dans la langue DU BULLETIN. Si l'appelant (frontend) connaît la
+      // langue du template, il peut la passer en `language` ; sinon on la déduit du sous-système.
+      const bodyLang = req.body.language;
+      const lang: Language = bodyLang === 'fr' || bodyLang === 'en' ? bodyLang : await this.langueEcole(req.user!.schoolId);
+      const clauseLangue = lang === 'fr' ? 'En français' : 'In English';
+      const prompt = `Tu es un professeur principal dans un lycée camerounais.\nGénère un commentaire de bulletin bienveillant pour :\n- Élève : ${studentName}, Classe : ${className || 'N/A'}\n- Moyenne : ${average}/20, Mention : ${mention || 'N/A'}\n- Points forts : ${strongSubjects.join(', ') || 'aucun'}\n- À améliorer : ${weakSubjects.join(', ') || 'aucun'}\n${clauseLangue}, 2-4 phrases, encourageant, adapté au contexte camerounais.`;
+      const comment = await generateWithGemini(prompt, instructionLangue(lang));
       res.json({ comment });
     } catch (error) {
       next(error);
@@ -102,7 +117,57 @@ export class AIController {
         res.status(400).json({ message: 'Message requis' });
         return;
       }
-      const systemPrompt = `Tu es l'assistant pédagogique d'EduNexus pour les établissements scolaires camerounais (système MINESEC). Réponds de façon concise et pratique. Pour les questions simples, 1 à 4 phrases. Pour les procédures, 3 à 5 étapes maximum.`;
+      const lang = await this.langueEcole(req.user!.schoolId);
+      const systemPrompt = `Tu es l'assistant pédagogique d'EduNexus pour les établissements scolaires camerounais (système MINESEC). Réponds de façon concise et pratique. Pour les questions simples, 1 à 4 phrases. Pour les procédures, 3 à 5 étapes maximum. ${instructionLangue(lang)}`;
+      const response = await generateWithGemini(message, systemPrompt);
+      res.json({ success: true, response, timestamp: new Date() });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/v2/assistant/chat — Assistant EduNexus contextualisé (dashboard admin)
+  // Injecte la structure réelle de l'établissement dans le prompt pour des réponses pertinentes.
+  assistantChat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const { message } = req.body as { message?: string };
+      if (!message?.trim()) {
+        res.status(400).json({ success: false, message: 'Message requis' });
+        return;
+      }
+
+      const [school, classes, subjects, departments, periods] = await Promise.all([
+        this.prisma.school.findUnique({
+          where: { id: schoolId },
+          select: { name: true, subsystem: true, educationType: true, templateCode: true },
+        }),
+        this.prisma.class.findMany({ where: { schoolId }, select: { name: true, level: true, serie: true }, orderBy: { name: 'asc' }, take: 60 }),
+        this.prisma.subject.findMany({ where: { schoolId }, select: { name: true, coefficient: true }, orderBy: { name: 'asc' }, take: 80 }),
+        this.prisma.department.findMany({ where: { schoolId }, select: { name: true } }),
+        this.prisma.academicPeriod.findMany({ where: { academicYear: { schoolId, isCurrent: true } }, select: { name: true }, orderBy: { orderIndex: 'asc' } }),
+      ]);
+
+      const classList = classes.map((c) => c.name).join(', ') || 'aucune classe';
+      const subjectList = subjects.map((s) => `${s.name} (coeff ${s.coefficient})`).join(', ') || 'aucune matière';
+      const deptList = departments.map((d) => d.name).join(', ') || 'aucun département';
+      const periodList = periods.map((p) => p.name).join(', ') || 'non configurées';
+
+      const contexte =
+        `Établissement : ${school?.name ?? 'N/A'} (sous-système ${school?.subsystem ?? 'N/A'}, type ${school?.educationType ?? 'N/A'}, template ${school?.templateCode ?? 'N/A'}).\n` +
+        `Classes (${classes.length}) : ${classList}.\n` +
+        `Matières (${subjects.length}) : ${subjectList}.\n` +
+        `Départements : ${deptList}.\n` +
+        `Périodes de l'année en cours : ${periodList}.`;
+
+      const systemPrompt =
+        `Tu es l'Assistant EduNexus, intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC). ` +
+        `Tu connais la configuration réelle de SON établissement (ci-dessous) et tu t'appuies dessus pour répondre de façon précise et contextualisée. ` +
+        `Aide-le à utiliser la plateforme, à affiner sa configuration (ajouter une classe, une matière…), et à démarrer ses premières opérations. ` +
+        `${instructionLangue(resolveLanguage(school?.subsystem))} Réponds de façon concise et pratique (1 à 5 phrases, ou 3 à 5 étapes pour une procédure). ` +
+        `Ne fabrique jamais de données : si une information n'est pas dans le contexte, dis-le.\n\n` +
+        `── Contexte de l'établissement ──\n${contexte}`;
+
       const response = await generateWithGemini(message, systemPrompt);
       res.json({ success: true, response, timestamp: new Date() });
     } catch (error) {
@@ -135,7 +200,8 @@ export class AIController {
       riskScore += Math.min(25, weakSubjects.length * 5);
 
       const prompt = `Élève : ${studentProfile.user.firstName} ${studentProfile.user.lastName}\nMoyenne : ${avgGrade.toFixed(1)}/20\nPrésence : ${attendanceRate.toFixed(1)}%\nMatières difficiles : ${weakSubjects.slice(0, 3).join(', ') || 'aucune'}\nScore risque : ${riskScore}/100\n\nAnalyse en 3 parties : 1. Diagnostic (1 phrase) 2. Facteurs de risque (2-3 points) 3. Recommandations concrètes (2-3 actions)`;
-      const analysis = await generateWithGemini(prompt, 'Tu es un expert en psychologie scolaire pour lycées camerounais. Sois bienveillant mais honnête.');
+      const lang = await this.langueEcole(schoolId);
+      const analysis = await generateWithGemini(prompt, `Tu es un expert en psychologie scolaire pour lycées camerounais. Sois bienveillant mais honnête. ${instructionLangue(lang)}`);
 
       res.json({
         studentName: `${studentProfile.user.firstName} ${studentProfile.user.lastName}`,

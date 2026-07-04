@@ -48,6 +48,12 @@ type BulletinData = {
   classMasterComment?: string | null;
   subjectLines: SubjectLine[];
   isOfficial?: boolean;
+  /**
+   * Langue de rendu pour les templates PARTAGÉS entre sous-systèmes (PRIMARY, ANNUAL).
+   * Résolue en amont via resolveLanguage(subsystem, section). Défaut "fr".
+   * (FR_SECONDARY/EN_SECONDARY/TECHNICAL_FR/MONTHLY encodent déjà leur langue.)
+   */
+  language?: "fr" | "en";
 };
 
 // ─── Helper : finalise un PDFDocument → Buffer ────────────────
@@ -173,17 +179,28 @@ const COLS_PRIMARY: TableColumnDef[] = [
   { label: "COTE",                 key: "competenceLabel",      ratio: 11, type: "competence"                },
 ];
 
+const COLS_PRIMARY_EN: TableColumnDef[] = [
+  { label: "SUBJECT / SKILL", key: "subjectName",         ratio: 33, type: "subject",    align: "left" },
+  { label: "ORAL",            key: "oralScore",            ratio: 10, type: "score"                     },
+  { label: "WRITTEN",         key: "seq1Score",            ratio: 10, type: "score"                     },
+  { label: "KNOW-HOW",        key: "seq2Score",            ratio: 13, type: "score"                     },
+  { label: "ATTITUDE",        key: "selfDevelopmentScore", ratio: 13, type: "score"                     },
+  { label: "TOTAL",           key: "subjectAverage",       ratio: 10, type: "average"                   },
+  { label: "GRADE",           key: "competenceLabel",      ratio: 11, type: "competence"                },
+];
+
 export const generatePrimaryBulletin = (data: BulletinData): Promise<Buffer> => {
+  const lang = data.language ?? "fr";
   const doc = new PDFDocument({ size: "A4", margin: 36 });
   return finalizePdf(doc, (d) => {
-    drawBulletinHeader(d, { ...data, template: "PRIMARY" });
-    drawTable(d, COLS_PRIMARY, data.subjectLines as Record<string, unknown>[]);
+    drawBulletinHeader(d, { ...data, template: "PRIMARY", language: lang });
+    drawTable(d, lang === "en" ? COLS_PRIMARY_EN : COLS_PRIMARY, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
-      mention: data.mention || getMentionApc(data.generalAverage),
+      mention: data.mention || (lang === "en" ? getMentionEn(data.generalAverage) : getMentionApc(data.generalAverage)),
       classMasterComment: data.classMasterComment,
       isOfficial: data.isOfficial,
-      language: "fr",
+      language: lang,
     });
   });
 };
@@ -208,17 +225,34 @@ const COLS_ANNUAL: TableColumnDef[] = [
   { label: "MOY AN",  key: "subjectAverage",   ratio: 11, type: "average"  },
 ];
 
+// Variante EN : seuls MATIÈRE/COEFF/MOY AN sont linguistiques ; DS/T sont des sigles conservés.
+const COLS_ANNUAL_EN: TableColumnDef[] = [
+  { label: "SUBJECT", key: "subjectName",      ratio: 20, type: "subject"  },
+  { label: "COEF",    key: "coefficient",      ratio:  6, type: "score"    },
+  { label: "DS1",     key: "seq1Score",        ratio:  7, type: "score"    },
+  { label: "DS2",     key: "seq2Score",        ratio:  7, type: "score"    },
+  { label: "T1",      key: "compositionScore", ratio:  7, type: "score"    },
+  { label: "DS3",     key: "seq3Score",        ratio:  7, type: "score"    },
+  { label: "DS4",     key: "seq4Score",        ratio:  7, type: "score"    },
+  { label: "T2",      key: "classTestScore",   ratio:  7, type: "score"    },
+  { label: "DS5",     key: "seq5Score",        ratio:  7, type: "score"    },
+  { label: "DS6",     key: "seq6Score",        ratio:  7, type: "score"    },
+  { label: "T3",      key: "terminalExamScore",ratio:  7, type: "score"    },
+  { label: "YR AVG",  key: "subjectAverage",   ratio: 11, type: "average"  },
+];
+
 export const generateAnnualBulletin = (data: BulletinData): Promise<Buffer> => {
+  const lang = data.language ?? "fr";
   const doc = new PDFDocument({ size: "A4", margin: 36, layout: "landscape" });
   return finalizePdf(doc, (d) => {
-    drawBulletinHeader(d, { ...data, template: "ANNUAL" });
-    drawTable(d, COLS_ANNUAL, data.subjectLines as Record<string, unknown>[]);
+    drawBulletinHeader(d, { ...data, template: "ANNUAL", language: lang });
+    drawTable(d, lang === "en" ? COLS_ANNUAL_EN : COLS_ANNUAL, data.subjectLines as Record<string, unknown>[]);
     drawBulletinFooter(d, {
       generalAverage: data.generalAverage,
-      mention: data.mention || getMentionFr(data.generalAverage),
+      mention: data.mention || (lang === "en" ? getMentionEn(data.generalAverage) : getMentionFr(data.generalAverage)),
       classMasterComment: data.classMasterComment,
       isOfficial: data.isOfficial,
-      language: "fr",
+      language: lang,
     });
   });
 };

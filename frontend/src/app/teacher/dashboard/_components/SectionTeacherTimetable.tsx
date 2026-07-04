@@ -2,13 +2,12 @@
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
   user?: UserInfo | null
 }
-
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
 
 type SlotType = { subject: string; classe: string } | null
 type GridRow = { start: string; end: string }
@@ -16,6 +15,9 @@ type GridRow = { start: string; end: string }
 const EMPTY_CATCHUP = { open: false, classId: '', proposedDate: '', subjectId: '', proposedStartTime: '', proposedEndTime: '', reason: '', loading: false, error: '' }
 
 export default function SectionTeacherTimetable({ onToast, user }: Props) {
+  const t = useT('teacher')
+  const tcommon = useT('common')
+  const days = [t('timetable.day_monday'), t('timetable.day_tuesday'), t('timetable.day_wednesday'), t('timetable.day_thursday'), t('timetable.day_friday')]
   const [slots, setSlots] = useState<Record<string, SlotType>>({})
   const [grid, setGrid] = useState<GridRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,10 +59,10 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
         setGrid(sortedGrid)
         setSlots(slotMap)
       } else {
-        setError('Erreur de chargement')
+        setError(t('timetable.error_loading'))
       }
     } catch (err: any) {
-      setError(err.message || 'Erreur réseau')
+      setError(err.message || t('timetable.error_network'))
     } finally {
       setLoading(false)
     }
@@ -79,7 +81,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
 
   const submitCatchup = async () => {
     if (!catchup.classId || !catchup.proposedDate) {
-      setCatchup(f => ({ ...f, error: 'La classe et la date sont obligatoires.' })); return
+      setCatchup(f => ({ ...f, error: t('timetable.catchup_error_required') })); return
     }
     setCatchup(f => ({ ...f, loading: true, error: '' }))
     try {
@@ -95,22 +97,22 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
       })
       const data = await res.json()
       if (!res.ok) {
-        let errMsg = data.message || 'Erreur serveur'
-        if (res.status === 409) errMsg = 'Un conflit existe déjà à cette date/heure.'
-        else if (res.status === 400) errMsg = 'La classe et la date sont obligatoires.'
+        let errMsg = data.message || t('timetable.catchup_error_server')
+        if (res.status === 409) errMsg = t('timetable.catchup_error_conflict')
+        else if (res.status === 400) errMsg = t('timetable.catchup_error_required')
         setCatchup(f => ({ ...f, error: errMsg, loading: false })); return
       }
-      onToast('Demande de rattrapage envoyée', 'success')
+      onToast(t('timetable.catchup_success'), 'success')
       setCatchup(EMPTY_CATCHUP)
     } catch (err) {
-      setCatchup(f => ({ ...f, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
+      setCatchup(f => ({ ...f, error: err instanceof Error ? err.message : t('timetable.catchup_error_server'), loading: false }))
     }
   }
 
   if (loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{tcommon('status.loading')}</div>
       </div>
     )
   }
@@ -119,10 +121,10 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={fetchData}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('timetable.retry')}
           </button>
         </div>
       </div>
@@ -136,28 +138,28 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
     const friday = new Date(monday)
     friday.setDate(monday.getDate() + 4)
     const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-    return `Semaine du ${fmt(monday)} au ${fmt(friday)}`
+    return t('timetable.week_range').replace('{start}', fmt(monday)).replace('{end}', fmt(friday))
   }
 
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>Mon emploi du temps</div>
+          <div style={sTitle}>{t('timetable.title')}</div>
           <div style={sSub}>{getWeekRange()}</div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#059669' }}>
-            <div style={{ width: 14, height: 14, borderRadius: 4, background: '#d1fae5', border: '2px solid #059669' }} />
-            Mes cours
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
+            <div style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--green-light)', border: '2px solid var(--green)' }} />
+            {t('timetable.my_courses')}
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: '#a89478' }}>
-            <div style={{ width: 14, height: 14, borderRadius: 4, background: '#f0ebe3', border: '2px solid #d4c8b8' }} />
-            Libre
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--text3)' }}>
+            <div style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--bg2)', border: '2px solid var(--border2)' }} />
+            {t('timetable.free')}
           </span>
           <button onClick={openCatchupModal}
-            style={{ padding: '9px 16px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'white', color: '#059669', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            📅 Demander un rattrapage
+            style={{ padding: '9px 16px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('timetable.catchup_request')}
           </button>
         </div>
       </div>
@@ -165,39 +167,39 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
       {/* ── Modal demande de rattrapage ── */}
       {catchup.open && (
         <div onClick={() => setCatchup(EMPTY_CATCHUP)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, padding: '32px 36px', width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 22 }}>Demander un rattrapage</div>
-            <div style={catchSLb}>Classe *</div>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('timetable.catchup_title')}</div>
+            <div style={catchSLb}>{t('timetable.catchup_class_label')}</div>
             <select style={catchSIn} value={catchup.classId} onChange={e => setCatchup(f => ({ ...f, classId: e.target.value }))}>
-              <option value="">Sélectionner une classe…</option>
+              <option value="">{t('timetable.catchup_class_placeholder')}</option>
               {catchupClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <div style={catchSLb}>Date proposée *</div>
+            <div style={catchSLb}>{t('timetable.catchup_date_label')}</div>
             <input style={catchSIn} type="date" value={catchup.proposedDate} onChange={e => setCatchup(f => ({ ...f, proposedDate: e.target.value }))} />
-            <div style={catchSLb}>Matière (optionnel)</div>
+            <div style={catchSLb}>{t('timetable.catchup_subject_label')}</div>
             <select style={catchSIn} value={catchup.subjectId} onChange={e => setCatchup(f => ({ ...f, subjectId: e.target.value }))}>
-              <option value="">— Toutes les matières —</option>
+              <option value="">{t('timetable.catchup_subject_placeholder')}</option>
               {(user?.teacherProfile?.teacherSubjects || []).map(ts => (
                 <option key={ts.subject.id} value={ts.subject.id}>{ts.subject.name}</option>
               ))}
             </select>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <div style={catchSLb}>Heure début (optionnel)</div>
+                <div style={catchSLb}>{t('timetable.catchup_start_label')}</div>
                 <input style={catchSIn} type="time" value={catchup.proposedStartTime} onChange={e => setCatchup(f => ({ ...f, proposedStartTime: e.target.value }))} />
               </div>
               <div>
-                <div style={catchSLb}>Heure fin (optionnel)</div>
+                <div style={catchSLb}>{t('timetable.catchup_end_label')}</div>
                 <input style={catchSIn} type="time" value={catchup.proposedEndTime} onChange={e => setCatchup(f => ({ ...f, proposedEndTime: e.target.value }))} />
               </div>
             </div>
-            <div style={catchSLb}>Motif (optionnel)</div>
-            <textarea style={{ ...catchSIn, minHeight: 70, resize: 'vertical' }} value={catchup.reason} onChange={e => setCatchup(f => ({ ...f, reason: e.target.value }))} placeholder="Absence, cours manqué, maladie…" />
-            {catchup.error && <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8, lineHeight: 1.5 }}>{catchup.error}</div>}
+            <div style={catchSLb}>{t('timetable.catchup_reason_label')}</div>
+            <textarea style={{ ...catchSIn, minHeight: 70, resize: 'vertical' }} value={catchup.reason} onChange={e => setCatchup(f => ({ ...f, reason: e.target.value }))} placeholder={t('timetable.catchup_reason_placeholder')} />
+            {catchup.error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8, lineHeight: 1.5 }}>{catchup.error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setCatchup(EMPTY_CATCHUP)}>Annuler</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: catchup.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: catchup.loading ? 0.7 : 1 }} onClick={submitCatchup} disabled={catchup.loading}>
-                {catchup.loading ? 'Envoi…' : '📅 Envoyer la demande'}
+              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setCatchup(EMPTY_CATCHUP)}>{t('timetable.catchup_cancel')}</button>
+              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: catchup.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: catchup.loading ? 0.7 : 1 }} onClick={submitCatchup} disabled={catchup.loading}>
+                {catchup.loading ? t('timetable.catchup_submit_loading') : t('timetable.catchup_submit')}
               </button>
             </div>
           </div>
@@ -205,42 +207,42 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
       )}
 
       {grid.length === 0 ? (
-        <div style={{ padding: 32, textAlign: 'center', color: '#a89478', fontSize: 14 }}>
-          Aucun emploi du temps disponible pour le moment.
+        <div style={{ padding: 32, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
+          {t('timetable.empty')}
         </div>
       ) : (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
               <thead>
                 <tr>
-                  <th style={{ ...thSt, width: 100 }}>Horaire</th>
-                  {DAYS.map(d => <th key={d} style={thSt}>{d}</th>)}
+                  <th style={{ ...thSt, width: 100 }}>{t('timetable.header_schedule')}</th>
+                  {days.map(d => <th key={d} style={thSt}>{d}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {grid.map((row) => (
                   <tr key={row.start}>
-                    <td style={{ padding: '10px 11px', background: '#f0ebe3', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
-                      {row.start}<br /><span style={{ fontSize: 11, color: '#d4c8b8' }}>{row.end}</span>
+                    <td style={{ padding: '10px 11px', background: 'var(--bg2)', fontSize: 13, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                      {row.start}<br /><span style={{ fontSize: 11, color: 'var(--border2)' }}>{row.end}</span>
                     </td>
                     {[1, 2, 3, 4, 5].map((day) => {
                       const slot = slots[`${day}-${row.start}`]
                       return (
-                        <td key={day} style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 140, height: 76 }}>
+                        <td key={day} style={{ padding: 0, border: '1px solid var(--border)', verticalAlign: 'top', minWidth: 140, height: 76 }}>
                           {slot ? (
                             <div
                               style={{
                                 padding: 10, height: '100%', cursor: 'pointer',
                                 background: 'linear-gradient(135deg,rgba(5,150,105,0.1),rgba(5,150,105,0.05))',
-                                borderLeft: '3px solid #059669',
+                                borderLeft: '3px solid var(--green)',
                               }}
                               onClick={() => onToast(`${slot.subject} — ${slot.classe}`, 'info')}>
-                              <div style={{ fontSize: 14, fontWeight: 800, color: '#047857' }}>{slot.subject}</div>
-                              <div style={{ fontSize: 12, color: '#a89478', marginTop: 3 }}>{slot.classe}</div>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--green2)' }}>{slot.subject}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>{slot.classe}</div>
                             </div>
                           ) : (
-                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d4c8b8', fontSize: 20 }}>·</div>
+                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--border2)', fontSize: 20 }}>·</div>
                           )}
                         </td>
                       )
@@ -256,8 +258,8 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const thSt: React.CSSProperties = { padding: '11px 10px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', border: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.5px' }
-const catchSLb: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#6b7280', marginBottom: 6 }
-const catchSIn: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid #e8e0d4', background: 'white', color: '#1a1209', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const thSt: React.CSSProperties = { padding: '11px 10px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.5px' }
+const catchSLb: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }
+const catchSIn: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }

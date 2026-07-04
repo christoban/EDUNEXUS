@@ -15,19 +15,20 @@ import type { StudentSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { db } from '@/lib/offline/db'
+import { useT } from '@/lib/i18n'
 
 let toastId = 0
 
-const TITLES: Record<StudentSection, string> = {
-  dashboard:  'Tableau de bord',
-  grades:     'Mes notes',
-  bulletins:  'Mes bulletins',
-  timetable:  'Mon emploi du temps',
-  attendance: 'Mes présences',
-  library:    'Mes lectures',
-}
-
 export default function StudentDashboard() {
+  const tnav = useT('navigation')
+  const TITLES: Record<StudentSection, string> = {
+    dashboard:  tnav('pageTitle.student_dashboard'),
+    grades:     tnav('pageTitle.student_grades'),
+    bulletins:  tnav('pageTitle.student_bulletins'),
+    timetable:  tnav('pageTitle.student_timetable'),
+    attendance: tnav('pageTitle.student_attendance'),
+    library:    tnav('pageTitle.student_library'),
+  }
   const [section, setSection] = useState<StudentSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
@@ -91,26 +92,26 @@ export default function StudentDashboard() {
   const sProps = { onToast: showToast, user }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f7f3ee', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
       <StudentSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <header style={{ height: 68, background: 'white', borderBottom: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209' }}>
+        <header style={{ height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {TITLES[section]}
           </div>
-          <span style={{ background: '#f0ebe3', border: '1px solid #e8e0d4', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: '#a89478' }}>
+          <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
             Trimestre 2 · Séquence 3
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-              <Bell size={18} color="#6b5c45" />
-              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: '#dc2626', borderRadius: '50%', border: '2px solid white' }} />
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
+              <Bell size={18} color="var(--text2)" />
+              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%', border: '2px solid white' }} />
             </div>
           </div>
         </header>
 
-        <main style={{ flex: 1, overflow: 'hidden', background: '#f7f3ee' }}>
+        <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
           {section === 'dashboard'  && <SectionStudentDashboard onNav={s => setSection(s as StudentSection)} {...sProps} />}
           {section === 'grades'     && <SectionStudentGrades {...sProps} />}
           {section === 'bulletins'  && <SectionStudentBulletins {...sProps} />}

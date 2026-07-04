@@ -1,0 +1,86 @@
+{
+  "title": "Discipline",
+  "modal_title": "Nouvelle sanction",
+  "incident_types": {
+    "WARNING_ORAL": "Avertissement oral",
+    "WARNING_WRITTEN": "Avertissement écrit",
+    "TEMP_EXCLUSION": "Exclusion temporaire",
+    "COUNCIL_DECISION": "Décision du conseil",
+    "PERMANENT_EXCLUSION": "Exclusion définitive"
+  },
+  "sanction_types": {
+    "WARNING_ORAL": "Avertissement oral",
+    "WARNING_WRITTEN": "Avertissement écrit",
+    "TEMP_EXCLUSION": "Exclusion temporaire",
+    "COUNCIL_DECISION": "Décision du conseil",
+    "PERMANENT_EXCLUSION": "Exclusion définitive"
+  },
+  "status_labels": {
+    "ACTIVE": "Active",
+    "LIFTED": "Levée",
+    "APPEALED": "Contestée"
+  },
+  "status_badges": {
+    "ACTIVE": "⚡ Active",
+    "LIFTED": "✓ Levée",
+    "APPEALED": "⚖️ Contestée"
+  },
+  "actions": {
+    "new_sanction": "+ Nouvelle sanction",
+    "save": "✓ Enregistrer",
+    "cancel": "Annuler",
+    "lift": "✓ Lever",
+    "filter": "Filtrer",
+    "retry": "Réessayer",
+    "saving": "⏳ Enregistrement…",
+    "lifting": "⏳"
+  },
+  "form_fields": {
+    "student_label": "Élève *",
+    "student_placeholder": "Taper le nom de l'élève…",
+    "student_selected_prefix": "✓",
+    "deselect": "✕",
+    "type_label": "Type de sanction *",
+    "reason_label": "Motif *",
+    "reason_placeholder": "Décrivez la raison de la sanction…",
+    "start_date_label": "Date début",
+    "end_date_label": "Date fin"
+  },
+  "validation": {
+    "student_required": "Sélectionnez un élève",
+    "type_reason_required": "Type et motif obligatoires",
+    "generic_error": "Erreur",
+    "server_error": "Erreur serveur",
+    "loading_error": "Erreur de chargement"
+  },
+  "filter_labels": {
+    "all_types": "Tous les types",
+    "all_statuses": "Tous les statuts",
+    "ACTIVE": "Actives",
+    "LIFTED": "Levées",
+    "APPEALED": "Contestées"
+  },
+  "table_headers": {
+    "student": "Élève",
+    "type": "Type",
+    "reason": "Motif",
+    "date": "Date",
+    "status": "Statut",
+    "decided_by": "Prononcé par",
+    "actions": "Actions"
+  },
+  "toasts": {
+    "sanction_saved": "Sanction enregistrée pour {student}",
+    "sanction_lifted": "Sanction levée",
+    "confirm_lift": "Lever la sanction de {student} ?"
+  },
+  "empty_state": {
+    "title": "Aucune sanction enregistrée",
+    "description": "Utilisez « + Nouvelle sanction » pour créer un dossier de discipline.",
+    "icon": "✅"
+  },
+  "count_summary": "{count} sanction{s} · filtré{byStatus}",
+  "loading": "…",
+  "error_icon": "⚠️",
+  "behavior_reason": "Problème de comportement"
+}

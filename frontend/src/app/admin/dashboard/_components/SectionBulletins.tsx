@@ -1,6 +1,8 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
+import AnimatedBackground from '@/components/AnimatedBackground'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -31,6 +33,7 @@ interface ReportCardItem {
 }
 
 export default function SectionBulletins({ onToast }: Props) {
+  const t = useT('grades')
   const [classes, setClasses]     = useState<ClassItem[]>([])
   const [classId, setClassId]     = useState('')
   const [check, setCheck]         = useState<CheckResult | null>(null)
@@ -40,6 +43,14 @@ export default function SectionBulletins({ onToast }: Props) {
   const [generating, setGenerating]         = useState(false)
   const [exporting, setExporting]           = useState(false)
   const [sending, setSending]               = useState(false)
+  const [celebrate, setCelebrate]           = useState(false)
+
+  // Auto-fermeture de l'écran de célébration (habillage ponctuel, pas un écran de travail)
+  useEffect(() => {
+    if (!celebrate) return
+    const timer = setTimeout(() => setCelebrate(false), 6000)
+    return () => clearTimeout(timer)
+  }, [celebrate])
 
   useEffect(() => {
     fetchApi('/api/v2/classes', { credentials: 'include' })
@@ -89,6 +100,7 @@ export default function SectionBulletins({ onToast }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       onToast('Génération des bulletins lancée', 'success')
+      setCelebrate(true)
       loadClass()
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur de génération', 'error')
@@ -168,13 +180,34 @@ export default function SectionBulletins({ onToast }: Props) {
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
+      {/* Célébration ponctuelle après génération réussie — teinte fixe, texte clair fixe */}
+      {celebrate && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 3000, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'edu-celebIn 0.3s ease both' }}>
+          <style>{`@keyframes edu-celebIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+          <AnimatedBackground variant="celebration" style={{ zIndex: 0 }} />
+          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: 32, maxWidth: 460 }}>
+            <div style={{ fontSize: 74, marginBottom: 14 }}>🎉</div>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: '#f7f3ee', marginBottom: 10 }}>
+              {t('bulletins.celebrate.title')}
+            </div>
+            <div style={{ fontSize: 17, color: 'rgba(247,243,238,0.75)', marginBottom: 30, lineHeight: 1.6 }}>
+              {t('bulletins.celebrate.subtitle')}
+            </div>
+            <button onClick={() => setCelebrate(false)}
+              style={{ background: '#4ade80', color: '#0d1a12', fontWeight: 800, fontSize: 16, padding: '13px 34px', borderRadius: 11, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t('bulletins.celebrate.cta')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: 26 }}>
-        <div style={sTitle}>Bulletins</div>
+        <div style={sTitle}>{t('bulletins.title')}</div>
         <div style={sSub}>Génération et distribution</div>
       </div>
 
       {/* Sélecteur de classe */}
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '14px 20px', marginBottom: 18, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '14px 20px', marginBottom: 18, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={classId} onChange={e => setClassId(e.target.value)} style={selectSt} disabled={loadingClasses}>
           <option value="">{loadingClasses ? 'Chargement…' : 'Sélectionner une classe'}</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -186,7 +219,7 @@ export default function SectionBulletins({ onToast }: Props) {
 
       {loadingCheck && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-          <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+          <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
         </div>
       )}
 
@@ -194,17 +227,17 @@ export default function SectionBulletins({ onToast }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
 
           {/* Pré-vérification */}
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid #e8e0d4' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>🔍 Pré-vérification — {className}</span>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>🔍 Pré-vérification — {className}</span>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {checks.map((c, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '13px 16px', background: c.warn ? '#fef3c7' : '#d1fae5', borderRadius: 11 }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '13px 16px', background: c.warn ? 'var(--amber-light)' : 'var(--green-light)', borderRadius: 11 }}>
                   <span style={{ fontSize: 22 }}>{c.warn ? '⚠️' : '✅'}</span>
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: c.warn ? '#92400e' : '#065f46' }}>{c.title}</div>
-                    <div style={{ fontSize: 14, color: c.warn ? '#92400e' : '#065f46', marginTop: 3, lineHeight: 1.5 }}>{c.sub}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: c.warn ? 'var(--amber)' : 'var(--green)' }}>{c.title}</div>
+                    <div style={{ fontSize: 14, color: c.warn ? 'var(--amber)' : 'var(--green)', marginTop: 3, lineHeight: 1.5 }}>{c.sub}</div>
                   </div>
                 </div>
               ))}
@@ -218,9 +251,9 @@ export default function SectionBulletins({ onToast }: Props) {
           </div>
 
           {/* Bulletins générés */}
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
                 📊 Bulletins générés ({reportCards.length})
               </span>
               {reportCards.length > 0 && (
@@ -236,7 +269,7 @@ export default function SectionBulletins({ onToast }: Props) {
             </div>
 
             {reportCards.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 16 }}>
                 Aucun bulletin généré pour cette classe
               </div>
             ) : (
@@ -249,15 +282,15 @@ export default function SectionBulletins({ onToast }: Props) {
                 <tbody>
                   {reportCards.slice(0, 15).map((b) => (
                     <tr key={b.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                       <td style={tdSt}>
-                        <strong style={{ color: '#1a1209' }}>
+                        <strong style={{ color: 'var(--text)' }}>
                           {b.student ? `${b.student.firstName} ${b.student.lastName}` : 'Élève'}
                         </strong>
                       </td>
                       <td style={tdSt}>
-                        <strong style={{ color: (b.generalAverage ?? 0) < 10 ? '#dc2626' : '#059669', fontSize: 18 }}>
+                        <strong style={{ color: (b.generalAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)', fontSize: 18 }}>
                           {b.generalAverage != null ? b.generalAverage.toFixed(2) : '—'}
                         </strong>
                       </td>
@@ -272,7 +305,7 @@ export default function SectionBulletins({ onToast }: Props) {
                   ))}
                   {reportCards.length > 15 && (
                     <tr>
-                      <td colSpan={4} style={{ ...tdSt, textAlign: 'center', color: '#a89478', fontStyle: 'italic' }}>
+                      <td colSpan={4} style={{ ...tdSt, textAlign: 'center', color: 'var(--text3)', fontStyle: 'italic' }}>
                         + {reportCards.length - 15} autres bulletins
                       </td>
                     </tr>
@@ -285,12 +318,12 @@ export default function SectionBulletins({ onToast }: Props) {
       )}
 
       {!loadingCheck && !check && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '70px 32px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '70px 32px', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: 14 }}>📄</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
             Sélectionnez une classe
           </div>
-          <div style={{ fontSize: 16, color: '#a89478' }}>
+          <div style={{ fontSize: 16, color: 'var(--text3)' }}>
             Choisissez une classe et cliquez sur « Charger » pour voir les bulletins.
           </div>
         </div>
@@ -299,10 +332,10 @@ export default function SectionBulletins({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const selectSt: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px' }
-const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnSec: React.CSSProperties = { padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const selectSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px' }
+const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }

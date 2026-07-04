@@ -1,6 +1,7 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -22,21 +23,22 @@ interface BookLoan {
 
 interface Pagination { total: number; page: number; pages: number }
 
-const LOAN_STATUS: Record<string, { bg: string; color: string; label: string }> = {
-  ACTIVE:   { bg: '#fef3c7', color: '#92400e', label: '📖 En cours'  },
-  RETURNED: { bg: '#d1fae5', color: '#065f46', label: '✓ Retourné'   },
-  OVERDUE:  { bg: '#fee2e2', color: '#991b1b', label: '⏰ En retard'  },
+const LOAN_STATUS: Record<string, { bg: string; color: string }> = {
+  ACTIVE:   { bg: 'var(--amber-light)', color: 'var(--amber)' },
+  RETURNED: { bg: 'var(--green-light)', color: 'var(--green)' },
+  OVERDUE:  { bg: 'var(--red-light)', color: 'var(--red)' },
 }
 
 const CATEGORIES = [
-  'Manuel / Ouvrage au programme',
-  'Roman / Œuvre littéraire au programme',
-  'Lecture libre / Culture générale',
-  'Référence / Encyclopédie / Dictionnaire',
-  'Autre',
+  { value: 'Manuel / Ouvrage au programme', key: 'catManual' },
+  { value: 'Roman / Œuvre littéraire au programme', key: 'catLiterature' },
+  { value: 'Lecture libre / Culture générale', key: 'catFreeReading' },
+  { value: 'Référence / Encyclopédie / Dictionnaire', key: 'catReference' },
+  { value: 'Autre', key: 'catOther' },
 ]
 
 export default function SectionLibrary({ onToast }: Props) {
+  const t = useT('staff')
   const [tab, setTab]             = useState<'books' | 'loans'>('books')
   const [books, setBooks]         = useState<Book[]>([])
   const [loans, setLoans]         = useState<BookLoan[]>([])
@@ -94,7 +96,7 @@ export default function SectionLibrary({ onToast }: Props) {
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addBook = async () => {
-    if (!bookForm.title.trim()) { onToast('Le titre est obligatoire', 'error'); return }
+    if (!bookForm.title.trim()) { onToast(t('library.titleRequired'), 'error'); return }
     setSavingBook(true)
     try {
       const res = await fetchApi('/api/v2/library/books', {
@@ -104,7 +106,7 @@ export default function SectionLibrary({ onToast }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(`"${bookForm.title}" ajouté au catalogue`, 'success')
+      onToast(t('library.addSuccess', { title: bookForm.title }), 'success')
       setAddBookOpen(false)
       setBookForm({ title: '', author: '', isbn: '', quantity: '1', category: '' })
       fetchBooks(1)
@@ -123,7 +125,7 @@ export default function SectionLibrary({ onToast }: Props) {
   }
 
   const submitBorrow = async () => {
-    if (!borrowForm.bookId || !borrowForm.selectedStudent) { setBorrowForm(f => ({ ...f, error: 'Livre et élève requis' })); return }
+    if (!borrowForm.bookId || !borrowForm.selectedStudent) { setBorrowForm(f => ({ ...f, error: t('library.bookRequired') })); return }
     setBorrowForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi('/api/v2/library/loans', {
@@ -133,7 +135,7 @@ export default function SectionLibrary({ onToast }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(`Emprunt enregistré pour ${borrowForm.selectedStudent.firstName} ${borrowForm.selectedStudent.lastName}`, 'success')
+      onToast(t('library.loanRegistered', { firstName: borrowForm.selectedStudent.firstName, lastName: borrowForm.selectedStudent.lastName }), 'success')
       setBorrowOpen(false)
       setBorrowForm({ bookId: '', bookTitle: '', studentSearch: '', studentResults: [], selectedStudent: null, dueDate: '', loading: false, error: '' })
       fetchBooks(1)
@@ -144,13 +146,13 @@ export default function SectionLibrary({ onToast }: Props) {
   }
 
   const deleteBook = async (bookId: string, bookTitle: string) => {
-    if (!confirm(`Supprimer "${bookTitle}" du catalogue ?`)) return
+    if (!confirm(t('library.deleteConfirm', { title: bookTitle }))) return
     setDeletingId(bookId)
     try {
       const res = await fetchApi(`/api/v2/library/books/${bookId}`, { method: 'DELETE', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(`"${bookTitle}" supprimé`, 'success')
+      onToast(t('library.deleteSuccess', { title: bookTitle }), 'success')
       fetchBooks(bookPag.page)
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur', 'error')
@@ -158,13 +160,13 @@ export default function SectionLibrary({ onToast }: Props) {
   }
 
   const returnLoan = async (loanId: string, bookTitle: string) => {
-    if (!confirm(`Confirmer le retour de "${bookTitle}" ?`)) return
+    if (!confirm(t('library.returnConfirm', { title: bookTitle }))) return
     setReturningId(loanId)
     try {
       const res = await fetchApi(`/api/v2/library/loans/${loanId}/return`, { method: 'PATCH', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast('Retour enregistré', 'success')
+      onToast(t('library.returnSuccess'), 'success')
       fetchLoans(1)
       fetchBooks(1)
     } catch (err) {
@@ -182,12 +184,12 @@ export default function SectionLibrary({ onToast }: Props) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>Bibliothèque</div>
-          <div style={sSub}>Gestion du fonds documentaire et des emprunts</div>
+          <div style={sTitle}>{t('library.title')}</div>
+          <div style={sSub}>{t('library.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button style={btnSec} onClick={() => setAddBookOpen(true)}>📚 Ajouter ouvrage</button>
-          <button style={btnPrim} onClick={() => setBorrowOpen(true)}>+ Enregistrer emprunt</button>
+          <button style={btnSec} onClick={() => setAddBookOpen(true)}>{t('library.addBook')}</button>
+          <button style={btnPrim} onClick={() => setBorrowOpen(true)}>{t('library.addLoan')}</button>
         </div>
       </div>
 
@@ -195,98 +197,98 @@ export default function SectionLibrary({ onToast }: Props) {
       {tab === 'books' && !loading && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
           {[
-            { icon: '📚', bg: '#dbeafe', val: String(bookPag.total), label: 'Titres dans le catalogue', color: '#1e40af' },
-            { icon: '✅', bg: '#d1fae5', val: String(totalAvailable), label: 'Exemplaires disponibles', color: '#065f46' },
-            { icon: '📖', bg: '#fef3c7', val: String(totalBooks - totalAvailable), label: 'Emprunts en cours', color: '#92400e' },
+            { icon: '📚', bg: 'var(--blue-light)', val: String(bookPag.total), label: t('library.kpiTitles'), color: 'var(--blue)' },
+            { icon: '✅', bg: 'var(--green-light)', val: String(totalAvailable), label: t('library.kpiAvailable'), color: 'var(--green)' },
+            { icon: '📖', bg: 'var(--amber-light)', val: String(totalBooks - totalAvailable), label: t('library.kpiBorrowed'), color: 'var(--amber)' },
           ].map((k, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', padding: '18px 20px' }}>
+            <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 10 }}>{k.icon}</div>
               <div style={{ fontSize: 26, fontWeight: 900, color: k.color }}>{k.val}</div>
-              <div style={{ fontSize: 14, color: '#a89478', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+              <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 2, background: '#f0ebe3', padding: 5, borderRadius: 12, marginBottom: 18, width: 'fit-content' }}>
-        {(['books', 'loans'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            style={{ padding: '8px 20px', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: tab === t ? 'white' : 'transparent', color: tab === t ? '#1a1209' : '#a89478', boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.12s' }}>
-            {t === 'books' ? '📚 Catalogue' : `📖 Emprunts${activeLoans != null ? ` (${activeLoans})` : ''}`}
+      <div style={{ display: 'flex', gap: 2, background: 'var(--bg2)', padding: 5, borderRadius: 12, marginBottom: 18, width: 'fit-content' }}>
+        {(['books', 'loans'] as const).map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)}
+            style={{ padding: '8px 20px', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: tab === tabKey ? 'white' : 'transparent', color: tab === tabKey ? 'var(--text)' : 'var(--text3)', boxShadow: tab === tabKey ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.12s' }}>
+            {tabKey === 'books' ? t('library.tabCatalog') : `${t('library.tabLoans')}${activeLoans != null ? ` (${activeLoans})` : ''}`}
           </button>
         ))}
       </div>
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-          <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+          <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
         </div>
       )}
 
       {!loading && error && (
-        <div style={{ background: '#fee2e2', borderRadius: 14, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: '#dc2626', flex: 1 }}>{error}</span>
-          <button onClick={() => tab === 'books' ? fetchBooks(1) : fetchLoans(1)} style={btnRetry}>Réessayer</button>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <button onClick={() => tab === 'books' ? fetchBooks(1) : fetchLoans(1)} style={btnRetry}>{t('library.retry')}</button>
         </div>
       )}
 
       {/* Catalogue */}
       {!loading && !error && tab === 'books' && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 18px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 10, padding: '8px 12px', flex: 1, minWidth: 180 }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 12px', flex: 1, minWidth: 180 }}>
               <span>🔍</span>
               <input value={bookSearch} onChange={e => setBookSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchBooks(1)}
-                placeholder="Titre, auteur ou ISBN…"
+                placeholder={t('library.searchPlaceholder')}
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
             </div>
             <select value={bookCategory} onChange={e => setBookCategory(e.target.value)} style={filterSt}>
-              <option value="">Toutes catégories</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              <option value="">{t('library.allCategories')}</option>
+              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{t(`library.${c.key}`)}</option>)}
             </select>
-            <button style={btnSec} onClick={() => fetchBooks(1)}>Rechercher</button>
-            {bookCategory && <button style={{ ...btnSec, color: '#dc2626', borderColor: 'rgba(220,38,38,0.3)' }} onClick={() => { setBookCategory(''); fetchBooks(1) }}>✕ Réinitialiser</button>}
+            <button style={btnSec} onClick={() => fetchBooks(1)}>{t('library.search')}</button>
+            {bookCategory && <button style={{ ...btnSec, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)' }} onClick={() => { setBookCategory(''); fetchBooks(1) }}>{t('library.reset')}</button>}
           </div>
 
           {books.length === 0 ? (
-            <div style={{ padding: '50px 20px', textAlign: 'center', color: '#a89478' }}>
-              {bookSearch ? 'Aucun résultat pour cette recherche' : 'Catalogue vide — Ajoutez votre premier ouvrage'}
+            <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text3)' }}>
+              {bookSearch ? t('library.noResults') : t('library.emptyCatalog')}
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>{['Titre', 'Auteur', 'ISBN', 'Catégorie', 'Stock', 'Disponible', 'Actions'].map(h => (
+                <tr>{[t('library.tableHeaderTitle'), t('library.tableHeaderAuthor'), t('library.tableHeaderIsbn'), t('library.tableHeaderCategory'), t('library.tableHeaderStock'), t('library.tableHeaderAvailable'), t('library.tableHeaderActions')].map(h => (
                   <th key={h} style={thSt}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {books.map(b => (
                   <tr key={b.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209', maxWidth: 220 }}>
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 220 }}>
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
                     </td>
                     <td style={tdSt}>{b.author ?? '—'}</td>
-                    <td style={tdSt}>{b.isbn ? <code style={{ background: '#f0ebe3', padding: '2px 6px', borderRadius: 5, fontSize: 13 }}>{b.isbn}</code> : '—'}</td>
+                    <td style={tdSt}>{b.isbn ? <code style={{ background: 'var(--bg2)', padding: '2px 6px', borderRadius: 5, fontSize: 13 }}>{b.isbn}</code> : '—'}</td>
                     <td style={tdSt}>{b.category ?? '—'}</td>
-                    <td style={tdSt}><span style={{ fontWeight: 700, color: '#1a1209' }}>{b.quantity}</span></td>
+                    <td style={tdSt}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{b.quantity}</span></td>
                     <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: b.available === 0 ? '#fee2e2' : '#d1fae5', color: b.available === 0 ? '#991b1b' : '#065f46' }}>
-                        {b.available === 0 ? 'Épuisé' : `${b.available} dispo.`}
+                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: b.available === 0 ? 'var(--red-light)' : 'var(--green-light)', color: b.available === 0 ? 'var(--red)' : 'var(--green)' }}>
+                        {b.available === 0 ? t('library.outOfStock') : t('library.availableCount', { count: b.available })}
                       </span>
                     </td>
                     <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
                       <button
-                        style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#dbeafe', color: '#1e40af', border: '1px solid rgba(29,78,216,0.2)', cursor: b.available === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: b.available === 0 ? 0.5 : 1, marginRight: 6 }}
+                        style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: b.available === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: b.available === 0 ? 0.5 : 1, marginRight: 6 }}
                         disabled={b.available === 0}
                         onClick={() => { setBorrowForm(f => ({ ...f, bookId: b.id, bookTitle: b.title })); setBorrowOpen(true) }}>
-                        📖 Emprunter
+                        {t('library.borrow')}
                       </button>
                       <button
-                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#fee2e2', color: '#991b1b', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
+                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
                         disabled={deletingId === b.id}
                         onClick={() => deleteBook(b.id, b.title)}>
                         {deletingId === b.id ? '⏳' : '🗑️'}
@@ -298,10 +300,10 @@ export default function SectionLibrary({ onToast }: Props) {
             </table>
           )}
           {bookPag.pages > 1 && (
-            <div style={{ padding: '12px 18px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'center', gap: 8 }}>
-              <button style={btnSec} disabled={bookPag.page <= 1} onClick={() => fetchBooks(bookPag.page - 1)}>← Préc.</button>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 8 }}>
+              <button style={btnSec} disabled={bookPag.page <= 1} onClick={() => fetchBooks(bookPag.page - 1)}>{t('library.previous')}</button>
               <span style={{ padding: '6px 12px', fontSize: 14, fontWeight: 700 }}>{bookPag.page}/{bookPag.pages}</span>
-              <button style={btnSec} disabled={bookPag.page >= bookPag.pages} onClick={() => fetchBooks(bookPag.page + 1)}>Suiv. →</button>
+              <button style={btnSec} disabled={bookPag.page >= bookPag.pages} onClick={() => fetchBooks(bookPag.page + 1)}>{t('library.next')}</button>
             </div>
           )}
         </div>
@@ -309,61 +311,61 @@ export default function SectionLibrary({ onToast }: Props) {
 
       {/* Emprunts */}
       {!loading && !error && tab === 'loans' && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 18px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center' }}>
             <select value={loanStatus} onChange={e => setLoanStatus(e.target.value)} style={filterSt}>
-              <option value="ACTIVE">En cours</option>
-              <option value="RETURNED">Retournés</option>
-              <option value="OVERDUE">En retard</option>
-              <option value="">Tous</option>
+              <option value="ACTIVE">{t('library.filterActive')}</option>
+              <option value="RETURNED">{t('library.filterReturned')}</option>
+              <option value="OVERDUE">{t('library.filterOverdue')}</option>
+              <option value="">{t('library.filterAll')}</option>
             </select>
-            <button style={btnSec} onClick={() => fetchLoans(1)}>Filtrer</button>
+            <button style={btnSec} onClick={() => fetchLoans(1)}>{t('library.filter')}</button>
           </div>
 
           {loans.length === 0 ? (
-            <div style={{ padding: '50px 20px', textAlign: 'center', color: '#a89478' }}>
-              Aucun emprunt {loanStatus === 'ACTIVE' ? 'en cours' : loanStatus === 'RETURNED' ? 'retourné' : 'en retard'}
+            <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text3)' }}>
+              {loanStatus === 'ACTIVE' ? t('library.noLoansActive') : loanStatus === 'RETURNED' ? t('library.noLoansReturned') : t('library.noLoansOverdue')}
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>{['Élève', 'Ouvrage', 'Emprunté le', 'Date limite', 'Statut', 'Actions'].map(h => (
+                <tr>{[t('library.tableLoanHeaderStudent'), t('library.tableLoanHeaderBook'), t('library.tableLoanHeaderDate'), t('library.tableLoanHeaderDue'), t('library.tableLoanHeaderStatus'), t('library.tableLoanHeaderActions')].map(h => (
                   <th key={h} style={thSt}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {loans.map(l => {
-                  const st = LOAN_STATUS[l.status] ?? { bg: '#f1f5f9', color: '#475569', label: l.status }
+                  const st = LOAN_STATUS[l.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
                   const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
                   return (
                     <tr key={l.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                      <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{l.student.firstName} {l.student.lastName}</td>
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{l.student.firstName} {l.student.lastName}</td>
                       <td style={tdSt}>
-                        <div style={{ fontWeight: 600, color: '#1a1209', fontSize: 15 }}>{l.book.title}</div>
-                        {l.book.author && <div style={{ fontSize: 13, color: '#a89478' }}>{l.book.author}</div>}
+                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 15 }}>{l.book.title}</div>
+                        {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)' }}>{l.book.author}</div>}
                       </td>
                       <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td>
                       <td style={tdSt}>
                         {l.dueDate ? (
-                          <span style={{ fontWeight: 600, color: isOverdue ? '#dc2626' : '#6b5c45' }}>
+                          <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>
                             {isOverdue && '⚠️ '}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                           </span>
                         ) : '—'}
                       </td>
                       <td style={tdSt}>
-                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? '#fee2e2' : st.bg, color: isOverdue ? '#991b1b' : st.color }}>
-                          {isOverdue ? '⏰ En retard' : st.label}
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : st.bg, color: isOverdue ? 'var(--red)' : st.color }}>
+                          {isOverdue ? t('library.statusOverdue') : l.status === 'ACTIVE' ? t('library.statusActive') : t('library.statusReturned')}
                         </span>
                       </td>
                       <td style={tdSt}>
                         {l.status === 'ACTIVE' && (
                           <button
-                            style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#d1fae5', color: '#065f46', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
+                            style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
                             onClick={() => returnLoan(l.id, l.book.title)}
                             disabled={returningId === l.id}>
-                            {returningId === l.id ? '⏳' : '✓ Retour'}
+                            {returningId === l.id ? '⏳' : t('library.return')}
                           </button>
                         )}
                       </td>
@@ -374,10 +376,10 @@ export default function SectionLibrary({ onToast }: Props) {
             </table>
           )}
           {loanPag.pages > 1 && (
-            <div style={{ padding: '12px 18px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'center', gap: 8 }}>
-              <button style={btnSec} disabled={loanPag.page <= 1} onClick={() => fetchLoans(loanPag.page - 1)}>← Préc.</button>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 8 }}>
+              <button style={btnSec} disabled={loanPag.page <= 1} onClick={() => fetchLoans(loanPag.page - 1)}>{t('library.previous')}</button>
               <span style={{ padding: '6px 12px', fontSize: 14, fontWeight: 700 }}>{loanPag.page}/{loanPag.pages}</span>
-              <button style={btnSec} disabled={loanPag.page >= loanPag.pages} onClick={() => fetchLoans(loanPag.page + 1)}>Suiv. →</button>
+              <button style={btnSec} disabled={loanPag.page >= loanPag.pages} onClick={() => fetchLoans(loanPag.page + 1)}>{t('library.next')}</button>
             </div>
           )}
         </div>
@@ -387,13 +389,13 @@ export default function SectionLibrary({ onToast }: Props) {
       {addBookOpen && (
         <>
           <div onClick={() => setAddBookOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'white', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 22 }}>Ajouter un ouvrage</div>
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.addBookModalTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {([
-                { label: 'Titre *', key: 'title', placeholder: 'Mathématiques 1re C' },
-                { label: 'Auteur', key: 'author', placeholder: 'Jean Dupont' },
-                { label: 'ISBN', key: 'isbn', placeholder: '978-2-...' },
+                { label: t('library.titleLabel'), key: 'title', placeholder: 'Mathématiques 1re C' },
+                { label: t('library.authorLabel'), key: 'author', placeholder: 'Jean Dupont' },
+                { label: t('library.isbnLabel'), key: 'isbn', placeholder: '978-2-...' },
               ] as { label: string; key: keyof typeof bookForm; placeholder: string }[]).map(f => (
                 <div key={f.key}>
                   <label style={labelSt}>{f.label}</label>
@@ -402,20 +404,20 @@ export default function SectionLibrary({ onToast }: Props) {
                 </div>
               ))}
               <div>
-                <label style={labelSt}>Catégorie</label>
+                <label style={labelSt}>{t('library.categoryLabel')}</label>
                 <select value={bookForm.category} onChange={e => setBookForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputSt, cursor: 'pointer' }}>
-                  <option value="">— Sélectionner —</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="">{t('library.categoryPlaceholder')}</option>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{t(`library.${c.key}`)}</option>)}
                 </select>
               </div>
               <div>
-                <label style={labelSt}>Nombre d&apos;exemplaires</label>
+                <label style={labelSt}>{t('library.copiesLabel')}</label>
                 <input type="number" min="1" value={bookForm.quantity} onChange={e => setBookForm(p => ({ ...p, quantity: e.target.value }))} style={inputSt} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button style={btnSec} onClick={() => setAddBookOpen(false)}>Annuler</button>
-              <button style={btnPrim} onClick={addBook} disabled={savingBook}>{savingBook ? '⏳' : '📚 Ajouter'}</button>
+              <button style={btnSec} onClick={() => setAddBookOpen(false)}>{t('library.cancel')}</button>
+              <button style={btnPrim} onClick={addBook} disabled={savingBook}>{savingBook ? '⏳' : t('library.add')}</button>
             </div>
           </div>
         </>
@@ -425,24 +427,24 @@ export default function SectionLibrary({ onToast }: Props) {
       {borrowOpen && (
         <>
           <div onClick={() => setBorrowOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'white', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 22 }}>Enregistrer un emprunt</div>
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.addLoanModalTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Livre */}
               <div>
-                <label style={labelSt}>Ouvrage *</label>
+                <label style={labelSt}>{t('library.bookLabel')}</label>
                 {borrowForm.bookId ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#d1fae5', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
-                    <span style={{ fontWeight: 700, color: '#065f46', flex: 1 }}>📚 {borrowForm.bookTitle}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1 }}>📚 {borrowForm.bookTitle}</span>
                     <button onClick={() => setBorrowForm(f => ({ ...f, bookId: '', bookTitle: '' }))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontSize: 16 }}>✕</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16 }}>✕</button>
                   </div>
                 ) : (
                   <input
                     value=""
                     onChange={() => {}}
-                    placeholder="Sélectionnez d'abord un livre dans le catalogue"
-                    style={{ ...inputSt, cursor: 'default', background: '#f0ebe3' }}
+                    placeholder={t('library.selectBookFirst')}
+                    style={{ ...inputSt, cursor: 'default', background: 'var(--bg2)' }}
                     readOnly
                   />
                 )}
@@ -450,29 +452,29 @@ export default function SectionLibrary({ onToast }: Props) {
 
               {/* Élève */}
               <div>
-                <label style={labelSt}>Élève *</label>
+                <label style={labelSt}>{t('library.studentLabel')}</label>
                 {borrowForm.selectedStudent ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#d1fae5', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
-                    <span style={{ fontWeight: 700, color: '#065f46', flex: 1 }}>✓ {borrowForm.selectedStudent.firstName} {borrowForm.selectedStudent.lastName}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1 }}>✓ {borrowForm.selectedStudent.firstName} {borrowForm.selectedStudent.lastName}</span>
                     <button onClick={() => setBorrowForm(f => ({ ...f, selectedStudent: null, studentSearch: '', studentResults: [] }))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontSize: 16 }}>✕</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16 }}>✕</button>
                   </div>
                 ) : (
                   <div style={{ position: 'relative' }}>
                     <input
                       value={borrowForm.studentSearch}
                       onChange={e => { setBorrowForm(f => ({ ...f, studentSearch: e.target.value })); searchStudents(e.target.value) }}
-                      placeholder="Taper le nom de l'élève…"
+                      placeholder={t('library.studentSearchPlaceholder')}
                       style={inputSt}
                     />
                     {borrowForm.studentResults.length > 0 && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', zIndex: 10, overflow: 'hidden' }}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', zIndex: 10, overflow: 'hidden' }}>
                         {borrowForm.studentResults.map(s => (
                           <div key={s.id}
                             onClick={() => setBorrowForm(f => ({ ...f, selectedStudent: s, studentSearch: '', studentResults: [] }))}
-                            style={{ padding: '10px 14px', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#1a1209', borderBottom: '1px solid #faf7f2' }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f0ebe3'}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
+                            style={{ padding: '10px 14px', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', borderBottom: '1px solid var(--bg)' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg2)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                             {s.firstName} {s.lastName}
                           </div>
                         ))}
@@ -484,18 +486,18 @@ export default function SectionLibrary({ onToast }: Props) {
 
               {/* Date limite */}
               <div>
-                <label style={labelSt}>Date de retour prévue</label>
+                <label style={labelSt}>{t('library.dueDateLabel')}</label>
                 <input type="date" value={borrowForm.dueDate} onChange={e => setBorrowForm(f => ({ ...f, dueDate: e.target.value }))} style={inputSt} />
               </div>
 
               {borrowForm.error && (
-                <div style={{ padding: '10px 14px', background: '#fee2e2', borderRadius: 9, fontSize: 14, fontWeight: 700, color: '#dc2626' }}>{borrowForm.error}</div>
+                <div style={{ padding: '10px 14px', background: 'var(--red-light)', borderRadius: 9, fontSize: 14, fontWeight: 700, color: 'var(--red)' }}>{borrowForm.error}</div>
               )}
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button style={btnSec} onClick={() => setBorrowOpen(false)}>Annuler</button>
+              <button style={btnSec} onClick={() => setBorrowOpen(false)}>{t('library.cancel')}</button>
               <button style={btnPrim} onClick={submitBorrow} disabled={borrowForm.loading || !borrowForm.bookId}>
-                {borrowForm.loading ? '⏳' : '📖 Enregistrer'}
+                {borrowForm.loading ? '⏳' : t('library.save')}
               </button>
             </div>
           </div>
@@ -505,13 +507,13 @@ export default function SectionLibrary({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'white', color: '#dc2626', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
-const filterSt: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: '#6b5c45', outline: 'none', fontFamily: 'inherit' }
-const inputSt: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e8e0d4', fontSize: 15, fontFamily: 'inherit', color: '#1a1209', outline: 'none', background: '#fafaf8', boxSizing: 'border-box' }
-const labelSt: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.5px' }
-const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '12px 14px', fontSize: 15, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
+const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', outline: 'none', fontFamily: 'inherit' }
+const inputSt: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 15, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', background: 'var(--bg)', boxSizing: 'border-box' }
+const labelSt: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.5px' }
+const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '12px 14px', fontSize: 15, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }

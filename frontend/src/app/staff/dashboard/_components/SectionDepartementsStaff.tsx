@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -17,17 +18,18 @@ interface Department {
 }
 
 const DEPT_COLORS = [
-  { name: 'Lettres', color: '#3b82f6' },
-  { name: 'Sciences Humaines', color: '#f59e0b' },
+  { name: 'Lettres', color: 'var(--blue)' },
+  { name: 'Sciences Humaines', color: 'var(--amber)' },
   { name: 'Langues Vivantes', color: '#10b981' },
-  { name: 'Maths & Sciences', color: '#ef4444' },
-  { name: 'Informatique', color: '#8b5cf6' },
+  { name: 'Maths & Sciences', color: 'var(--red)' },
+  { name: 'Informatique', color: 'var(--purple)' },
   { name: 'Arts & Culture', color: '#f97316' },
-  { name: 'Gris', color: '#6b7280' },
-  { name: 'Personnalisé', color: '#1a1209' },
+  { name: 'Gris', color: 'var(--text3)' },
+  { name: 'Personnalisé', color: 'var(--text)' },
 ]
 
 export default function SectionDepartementsStaff({ onToast }: Props) {
+  const t = useT('staff')
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,9 +63,9 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
   if (error) {
     return (
       <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-        <div style={{ background: '#fee2e2', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: '#dc2626', flex: 1 }}>{error}</span>
-          <button onClick={fetchDepartments} style={{ padding: '7px 16px', borderRadius: 9, background: 'white', color: '#dc2626', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>Réessayer</button>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <button onClick={fetchDepartments} style={{ padding: '7px 16px', borderRadius: 9, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>{t('departements.retry')}</button>
         </div>
       </div>
     )
@@ -76,23 +78,23 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={sTitle}>Départements pédagogiques</div>
-          <div style={sSub}>{loading ? '…' : `${departments.length} département${departments.length > 1 ? 's' : ''}`}</div>
+          <div style={sTitle}>{t('departements.title')}</div>
+          <div style={sSub}>{loading ? '…' : t('departements.subtitle', { count: departments.length })}</div>
         </div>
       </div>
 
       {/* Barre outils */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 10, padding: '8px 14px', minWidth: 200, maxWidth: 400 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', minWidth: 200, maxWidth: 400 }}>
           <span>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Rechercher une matière…"
+            placeholder={t('departements.searchPlaceholder')}
             style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
-          {search && <span onClick={() => setSearch('')} style={{ cursor: 'pointer', color: '#a89478', fontSize: 14 }}>✕</span>}
+          {search && <span onClick={() => setSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14 }}>✕</span>}
         </div>
         {search && searchMatchCount > 0 && (
-          <span style={{ background: '#dbeafe', color: '#1e40af', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
-            {searchMatchCount} résultat{searchMatchCount > 1 ? 's' : ''}
+          <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+            {t('departements.resultsCount', { count: searchMatchCount })}
           </span>
         )}
       </div>
@@ -100,16 +102,16 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
       {/* Loading */}
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <div style={{ width: 36, height: 36, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+          <div style={{ width: 36, height: 36, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
         </div>
       )}
 
       {/* Empty */}
       {!loading && departments.length === 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '64px 24px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '64px 24px', textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
-          <div style={{ fontSize: 17, color: '#a89478' }}>
-            Aucun département pédagogique configuré.
+          <div style={{ fontSize: 17, color: 'var(--text3)' }}>
+            {t('departements.empty')}
           </div>
         </div>
       )}
@@ -127,7 +129,7 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
 
             return (
               <div key={dept.id} style={{
-                background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden',
+                background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden',
                 opacity: hasSearch && !hasAnyMatch ? 0.4 : 1,
                 transition: 'opacity 0.2s',
               }}>
@@ -137,18 +139,18 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ width: 12, height: 12, borderRadius: '50%', background: dept.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>{dept.name}</span>
-                      <span style={{ fontSize: 13, color: '#a89478', fontWeight: 700 }}>({dept.subjects.length})</span>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{dept.name}</span>
+                      <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 700 }}>({dept.subjects.length})</span>
                     </div>
                   </div>
 
                   {/* AP */}
                   <div style={{ marginBottom: 10 }}>
                     {dept.head
-                      ? <span style={{ background: '#d1fae5', color: '#065f46', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
-                          AP : {dept.head.firstName} {dept.head.lastName}
+                      ? <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+                          {t('departements.apLabel', { firstName: dept.head.firstName, lastName: dept.head.lastName })}
                         </span>
-                      : <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ AP non désigné</span>
+                      : <span style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>{t('departements.apNotAssigned')}</span>
                     }
                   </div>
 
@@ -165,7 +167,7 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
                               opacity: hasSearch && !isMatch ? 0.3 : 1,
                               transition: 'opacity 0.2s',
                             }}>
-                              <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isMatch ? '#1a1209' : '#a89478' }}>
+                              <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: isMatch ? 'var(--text)' : 'var(--text3)' }}>
                                 {hasSearch && isMatch ? highlightMatch(s.name, search) : s.name}
                               </span>
                             </div>
@@ -173,8 +175,8 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
                         })}
                     </div>
                   ) : (
-                    <div style={{ color: '#a89478', fontSize: 13, fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
-                      Aucune matière
+                    <div style={{ color: 'var(--text3)', fontSize: 13, fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+                      {t('departements.noSubjects')}
                     </div>
                   )}
                 </div>
@@ -194,11 +196,11 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   return (
     <span>
       {text.slice(0, idx)}
-      <strong style={{ background: '#fef3c7', color: '#92400e', padding: '1px 3px', borderRadius: 4, fontWeight: 900 }}>{text.slice(idx, idx + query.length)}</strong>
+      <strong style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '1px 3px', borderRadius: 4, fontWeight: 900 }}>{text.slice(idx, idx + query.length)}</strong>
       {text.slice(idx + query.length)}
     </span>
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }

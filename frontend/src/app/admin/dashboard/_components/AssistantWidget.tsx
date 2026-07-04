@@ -1,0 +1,317 @@
+'use client'
+
+/**
+ * Assistant EduNexus — copilot exécutant (rôle Admin).
+ *
+ * L'admin décrit une intention en langage naturel ; l'assistant l'exécute dans
+ * l'interface via POST /api/v2/assistant/execute (function calling Groq côté serveur).
+ *  - Action non-destructive → exécutée directement, carte de confirmation + bouton
+ *    « Annuler » actif 5 minutes.
+ *  - Action destructive → AUCUNE exécution ; encart de confirmation détaillant ce qui
+ *    sera perdu, avec « Confirmer la suppression » / « Annuler ».
+ *  - Question simple → réponse texte.
+ *
+ * Après chaque changement, l'interface métier derrière se met à jour EN TEMPS RÉEL et
+ * navigue vers l'écran concerné via des évènements window (edunexus:navigate / :data-changed).
+ */
+import { useState, useRef, useEffect } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
+
+const UNDO_WINDOW_MS = 5 * 60 * 1000
+
+type ChatItem =
+  | { kind: 'user'; id: number; text: string }
+  | { kind: 'assistant'; id: number; text: string }
+  | { kind: 'error'; id: number; text: string }
+  | { kind: 'action'; id: number; actionLogId: string; label: string; section?: string | null; entity?: string | null; undoable: boolean; undone: boolean; executedAt: number }
+  | { kind: 'pending'; id: number; pendingActionId: string; summary: string; resolved?: 'confirmed' | 'cancelled' }
+
+const SUGGESTIONS = [
+  'Crée une classe de 4e D',
+  'Nomme un professeur principal pour la 3e A',
+  'Combien d’élèves ai-je par classe ?',
+]
+
+/** Omit qui se distribue sur chaque membre de l'union (sinon seules les clés communes survivent). */
+type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never
+
+let itemId = 0
+
+/** Notifie l'interface métier : navigation vers l'écran + rafraîchissement des données. */
+function notifyInterface(section?: string | null, entity?: string | null) {
+  if (section) window.dispatchEvent(new CustomEvent('edunexus:navigate', { detail: { section } }))
+  if (entity) window.dispatchEvent(new CustomEvent('edunexus:data-changed', { detail: { entity } }))
+}
+
+export default function AssistantWidget() {
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<ChatItem[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [, setTick] = useState(0)
+  const t = useT('admin')
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [items, loading])
+
+  // Ré-évalue périodiquement l'expiration des fenêtres d'annulation (5 min).
+  useEffect(() => {
+    const t = setInterval(() => setTick(n => n + 1), 20000)
+    return () => clearInterval(t)
+  }, [])
+
+  const push = (item: DistributiveOmit<ChatItem, 'id'>) => setItems(prev => [...prev, { ...item, id: ++itemId } as ChatItem])
+
+  async function send(text: string) {
+    const clean = text.trim()
+    if (!clean || loading) return
+    push({ kind: 'user', text: clean })
+    setInput('')
+    setLoading(true)
+    try {
+      const res = await fetchApi('/api/v2/assistant/execute', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: clean }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        push({ kind: 'error', text: data.message || t('assistant.unavailable') })
+        return
+      }
+
+      if (data.type === 'message') {
+        push({ kind: 'assistant', text: data.response || 'Je n’ai pas compris la demande.' })
+        return
+      }
+
+      if (data.response) push({ kind: 'assistant', text: data.response })
+
+      for (const ex of (data.executed ?? [])) {
+        if (ex.error) {
+          push({ kind: 'error', text: ex.error })
+          continue
+        }
+        push({
+          kind: 'action',
+          actionLogId: ex.actionLogId,
+          label: ex.label,
+          section: ex.section,
+          entity: ex.entity,
+          undoable: !!ex.undoable,
+          undone: false,
+          executedAt: Date.now(),
+        })
+        notifyInterface(ex.section, ex.entity)
+      }
+
+      for (const p of (data.pending ?? [])) {
+        push({ kind: 'pending', pendingActionId: p.pendingActionId, summary: p.summary })
+      }
+    } catch {
+      push({ kind: 'error', text: 'Erreur réseau. Réessayez.' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function undo(actionLogId: string) {
+    try {
+      const res = await fetchApi('/api/v2/assistant/undo-action', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionLogId }),
+      })
+      const data = await res.json()
+      if (data.success && data.undone) {
+        setItems(prev => prev.map(it => (it.kind === 'action' && it.actionLogId === actionLogId ? { ...it, undone: true } : it)))
+        notifyInterface(data.section, data.entity)
+      } else {
+        push({ kind: 'error', text: data.message || 'Annulation impossible.' })
+      }
+    } catch {
+      push({ kind: 'error', text: 'Erreur réseau lors de l’annulation.' })
+    }
+  }
+
+  async function confirm(pendingActionId: string, confirmed: boolean) {
+    try {
+      const res = await fetchApi('/api/v2/assistant/confirm-action', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendingActionId, confirmed }),
+      })
+      const data = await res.json()
+      setItems(prev => prev.map(it =>
+        it.kind === 'pending' && it.pendingActionId === pendingActionId
+          ? { ...it, resolved: confirmed && data.success ? 'confirmed' : 'cancelled' }
+          : it,
+      ))
+      if (confirmed && data.success && data.executed) {
+        push({ kind: 'action', actionLogId: data.executed.actionLogId, label: data.executed.label, section: data.executed.section, entity: data.executed.entity, undoable: false, undone: false, executedAt: Date.now() })
+        notifyInterface(data.executed.section, data.executed.entity)
+      } else if (confirmed && !data.success) {
+        push({ kind: 'error', text: data.message || 'Échec de la suppression.' })
+      }
+    } catch {
+      push({ kind: 'error', text: 'Erreur réseau. Réessayez.' })
+    }
+  }
+
+  return (
+    <>
+      {/* Bouton flottant */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 1200,
+          height: 58, borderRadius: 30, border: 'none', cursor: 'pointer',
+          padding: open ? '0 18px' : '0 20px',
+          background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white',
+          fontWeight: 800, fontSize: 15, fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 9,
+          boxShadow: '0 8px 24px rgba(5,150,105,0.4)',
+        }}>
+        <span style={{ fontSize: 22 }}>{open ? '✕' : '🤖'}</span>
+        {!open && <span>{t('assistant.title')}</span>}
+      </button>
+
+      {/* Panneau */}
+      {open && (
+        <div style={{
+          position: 'fixed', bottom: 92, right: 24, zIndex: 1200,
+          width: 400, maxWidth: 'calc(100vw - 32px)', height: 560, maxHeight: 'calc(100vh - 140px)',
+          background: 'var(--surface)', borderRadius: 18, border: '1.5px solid var(--border)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.22)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        }}>
+          <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
+          {/* Header */}
+          <div style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--green))', color: 'white', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🤖</div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15.5 }}>{t('assistant.title')}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Décrivez une action, je l’exécute</div>
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'var(--bg)' }}>
+            {items.length === 0 && (
+              <div>
+                <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 14 }}>
+                  👋 Bonjour ! Demandez-moi de créer une classe, une matière, d’assigner un enseignant… ou posez-moi une question sur votre établissement.
+                </div>
+                {SUGGESTIONS.map(s => (
+                  <button key={s} onClick={() => send(s)} style={{
+                    display: 'block', width: '100%', textAlign: 'left', marginBottom: 8,
+                    background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10,
+                    padding: '10px 13px', fontSize: 13.5, color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit',
+                  }}>{s}</button>
+                ))}
+              </div>
+            )}
+
+            {items.map(it => {
+              if (it.kind === 'user' || it.kind === 'assistant') {
+                return (
+                  <div key={it.id} style={{ display: 'flex', justifyContent: it.kind === 'user' ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
+                    <div style={{
+                      maxWidth: '82%', padding: '10px 13px', borderRadius: 13, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+                      background: it.kind === 'user' ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'white',
+                      color: it.kind === 'user' ? 'white' : 'var(--text)',
+                      border: it.kind === 'user' ? 'none' : '1.5px solid var(--border)',
+                    }}>{it.text}</div>
+                  </div>
+                )
+              }
+
+              if (it.kind === 'error') {
+                return (
+                  <div key={it.id} style={{ marginBottom: 10, background: 'var(--red-light)', border: '1.5px solid var(--red-light)', borderRadius: 12, padding: '10px 13px', fontSize: 13.5, color: 'var(--red)' }}>
+                    ⚠️ {it.text}
+                  </div>
+                )
+              }
+
+              if (it.kind === 'action') {
+                const expired = Date.now() - it.executedAt > UNDO_WINDOW_MS
+                const canUndo = it.undoable && !it.undone && !expired
+                return (
+                  <div key={it.id} style={{ marginBottom: 10, background: it.undone ? '#f5f5f4' : '#ecfdf5', border: `1.5px solid ${it.undone ? '#e7e5e4' : 'var(--green-light)'}`, borderRadius: 12, padding: '11px 13px' }}>
+                    <div style={{ fontSize: 13.5, color: it.undone ? 'var(--text3)' : 'var(--green)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{it.undone ? '↩️' : '✓'}</span>
+                      <span style={{ textDecoration: it.undone ? 'line-through' : 'none' }}>{it.label}</span>
+                    </div>
+                    {it.undone && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>Action annulée.</div>}
+                    {canUndo && (
+                      <button onClick={() => undo(it.actionLogId)} style={{
+                        marginTop: 8, background: 'var(--surface)', border: '1.5px solid var(--green-light)', color: 'var(--green2)',
+                        borderRadius: 8, padding: '6px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{t('assistant.btn_cancel_action')}</button>
+                    )}
+                    {it.undoable && !it.undone && expired && (
+                      <div style={{ fontSize: 11.5, color: '#a8a29e', marginTop: 6 }}>{t('assistant.expired')}</div>
+                    )}
+                  </div>
+                )
+              }
+
+              // pending (destructif)
+              return (
+                <div key={it.id} style={{ marginBottom: 10, background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 12, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 13.5, color: 'var(--amber)', lineHeight: 1.5, display: 'flex', gap: 6 }}>
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <span>{it.summary}</span>
+                  </div>
+                  {!it.resolved && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
+                      <button onClick={() => confirm(it.pendingActionId, true)} style={{
+                        background: 'linear-gradient(135deg,var(--red),var(--red))', color: 'white', border: 'none',
+                        borderRadius: 8, padding: '7px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{t('assistant.btn_confirm')}</button>
+                      <button onClick={() => confirm(it.pendingActionId, false)} style={{
+                        background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid #e7e5e4',
+                        borderRadius: 8, padding: '7px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>{t('assistant.btn_cancel')}</button>
+                    </div>
+                  )}
+                  {it.resolved === 'confirmed' && <div style={{ fontSize: 12.5, color: 'var(--red)', marginTop: 8, fontWeight: 700 }}>Suppression effectuée.</div>}
+                  {it.resolved === 'cancelled' && <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 8 }}>Suppression annulée — rien n’a été supprimé.</div>}
+                </div>
+              )
+            })}
+
+            {loading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text3)', fontSize: 13 }}>
+                <div style={{ width: 16, height: 16, border: '2.5px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+                L’assistant travaille…
+              </div>
+            )}
+          </div>
+
+          {/* Input */}
+          <div style={{ borderTop: '1px solid var(--border)', padding: 12, display: 'flex', gap: 8 }}>
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && send(input)}
+              placeholder="Ex. « Crée une classe de 4e D »…"
+              style={{ flex: 1, border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 13px', fontSize: 14, outline: 'none', fontFamily: 'inherit', color: 'var(--text)' }}
+            />
+            <button onClick={() => send(input)} disabled={loading || !input.trim()} style={{
+              background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none',
+              borderRadius: 10, padding: '0 16px', fontSize: 18, cursor: loading || !input.trim() ? 'default' : 'pointer',
+              opacity: loading || !input.trim() ? 0.5 : 1,
+            }}>➤</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}

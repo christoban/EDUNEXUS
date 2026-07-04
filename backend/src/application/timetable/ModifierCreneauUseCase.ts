@@ -15,6 +15,8 @@ export interface ModifierCreneauCommande {
   room?: string;
   kind?: SlotKind;
   subGroupId?: string;
+  isLV2Slot?: boolean;
+  isElectiveSlot?: boolean;
 }
 
 const LIMITE_AP_HEURES = 14;
@@ -45,6 +47,8 @@ export class ModifierCreneauUseCase {
       ...(commande.room !== undefined && { room: commande.room }),
       ...(commande.kind !== undefined && { kind: commande.kind }),
       ...(commande.subGroupId !== undefined && { subGroupId: commande.subGroupId }),
+      ...(commande.isLV2Slot !== undefined && { isLV2Slot: commande.isLV2Slot }),
+      ...(commande.isElectiveSlot !== undefined && { isElectiveSlot: commande.isElectiveSlot }),
     });
 
     const teacherId = creneauModifie.teacherId;

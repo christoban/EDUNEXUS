@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface BookLoan {
   id: string
@@ -11,13 +12,8 @@ interface BookLoan {
   book: { id: string; title: string; author: string | null; category: string | null }
 }
 
-const LOAN_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  ACTIVE:   { bg: '#d1fae5', color: '#065f46', label: 'En cours'   },
-  RETURNED: { bg: '#f1f5f9', color: '#475569', label: 'Rendu'      },
-  OVERDUE:  { bg: '#fee2e2', color: '#991b1b', label: 'En retard'  },
-}
-
 export default function SectionStudentLibrary() {
+  const t = useT('student')
   const [loans, setLoans]     = useState<BookLoan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState<string | null>(null)
@@ -27,10 +23,10 @@ export default function SectionStudentLibrary() {
     fetchApi('/api/v2/library/my-loans', { credentials: 'include' })
       .then(r => r.json())
       .then(d => {
-        if (!d.success) throw new Error(d.message || 'Erreur')
+        if (!d.success) throw new Error(d.message || t('common.error_fallback'))
         setLoans(d.data || [])
       })
-      .catch(e => setError(e instanceof Error ? e.message : 'Erreur'))
+      .catch(e => setError(e instanceof Error ? e.message : t('common.error_fallback')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -40,21 +36,21 @@ export default function SectionStudentLibrary() {
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <div style={{ marginBottom: 26 }}>
-        <div style={sTitle}>Mes lectures</div>
-        <div style={sSub}>Livres empruntés à la bibliothèque de l&apos;établissement</div>
+        <div style={sTitle}>{t('library.title')}</div>
+        <div style={sSub}>{t('library.subtitle')}</div>
       </div>
 
       {!loading && !error && loans.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
           {[
-            { icon: '📚', bg: '#dbeafe', val: loans.length,  label: 'Emprunts au total',  color: '#1e40af' },
-            { icon: '📖', bg: '#d1fae5', val: active,         label: 'En cours',            color: '#065f46' },
-            { icon: '⏰', bg: '#fee2e2', val: overdue,        label: 'En retard',           color: '#991b1b' },
+            { icon: '📚', bg: 'var(--blue-light)', val: loans.length,  label: t('library.total_loans'), color: 'var(--blue)' },
+            { icon: '📖', bg: 'var(--green-light)', val: active,         label: t('library.active_label'), color: 'var(--green)' },
+            { icon: '⏰', bg: 'var(--red-light)', val: overdue,        label: t('library.overdue_label'), color: 'var(--red)' },
           ].map((k, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', padding: '18px 20px' }}>
+            <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 10 }}>{k.icon}</div>
               <div style={{ fontSize: 26, fontWeight: 900, color: k.color }}>{k.val}</div>
-              <div style={{ fontSize: 14, color: '#a89478', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+              <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
             </div>
           ))}
         </div>
@@ -62,55 +58,69 @@ export default function SectionStudentLibrary() {
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-          <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+          <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
           <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
 
       {!loading && error && (
-        <div style={{ background: '#fee2e2', borderRadius: 14, padding: '16px 22px', color: '#dc2626', fontWeight: 700 }}>⚠️ {error}</div>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</div>
       )}
 
       {!loading && !error && loans.length === 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 20px', textAlign: 'center', color: '#a89478' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 20px', textAlign: 'center', color: 'var(--text3)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-          <div style={{ fontSize: 17, fontWeight: 700 }}>Aucun emprunt enregistré</div>
-          <div style={{ fontSize: 14, marginTop: 6 }}>Demandez au bibliothécaire d&apos;enregistrer un emprunt en votre nom</div>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>{t('library.empty_title')}</div>
+          <div style={{ fontSize: 14, marginTop: 6 }}>{t('library.empty_subtitle')}</div>
         </div>
       )}
 
       {!loading && !error && loans.length > 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Titre', 'Catégorie', 'Emprunté le', 'Date limite', 'Statut'].map(h => (
+              <tr>{[
+                t('library.table_header_title'),
+                t('library.table_header_category'),
+                t('library.table_header_borrowed'),
+                t('library.table_header_due'),
+                t('library.table_header_status'),
+              ].map(h => (
                 <th key={h} style={thSt}>{h}</th>
               ))}</tr>
             </thead>
             <tbody>
               {loans.map(l => {
-                const badge = LOAN_BADGE[l.status] ?? { bg: '#f1f5f9', color: '#475569', label: l.status }
+                const getBadge = (status: string): { bg: string; color: string; label: string } => {
+                  const map: Record<string, { bg: string; color: string; label: string }> = {
+                    ACTIVE:   { bg: 'var(--green-light)', color: 'var(--green)', label: t('library.active_label') },
+                    RETURNED: { bg: 'var(--bg2)', color: 'var(--text2)', label: t('library.returned_label') },
+                    OVERDUE:  { bg: 'var(--red-light)', color: 'var(--red)', label: t('library.overdue_label') },
+                  }
+                  return map[status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: status }
+                }
+                const badge = getBadge(l.status)
                 const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
                 return (
                   <tr key={l.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209', maxWidth: 260 }}>
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 260 }}>
                       <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.book.title}</div>
-                      {l.book.author && <div style={{ fontSize: 13, color: '#a89478', marginTop: 2 }}>{l.book.author}</div>}
+                      {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{l.book.author}</div>}
                     </td>
                     <td style={tdSt}>{l.book.category ?? '—'}</td>
                     <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td style={tdSt}>
                       {l.dueDate ? (
-                        <span style={{ fontWeight: 600, color: isOverdue ? '#dc2626' : '#6b5c45' }}>
+                        <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>
                           {isOverdue && '⚠️ '}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                       ) : '—'}
                     </td>
                     <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? '#fee2e2' : badge.bg, color: isOverdue ? '#991b1b' : badge.color }}>
-                        {isOverdue ? '⏰ En retard' : badge.label}
+                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color }}>
+                        {isOverdue ? `⏰ ${t('library.overdue_label')}` : badge.label}
                       </span>
                     </td>
                   </tr>
@@ -124,7 +134,7 @@ export default function SectionStudentLibrary() {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '12px 14px', fontSize: 15, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '12px 14px', fontSize: 15, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }

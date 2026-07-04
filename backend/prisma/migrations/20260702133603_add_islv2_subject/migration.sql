@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Subject" ADD COLUMN     "isLV2" BOOLEAN NOT NULL DEFAULT false;

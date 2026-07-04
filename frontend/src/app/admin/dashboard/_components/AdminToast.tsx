@@ -4,10 +4,10 @@ import type { Toast } from '../_types'
 
 const ICONS = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' }
 const STYLES: Record<string, string> = {
-  success: 'bg-[#f0fdf4] border-[rgba(5,150,105,0.3)] text-[#065f46]',
-  error:   'bg-[#fef2f2] border-[rgba(220,38,38,0.3)] text-[#991b1b]',
-  info:    'bg-white border-[#e8e0d4] text-[#1a1209]',
-  warning: 'bg-[#fef3c7] border-[rgba(217,119,6,0.3)] text-[#92400e]',
+  success: 'bg-[var(--green-light)] text-[var(--green)] border-[var(--green)]',
+  error:   'bg-[var(--red-light)] text-[var(--red)] border-[var(--red)]',
+  info:    'bg-[var(--surface)] text-[var(--text)] border-[var(--border)]',
+  warning: 'bg-[var(--amber-light)] text-[var(--amber)] border-[var(--amber)]',
 }
 
 function ToastItem({ t, onRemove }: { t: Toast; onRemove: () => void }) {

@@ -7,10 +7,10 @@ const ICONS: Record<Toast['type'], string> = {
 }
 
 const STYLES: Record<Toast['type'], React.CSSProperties> = {
-  success: { background: '#f0fdf4', border: '1.5px solid rgba(5,150,105,0.3)',  color: '#065f46' },
-  error:   { background: '#fef2f2', border: '1.5px solid rgba(220,38,38,0.3)',  color: '#991b1b' },
-  info:    { background: '#eff6ff', border: '1.5px solid rgba(29,78,216,0.2)',  color: '#1e40af' },
-  warning: { background: '#fef3c7', border: '1.5px solid rgba(217,119,6,0.3)', color: '#92400e' },
+  success: { background: 'var(--green-light)', border: '1.5px solid rgba(5,150,105,0.3)',  color: 'var(--green)' },
+  error:   { background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.3)',  color: 'var(--red)' },
+  info:    { background: 'var(--blue-light)', border: '1.5px solid rgba(29,78,216,0.2)',  color: 'var(--blue)' },
+  warning: { background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.3)', color: 'var(--amber)' },
 }
 
 function ToastItem({ t, onRemove }: { t: Toast; onRemove: () => void }) {

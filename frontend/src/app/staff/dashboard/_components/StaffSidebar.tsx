@@ -1,6 +1,7 @@
 'use client'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import { logoutUser } from '@/lib/userAuth'
 import type { StaffSection, SessionUser } from '../_types'
 
@@ -34,46 +35,49 @@ const BADGE_STYLES = {
 }
 
 export default function StaffSidebar({ current, onChange, allowedSections, sessionUser, schoolName, logoUrl, badges = {} }: Props) {
+  const tnav = useT('navigation')
+  const tcommon = useT('common')
   const can = (s: StaffSection) => allowedSections.has(s)
 
   const supervisionItems: NavItem[] = []
-  if (can('council'))          supervisionItems.push({ id: 'council',          icon: '🎓', label: 'Conseil de classe', badge: badges.council,   badgeColor: 'amber' })
-  if (can('grades'))           supervisionItems.push({ id: 'grades',           icon: '📝', label: 'Validation notes',  badge: badges.grades,    badgeColor: 'red'   })
-  if (can('attendance'))       supervisionItems.push({ id: 'attendance',       icon: '✅', label: 'Présences',         badge: badges.attendance })
-  if (can('grille-horaire'))   supervisionItems.push({ id: 'grille-horaire',   icon: '⏱️', label: 'Grille horaire' })
-  if (can('affectations'))     supervisionItems.push({ id: 'affectations',     icon: '🔗', label: 'Affectations' })
-  if (can('timetable'))        supervisionItems.push({ id: 'timetable',        icon: '📅', label: 'Emploi du temps' })
-  if (can('departements'))     supervisionItems.push({ id: 'departements',     icon: '🏛️', label: 'Départements' })
+  if (can('council'))          supervisionItems.push({ id: 'council',          icon: '🎓', label: tnav('sidebar.council'),         badge: badges.council,   badgeColor: 'amber' })
+  if (can('grades'))           supervisionItems.push({ id: 'grades',           icon: '📝', label: tnav('sidebar.gradeValidation'), badge: badges.grades,    badgeColor: 'red'   })
+  if (can('attendance'))       supervisionItems.push({ id: 'attendance',       icon: '✅', label: tnav('sidebar.attendance'),      badge: badges.attendance })
+  if (can('grille-horaire'))   supervisionItems.push({ id: 'grille-horaire',   icon: '⏱️', label: tnav('sidebar.scheduleGrid') })
+  if (can('affectations'))     supervisionItems.push({ id: 'affectations',     icon: '🔗', label: tnav('sidebar.assignments') })
+  if (can('timetable'))        supervisionItems.push({ id: 'timetable',        icon: '📅', label: tnav('sidebar.timetable') })
+  if (can('departements'))     supervisionItems.push({ id: 'departements',     icon: '🏛️', label: tnav('sidebar.departments') })
 
   const servicesItems: NavItem[] = []
-  if (can('finance'))     servicesItems.push({ id: 'finance',     icon: '📱', label: 'Mobile Money',  badge: badges.finance,  badgeColor: 'red' })
-  if (can('cautions'))    servicesItems.push({ id: 'cautions',    icon: '🔒', label: 'Cautions' })
-  if (can('discipline'))  servicesItems.push({ id: 'discipline',  icon: '⚠️', label: 'Discipline' })
-  if (can('library'))     servicesItems.push({ id: 'library',     icon: '📚', label: 'Bibliothèque' })
-  if (can('orientation')) servicesItems.push({ id: 'orientation', icon: '🧭', label: 'Orientation' })
+  if (can('finance'))     servicesItems.push({ id: 'finance',     icon: '📱', label: tnav('sidebar.finance'),    badge: badges.finance,  badgeColor: 'red' })
+  if (can('cautions'))    servicesItems.push({ id: 'cautions',    icon: '🔒', label: tnav('sidebar.cautionMoney') })
+  if (can('discipline'))  servicesItems.push({ id: 'discipline',  icon: '⚠️', label: tnav('sidebar.discipline') })
+  if (can('library'))     servicesItems.push({ id: 'library',     icon: '📚', label: tnav('sidebar.library') })
+  if (can('orientation')) servicesItems.push({ id: 'orientation', icon: '🧭', label: tnav('sidebar.orientation') })
 
   const navGroups: NavGroup[] = [
-    { items: [{ id: 'dashboard', icon: '⊞', label: 'Tableau de bord' }] },
-    ...(supervisionItems.length > 0 ? [{ label: 'Supervision', items: supervisionItems }] : []),
-    ...(servicesItems.length > 0    ? [{ label: 'Services',    items: servicesItems    }] : []),
+    { items: [{ id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') }] },
+    ...(supervisionItems.length > 0 ? [{ label: tnav('group.supervision'), items: supervisionItems }] : []),
+    ...(servicesItems.length > 0    ? [{ label: tnav('group.services'),    items: servicesItems    }] : []),
   ]
 
+  const userFallback = sessionUser?.nomComplet ?? tcommon('user.staffFallback')
   const initials = sessionUser
     ? (sessionUser.nomComplet ?? '').split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
     : 'ST'
 
   return (
-    <aside className="w-[280px] min-w-[280px] bg-[#1a2e1e] flex flex-col h-screen flex-shrink-0 relative overflow-hidden">
+    <aside className="w-[280px] min-w-[280px] flex flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
       {/* Bande déco camerounaise */}
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
-        style={{ background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 13px,#22c55e 13px,#22c55e 25px,#ef4444 25px,#ef4444 37px,#60a5fa 37px,#60a5fa 49px)' }} />
+        style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }} />
 
       {/* Brand */}
       <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{ padding: '25px 22px' }}>
-        <div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-[#f59e0b] to-[#22c55e] flex items-center justify-center text-[24px] flex-shrink-0">🎓</div>
+        <div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-[var(--amber)] to-[var(--green)] flex items-center justify-center text-[24px] flex-shrink-0">🎓</div>
         <div>
           <div className="font-spectral text-[22px] font-bold text-white leading-tight">EduNexus</div>
-          <div className="text-[13px] text-white/35 font-semibold">Espace Staff</div>
+          <div className="text-[13px] text-white/35 font-semibold">{tcommon('brand.roleStaff')}</div>
         </div>
       </div>
 
@@ -83,12 +87,12 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
           <div className="flex items-center gap-[10px]">
             {logoUrl
               ? <img src={logoUrl} alt={schoolName ?? 'Logo'} className="w-9 h-9 rounded-[8px] flex-shrink-0" style={{ objectFit: 'cover' }} />
-              : <div className="w-9 h-9 rounded-[8px] bg-gradient-to-br from-[#059669] to-[#1d4ed8] flex items-center justify-center text-[13px] font-black text-white flex-shrink-0">
+              : <div className="w-9 h-9 rounded-[8px] bg-gradient-to-br from-[var(--green)] to-[var(--blue)] flex items-center justify-center text-[13px] font-black text-white flex-shrink-0">
                   {(schoolName ?? 'ET').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
             }
             <div className="min-w-0">
-              <div className="text-[15px] font-bold text-white truncate">{schoolName ?? 'Établissement'}</div>
+              <div className="text-[15px] font-bold text-white truncate">{schoolName ?? tcommon('brand.fallbackSchool')}</div>
               <div className="text-[12px] text-white/35">2025–2026</div>
             </div>
           </div>
@@ -109,9 +113,9 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
                 className={cn(
                   'w-full flex items-center gap-[14px] rounded-lg mb-[1px]',
                   'text-[15px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer font-nunito',
-                  current === item.id
-                    ? 'bg-[#3a6b44] text-white'
-                    : 'bg-transparent text-white/50 hover:bg-[#243b29] hover:text-white/80'
+                    current === item.id
+                      ? 'bg-[var(--sidebar-active)] text-white'
+                      : 'bg-transparent text-white/50 hover:bg-[var(--sidebar2)] hover:text-white/80'
                 )}
                 style={{ padding: '8px 10px' }}>
                 <span style={{ fontSize: 20, width: 20, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
@@ -130,14 +134,14 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
       {/* User */}
       <div className="border-t border-white/[0.07]" style={{ padding: '16px 22px' }}>
         <div className="flex items-center gap-[10px] rounded-[10px] hover:bg-white/[0.06] cursor-pointer" style={{ padding: '10px 12px' }}>
-          <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[#0d9488] to-[#059669] flex items-center justify-center text-white font-black text-[14px] flex-shrink-0">
+          <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[var(--teal)] to-[var(--green)] flex items-center justify-center text-white font-black text-[14px] flex-shrink-0">
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[15px] font-bold text-white truncate">{sessionUser?.nomComplet ?? 'Membre du personnel'}</div>
+            <div className="text-[15px] font-bold text-white truncate">{userFallback}</div>
             <div className="text-[12px] text-white/35">Staff</div>
           </div>
-          <button onClick={logoutUser} title="Se déconnecter"
+          <button onClick={logoutUser} title={tcommon('user.logoutTitle')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', padding: 4, borderRadius: 6, flexShrink: 0 }}
             onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.8)'}
             onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>

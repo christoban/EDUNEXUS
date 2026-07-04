@@ -1,0 +1,110 @@
+{
+  "health": {
+    "label": "Indice santé",
+    "levels": {
+      "progression": "PROGRESSION",
+      "stable": "STABLE",
+      "moyen": "MOYEN",
+      "eleve": "ÉLEVÉ",
+      "critique": "CRITIQUE"
+    }
+  },
+  "loading": "Chargement...",
+  "retry": "🔄 Réessayer",
+  "errorLoad": "Erreur de chargement",
+  "cacheBadge": "📦 Données du {date} — hors-ligne",
+  "children": {
+    "title": "Mes enfants",
+    "subtitle": "Suivi scolaire en temps réel",
+    "subtitleCount": "Suivi scolaire en temps réel · {count} enfant(s) inscrit(s)",
+    "emptyTitle": "Aucun enfant inscrit",
+    "emptyDesc": "Les informations de vos enfants apparaîtront ici",
+    "studentLabel": "Élève · {className}",
+    "latestAverage": "Dernière moyenne",
+    "attendanceRate": "Taux présence",
+    "punctuality": "Ponctualité",
+    "mention": "🏆 Mention :",
+    "absenceDays": "{count} jour(s) d'absence",
+    "actionGrades": "📄 Bulletins",
+    "actionAttendance": "✅ Présences",
+    "actionPayments": "📱 Paiements",
+    "errorLoadChildren": "Erreur de chargement des enfants"
+  },
+  "grades": {
+    "title": "Bulletins & Notes",
+    "subtitle": "Résultats scolaires de vos enfants",
+    "emptyTitle": "Aucun bulletin disponible",
+    "emptyForChild": "Aucun bulletin pour {name}",
+    "emptyDesc": "Les bulletins apparaîtront ici",
+    "period": "Période",
+    "average": "Moyenne générale",
+    "rank": "Rang",
+    "mention": "Mention",
+    "actions": "Actions",
+    "downloadPdf": "📥 PDF",
+    "downloading": "⏳...",
+    "offline": "📶",
+    "downloadUnavailable": "Téléchargement PDF indisponible hors-ligne",
+    "downloadError": "Erreur de téléchargement",
+    "downloaded": "Bulletin téléchargé"
+  },
+  "attendance": {
+    "title": "Présences",
+    "subtitle": "Suivi de l'assiduité",
+    "subtitleExtended": "Suivi de l'assiduité de vos enfants",
+    "emptyTitle": "Aucune donnée de présence",
+    "rate": "Taux de présence",
+    "punctuality": "Ponctualité",
+    "absentDays": "Jours absents",
+    "thisMonth": "Ce mois"
+  },
+  "payments": {
+    "title": "Paiements Mobile Money",
+    "subtitle": "Frais scolaires · MTN MoMo & Orange Money",
+    "allChildren": "Tous les enfants",
+    "pendingPayment": "{count} paiement(s) en attente",
+    "remainingDue": "Montant restant dû : {amount}",
+    "noInvoices": "Aucune facture trouvée",
+    "phoneRequired": "Numéro de téléphone obligatoire",
+    "paymentInitiated": "Paiement initié — confirmez sur votre téléphone",
+    "offlineMessage": "Les informations de paiement nécessitent une connexion internet pour rester à jour.",
+    "modalTitle": "Payer par Mobile Money",
+    "amountToPay": "Montant à payer",
+    "operator": "Opérateur",
+    "phoneLabel": "Numéro de téléphone *",
+    "phonePlaceholder": "Ex: 677000000",
+    "initiating": "Initiation…",
+    "confirmPayment": "📱 Confirmer le paiement",
+    "payButton": "📱 Payer",
+    "libelle": "Libellé",
+    "remaining": "Reste dû"
+  },
+  "timetable": {
+    "title": "Emploi du temps",
+    "schedule": "Horaire",
+    "weekRange": "Semaine du {start} au {end}",
+    "days": "Lundi,Mardi,Mercredi,Jeudi,Vendredi"
+  },
+  "library": {
+    "title": "Lectures",
+    "subtitle": "Livres empruntés à la bibliothèque de l'établissement",
+    "childFilter": "Enfant",
+    "totalLoans": "Emprunts au total",
+    "active": "En cours",
+    "overdue": "En retard",
+    "returned": "Rendu",
+    "emptyTitle": "Aucun emprunt enregistré",
+    "emptyDesc": "Les emprunts de livres apparaîtront ici une fois enregistrés par le bibliothécaire",
+    "titleCol": "Titre",
+    "category": "Catégorie",
+    "borrowedOn": "Emprunté le",
+    "dueDate": "Date limite",
+    "status": "Statut",
+    "overdueBadge": "⏰ En retard"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "development": "Cette section est en cours de développement.",
+    "comeBack": "Revenez bientôt."
+  }
+}

@@ -5,6 +5,7 @@ import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import type { BulletinTemplate } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { notifyBulletinSms } from '@infrastructure/services/SmsNotificationService';
+import { resolveLanguage } from '../../../utils/languageHelper';
 import { generateBulletinPdf } from '../../../utils/reportCards/index';
 import { getMention } from '../../../utils/reportCards/helpers';
 import { getEffectiveSchoolSettings } from '../../../utils/schoolSettings';
@@ -124,7 +125,16 @@ export class ReportCardController {
         return;
       }
 
-      const resultat = await this.envoyer.execute({ schoolId: user.schoolId, classId, academicPeriodId, nomEtablissement, nomPeriode });
+      // Langue de l'email = sous-système de l'école, affiné par la section de la classe si bilingue.
+      const ecole = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { subsystem: true } });
+      let sectionCode: string | null = null;
+      if (ecole?.subsystem === 'BILINGUAL') {
+        const cls = await prisma.class.findUnique({ where: { id: classId }, select: { section: { select: { code: true } } } });
+        sectionCode = cls?.section?.code ?? null;
+      }
+      const langue = resolveLanguage(ecole?.subsystem, sectionCode);
+
+      const resultat = await this.envoyer.execute({ schoolId: user.schoolId, classId, academicPeriodId, nomEtablissement, nomPeriode, langue });
       res.json({ success: true, data: resultat });
     } catch (error) {
       next(error);
@@ -219,6 +229,7 @@ export class ReportCardController {
           student: { select: { id: true, firstName: true, lastName: true } },
           subjectLines: { orderBy: { subjectName: 'asc' } },
           school: { include: { schoolConfig: true } },
+          section: { select: { code: true } },
         },
       });
 
@@ -241,6 +252,7 @@ export class ReportCardController {
       for (const reportCard of reportCards) {
         const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`.trim();
         const template = (reportCard.template ?? 'FR_SECONDARY') as BulletinTemplate;
+        const langue = resolveLanguage((reportCard as any).school?.subsystem, (reportCard as any).section?.code ?? null);
 
         const pdfBuffer = await generateBulletinPdf(template, {
           schoolName: settings.schoolName ?? 'École',
@@ -254,7 +266,8 @@ export class ReportCardController {
           rank: reportCard.rank,
           totalStudents: reportCard.totalStudents,
           absenceCount: reportCard.absenceCount,
-          mention: reportCard.mention ?? getMention(reportCard.generalAverage ?? 0, template),
+          language: langue,
+          mention: reportCard.mention ?? getMention(reportCard.generalAverage ?? 0, template, langue),
           classMasterComment: reportCard.classMasterComment,
           subjectLines: reportCard.subjectLines.map((line) => ({
             subjectName: line.subjectName,
@@ -423,7 +436,7 @@ export class ReportCardController {
         include: {
           academicYear: true,
           academicPeriod: true,
-          student: { select: { id: true, firstName: true, lastName: true, studentProfile: { select: { class: { select: { name: true } } } } } },
+          student: { select: { id: true, firstName: true, lastName: true, studentProfile: { select: { class: { select: { name: true, section: { select: { code: true } } } } } } } },
           subjectLines: { orderBy: { subjectName: 'asc' } },
           school: { include: { schoolConfig: true, schoolSettings: true } },
         },
@@ -454,6 +467,7 @@ export class ReportCardController {
       const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`.trim();
       const periodName = reportCard.academicPeriod?.name ?? '—';
       const template = (reportCard.template ?? 'FR_SECONDARY') as BulletinTemplate;
+      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.class?.section?.code ?? null);
 
       const pdfBuffer = await generateBulletinPdf(template, {
         schoolName: settings.schoolName ?? reportCard.school?.name ?? 'École',
@@ -467,7 +481,8 @@ export class ReportCardController {
         rank: reportCard.rank,
         totalStudents: reportCard.totalStudents,
         absenceCount: reportCard.absenceCount,
-        mention: reportCard.mention ?? getMention(reportCard.generalAverage ?? 0, template),
+        language: langue,
+        mention: reportCard.mention ?? getMention(reportCard.generalAverage ?? 0, template, langue),
         classMasterComment: reportCard.classMasterComment,
         subjectLines: reportCard.subjectLines.map((line) => ({
           subjectName: line.subjectName,

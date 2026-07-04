@@ -13,6 +13,8 @@ export interface CreneauHoraireProps {
   room?: string;
   kind: SlotKind;
   subGroupId?: string;
+  isLV2Slot?: boolean;
+  isElectiveSlot?: boolean;
 }
 
 export interface CreerCreneauProps {
@@ -26,6 +28,8 @@ export interface CreerCreneauProps {
   room?: string;
   kind?: SlotKind;
   subGroupId?: string;
+  isLV2Slot?: boolean;
+  isElectiveSlot?: boolean;
 }
 
 export class CreneauHoraire {
@@ -71,6 +75,8 @@ export class CreneauHoraire {
   get kind(): SlotKind { return this.props.kind; }
   get subGroupId(): string | undefined { return this.props.subGroupId; }
   get room(): string | undefined { return this.props.room; }
+  get isLV2Slot(): boolean { return this.props.isLV2Slot ?? false; }
+  get isElectiveSlot(): boolean { return this.props.isElectiveSlot ?? false; }
 
   calculerDureeMinutes(): number {
     return (

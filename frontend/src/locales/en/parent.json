@@ -1,0 +1,110 @@
+{
+  "health": {
+    "label": "Health score",
+    "levels": {
+      "progression": "PROGRESSION",
+      "stable": "STABLE",
+      "moyen": "FAIR",
+      "eleve": "HIGH",
+      "critique": "CRITICAL"
+    }
+  },
+  "loading": "Loading...",
+  "retry": "🔄 Retry",
+  "errorLoad": "Loading error",
+  "cacheBadge": "📦 Data from {date} — offline",
+  "children": {
+    "title": "My Children",
+    "subtitle": "Real-time academic tracking",
+    "subtitleCount": "Real-time academic tracking · {count} child(ren) enrolled",
+    "emptyTitle": "No children enrolled",
+    "emptyDesc": "Your children's information will appear here",
+    "studentLabel": "Student · {className}",
+    "latestAverage": "Latest average",
+    "attendanceRate": "Attendance rate",
+    "punctuality": "Punctuality",
+    "mention": "🏆 Mention:",
+    "absenceDays": "{count} day(s) absent",
+    "actionGrades": "📄 Report Cards",
+    "actionAttendance": "✅ Attendance",
+    "actionPayments": "📱 Payments",
+    "errorLoadChildren": "Error loading children"
+  },
+  "grades": {
+    "title": "Report Cards & Grades",
+    "subtitle": "Your children's academic results",
+    "emptyTitle": "No report cards available",
+    "emptyForChild": "No report cards for {name}",
+    "emptyDesc": "Report cards will appear here",
+    "period": "Period",
+    "average": "Overall Average",
+    "rank": "Rank",
+    "mention": "Honors",
+    "actions": "Actions",
+    "downloadPdf": "📥 PDF",
+    "downloading": "⏳...",
+    "offline": "📶",
+    "downloadUnavailable": "PDF download unavailable offline",
+    "downloadError": "Download error",
+    "downloaded": "Report card downloaded"
+  },
+  "attendance": {
+    "title": "Attendance",
+    "subtitle": "Attendance tracking",
+    "subtitleExtended": "Your children's attendance tracking",
+    "emptyTitle": "No attendance data",
+    "rate": "Attendance rate",
+    "punctuality": "Punctuality",
+    "absentDays": "Absent days",
+    "thisMonth": "This month"
+  },
+  "payments": {
+    "title": "Mobile Money Payments",
+    "subtitle": "School fees · MTN MoMo & Orange Money",
+    "allChildren": "All children",
+    "pendingPayment": "{count} payment(s) pending",
+    "remainingDue": "Remaining due: {amount}",
+    "noInvoices": "No invoices found",
+    "phoneRequired": "Phone number required",
+    "paymentInitiated": "Payment initiated — confirm on your phone",
+    "offlineMessage": "Payment information requires an internet connection to stay up to date.",
+    "modalTitle": "Pay by Mobile Money",
+    "amountToPay": "Amount to pay",
+    "operator": "Operator",
+    "phoneLabel": "Phone number *",
+    "phonePlaceholder": "e.g. 677000000",
+    "initiating": "Initiating…",
+    "confirmPayment": "📱 Confirm Payment",
+    "payButton": "📱 Pay",
+    "libelle": "Label",
+    "remaining": "Remaining"
+  },
+  "timetable": {
+    "title": "Timetable",
+    "schedule": "Schedule",
+    "weekRange": "Week of {start} to {end}",
+    "days": "Monday,Tuesday,Wednesday,Thursday,Friday"
+  },
+  "library": {
+    "title": "Library",
+    "subtitle": "Books borrowed from the school library",
+    "childFilter": "Child",
+    "totalLoans": "Total loans",
+    "active": "Active",
+    "overdue": "Overdue",
+    "returned": "Returned",
+    "emptyTitle": "No loans recorded",
+    "emptyDesc": "Book loans will appear here once recorded by the librarian",
+    "titleCol": "Title",
+    "category": "Category",
+    "borrowedOn": "Borrowed on",
+    "dueDate": "Due date",
+    "status": "Status",
+    "overdueBadge": "⏰ Overdue"
+  },
+  "settings": {
+    "title": "Settings",
+    "development": "This section is under development.",
+    "comeBack": "Come back soon."
+  }
+}

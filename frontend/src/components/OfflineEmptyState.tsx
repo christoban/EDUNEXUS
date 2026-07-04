@@ -1,19 +1,22 @@
 'use client'
 
+import { useT } from '@/lib/i18n'
+
 interface Props {
   message?: string
 }
 
 export default function OfflineEmptyState({ message }: Props) {
+  const t = useT('common')
   return (
     <div style={{ padding: '28px 32px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: 48, textAlign: 'center', maxWidth: 420 }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center', maxWidth: 420 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>📶</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
-          {message ?? 'Cette donnée n\'est pas disponible hors-ligne.'}
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+          {message ?? t('offline.notAvailable')}
         </div>
-        <div style={{ fontSize: 14, color: '#a89478', lineHeight: 1.6 }}>
-          Connectez-vous une fois en ligne pour la consulter ensuite sans connexion.
+        <div style={{ fontSize: 14, color: 'var(--text3)', lineHeight: 1.6 }}>
+          {t('offline.connectHint')}
         </div>
       </div>
     </div>

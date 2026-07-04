@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── FONTS ── */
 @theme {
   --font-nunito: var(--font-nunito);
@@ -56,6 +58,63 @@
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+}
+
+/* ── DARK THEME PALETTE (Warm African) ── */
+.dark {
+  /* Backgrounds — deep forest */
+  --bg: #0c1810;
+  --bg2: #142618;
+  --surface: #1a2e1e;
+
+  /* Sidebar — very dark for layer separation */
+  --sidebar: #070f0a;
+  --sidebar2: #0c1810;
+  --sidebar3: #142618;
+  --sidebar-active: #2d5c3a;
+
+  /* Borders — forest greens */
+  --border: #243b29;
+  --border2: #2d4f34;
+
+  /* Text — warm beige/cream */
+  --text: #f7f3ee;
+  --text2: #d4c8b8;
+  --text3: #a89478;
+
+  /* Semantic greens */
+  --green: #10b981;
+  --green2: #059669;
+  --green-light: #064e3b;
+
+  /* Blue */
+  --blue: #3b82f6;
+  --blue-light: #1e3a5f;
+
+  /* Teal */
+  --teal: #14b8a6;
+  --teal-light: #134e4a;
+
+  /* Amber */
+  --amber: #f59e0b;
+  --amber-light: #451a03;
+
+  /* Red */
+  --red: #ef4444;
+  --red-light: #450a0a;
+
+  /* Purple */
+  --purple: #8b5cf6;
+  --purple-light: #2e1065;
+
+  /* Orange */
+  --orange: #f97316;
+  --orange-light: #431407;
+
+  /* Shadows — light-on-dark */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.45);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.55);
 }
 
 /* ── BASE STYLES ── */

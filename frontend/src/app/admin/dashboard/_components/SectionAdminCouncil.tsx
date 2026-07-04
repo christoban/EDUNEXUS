@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
 
 interface Props {
@@ -34,16 +35,16 @@ interface SessionDetail {
 }
 
 const DEC_COLOR: Record<string, { color: string; bg: string }> = {
-  PASS:         { color: '#059669', bg: '#d1fae5' },
-  REPEAT:       { color: '#dc2626', bg: '#fee2e2' },
-  DELIBERATION: { color: '#d97706', bg: '#fef3c7' },
-}
-
-const DEC_LABEL: Record<string, string> = {
-  PASS: '✅ Admis(e)', REPEAT: '↩️ Redoublant(e)', DELIBERATION: '⚖️ En délibération',
+  PASS:         { color: 'var(--green)', bg: 'var(--green-light)' },
+  REPEAT:       { color: 'var(--red)', bg: 'var(--red-light)' },
+  DELIBERATION: { color: 'var(--amber)', bg: 'var(--amber-light)' },
 }
 
 export default function SectionAdminCouncil({ onToast }: Props) {
+  const t = useT('grades')
+  const DEC_LABEL: Record<string, string> = {
+    PASS: t('council.DEC_LABEL.PASS'), REPEAT: t('council.DEC_LABEL.REPEAT'), DELIBERATION: t('council.DEC_LABEL.DELIBERATION'),
+  }
   const [sessions, setSessions]           = useState<CouncilSession[]>([])
   const [selected, setSelected]           = useState<SessionDetail | null>(null)
   const [loading, setLoading]             = useState(true)
@@ -129,7 +130,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
           <select
             value={selectedPeriodId}
             onChange={e => { setSelectedPeriodId(e.target.value); setSelected(null) }}
-            style={{ padding: '8px 14px', border: '1.5px solid #d4c8b8', borderRadius: 10, background: '#f0ebe3', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, color: '#1a1209', outline: 'none', cursor: 'pointer' }}>
+            style={{ padding: '8px 14px', border: '1.5px solid var(--border2)', borderRadius: 10, background: 'var(--bg2)', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
             <option value="all">Tous les trimestres</option>
             {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -145,10 +146,10 @@ export default function SectionAdminCouncil({ onToast }: Props) {
             { icon: '🔒', value: lockedCount,     label: 'Verrouillés' },
             { icon: '📤', value: publishedCount,  label: 'Bulletins publiés' },
           ] as const).map(({ icon, value, label }) => (
-            <div key={label} style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', padding: '16px 18px' }}>
+            <div key={label} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '16px 18px' }}>
               <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#1a1209', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
-              <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginTop: 2 }}>{label}</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
+              <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -156,22 +157,22 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-          <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+          <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
         </div>
       )}
 
       {!loading && error && (
-        <div style={{ background: '#fee2e2', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: '#dc2626', flex: 1 }}>{error}</span>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchSessions} style={btnRetry}>Réessayer</button>
         </div>
       )}
 
       {!loading && !error && filteredSessions.length === 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '60px 32px', textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: 14 }}>🎓</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucun conseil de classe</div>
-          <div style={{ fontSize: 16, color: '#a89478' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Aucun conseil de classe</div>
+          <div style={{ fontSize: 16, color: 'var(--text3)' }}>
             {selectedPeriodId !== 'all' ? 'Aucune session pour ce trimestre.' : 'Les sessions seront créées par le personnel.'}
           </div>
         </div>
@@ -183,32 +184,32 @@ export default function SectionAdminCouncil({ onToast }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filteredSessions.map(s => (
               <div key={s.id} onClick={() => openSession(s.id)}
-                style={{ background: selected?.id === s.id ? '#f0fdf4' : 'white', borderRadius: 14, border: `1.5px solid ${selected?.id === s.id ? '#059669' : '#e8e0d4'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
-                onMouseEnter={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: '#d4c8b8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }) }}
-                onMouseLeave={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: '#e8e0d4', boxShadow: 'none' }) }}>
+                style={{ background: selected?.id === s.id ? 'var(--green-light)' : 'white', borderRadius: 14, border: `1.5px solid ${selected?.id === s.id ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }) }}
+                onMouseLeave={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border)', boxShadow: 'none' }) }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: '#1a1209' }}>{s.class.name}</div>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: s.status === 'LOCKED' ? '#d1fae5' : '#dbeafe', color: s.status === 'LOCKED' ? '#065f46' : '#1e40af' }}>
+                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{s.class.name}</div>
+                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: s.status === 'LOCKED' ? 'var(--green-light)' : 'var(--blue-light)', color: s.status === 'LOCKED' ? 'var(--green)' : 'var(--blue)' }}>
                     {s.status === 'LOCKED' ? '🔒 Verrouillé' : '📖 Ouvert'}
                   </span>
                 </div>
-                <div style={{ fontSize: 14, color: '#a89478', fontWeight: 600 }}>{s.academicPeriod.name}</div>
-                <div style={{ fontSize: 13, color: '#a89478', marginTop: 4 }}>{s._count.decisions} décision{s._count.decisions !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{s.academicPeriod.name}</div>
+                <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{s._count.decisions} décision{s._count.decisions !== 1 ? 's' : ''}</div>
               </div>
             ))}
           </div>
 
           {/* Détail */}
           {selected && (
-            <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
               {loadingDetail ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-                  <div style={{ width: 28, height: 28, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+                  <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
                 </div>
               ) : (
                 <>
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                    <span style={{ fontSize: 17, fontWeight: 800, color: '#1a1209' }}>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
                       🗳️ {selected.class.name} · {selected.academicPeriod.name}
                     </span>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -240,19 +241,19 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                   </div>
 
                   {selected.status === 'OPEN' && (
-                    <div style={{ background: '#fff7ed', borderBottom: '1px solid #fed7aa', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: '#c2410c' }}>
+                    <div style={{ background: 'var(--orange-light)', borderBottom: '1px solid var(--orange-light)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--orange)' }}>
                       ⏳ En attente du verrouillage par le Censeur
                     </div>
                   )}
 
                   {selected.status === 'LOCKED' && (
-                    <div style={{ background: '#d1fae5', borderBottom: '1px solid #e8e0d4', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: '#065f46' }}>
+                    <div style={{ background: 'var(--green-light)', borderBottom: '1px solid var(--border)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
                       🔒 Ce conseil est verrouillé.
                     </div>
                   )}
 
                   {selected.decisions.length === 0 ? (
-                    <div style={{ padding: '40px 22px', textAlign: 'center', color: '#a89478' }}>Aucun élève dans cette session.</div>
+                    <div style={{ padding: '40px 22px', textAlign: 'center', color: 'var(--text3)' }}>Aucun élève dans cette session.</div>
                   ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
@@ -265,15 +266,15 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                           const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS!
                           return (
                             <tr key={d.studentId}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                              <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{d.student.firstName} {d.student.lastName}</td>
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                              <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{d.student.firstName} {d.student.lastName}</td>
                               <td style={tdSt}>
                                 <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc?.bg, color: dc?.color }}>
                                   {DEC_LABEL[d.decision] ?? d.decision}
                                 </span>
                               </td>
-                              <td style={tdSt}><span style={{ fontSize: 15, color: '#a89478' }}>{d.observations || '—'}</span></td>
+                              <td style={tdSt}><span style={{ fontSize: 15, color: 'var(--text3)' }}>{d.observations || '—'}</span></td>
                             </tr>
                           )
                         })}
@@ -290,10 +291,10 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'white', color: '#dc2626', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '12px 16px', fontSize: 16, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const btnPrim: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '12px 16px', fontSize: 16, color: 'var(--text2)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }

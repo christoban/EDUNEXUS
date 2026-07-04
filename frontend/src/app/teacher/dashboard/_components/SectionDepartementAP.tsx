@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   user: UserInfo
@@ -33,6 +34,8 @@ interface ProgAlerte {
 }
 
 export default function SectionDepartementAP({ user: _user, departementId, departementNom }: Props) {
+  const t = useT('teacher')
+  const tcommon = useT('common')
   const [tab, setTab] = useState<Tab>('performances')
   const [perf, setPerf] = useState<PerfRow[]>([])
   const [horaires, setHoraires] = useState<HoraireRow[]>([])
@@ -48,16 +51,16 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
       fetchApi(`/api/v2/departments/${departementId}/performance`, { credentials: 'include' })
         .then(r => r.json())
         .then(d => setPerf(Array.isArray(d.data) ? d.data : []))
-        .catch(() => setError('Erreur de chargement des performances'))
+        .catch(() => setError(t('department.error_performance')))
         .finally(() => setLoading(false))
     } else if (tab === 'progression') {
       fetchApi(`/api/v2/pedagogie/alertes-retard`, { credentials: 'include' })
         .then(r => r.json())
         .then(d => {
           if (d.success) setAlertes(d.data ?? [])
-          else setError('Erreur de chargement des progressions')
+          else setError(t('department.error_progression'))
         })
-        .catch(() => setError('Erreur réseau'))
+        .catch(() => setError(t('department.error_network')))
         .finally(() => setLoading(false))
     } else {
       // Volume horaire: fetch timetables and compute per teacher
@@ -87,7 +90,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
               .sort((a, b) => b.totalHours - a.totalHours)
           )
         })
-        .catch(() => setError('Erreur de chargement des volumes horaires'))
+        .catch(() => setError(t('department.error_hours')))
         .finally(() => setLoading(false))
     }
   }, [tab, departementId])
@@ -95,7 +98,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
   const tabBtn = (t: Tab, label: string) => (
     <button onClick={() => setTab(t)}
       style={{ padding: '8px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
-        background: tab === t ? '#1a2e1e' : '#f0ebe3', color: tab === t ? 'white' : '#6b5c45', transition: 'all 0.15s' }}>
+        background: tab === t ? 'var(--sidebar)' : 'var(--bg2)', color: tab === t ? 'white' : 'var(--text2)', transition: 'all 0.15s' }}>
       {label}
     </button>
   )
@@ -104,65 +107,65 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: '#1a1209' }}>
-          🎯 Département {departementNom}
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+          {t('department.title').replace('{name}', departementNom)}
         </div>
-        <div style={{ fontSize: 14, color: '#a89478', fontWeight: 500, marginTop: 4 }}>
-          Vue Animateur Pédagogique
+        <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
+          {t('department.subtitle')}
         </div>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {tabBtn('performances', '📊 Performances')}
-        {tabBtn('horaires', '⏱️ Volume horaire')}
-        {tabBtn('progression', '📈 Progression programmes')}
+        {tabBtn('performances', t('department.tab_performances'))}
+        {tabBtn('horaires', t('department.tab_horaires'))}
+        {tabBtn('progression', t('department.tab_progression'))}
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: '#fee2e2', borderRadius: 10, color: '#991b1b', fontSize: 14, fontWeight: 600, marginBottom: 20 }}>{error}</div>
+        <div style={{ padding: 16, background: 'var(--red-light)', borderRadius: 10, color: 'var(--red)', fontSize: 14, fontWeight: 600, marginBottom: 20 }}>{error}</div>
       )}
 
       {/* Onglet Performances */}
       {tab === 'performances' && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Moyennes par matière / enseignant</span>
-            <span style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>{perf.length} cours</span>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('department.performance_title')}</span>
+            <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{t('department.performance_count').replace('{count}', String(perf.length))}</span>
           </div>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#a89478', fontSize: 14 }}>Chargement...</div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{tcommon('status.loading')}</div>
           ) : perf.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-              <div style={{ fontSize: 15, color: '#a89478', fontWeight: 600 }}>Aucune donnée de performance disponible</div>
-              <div style={{ fontSize: 13, color: '#c4b8a8', marginTop: 6 }}>Les notes doivent être validées pour apparaître ici.</div>
+              <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>{t('department.performance_empty')}</div>
+              <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 6 }}>{t('department.performance_empty_hint')}</div>
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: '#f7f3ee' }}>
-                  {['Enseignant', 'Matière', 'Classe', 'Moyenne /20', 'Élèves'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                <tr style={{ background: 'var(--bg)' }}>
+                  {[t('department.perf_table_teacher'), t('department.perf_table_subject'), t('department.perf_table_class'), t('department.perf_table_average'), t('department.perf_table_students')].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {perf.map((row, i) => {
                   const moy = row.moyenne
-                  const moyBg = moy === null ? '#f0ebe3' : moy >= 12 ? '#d1fae5' : moy >= 8 ? '#fef3c7' : '#fee2e2'
-                  const moyColor = moy === null ? '#a89478' : moy >= 12 ? '#065f46' : moy >= 8 ? '#92400e' : '#991b1b'
+                  const moyBg = moy === null ? 'var(--bg2)' : moy >= 12 ? 'var(--green-light)' : moy >= 8 ? 'var(--amber-light)' : 'var(--red-light)'
+                  const moyColor = moy === null ? 'var(--text3)' : moy >= 12 ? 'var(--green)' : moy >= 8 ? 'var(--amber)' : 'var(--red)'
                   return (
-                    <tr key={i} style={{ borderTop: '1px solid #f0ebe3', background: i % 2 === 0 ? 'white' : '#fafaf9' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: '#1a1209' }}>{row.teacherName}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#6b5c45', fontWeight: 600 }}>{row.subjectName}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#6b5c45', fontWeight: 600 }}>{row.className}</td>
+                    <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{row.teacherName}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.className}</td>
                       <td style={{ padding: '12px 16px' }}>
                         <span style={{ background: moyBg, color: moyColor, padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
                           {moy !== null ? moy.toFixed(2) : '—'}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#6b5c45', fontWeight: 600 }}>{row.nbEleves}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.nbEleves}</td>
                     </tr>
                   )
                 })}
@@ -176,53 +179,53 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
       {tab === 'horaires' && (
         <div>
           {/* Alerte limite légale */}
-          <div style={{ padding: '14px 18px', background: '#fefce8', border: '1.5px solid #fde68a', borderRadius: 12, marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ padding: '14px 18px', background: '#fefce8', border: '1.5px solid var(--amber-light)', borderRadius: 12, marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#92400e' }}>Limite légale MINESEC : 14h / semaine</div>
-              <div style={{ fontSize: 13, color: '#a16207', fontWeight: 500, marginTop: 2 }}>Les enseignants dépassant cette limite sont mis en évidence en rouge.</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--amber)' }}>{t('department.hours_legal_warn')}</div>
+              <div style={{ fontSize: 13, color: '#a16207', fontWeight: 500, marginTop: 2 }}>{t('department.hours_legal_hint')}</div>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid #e8e0d4' }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Volume horaire hebdomadaire</span>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('department.hours_title')}</span>
             </div>
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#a89478', fontSize: 14 }}>Chargement...</div>
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{tcommon('status.loading')}</div>
             ) : horaires.length === 0 ? (
               <div style={{ padding: 60, textAlign: 'center' }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-                <div style={{ fontSize: 15, color: '#a89478', fontWeight: 600 }}>Aucun emploi du temps enregistré</div>
+                <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>{t('department.hours_empty')}</div>
               </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#f7f3ee' }}>
-                    {['Enseignant', 'Matière', 'Heures / sem.', 'Statut'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                  <tr style={{ background: 'var(--bg)' }}>
+                    {[t('department.hours_table_teacher'), t('department.hours_table_subject'), t('department.hours_table_hours'), t('department.hours_table_status')].map(h => (
+                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {horaires.map((row, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid #f0ebe3', background: row.isOverLimit ? '#fff7f7' : i % 2 === 0 ? 'white' : '#fafaf9' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: row.isOverLimit ? '#991b1b' : '#1a1209' }}>{row.teacherName}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: '#6b5c45', fontWeight: 600 }}>{row.subjectName}</td>
+                    <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: row.isOverLimit ? '#fff7f7' : i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>{row.teacherName}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 16, fontWeight: 900, color: row.isOverLimit ? '#dc2626' : '#1a1209' }}>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>
                             {row.totalHours.toFixed(1)}h
                           </span>
-                          <div style={{ flex: 1, background: '#f0ebe3', borderRadius: 4, height: 6, maxWidth: 100, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', borderRadius: 4, width: `${Math.min((row.totalHours / 20) * 100, 100)}%`, background: row.isOverLimit ? '#dc2626' : '#059669' }} />
+                          <div style={{ flex: 1, background: 'var(--bg2)', borderRadius: 4, height: 6, maxWidth: 100, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', borderRadius: 4, width: `${Math.min((row.totalHours / 20) * 100, 100)}%`, background: row.isOverLimit ? 'var(--red)' : 'var(--green)' }} />
                           </div>
                         </div>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         {row.isOverLimit
-                          ? <span style={{ background: '#fee2e2', color: '#991b1b', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>🔴 Dépasse 14h</span>
-                          : <span style={{ background: '#d1fae5', color: '#065f46', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>✅ OK</span>
+                          ? <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{t('department.hours_over')}</span>
+                          : <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{t('department.hours_ok')}</span>
                         }
                       </td>
                     </tr>
@@ -237,36 +240,36 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
       {/* Onglet Progression programmes */}
       {tab === 'progression' && (
         <div>
-          <div style={{ padding: '14px 18px', background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 12, marginBottom: 18, fontSize: 14, fontWeight: 600, color: '#065f46' }}>
-            Alertes de retard sur les programmes de votre département — toutes classes confondues.
+          <div style={{ padding: '14px 18px', background: 'var(--green-light)', border: '1.5px solid var(--green-light)', borderRadius: 12, marginBottom: 18, fontSize: 14, fontWeight: 600, color: 'var(--green)' }}>
+            {t('department.progression_info')}
           </div>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#a89478', fontSize: 14 }}>Calcul en cours...</div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{t('department.progression_loading')}</div>
           ) : alertes.length === 0 ? (
-            <div style={{ padding: 60, textAlign: 'center', background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4' }}>
+            <div style={{ padding: 60, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: 15, color: '#065f46', fontWeight: 700 }}>Aucun retard significatif</div>
-              <div style={{ fontSize: 13, color: '#a89478', marginTop: 4 }}>Tous les cours sont dans les délais, ou aucun programme n'est encore défini.</div>
+              <div style={{ fontSize: 15, color: 'var(--green)', fontWeight: 700 }}>{t('department.progression_no_alerts')}</div>
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{t('department.progression_no_alerts_hint')}</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {alertes.map((a, i) => {
                 const isCritique = a.niveau === 'CRITIQUE'
                 return (
-                  <div key={i} style={{ background: 'white', borderRadius: 14, border: `1.5px solid ${isCritique ? '#fca5a5' : '#fde68a'}`, padding: '16px 20px' }}>
+                  <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${isCritique ? 'var(--red-light)' : 'var(--amber-light)'}`, padding: '16px 20px' }}>
                     <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                      <div style={{ background: isCritique ? '#fee2e2' : '#fef3c7', borderRadius: 10, padding: '8px 14px', textAlign: 'center', flexShrink: 0 }}>
-                        <div style={{ fontSize: 18, fontWeight: 900, color: isCritique ? '#991b1b' : '#92400e' }}>-{a.retardPct}%</div>
-                        <div style={{ fontSize: 10, fontWeight: 800, color: isCritique ? '#991b1b' : '#92400e', textTransform: 'uppercase' }}>{a.niveau}</div>
+                      <div style={{ background: isCritique ? 'var(--red-light)' : 'var(--amber-light)', borderRadius: 10, padding: '8px 14px', textAlign: 'center', flexShrink: 0 }}>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: isCritique ? 'var(--red)' : 'var(--amber)' }}>-{a.retardPct}%</div>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: isCritique ? 'var(--red)' : 'var(--amber)', textTransform: 'uppercase' }}>{a.niveau}</div>
                       </div>
                       <div>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-                          <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{a.className}</span>
-                          <span style={{ background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{a.subjectName}</span>
+                          <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{a.className}</span>
+                          <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{a.subjectName}</span>
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1209' }}>{a.programmeTitre}</div>
-                        <div style={{ fontSize: 12, color: '#6b5c45', marginTop: 2 }}>
-                          {a.chapitresRealises}/{a.chapitresTotal} chapitres · Réalisé {a.progressionPct}% · Attendu {a.attenduPct}%
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{a.programmeTitre}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                          {t('department.progression_chapters').replace('{done}', String(a.chapitresRealises)).replace('{total}', String(a.chapitresTotal)).replace('{pct}', String(a.progressionPct)).replace('{expected}', String(a.attenduPct))}
                         </div>
                       </div>
                     </div>

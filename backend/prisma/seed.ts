@@ -699,7 +699,9 @@ const SAR_CFM_SUBJECTS: SubjectDef[] = [
   { name: "Éducation Physique",        code: "EPS",      coefficient: 1, hoursPerWeek: 2, subjectType: 'PRACTICAL' },
 ]
 
-// barèmes APC — total = 300 pts (source: grille officielle MINEDUB)
+// Matières traditionnelles primaire FR (coefficients = 300 au total).
+// NON utilisées à l'activation APC — les écoles primaires utilisent primaire-apc.ts (260 pts).
+// Conservées ici comme référence pour les modes d'évaluation non-APC.
 const PRIMAIRE_FR_SUBJECTS: SubjectDef[] = [
   { name: "Français",                code: "FR",    coefficient: 30, hoursPerWeek: 5 },
   { name: "Anglais",                 code: "ANG",   coefficient: 30, hoursPerWeek: 3 },

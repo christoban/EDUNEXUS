@@ -5,6 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -25,14 +26,22 @@ interface TeacherPerf {
   moyennesParClasse: { subjectName: string; className: string; moyenne: number | null; nbEleves: number }[]
 }
 
-const PIE_COLORS = ['#059669', '#d97706', '#1d4ed8', '#dc2626', '#7c3aed', '#a89478']
+const PIE_COLORS = ['var(--green)', 'var(--amber)', 'var(--blue)', 'var(--red)', 'var(--purple)', 'var(--text3)']
 
-const card: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }
-const cardHeader: React.CSSProperties = { padding: '16px 22px', borderBottom: '1px solid #e8e0d4' }
-const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: '#1a1209' }
-const select: React.CSSProperties = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid #d4c8b8', fontFamily: 'inherit', fontSize: 14, color: '#1a1209', background: 'white' }
+// Styles Recharts thème-aware (axes/tooltip/légende basculent en sombre)
+const CHART_TOOLTIP = {
+  contentStyle: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' },
+  labelStyle: { color: 'var(--text2)' },
+  itemStyle: { color: 'var(--text)' },
+} as const
+
+const card: React.CSSProperties = { background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }
+const cardHeader: React.CSSProperties = { padding: '16px 22px', borderBottom: '1px solid var(--border)' }
+const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: 'var(--text)' }
+const select: React.CSSProperties = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border2)', fontFamily: 'inherit', fontSize: 14, color: 'var(--text)', background: 'var(--surface)' }
 
 export default function SectionStatistics({ onToast }: Props) {
+  const t = useT('admin')
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [subjects, setSubjects] = useState<SubjectItem[]>([])
   const [teachers, setTeachers] = useState<TeacherItem[]>([])
@@ -132,10 +141,10 @@ export default function SectionStatistics({ onToast }: Props) {
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       <div style={{ marginBottom: 26 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }}>
-          Statistiques
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>
+          {t('statistics.title')}
         </div>
-        <div style={{ fontSize: 17, color: '#a89478', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
+        <div style={{ fontSize: 17, color: 'var(--text3)', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
@@ -163,11 +172,11 @@ export default function SectionStatistics({ onToast }: Props) {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={evolution}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e8e0d4" />
-                  <XAxis dataKey="sequenceName" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0, 20]} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="moyenne" name="Moyenne" stroke="#059669" strokeWidth={2.5} dot={{ r: 4 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="sequenceName" tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
+                  <YAxis domain={[0, 20]} tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
+                  <Tooltip {...CHART_TOOLTIP} />
+                  <Line type="monotone" dataKey="moyenne" name="Moyenne" stroke="var(--green)" strokeWidth={2.5} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -191,11 +200,11 @@ export default function SectionStatistics({ onToast }: Props) {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={comparison}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e8e0d4" />
-                  <XAxis dataKey="className" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0, 20]} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="moyenne" name="Moyenne générale" fill="#1d4ed8" radius={[6, 6, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="className" tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
+                  <YAxis domain={[0, 20]} tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
+                  <Tooltip {...CHART_TOOLTIP} />
+                  <Bar dataKey="moyenne" name="Moyenne générale" fill="var(--blue)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -223,8 +232,8 @@ export default function SectionStatistics({ onToast }: Props) {
                   <Pie data={distribution} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90} label>
                     {distribution.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip />
-                  <Legend />
+                  <Tooltip {...CHART_TOOLTIP} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text2)' }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -256,9 +265,9 @@ export default function SectionStatistics({ onToast }: Props) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
                   {teacherPerf.moyennesParClasse.map((m, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', background: '#faf7f2', borderRadius: 8 }}>
-                      <span style={{ color: '#6b5c45', fontWeight: 600 }}>{m.subjectName} · {m.className}</span>
-                      <span style={{ fontWeight: 800, color: '#1a1209' }}>{m.moyenne !== null ? `${m.moyenne}/20` : '—'}</span>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', background: 'var(--bg)', borderRadius: 8 }}>
+                      <span style={{ color: 'var(--text2)', fontWeight: 600 }}>{m.subjectName} · {m.className}</span>
+                      <span style={{ fontWeight: 800, color: 'var(--text)' }}>{m.moyenne !== null ? `${m.moyenne}/20` : '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -274,14 +283,14 @@ export default function SectionStatistics({ onToast }: Props) {
 function Spinner() {
   return (
     <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+      <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
     </div>
   )
 }
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 14, color: '#a89478', textAlign: 'center', padding: '0 20px' }}>
+    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 14, color: 'var(--text3)', textAlign: 'center', padding: '0 20px' }}>
       {text}
     </div>
   )
@@ -289,9 +298,9 @@ function EmptyState({ text }: { text: string }) {
 
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ background: '#faf7f2', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
-      <div style={{ fontSize: 22, fontWeight: 900, color: '#1a1209' }}>{value}</div>
-      <div style={{ fontSize: 12, color: '#a89478', fontWeight: 600, marginTop: 2 }}>{label}</div>
+    <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
+      <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
     </div>
   )
 }

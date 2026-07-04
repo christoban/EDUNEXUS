@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
-const JOURS_LABELS: Record<string, string> = {
-  LUNDI: 'Lun', MARDI: 'Mar', MERCREDI: 'Mer', JEUDI: 'Jeu', VENDREDI: 'Ven', SAMEDI: 'Sam',
-}
 
 interface PeriodeGrille {
   ordre: number
@@ -68,12 +66,13 @@ function calculerSquelette(f: GridForm): PeriodeGrille[] {
 }
 
 const sScroll: React.CSSProperties = { height: '100%', overflowY: 'auto', padding: '32px 40px' }
-const sCard: React.CSSProperties = { background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '28px 32px' }
-const sLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }
-const sInput: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e8e0d4', fontSize: 15, color: '#1a1209', fontFamily: 'inherit', boxSizing: 'border-box' }
+const sCard: React.CSSProperties = { background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '28px 32px' }
+const sLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }
+const sInput: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 15, color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box' }
 const sNum: React.CSSProperties = { ...sInput, width: 90 }
 
 export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }) {
+  const t = useT('admin')
   const [form, setForm] = useState<GridForm>(DEFAULT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -114,8 +113,8 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
   }
 
   const handleSave = async () => {
-    if (totalPeriodes < 1) { onToast('Configurez au moins 1 période', 'error'); return }
-    if (form.joursActifs.length === 0) { onToast('Sélectionnez au moins un jour', 'error'); return }
+    if (totalPeriodes < 1) { onToast(t('grille_horaire.toast.minPeriod'), 'error'); return }
+    if (form.joursActifs.length === 0) { onToast(t('grille_horaire.toast.minDay'), 'error'); return }
     setSaving(true)
     try {
       const res = await fetchApi('/api/v2/timetable-grid-config', {
@@ -124,19 +123,19 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
         body: JSON.stringify(form),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.message || 'Erreur')
+      if (!res.ok) throw new Error(d.message || t('grille_horaire.toast.err'))
       setIsConfigured(true)
       setExistingTimetables(d.data.timetableCount ?? 0)
-      onToast('Configuration enregistrée', 'success')
+      onToast(t('grille_horaire.toast.saved'), 'success')
     } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+      onToast(err instanceof Error ? err.message : t('grille_horaire.toast.err'), 'error')
     } finally {
       setSaving(false)
     }
   }
 
   if (loading) {
-    return <div style={{ ...sScroll, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a89478' }}>Chargement…</div>
+    return <div style={{ ...sScroll, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)' }}>{t('grille_horaire.loading')}</div>
   }
 
   const derniereHeure = squelette.length > 0 ? squelette[squelette.length - 1].fin : '—'
@@ -144,21 +143,20 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
   return (
     <div style={sScroll}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: '#1a1209', marginBottom: 6 }}>
-          Configuration grille horaire
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+          {t('grille_horaire.title')}
         </div>
-        <div style={{ fontSize: 15, color: '#a89478' }}>
-          Définissez la structure de vos journées scolaires. Cette grille sera utilisée pour tous les emplois du temps.
+        <div style={{ fontSize: 15, color: 'var(--text3)' }}>
+          {t('grille_horaire.subtitle')}
         </div>
       </div>
 
       {/* Avertissement EDT existants */}
       {isConfigured && existingTimetables > 0 && (
-        <div style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <span style={{ fontSize: 20 }}>⚠️</span>
-          <div style={{ fontSize: 14, color: '#92400e' }}>
-            <strong>Attention :</strong> {existingTimetables} emploi{existingTimetables > 1 ? 's' : ''} du temps exist{existingTimetables > 1 ? 'ent' : 'e'} déjà.
-            Modifier la grille affectera tous les emplois du temps existants.
+          <div style={{ fontSize: 14, color: 'var(--amber-light)' }}>
+            <strong>{t('grille_horaire.warnStrong')}</strong> {t('grille_horaire.warnBody', { n: existingTimetables })}
           </div>
         </div>
       )}
@@ -167,129 +165,129 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
         {/* ── Formulaire ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={sCard}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1209', marginBottom: 20 }}>⚙️ Paramètres</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>{t('grille_horaire.settings')}</div>
 
             {/* Heure de début */}
             <div style={{ marginBottom: 16 }}>
-              <div style={sLabel}>Heure de début</div>
+              <div style={sLabel}>{t('grille_horaire.startTime')}</div>
               <input type="time" style={{ ...sInput, width: 140 }} value={form.heureDebut}
                 onChange={e => set('heureDebut', e.target.value)} />
             </div>
 
             {/* Durée d'une période */}
             <div style={{ marginBottom: 16 }}>
-              <div style={sLabel}>Durée d'une période (min)</div>
+              <div style={sLabel}>{t('grille_horaire.periodDuration')}</div>
               <input type="number" style={sNum} min={30} max={120} value={form.dureePeriode}
                 onChange={e => set('dureePeriode', Number(e.target.value))} />
             </div>
 
-            <div style={{ height: 1, background: '#e8e0d4', margin: '16px 0' }} />
+            <div style={{ height: 1, background: 'var(--border)', margin: '16px 0' }} />
 
             {/* Bloc 1 */}
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#6b5c45', marginBottom: 12 }}>Bloc 1 → Petite pause</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 12 }}>{t('grille_horaire.block1')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <div style={sLabel}>Périodes avant petite pause</div>
+                <div style={sLabel}>{t('grille_horaire.periodsBeforeSmall')}</div>
                 <input type="number" style={sNum} min={0} max={6} value={form.periodesAvantP1}
                   onChange={e => set('periodesAvantP1', Number(e.target.value))} />
               </div>
               <div>
-                <div style={sLabel}>Durée petite pause (min)</div>
+                <div style={sLabel}>{t('grille_horaire.smallBreakDuration')}</div>
                 <input type="number" style={sNum} min={0} max={60} value={form.dureePetitePause}
                   onChange={e => set('dureePetitePause', Number(e.target.value))} />
               </div>
             </div>
 
             {/* Bloc 2 */}
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#6b5c45', marginBottom: 12 }}>Bloc 2 → Grande pause</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 12 }}>{t('grille_horaire.block2')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <div style={sLabel}>Périodes avant grande pause</div>
+                <div style={sLabel}>{t('grille_horaire.periodsBeforeBig')}</div>
                 <input type="number" style={sNum} min={0} max={6} value={form.periodesAvantP2}
                   onChange={e => set('periodesAvantP2', Number(e.target.value))} />
               </div>
               <div>
-                <div style={sLabel}>Durée grande pause (min)</div>
+                <div style={sLabel}>{t('grille_horaire.bigBreakDuration')}</div>
                 <input type="number" style={sNum} min={0} max={90} value={form.dureeGrandePause}
                   onChange={e => set('dureeGrandePause', Number(e.target.value))} />
               </div>
             </div>
 
             {/* Bloc 3 */}
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#6b5c45', marginBottom: 12 }}>Bloc 3 → Fin de journée</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 12 }}>{t('grille_horaire.block3')}</div>
             <div style={{ marginBottom: 16 }}>
-              <div style={sLabel}>Périodes après grande pause</div>
+              <div style={sLabel}>{t('grille_horaire.periodsAfterBig')}</div>
               <input type="number" style={sNum} min={0} max={6} value={form.periodesApresP2}
                 onChange={e => set('periodesApresP2', Number(e.target.value))} />
             </div>
 
-            <div style={{ height: 1, background: '#e8e0d4', margin: '16px 0' }} />
+            <div style={{ height: 1, background: 'var(--border)', margin: '16px 0' }} />
 
             {/* Jours actifs */}
             <div style={{ marginBottom: 20 }}>
-              <div style={sLabel}>Jours actifs</div>
+              <div style={sLabel}>{t('grille_horaire.activeDays')}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {JOURS.map(j => (
                   <button key={j} onClick={() => toggleJour(j)} style={{
                     padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
-                    background: form.joursActifs.includes(j) ? '#1a2e1e' : 'white',
-                    color: form.joursActifs.includes(j) ? 'white' : '#6b5c45',
-                    borderColor: form.joursActifs.includes(j) ? '#1a2e1e' : '#e8e0d4',
+                    background: form.joursActifs.includes(j) ? 'var(--sidebar)' : 'white',
+                    color: form.joursActifs.includes(j) ? 'white' : 'var(--text2)',
+                    borderColor: form.joursActifs.includes(j) ? 'var(--sidebar)' : 'var(--border)',
                   }}>
-                    {JOURS_LABELS[j]}
+                    {t(`grille_horaire.days.${j}`)}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* KPI rapide */}
-            <div style={{ background: '#f7f3ee', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 14, color: '#6b5c45' }}>
-              <strong>{totalPeriodes}</strong> période{totalPeriodes > 1 ? 's' : ''} par jour
-              {derniereHeure !== '—' && <> · Fin à <strong>{derniereHeure}</strong></>}
-              {' · '}<strong>{form.joursActifs.length}</strong> jours/semaine
+            <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 14, color: 'var(--text2)' }}>
+              <strong>{totalPeriodes}</strong> {t('grille_horaire.periodsPerDay')}
+              {derniereHeure !== '—' && <> · {t('grille_horaire.endAt')} <strong>{derniereHeure}</strong></>}
+              {' · '}<strong>{form.joursActifs.length}</strong> {t('grille_horaire.daysPerWeek')}
             </div>
 
             <button onClick={handleSave} disabled={saving || totalPeriodes < 1} style={{
               width: '100%', padding: '13px 0', borderRadius: 12, border: 'none', cursor: saving ? 'wait' : 'pointer',
-              background: saving ? '#a89478' : '#1a2e1e', color: 'white', fontSize: 15, fontWeight: 700, fontFamily: 'inherit',
+              background: saving ? 'var(--text3)' : 'var(--sidebar)', color: 'white', fontSize: 15, fontWeight: 700, fontFamily: 'inherit',
             }}>
-              {saving ? '⏳ Enregistrement…' : '💾 Enregistrer la configuration'}
+              {saving ? t('grille_horaire.saving') : t('grille_horaire.save')}
             </button>
           </div>
         </div>
 
         {/* ── Aperçu squelette ── */}
         <div style={sCard}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1209', marginBottom: 20 }}>👁️ Aperçu de la grille</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>{t('grille_horaire.previewTitle')}</div>
           {squelette.length === 0 ? (
-            <div style={{ color: '#a89478', textAlign: 'center', padding: '40px 0' }}>
-              Configurez au moins une période pour voir l'aperçu.
+            <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '40px 0' }}>
+              {t('grille_horaire.configureToPreview')}
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #e8e0d4' }}>
-                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: '#6b5c45', textTransform: 'uppercase', width: 60 }}>N°</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: '#6b5c45', textTransform: 'uppercase' }}>Début</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: '#6b5c45', textTransform: 'uppercase' }}>Fin</th>
-                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: '#6b5c45', textTransform: 'uppercase', width: 70 }}>Durée</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: '#6b5c45', textTransform: 'uppercase' }}>Type</th>
+                <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', width: 60 }}>N°</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grille_horaire.colStart')}</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grille_horaire.colEnd')}</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', width: 70 }}>{t('grille_horaire.colDuration')}</th>
+                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grille_horaire.colType')}</th>
                 </tr>
               </thead>
               <tbody>
                 {squelette.map((p, i) => {
                   const isPause = p.type !== 'COURS'
-                  const bg = p.type === 'GRANDE_PAUSE' ? '#fef3c7' : p.type === 'PETITE_PAUSE' ? '#f0fdf4' : 'white'
-                  const label = p.type === 'COURS' ? `Période ${p.ordre}` : p.type === 'PETITE_PAUSE' ? '☕ Petite pause' : '🍽️ Grande pause'
+                  const bg = p.type === 'GRANDE_PAUSE' ? 'var(--amber-light)' : p.type === 'PETITE_PAUSE' ? 'var(--green-light)' : 'white'
+                  const label = p.type === 'COURS' ? t('grille_horaire.periodN', { n: p.ordre }) : p.type === 'PETITE_PAUSE' ? t('grille_horaire.smallBreak') : t('grille_horaire.bigBreak')
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #f0ebe3', background: bg }}>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 15, fontWeight: 800, color: isPause ? '#a89478' : '#1a1209' }}>
+                    <tr key={i} style={{ borderBottom: '1px solid var(--bg2)', background: bg }}>
+                      <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 15, fontWeight: 800, color: isPause ? 'var(--text3)' : 'var(--text)' }}>
                         {isPause ? '—' : p.ordre}
                       </td>
-                      <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: '#1a1209', fontVariantNumeric: 'tabular-nums' }}>{p.debut}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: '#1a1209', fontVariantNumeric: 'tabular-nums' }}>{p.fin}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 14, color: '#6b5c45', fontWeight: 600 }}>{p.duree} min</td>
-                      <td style={{ padding: '10px 12px', fontSize: 14, color: isPause ? '#059669' : '#6b5c45' }}>{label}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{p.debut}</td>
+                      <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{p.fin}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{p.duree} min</td>
+                      <td style={{ padding: '10px 12px', fontSize: 14, color: isPause ? 'var(--green)' : 'var(--text2)' }}>{label}</td>
                     </tr>
                   )
                 })}

@@ -1,0 +1,162 @@
+{
+  "grades": {
+    "title": "Grades",
+    "subtitle": "Browse and validate grades",
+    "status_labels": {
+      "DRAFT": "Draft",
+      "SUBMITTED": "Pending",
+      "VALIDATED": "✓ Validated",
+      "LOCKED": "🔒 Locked",
+      "REJECTED": "✕ Rejected"
+    },
+    "filters": {
+      "all_classes": "All classes",
+      "all_subjects": "All subjects",
+      "all_statuses": "All statuses",
+      "load": "Load"
+    },
+    "actions": {
+      "validate": "✓ Validate",
+      "validate_all": "✅ Validate all ({count})",
+      "retry": "Retry"
+    },
+    "table_headers": {
+      "student": "Student",
+      "subject": "Subject",
+      "grade": "Grade /20",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "toasts": {
+      "validate_success": "Grade validated successfully",
+      "validate_error": "Validation error",
+      "load_error": "Loading error",
+      "select_class_first": "Select a class",
+      "no_pending_grades": "No pending grades",
+      "bulk_validate_result": "{ok}/{total} grade(s) validated"
+    },
+    "empty_state": "Select filters then click \"Load\""
+  },
+  "council": {
+    "title": "Class Council",
+    "subtitle_template": "{total} session(s) · {open} open · {locked} locked",
+    "filters": {
+      "all_periods": "All terms"
+    },
+    "decisions": {
+      "PASS": "✅ Passed",
+      "REPEAT": "↩️ Repeating",
+      "DELIBERATION": "⚖️ Under deliberation"
+    },
+    "kpi": {
+      "total_sessions": "Total sessions",
+      "in_progress": "In progress",
+      "locked": "Locked",
+      "bulletins_published": "Report cards published"
+    },
+    "actions": {
+      "publishing": "⏳ Publishing…",
+      "publish_bulletins": "📤 Publish report cards",
+      "official_report": "📋 Official minutes",
+      "honor_roll": "🏆 Honor roll",
+      "honor_roll_annual": "🏆 Annual",
+      "report": "📄 Report",
+      "close": "✕",
+      "retry": "Retry"
+    },
+    "tooltips": {
+      "official_report": "Official deliberation minutes",
+      "honor_roll": "Term honor roll",
+      "honor_roll_annual": "Annual honor roll (available only once all councils are locked)"
+    },
+    "student_list": {
+      "header_student": "Student",
+      "header_decision": "Decision",
+      "header_observation": "Observation",
+      "observation_placeholder": "—",
+      "empty": "No students in this session."
+    },
+    "status_banners": {
+      "OPEN": "⏳ Waiting for Vice-Principal to lock",
+      "LOCKED": "🔒 This council is locked."
+    },
+    "session_badges": {
+      "LOCKED": "🔒 Locked",
+      "OPEN": "📖 Open"
+    },
+    "empty_states": {
+      "title": "No class councils",
+      "no_period_sessions": "No sessions for this term."
+    },
+    "toasts": {
+      "server_error": "Server error",
+      "load_error": "Loading error",
+      "publish_success": "✅ {count} report card(s) published — SMS sent to parents",
+      "nothing_to_publish": "No report cards to publish for this class",
+      "publish_error": "Publishing error"
+    }
+  },
+  "bulletins": {
+    "celebrate": {
+      "title": "Generation started!",
+      "subtitle": "The class report cards are being generated. You will be notified as soon as they are ready.",
+      "cta": "Continue"
+    },
+    "title": "Report Cards",
+    "subtitle": "Generation and distribution",
+    "class_selector": {
+      "loading": "Loading…",
+      "select_placeholder": "Select a class",
+      "load": "Load",
+      "loading_button": "⏳ Loading…"
+    },
+    "checks": {
+      "section_title": "🔍 Pre-check — {className}",
+      "notes": {
+        "no_grades_title": "No grades recorded",
+        "no_grades_sub": "Enter grades before generating",
+        "has_grades_title": "Grades: {validated}/{total} validated",
+        "has_grades_sub": "{submitted} pending · {draft} drafts · {rejected} rejected"
+      },
+      "council": {
+        "locked_title": "Class council locked",
+        "locked_sub": "Term 1 class council is validated",
+        "unlocked_title": "Class council not locked",
+        "unlocked_sub": "The Vice-Principal must lock the class council before generation"
+      },
+      "readiness": {
+        "ready_title": "✅ Ready for generation",
+        "ready_sub": "All conditions are met",
+        "not_ready_title": "Not ready",
+        "not_ready_sub": "Resolve the issues above before generating"
+      }
+    },
+    "actions": {
+      "generate": "📄 Generate report cards →",
+      "generating": "⏳ Generating…",
+      "export_zip": "📦 ZIP",
+      "send": "📤 Send",
+      "view_pdf": "👁 PDF"
+    },
+    "table_headers": {
+      "student": "Student",
+      "average": "Avg.",
+      "rank": "Rank",
+      "pdf": "PDF"
+    },
+    "empty_states": {
+      "no_bulletins": "No report cards generated for this class",
+      "no_class_selected_title": "Select a class",
+      "no_class_selected_desc": "Choose a class and click \"Load\" to view report cards."
+    },
+    "toasts": {
+      "select_class": "Select a class",
+      "load_error": "Loading error",
+      "generate_success": "Report card generation launched",
+      "generate_error": "Generation error",
+      "export_success": "ZIP downloaded",
+      "send_success": "Report cards sent to parents",
+      "send_error": "Send error"
+    }
+  }
+}

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import PasswordStrengthBar, { getPasswordStrength } from '@/components/PasswordStrengthBar'
+import { useT, useChangeLanguage, useLanguage } from '@/lib/i18n'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -27,9 +28,9 @@ interface DetectedTemplate {
 }
 
 const TEMPLATE_META: Record<string, DetectedTemplate> = {
-  GHS_EN:            { code: 'GHS_EN', name: 'Government High School', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  GSS_EN:            { code: 'GSS_EN', name: 'Government Secondary School', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  PRIVE_EN:          { code: 'PRIVE_EN', name: 'Private School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  GHS_EN:            { code: 'GHS_EN', name: 'Government High School', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  GSS_EN:            { code: 'GSS_EN', name: 'Government Secondary School', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: false },
+  PRIVE_EN:          { code: 'PRIVE_EN', name: 'Private School (Anglophone)', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
   PRIMARY_EN:        { code: 'PRIMARY_EN', name: 'Primary School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
   NURSERY_EN:        { code: 'NURSERY_EN', name: 'Nursery School', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
   LYCEE_BILINGUE:    { code: 'LYCEE_BILINGUE', name: 'Lycée Bilingue', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
@@ -41,7 +42,7 @@ const TEMPLATE_META: Record<string, DetectedTemplate> = {
   PRIMAIRE_FR:       { code: 'PRIMAIRE_FR', name: 'École Primaire Francophone', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
   MATERNELLE_FR:     { code: 'MATERNELLE_FR', name: 'École Maternelle', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
   LYCEE_FR:          { code: 'LYCEE_FR', name: 'Lycée Général Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
-  CES_FR:            { code: 'CES_FR', name: "Collège d'Enseignement Secondaire", hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
+  CES_FR:            { code: 'CES_FR', name: "Collège d'Enseignement Secondaire", hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: false },
   PRIVE_FR:          { code: 'PRIVE_FR', name: 'Établissement Privé Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
   COMPLEXE_SCOLAIRE: { code: 'COMPLEXE_SCOLAIRE', name: 'Complexe Scolaire', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false, isComplexe: true },
 }
@@ -89,28 +90,25 @@ interface FormData {
 
 const REGIONS = ['Adamaoua','Centre','Est','Extrême-Nord','Littoral','Nord','Nord-Ouest','Ouest','Sud','Sud-Ouest']
 
-const PLAN_LABEL: Record<string, string> = {
-  DISCOVERY: 'Découverte', STANDARD: 'Standard', PREMIUM: 'Premium',
-}
 const PLAN_COLOR: Record<string, string> = {
-  DISCOVERY: '#059669', STANDARD: '#2563eb', PREMIUM: '#9333ea',
+  DISCOVERY: 'var(--green)', STANDARD: 'var(--blue)', PREMIUM: '#9333ea',
 }
 
-const SUBSYSTEM_OPTIONS = [
-  { value: 'FRANCOPHONE', label: 'Francophone', icon: '🇫🇷' },
-  { value: 'ANGLOPHONE',  label: 'Anglophone',  icon: '🇬🇧' },
-  { value: 'BILINGUAL',   label: 'Bilingue',    icon: '🌍' },
+const SUBSYSTEM_KEYS = [
+  { value: 'FRANCOPHONE', key: 'phase1.step1.subsystem.options.FRANCOPHONE.label', icon: '🇫🇷' },
+  { value: 'ANGLOPHONE',  key: 'phase1.step1.subsystem.options.ANGLOPHONE.label',  icon: '🇬🇧' },
+  { value: 'BILINGUAL',   key: 'phase1.step1.subsystem.options.BILINGUAL.label',   icon: '🌍' },
 ]
-const EDUCATION_OPTIONS = [
-  { value: 'GENERAL',      label: 'Enseignement général',      icon: '📚' },
-  { value: 'TECHNICAL',    label: 'Enseignement technique',    icon: '⚙️' },
-  { value: 'PROFESSIONAL', label: 'Enseignement professionnel', icon: '🔧' },
-  { value: 'MIXED',        label: 'Mixte',                     icon: '🎓' },
+const EDUCATION_KEYS = [
+  { value: 'GENERAL',      key: 'phase1.step1.educationType.options.GENERAL.label',      icon: '📚' },
+  { value: 'TECHNICAL',    key: 'phase1.step1.educationType.options.TECHNICAL.label',    icon: '⚙️' },
+  { value: 'PROFESSIONAL', key: 'phase1.step1.educationType.options.PROFESSIONAL.label',  icon: '🔧' },
+  { value: 'MIXED',        key: 'phase1.step1.educationType.options.MIXED.label',        icon: '🎓' },
 ]
-const OWNERSHIP_OPTIONS = [
-  { value: 'PUBLIC',          label: 'Public',              icon: '🏛️' },
-  { value: 'PRIVATE_SECULAR', label: 'Privé laïc',         icon: '🏫' },
-  { value: 'PRIVATE_FAITH',   label: 'Privé confessionnel', icon: '⛪' },
+const OWNERSHIP_KEYS = [
+  { value: 'PUBLIC',          key: 'phase1.step1.ownership.options.PUBLIC.label',          icon: '🏛️' },
+  { value: 'PRIVATE_SECULAR', key: 'phase1.step1.ownership.options.PRIVATE_SECULAR.label', icon: '🏫' },
+  { value: 'PRIVATE_FAITH',   key: 'phase1.step1.ownership.options.PRIVATE_FAITH.label',   icon: '⛪' },
 ]
 
 const TCODES_PEBS_FR = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_BILINGUE']
@@ -123,8 +121,12 @@ const TCODES_PRIMAIRE = ['PRIMAIRE_FR','PRIMARY_EN','PRIMARY_BILINGUAL']
 const NIVEAUX_1ER_CYCLE_FR = ['6e','5e','4e','3e']
 const NIVEAUX_1ER_CYCLE_CAP = ['CAP1','CAP2','CAP3','CAP4']
 const NIVEAUX_1ER_CYCLE_EN = ['Form 1','Form 2','Form 3','Form 4','Form 5']
+const NIVEAUX_1ER_CYCLE_EN_LOWER = ['Form 1','Form 2','Form 3']
 const NIVEAUX_2E_CYCLE_FR = ['2nde','1ère','Tle']
 const NIVEAUX_2E_CYCLE_EN = ['Lower Sixth','Upper Sixth']
+
+const FIRST_CYCLE_LEVELS = [...NIVEAUX_1ER_CYCLE_FR, ...NIVEAUX_1ER_CYCLE_CAP, ...NIVEAUX_1ER_CYCLE_EN]
+const SECOND_CYCLE_LEVELS = [...NIVEAUX_2E_CYCLE_FR, ...NIVEAUX_2E_CYCLE_EN]
 
 const FILIERES_LITT = [
   'A4 — Langues Vivantes',
@@ -153,11 +155,15 @@ const NIVEAUX_MATERNELLE = ['Petite section','Moyenne section','Grande section']
 
 const LV2_OPTIONS = ['Espagnol','Allemand','Chinois','Arabe','Latin','Italien']
 
-const CONVENTION_OPTIONS = [
-  { value: 'LETTRES',  label: 'Lettres',  desc: '6e A, 6e B, 6e C…' },
-  { value: 'CHIFFRES', label: 'Chiffres', desc: '6e 1, 6e 2, 6e 3…' },
-  { value: 'MIXTE',    label: 'Mixte',    desc: '6e A1, 6e A2…' },
+const CONVENTION_KEYS = [
+  { value: 'LETTRES',  key: 'phase1.step3.firstCycle.naming.LETTRES.label',  descKey: 'phase1.step3.firstCycle.naming.LETTRES.desc' },
+  { value: 'CHIFFRES', key: 'phase1.step3.firstCycle.naming.CHIFFRES.label', descKey: 'phase1.step3.firstCycle.naming.CHIFFRES.desc' },
+  { value: 'MIXTE',    key: 'phase1.step3.firstCycle.naming.MIXTE.label',    descKey: 'phase1.step3.firstCycle.naming.MIXTE.desc' },
 ]
+
+const SAR_METIERS_OPTIONS = ['Maçonnerie','Menuiserie','Couture','Cuisine','Agriculture','Mécanique']
+const CFM_FILIERES_OPTIONS = ['Agro-alimentaire','Artisanat','BTP','Numérique']
+const CETIF_FILIERES_OPTIONS = ['ESF','Couture','Hôtellerie','Cuisine']
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const MAX_STEPPER = 6
@@ -166,10 +172,6 @@ const MAX_STEPPER = 6
 
 function toSlug(v: string) {
   return v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
-}
-
-function labelOf(opts: { value: string; label: string }[], val: string) {
-  return opts.find(o => o.value === val)?.label ?? val
 }
 
 function toggleInArray(arr: string[], item: string): string[] {
@@ -246,8 +248,8 @@ function previewClassNames(level: string, count: number, convention: string): st
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 const INPUT: React.CSSProperties = {
-  width: '100%', padding: '11px 14px', background: 'white',
-  border: '1.5px solid #d4c8b8', borderRadius: 10, color: '#1a1209',
+  width: '100%', padding: '11px 14px', background: 'var(--surface)',
+  border: '1.5px solid var(--border2)', borderRadius: 10, color: 'var(--text)',
   fontSize: 17, fontFamily: 'inherit', fontWeight: 600, outline: 'none',
   boxSizing: 'border-box', transition: 'all 0.2s',
 }
@@ -255,8 +257,8 @@ const INPUT: React.CSSProperties = {
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <label style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 6, display: 'block', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-        {label}{required && <span style={{ color: '#dc2626', marginLeft: 3 }}>*</span>}
+      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 6, display: 'block', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+        {label}{required && <span style={{ color: 'var(--red)', marginLeft: 3 }}>*</span>}
       </label>
       {children}
     </div>
@@ -265,9 +267,9 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 function Alert({ msg, type }: { msg: string; type: 'error' | 'success' | 'info' }) {
   const styles = {
-    error:   { bg: '#fef2f2', border: 'rgba(220,38,38,0.25)',  color: '#991b1b', icon: '⚠️' },
-    success: { bg: '#f0fdf4', border: 'rgba(5,150,105,0.25)',  color: '#065f46', icon: '✅' },
-    info:    { bg: '#eff6ff', border: 'rgba(37,99,235,0.25)',  color: '#1e40af', icon: 'ℹ️' },
+    error:   { bg: 'var(--red-light)', border: 'rgba(220,38,38,0.25)',  color: 'var(--red)', icon: '⚠️' },
+    success: { bg: 'var(--green-light)', border: 'rgba(5,150,105,0.25)',  color: 'var(--green)', icon: '✅' },
+    info:    { bg: 'var(--blue-light)', border: 'rgba(37,99,235,0.25)',  color: 'var(--blue)', icon: 'ℹ️' },
   }[type]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', background: styles.bg, border: `1.5px solid ${styles.border}`, borderRadius: 10, marginBottom: 14, fontSize: 14, fontWeight: 700, color: styles.color }}>
@@ -288,13 +290,13 @@ function RadioCards({ options, value, onChange }: {
         return (
           <button key={o.value} type="button" onClick={() => onChange(o.value)}
             style={{
-              padding: '10px 8px', border: `2px solid ${active ? '#059669' : '#d4c8b8'}`,
+              padding: '10px 8px', border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
               borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
               cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
             }}>
             <span style={{ fontSize: 22 }}>{o.icon}</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: active ? '#047857' : '#6b5c45', textAlign: 'center', lineHeight: 1.2 }}>{o.label}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: active ? 'var(--green2)' : 'var(--text2)', textAlign: 'center', lineHeight: 1.2 }}>{o.label}</span>
           </button>
         )
       })}
@@ -302,18 +304,18 @@ function RadioCards({ options, value, onChange }: {
   )
 }
 
-function SubmitBtn({ loading, disabled, onClick, children }: { loading?: boolean; disabled?: boolean; onClick?: () => void; children: React.ReactNode }) {
+function SubmitBtn({ loading, disabled, onClick, children, loadingText }: { loading?: boolean; disabled?: boolean; onClick?: () => void; children: React.ReactNode; loadingText?: string }) {
   return (
     <button type="button" onClick={onClick} disabled={loading || disabled}
       style={{
-        width: '100%', padding: '14px', background: loading || disabled ? '#a8d5c2' : 'linear-gradient(135deg,#059669,#047857)',
+        width: '100%', padding: '14px', background: loading || disabled ? '#a8d5c2' : 'linear-gradient(135deg,var(--green),var(--green2))',
         color: 'white', fontSize: 18, fontWeight: 800, border: 'none', borderRadius: 10,
         cursor: loading || disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
         boxShadow: loading || disabled ? 'none' : '0 4px 16px rgba(5,150,105,0.25)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, transition: 'all 0.2s',
       }}>
       {loading
-        ? <><div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} /> Traitement en cours…</>
+        ? <><div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} /> {loadingText || 'Traitement en cours…'}</>
         : children}
     </button>
   )
@@ -334,12 +336,12 @@ function CheckboxGroup({ options, values, onChange, note }: {
             <label key={o.value} onClick={() => onChange(checked ? values.filter(v => v !== o.value) : [...values, o.value])}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
-                border: `2px solid ${checked ? '#059669' : '#d4c8b8'}`,
+                border: `2px solid ${checked ? 'var(--green)' : 'var(--border2)'}`,
                 borderRadius: 8, background: checked ? 'rgba(5,150,105,0.07)' : 'white',
-                cursor: 'pointer', fontSize: 14, fontWeight: 700, color: checked ? '#047857' : '#6b5c45',
+                cursor: 'pointer', fontSize: 14, fontWeight: 700, color: checked ? 'var(--green2)' : 'var(--text2)',
                 transition: 'all 0.15s', userSelect: 'none',
               }}>
-              <span style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${checked ? '#059669' : '#c4b8a8'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: checked ? '#059669' : 'transparent', flexShrink: 0 }}>
+              <span style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${checked ? 'var(--green)' : 'var(--border2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: checked ? 'var(--green)' : 'transparent', flexShrink: 0 }}>
                 {checked && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
               </span>
               {o.label}
@@ -347,7 +349,7 @@ function CheckboxGroup({ options, values, onChange, note }: {
           )
         })}
       </div>
-      {note && <div style={{ fontSize: 12, color: '#a89478', marginTop: 6, fontWeight: 600, lineHeight: 1.5 }}>{note}</div>}
+      {note && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontWeight: 600, lineHeight: 1.5 }}>{note}</div>}
     </div>
   )
 }
@@ -358,8 +360,8 @@ function StepperBtns({ value, onChange, max = MAX_STEPPER }: { value: number; on
       {Array.from({ length: max }, (_, i) => i + 1).map(n => (
         <button key={n} type="button" onClick={() => onChange(n)}
           style={{
-            width: 32, height: 32, borderRadius: 8, border: `2px solid ${value === n ? '#059669' : '#d4c8b8'}`,
-            background: value === n ? '#059669' : 'white', color: value === n ? 'white' : '#6b5c45',
+            width: 32, height: 32, borderRadius: 8, border: `2px solid ${value === n ? 'var(--green)' : 'var(--border2)'}`,
+            background: value === n ? 'var(--green)' : 'white', color: value === n ? 'white' : 'var(--text2)',
             fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
             transition: 'all 0.12s',
           }}>{n}</button>
@@ -368,17 +370,17 @@ function StepperBtns({ value, onChange, max = MAX_STEPPER }: { value: number; on
   )
 }
 
-function ClassPreview({ levels, convention }: { levels: { level: string; count: number }[]; convention: string }) {
+function ClassPreview({ levels, convention, emptyLabel }: { levels: { level: string; count: number }[]; convention: string; emptyLabel?: string }) {
   const lines = levels
     .filter(l => l.count > 0)
     .map(l => `${l.level} : ${previewClassNames(l.level, l.count, convention).join(' · ')}`)
 
   if (lines.length === 0) {
-    return <div style={{ fontSize: 13, color: '#a89478', fontStyle: 'italic' }}>Aucune classe configurée</div>
+    return <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic' }}>{emptyLabel || 'Aucune classe configurée'}</div>
   }
 
   return (
-    <div style={{ fontSize: 13, color: '#6b5c45', lineHeight: 1.7, fontWeight: 600 }}>
+    <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.7, fontWeight: 600 }}>
       {lines.map((line, i) => <div key={i}>{line}</div>)}
     </div>
   )
@@ -425,6 +427,10 @@ export default function OnboardingPage() {
   const [bilingualEnFilieres, setBilingualEnFilieres] = useState<string[]>([])
   const [forcedTemplateCode, setForcedTemplateCode] = useState<string | null>(null)
 
+  const t = useT('onboarding')
+  const { lang: currentLang } = useLanguage()
+  const changeLanguage = useChangeLanguage()
+
   const [form, setForm] = useState<FormData>({
     nom: '', subdomain: '', subsystem: 'FRANCOPHONE', educationType: 'GENERAL',
     ownership: 'PRIVATE_SECULAR', ville: '', region: '', telephone: '', adresse: '',
@@ -459,10 +465,15 @@ export default function OnboardingPage() {
   const errorRef = useRef<HTMLDivElement>(null)
   const previewTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  const subsystemOptions = useMemo(() => SUBSYSTEM_KEYS.map(k => ({ ...k, label: t(k.key) })), [t])
+  const educationOptions = useMemo(() => EDUCATION_KEYS.map(k => ({ ...k, label: t(k.key) })), [t])
+  const ownershipOptions = useMemo(() => OWNERSHIP_KEYS.map(k => ({ ...k, label: t(k.key) })), [t])
+  const conventionOptions = useMemo(() => CONVENTION_KEYS.map(k => ({ ...k, label: t(k.key), desc: t(k.descKey) })), [t])
+
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 1.5 * 1024 * 1024) { setStepError('Logo trop volumineux (max 1.5 MB).'); return }
+    if (file.size > 1.5 * 1024 * 1024) { setStepError(t('phase1.step1.logo.errorSize')); return }
     const reader = new FileReader()
     reader.onload = () => set('logoBase64')(reader.result as string)
     reader.readAsDataURL(file)
@@ -680,6 +691,9 @@ export default function OnboardingPage() {
             sousTypeTechnique: sousTypeTechnique || undefined,
             cetifMode,
             sarMetiers: sarMetiers.length ? sarMetiers : undefined,
+            cfmFilieres: cfmFilieres.length ? cfmFilieres : undefined,
+            nurseryLevels: nurseryLevels.length ? nurseryLevels : undefined,
+            maternelleSections: maternelleSections.length ? maternelleSections : undefined,
             enGradingSystem: enGradingSystem || undefined,
             bulletinFrequency,
             evalSystemPrimaire: evalSystemPrimaire || undefined,
@@ -721,40 +735,40 @@ export default function OnboardingPage() {
   // ── Left panel (constant) ──────────────────────────────────────────────
 
   const LeftPanel = (
-    <div style={{ width: '42vw', minWidth: 0, background: '#1a2e1e', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', flexShrink: 0 }} className="edu-left-panel">
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, zIndex: 2, background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 16px,#22c55e 16px,#22c55e 32px,#ef4444 32px,#ef4444 48px,#60a5fa 48px,#60a5fa 64px,#d4a843 64px,#d4a843 80px)' }} />
+    <div style={{ width: '42vw', minWidth: 0, background: 'var(--sidebar)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', flexShrink: 0 }} className="edu-left-panel">
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, zIndex: 2, background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 16px,var(--green) 16px,var(--green) 32px,var(--red) 32px,var(--red) 48px,#60a5fa 48px,#60a5fa 64px,#d4a843 64px,#d4a843 80px)' }} />
       <div style={{ position: 'absolute', bottom: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.06) 0%,transparent 70%)', pointerEvents: 'none' }} />
 
       <div style={{ padding: '36px 32px', display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1 }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 44, animation: 'edu-fadeDown 0.6s ease both' }}>
-          <div style={{ width: 60, height: 60, borderRadius: 16, background: 'linear-gradient(135deg,#f59e0b,#22c55e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, boxShadow: '0 4px 16px rgba(34,197,94,0.3)', flexShrink: 0 }}>🎓</div>
+          <div style={{ width: 60, height: 60, borderRadius: 16, background: 'linear-gradient(135deg,var(--amber),var(--green))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, boxShadow: '0 4px 16px rgba(34,197,94,0.3)', flexShrink: 0 }}>🎓</div>
           <div>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'white' }}>EduNexus</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Plateforme scolaire · Cameroun</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{t('phase1.leftPanel.brandTagline')}</div>
           </div>
         </div>
 
         {/* Heading */}
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 38, fontWeight: 700, lineHeight: 1.15, color: 'white', marginBottom: 12, animation: 'edu-fadeDown 0.6s 0.1s ease both' }}>
-          {step <= 2 ? <>Bienvenue sur<br /><span style={{ color: '#4ade80' }}>EduNexus</span></>
-            : step === 3 ? <>Configurez votre<br /><span style={{ color: '#4ade80' }}>structure scolaire</span></>
-            : step === 4 ? <>Vérification<br /><span style={{ color: '#4ade80' }}>finale</span></>
-            : <>Demande<br /><span style={{ color: '#4ade80' }}>soumise !</span></>}
+          {step <= 2 ? <>{t('phase1.leftPanel.welcomeTitle')}<br /><span style={{ color: '#4ade80' }}>EduNexus</span></>
+            : step === 3 ? <>{t('phase1.leftPanel.configTitle')}<br /><span style={{ color: '#4ade80' }}>{t('phase1.leftPanel.structureSubtitle')}</span></>
+            : step === 4 ? <>{t('phase1.leftPanel.finalCheck')}<br /><span style={{ color: '#4ade80' }}>{t('phase1.leftPanel.finale')}</span></>
+            : <>{t('phase1.leftPanel.submitted')}<br /><span style={{ color: '#4ade80' }}>{t('phase1.leftPanel.submittedSuffix')}</span></>}
         </div>
         <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontWeight: 500, marginBottom: 36, animation: 'edu-fadeDown 0.6s 0.2s ease both' }}>
-          {step === 1 ? 'Configurez votre espace scolaire en quelques minutes. Votre établissement sera opérationnel dès validation.'
-            : step === 2 ? 'Créez votre compte administrateur pour accéder au tableau de bord.'
-            : step === 3 ? 'Indiquez les détails de votre structure. Un récapitulatif sera généré automatiquement.'
-            : step === 4 ? 'Vérifiez l\'ensemble des informations avant de soumettre votre dossier.'
-            : 'Votre demande a été transmise à l\'équipe EduNexus.'}
+          {step === 1 ? t('phase1.leftPanel.descStep1')
+            : step === 2 ? t('phase1.leftPanel.descStep2')
+            : step === 3 ? t('phase1.leftPanel.descStep3')
+            : step === 4 ? t('phase1.leftPanel.descStep4')
+            : t('phase1.leftPanel.descSubmitted')}
         </p>
 
         {/* Plan badge */}
         {inviteData && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, marginBottom: 28, animation: 'edu-fadeDown 0.6s 0.25s ease both', alignSelf: 'flex-start' }}>
             <span style={{ fontSize: 18 }}>⭐</span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: PLAN_COLOR[inviteData.plan] ?? '#059669' }}>Plan {PLAN_LABEL[inviteData.plan] ?? inviteData.plan}</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: PLAN_COLOR[inviteData.plan] ?? 'var(--green)' }}>{t('phase1.step1.planBadge')} {t('phase1.planLabels.' + inviteData.plan) ?? inviteData.plan}</span>
           </div>
         )}
 
@@ -762,10 +776,10 @@ export default function OnboardingPage() {
         {step <= 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, animation: 'edu-fadeDown 0.6s 0.3s ease both' }}>
             {[
-              { bg: 'rgba(34,197,94,0.1)',   icon: '🏫', title: 'Gestion multi-niveaux',      desc: 'Classes, sections, matières' },
-              { bg: 'rgba(96,165,250,0.1)',   icon: '📊', title: 'Notes & bulletins',          desc: 'Calcul automatique, export PDF' },
-              { bg: 'rgba(245,158,11,0.1)',   icon: '💳', title: 'Gestion financière',         desc: 'Frais, paiements, CampPay' },
-              { bg: 'rgba(212,168,67,0.1)',   icon: '📅', title: 'Emplois du temps IA',        desc: 'Génération automatique' },
+              { bg: 'rgba(34,197,94,0.1)',   icon: '🏫', title: t('phase1.leftPanel.features.multiLevel.title'),      desc: t('phase1.leftPanel.features.multiLevel.desc') },
+              { bg: 'rgba(96,165,250,0.1)',   icon: '📊', title: t('phase1.leftPanel.features.grades.title'),          desc: t('phase1.leftPanel.features.grades.desc') },
+              { bg: 'rgba(245,158,11,0.1)',   icon: '💳', title: t('phase1.leftPanel.features.finance.title'),         desc: t('phase1.leftPanel.features.finance.desc') },
+              { bg: 'rgba(212,168,67,0.1)',   icon: '📅', title: t('phase1.leftPanel.features.timetable.title'),        desc: t('phase1.leftPanel.features.timetable.desc') },
             ].map((f, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{f.icon}</div>
@@ -778,7 +792,7 @@ export default function OnboardingPage() {
         )}
 
         <div style={{ marginTop: 'auto', paddingTop: 16, fontSize: 13, color: 'rgba(255,255,255,0.2)', fontWeight: 500 }}>
-          © 2026 EduNexus · Tous droits réservés
+          {t('phase1.leftPanel.copyright')}
         </div>
       </div>
     </div>
@@ -786,25 +800,25 @@ export default function OnboardingPage() {
 
   // ── Stepper ────────────────────────────────────────────────────────────
 
-  const STEPPER_LABELS: { n: Step; label: string }[] = [
-    { n: 1, label: 'Établissement' },
-    { n: 2, label: 'Administrateur' },
-    { n: 3, label: 'Configuration' },
-    { n: 4, label: 'Confirmation' },
+  const STEPPER_LABELS: { n: Step; key: string }[] = [
+    { n: 1, key: 'phase1.stepper.labels.establishment' },
+    { n: 2, key: 'phase1.stepper.labels.admin' },
+    { n: 3, key: 'phase1.stepper.labels.configuration' },
+    { n: 4, key: 'phase1.stepper.labels.confirmation' },
   ]
 
   const Stepper = (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45' }}>
-          Étape {step} / {STEPPER_LABELS.length}
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)' }}>
+          {t('phase1.stepper.step')} {step} / {STEPPER_LABELS.length}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#a89478' }}>
-          {STEPPER_LABELS.find(s => s.n === step)?.label ?? ''}
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text3)' }}>
+          {t(STEPPER_LABELS.find(s => s.n === step)?.key ?? '')}
         </span>
       </div>
-      <div style={{ height: 6, borderRadius: 3, background: '#e8e0d4', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${(step / STEPPER_LABELS.length) * 100}%`, background: 'linear-gradient(90deg,#059669,#047857)', borderRadius: 3, transition: 'width 0.4s ease' }} />
+      <div style={{ height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${(step / STEPPER_LABELS.length) * 100}%`, background: 'linear-gradient(90deg,var(--green),var(--green2))', borderRadius: 3, transition: 'width 0.4s ease' }} />
       </div>
     </div>
   )
@@ -816,25 +830,25 @@ export default function OnboardingPage() {
   if (loadState === 'loading') {
     content = (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '60px 0', animation: 'edu-fadeUp 0.4s ease both' }}>
-        <div style={{ width: 52, height: 52, border: '4px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.8s linear infinite' }} />
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#6b5c45' }}>Vérification de l&apos;invitation…</div>
+        <div style={{ width: 52, height: 52, border: '4px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.8s linear infinite' }} />
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text2)' }}>{t('phase1.loading.verifyingInvite')}</div>
       </div>
     )
   } else if (loadState === 'invalid' || loadState === 'expired' || loadState === 'used') {
     const info = {
-      invalid:  { icon: '🔒', title: 'Lien invalide',          color: '#dc2626', bg: '#fef2f2', border: 'rgba(220,38,38,0.2)' },
-      expired:  { icon: '⏰', title: 'Invitation expirée',     color: '#d97706', bg: '#fef3c7', border: 'rgba(217,119,6,0.2)' },
-      used:     { icon: '✅', title: 'Invitation déjà utilisée', color: '#059669', bg: '#f0fdf4', border: 'rgba(5,150,105,0.2)' },
+      invalid:  { icon: '🔒', title: t('phase1.invite.invalid.title'),          color: 'var(--red)', bg: 'var(--red-light)', border: 'rgba(220,38,38,0.2)' },
+      expired:  { icon: '⏰', title: t('phase1.invite.expired.title'),     color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(217,119,6,0.2)' },
+      used:     { icon: '✅', title: t('phase1.invite.used.title'), color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.2)' },
     }[loadState]
     content = (
       <div style={{ animation: 'edu-fadeUp 0.4s ease both', textAlign: 'center' }}>
         <div style={{ fontSize: 64, marginBottom: 20 }}>{info.icon}</div>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209', marginBottom: 12 }}>{info.title}</div>
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>{info.title}</div>
         <div style={{ padding: '16px 20px', background: info.bg, border: `1.5px solid ${info.border}`, borderRadius: 12, marginBottom: 24, fontSize: 15, fontWeight: 600, color: info.color, lineHeight: 1.6 }}>
           {errorMsg}
         </div>
-        <p style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.7 }}>
-          Pour obtenir de l&apos;aide, contactez votre administrateur EduNexus à <strong>support@edunexus.cm</strong>
+        <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7 }}>
+          {t('phase1.invite.helpText')} <strong>{t('phase1.invite.helpEmail')}</strong>
         </p>
       </div>
     )
@@ -842,15 +856,15 @@ export default function OnboardingPage() {
     content = (
       <div style={{ animation: 'edu-fadeUp 0.4s ease both', textAlign: 'center' }}>
         <div style={{ fontSize: 72, marginBottom: 16 }}>🎉</div>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: '#1a1209', marginBottom: 10 }}>
-          Demande soumise !
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+          {t('phase1.done.title')}
         </div>
-        <div style={{ padding: '16px 20px', background: '#f0fdf4', border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 24, fontSize: 15, fontWeight: 600, color: '#065f46', lineHeight: 1.8 }}>
-          ✅ <strong>{form.nom}</strong> est en attente de validation par l&apos;équipe EduNexus.<br />
-          Vous recevrez un email à <strong>{form.adminEmail}</strong> sous 24 à 48 heures.
+        <div style={{ padding: '16px 20px', background: 'var(--green-light)', border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 24, fontSize: 15, fontWeight: 600, color: 'var(--green)', lineHeight: 1.8 }}>
+          ✅ <strong>{form.nom}</strong> {t('phase1.done.pendingMsg')}<br />
+          {t('phase1.done.emailNotice')} <strong>{form.adminEmail}</strong> {t('phase1.done.emailDelay')}
         </div>
-        <p style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.7 }}>
-          Dès approbation, vous pourrez vous connecter avec votre email et mot de passe pour accéder à votre espace d&apos;administration.
+        <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7 }}>
+          {t('phase1.done.loginHint')}
         </p>
       </div>
     )
@@ -859,11 +873,11 @@ export default function OnboardingPage() {
       <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
         {/* Header */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: '#1a1209', marginBottom: 4 }}>
-            {step === 1 ? 'Votre établissement' : step === 2 ? 'Votre compte administrateur' : step === 3 ? 'Configuration de votre structure' : 'Vérification finale'}
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+            {step === 1 ? t('phase1.step1.title') : step === 2 ? t('phase1.step2.title') : step === 3 ? t('phase1.step3.title') : t('phase1.step4.title')}
           </div>
-          <div style={{ fontSize: 15, color: '#6b5c45', fontWeight: 500 }}>
-            {step === 1 ? 'Renseignez les informations de votre école.' : step === 2 ? 'Créez votre compte pour accéder au dashboard.' : step === 3 ? 'Détaillez votre structure scolaire.' : 'Relisez avant de soumettre votre dossier.'}
+          <div style={{ fontSize: 15, color: 'var(--text2)', fontWeight: 500 }}>
+            {step === 1 ? t('phase1.step1.subtitle') : step === 2 ? t('phase1.step2.subtitle') : step === 3 ? t('phase1.step3.subtitle') : t('phase1.step4.subtitle')}
           </div>
         </div>
 
@@ -874,33 +888,33 @@ export default function OnboardingPage() {
         {/* ── STEP 1 ──────────────────────────────── */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            <Field label="Nom de l'établissement" required>
+            <Field label={t('phase1.step1.schoolName.label')} required>
               <input className="edu-field" value={form.nom} style={INPUT}
-                onChange={e => set('nom')(e.target.value)} placeholder="Lycée de la Réussite" />
+                onChange={e => set('nom')(e.target.value)} placeholder={t('phase1.step1.schoolName.placeholder')} />
             </Field>
 
-            <Field label="Sous-domaine (URL)" required>
+            <Field label={t('phase1.step1.subdomain.label')} required>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, fontWeight: 700, color: '#a89478' }}>edunexus.cm/</span>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 13, fontWeight: 700, color: 'var(--text3)' }}>{t('phase1.step1.subdomain.prefix')}</span>
                 <input className="edu-field" value={form.subdomain} style={{ ...INPUT, paddingLeft: 106 }}
                   onChange={e => { slRef.current = true; set('subdomain')(toSlug(e.target.value)) }}
-                  placeholder="lycee-reussite" />
+                  placeholder={t('phase1.step1.subdomain.placeholder')} />
               </div>
-              <div style={{ fontSize: 12, color: '#a89478', marginTop: 4, fontWeight: 600 }}>
-                Lettres minuscules, chiffres et tirets uniquement.
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4, fontWeight: 600 }}>
+                {t('phase1.step1.subdomain.hint')}
               </div>
             </Field>
 
-            <Field label="Sous-système" required>
-              <RadioCards options={SUBSYSTEM_OPTIONS} value={form.subsystem} onChange={setWithTemplateReset('subsystem')} />
+            <Field label={t('phase1.step1.subsystem.label')} required>
+              <RadioCards options={subsystemOptions} value={form.subsystem} onChange={setWithTemplateReset('subsystem')} />
             </Field>
 
-            <Field label="Type d'enseignement" required>
-              <RadioCards options={EDUCATION_OPTIONS} value={form.educationType} onChange={setWithTemplateReset('educationType')} />
+            <Field label={t('phase1.step1.educationType.label')} required>
+              <RadioCards options={educationOptions} value={form.educationType} onChange={setWithTemplateReset('educationType')} />
             </Field>
 
-            <Field label="Statut juridique" required>
-              <RadioCards options={OWNERSHIP_OPTIONS} value={form.ownership} onChange={setWithTemplateReset('ownership')} />
+            <Field label={t('phase1.step1.ownership.label')} required>
+              <RadioCards options={ownershipOptions} value={form.ownership} onChange={setWithTemplateReset('ownership')} />
             </Field>
 
             {/* Template détecté */}
@@ -909,36 +923,36 @@ export default function OnboardingPage() {
                 padding: '12px 14px', background: 'rgba(5,150,105,0.06)',
                 border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 12,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
-                  🏫 Template d'établissement détecté
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+                  {t('phase1.step1.templateDetected.title')}
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#047857' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--green2)' }}>
                   {template.name}
                 </div>
 
                 {/* Discriminating question: CES_FR vs LYCEE_FR */}
                 {form.subsystem === 'FRANCOPHONE' && form.educationType === 'GENERAL' && form.ownership === 'PUBLIC' && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(5,150,105,0.15)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 6 }}>
-                      🤔 Votre établissement est-il un CES (Collège) ou un Lycée ?
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>
+                      {t('phase1.step1.templateDetected.cesOrLycee')}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {[
-                        { code: 'LYCEE_FR', label: '🏫 Lycée', desc: 'Avec 2nd cycle (2nde→Tle)' },
-                        { code: 'CES_FR', label: '📖 CES (Collège)', desc: 'Sans 2nd cycle (6e→3e)' },
+                        { code: 'LYCEE_FR', label: t('phase1.step1.templateDetected.lycee'), desc: t('phase1.step1.templateDetected.lyceeDesc') },
+                        { code: 'CES_FR', label: t('phase1.step1.templateDetected.ces'), desc: t('phase1.step1.templateDetected.cesDesc') },
                       ].map(opt => {
                         const active = (forcedTemplateCode ?? template?.code) === opt.code
                         return (
                           <button key={opt.code} type="button" onClick={() => setForcedTemplateCode(opt.code)}
                             style={{
-                              flex: 1, padding: '8px 10px', border: `2px solid ${active ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '8px 10px', border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                              color: active ? '#047857' : '#6b5c45',
+                              color: active ? 'var(--green2)' : 'var(--text2)',
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                             }}>
                             <span>{opt.label}</span>
-                            <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>
                           </button>
                         )
                       })}
@@ -949,26 +963,26 @@ export default function OnboardingPage() {
                 {/* Discriminating question: GHS_EN vs GSS_EN */}
                 {form.subsystem === 'ANGLOPHONE' && form.educationType === 'GENERAL' && form.ownership === 'PUBLIC' && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(5,150,105,0.15)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 6 }}>
-                      🤔 Is your school a Government High School (GHS) or Government Secondary School (GSS)?
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>
+                      {t('phase1.step1.templateDetected.ghsOrGss')}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {[
-                        { code: 'GHS_EN', label: 'GHS', desc: 'High School (Form 1→Upper Sixth)' },
-                        { code: 'GSS_EN', label: 'GSS', desc: 'Secondary School (Form 1→Form 5)' },
+                        { code: 'GHS_EN', label: t('phase1.step1.templateDetected.ghs'), desc: t('phase1.step1.templateDetected.ghsDesc') },
+                        { code: 'GSS_EN', label: t('phase1.step1.templateDetected.gss'), desc: t('phase1.step1.templateDetected.gssDesc') },
                       ].map(opt => {
                         const active = (forcedTemplateCode ?? template?.code) === opt.code
                         return (
                           <button key={opt.code} type="button" onClick={() => setForcedTemplateCode(opt.code)}
                             style={{
-                              flex: 1, padding: '8px 10px', border: `2px solid ${active ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '8px 10px', border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                              color: active ? '#047857' : '#6b5c45',
+                              color: active ? 'var(--green2)' : 'var(--text2)',
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                             }}>
                             <span>{opt.label}</span>
-                            <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>
                           </button>
                         )
                       })}
@@ -979,52 +993,52 @@ export default function OnboardingPage() {
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="Ville">
+              <Field label={t('phase1.step1.city.label')}>
                 <input className="edu-field" value={form.ville} style={INPUT}
-                  onChange={e => set('ville')(e.target.value)} placeholder="Yaoundé" />
+                  onChange={e => set('ville')(e.target.value)} placeholder={t('phase1.step1.city.placeholder')} />
               </Field>
-              <Field label="Région">
+              <Field label={t('phase1.step1.region.label')}>
                 <select className="edu-field" value={form.region} style={{ ...INPUT, appearance: 'none', backgroundImage: 'none' }}
                   onChange={e => set('region')(e.target.value)}>
-                  <option value="">— Sélectionner —</option>
+                  <option value="">{t('common.selectRegion')}</option>
                   {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </Field>
             </div>
 
-            <Field label="Téléphone de l'établissement">
+            <Field label={t('phase1.step1.phone.label')}>
               <input className="edu-field" value={form.telephone} style={INPUT}
-                onChange={e => set('telephone')(e.target.value)} placeholder="+237 6XX XXX XXX" />
+                onChange={e => set('telephone')(e.target.value)} placeholder={t('phase1.step1.phone.placeholder')} />
             </Field>
 
             {/* Logo upload */}
-            <Field label="Logo de l'établissement (facultatif)">
+            <Field label={t('phase1.step1.logo.label')}>
               <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 {/* Preview or placeholder */}
                 <div onClick={() => logoInputRef.current?.click()}
-                  style={{ width: 72, height: 72, borderRadius: 14, border: `2px dashed ${form.logoBase64 ? '#059669' : '#d4c8b8'}`, background: form.logoBase64 ? 'transparent' : '#f9f6f1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, transition: 'all 0.15s' }}>
+                  style={{ width: 72, height: 72, borderRadius: 14, border: `2px dashed ${form.logoBase64 ? 'var(--green)' : 'var(--border2)'}`, background: form.logoBase64 ? 'transparent' : 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, transition: 'all 0.15s' }}>
                   {form.logoBase64
                     ? <img src={form.logoBase64} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <span style={{ fontSize: 28 }}>🏫</span>}
                 </div>
                 <div>
                   <button type="button" onClick={() => logoInputRef.current?.click()}
-                    style={{ padding: '9px 16px', border: '1.5px solid #d4c8b8', borderRadius: 9, background: 'white', fontSize: 14, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6 }}>
-                    {form.logoBase64 ? '🔄 Changer le logo' : '📤 Téléverser un logo'}
+                    style={{ padding: '9px 16px', border: '1.5px solid var(--border2)', borderRadius: 9, background: 'var(--surface)', fontSize: 14, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6 }}>
+                    {form.logoBase64 ? t('phase1.step1.logo.change') : t('phase1.step1.logo.upload')}
                   </button>
-                  <div style={{ fontSize: 12, color: '#a89478', fontWeight: 600 }}>PNG, JPG, SVG · max 1.5 MB</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{t('phase1.step1.logo.hint')}</div>
                   {form.logoBase64 && (
                     <button type="button" onClick={() => set('logoBase64')('')}
-                      style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-                      ✕ Supprimer
+                      style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                      {t('phase1.step1.logo.remove')}
                     </button>
                   )}
                 </div>
               </div>
             </Field>
 
-            <SubmitBtn onClick={goNext}>Continuer → Compte administrateur</SubmitBtn>
+            <SubmitBtn onClick={goNext}>{t('phase1.buttons.step1Submit')}</SubmitBtn>
           </div>
         )}
 
@@ -1032,58 +1046,58 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <button type="button" onClick={() => { setStep(1); setStepError('') }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: '#a89478', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 16, padding: 0 }}>
-              ← Retour
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 16, padding: 0 }}>
+              {t('phase1.step2.back')}
             </button>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <Field label="Prénom" required>
+              <Field label={t('phase1.step2.firstName.label')} required>
                 <input className="edu-field" value={form.adminPrenom} style={INPUT}
-                  onChange={e => set('adminPrenom')(e.target.value)} placeholder="Jean" />
+                  onChange={e => set('adminPrenom')(e.target.value)} placeholder={t('phase1.step2.firstName.placeholder')} />
               </Field>
-              <Field label="Nom" required>
+              <Field label={t('phase1.step2.lastName.label')} required>
                 <input className="edu-field" value={form.adminNom} style={INPUT}
-                  onChange={e => set('adminNom')(e.target.value)} placeholder="Ngono" />
+                  onChange={e => set('adminNom')(e.target.value)} placeholder={t('phase1.step2.lastName.placeholder')} />
               </Field>
             </div>
 
-            <Field label="Email administrateur" required>
+            <Field label={t('phase1.step2.email.label')} required>
               <input className="edu-field" type="email" value={form.adminEmail} style={INPUT}
-                onChange={e => set('adminEmail')(e.target.value)} placeholder="admin@ecole.cm" />
-              <div style={{ fontSize: 12, color: '#a89478', marginTop: 4, fontWeight: 600 }}>
-                Cet email sera votre identifiant de connexion.
+                onChange={e => set('adminEmail')(e.target.value)} placeholder={t('phase1.step2.email.placeholder')} />
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4, fontWeight: 600 }}>
+                {t('phase1.step2.email.hint')}
               </div>
             </Field>
 
-            <Field label="Mot de passe" required>
+            <Field label={t('phase1.step2.password.label')} required>
               <div style={{ position: 'relative' }}>
                 <input className="edu-field" type={showPwd ? 'text' : 'password'} value={form.password}
                   style={{ ...INPUT, paddingRight: 44 }}
-                  onChange={e => set('password')(e.target.value)} placeholder="••••••••" />
+                  onChange={e => set('password')(e.target.value)} placeholder={t('phase1.step2.password.placeholder')} />
                 <button type="button" onClick={() => setShowPwd(s => !s)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#a89478' }}>
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)' }}>
                   {showPwd ? '🙈' : '👁'}
                 </button>
               </div>
               {form.password && <PasswordStrengthBar password={form.password} />}
             </Field>
 
-            <Field label="Confirmer le mot de passe" required>
+            <Field label={t('phase1.step2.confirmPassword.label')} required>
               <div style={{ position: 'relative' }}>
                 <input className="edu-field" type={showConfirm ? 'text' : 'password'} value={form.confirmPassword}
-                  style={{ ...INPUT, paddingRight: 44, borderColor: form.confirmPassword && form.confirmPassword !== form.password ? '#dc2626' : '#d4c8b8' }}
-                  onChange={e => set('confirmPassword')(e.target.value)} placeholder="••••••••" />
+                  style={{ ...INPUT, paddingRight: 44, borderColor: form.confirmPassword && form.confirmPassword !== form.password ? 'var(--red)' : 'var(--border2)' }}
+                  onChange={e => set('confirmPassword')(e.target.value)} placeholder={t('phase1.step2.confirmPassword.placeholder')} />
                 <button type="button" onClick={() => setShowConfirm(s => !s)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#a89478' }}>
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)' }}>
                   {showConfirm ? '🙈' : '👁'}
                 </button>
               </div>
               {form.confirmPassword && form.confirmPassword !== form.password && (
-                <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4, fontWeight: 700 }}>⚠️ Les mots de passe ne correspondent pas.</div>
+                <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 4, fontWeight: 700 }}>{t('phase1.step2.confirmPassword.mismatch')}</div>
               )}
             </Field>
 
-            <SubmitBtn onClick={goNext}>Continuer → Configuration</SubmitBtn>
+            <SubmitBtn onClick={goNext}>{t('phase1.buttons.step2Submit')}</SubmitBtn>
           </div>
         )}
 
@@ -1091,8 +1105,8 @@ export default function OnboardingPage() {
         {step === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <button type="button" onClick={() => { setStep(2); setStepError('') }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: '#a89478', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 14, padding: 0 }}>
-              ← Retour
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 14, padding: 0 }}>
+              {t('phase1.step3.back')}
             </button>
 
             {/* Q4 — Template détecté */}
@@ -1101,59 +1115,57 @@ export default function OnboardingPage() {
                 padding: '14px 16px', background: 'rgba(5,150,105,0.06)',
                 border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 16,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
-                  🏫 Template détecté
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+                  {t('phase1.step3.templateDetected.title')}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#047857' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--green2)' }}>
                   {template.name}
                 </div>
-                <div style={{ fontSize: 12, color: '#a89478', marginTop: 4 }}>
-                  Détecté automatiquement d&apos;après vos choix (sous-système, enseignement, statut).
-                  Vous pourrez modifier la configuration après activation depuis le tableau de bord.
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+                  {t('phase1.step3.templateDetected.hint')}
                 </div>
               </div>
             )}
 
             {template?.isComplexe && (
               <div style={{
-                padding: '16px 18px', background: '#fef3c7',
+                padding: '16px 18px', background: 'var(--amber-light)',
                 border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, marginBottom: 16,
               }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#92400e', marginBottom: 6 }}>
-                  ⏳ Complexe Scolaire — Bientôt disponible
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>
+                  {t('phase1.step3.complexe.title')}
                 </div>
-                <div style={{ fontSize: 14, color: '#92400e', fontWeight: 600, lineHeight: 1.6 }}>
-                  Ce type d&apos;établissement sera bientôt disponible.
+                <div style={{ fontSize: 14, color: 'var(--amber)', fontWeight: 600, lineHeight: 1.6 }}>
+                  {t('phase1.step3.complexe.msg')}
                 </div>
-                <div style={{ fontSize: 13, color: '#a89478', marginTop: 8, fontWeight: 600 }}>
-                  Pour continuer, veuillez sélectionner un autre type d&apos;enseignement à l&apos;étape 1
-                  (Enseignement général au lieu de Mixte).
+                <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8, fontWeight: 600 }}>
+                  {t('phase1.step3.complexe.hint')}
                 </div>
               </div>
             )}
 
             {!template && (
-              <Alert msg="Impossible de détecter le type d'établissement. Revenez à l'étape 1 et vérifiez vos choix." type="error" />
+              <Alert msg={t('phase1.step3.noTemplate')} type="error" />
             )}
 
             {/* ── GROUPE A — 1er cycle (caché si COMPLEXE) ── */}
             {template && !template.isComplexe && template.hasPremierCycle && (
               <div style={{ marginTop: 4, marginBottom: 8 }}>
                 <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#1a1209',
-                  padding: '8px 0', borderBottom: '2px solid #059669', marginBottom: 14,
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
+                  padding: '8px 0', borderBottom: '2px solid var(--green)', marginBottom: 14,
                 }}>
-                  📖 1er cycle — Secondaire
+                  {t('phase1.step3.firstCycle.sectionTitle')}
                 </div>
 
                 {/* Q5 — Niveaux */}
-                <Field label="Q5 — Quels niveaux de 1er cycle avez-vous ?">
+                <Field label={t('phase1.step3.firstCycle.q5')}>
                   <CheckboxGroup
                     options={
                       form.educationType === 'TECHNICAL'
                         ? NIVEAUX_1ER_CYCLE_CAP.map(v => ({ value: v, label: v }))
                         : form.subsystem === 'ANGLOPHONE'
-                          ? NIVEAUX_1ER_CYCLE_EN.map(v => ({ value: v, label: v }))
+                          ? (template?.hasDeuxiemeCycle ? NIVEAUX_1ER_CYCLE_EN_LOWER : NIVEAUX_1ER_CYCLE_EN).map(v => ({ value: v, label: v }))
                           : NIVEAUX_1ER_CYCLE_FR.map(v => ({ value: v, label: v }))
                     }
                     values={form.niveaux1erCycle}
@@ -1170,11 +1182,11 @@ export default function OnboardingPage() {
 
                 {/* Q6 — Nombre de classes par niveau */}
                 {form.niveaux1erCycle.length > 0 && (
-                  <Field label="Q6 — Combien de classes par niveau ?">
+                  <Field label={t('phase1.step3.firstCycle.q6')}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {form.niveaux1erCycle.map(niveau => (
                         <div key={niveau} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 50, fontSize: 14, fontWeight: 800, color: '#1a1209' }}>{niveau}</div>
+                          <div style={{ width: 50, fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{niveau}</div>
                           <StepperBtns
                             value={form.classesParNiveau[niveau] ?? 2}
                             onChange={v => setNiveauCount(niveau, v)}
@@ -1186,26 +1198,26 @@ export default function OnboardingPage() {
                 )}
 
                 {/* Q7 — Convention de nommage */}
-                <Field label="Q7 — Comment nommez-vous vos classes ?">
+                <Field label={t('phase1.step3.firstCycle.q7')}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {CONVENTION_OPTIONS.map(opt => {
+                    {conventionOptions.map(opt => {
                       const active = form.conventionNommage === opt.value
                       return (
                         <label key={opt.value}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                            border: `2px solid ${active ? '#059669' : '#d4c8b8'}`,
+                            border: `2px solid ${active ? 'var(--green)' : 'var(--border2)'}`,
                             borderRadius: 10, background: active ? 'rgba(5,150,105,0.07)' : 'white',
                             cursor: 'pointer', transition: 'all 0.15s',
                           }}>
                           <input type="radio" name="convention" value={opt.value}
                             checked={active} onChange={() => set('conventionNommage')(opt.value)}
-                            style={{ accentColor: '#059669' }} />
+                            style={{ accentColor: 'var(--green)' }} />
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: active ? '#047857' : '#1a1209' }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: active ? 'var(--green2)' : 'var(--text)' }}>
                               {opt.label}
                             </div>
-                            <div style={{ fontSize: 12, color: '#a89478', fontWeight: 600 }}>{opt.desc}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</div>
                           </div>
                         </label>
                       )
@@ -1215,13 +1227,14 @@ export default function OnboardingPage() {
                   {/* Aperçu temps réel */}
                   {form.niveaux1erCycle.length > 0 && (
                     <div style={{
-                      marginTop: 10, padding: '10px 14px', background: '#f9f6f1',
-                      border: '1.5px solid #e8e0d4', borderRadius: 10,
+                      marginTop: 10, padding: '10px 14px', background: 'var(--bg2)',
+                      border: '1.5px solid var(--border)', borderRadius: 10,
                     }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#a89478', marginBottom: 4 }}>Aperçu de vos classes</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', marginBottom: 4 }}>{t('phase1.step3.firstCycle.previewLabel')}</div>
                       <ClassPreview
                         levels={form.niveaux1erCycle.map(l => ({ level: l, count: form.classesParNiveau[l] ?? 2 }))}
                         convention={form.conventionNommage}
+                        emptyLabel={t('common.emptyClasses')}
                       />
                     </div>
                   )}
@@ -1229,17 +1242,17 @@ export default function OnboardingPage() {
 
                 {/* Q8 — LV2 début (si 4e ou 3e présent) */}
                 {(form.niveaux1erCycle.includes('4e') || form.niveaux1erCycle.includes('3e')) && (
-                  <Field label="Q8 — La LV2 commence à partir de ?">
+                  <Field label={t('phase1.step3.lv2.q8')}>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {['4e', '3e', 'NON_APPLICABLE'].map(opt => (
                         <button key={opt} type="button" onClick={() => set('lv2Debut')(opt)}
                           style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${form.lv2Debut === opt ? '#059669' : '#d4c8b8'}`,
+                            flex: 1, padding: '10px 8px', border: `2px solid ${form.lv2Debut === opt ? 'var(--green)' : 'var(--border2)'}`,
                             borderRadius: 10, background: form.lv2Debut === opt ? 'rgba(5,150,105,0.07)' : 'white',
                             cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: form.lv2Debut === opt ? '#047857' : '#6b5c45',
+                            color: form.lv2Debut === opt ? 'var(--green2)' : 'var(--text2)',
                           }}>
-                          {opt === 'NON_APPLICABLE' ? 'Non applicable' : `À partir de la ${opt}`}
+                          {opt === 'NON_APPLICABLE' ? t('phase1.step3.lv2.nonApplicable') : `${t('phase1.step3.lv2.fromLevel')} ${opt}`}
                         </button>
                       ))}
                     </div>
@@ -1248,14 +1261,14 @@ export default function OnboardingPage() {
 
                 {/* Q9 — LV2 disponibles (si Q8 ≠ NON_APPLICABLE) */}
                 {form.lv2Debut !== 'NON_APPLICABLE' && form.lv2Debut !== '' && (
-                  <Field label="Q9 — Quelles langues vivantes 2 proposez-vous ?">
+                  <Field label={t('phase1.step3.lv2.q9')}>
                     <CheckboxGroup
-                      options={LV2_OPTIONS.map(v => ({ value: v, label: v }))}
+                      options={LV2_OPTIONS.map(v => ({ value: v, label: t('phase1.lv2Languages.' + v) }))}
                       values={form.lv2Disponibles}
                       onChange={v => setForm(f => ({ ...f, lv2Disponibles: v }))}
                     />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#6b5c45' }}>Autre :</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>{t('phase1.step3.lv2.other')}</span>
                       <input className="edu-field" value={customLv2}
                         style={{ ...INPUT, padding: '7px 12px', fontSize: 14, maxWidth: 180 }}
                         onChange={e => setCustomLv2(e.target.value)}
@@ -1265,7 +1278,7 @@ export default function OnboardingPage() {
                             setCustomLv2('')
                           }
                         }}
-                        placeholder="Tapez et Entrée" />
+                        placeholder={t('phase1.step3.lv2.placeholder')} />
                       <button type="button" onClick={() => {
                         if (customLv2.trim() && !form.lv2Disponibles.includes(customLv2.trim())) {
                           setForm(f => ({ ...f, lv2Disponibles: [...f.lv2Disponibles, customLv2.trim()] }))
@@ -1273,14 +1286,14 @@ export default function OnboardingPage() {
                         }
                       }}
                         style={{
-                          padding: '7px 12px', background: '#059669', color: 'white', border: 'none',
+                          padding: '7px 12px', background: 'var(--green)', color: 'white', border: 'none',
                           borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                         }}>
-                        + Ajouter
+                        {t('phase1.step3.lv2.add')}
                       </button>
                     </div>
-                    <div style={{ fontSize: 12, color: '#a89478', marginTop: 6, fontWeight: 600, lineHeight: 1.5 }}>
-                      💡 Si des élèves de LV2 différentes sont dans la même classe, ne cochez que les langues disponibles. Vous pourrez configurer les sous-groupes depuis votre tableau de bord.
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontWeight: 600, lineHeight: 1.5 }}>
+                      {t('phase1.step3.lv2.hint')}
                     </div>
                   </Field>
                 )}
@@ -1290,26 +1303,26 @@ export default function OnboardingPage() {
             {/* ── GROUPE B — 2e cycle ── */}
             {template && !template.isComplexe && template.code === 'CES_FR' && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
-                <Alert msg="ℹ️ Le CES n'a que le 1er cycle (6e→3e). Les filières du 2e cycle ne s'appliquent pas." type="info" />
+                <Alert msg={t('phase1.step3.secondCycle.cesNotice')} type="info" />
               </div>
             )}
             {template && !template.isComplexe && template.hasDeuxiemeCycle && template.code !== 'CES_FR' && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#1a1209',
-                  padding: '8px 0', borderBottom: '2px solid #2563eb', marginBottom: 14,
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
+                  padding: '8px 0', borderBottom: '2px solid var(--blue)', marginBottom: 14,
                 }}>
-                  {['GHS_EN','GSS_EN','PRIVE_EN'].includes(template.code ?? '') ? '🎓 Upper Secondary' : '🎓 2e cycle — Lycée'}
+                  {['GHS_EN','GSS_EN','PRIVE_EN'].includes(template.code ?? '') ? t('phase1.step3.secondCycle.sectionTitleEN') : t('phase1.step3.secondCycle.sectionTitleFR')}
                 </div>
 
                 {/* GSS_EN — O-Level only notice */}
                 {template.code === 'GSS_EN' && (
-                  <Alert msg="ℹ️ GSS_EN stops at Form 5 — GCE O-Level only. Lower Sixth and Upper Sixth are not applicable." type="info" />
+                  <Alert msg={t('phase1.step3.secondCycle.gssNotice')} type="info" />
                 )}
 
                 {/* Q10 — Niveaux 2e cycle */}
                 {['GHS_EN','GSS_EN','PRIVE_EN'].includes(template.code ?? '') ? (
-                  <Field label="Q10 — Which levels do you have?">
+                  <Field label={t('phase1.step3.secondCycle.q10EN')}>
                     <CheckboxGroup
                       options={(
                         template.code === 'GSS_EN'
@@ -1321,7 +1334,7 @@ export default function OnboardingPage() {
                     />
                   </Field>
                 ) : (
-                  <Field label="Q10 — Quels niveaux de 2e cycle avez-vous ?">
+                  <Field label={t('phase1.step3.secondCycle.q10FR')}>
                     <CheckboxGroup
                       options={
                         form.subsystem === 'ANGLOPHONE'
@@ -1338,10 +1351,10 @@ export default function OnboardingPage() {
                 {form.niveaux2eCycle.length > 0 && (
                   ['GHS_EN','GSS_EN','PRIVE_EN'].includes(template.code ?? '') ? (
                     <div>
-                      <Field label="Q11 — Which streams do you offer?">
+                      <Field label={t('phase1.step3.secondCycle.q11EN')}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Arts</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.secondCycle.artsEN')}</div>
                             <CheckboxGroup
                               options={FILIERES_EN_ARTS.map(v => ({ value: v, label: v }))}
                               values={form.filieres}
@@ -1349,7 +1362,7 @@ export default function OnboardingPage() {
                             />
                           </div>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Sciences</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.secondCycle.sciencesEN')}</div>
                             <CheckboxGroup
                               options={FILIERES_EN_SCIENCES.map(v => ({ value: v, label: v }))}
                               values={form.filieres}
@@ -1359,19 +1372,19 @@ export default function OnboardingPage() {
                         </div>
                       </Field>
                       {template.code !== 'GSS_EN' && (
-                        <Field label="From which level do streams start?">
+                        <Field label={t('phase1.step3.secondCycle.streamStart')}>
                           <div style={{ display: 'flex', gap: 8 }}>
                             {([
-                              { value: 'FORM4', label: 'Form 4' },
-                              { value: 'FORM5', label: 'Form 5' },
-                              { value: 'SIXTH', label: 'Lower Sixth only' },
+                              { value: 'FORM4', label: t('phase1.step3.secondCycle.form4') },
+                              { value: 'FORM5', label: t('phase1.step3.secondCycle.form5') },
+                              { value: 'SIXTH', label: t('phase1.step3.secondCycle.lowerSixthOnly') },
                             ] as const).map(opt => (
                               <button key={opt.value} type="button" onClick={() => setEnStreamStartLevel(opt.value)}
                                 style={{
-                                  flex: 1, padding: '10px 8px', border: `2px solid ${enStreamStartLevel === opt.value ? '#059669' : '#d4c8b8'}`,
+                                  flex: 1, padding: '10px 8px', border: `2px solid ${enStreamStartLevel === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                                   borderRadius: 10, background: enStreamStartLevel === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                                   cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                                  color: enStreamStartLevel === opt.value ? '#047857' : '#6b5c45',
+                                  color: enStreamStartLevel === opt.value ? 'var(--green2)' : 'var(--text2)',
                                 }}>
                                 {opt.label}
                               </button>
@@ -1379,18 +1392,18 @@ export default function OnboardingPage() {
                           </div>
                         </Field>
                       )}
-                      <Field label="Grading system:">
+                      <Field label={t('phase1.step3.secondCycle.grading')}>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {([
-                            { value: 'OVER_20',  label: 'Marks out of 20' },
-                            { value: 'OVER_100', label: 'Marks out of 100' },
+                            { value: 'OVER_20',  label: t('phase1.step3.secondCycle.marks20') },
+                            { value: 'OVER_100', label: t('phase1.step3.secondCycle.marks100') },
                           ] as const).map(opt => (
                             <button key={opt.value} type="button" onClick={() => setEnGradingSystem(opt.value)}
                               style={{
-                                flex: 1, padding: '10px 8px', border: `2px solid ${enGradingSystem === opt.value ? '#059669' : '#d4c8b8'}`,
+                                flex: 1, padding: '10px 8px', border: `2px solid ${enGradingSystem === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                                 borderRadius: 10, background: enGradingSystem === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                                 cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                                color: enGradingSystem === opt.value ? '#047857' : '#6b5c45',
+                                color: enGradingSystem === opt.value ? 'var(--green2)' : 'var(--text2)',
                               }}>
                               {opt.label}
                             </button>
@@ -1399,10 +1412,10 @@ export default function OnboardingPage() {
                       </Field>
                     </div>
                   ) : (
-                    <Field label="Q11 — Quelles filières proposez-vous ?">
+                    <Field label={t('phase1.step3.secondCycle.q11FR')}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Section Littéraire</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.secondCycle.literarySection')}</div>
                           <CheckboxGroup
                             options={FILIERES_LITT.map(v => ({ value: v, label: v }))}
                             values={form.filieres}
@@ -1410,7 +1423,7 @@ export default function OnboardingPage() {
                           />
                         </div>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Section Scientifique</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.secondCycle.scienceSection')}</div>
                           <CheckboxGroup
                             options={FILIERES_SCIENT.map(v => ({ value: v, label: v }))}
                             values={form.filieres}
@@ -1418,7 +1431,7 @@ export default function OnboardingPage() {
                           />
                         </div>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Section Technique</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.secondCycle.technicalSection')}</div>
                           <CheckboxGroup
                             options={FILIERES_TECH.map(v => ({ value: v, label: v }))}
                             values={form.filieres}
@@ -1426,7 +1439,7 @@ export default function OnboardingPage() {
                           />
                         </div>
                         <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Autre filière</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.secondCycle.otherSection')}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <input className="edu-field" value={customFiliere}
                               style={{ ...INPUT, padding: '7px 12px', fontSize: 14, maxWidth: 250 }}
@@ -1437,15 +1450,15 @@ export default function OnboardingPage() {
                                   setCustomFiliere('')
                                 }
                               }}
-                              placeholder="Tapez et Entrée" />
+                              placeholder={t('phase1.step3.secondCycle.placeholder')} />
                             <button type="button" onClick={() => {
                               if (customFiliere.trim() && !form.filieres.includes(customFiliere.trim())) {
                                 setForm(f => ({ ...f, filieres: [...f.filieres, customFiliere.trim()] }))
                                 setCustomFiliere('')
                               }
                             }}
-                              style={{ padding: '7px 12px', background: '#059669', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                              + Ajouter
+                              style={{ padding: '7px 12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                              {t('phase1.step3.secondCycle.add')}
                             </button>
                           </div>
                         </div>
@@ -1456,14 +1469,14 @@ export default function OnboardingPage() {
 
                 {/* Q12 — Langues A4 (si A4 coché, FR uniquement) */}
                 {!['GHS_EN','GSS_EN','PRIVE_EN'].includes(template.code ?? '') && form.filieres.some(f => f.startsWith('A4') || f.includes('A4')) && (
-                  <Field label="Q12 — Quelles langues pour la série A4 ?">
+                  <Field label={t('phase1.step3.secondCycle.q12')}>
                     <CheckboxGroup
-                      options={LV2_OPTIONS.map(v => ({ value: v, label: v }))}
+                      options={LV2_OPTIONS.map(v => ({ value: v, label: t('phase1.lv2Languages.' + v) }))}
                       values={form.a4Languages}
                       onChange={v => setForm(f => ({ ...f, a4Languages: v }))}
                     />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#6b5c45' }}>Autre :</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>{t('phase1.step3.secondCycle.other')}</span>
                       <input className="edu-field" value={customA4}
                         style={{ ...INPUT, padding: '7px 12px', fontSize: 14, maxWidth: 180 }}
                         onChange={e => setCustomA4(e.target.value)}
@@ -1473,15 +1486,15 @@ export default function OnboardingPage() {
                             setCustomA4('')
                           }
                         }}
-                        placeholder="Tapez et Entrée" />
+                        placeholder={t('phase1.step3.secondCycle.placeholder')} />
                       <button type="button" onClick={() => {
                         if (customA4.trim() && !form.a4Languages.includes(customA4.trim())) {
                           setForm(f => ({ ...f, a4Languages: [...f.a4Languages, customA4.trim()] }))
                           setCustomA4('')
                         }
                       }}
-                        style={{ padding: '7px 12px', background: '#059669', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                        + Ajouter
+                        style={{ padding: '7px 12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {t('phase1.step3.secondCycle.add')}
                       </button>
                     </div>
                   </Field>
@@ -1489,27 +1502,27 @@ export default function OnboardingPage() {
 
                 {/* Q13 — Classes par filière (FR uniquement) */}
                 {!['GHS_EN','GSS_EN','PRIVE_EN'].includes(template.code ?? '') && form.filieres.length > 0 && (
-                  <Field label="Q13 — En général, combien de classes par filière ?">
+                  <Field label={t('phase1.step3.secondCycle.q13')}>
                     <div style={{ display: 'flex', gap: 8 }}>
                       {[
-                        { value: '1', label: '1 classe' },
-                        { value: '2', label: '2 classes' },
-                        { value: '3+', label: '3 classes+' },
+                        { value: '1', label: t('phase1.step3.secondCycle.oneClass') },
+                        { value: '2', label: t('phase1.step3.secondCycle.twoClasses') },
+                        { value: '3+', label: t('phase1.step3.secondCycle.threePlusClasses') },
                       ].map(opt => (
                         <button key={opt.value} type="button" onClick={() => set('classesParFiliere')(opt.value)}
                           style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${form.classesParFiliere === opt.value ? '#059669' : '#d4c8b8'}`,
+                            flex: 1, padding: '10px 8px', border: `2px solid ${form.classesParFiliere === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                             borderRadius: 10, background: form.classesParFiliere === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                             cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: form.classesParFiliere === opt.value ? '#047857' : '#6b5c45',
+                            color: form.classesParFiliere === opt.value ? 'var(--green2)' : 'var(--text2)',
                           }}>
                           {opt.label}
                         </button>
                       ))}
                     </div>
                     {form.a4Languages.length > 0 && (
-                      <div style={{ fontSize: 12, color: '#a89478', marginTop: 6, fontWeight: 600 }}>
-                        Pour les filières A4, une classe sera créée par langue sélectionnée en Q12.
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontWeight: 600 }}>
+                        {t('phase1.step3.secondCycle.a4Hint')}
                       </div>
                     )}
                   </Field>
@@ -1517,37 +1530,37 @@ export default function OnboardingPage() {
 
                 {/* PEBS — Programme d'Éducation Bilingue Spécial */}
                 {template.code && TCODES_PEBS_FR.includes(template.code) && (
-                  <Field label="Programme d'Éducation Bilingue Spécial (PEBS) — Francophone">
+                  <Field label={t('phase1.step3.secondCycle.pebsFR')}>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {([{ v: true, l: 'Oui' }, { v: false, l: 'Non' }]).map(opt => (
+                      {([{ v: true, l: t('phase1.step3.secondCycle.pebsYes') }, { v: false, l: t('phase1.step3.secondCycle.pebsNo') }]).map(opt => (
                         <button key={String(opt.v)} type="button" onClick={() => setHasPEBSFrancophone(opt.v)}
                           style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSFrancophone === opt.v ? '#059669' : '#d4c8b8'}`,
+                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSFrancophone === opt.v ? 'var(--green)' : 'var(--border2)'}`,
                             borderRadius: 10, background: hasPEBSFrancophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
                             cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: hasPEBSFrancophone === opt.v ? '#047857' : '#6b5c45',
+                            color: hasPEBSFrancophone === opt.v ? 'var(--green2)' : 'var(--text2)',
                           }}>
                           {opt.l}
                         </button>
                       ))}
                     </div>
                     {hasPEBSFrancophone && (
-                      <div style={{ fontSize: 12, color: '#a89478', marginTop: 6, fontWeight: 600 }}>
-                        La série ABI sera automatiquement activée au second cycle (continuation du PEBS).
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontWeight: 600 }}>
+                        {t('phase1.step3.secondCycle.pebsFRHint')}
                       </div>
                     )}
                   </Field>
                 )}
                 {template.code && TCODES_PEBS_EN.includes(template.code) && (
-                  <Field label="Programme d'Éducation Bilingue Spécial (PEBS) — Anglophone">
+                  <Field label={t('phase1.step3.secondCycle.pebsEN')}>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {([{ v: true, l: 'Yes' }, { v: false, l: 'No' }]).map(opt => (
+                      {([{ v: true, l: t('phase1.step3.secondCycle.pebsYesEN') }, { v: false, l: t('phase1.step3.secondCycle.pebsNoEN') }]).map(opt => (
                         <button key={String(opt.v)} type="button" onClick={() => setHasPEBSAnglophone(opt.v)}
                           style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSAnglophone === opt.v ? '#059669' : '#d4c8b8'}`,
+                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSAnglophone === opt.v ? 'var(--green)' : 'var(--border2)'}`,
                             borderRadius: 10, background: hasPEBSAnglophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
                             cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: hasPEBSAnglophone === opt.v ? '#047857' : '#6b5c45',
+                            color: hasPEBSAnglophone === opt.v ? 'var(--green2)' : 'var(--text2)',
                           }}>
                           {opt.l}
                         </button>
@@ -1563,12 +1576,12 @@ export default function OnboardingPage() {
             {template && template.code === 'LYCEE_BILINGUE' && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#1a1209',
-                  padding: '8px 0', borderBottom: '2px solid #2563eb', marginBottom: 14,
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
+                  padding: '8px 0', borderBottom: '2px solid var(--blue)', marginBottom: 14,
                 }}>
-                  🏴󠁧󠁢󠁥󠁮󠁧󠁿 Configuration Section Anglophone
+                  {t('phase1.step3.secondCycle.bilingualSection')}
                 </div>
-                <Field label="Levels (Anglophone):">
+                <Field label={t('phase1.step3.bilingual.levels')}>
                   <CheckboxGroup
                     options={NIVEAUX_EN_FULL.map(v => ({ value: v, label: v }))}
                     values={bilingualEnLevels}
@@ -1576,10 +1589,10 @@ export default function OnboardingPage() {
                   />
                 </Field>
                 {bilingualEnLevels.length > 0 && (
-                  <Field label="Streams (Anglophone):">
+                  <Field label={t('phase1.step3.bilingual.streams')}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Arts</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.bilingual.arts')}</div>
                         <CheckboxGroup
                           options={FILIERES_EN_ARTS.map(v => ({ value: v, label: v }))}
                           values={bilingualEnFilieres}
@@ -1587,7 +1600,7 @@ export default function OnboardingPage() {
                         />
                       </div>
                       <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Sciences</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.bilingual.sciences')}</div>
                         <CheckboxGroup
                           options={FILIERES_EN_SCIENCES.map(v => ({ value: v, label: v }))}
                           values={bilingualEnFilieres}
@@ -1597,18 +1610,18 @@ export default function OnboardingPage() {
                     </div>
                   </Field>
                 )}
-                <Field label="Grading system (Anglophone):">
+                <Field label={t('phase1.step3.bilingual.grading')}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {([
-                      { value: 'OVER_20',  label: 'Marks out of 20' },
-                      { value: 'OVER_100', label: 'Marks out of 100' },
+                      { value: 'OVER_20',  label: t('phase1.step3.bilingual.marks20') },
+                      { value: 'OVER_100', label: t('phase1.step3.bilingual.marks100') },
                     ] as const).map(opt => (
                       <button key={opt.value} type="button" onClick={() => setEnGradingSystem(opt.value)}
                         style={{
-                          flex: 1, padding: '10px 8px', border: `2px solid ${enGradingSystem === opt.value ? '#059669' : '#d4c8b8'}`,
+                          flex: 1, padding: '10px 8px', border: `2px solid ${enGradingSystem === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                           borderRadius: 10, background: enGradingSystem === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                           cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                          color: enGradingSystem === opt.value ? '#047857' : '#6b5c45',
+                          color: enGradingSystem === opt.value ? 'var(--green2)' : 'var(--text2)',
                         }}>
                         {opt.label}
                       </button>
@@ -1622,26 +1635,26 @@ export default function OnboardingPage() {
             {template && !template.isComplexe && template.isTechnique && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#1a1209',
-                  padding: '8px 0', borderBottom: '2px solid #d97706', marginBottom: 14,
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
+                  padding: '8px 0', borderBottom: '2px solid var(--amber)', marginBottom: 14,
                 }}>
-                  ⚙️ Filières techniques
+                  {t('phase1.step3.technical.sectionTitle')}
                 </div>
 
                 {/* SAR_SM — formulaire minimal métiers */}
                 {template.code === 'SAR_SM' && (
                   <div>
-                    <div style={{ padding: '10px 14px', background: '#fef3c7', border: '1.5px solid #fcd34d', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 700, color: '#92400e' }}>
-                      🏛️ SAR/SM sous tutelle MINEFOP
+                    <div style={{ padding: '10px 14px', background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>
+                      {t('phase1.step3.technical.sarNotice')}
                     </div>
-                    <Field label="Métiers pratiqués :">
+                    <Field label={t('phase1.step3.technical.sarMetiers')}>
                       <CheckboxGroup
-                        options={['Maçonnerie','Menuiserie','Couture','Cuisine','Agriculture','Mécanique'].map(v => ({ value: v, label: v }))}
+                        options={SAR_METIERS_OPTIONS.map(v => ({ value: v, label: t('phase1.sarMetiers.' + v) }))}
                         values={sarMetiers}
                         onChange={setSarMetiers}
                       />
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#6b5c45' }}>Autre :</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>{t('phase1.step3.technical.autres')}</span>
                         <input className="edu-field" value={customSarMetier}
                           style={{ ...INPUT, padding: '7px 12px', fontSize: 14, maxWidth: 220 }}
                           onChange={e => setCustomSarMetier(e.target.value)}
@@ -1650,19 +1663,19 @@ export default function OnboardingPage() {
                               setSarMetiers(m => [...m, customSarMetier.trim()]); setCustomSarMetier('')
                             }
                           }}
-                          placeholder="Tapez et Entrée" />
+                          placeholder={t('phase1.step3.technical.placeholder')} />
                         <button type="button" onClick={() => {
                           if (customSarMetier.trim() && !sarMetiers.includes(customSarMetier.trim())) {
                             setSarMetiers(m => [...m, customSarMetier.trim()]); setCustomSarMetier('')
                           }
                         }}
-                          style={{ padding: '7px 12px', background: '#059669', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          + Ajouter
+                          style={{ padding: '7px 12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          {t('phase1.step3.technical.add')}
                         </button>
                       </div>
                     </Field>
-                    <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginTop: 4 }}>
-                      ℹ️ Année 1 et Année 2 créées automatiquement
+                    <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>
+                      {t('phase1.step3.technical.sarHint')}
                     </div>
                   </div>
                 )}
@@ -1670,14 +1683,14 @@ export default function OnboardingPage() {
                 {/* CFM — formulaire minimal filières */}
                 {template.code === 'CFM' && (
                   <div>
-                    <Field label="Filières de formation :">
+                    <Field label={t('phase1.step3.technical.cfmFilieres')}>
                       <CheckboxGroup
-                        options={['Agro-alimentaire','Artisanat','BTP','Numérique'].map(v => ({ value: v, label: v }))}
+                        options={CFM_FILIERES_OPTIONS.map(v => ({ value: v, label: t('phase1.cfmFilieres.' + v) }))}
                         values={cfmFilieres}
                         onChange={setCfmFilieres}
                       />
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#6b5c45' }}>Autre :</span>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text2)' }}>{t('phase1.step3.technical.autres')}</span>
                         <input className="edu-field" value={customCfmFiliere}
                           style={{ ...INPUT, padding: '7px 12px', fontSize: 14, maxWidth: 220 }}
                           onChange={e => setCustomCfmFiliere(e.target.value)}
@@ -1686,19 +1699,19 @@ export default function OnboardingPage() {
                               setCfmFilieres(m => [...m, customCfmFiliere.trim()]); setCustomCfmFiliere('')
                             }
                           }}
-                          placeholder="Tapez et Entrée" />
+                          placeholder={t('phase1.step3.technical.placeholder')} />
                         <button type="button" onClick={() => {
                           if (customCfmFiliere.trim() && !cfmFilieres.includes(customCfmFiliere.trim())) {
                             setCfmFilieres(m => [...m, customCfmFiliere.trim()]); setCustomCfmFiliere('')
                           }
                         }}
-                          style={{ padding: '7px 12px', background: '#059669', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          + Ajouter
+                          style={{ padding: '7px 12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          {t('phase1.step3.technical.add')}
                         </button>
                       </div>
                     </Field>
-                    <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginTop: 4 }}>
-                      ℹ️ Niveaux 1, 2 et 3 créés automatiquement
+                    <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>
+                      {t('phase1.step3.technical.cfmHint')}
                     </div>
                   </div>
                 )}
@@ -1706,29 +1719,29 @@ export default function OnboardingPage() {
                 {/* LYCEE_TECHNIQUE_FR — Q_TECH + Q14 filtré */}
                 {template.code === 'LYCEE_TECHNIQUE_FR' && (
                   <div>
-                    <Field label="Type de lycée technique :">
+                    <Field label={t('phase1.step3.technical.lyceeTechType')}>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {([
-                          { value: 'IND',   label: 'Industriel (IND)',  desc: 'Filières F' },
-                          { value: 'STT',   label: 'Tertiaire (STT)',   desc: 'Filières G' },
-                          { value: 'MIXTE', label: 'Mixte IND + STT',   desc: 'Toutes filières' },
+                          { value: 'IND',   label: t('phase1.step3.technical.industriel'),  desc: t('phase1.step3.technical.industrielDesc') },
+                          { value: 'STT',   label: t('phase1.step3.technical.tertiaire'),   desc: t('phase1.step3.technical.tertiaireDesc') },
+                          { value: 'MIXTE', label: t('phase1.step3.technical.mixte'),   desc: t('phase1.step3.technical.mixteDesc') },
                         ] as const).map(opt => (
                           <button key={opt.value} type="button" onClick={() => setSousTypeTechnique(opt.value)}
                             style={{
-                              flex: 1, padding: '10px 6px', border: `2px solid ${sousTypeTechnique === opt.value ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '10px 6px', border: `2px solid ${sousTypeTechnique === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: sousTypeTechnique === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                              color: sousTypeTechnique === opt.value ? '#047857' : '#6b5c45',
+                              color: sousTypeTechnique === opt.value ? 'var(--green2)' : 'var(--text2)',
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                             }}>
                             <span>{opt.label}</span>
-                            <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>
                           </button>
                         ))}
                       </div>
                     </Field>
                     {sousTypeTechnique && (
-                      <Field label="Q14 — Filières disponibles :">
+                      <Field label={t('phase1.step3.technical.q14')}>
                         <CheckboxGroup
                           options={(
                             sousTypeTechnique === 'IND' ? FILIERES_TECHNIQUES_OFF.filter(f => f.startsWith('F'))
@@ -1746,40 +1759,40 @@ export default function OnboardingPage() {
                 {/* CETIC — toggle CETIF + filières spécifiques */}
                 {template.code === 'CETIC' && (
                   <div>
-                    <Field label="Type :">
+                    <Field label={t('phase1.step3.technical.ceticType')}>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {[
-                          { val: false, label: 'Général',            desc: 'CETIC standard' },
-                          { val: true,  label: 'Pour Filles (CETIF)', desc: 'ESF, Couture…' },
+                          { val: false, label: t('phase1.step3.technical.ceticGeneral'),            desc: t('phase1.step3.technical.ceticGeneralDesc') },
+                          { val: true,  label: t('phase1.step3.technical.ceticCETIF'), desc: t('phase1.step3.technical.ceticCETIFDesc') },
                         ].map((opt, i) => (
                           <button key={i} type="button" onClick={() => setCetifMode(opt.val)}
                             style={{
-                              flex: 1, padding: '10px 6px', border: `2px solid ${cetifMode === opt.val ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '10px 6px', border: `2px solid ${cetifMode === opt.val ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: cetifMode === opt.val ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                              color: cetifMode === opt.val ? '#047857' : '#6b5c45',
+                              color: cetifMode === opt.val ? 'var(--green2)' : 'var(--text2)',
                               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                             }}>
                             <span>{opt.label}</span>
-                            <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>
                           </button>
                         ))}
                       </div>
                     </Field>
                     {cetifMode ? (
-                      <Field label="Filières CETIF :">
+                      <Field label={t('phase1.step3.technical.ceticFilieres')}>
                         <CheckboxGroup
-                          options={['ESF','Couture','Hôtellerie','Cuisine'].map(v => ({ value: v, label: v }))}
+                          options={CETIF_FILIERES_OPTIONS.map(v => ({ value: v, label: t('phase1.ceticFilieres.' + v) }))}
                           values={form.filieresTechniques}
                           onChange={v => setForm(f => ({ ...f, filieresTechniques: v }))}
                         />
                       </Field>
                     ) : (
-                      <Field label="Q14 — Filières techniques :">
+                      <Field label={t('phase1.step3.technical.q14Tech')}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
-                              Options officielles MINESEC
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+                              {t('phase1.step3.technical.optionsOfficielles')}
                       </div>
                       <CheckboxGroup
                         options={FILIERES_TECHNIQUES_OFF.map(v => ({ value: v, label: v }))}
@@ -1788,8 +1801,8 @@ export default function OnboardingPage() {
                       />
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
-                        Options terrain confirmées
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+                        {t('phase1.step3.technical.optionsTerrain')}
                       </div>
                       <CheckboxGroup
                         options={FILIERES_TECHNIQUES_TER.map(v => ({ value: v, label: v }))}
@@ -1798,7 +1811,7 @@ export default function OnboardingPage() {
                       />
                     </div>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>Autre</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>{t('phase1.step3.technical.autres')}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <input className="edu-field" value={customTech}
                           style={{ ...INPUT, padding: '7px 12px', fontSize: 14, maxWidth: 250 }}
@@ -1809,7 +1822,7 @@ export default function OnboardingPage() {
                               setCustomTech('')
                             }
                           }}
-                          placeholder="Tapez et Entrée" />
+                          placeholder={t('phase1.step3.technical.placeholder')} />
                         <button type="button" onClick={() => {
                           if (customTech.trim() && !form.filieresTechniques.includes(customTech.trim())) {
                             setForm(f => ({ ...f, filieresTechniques: [...f.filieresTechniques, customTech.trim()] }))
@@ -1817,10 +1830,10 @@ export default function OnboardingPage() {
                           }
                         }}
                           style={{
-                            padding: '7px 12px', background: '#059669', color: 'white', border: 'none',
+                            padding: '7px 12px', background: 'var(--green)', color: 'white', border: 'none',
                             borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                           }}>
-                          + Ajouter
+                          {t('phase1.step3.technical.add')}
                         </button>
                       </div>
                     </div>
@@ -1836,24 +1849,24 @@ export default function OnboardingPage() {
             {template && !template.isComplexe && template.isPrimaire && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#1a1209',
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
                   padding: '8px 0', borderBottom: '2px solid #d4a843', marginBottom: 14,
                 }}>
-                  🏫 Primaire & Maternelle
+                  {t('phase1.step3.primary.sectionTitle')}
                 </div>
 
                 {/* MATERNELLE_FR — formulaire simplifié */}
                 {template.code === 'MATERNELLE_FR' && (
                   <div>
-                    <Field label="Sections présentes :">
+                    <Field label={t('phase1.step3.primary.maternelleSections')}>
                       <CheckboxGroup
                         options={['Petite section','Moyenne section','Grande section'].map(v => ({ value: v, label: v }))}
                         values={maternelleSections}
                         onChange={setMaternelleSections}
                       />
                     </Field>
-                    <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginTop: 4 }}>
-                      ℹ️ Évaluation par observations — pas de notes numériques
+                    <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>
+                      {t('phase1.step3.primary.maternelleHint')}
                     </div>
                   </div>
                 )}
@@ -1861,15 +1874,15 @@ export default function OnboardingPage() {
                 {/* NURSERY_EN — formulaire simplifié */}
                 {template.code === 'NURSERY_EN' && (
                   <div>
-                    <Field label="Levels present:">
+                    <Field label={t('phase1.step3.primary.nurseryLevels')}>
                       <CheckboxGroup
                         options={['PreNursery','Nursery 1','Nursery 2'].map(v => ({ value: v, label: v }))}
                         values={nurseryLevels}
                         onChange={setNurseryLevels}
                       />
                     </Field>
-                    <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600, marginTop: 4 }}>
-                      ℹ️ Assessment by observations — no numeric grades
+                    <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>
+                      {t('phase1.step3.primary.nurseryHint')}
                     </div>
                   </div>
                 )}
@@ -1877,8 +1890,8 @@ export default function OnboardingPage() {
                 {/* PRIMARY_BILINGUAL — double bloc FR + EN */}
                 {template.code === 'PRIMARY_BILINGUAL' && (
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: '#1a1209', marginBottom: 10 }}>🇫🇷 Section Francophone</div>
-                    <Field label="Niveaux (Francophone) :">
+                    <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>{t('phase1.step3.primary.frSection')}</div>
+                    <Field label={t('phase1.step3.primary.levelsFR')}>
                       <CheckboxGroup
                         options={NIVEAUX_PRIMAIRE_FR.map(v => ({ value: v, label: v }))}
                         values={form.niveauxPrimaire}
@@ -1892,36 +1905,36 @@ export default function OnboardingPage() {
                         }))}
                       />
                     </Field>
-                    <Field label="Système d'évaluation (FR) :">
+                    <Field label={t('phase1.step3.primary.evalFR')}>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {([
-                          { value: 'APC_300', label: 'APC 300 points' },
-                          { value: 'NOTES_20', label: 'Notes /20' },
+                          { value: 'APC_300', label: t('phase1.step3.primary.apc300') },
+                          { value: 'NOTES_20', label: t('phase1.step3.primary.notes20') },
                         ] as const).map(opt => (
                           <button key={opt.value} type="button" onClick={() => setEvalSystemPrimaire(opt.value)}
                             style={{
-                              flex: 1, padding: '10px 8px', border: `2px solid ${evalSystemPrimaire === opt.value ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '10px 8px', border: `2px solid ${evalSystemPrimaire === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: evalSystemPrimaire === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                              color: evalSystemPrimaire === opt.value ? '#047857' : '#6b5c45',
+                              color: evalSystemPrimaire === opt.value ? 'var(--green2)' : 'var(--text2)',
                             }}>
                             {opt.label}
                           </button>
                         ))}
                       </div>
                     </Field>
-                    <Field label="Fréquence de l'appel (FR) :">
+                    <Field label={t('phase1.step3.primary.appelFR')}>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {([
-                          { value: 'TWICE', label: '2 fois/jour (matin + après-midi)' },
-                          { value: 'ONCE', label: '1 fois/jour' },
+                          { value: 'TWICE', label: `${t('phase1.step3.primary.twice')} (${t('phase1.step3.primary.twiceDesc')})` },
+                          { value: 'ONCE', label: t('phase1.step3.primary.once') },
                         ] as const).map(opt => (
                           <button key={opt.value} type="button" onClick={() => setAppelFrequency(opt.value)}
                             style={{
-                              flex: 1, padding: '10px 8px', border: `2px solid ${appelFrequency === opt.value ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '10px 8px', border: `2px solid ${appelFrequency === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: appelFrequency === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
-                              color: appelFrequency === opt.value ? '#047857' : '#6b5c45',
+                              color: appelFrequency === opt.value ? 'var(--green2)' : 'var(--text2)',
                             }}>
                             {opt.label}
                           </button>
@@ -1929,27 +1942,27 @@ export default function OnboardingPage() {
                       </div>
                     </Field>
 
-                    <div style={{ borderTop: '1.5px solid #e8e0d4', margin: '14px 0' }} />
-                    <div style={{ fontWeight: 800, fontSize: 14, color: '#1a1209', marginBottom: 10 }}>🏴󠁧󠁢󠁥󠁮󠁧󠁿 Section Anglophone</div>
-                    <Field label="Levels (Anglophone):">
+                    <div style={{ borderTop: '1.5px solid var(--border)', margin: '14px 0' }} />
+                    <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text)', marginBottom: 10 }}>{t('phase1.step3.primary.enSection')}</div>
+                    <Field label={t('phase1.step3.primary.levelsEN')}>
                       <CheckboxGroup
                         options={NIVEAUX_PRIMAIRE_EN.map(v => ({ value: v, label: v }))}
                         values={bilingualEnLevels}
                         onChange={setBilingualEnLevels}
                       />
                     </Field>
-                    <Field label="Report card frequency:">
+                    <Field label={t('phase1.step3.primary.reportCardFreq')}>
                       <div style={{ display: 'flex', gap: 8 }}>
                         {([
-                          { value: 'MONTHLY', label: 'Monthly (standard)' },
-                          { value: 'TRIMESTRIAL', label: 'Per term' },
+                          { value: 'MONTHLY', label: t('phase1.step3.primary.monthly') },
+                          { value: 'TRIMESTRIAL', label: t('phase1.step3.primary.perTerm') },
                         ] as const).map(opt => (
                           <button key={opt.value} type="button" onClick={() => setBulletinFrequency(opt.value)}
                             style={{
-                              flex: 1, padding: '10px 8px', border: `2px solid ${bulletinFrequency === opt.value ? '#059669' : '#d4c8b8'}`,
+                              flex: 1, padding: '10px 8px', border: `2px solid ${bulletinFrequency === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: bulletinFrequency === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                               cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                              color: bulletinFrequency === opt.value ? '#047857' : '#6b5c45',
+                              color: bulletinFrequency === opt.value ? 'var(--green2)' : 'var(--text2)',
                             }}>
                             {opt.label}
                           </button>
@@ -1965,42 +1978,42 @@ export default function OnboardingPage() {
                     {/* PRIMAIRE_FR — évaluation + appel */}
                     {template.code === 'PRIMAIRE_FR' && (
                       <div style={{ marginBottom: 8 }}>
-                        <Field label="Système d'évaluation :">
+                        <Field label={t('phase1.step3.primary.evalSystem')}>
                           <div style={{ display: 'flex', gap: 8 }}>
                             {([
-                              { value: 'APC_300', label: 'APC 300 points', desc: 'standard public' },
-                              { value: 'NOTES_20', label: 'Notes /20', desc: 'certains privés' },
+                              { value: 'APC_300', label: t('phase1.step3.primary.apc300'), desc: t('phase1.step3.primary.apc300Desc') },
+                              { value: 'NOTES_20', label: t('phase1.step3.primary.notes20'), desc: t('phase1.step3.primary.notes20Desc') },
                             ] as const).map(opt => (
                               <button key={opt.value} type="button" onClick={() => setEvalSystemPrimaire(opt.value)}
                                 style={{
-                                  flex: 1, padding: '10px 8px', border: `2px solid ${evalSystemPrimaire === opt.value ? '#059669' : '#d4c8b8'}`,
+                                  flex: 1, padding: '10px 8px', border: `2px solid ${evalSystemPrimaire === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                                   borderRadius: 10, background: evalSystemPrimaire === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                                   cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                                  color: evalSystemPrimaire === opt.value ? '#047857' : '#6b5c45',
+                                  color: evalSystemPrimaire === opt.value ? 'var(--green2)' : 'var(--text2)',
                                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                                 }}>
                                 <span>{opt.label}</span>
-                                <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>
+                                <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>
                               </button>
                             ))}
                           </div>
                         </Field>
-                        <Field label="Fréquence de l'appel :">
+                        <Field label={t('phase1.step3.primary.appelFrequency')}>
                           <div style={{ display: 'flex', gap: 8 }}>
                             {([
-                              { value: 'TWICE', label: '2 fois/jour', desc: 'matin + après-midi (recommandé)' },
-                              { value: 'ONCE', label: '1 fois/jour', desc: '' },
+                              { value: 'TWICE', label: t('phase1.step3.primary.twice'), desc: t('phase1.step3.primary.twiceDesc') },
+                              { value: 'ONCE', label: t('phase1.step3.primary.once'), desc: '' },
                             ] as const).map(opt => (
                               <button key={opt.value} type="button" onClick={() => setAppelFrequency(opt.value)}
                                 style={{
-                                  flex: 1, padding: '10px 8px', border: `2px solid ${appelFrequency === opt.value ? '#059669' : '#d4c8b8'}`,
+                                  flex: 1, padding: '10px 8px', border: `2px solid ${appelFrequency === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                                   borderRadius: 10, background: appelFrequency === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                                   cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                                  color: appelFrequency === opt.value ? '#047857' : '#6b5c45',
+                                  color: appelFrequency === opt.value ? 'var(--green2)' : 'var(--text2)',
                                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                                 }}>
                                 <span>{opt.label}</span>
-                                {opt.desc && <span style={{ fontSize: 11, color: '#a89478', fontWeight: 600 }}>{opt.desc}</span>}
+                                {opt.desc && <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>}
                               </button>
                             ))}
                           </div>
@@ -2010,18 +2023,18 @@ export default function OnboardingPage() {
 
                     {/* PRIMARY_EN — bulletin frequency */}
                     {template.code === 'PRIMARY_EN' && (
-                      <Field label="Report card frequency:">
+                      <Field label={t('phase1.step3.primary.reportCardFreq')}>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {([
-                            { value: 'MONTHLY', label: 'Monthly (standard)' },
-                            { value: 'TRIMESTRIAL', label: 'Per term' },
+                            { value: 'MONTHLY', label: t('phase1.step3.primary.monthly') },
+                            { value: 'TRIMESTRIAL', label: t('phase1.step3.primary.perTerm') },
                           ] as const).map(opt => (
                             <button key={opt.value} type="button" onClick={() => setBulletinFrequency(opt.value)}
                               style={{
-                                flex: 1, padding: '10px 8px', border: `2px solid ${bulletinFrequency === opt.value ? '#059669' : '#d4c8b8'}`,
+                                flex: 1, padding: '10px 8px', border: `2px solid ${bulletinFrequency === opt.value ? 'var(--green)' : 'var(--border2)'}`,
                                 borderRadius: 10, background: bulletinFrequency === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
                                 cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
-                                color: bulletinFrequency === opt.value ? '#047857' : '#6b5c45',
+                                color: bulletinFrequency === opt.value ? 'var(--green2)' : 'var(--text2)',
                               }}>
                               {opt.label}
                             </button>
@@ -2031,7 +2044,7 @@ export default function OnboardingPage() {
                     )}
 
                     {/* Q15 — Niveaux primaire */}
-                    <Field label="Q15 — Quels niveaux avez-vous ?">
+                    <Field label={t('phase1.step3.primary.q15')}>
                       <CheckboxGroup
                         options={
                           form.subsystem === 'ANGLOPHONE'
@@ -2052,11 +2065,11 @@ export default function OnboardingPage() {
 
                     {/* Q16 — Classes par niveau primaire */}
                     {form.niveauxPrimaire.length > 0 && (
-                      <Field label="Q16 — Combien de classes par niveau ?">
+                      <Field label={t('phase1.step3.primary.q16')}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {form.niveauxPrimaire.map(niveau => (
                             <div key={niveau} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{ width: 60, fontSize: 14, fontWeight: 800, color: '#1a1209' }}>{niveau}</div>
+                              <div style={{ width: 60, fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{niveau}</div>
                               <StepperBtns
                                 value={form.classesParNiveauPrimaire[niveau] ?? 1}
                                 onChange={v => setNiveauPrimaireCount(niveau, v)}
@@ -2076,45 +2089,44 @@ export default function OnboardingPage() {
             {template && !template.isComplexe && (
               <div style={{ marginTop: 16, marginBottom: 12 }}>
                 <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#1a1209',
-                  padding: '8px 0', borderBottom: '2px solid #d4c8b8', marginBottom: 14,
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
+                  padding: '8px 0', borderBottom: '2px solid var(--border2)', marginBottom: 14,
                 }}>
-                  📋 Récapitulatif — ce qui sera créé
+                  {t('phase1.step3.preview.title')}
                 </div>
 
                 <div style={{
-                  background: '#f9f6f1', border: '1.5px solid #e8e0d4',
+                  background: 'var(--bg2)', border: '1.5px solid var(--border)',
                   borderRadius: 12, padding: '14px 16px',
                 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1209', marginBottom: 10 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
                     🏫 {template.name}
                   </div>
 
                   {previewLoading && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#a89478', fontStyle: 'italic' }}>
-                      <div style={{ width: 14, height: 14, border: '2px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
-                      Calcul de la structure…
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text3)', fontStyle: 'italic' }}>
+                      <div style={{ width: 14, height: 14, border: '2px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+                      {t('phase1.loading.computing')}
                     </div>
                   )}
 
                   {!previewLoading && previewData && (
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#047857', marginBottom: 8 }}>
-                        {previewData.totalClasses} classes au total
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--green2)', marginBottom: 8 }}>
+                        {previewData.totalClasses} {t('phase1.step3.preview.totalClasses')}
                       </div>
 
                       {/* Group classes by cycle */}
-                      {['6e','5e','4e','3e','CAP1','CAP2','CAP3','CAP4','Form 1','Form 2','Form 3','Form 4','Form 5'].filter(lvl =>
+                      {FIRST_CYCLE_LEVELS.filter(lvl =>
                         previewData.classes.some(c => c.level === lvl)
                       ).length > 0 && (
                         <div style={{ marginBottom: 8 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
-                            1er cycle — {previewData.classes.filter(c => ['6e','5e','4e','3e','CAP1','CAP2','CAP3','CAP4','Form 1','Form 2','Form 3','Form 4','Form 5'].includes(c.level)).length} classes :
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+                            {t('phase1.step3.preview.firstCycleGroup')} {previewData.classes.filter(c => FIRST_CYCLE_LEVELS.includes(c.level)).length} classes :
                           </div>
-                          <div style={{ fontSize: 12, color: '#6b5c45', lineHeight: 1.6, fontWeight: 600 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6, fontWeight: 600 }}>
                             {(() => {
-                              const levels = ['6e','5e','4e','3e','CAP1','CAP2','CAP3','CAP4','Form 1','Form 2','Form 3','Form 4','Form 5']
-                              return levels.filter(lvl => previewData.classes.some(c => c.level === lvl))
+                              return FIRST_CYCLE_LEVELS.filter(lvl => previewData.classes.some(c => c.level === lvl))
                                 .map(lvl => ({
                                   lvl,
                                   names: previewData.classes.filter(c => c.level === lvl).map(c => c.name),
@@ -2126,17 +2138,16 @@ export default function OnboardingPage() {
                         </div>
                       )}
 
-                      {['2nde','1ère','Tle','Lower Sixth','Upper Sixth'].filter(lvl =>
+                      {SECOND_CYCLE_LEVELS.filter(lvl =>
                         previewData.classes.some(c => c.level === lvl)
                       ).length > 0 && (
                         <div style={{ marginBottom: 8 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b5c45', marginBottom: 4 }}>
-                            2e cycle — {previewData.classes.filter(c => ['2nde','1ère','Tle','Lower Sixth','Upper Sixth'].includes(c.level)).length} classes :
+                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>
+                            {t('phase1.step3.preview.secondCycleGroup')} {previewData.classes.filter(c => SECOND_CYCLE_LEVELS.includes(c.level)).length} classes :
                           </div>
-                          <div style={{ fontSize: 12, color: '#6b5c45', lineHeight: 1.6, fontWeight: 600 }}>
+                          <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6, fontWeight: 600 }}>
                             {(() => {
-                              const levels = ['2nde','1ère','Tle','Lower Sixth','Upper Sixth']
-                              return levels.filter(lvl => previewData.classes.some(c => c.level === lvl))
+                              return SECOND_CYCLE_LEVELS.filter(lvl => previewData.classes.some(c => c.level === lvl))
                                 .map(lvl => ({
                                   lvl,
                                   names: previewData.classes.filter(c => c.level === lvl).map(c => c.name),
@@ -2149,36 +2160,36 @@ export default function OnboardingPage() {
                       )}
 
                       {previewData.subjects.length > 0 && (
-                        <div style={{ fontSize: 12, color: '#6b5c45', fontWeight: 600 }}>
-                          📚 Matières : {previewData.subjects.length} (avec coefficients BAC)
+                        <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
+                          {t('phase1.step3.preview.subjects')} {previewData.subjects.length} {t('phase1.step3.preview.withCoefficients')}
                         </div>
                       )}
                     </div>
                   )}
 
                   {!previewLoading && !previewData && (
-                    <div style={{ fontSize: 13, color: '#a89478', fontStyle: 'italic' }}>
-                      Configurez les niveaux ci-dessus pour voir un aperçu.
+                    <div style={{ fontSize: 13, color: 'var(--text3)', fontStyle: 'italic' }}>
+                      {t('phase1.step3.preview.placeholder')}
                     </div>
                   )}
 
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #e8e0d4' }}>
-                    <div style={{ fontSize: 12, color: '#6b5c45', fontWeight: 600 }}>
-                      📅 Année scolaire configurée automatiquement
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
+                      {t('phase1.step3.preview.yearAutoConfig')}
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b5c45', fontWeight: 600 }}>
-                      ⚙️ Configuration MINESEC par défaut
+                    <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
+                      {t('phase1.step3.preview.minesecConfig')}
                     </div>
-                    <div style={{ fontSize: 12, color: '#a89478', marginTop: 4 }}>
-                      ⚠️ Tout pourra être modifié depuis votre tableau de bord après activation.
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+                      {t('phase1.step3.preview.modifiableLater')}
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            <SubmitBtn onClick={goNext} disabled={!template || template.isComplexe}>
-              {template?.isComplexe ? '⏳ Bientôt disponible' : 'Continuer → Confirmation'}
+            <SubmitBtn onClick={goNext} disabled={!template || template.isComplexe} loadingText={t('phase1.loading.processing')}>
+              {template?.isComplexe ? t('phase1.step3.buttonDisabled') : t('phase1.step3.button')}
             </SubmitBtn>
           </div>
         )}
@@ -2187,51 +2198,51 @@ export default function OnboardingPage() {
         {step === 4 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <button type="button" onClick={() => { setStep(3); setSubmitError('') }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: '#a89478', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 14, padding: 0 }}>
-              ← Retour
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 14, padding: 0 }}>
+              {t('phase1.step4.back')}
             </button>
 
             {/* Établissement summary */}
-            <div style={{ background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>🏫 Établissement</div>
+            <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{t('phase1.step4.establishmentSection')}</div>
               {form.logoBase64 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 0', borderBottom: '1px solid #f0ebe3' }}>
-                  <img src={form.logoBase64} alt="Logo" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', border: '1.5px solid #e8e0d4' }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>Logo téléversé ✓</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 0', borderBottom: '1px solid var(--bg2)' }}>
+                  <img src={form.logoBase64} alt="Logo" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', border: '1.5px solid var(--border)' }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>{t('phase1.step1.logo.uploaded')}</span>
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
                 {[
-                  ['Nom', form.nom],
-                  ['Sous-domaine', `edunexus.cm/${form.subdomain}`],
-                  ['Template', template?.name ?? '—'],
-                  ['Sous-système', labelOf(SUBSYSTEM_OPTIONS, form.subsystem)],
-                  ['Enseignement', labelOf(EDUCATION_OPTIONS, form.educationType)],
-                  ['Statut', labelOf(OWNERSHIP_OPTIONS, form.ownership)],
-                  ['Ville', form.ville || '—'],
-                  ['Région', form.region || '—'],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>{k}</div>
-                    <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700, wordBreak: 'break-all' }}>{v}</div>
+                  { labelKey: 'phase1.step4.fields.name', val: form.nom },
+                  { labelKey: 'phase1.step4.fields.subdomain', val: `edunexus.cm/${form.subdomain}` },
+                  { labelKey: 'phase1.step4.fields.template', val: template?.name ?? '—' },
+                  { labelKey: 'phase1.step4.fields.subsystem', val: subsystemOptions.find(o => o.value === form.subsystem)?.label ?? form.subsystem },
+                  { labelKey: 'phase1.step4.fields.education', val: educationOptions.find(o => o.value === form.educationType)?.label ?? form.educationType },
+                  { labelKey: 'phase1.step4.fields.ownership', val: ownershipOptions.find(o => o.value === form.ownership)?.label ?? form.ownership },
+                  { labelKey: 'phase1.step4.fields.city', val: form.ville || '—' },
+                  { labelKey: 'phase1.step4.fields.region', val: form.region || '—' },
+                ].map(({ labelKey, val }) => (
+                  <div key={labelKey}>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t(labelKey)}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700, wordBreak: 'break-all' }}>{val}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Admin summary */}
-            <div style={{ background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>👤 Administrateur</div>
+            <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{t('phase1.step4.adminSection')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
                 {[
-                  ['Prénom', form.adminPrenom],
-                  ['Nom', form.adminNom],
-                  ['Email', form.adminEmail],
-                  ['Mot de passe', '••••••••'],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>{k}</div>
-                    <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700, wordBreak: 'break-all' }}>{v}</div>
+                  { labelKey: 'phase1.step4.fields.firstName', val: form.adminPrenom },
+                  { labelKey: 'phase1.step4.fields.lastName', val: form.adminNom },
+                  { labelKey: 'phase1.step4.fields.email', val: form.adminEmail },
+                  { labelKey: 'phase1.step4.fields.password', val: t('phase1.step4.fields.passwordMasked') },
+                ].map(({ labelKey, val }) => (
+                  <div key={labelKey}>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t(labelKey)}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700, wordBreak: 'break-all' }}>{val}</div>
                   </div>
                 ))}
               </div>
@@ -2239,34 +2250,34 @@ export default function OnboardingPage() {
 
             {/* Structure summary */}
             {template && (
-              <div style={{ background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  📋 Configuration
+              <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                  {t('phase1.step4.configSection')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
                   <div>
-                    <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>Template</div>
-                    <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>{template.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.template')}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{template.name}</div>
                   </div>
                   {template.hasPremierCycle && (
                     <>
                       <div>
-                        <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>1er cycle</div>
-                        <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>
-                          {form.niveaux1erCycle.join(' · ')} ({Object.values(form.classesParNiveau).reduce((a, b) => a + b, 0) || 0} classes)
+                        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.firstCycle')}</div>
+                        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>
+                          {form.niveaux1erCycle.join(' · ')} ({Object.values(form.classesParNiveau).reduce((a, b) => a + b, 0) || 0} {t('phase1.step3.preview.totalClasses')})
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>Convention</div>
-                        <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>
-                          {CONVENTION_OPTIONS.find(o => o.value === form.conventionNommage)?.label ?? form.conventionNommage}
+                        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.convention')}</div>
+                        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>
+                          {conventionOptions.find(o => o.value === form.conventionNommage)?.label ?? form.conventionNommage}
                         </div>
                       </div>
                       {form.lv2Debut !== 'NON_APPLICABLE' && form.lv2Disponibles.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>LV2</div>
-                          <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>
-                            {form.lv2Disponibles.join(' · ')} (dès la {form.lv2Debut})
+                          <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.lv2')}</div>
+                          <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>
+                            {form.lv2Disponibles.join(' · ')} ({t('phase1.step4.fields.fromLevel')} {form.lv2Debut})
                           </div>
                         </div>
                       )}
@@ -2275,42 +2286,42 @@ export default function OnboardingPage() {
                   {template.hasDeuxiemeCycle && (
                     <>
                       <div>
-                        <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>2e cycle</div>
-                        <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.secondCycle')}</div>
+                        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>
                           {form.niveaux2eCycle.join(' · ')}
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>Filières</div>
-                        <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.filieres')}</div>
+                        <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>
                           {form.filieres.length > 0 ? form.filieres.join(' · ') : '—'}
                         </div>
                       </div>
                       {form.a4Languages.length > 0 && (
                         <div>
-                          <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>Langues A4</div>
-                          <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>{form.a4Languages.join(' · ')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.a4Languages')}</div>
+                          <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{form.a4Languages.join(' · ')}</div>
                         </div>
                       )}
                     </>
                   )}
                   {template.isTechnique && form.filieresTechniques.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>Filières techniques</div>
-                      <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>{form.filieresTechniques.join(' · ')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.techFilieres')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{form.filieresTechniques.join(' · ')}</div>
                     </div>
                   )}
                   {previewData && (
                     <div>
-                      <div style={{ fontSize: 11, color: '#a89478', fontWeight: 700, textTransform: 'uppercase' }}>Total classes</div>
-                      <div style={{ fontSize: 14, color: '#1a1209', fontWeight: 700 }}>{previewData.totalClasses}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, textTransform: 'uppercase' }}>{t('phase1.step4.fields.totalClasses')}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 700 }}>{previewData.totalClasses}</div>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            <Alert msg="Une fois soumis, votre dossier sera examiné sous 24-48h. Vous recevrez un email de confirmation." type="info" />
+            <Alert msg={t('phase1.step4.info')} type="info" />
 
             {submitError && (
               <div ref={errorRef}>
@@ -2318,8 +2329,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            <SubmitBtn loading={submitLoading} onClick={handleSubmit}>
-              🚀 Soumettre ma demande d&apos;inscription
+            <SubmitBtn loading={submitLoading} onClick={handleSubmit} loadingText={t('phase1.loading.processing')}>
+              {t('phase1.buttons.step4Submit')}
             </SubmitBtn>
           </div>
         )}
@@ -2337,11 +2348,11 @@ export default function OnboardingPage() {
           content: '';
           position: absolute; top: 13px; left: calc(50% + 12px);
           width: calc(100% - 24px); height: 2px;
-          background: #d4c8b8; transition: background 0.4s;
+          background: var(--border2); transition: background 0.4s;
         }
         .edu-step.s-done:not(:last-child)::after,
-        .edu-step.s-active:not(:last-child)::after { background: #047857; }
-        .edu-field:focus { border-color: #059669 !important; background: #f0ece6 !important; box-shadow: 0 0 0 3px rgba(5,150,105,0.08); }
+        .edu-step.s-active:not(:last-child)::after { background: var(--green2); }
+        .edu-field:focus { border-color: var(--green) !important; background: #f0ece6 !important; box-shadow: 0 0 0 3px rgba(5,150,105,0.08); }
         @keyframes edu-spin { to { transform: rotate(360deg); } }
         @keyframes edu-fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         @keyframes edu-fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
@@ -2356,7 +2367,7 @@ export default function OnboardingPage() {
         {LeftPanel}
 
         {/* ── Right panel ── */}
-        <div className="edu-right-panel" style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: '#f7f3ee', overflowY: 'auto', position: 'relative', padding: '32px 24px' }}>
+        <div className="edu-right-panel" style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'var(--bg)', overflowY: 'auto', position: 'relative', padding: '32px 24px' }}>
           <div style={{ position: 'absolute', top: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.05) 0%,transparent 70%)', pointerEvents: 'none' }} />
           <div style={{ width: '100%', maxWidth: 520, position: 'relative', zIndex: 1 }}>
             {content}

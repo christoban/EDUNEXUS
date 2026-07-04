@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useT } from '@/lib/i18n'
 import type { AdminSection } from '../_types'
 
 interface NavItem {
@@ -40,59 +41,61 @@ interface Props {
 }
 
 export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout }: Props) {
-  const displayName = schoolName || 'Mon établissement'
+  const tnav = useT('navigation')
+  const tcommon = useT('common')
+  const displayName = schoolName || tcommon('brand.fallbackSchool')
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
 
-  const userDisplayName = sessionUser?.nomComplet ?? sessionUser?.firstName ?? 'Administrateur'
+  const userDisplayName = sessionUser?.nomComplet ?? sessionUser?.firstName ?? tcommon('user.fallbackName')
   const userInitials = userDisplayName.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
 
   const NAV: NavSection[] = [
     {
       items: [
-        { id: 'dashboard', icon: '⊞', label: 'Tableau de bord' },
-        { id: 'users',     icon: '👥', label: 'Utilisateurs', badge: badges.users,   badgeColor: 'green' },
-        { id: 'classes',   icon: '🏫', label: 'Classes',      badge: badges.classes, badgeColor: 'green' },
-        { id: 'subjects', icon: '📚', label: 'Matières' },
+        { id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') },
+        { id: 'users',     icon: '👥', label: tnav('sidebar.users'),     badge: badges.users,   badgeColor: 'green' },
+        { id: 'classes',   icon: '🏫', label: tnav('sidebar.classes'),   badge: badges.classes, badgeColor: 'green' },
+        { id: 'subjects',  icon: '📚', label: tnav('sidebar.subjects') },
       ]
     },
     {
-      label: 'Académique',
+      label: tnav('group.academic'),
       items: [
-        { id: 'attendance', icon: '✅', label: 'Présences' },
-        { id: 'grades',     icon: '📝', label: 'Notes',       badge: badges.grades, badgeColor: 'red' },
-        { id: 'bulletins',  icon: '📄', label: 'Bulletins' },
-        { id: 'timetable',  icon: '📅', label: 'Emploi du temps' },
-        { id: 'council',    icon: '🎓', label: 'Conseil de classe' },
-        { id: 'pedagogie',  icon: '📓', label: 'Pédagogie' },
-        { id: 'rh',         icon: '👔', label: 'Ressources Humaines' },
+        { id: 'attendance', icon: '✅', label: tnav('sidebar.attendance') },
+        { id: 'grades',     icon: '📝', label: tnav('sidebar.grades'),     badge: badges.grades, badgeColor: 'red' },
+        { id: 'bulletins',  icon: '📄', label: tnav('sidebar.bulletins') },
+        { id: 'timetable',  icon: '📅', label: tnav('sidebar.timetable') },
+        { id: 'council',    icon: '🎓', label: tnav('sidebar.council') },
+        { id: 'pedagogie',  icon: '📓', label: tnav('sidebar.pedagogie') },
+        { id: 'rh',         icon: '👔', label: tnav('sidebar.rh') },
       ]
     },
     {
-      label: 'Services',
+      label: tnav('group.services'),
       items: [
-        { id: 'academic-year', icon: '📆', label: 'Année scolaire' },
-        { id: 'finance',       icon: '📱', label: 'Mobile Money',      badge: badges.finance, badgeColor: 'amber' },
-        { id: 'ai',            icon: '🤖', label: 'IA Santé scolaire' },
-        { id: 'statistics',      icon: '📊', label: 'Statistiques' },
-        { id: 'communications',  icon: '📣', label: 'Communications' },
-        { id: 'settings',        icon: '⚙️', label: 'Paramètres' },
+        { id: 'academic-year', icon: '📆', label: tnav('sidebar.academicYear') },
+        { id: 'finance',       icon: '📱', label: tnav('sidebar.finance'),     badge: badges.finance, badgeColor: 'amber' },
+        { id: 'ai',            icon: '🤖', label: tnav('sidebar.ai') },
+        { id: 'statistics',    icon: '📊', label: tnav('sidebar.statistics') },
+        { id: 'communications', icon: '📣', label: tnav('sidebar.communications') },
+        { id: 'settings',      icon: '⚙️', label: tnav('sidebar.settings') },
       ]
     }
   ]
 
   return (
-    <aside className="w-[320px] min-w-[320px] bg-[#1a2e1e] flex flex-col h-screen flex-shrink-0 relative overflow-hidden">
+    <aside className="w-[320px] min-w-[320px] flex flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
       {/* Bande déco */}
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
-        style={{ background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 13px,#22c55e 13px,#22c55e 25px,#ef4444 25px,#ef4444 37px,#60a5fa 37px,#60a5fa 49px)' }}
+        style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }}
       />
 
       {/* Brand */}
       <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{padding: "25px 25px"}}>
-        <div className="w-13 h-13 rounded-[14px] bg-gradient-to-br from-[#f59e0b] to-[#22c55e] flex items-center justify-center text-[26px] flex-shrink-0">🎓</div>
+        <div className="w-13 h-13 rounded-[14px] bg-gradient-to-br from-[var(--amber)] to-[var(--green)] flex items-center justify-center text-[26px] flex-shrink-0">🎓</div>
         <div>
           <div className="font-spectral text-[25px] font-bold text-white leading-tight">EduNexus</div>
-          <div className="text-[14px] text-white/35 font-semibold">Administration</div>
+          <div className="text-[14px] text-white/35 font-semibold">{tcommon('brand.roleAdmin')}</div>
         </div>
       </div>
 
@@ -102,11 +105,11 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
           <div className="flex items-center gap-[8px]">
             {logoUrl
               ? <img src={logoUrl} alt={displayName} className="w-10 h-10 rounded-[10px] flex-shrink-0" style={{ objectFit: 'cover' }} />
-              : <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[#059669] to-[#1d4ed8] flex items-center justify-center text-[15px] font-black text-white flex-shrink-0">{initials}</div>
+              : <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[var(--green)] to-[var(--blue)] flex items-center justify-center text-[15px] font-black text-white flex-shrink-0">{initials}</div>
             }
             <div className="min-w-0">
               <div className="text-[16px] font-bold text-white truncate">{displayName}</div>
-              <div className="text-[13px] text-white/35">Administration</div>
+              <div className="text-[13px] text-white/35">{tcommon('brand.roleAdmin')}</div>
             </div>
           </div>
         </div>
@@ -127,11 +130,12 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
                     'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
                     current === item.id
                       ? 'text-white'
-                      : 'text-white/52 hover:bg-[#243b29] hover:text-white/82'
+                      : 'text-white/52 hover:bg-[var(--sidebar2)] hover:text-white/82'
                   )} style={{ padding: '6px 9px' }}>
                   {current === item.id && (
                     <motion.div layoutId="admin-nav-active"
-                      className="absolute inset-0 rounded-lg bg-[#3a6b44]"
+                      className="absolute inset-0 rounded-lg"
+                      style={{ background: 'var(--sidebar-active)' }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
                   )}
                   <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
@@ -151,15 +155,15 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
       {/* User */}
       <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px' }}>
         <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06]" style={{ padding: '12px 14px' }}>
-          <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[#d97706] to-[#dc2626] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">
+          <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[var(--amber)] to-[var(--red)] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">
             {userInitials}
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[17px] font-bold text-white truncate">{userDisplayName}</div>
-            <div className="text-[14px] text-white/35">Proviseur / Admin</div>
+            <div className="text-[14px] text-white/35">{tcommon('user.roleLabel')}</div>
           </div>
           {onLogout && (
-            <button onClick={onLogout} title="Se déconnecter"
+            <button onClick={onLogout} title={tcommon('user.logoutTitle')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', flexShrink: 0, padding: 4, borderRadius: 6 }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'rgba(239,68,68,0.8)'}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)'}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface OnToast { (msg: string, type?: 'success' | 'error' | 'info' | 'warning'): void }
 
@@ -66,7 +67,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 11,
   border: '1.5px solid #d9cdbd',
   background: '#fffdf9',
-  color: '#1a1209',
+  color: 'var(--text)',
   fontFamily: 'inherit',
   fontSize: 14,
   fontWeight: 600,
@@ -79,7 +80,7 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
   fontSize: 12,
   fontWeight: 800,
-  color: '#a89478',
+  color: 'var(--text3)',
   textTransform: 'uppercase',
   letterSpacing: '0.5px',
 }
@@ -96,11 +97,11 @@ const chipStyle = (bg: string, color: string): React.CSSProperties => ({
   fontWeight: 800,
 })
 
-const TABS: Array<{ key: Tab; label: string; icon: string }> = [
-  { key: 'personnel', label: 'Personnel', icon: '👥' },
-  { key: 'conges', label: 'Congés', icon: '🏖️' },
-  { key: 'pointage', label: 'Pointage', icon: '✅' },
-  { key: 'documents', label: 'Documents', icon: '📄' },
+const TABS: Array<{ key: Tab; icon: string }> = [
+  { key: 'personnel', icon: '👥' },
+  { key: 'conges', icon: '🏖️' },
+  { key: 'pointage', icon: '✅' },
+  { key: 'documents', icon: '📄' },
 ]
 
 function fmtDate(value?: string | null): string {
@@ -118,6 +119,7 @@ function fmtDateTime(value?: string | null): string {
 }
 
 export default function SectionRH({ onToast }: { onToast: OnToast }) {
+  const t = useT('admin')
   const [tab, setTab] = useState<Tab>('personnel')
   const [employees, setEmployees] = useState<EmployeeItem[]>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null)
@@ -143,11 +145,11 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
     try {
       const r = await fetchApi('/api/v2/hr/employees', { credentials: 'include' })
       const d = await r.json()
-      if (!d.success) throw new Error(d.message ?? 'Erreur chargement personnel')
+      if (!d.success) throw new Error(d.message ?? t('rh.toast.errLoadStaff'))
       setEmployees(d.data ?? [])
       if (!selectedEmployeeId && (d.data ?? []).length > 0) setSelectedEmployeeId((d.data ?? [])[0].id)
     } catch (error) {
-      onToast(error instanceof Error ? error.message : 'Erreur chargement personnel', 'error')
+      onToast(error instanceof Error ? error.message : t('rh.toast.errLoadStaff'), 'error')
     } finally {
       setLoadingEmployees(false)
     }
@@ -158,12 +160,12 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
     try {
       const r = await fetchApi(`/api/v2/hr/employees/${employeeId}`, { credentials: 'include' })
       const d = await r.json()
-      if (!d.success) throw new Error(d.message ?? 'Erreur chargement dossier')
+      if (!d.success) throw new Error(d.message ?? t('rh.toast.errLoadFile'))
       setSelectedDetail(d.data)
       setSelectedEmployeeId(employeeId)
       setDocEmployeeId(employeeId)
     } catch (error) {
-      onToast(error instanceof Error ? error.message : 'Erreur chargement dossier', 'error')
+      onToast(error instanceof Error ? error.message : t('rh.toast.errLoadFile'), 'error')
     } finally {
       setLoadingDetail(false)
     }
@@ -174,10 +176,10 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
     try {
       const r = await fetchApi('/api/v2/hr/leave-requests', { credentials: 'include' })
       const d = await r.json()
-      if (!d.success) throw new Error(d.message ?? 'Erreur congés')
+      if (!d.success) throw new Error(d.message ?? t('rh.toast.errLeaves'))
       setLeaveRequests(d.data ?? [])
     } catch (error) {
-      onToast(error instanceof Error ? error.message : 'Erreur congés', 'error')
+      onToast(error instanceof Error ? error.message : t('rh.toast.errLeaves'), 'error')
     } finally {
       setLoadingLeaves(false)
     }
@@ -230,8 +232,8 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
       body: JSON.stringify(payload),
     })
     const d = await r.json()
-    if (!d.success) throw new Error(d.message ?? 'Erreur dossier')
-    onToast('Dossier sauvegardé', 'success')
+    if (!d.success) throw new Error(d.message ?? t('rh.toast.errFile'))
+    onToast(t('rh.toast.fileSaved'), 'success')
     await loadDetail(employeeId)
     await loadEmployees()
   }
@@ -245,12 +247,12 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
         body: JSON.stringify({ statut }),
       })
       const d = await r.json()
-      if (!d.success) throw new Error(d.message ?? 'Erreur congé')
-      onToast(statut === 'APPROVED' ? 'Congé approuvé' : 'Congé rejeté', 'success')
+      if (!d.success) throw new Error(d.message ?? t('rh.toast.errLeave'))
+      onToast(statut === 'APPROVED' ? t('rh.toast.leaveApproved') : t('rh.toast.leaveRejected'), 'success')
       loadLeaves()
       if (selectedEmployeeId) loadDetail(selectedEmployeeId)
     } catch (error) {
-      onToast(error instanceof Error ? error.message : 'Erreur congé', 'error')
+      onToast(error instanceof Error ? error.message : t('rh.toast.errLeave'), 'error')
     }
   }
 
@@ -268,18 +270,18 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
         body: JSON.stringify({ date: attendanceDate, attendances }),
       })
       const d = await r.json()
-      if (!d.success) throw new Error(d.message ?? 'Erreur pointage')
+      if (!d.success) throw new Error(d.message ?? t('rh.toast.errAttendance'))
       setAttendanceSaved(true)
-      onToast('Pointage enregistré', 'success')
+      onToast(t('rh.toast.attendanceSaved'), 'success')
       setTimeout(() => setAttendanceSaved(false), 1500)
     } catch (error) {
-      onToast(error instanceof Error ? error.message : 'Erreur pointage', 'error')
+      onToast(error instanceof Error ? error.message : t('rh.toast.errAttendance'), 'error')
     }
   }
 
   const generateDoc = async () => {
     if (!docEmployeeId) {
-      onToast('Sélectionnez un employé', 'error')
+      onToast(t('rh.toast.selectEmployee'), 'error')
       return
     }
 
@@ -313,21 +315,21 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
 
       if (docType === 'mission') {
         const d = await res.json()
-        if (!d.success) throw new Error(d.message ?? 'Erreur ordre de mission')
-        onToast('Ordre de mission créé', 'success')
+        if (!d.success) throw new Error(d.message ?? t('rh.toast.errMission'))
+        onToast(t('rh.toast.missionCreated'), 'success')
         return
       }
 
-      if (!res.ok) throw new Error('Erreur génération PDF')
+      if (!res.ok) throw new Error(t('rh.toast.errPdfGen'))
       const blob = await res.blob()
       const link = document.createElement('a')
       link.href = URL.createObjectURL(blob)
       link.download = `${docType}-${docEmployeeId}.pdf`
       link.click()
       URL.revokeObjectURL(link.href)
-      onToast('Document téléchargé', 'success')
+      onToast(t('rh.toast.docDownloaded'), 'success')
     } catch (error) {
-      onToast(error instanceof Error ? error.message : 'Erreur document', 'error')
+      onToast(error instanceof Error ? error.message : t('rh.toast.errDoc'), 'error')
     }
   }
 
@@ -342,8 +344,8 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
         fontFamily: 'inherit',
         fontSize: 14,
         fontWeight: 800,
-        background: tab === key ? '#1a2e1e' : '#f0ebe3',
-        color: tab === key ? 'white' : '#6b5c45',
+        background: tab === key ? 'var(--sidebar)' : 'var(--bg2)',
+        color: tab === key ? 'white' : 'var(--text2)',
       }}
     >
       {icon} {label}
@@ -353,20 +355,20 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       <div style={{ marginBottom: 22 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: '#1a1209' }}>Ressources Humaines</div>
-        <div style={{ fontSize: 14, color: '#a89478', fontWeight: 500, marginTop: 4 }}>Personnel, congés, pointage et documents administratifs</div>
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>{t('rh.title')}</div>
+        <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>{t('rh.subtitle')}</div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-        {TABS.map(t => tabButton(t.key, t.label, t.icon))}
+        {TABS.map(tb => tabButton(tb.key, t(`rh.tabs.${tb.key}`), tb.icon))}
       </div>
 
       {tab === 'personnel' && (
         <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 18 }}>
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Liste du personnel</div>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.staffList')}</div>
             {loadingEmployees ? (
-              <div style={{ padding: 32, textAlign: 'center', color: '#a89478' }}>Chargement...</div>
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.loading')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {employees.map(emp => {
@@ -386,90 +388,90 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                         <div>
-                          <div style={{ fontSize: 15, fontWeight: 800, color: '#1a1209' }}>{emp.fullName}</div>
+                          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{emp.fullName}</div>
                           <div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={chipStyle(emp.role === 'TEACHER' ? '#dbeafe' : '#ffedd5', emp.role === 'TEACHER' ? '#1e40af' : '#9a3412')}>
-                              {emp.role === 'TEACHER' ? 'Enseignant' : 'Staff'}
+                            <span style={chipStyle(emp.role === 'TEACHER' ? 'var(--blue-light)' : 'var(--orange-light)', emp.role === 'TEACHER' ? 'var(--blue)' : 'var(--orange)')}>
+                              {emp.role === 'TEACHER' ? t('rh.roleTeacher') : t('rh.roleStaff')}
                             </span>
                             {emp.staffProfile?.title && <span style={chipStyle('#eef2ff', '#4338ca')}>{emp.staffProfile.title}</span>}
                           </div>
                         </div>
-                        <div style={{ fontSize: 12, color: '#a89478', fontWeight: 700 }}>{emp.email ?? '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>{emp.email ?? '—'}</div>
                       </div>
                     </button>
                   )
                 })}
-                {employees.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#a89478' }}>Aucun employé trouvé</div>}
+                {employees.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.noEmployees')}</div>}
               </div>
             )}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Fiche détaillée</div>
-                <button style={{ ...chipStyle('#f0ebe3', '#6b5c45'), border: 'none', cursor: 'pointer' }} onClick={() => selectedEmployeeId && loadDetail(selectedEmployeeId)}>↻ Actualiser</button>
+            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.employeeCard')}</div>
+                <button style={{ ...chipStyle('var(--bg2)', 'var(--text2)'), border: 'none', cursor: 'pointer' }} onClick={() => selectedEmployeeId && loadDetail(selectedEmployeeId)}>{t('rh.refresh')}</button>
               </div>
               {loadingDetail || !selectedDetail ? (
-                <div style={{ padding: 32, textAlign: 'center', color: '#a89478' }}>Sélectionnez un employé</div>
+                <div style={{ padding: 32, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.selectEmployee')}</div>
               ) : (
                 <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <div>
-                    <div style={labelStyle}>Nom complet</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>{selectedDetail.employee.fullName}</div>
+                    <div style={labelStyle}>{t('rh.fullName')}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{selectedDetail.employee.fullName}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Rôle</div>
+                    <div style={labelStyle}>{t('rh.role')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.employee.role}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Email</div>
+                    <div style={labelStyle}>{t('rh.email')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.employee.email ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Téléphone</div>
+                    <div style={labelStyle}>{t('rh.phone')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.employee.phone ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Date d’embauche</div>
+                    <div style={labelStyle}>{t('rh.hireDate')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{fmtDate(selectedDetail.file?.dateEmbauche ?? null)}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>CNPS</div>
+                    <div style={labelStyle}>{t('rh.cnps')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.file?.numeroCNPS ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Type de contrat</div>
+                    <div style={labelStyle}>{t('rh.contractType')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.file?.typeContrat ?? '—'}</div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Échelon</div>
+                    <div style={labelStyle}>{t('rh.echelon')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.file?.echelonActuel ?? '—'}</div>
                   </div>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
-                    <button style={{ ...chipStyle('#dbeafe', '#1e40af'), border: 'none', cursor: 'pointer' }} onClick={() => saveEmployeeFile(selectedDetail.employee.id, (selectedDetail.file ?? {}) as Record<string, unknown>)}>💾 Sauver dossier</button>
-                    <button style={{ ...chipStyle('#e0f2fe', '#075985'), border: 'none', cursor: 'pointer' }} onClick={async () => {
-                      const type = prompt('Type d\'événement (PROMOTION, MUTATION, AVANCEMENT_ECHELON, SANCTION)')
+                    <button style={{ ...chipStyle('var(--blue-light)', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={() => saveEmployeeFile(selectedDetail.employee.id, (selectedDetail.file ?? {}) as Record<string, unknown>)}>{t('rh.saveFile')}</button>
+                    <button style={{ ...chipStyle('#e0f2fe', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
+                      const type = prompt(t('rh.prompt.eventType'))
                       if (!type) return
-                      const date = prompt('Date (YYYY-MM-DD)')
+                      const date = prompt(t('rh.prompt.date'))
                       if (!date) return
-                      const observation = prompt('Observation (optionnel)') ?? ''
+                      const observation = prompt(t('rh.prompt.observation')) ?? ''
                       try {
                         const r = await fetchApi(`/api/v2/hr/employees/${selectedDetail.employee.id}/career-events`, {
                           method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, date, observation }),
                         })
                         const d = await r.json()
-                        if (!d.success) throw new Error(d.message ?? 'Erreur événement')
-                        onToast('Événement de carrière ajouté', 'success')
+                        if (!d.success) throw new Error(d.message ?? t('rh.toast.errEvent'))
+                        onToast(t('rh.toast.eventAdded'), 'success')
                         loadDetail(selectedDetail.employee.id)
                       } catch (error) {
-                        onToast(error instanceof Error ? error.message : 'Erreur événement', 'error')
+                        onToast(error instanceof Error ? error.message : t('rh.toast.errEvent'), 'error')
                       }
-                    }}>➕ Ajouter carrière</button>
-                    <button style={{ ...chipStyle('#f3e8ff', '#7c3aed'), border: 'none', cursor: 'pointer' }} onClick={async () => {
+                    }}>{t('rh.addCareer')}</button>
+                    <button style={{ ...chipStyle('#f3e8ff', 'var(--purple)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
                       try {
                         const r = await fetchApi(`/api/v2/hr/employees/${selectedDetail.employee.id}/attestation-travail`, { credentials: 'include' })
-                        if (!r.ok) throw new Error('Impossible de générer l’attestation')
+                        if (!r.ok) throw new Error(t('rh.toast.errAttestation'))
                         const blob = await r.blob()
                         const link = document.createElement('a')
                         link.href = URL.createObjectURL(blob)
@@ -477,13 +479,13 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                         link.click()
                         URL.revokeObjectURL(link.href)
                       } catch (error) {
-                        onToast(error instanceof Error ? error.message : 'Erreur PDF', 'error')
+                        onToast(error instanceof Error ? error.message : t('rh.toast.errPdf'), 'error')
                       }
-                    }}>📄 Attestation</button>
-                    <button style={{ ...chipStyle('#fef3c7', '#92400e'), border: 'none', cursor: 'pointer' }} onClick={async () => {
+                    }}>{t('rh.attestation')}</button>
+                    <button style={{ ...chipStyle('var(--amber-light)', 'var(--amber)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
                       try {
                         const r = await fetchApi(`/api/v2/hr/employees/${selectedDetail.employee.id}/certificat-travail`, { credentials: 'include' })
-                        if (!r.ok) throw new Error('Impossible de générer le certificat')
+                        if (!r.ok) throw new Error(t('rh.toast.errCertificat'))
                         const blob = await r.blob()
                         const link = document.createElement('a')
                         link.href = URL.createObjectURL(blob)
@@ -491,49 +493,49 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                         link.click()
                         URL.revokeObjectURL(link.href)
                       } catch (error) {
-                        onToast(error instanceof Error ? error.message : 'Erreur PDF', 'error')
+                        onToast(error instanceof Error ? error.message : t('rh.toast.errPdf'), 'error')
                       }
-                    }}>📄 Certificat</button>
+                    }}>{t('rh.certificat')}</button>
                   </div>
                 </div>
               )}
             </div>
 
-            <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Historique carrière et congés</div>
+            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.historyTitle')}</div>
               {!selectedDetail ? (
-                <div style={{ padding: 24, color: '#a89478' }}>Sélectionnez un employé pour voir l’historique.</div>
+                <div style={{ padding: 24, color: 'var(--text3)' }}>{t('rh.selectForHistory')}</div>
               ) : (
                 <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
-                    <div style={{ ...labelStyle, marginBottom: 10 }}>Événements carrière</div>
+                    <div style={{ ...labelStyle, marginBottom: 10 }}>{t('rh.careerEvents')}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {selectedDetail.careerEvents.length === 0 && <div style={{ color: '#a89478' }}>Aucun événement enregistré</div>}
+                      {selectedDetail.careerEvents.length === 0 && <div style={{ color: 'var(--text3)' }}>{t('rh.noEvents')}</div>}
                       {selectedDetail.careerEvents.map(ev => (
-                        <div key={ev.id} style={{ border: '1px solid #efe7db', borderRadius: 12, padding: '10px 12px', background: '#faf8f4' }}>
-                          <div style={{ fontWeight: 800, color: '#1a1209' }}>{ev.type}</div>
-                          <div style={{ fontSize: 13, color: '#6b5c45', marginTop: 4 }}>{fmtDate(ev.date)}</div>
-                          <div style={{ fontSize: 13, color: '#a89478', marginTop: 4 }}>{ev.observation ?? '—'}</div>
+                        <div key={ev.id} style={{ border: '1px solid var(--bg2)', borderRadius: 12, padding: '10px 12px', background: 'var(--bg)' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--text)' }}>{ev.type}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{fmtDate(ev.date)}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{ev.observation ?? '—'}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <div style={{ ...labelStyle, marginBottom: 10 }}>Solde congés</div>
-                    <div style={{ border: '1px solid #efe7db', borderRadius: 12, padding: 14, background: '#faf8f4', marginBottom: 12 }}>
-                      <div style={{ fontWeight: 800, color: '#1a1209' }}>{selectedDetail.leaveBalance.current ? `${selectedDetail.leaveBalance.current.soldeRestant} jours restants` : '—'}</div>
-                      <div style={{ fontSize: 13, color: '#a89478', marginTop: 4 }}>Année {selectedDetail.leaveBalance.current?.annee ?? new Date().getFullYear()}</div>
+                    <div style={{ ...labelStyle, marginBottom: 10 }}>{t('rh.leaveBalance')}</div>
+                    <div style={{ border: '1px solid var(--bg2)', borderRadius: 12, padding: 14, background: 'var(--bg)', marginBottom: 12 }}>
+                      <div style={{ fontWeight: 800, color: 'var(--text)' }}>{selectedDetail.leaveBalance.current ? t('rh.daysRemaining', { n: selectedDetail.leaveBalance.current.soldeRestant }) : '—'}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{t('rh.year', { y: selectedDetail.leaveBalance.current?.annee ?? new Date().getFullYear() })}</div>
                     </div>
-                    <div style={{ ...labelStyle, marginBottom: 10 }}>Demandes de congé</div>
+                    <div style={{ ...labelStyle, marginBottom: 10 }}>{t('rh.leaveRequests')}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {selectedDetail.leaveRequests.length === 0 && <div style={{ color: '#a89478' }}>Aucune demande</div>}
+                      {selectedDetail.leaveRequests.length === 0 && <div style={{ color: 'var(--text3)' }}>{t('rh.noRequests')}</div>}
                       {selectedDetail.leaveRequests.map(req => (
-                        <div key={req.id} style={{ border: '1px solid #efe7db', borderRadius: 12, padding: '10px 12px', background: '#faf8f4' }}>
+                        <div key={req.id} style={{ border: '1px solid var(--bg2)', borderRadius: 12, padding: '10px 12px', background: 'var(--bg)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <div style={{ fontWeight: 800, color: '#1a1209' }}>{req.type}</div>
-                            <span style={chipStyle(req.statut === 'APPROVED' ? '#dcfce7' : req.statut === 'REJECTED' ? '#fee2e2' : '#fef3c7', req.statut === 'APPROVED' ? '#166534' : req.statut === 'REJECTED' ? '#991b1b' : '#92400e')}>{req.statut}</span>
+                            <div style={{ fontWeight: 800, color: 'var(--text)' }}>{req.type}</div>
+                            <span style={chipStyle(req.statut === 'APPROVED' ? 'var(--green-light)' : req.statut === 'REJECTED' ? 'var(--red-light)' : 'var(--amber-light)', req.statut === 'APPROVED' ? 'var(--green)' : req.statut === 'REJECTED' ? 'var(--red)' : 'var(--amber)')}>{req.statut}</span>
                           </div>
-                          <div style={{ fontSize: 13, color: '#6b5c45', marginTop: 4 }}>{fmtDate(req.dateDebut)} → {fmtDate(req.dateFin)}</div>
+                          <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{fmtDate(req.dateDebut)} → {fmtDate(req.dateFin)}</div>
                         </div>
                       ))}
                     </div>
@@ -547,49 +549,49 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
 
       {tab === 'conges' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Demandes en attente</div>
-              <button style={{ ...chipStyle('#f0ebe3', '#6b5c45'), border: 'none', cursor: 'pointer' }} onClick={loadLeaves}>↻ Actualiser</button>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.pendingRequests')}</div>
+              <button style={{ ...chipStyle('var(--bg2)', 'var(--text2)'), border: 'none', cursor: 'pointer' }} onClick={loadLeaves}>{t('rh.refresh')}</button>
             </div>
-            {loadingLeaves ? <div style={{ padding: 28, textAlign: 'center', color: '#a89478' }}>Chargement...</div> : (
+            {loadingLeaves ? <div style={{ padding: 28, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.loading')}</div> : (
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {leaveRequests.filter(l => l.statut === 'PENDING').map(req => (
-                  <div key={req.id} style={{ border: '1px solid #efe7db', borderRadius: 12, padding: 14, background: '#faf8f4' }}>
+                  <div key={req.id} style={{ border: '1px solid var(--bg2)', borderRadius: 12, padding: 14, background: 'var(--bg)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                       <div>
-                        <div style={{ fontWeight: 800, color: '#1a1209' }}>{req.user.firstName} {req.user.lastName}</div>
-                        <div style={{ fontSize: 13, color: '#6b5c45', marginTop: 4 }}>{req.type} · {fmtDate(req.dateDebut)} → {fmtDate(req.dateFin)}</div>
+                        <div style={{ fontWeight: 800, color: 'var(--text)' }}>{req.user.firstName} {req.user.lastName}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{req.type} · {fmtDate(req.dateDebut)} → {fmtDate(req.dateFin)}</div>
                       </div>
-                      <span style={chipStyle('#fef3c7', '#92400e')}>{req.statut}</span>
+                      <span style={chipStyle('var(--amber-light)', 'var(--amber)')}>{req.statut}</span>
                     </div>
-                    <div style={{ fontSize: 13, color: '#a89478', marginTop: 8 }}>{req.motif ?? '—'}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8 }}>{req.motif ?? '—'}</div>
                     <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                      <button style={{ ...chipStyle('#dcfce7', '#166534'), border: 'none', cursor: 'pointer' }} onClick={() => handleApproveLeave(req.id, 'APPROVED')}>Approuver</button>
-                      <button style={{ ...chipStyle('#fee2e2', '#991b1b'), border: 'none', cursor: 'pointer' }} onClick={() => handleApproveLeave(req.id, 'REJECTED')}>Rejeter</button>
+                      <button style={{ ...chipStyle('var(--green-light)', 'var(--green)'), border: 'none', cursor: 'pointer' }} onClick={() => handleApproveLeave(req.id, 'APPROVED')}>{t('rh.approve')}</button>
+                      <button style={{ ...chipStyle('var(--red-light)', 'var(--red)'), border: 'none', cursor: 'pointer' }} onClick={() => handleApproveLeave(req.id, 'REJECTED')}>{t('rh.reject')}</button>
                     </div>
                   </div>
                 ))}
-                {leaveRequests.filter(l => l.statut === 'PENDING').length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#a89478' }}>Aucune demande en attente</div>}
+                {leaveRequests.filter(l => l.statut === 'PENDING').length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.noPending')}</div>}
               </div>
             )}
           </div>
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Historique des congés</div>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.leaveHistory')}</div>
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {leaveRequests.filter(l => l.statut !== 'PENDING').map(req => (
-                <div key={req.id} style={{ border: '1px solid #efe7db', borderRadius: 12, padding: 14, background: '#faf8f4' }}>
+                <div key={req.id} style={{ border: '1px solid var(--bg2)', borderRadius: 12, padding: 14, background: 'var(--bg)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                     <div>
-                      <div style={{ fontWeight: 800, color: '#1a1209' }}>{req.user.firstName} {req.user.lastName}</div>
-                      <div style={{ fontSize: 13, color: '#6b5c45', marginTop: 4 }}>{req.type} · {fmtDate(req.dateDebut)} → {fmtDate(req.dateFin)}</div>
+                      <div style={{ fontWeight: 800, color: 'var(--text)' }}>{req.user.firstName} {req.user.lastName}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{req.type} · {fmtDate(req.dateDebut)} → {fmtDate(req.dateFin)}</div>
                     </div>
-                    <span style={chipStyle(req.statut === 'APPROVED' ? '#dcfce7' : '#fee2e2', req.statut === 'APPROVED' ? '#166534' : '#991b1b')}>{req.statut}</span>
+                    <span style={chipStyle(req.statut === 'APPROVED' ? 'var(--green-light)' : 'var(--red-light)', req.statut === 'APPROVED' ? 'var(--green)' : 'var(--red)')}>{req.statut}</span>
                   </div>
-                  <div style={{ fontSize: 13, color: '#a89478', marginTop: 8 }}>Validé par {req.validator ? `${req.validator.firstName} ${req.validator.lastName}` : '—'}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8 }}>{t('rh.validatedBy')} {req.validator ? `${req.validator.firstName} ${req.validator.lastName}` : '—'}</div>
                 </div>
               ))}
-              {leaveRequests.filter(l => l.statut !== 'PENDING').length === 0 && <div style={{ padding: 20, textAlign: 'center', color: '#a89478' }}>Aucun historique</div>}
+              {leaveRequests.filter(l => l.statut !== 'PENDING').length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.noHistory')}</div>}
             </div>
           </div>
         </div>
@@ -597,38 +599,38 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
 
       {tab === 'pointage' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Pointage journalier</div>
-              <button style={{ ...chipStyle('#dbeafe', '#1e40af'), border: 'none', cursor: 'pointer' }} onClick={saveAttendance}>💾 Enregistrer le pointage</button>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.dailyAttendance')}</div>
+              <button style={{ ...chipStyle('var(--blue-light)', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={saveAttendance}>{t('rh.saveAttendance')}</button>
             </div>
             <div style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
               <div>
-                <div style={labelStyle}>Date</div>
+                <div style={labelStyle}>{t('rh.date')}</div>
                 <input type="date" value={attendanceDate} onChange={e => setAttendanceDate(e.target.value)} style={{ ...inputStyle, width: 200 }} />
               </div>
-              <div style={{ color: attendanceSaved ? '#166534' : '#a89478', fontWeight: 700 }}>{attendanceSaved ? 'Pointage enregistré' : 'Aucun enregistrement récent'}</div>
+              <div style={{ color: attendanceSaved ? 'var(--green)' : 'var(--text3)', fontWeight: 700 }}>{attendanceSaved ? t('rh.attendanceSavedLabel') : t('rh.noRecentRecord')}</div>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Statut par employé</div>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.statusByEmployee')}</div>
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {employees.map(emp => (
-                <div key={emp.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 1.4fr', gap: 10, alignItems: 'center', border: '1px solid #efe7db', borderRadius: 12, padding: 12, background: '#faf8f4' }}>
+                <div key={emp.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 1.4fr', gap: 10, alignItems: 'center', border: '1px solid var(--bg2)', borderRadius: 12, padding: 12, background: 'var(--bg)' }}>
                   <div>
-                    <div style={{ fontWeight: 800, color: '#1a1209' }}>{emp.fullName}</div>
-                    <div style={{ fontSize: 12, color: '#a89478', marginTop: 3 }}>{emp.role}</div>
+                    <div style={{ fontWeight: 800, color: 'var(--text)' }}>{emp.fullName}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>{emp.role}</div>
                   </div>
                   <select value={attendanceRows[emp.id]?.statut ?? 'PRESENT'} onChange={e => setAttendanceRows(prev => ({ ...prev, [emp.id]: { ...(prev[emp.id] ?? { note: '' }), statut: e.target.value as AttendanceStatut } }))} style={inputStyle}>
                     <option value="PRESENT">PRESENT</option>
                     <option value="ABSENT">ABSENT</option>
                     <option value="RETARD">RETARD</option>
                   </select>
-                  <input value={attendanceRows[emp.id]?.note ?? ''} onChange={e => setAttendanceRows(prev => ({ ...prev, [emp.id]: { ...(prev[emp.id] ?? { statut: 'PRESENT' }), note: e.target.value } }))} placeholder="Note optionnelle" style={inputStyle} />
+                  <input value={attendanceRows[emp.id]?.note ?? ''} onChange={e => setAttendanceRows(prev => ({ ...prev, [emp.id]: { ...(prev[emp.id] ?? { statut: 'PRESENT' }), note: e.target.value } }))} placeholder={t('rh.optionalNote')} style={inputStyle} />
                 </div>
               ))}
-              {employees.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#a89478' }}>Chargez d’abord la liste du personnel.</div>}
+              {employees.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.loadStaffFirst')}</div>}
             </div>
           </div>
         </div>
@@ -636,63 +638,63 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
 
       {tab === 'documents' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Générer un document</div>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.generateDoc')}</div>
             <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <div style={labelStyle}>Employé</div>
+                <div style={labelStyle}>{t('rh.employee')}</div>
                 <select value={docEmployeeId} onChange={e => setDocEmployeeId(e.target.value)} style={inputStyle}>
-                  <option value="">— Choisir —</option>
+                  <option value="">{t('rh.choose')}</option>
                   {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.fullName}</option>)}
                 </select>
               </div>
               <div>
-                <div style={labelStyle}>Document</div>
+                <div style={labelStyle}>{t('rh.document')}</div>
                 <select value={docType} onChange={e => setDocType(e.target.value as typeof docType)} style={inputStyle}>
-                  <option value="attestation">Attestation de travail</option>
-                  <option value="certificat">Certificat de travail</option>
-                  <option value="mission">Ordre de mission</option>
+                  <option value="attestation">{t('rh.docAttestation')}</option>
+                  <option value="certificat">{t('rh.docCertificat')}</option>
+                  <option value="mission">{t('rh.docMission')}</option>
                 </select>
               </div>
               {docType === 'mission' && (
                 <>
                   <div>
-                    <div style={labelStyle}>Motif</div>
-                    <input value={docForm.motif} onChange={e => setDocForm(prev => ({ ...prev, motif: e.target.value }))} style={inputStyle} placeholder="Mission administrative..." />
+                    <div style={labelStyle}>{t('rh.motif')}</div>
+                    <input value={docForm.motif} onChange={e => setDocForm(prev => ({ ...prev, motif: e.target.value }))} style={inputStyle} placeholder={t('rh.motifPlaceholder')} />
                   </div>
                   <div>
-                    <div style={labelStyle}>Lieu</div>
-                    <input value={docForm.lieu} onChange={e => setDocForm(prev => ({ ...prev, lieu: e.target.value }))} style={inputStyle} placeholder="Ville / lieu" />
+                    <div style={labelStyle}>{t('rh.place')}</div>
+                    <input value={docForm.lieu} onChange={e => setDocForm(prev => ({ ...prev, lieu: e.target.value }))} style={inputStyle} placeholder={t('rh.placePlaceholder')} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div>
-                      <div style={labelStyle}>Date de début</div>
+                      <div style={labelStyle}>{t('rh.startDate')}</div>
                       <input type="date" value={docForm.dateDebut} onChange={e => setDocForm(prev => ({ ...prev, dateDebut: e.target.value }))} style={inputStyle} />
                     </div>
                     <div>
-                      <div style={labelStyle}>Date de fin</div>
+                      <div style={labelStyle}>{t('rh.endDate')}</div>
                       <input type="date" value={docForm.dateFin} onChange={e => setDocForm(prev => ({ ...prev, dateFin: e.target.value }))} style={inputStyle} />
                     </div>
                   </div>
                   <div>
-                    <div style={labelStyle}>Signataire</div>
-                    <input value={docForm.signataire} onChange={e => setDocForm(prev => ({ ...prev, signataire: e.target.value }))} style={inputStyle} placeholder="Proviseur" />
+                    <div style={labelStyle}>{t('rh.signatory')}</div>
+                    <input value={docForm.signataire} onChange={e => setDocForm(prev => ({ ...prev, signataire: e.target.value }))} style={inputStyle} placeholder={t('rh.signatoryPlaceholder')} />
                   </div>
                 </>
               )}
-              <button onClick={generateDoc} style={{ ...chipStyle('#1a2e1e', 'white'), border: 'none', cursor: 'pointer', justifyContent: 'center' }}>Générer</button>
+              <button onClick={generateDoc} style={{ ...chipStyle('var(--sidebar)', 'white'), border: 'none', cursor: 'pointer', justifyContent: 'center' }}>{t('rh.generate')}</button>
             </div>
           </div>
 
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 16, fontWeight: 800, color: '#1a1209' }}>Prévisualisation</div>
-            <div style={{ padding: 18, color: '#6b5c45', lineHeight: 1.7 }}>
-              {docType === 'attestation' && 'Produit une attestation de travail basée sur le dossier de l’employé sélectionné.'}
-              {docType === 'certificat' && 'Produit un certificat de travail avec les données administratives disponibles.'}
-              {docType === 'mission' && 'Crée un ordre de mission puis permet de télécharger le PDF via le backend.'}
-              <div style={{ marginTop: 16, fontSize: 13, color: '#a89478' }}>
-                Employé sélectionné : <strong>{currentEmployee?.fullName ?? '—'}</strong>
-                <br />Dernière mise à jour dossier : <strong>{selectedDetail ? fmtDateTime(selectedDetail.employee.file ? (selectedDetail.employee.file.dateEmbauche ?? null) : null) : '—'}</strong>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.preview')}</div>
+            <div style={{ padding: 18, color: 'var(--text2)', lineHeight: 1.7 }}>
+              {docType === 'attestation' && t('rh.previewAttestation')}
+              {docType === 'certificat' && t('rh.previewCertificat')}
+              {docType === 'mission' && t('rh.previewMission')}
+              <div style={{ marginTop: 16, fontSize: 13, color: 'var(--text3)' }}>
+                {t('rh.selectedEmployee')} <strong>{currentEmployee?.fullName ?? '—'}</strong>
+                <br />{t('rh.lastFileUpdate')} <strong>{selectedDetail ? fmtDateTime(selectedDetail.employee.file ? (selectedDetail.employee.file.dateEmbauche ?? null) : null) : '—'}</strong>
               </div>
             </div>
           </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { db } from '@/lib/offline/db'
 
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export default function SectionTeacherGrades({ onToast, user }: Props) {
+  const t = useT('teacher')
+  const tcommon = useT('common')
   const [classes, setClasses] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [sequences, setSequences] = useState<any[]>([])
@@ -23,6 +26,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
   const [rejectedGrades, setRejectedGrades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [rosterLabel, setRosterLabel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [showDraftPrompt, setShowDraftPrompt] = useState(false)
   const [localDraft, setLocalDraft] = useState<{ notes: Record<string, number>; observations: Record<string, string> } | null>(null)
@@ -73,11 +77,12 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
   const loadGrades = async () => {
     if (!selectedClass || !selectedSubject || !selectedSequence) {
-      onToast('Sélectionne classe, matière et séquence', 'warning')
+      onToast(t('grades_section.toast_select_filters'), 'warning')
       return
     }
     setLoading(true)
     setError(null)
+    setRosterLabel(null)
     const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
     try {
       if (!isOnline) {
@@ -100,16 +105,16 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
           }
         } else {
           setGrades([])
-          onToast('Aucune donnée en cache — connexion requise', 'warning')
+          onToast(t('grades_section.toast_no_cache'), 'warning')
         }
         return
       }
 
       const url = `/api/v2/grades?classId=${selectedClass}&subjectId=${selectedSubject}&sequenceId=${selectedSequence}`
       const res = await fetchApi(url, { credentials: 'include' }).then(r => r.json())
+      let baseRows: any[] = []
       if (res.grades?.length) {
-        setGrades(res.grades)
-        await db.cachedData.put({ key: `teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, data: res.grades, cachedAt: Date.now() })
+        baseRows = res.grades
         const draft = await db.cachedData.get(draftKey)
         if (draft) {
           setLocalDraft(draft.data as { notes: Record<string, number>; observations: Record<string, string> })
@@ -127,20 +132,41 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       } else {
         const usersRes = await fetchApi(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
         if (usersRes.success) {
-          const gradesList = usersRes.data.map((u: any) => ({
+          baseRows = usersRes.data.map((u: any) => ({
             studentId: u.id,
             student: { id: u.id, firstName: u.firstName, lastName: u.lastName },
           }))
-          setGrades(gradesList)
-          await db.cachedData.put({ key: `teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, data: gradesList, cachedAt: Date.now() })
           const n: Record<string, number> = {}
           usersRes.data.forEach((u: any) => { n[u.id] = 0 })
           setNotes(n)
           setObservations({})
         }
       }
+
+      // Créneau électif (LV2 ou A-Level) : restreindre aux élèves ayant réellement cette matière
+      if (selectedSubject) {
+        try {
+          const roster = await fetchApi(`/api/v2/teacher/roster?classId=${selectedClass}&subjectId=${selectedSubject}`, { credentials: 'include' }).then(r => r.json())
+          if (roster?.success && roster.data.filtered) {
+            const byId = new Map(baseRows.map((g: any) => [g.studentId, g]))
+            baseRows = roster.data.students.map((s: any) => {
+              const existing = byId.get(s.id)
+              const student = existing?.student ?? { id: s.id, firstName: s.firstName, lastName: s.lastName }
+              return { ...(existing ?? { studentId: s.id }), student: { ...student, className: s.className } }
+            })
+            setRosterLabel(roster.data.label)
+            // Restreindre la saisie aux seuls élèves du roster (évite d'enregistrer une note à un non-électeur)
+            const allowed = new Set<string>(roster.data.students.map((s: any) => s.id))
+            setNotes(prev => Object.fromEntries(Object.entries(prev).filter(([id]) => allowed.has(id))))
+            setObservations(prev => Object.fromEntries(Object.entries(prev).filter(([id]) => allowed.has(id))))
+          }
+        } catch { /* réseau : on garde la liste complète */ }
+      }
+
+      setGrades(baseRows)
+      await db.cachedData.put({ key: `teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, data: baseRows, cachedAt: Date.now() })
     } catch (err: any) {
-      setError(err.message || 'Erreur')
+      setError(err.message || t('grades_section.toast_error'))
     } finally {
       setLoading(false)
     }
@@ -155,7 +181,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
     if (!isOnline) {
       await db.cachedData.put({ key: draftKey, data: { notes, observations }, cachedAt: Date.now() })
-      onToast('Brouillon sauvegardé localement', 'info')
+      onToast(t('grades_section.toast_draft_saved_local'), 'info')
       return
     }
 
@@ -168,10 +194,10 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload }),
       }).then(r => r.json())
       if (res.success) {
-        onToast('Brouillon sauvegardé', 'info')
+        onToast(t('grades_section.toast_draft_saved'), 'info')
         await db.cachedData.delete(draftKey)
       } else {
-        onToast(res.message || 'Erreur', 'error')
+        onToast(res.message || t('grades_section.toast_error'), 'error')
       }
     } catch (err: any) {
       onToast(err.message, 'error')
@@ -195,7 +221,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         payload: { classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence },
       })
       await db.cachedData.delete(draftKey)
-      onToast('Soumission mise en file d\'attente — synchronisation à la reconnexion', 'warning')
+      onToast(t('grades_section.toast_submit_queued'), 'warning')
       return
     }
 
@@ -208,7 +234,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload }),
       }).then(r => r.json())
       if (!draftRes.success) {
-        onToast(draftRes.message || 'Erreur lors de la sauvegarde', 'error')
+        onToast(draftRes.message || t('grades_section.toast_submit_error'), 'error')
         return
       }
 
@@ -219,11 +245,11 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         body: JSON.stringify({ classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence }),
       }).then(r => r.json())
       if (res.success) {
-        onToast(`Notes soumises pour validation (${res.data?.count ?? '?'} note(s))`, 'success')
+        onToast(t('grades_section.toast_submitted').replace('{count}', String(res.data?.count ?? '?')), 'success')
         await db.cachedData.delete(draftKey)
         loadGrades()
       } else {
-        onToast(res.message || 'Erreur', 'error')
+        onToast(res.message || t('grades_section.toast_error'), 'error')
       }
     } catch (err: any) {
       onToast(err.message, 'error')
@@ -234,7 +260,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
   const downloadTemplate = () => {
     if (!selectedClass || !selectedSubject || !selectedSequence) {
-      onToast('Sélectionne classe, matière et séquence avant de télécharger le template', 'warning')
+      onToast(t('grades_section.toast_select_template'), 'warning')
       return
     }
     const url = `/api/v2/grades/template?classId=${selectedClass}&subjectId=${selectedSubject}&sequenceId=${selectedSequence}`
@@ -245,7 +271,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
   const importFromExcel = async (file: File) => {
     if (!selectedClass || !selectedSubject || !selectedSequence) {
-      onToast('Sélectionne classe, matière et séquence avant d\'importer', 'warning')
+      onToast(t('grades_section.toast_select_import'), 'warning')
       return
     }
     setImporting(true)
@@ -264,12 +290,12 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       if (res.success) {
         setImportResult(res)
         onToast(
-          `${res.imported} note(s) importée(s)${res.errors.length > 0 ? ` · ${res.errors.length} erreur(s)` : ''}`,
+          t('grades_section.toast_import_result').replace('{imported}', String(res.imported)) + (res.errors.length > 0 ? ` · ${t('grades_section.toast_import_errors').replace('{count}', String(res.errors.length))}` : ''),
           res.errors.length > 0 ? 'warning' : 'success',
         )
         loadGrades()
       } else {
-        onToast(res.message || 'Erreur lors de l\'import', 'error')
+        onToast(res.message || t('grades_section.toast_import_error'), 'error')
       }
     } catch (err: any) {
       onToast(err.message, 'error')
@@ -286,7 +312,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
   if (loading && !grades.length) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{tcommon('status.loading')}</div>
       </div>
     )
   }
@@ -295,10 +321,10 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={loadGrades}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('grades_section.retry')}
           </button>
         </div>
       </div>
@@ -309,74 +335,74 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>Notes</div>
-          <div style={sSub}>Saisie et soumission des notes</div>
+          <div style={sTitle}>{t('grades_section.title')}</div>
+          <div style={sSub}>{t('grades_section.subtitle')}</div>
         </div>
       </div>
 
       {!isOnline && (
-        <div style={{ background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 18 }}>📶</span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#92400e' }}>Mode hors-ligne — brouillons sauvegardés localement, soumissions synchronisées à la reconnexion</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>{t('grades_section.offline_banner')}</span>
         </div>
       )}
 
       {/* Prompt restauration brouillon */}
       {showDraftPrompt && localDraft && (
-        <div style={{ background: '#fffbeb', border: '1.5px solid #d97706', borderRadius: 12, padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ fontSize: 22 }}>💾</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#92400e' }}>Brouillon hors-ligne détecté</div>
-            <div style={{ fontSize: 13, color: '#b45309', marginTop: 2 }}>Des notes ont été sauvegardées localement. Voulez-vous les restaurer ?</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--amber)' }}>{t('grades_section.draft_prompt_title')}</div>
+            <div style={{ fontSize: 13, color: 'var(--amber)', marginTop: 2 }}>{t('grades_section.draft_prompt_desc')}</div>
           </div>
           <button onClick={() => { setNotes(localDraft.notes); setObservations(localDraft.observations); setShowDraftPrompt(false) }}
-            style={{ padding: '7px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: '#d97706', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Restaurer
+            style={{ padding: '7px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'var(--amber)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('grades_section.draft_prompt_restore')}
           </button>
           <button onClick={() => setShowDraftPrompt(false)}
-            style={{ padding: '7px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Ignorer
+            style={{ padding: '7px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('grades_section.draft_prompt_ignore')}
           </button>
         </div>
       )}
 
       {grades.length > 0 && (
-        <div style={{ background: '#f0ebe3', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, color: '#6b5c45', marginBottom: 8 }}>
+        <div style={{ background: 'var(--bg2)', borderRadius: 12, padding: '14px 18px', marginBottom: 18 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, color: 'var(--text2)', marginBottom: 8 }}>
             <span>{classes.find((c: any) => c.id === selectedClass)?.name || ''} — {subjects.find((s: any) => s.id === selectedSubject)?.name || ''}</span>
-            <span style={{ color: '#059669' }}>{validatedCount}/{grades.length} validées ({grades.length ? Math.round(validatedCount / grades.length * 100) : 0}%)</span>
+            <span style={{ color: 'var(--green)' }}>{t('grades_section.progress_text').replace('{validated}', String(validatedCount)).replace('{total}', String(grades.length)).replace('{pct}', String(grades.length ? Math.round(validatedCount / grades.length * 100) : 0))}</span>
           </div>
-          <div style={{ height: 8, background: '#d4c8b8', borderRadius: 8, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${grades.length ? Math.round(validatedCount / grades.length * 100) : 0}%`, background: '#059669', borderRadius: 8, transition: 'width 1s' }} />
+          <div style={{ height: 8, background: 'var(--border2)', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${grades.length ? Math.round(validatedCount / grades.length * 100) : 0}%`, background: 'var(--green)', borderRadius: 8, transition: 'width 1s' }} />
           </div>
         </div>
       )}
 
       {/* Filtres + table */}
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden', marginBottom: 18 }}>
-        <div style={{ padding: '14px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', marginBottom: 18 }}>
+        <div style={{ padding: '14px 22px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <select style={filterSt} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
-            <option value="">Classe</option>
+            <option value="">{t('grades_section.filter_class')}</option>
             {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <select style={filterSt} value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}>
-            <option value="">Matière</option>
+            <option value="">{t('grades_section.filter_subject')}</option>
             {subjects.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <select style={filterSt} value={selectedSequence} onChange={e => setSelectedSequence(e.target.value)}>
-            <option value="">Séquence</option>
+            <option value="">{t('grades_section.filter_sequence')}</option>
             {sequences.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <button style={btnPrim} onClick={loadGrades} disabled={loading}>Charger</button>
+          <button style={btnPrim} onClick={loadGrades} disabled={loading}>{t('grades_section.load')}</button>
           <div style={{ flex: 1 }} />
           <button
             style={{ ...btnSec, fontSize: 14 }}
             onClick={downloadTemplate}
-            title="Télécharger le template Excel à remplir hors-ligne">
-            📥 Template Excel
+            title={t('grades_section.template_tooltip')}>
+            {t('grades_section.download_template')}
           </button>
           <label style={{ ...btnSec, fontSize: 14, cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.6 : 1 }}>
-            {importing ? '⏳ Import...' : '📤 Importer Excel'}
+            {importing ? t('grades_section.import_loading') : t('grades_section.import_excel')}
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -390,35 +416,42 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
           </label>
         </div>
 
+        {rosterLabel && (
+          <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🎯</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--blue)' }}>{rosterLabel}</span>
+          </div>
+        )}
+
         {importResult && (
-          <div style={{ padding: '14px 22px', borderBottom: '1px solid #e8e0d4' }}>
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: importResult.errors.length > 0 ? 10 : 0 }}>
-              <span style={{ fontWeight: 800, fontSize: 15, color: importResult.errors.length > 0 ? '#b45309' : '#059669' }}>
-                {importResult.errors.length > 0 ? '⚠️' : '✅'} {importResult.imported} note{importResult.imported > 1 ? 's' : ''} importée{importResult.imported > 1 ? 's' : ''}
-                {importResult.errors.length > 0 && ` · ${importResult.errors.length} erreur${importResult.errors.length > 1 ? 's' : ''}`}
+              <span style={{ fontWeight: 800, fontSize: 15, color: importResult.errors.length > 0 ? 'var(--amber)' : 'var(--green)' }}>
+                {importResult.errors.length > 0 ? '⚠️' : '✅'} {t('grades_section.toast_import_result').replace('{imported}', String(importResult.imported))}
+                {importResult.errors.length > 0 && ` · ${t('grades_section.toast_import_errors').replace('{count}', String(importResult.errors.length))}`}
               </span>
               <button
                 onClick={() => setImportResult(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#a89478' }}>
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)' }}>
                 ✕
               </button>
             </div>
             {importResult.errors.length > 0 && (
-              <div style={{ background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['Ligne', 'Matricule', 'Erreur'].map(h => (
-                        <th key={h} style={{ ...thSt, background: '#fef2f2', color: '#991b1b', padding: '8px 14px' }}>{h}</th>
+                      {[t('grades_section.import_table_line'), t('grades_section.import_table_matricule'), t('grades_section.import_table_error')].map(h => (
+                        <th key={h} style={{ ...thSt, background: 'var(--red-light)', color: 'var(--red)', padding: '8px 14px' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {importResult.errors.map((e, i) => (
                       <tr key={i} style={{ borderTop: '1px solid rgba(220,38,38,0.1)' }}>
-                        <td style={{ ...tdSt, color: '#dc2626', fontWeight: 700, width: 60 }}>{e.line}</td>
+                        <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700, width: 60 }}>{e.line}</td>
                         <td style={{ ...tdSt, fontWeight: 700 }}>{e.matricule || '—'}</td>
-                        <td style={{ ...tdSt, color: '#dc2626' }}>{e.error}</td>
+                        <td style={{ ...tdSt, color: 'var(--red)' }}>{e.error}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -432,29 +465,32 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
           <>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>{['N°', 'Élève', 'Note /20', 'Observation', 'Statut'].map(h => (
+                <tr>{[t('grades_section.table_num'), t('grades_section.table_student'), t('grades_section.table_grade'), t('grades_section.table_observation'), t('grades_section.table_status')].map(h => (
                   <th key={h} style={thSt}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {grades.map((g: any, i: number) => {
                   const sid = g.studentId || g.student?.id
-                  const name = g.student ? `${g.student.firstName} ${g.student.lastName}` : 'Inconnu'
+                  const name = g.student ? `${g.student.firstName} ${g.student.lastName}` : t('grades_section.unknown_student')
                   const status = g.validationStatus || 'DRAFT'
                   const sColors: Record<string, { bg: string; color: string }> = {
-                    DRAFT: { bg: '#f1f5f9', color: '#475569' },
-                    SUBMITTED: { bg: '#fef3c7', color: '#92400e' },
-                    VALIDATED: { bg: '#d1fae5', color: '#065f46' },
-                    REJECTED: { bg: '#fee2e2', color: '#991b1b' },
+                    DRAFT: { bg: 'var(--bg2)', color: 'var(--text2)' },
+                    SUBMITTED: { bg: 'var(--amber-light)', color: 'var(--amber)' },
+                    VALIDATED: { bg: 'var(--green-light)', color: 'var(--green)' },
+                    REJECTED: { bg: 'var(--red-light)', color: 'var(--red)' },
                     LOCKED: { bg: '#e0e7ff', color: '#3730a3' },
                   }
                   const sc = sColors[status] || sColors.DRAFT
                   return (
                     <tr key={sid}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                      <td style={{ ...tdSt, color: '#a89478', width: 44 }}>{i + 1}</td>
-                      <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{name}</td>
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, color: 'var(--text3)', width: 44 }}>{i + 1}</td>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                        {name}
+                        {rosterLabel && g.student?.className && <span style={{ fontWeight: 600, color: 'var(--text3)', fontSize: 14 }}> ({g.student.className})</span>}
+                      </td>
                       <td style={tdSt}>
                         <input type="number" min={0} max={20} step={0.25}
                           value={notes[sid] ?? 0}
@@ -464,23 +500,23 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
                             setNotes(a)
                           }}
                           disabled={status !== 'DRAFT' && status !== 'REJECTED'}
-                          style={{ width: 80, padding: '7px 10px', border: '1.5px solid #d4c8b8', borderRadius: 9, fontSize: 17, fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? '#f0ebe3' : 'white', color: (notes[sid] ?? 0) < 10 ? '#dc2626' : (notes[sid] ?? 0) >= 16 ? '#059669' : '#1a1209' }}
+                          style={{ width: 80, padding: '7px 10px', border: '1.5px solid var(--border2)', borderRadius: 9, fontSize: 17, fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? 'var(--bg2)' : 'white', color: (notes[sid] ?? 0) < 10 ? 'var(--red)' : (notes[sid] ?? 0) >= 16 ? 'var(--green)' : 'var(--text)' }}
                         />
                       </td>
                       <td style={tdSt}>
-                        <input type="text" value={observations[sid] || ''} placeholder="Observation..."
+                        <input type="text" value={observations[sid] || ''} placeholder={t('grades_section.observation_placeholder')}
                           onChange={e => {
                             const a = { ...observations }
                             a[sid] = e.target.value
                             setObservations(a)
                           }}
                           disabled={status !== 'DRAFT' && status !== 'REJECTED'}
-                          style={{ width: 240, padding: '7px 12px', border: '1.5px solid #d4c8b8', borderRadius: 9, fontSize: 16, fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? '#f0ebe3' : 'white', color: '#1a1209' }}
+                          style={{ width: 240, padding: '7px 12px', border: '1.5px solid var(--border2)', borderRadius: 9, fontSize: 16, fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? 'var(--bg2)' : 'white', color: 'var(--text)' }}
                         />
                       </td>
                       <td style={tdSt}>
                         <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: sc.bg, color: sc.color }}>
-                          {status === 'DRAFT' ? 'Brouillon' : status === 'SUBMITTED' ? 'Soumis' : status === 'VALIDATED' ? 'Validé' : status === 'REJECTED' ? 'Rejeté' : status}
+                          {status === 'DRAFT' ? t('grades_section.status_draft') : status === 'SUBMITTED' ? t('grades_section.status_submitted') : status === 'VALIDATED' ? t('grades_section.status_validated') : status === 'REJECTED' ? t('grades_section.status_rejected') : status === 'LOCKED' ? t('grades_section.status_locked') : status}
                         </span>
                       </td>
                     </tr>
@@ -489,23 +525,23 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
               </tbody>
             </table>
 
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-              <span style={{ fontSize: 15, color: '#a89478', fontWeight: 600 }}>
-                {draftCount} brouillon{draftCount > 1 ? 's' : ''}{rejectedCount > 0 ? ` · ${rejectedCount} rejetée${rejectedCount > 1 ? 's' : ''}` : ''} · {grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length} soumise{grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length > 1 ? 's' : ''}
+            <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>
+                {t('grades_section.summary_draft').replace('{count}', String(draftCount))}{rejectedCount > 0 ? ` · ${t('grades_section.summary_rejected').replace('{count}', String(rejectedCount))}` : ''} · {t('grades_section.summary_submitted').replace('{count}', String(grades.filter((g: any) => g.validationStatus === 'SUBMITTED').length))}
               </span>
               <div style={{ display: 'flex', gap: 10 }}>
                 {modifiableCount > 0 ? (
                   <>
                     <button style={btnSec} onClick={saveDraft} disabled={saving}>
-                      {saving ? '...' : '💾 Brouillon'}
+                      {saving ? '...' : t('grades_section.draft_save')}
                     </button>
                     <button style={btnPrim} onClick={submitGrades} disabled={saving}>
-                      {saving ? '...' : isOnline ? '📤 Soumettre pour validation' : '📶 Mettre en file d\'attente'}
+                      {saving ? '...' : isOnline ? t('grades_section.submit_online') : t('grades_section.submit_offline')}
                     </button>
                   </>
                 ) : (
-                  <span style={{ fontSize: 15, color: '#059669', fontWeight: 700 }}>
-                    ✅ Toutes les notes sont soumises ou en cours de validation
+                  <span style={{ fontSize: 15, color: 'var(--green)', fontWeight: 700 }}>
+                    {t('grades_section.all_submitted')}
                   </span>
                 )}
               </div>
@@ -516,28 +552,28 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
       {/* Notes rejetées */}
       {rejectedGrades.length > 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid rgba(220,38,38,0.3)', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 22px', background: '#fef2f2', borderBottom: '1px solid rgba(220,38,38,0.15)' }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#dc2626' }}>✕ {rejectedGrades.length} note{rejectedGrades.length > 1 ? 's' : ''} rejetée{rejectedGrades.length > 1 ? 's' : ''}</span>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid rgba(220,38,38,0.3)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 22px', background: 'var(--red-light)', borderBottom: '1px solid rgba(220,38,38,0.15)' }}>
+            <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--red)' }}>{t('grades_section.rejected_title').replace('{count}', String(rejectedGrades.length))}</span>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{['Élève', 'Note', 'Motif du rejet', 'Actions'].map(h => <th key={h} style={thSt}>{h}</th>)}</tr></thead>
+            <thead><tr>{[t('grades_section.rejected_table_student'), t('grades_section.rejected_table_grade'), t('grades_section.rejected_table_reason'), t('grades_section.rejected_table_actions')].map(h => <th key={h} style={thSt}>{h}</th>)}</tr></thead>
             <tbody>
               {rejectedGrades.map((g: any) => (
                 <tr key={g.id}>
-                  <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{g.student?.firstName} {g.student?.lastName}</td>
-                  <td style={{ ...tdSt, fontWeight: 800, color: '#dc2626' }}>{g.sequenceScore ?? '?'}/20</td>
-                  <td style={{ ...tdSt, color: '#dc2626', fontWeight: 700 }}>{g.rejectionReason || 'Motif non spécifié'}</td>
+                  <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{g.student?.firstName} {g.student?.lastName}</td>
+                  <td style={{ ...tdSt, fontWeight: 800, color: 'var(--red)' }}>{g.sequenceScore ?? '?'}/20</td>
+                  <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700 }}>{g.rejectionReason || t('grades_section.rejected_no_reason')}</td>
                   <td style={tdSt}>
                     <button
-                      style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fef3c7', color: '#d97706', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
                       onClick={() => {
                         setSelectedClass(g.classId || '')
                         setSelectedSubject(g.subjectId || '')
                         setSelectedSequence(g.sequenceId || '')
                         loadGrades()
                       }}>
-                      ✏️ Corriger et resoumettre
+                      {t('grades_section.rejected_correct')}
                     </button>
                   </td>
                 </tr>
@@ -550,10 +586,10 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const filterSt: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnSec: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }

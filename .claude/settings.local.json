@@ -46,7 +46,9 @@
       "Bash(curl -s http://localhost:5000/health)",
       "Bash(curl -s http://localhost:5000/api/v2)",
       "WebSearch",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(bun _smoke_pdf.ts)",
+      "WebFetch(domain:opencode.ai)"
     ]
   }
 }

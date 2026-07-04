@@ -15,6 +15,8 @@ import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepo
 import type { PdfService } from '@domain/ports/services/PdfService';
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 import type { BulletinTemplate } from '@domain/types/enums';
+import type { PrismaClient } from '@prisma/client';
+import { resolveLanguage } from '../../utils/languageHelper';
 
 export interface GenererBulletinCommande {
   schoolId: string;
@@ -44,6 +46,7 @@ export class GenererBulletinUseCase {
     private readonly presenceRepository: PresenceRepository,
     private readonly pdfService: PdfService,
     private readonly classCouncilRepository: ClassCouncilRepository,
+    private readonly prisma?: PrismaClient,
   ) {}
 
   async execute(commande: GenererBulletinCommande): Promise<GenererBulletinResultat> {
@@ -132,34 +135,63 @@ export class GenererBulletinUseCase {
       rangs.set(item.studentId, index + 1);
     });
 
-    // 6. Calculer la mention selon le template de l'école
+    // 6. Résoudre la langue de rendu (sous-système + section pour le bilingue).
+    //    Templates PARTAGÉS (PRIMARY/ANNUAL) : la langue vient d'ici. Les autres
+    //    templates encodent déjà leur langue via commande.template.
+    let langue: 'fr' | 'en' = 'fr';
+    if (this.prisma) {
+      const ecole = await this.prisma.school.findUnique({ where: { id: commande.schoolId }, select: { subsystem: true } });
+      let sectionCode: string | null = null;
+      if (ecole?.subsystem === 'BILINGUAL') {
+        const cls = await this.prisma.class.findUnique({ where: { id: commande.classId }, select: { section: { select: { code: true } } } });
+        sectionCode = cls?.section?.code ?? null;
+      }
+      langue = resolveLanguage(ecole?.subsystem, sectionCode);
+    }
+
+    // 6bis. Calculer la mention selon le template et la langue
+    const mentionEn = (m: number): string =>
+      m >= 18 ? 'Excellent' : m >= 16 ? 'Very Good' : m >= 14 ? 'Good' : m >= 12 ? 'Fair' : m >= 10 ? 'Pass' : 'Poor';
+    const mentionApc = (m: number): string =>
+      m >= 18 ? 'Expert' : m >= 15 ? 'Acquis' : m >= 11 ? 'ECA' : 'NA';
+    const mentionFr = (m: number): string =>
+      m >= 18 ? 'Excellent' : m >= 16 ? 'Très Bien' : m >= 14 ? 'Bien' : m >= 12 ? 'Assez Bien'
+        : m >= 10 ? 'Passable' : m >= 8 ? 'Insuffisant' : m >= 6 ? 'Très Insuffisant' : 'Médiocre';
+
     const calculerMention = (moyenne: number): string => {
-      if (commande.template === 'EN_SECONDARY') {
-        if (moyenne >= 18) return 'Excellent';
-        if (moyenne >= 16) return 'Very Good';
-        if (moyenne >= 14) return 'Good';
-        if (moyenne >= 12) return 'Fair';
-        if (moyenne >= 10) return 'Pass';
-        return 'Poor';
-      }
-      if (commande.template === 'PRIMARY' || commande.template === 'MONTHLY') {
-        if (moyenne >= 18) return 'Expert';
-        if (moyenne >= 15) return 'Acquis';
-        if (moyenne >= 11) return 'ECA';
-        return 'NA';
-      }
-      // FR_SECONDARY, TECHNICAL_FR, ANNUAL, bilingue → mentions FR /20
-      if (moyenne >= 18) return 'Excellent';
-      if (moyenne >= 16) return 'Très Bien';
-      if (moyenne >= 14) return 'Bien';
-      if (moyenne >= 12) return 'Assez Bien';
-      if (moyenne >= 10) return 'Passable';
-      if (moyenne >= 8) return 'Insuffisant';
-      if (moyenne >= 6) return 'Très Insuffisant';
-      return 'Médiocre';
+      if (commande.template === 'EN_SECONDARY') return mentionEn(moyenne);
+      if (commande.template === 'MONTHLY') return mentionApc(moyenne);
+      // Partagés entre sous-systèmes : la langue décide.
+      if (commande.template === 'PRIMARY') return langue === 'en' ? mentionEn(moyenne) : mentionApc(moyenne);
+      if (commande.template === 'ANNUAL') return langue === 'en' ? mentionEn(moyenne) : mentionFr(moyenne);
+      // FR_SECONDARY, TECHNICAL_FR
+      return mentionFr(moyenne);
     };
 
-    // 7. Générer le bulletin pour chaque élève
+    // 7. Charger les lv2SubjectId de tous les élèves + l'ensemble des matières isLV2 (label "(LV2)")
+    //    + la sélection A-Level de chaque élève (pour ne montrer que ses matières choisies).
+    const lv2Map = new Map<string, string | null>(); // userId → lv2SubjectId
+    const lv2SubjectIds = new Set<string>();          // subjectId des matières taggées isLV2
+    const alevelMap = new Map<string, Set<string>>(); // userId → set des subjectId A-Level choisis
+    if (this.prisma) {
+      const profiles = await (this.prisma as any).studentProfile.findMany({
+        where: { userId: { in: elevesClasse.map(e => e.id) } },
+        select: { userId: true, lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } },
+      });
+      for (const p of profiles) {
+        lv2Map.set(p.userId, p.lv2SubjectId ?? null);
+        const sel: string[] = (p.alevelSubjects ?? []).map((a: any) => a.subjectId);
+        if (sel.length > 0) alevelMap.set(p.userId, new Set(sel));
+      }
+
+      const lv2Subjects = await (this.prisma as any).subject.findMany({
+        where: { schoolId: commande.schoolId, isLV2: true },
+        select: { id: true },
+      });
+      for (const s of lv2Subjects) lv2SubjectIds.add(s.id);
+    }
+
+    // 7b. Générer le bulletin pour chaque élève
     let generes = 0;
     let ignores = 0;
 
@@ -206,18 +238,39 @@ export class GenererBulletinUseCase {
         if (!noteParSubject.has(n.subjectId)) noteParSubject.set(n.subjectId, n);
       }
 
-      const lignes = Array.from(noteParSubject.entries()).map(([subjectId, note]) => {
+      const eleveClv2 = lv2Map.get(eleve.id) ?? null;
+      const alevelSelection = alevelMap.get(eleve.id) ?? null; // non-null ⇒ élève A-Level
+
+      const lignes = Array.from(noteParSubject.entries()).flatMap(([subjectId, note]) => {
         const matiere = matiereParId.get(subjectId);
         const coeff = matiere?.coefficient ?? note.coefficient;
-        return {
+        const baseName = matiere?.name ?? `Matière (${subjectId.slice(0, 6)})`;
+        const subjectEstLV2 = lv2SubjectIds.has(subjectId);
+
+        // Élève A-Level : n'afficher que les matières réellement choisies (coeff A-Level officiel via matiere).
+        if (alevelSelection && !alevelSelection.has(subjectId)) {
+          return [];
+        }
+
+        // Anomalie : note dans une matière LV2 qui n'est pas la LV2 de l'élève → exclure + warning.
+        if (subjectEstLV2 && eleveClv2 !== subjectId) {
+          console.warn(
+            `[Bulletin] Élève ${eleve.id} possède une note dans la LV2 "${baseName}" (${subjectId}) ` +
+            `qui n'est pas sa LV2 affectée (${eleveClv2 ?? 'aucune'}) — ligne exclue du bulletin.`,
+          );
+          return [];
+        }
+
+        const isLignLV2 = subjectEstLV2 && eleveClv2 === subjectId;
+        return [{
           id: crypto.randomUUID(),
           subjectId,
-          subjectName: matiere?.name ?? `Matière (${subjectId.slice(0, 6)})`,
+          subjectName: isLignLV2 ? `${baseName} (LV2)` : baseName,
           coefficient: coeff,
           seq1Score: note.toObject().sequenceScore,
           subjectAverage: note.sequenceAverage!,
           weightedScore: note.sequenceAverage! * coeff,
-        };
+        }];
       });
 
       bulletin.definirLignesMatiere(lignes);
@@ -244,6 +297,7 @@ export class GenererBulletinUseCase {
         nomPeriode: periode.name,
         nomProfesseurPrincipal: professorPrincipal?.nomComplet,
         moyenneClasse: moyennesEleves.reduce((s, m) => s + m.moyenne, 0) / elevesClasse.length,
+        langue,
       });
 
       const pdfUrl = `bulletins/${commande.schoolId}/${bulletin.id}.pdf`;

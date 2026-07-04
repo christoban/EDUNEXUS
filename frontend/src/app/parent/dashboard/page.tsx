@@ -16,23 +16,27 @@ import type { ParentSection, Toast } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { db } from '@/lib/offline/db'
+import { useT } from '@/lib/i18n'
 
 let toastId = 0
 
-const TITLES: Record<ParentSection, string> = {
-  children:   'Mes enfants',
-  grades:     'Bulletins & Notes',
-  attendance: 'Présences',
-  payments:   'Paiements Mobile Money',
-  timetable:  'Emploi du temps',
-  settings:   'Paramètres',
-  library:    'Lectures',
-}
+interface UserInfo { id: string; firstName: string; lastName: string; role: string }
+interface SchoolInfo { name: string; logoUrl: string | null }
 
 interface UserInfo { id: string; firstName: string; lastName: string; role: string }
 interface SchoolInfo { name: string; logoUrl: string | null }
 
 export default function ParentDashboard() {
+  const tnav = useT('navigation')
+  const TITLES: Record<ParentSection, string> = {
+    children:   tnav('pageTitle.parent_children'),
+    grades:     tnav('pageTitle.parent_grades'),
+    attendance: tnav('pageTitle.parent_attendance'),
+    payments:   tnav('pageTitle.parent_payments'),
+    timetable:  tnav('pageTitle.parent_timetable'),
+    settings:   tnav('pageTitle.parent_settings'),
+    library:    tnav('pageTitle.parent_library'),
+  }
   const [section, setSection] = useState<ParentSection>('children')
   const [toasts, setToasts] = useState<Toast[]>([])
   const [user, setUser] = useState<UserInfo | null>(null)
@@ -74,23 +78,23 @@ export default function ParentDashboard() {
   const sProps = { onToast: showToast }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f7f3ee', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
       <ParentSidebar current={section} onChange={setSection} onLogout={logoutUser} user={user} school={school} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <header style={{ height: 68, background: 'white', borderBottom: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209' }}>
+        <header style={{ height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {TITLES[section]}
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: '#f0ebe3', border: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-              <Bell size={18} color="#6b5c45" />
-              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: '#dc2626', borderRadius: '50%', border: '2px solid white' }} />
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
+              <Bell size={18} color="var(--text2)" />
+              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%', border: '2px solid white' }} />
             </div>
           </div>
         </header>
 
-        <main style={{ flex: 1, overflow: 'hidden', background: '#f7f3ee' }}>
+        <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
           {section === 'children'   && <SectionParentChildren onNav={s => setSection(s as ParentSection)} {...sProps} userId={user?.id} />}
           {section === 'grades'     && <SectionParentGrades {...sProps} userId={user?.id} />}
           {section === 'attendance' && <SectionParentAttendance {...sProps} userId={user?.id} />}

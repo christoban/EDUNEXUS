@@ -1,0 +1,588 @@
+{
+  "meta": {
+    "lang": "EN",
+    "langLabel": "EN"
+  },
+  "common": {
+    "emptyClasses": "No classes configured",
+    "selectRegion": "— Select —",
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "phase1": {
+    "leftPanel": {
+      "brandTagline": "School Platform · Cameroon",
+      "welcomeTitle": "Welcome to",
+      "configTitle": "Configure your",
+      "structureSubtitle": "school structure",
+      "finalCheck": "Final",
+      "finale": "check",
+      "submitted": "Request",
+      "submittedSuffix": "submitted!",
+      "descStep1": "Set up your school space in minutes. Your institution will be operational upon validation.",
+      "descStep2": "Create your administrator account to access the dashboard.",
+      "descStep3": "Provide your school structure details. A summary will be generated automatically.",
+      "descStep4": "Review all information before submitting your application.",
+      "descSubmitted": "Your application has been submitted to the EduNexus team.",
+      "features": {
+        "multiLevel": { "title": "Multi-level management", "desc": "Classes, sections, subjects" },
+        "grades": { "title": "Grades & report cards", "desc": "Auto-calculation, PDF export" },
+        "finance": { "title": "Financial management", "desc": "Fees, payments, CampPay" },
+        "timetable": { "title": "AI Timetables", "desc": "Automatic generation" }
+      },
+      "copyright": "© 2026 EduNexus · All rights reserved"
+    },
+    "stepper": {
+      "step": "Step",
+      "of": "of",
+      "labels": {
+        "establishment": "School",
+        "admin": "Administrator",
+        "configuration": "Configuration",
+        "confirmation": "Confirmation"
+      }
+    },
+    "loading": {
+      "verifyingInvite": "Verifying invitation…",
+      "processing": "Processing…",
+      "computing": "Computing structure…"
+    },
+    "invite": {
+      "invalid": { "icon": "🔒", "title": "Invalid link", "error": "Invalid or incomplete invitation link." },
+      "expired": { "icon": "⏰", "title": "Expired invitation" },
+      "used": { "icon": "✅", "title": "Invitation already used" },
+      "helpText": "For assistance, contact your EduNexus administrator at",
+      "helpEmail": "support@edunexus.cm",
+      "timeout": "Verification took too long. Check your connection and try again.",
+      "networkError": "Unable to verify invitation. Check your connection."
+    },
+    "done": {
+      "title": "Application submitted!",
+      "pendingMsg": "is pending validation by the EduNexus team.",
+      "emailNotice": "You will receive an email at",
+      "emailDelay": "within 24 to 48 hours.",
+      "loginHint": "Once approved, you can log in with your email and password to access your administration space."
+    },
+    "step1": {
+      "title": "Your School",
+      "subtitle": "Enter your school information.",
+      "schoolName": { "label": "School name", "placeholder": "Lycée de la Réussite" },
+      "subdomain": {
+        "label": "Subdomain (URL)",
+        "placeholder": "lycee-reussite",
+        "hint": "Lowercase letters, numbers and hyphens only.",
+        "prefix": "edunexus.cm/"
+      },
+      "subsystem": {
+        "label": "Subsystem",
+        "options": {
+          "FRANCOPHONE": { "label": "Francophone", "icon": "🇫🇷" },
+          "ANGLOPHONE": { "label": "Anglophone", "icon": "🇬🇧" },
+          "BILINGUAL": { "label": "Bilingual", "icon": "🌍" }
+        }
+      },
+      "educationType": {
+        "label": "Education type",
+        "options": {
+          "GENERAL": { "label": "General education", "icon": "📚" },
+          "TECHNICAL": { "label": "Technical education", "icon": "⚙️" },
+          "PROFESSIONAL": { "label": "Vocational education", "icon": "🔧" },
+          "MIXED": { "label": "Mixed", "icon": "🎓" }
+        }
+      },
+      "ownership": {
+        "label": "Legal status",
+        "options": {
+          "PUBLIC": { "label": "Public", "icon": "🏛️" },
+          "PRIVATE_SECULAR": { "label": "Private secular", "icon": "🏫" },
+          "PRIVATE_FAITH": { "label": "Private faith-based", "icon": "⛪" }
+        }
+      },
+      "city": { "label": "City", "placeholder": "Yaoundé" },
+      "region": { "label": "Region", "placeholder": "— Select —" },
+      "phone": { "label": "School phone", "placeholder": "+237 6XX XXX XXX" },
+      "logo": {
+        "label": "School logo (optional)",
+        "upload": "📤 Upload a logo",
+        "change": "🔄 Change logo",
+        "remove": "✕ Remove",
+        "hint": "PNG, JPG, SVG · max 1.5 MB",
+        "errorSize": "Logo too large (max 1.5 MB).",
+        "uploaded": "Logo uploaded ✓"
+      },
+      "templateDetected": {
+        "title": "🏫 School template detected",
+        "cesOrLycee": "🤔 Is your school a CES (Collège) or a Lycée?",
+        "lycee": "🏫 Lycée",
+        "lyceeDesc": "With 2nd cycle (2nde→Tle)",
+        "ces": "📖 CES (Collège)",
+        "cesDesc": "Without 2nd cycle (6e→3e)",
+        "ghsOrGss": "🤔 Is your school a Government High School (GHS) or Government Secondary School (GSS)?",
+        "ghs": "GHS",
+        "ghsDesc": "High School (Form 1→Upper Sixth)",
+        "gss": "GSS",
+        "gssDesc": "Secondary School (Form 1→Form 5)"
+      },
+      "planBadge": "Plan"
+    },
+    "step2": {
+      "title": "Your Administrator Account",
+      "subtitle": "Create your account to access the dashboard.",
+      "back": "← Back",
+      "firstName": { "label": "First name", "placeholder": "Jean" },
+      "lastName": { "label": "Last name", "placeholder": "Ngono" },
+      "email": {
+        "label": "Administrator email",
+        "placeholder": "admin@ecole.cm",
+        "hint": "This email will be your login identifier."
+      },
+      "password": { "label": "Password", "placeholder": "••••••••" },
+      "confirmPassword": {
+        "label": "Confirm password",
+        "placeholder": "••••••••",
+        "mismatch": "⚠️ Passwords do not match."
+      },
+      "button": "Continue → Configuration"
+    },
+    "step3": {
+      "title": "Structure Configuration",
+      "subtitle": "Detail your school structure.",
+      "back": "← Back",
+      "templateDetected": {
+        "title": "🏫 Template detected",
+        "hint": "Automatically detected from your choices (subsystem, education, status). You can modify the configuration after activation from the dashboard."
+      },
+      "complexe": {
+        "title": "⏳ Complexe Scolaire — Coming Soon",
+        "msg": "This type of school will be available soon.",
+        "hint": "To continue, please select a different education type in step 1 (General education instead of Mixed)."
+      },
+      "noTemplate": "Unable to detect school type. Go back to step 1 and check your choices.",
+      "firstCycle": {
+        "sectionTitle": "📖 1st cycle — Secondary",
+        "q5": "Q5 — Which 1st cycle levels do you have?",
+        "q6": "Q6 — How many classes per level?",
+        "q7": "Q7 — How do you name your classes?",
+        "naming": {
+          "LETTRES": { "label": "Letters", "desc": "6e A, 6e B, 6e C…" },
+          "CHIFFRES": { "label": "Numbers", "desc": "6e 1, 6e 2, 6e 3…" },
+          "MIXTE": { "label": "Mixed", "desc": "6e A1, 6e A2…" }
+        },
+        "previewLabel": "Your classes preview"
+      },
+      "lv2": {
+        "q8": "Q8 — When does LV2 start?",
+        "nonApplicable": "Not applicable",
+        "fromLevel": "From",
+        "q9": "Q9 — Which second modern languages do you offer?",
+        "other": "Other:",
+        "add": "+ Add",
+        "placeholder": "Type and Enter",
+        "hint": "💡 If students with different LV2 are in the same class, only check the available languages. You can configure subgroups from your dashboard."
+      },
+      "secondCycle": {
+        "sectionTitleFR": "🎓 2nd cycle — Lycée",
+        "sectionTitleEN": "🎓 Upper Secondary",
+        "bilingualSection": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Anglophone Section Configuration",
+        "cesNotice": "ℹ️ CES only has 1st cycle (6e→3e). 2nd cycle streams do not apply.",
+        "gssNotice": "ℹ️ GSS_EN stops at Form 5 — GCE O-Level only. Lower Sixth and Upper Sixth are not applicable.",
+        "q10FR": "Q10 — Which 2nd cycle levels do you have?",
+        "q10EN": "Q10 — Which levels do you have?",
+        "q11FR": "Q11 — Which streams do you offer?",
+        "q11EN": "Q11 — Which streams do you offer?",
+        "literarySection": "Literary Section",
+        "scienceSection": "Science Section",
+        "technicalSection": "Technical Section",
+        "otherSection": "Other stream",
+        "artsEN": "Arts",
+        "sciencesEN": "Sciences",
+        "streamStart": "From which level do streams start?",
+        "form4": "Form 4",
+        "form5": "Form 5",
+        "lowerSixthOnly": "Lower Sixth only",
+        "grading": "Grading system:",
+        "marks20": "Marks out of 20",
+        "marks100": "Marks out of 100",
+        "q12": "Q12 — Which languages for the A4 series?",
+        "q13": "Q13 — Generally, how many classes per stream?",
+        "oneClass": "1 class",
+        "twoClasses": "2 classes",
+        "threePlusClasses": "3 classes+",
+        "a4Hint": "For A4 streams, one class will be created per language selected in Q12.",
+        "pebsFR": "Special Bilingual Education Program (PEBS) — Francophone",
+        "pebsEN": "Special Bilingual Education Program (PEBS) — Anglophone",
+        "pebsYes": "Yes",
+        "pebsNo": "No",
+        "pebsYesEN": "Yes",
+        "pebsNoEN": "No",
+        "pebsFRHint": "The ABI series will be automatically activated in the second cycle (PEBS continuation).",
+        "add": "+ Add",
+        "other": "Other:",
+        "placeholder": "Type and Enter"
+      },
+      "bilingual": {
+        "levels": "Levels (Anglophone):",
+        "streams": "Streams (Anglophone):",
+        "arts": "Arts",
+        "sciences": "Sciences",
+        "grading": "Grading system (Anglophone):",
+        "marks20": "Marks out of 20",
+        "marks100": "Marks out of 100"
+      },
+      "technical": {
+        "sectionTitle": "⚙️ Technical fields",
+        "sarNotice": "🏛️ SAR/SM under MINEFOP supervision",
+        "sarMetiers": "Trades taught:",
+        "sarHint": "ℹ️ Year 1 and Year 2 created automatically",
+        "cfmFilieres": "Training fields:",
+        "cfmHint": "ℹ️ Levels 1, 2 and 3 created automatically",
+        "lyceeTechType": "Technical lycée type:",
+        "industriel": "Industrial (IND)",
+        "industrielDesc": "F streams",
+        "tertiaire": "Service sector (STT)",
+        "tertiaireDesc": "G streams",
+        "mixte": "Mixed IND + STT",
+        "mixteDesc": "All streams",
+        "q14": "Q14 — Available streams:",
+        "ceticType": "Type:",
+        "ceticGeneral": "General",
+        "ceticGeneralDesc": "Standard CETIC",
+        "ceticCETIF": "Girls-only (CETIF)",
+        "ceticCETIFDesc": "ESF, Sewing…",
+        "ceticFilieres": "CETIF streams:",
+        "q14Tech": "Q14 — Technical streams:",
+        "optionsOfficielles": "Official MINESEC options",
+        "optionsTerrain": "Confirmed field options",
+        "autres": "Other",
+        "add": "+ Add",
+        "placeholder": "Type and Enter"
+      },
+      "primary": {
+        "sectionTitle": "🏫 Primary & Nursery",
+        "maternelleSections": "Sections:",
+        "maternelleHint": "ℹ️ Assessment by observations — no numeric grades",
+        "nurseryLevels": "Levels present:",
+        "nurseryHint": "ℹ️ Assessment by observations — no numeric grades",
+        "frSection": "🇫🇷 Francophone Section",
+        "enSection": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Anglophone Section",
+        "levelsFR": "Levels (Francophone):",
+        "levelsEN": "Levels (Anglophone):",
+        "evalSystem": "Assessment system:",
+        "evalFR": "Assessment system (FR):",
+        "apc300": "APC 300 points",
+        "notes20": "Marks /20",
+        "apc300Desc": "public standard",
+        "notes20Desc": "some private schools",
+        "appelFrequency": "Attendance call frequency:",
+        "appelFR": "Attendance call frequency (FR):",
+        "twice": "2 times/day",
+        "once": "1 time/day",
+        "twiceDesc": "morning + afternoon (recommended)",
+        "reportCardFreq": "Report card frequency:",
+        "monthly": "Monthly (standard)",
+        "perTerm": "Per term",
+        "q15": "Q15 — Which levels do you have?",
+        "q16": "Q16 — How many classes per level?"
+      },
+      "preview": {
+        "title": "📋 Summary — what will be created",
+        "totalClasses": "total classes",
+        "firstCycleGroup": "1st cycle —",
+        "secondCycleGroup": "2nd cycle —",
+        "subjects": "📚 Subjects:",
+        "withCoefficients": "(with BAC coefficients)",
+        "placeholder": "Configure the levels above to see a preview.",
+        "yearAutoConfig": "📅 School year configured automatically",
+        "minesecConfig": "⚙️ Default MINESEC configuration",
+        "modifiableLater": "⚠️ Everything can be modified from your dashboard after activation."
+      },
+      "button": "Continue → Confirmation",
+      "buttonDisabled": "⏳ Coming soon"
+    },
+    "step4": {
+      "title": "Final Review",
+      "subtitle": "Review before submitting your application.",
+      "back": "← Back",
+      "establishmentSection": "🏫 School",
+      "adminSection": "👤 Administrator",
+      "configSection": "📋 Configuration",
+      "fields": {
+        "name": "Name",
+        "subdomain": "Subdomain",
+        "template": "Template",
+        "subsystem": "Subsystem",
+        "education": "Education type",
+        "ownership": "Status",
+        "city": "City",
+        "region": "Region",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "password": "Password",
+        "passwordMasked": "••••••••",
+        "firstCycle": "1st cycle",
+        "convention": "Naming convention",
+        "lv2": "LV2",
+        "fromLevel": "from",
+        "secondCycle": "2nd cycle",
+        "filieres": "Streams",
+        "a4Languages": "A4 languages",
+        "techFilieres": "Technical streams",
+        "totalClasses": "Total classes"
+      },
+      "info": "Once submitted, your application will be reviewed within 24-48h. You will receive a confirmation email."
+    },
+    "buttons": {
+      "step1Submit": "Continue → Admin account",
+      "step2Submit": "Continue → Configuration",
+      "step3Submit": "Continue → Confirmation",
+      "step4Submit": "🚀 Submit my registration request",
+      "backToStep1": "← Back"
+    },
+    "validation": {
+      "schoolNameRequired": "School name is required.",
+      "subdomainRequired": "Subdomain is required.",
+      "subdomainInvalid": "Subdomain can only contain lowercase letters, numbers, and hyphens.",
+      "subdomainMinLength": "Subdomain must be at least 3 characters.",
+      "firstNameRequired": "First name is required.",
+      "lastNameRequired": "Last name is required.",
+      "emailInvalid": "Invalid email address.",
+      "passwordStrength": "Password does not meet all security requirements (12 chars, uppercase, lowercase, digit, special character).",
+      "passwordMismatch": "Passwords do not match.",
+      "templateRequired": "Unable to detect school type.",
+      "complexeNotAvailable": "Complexe Scolaire is not yet available. Go back to step 1 and choose a different education type.",
+      "firstCycleRequired": "Please select at least one 1st cycle level.",
+      "classesCountRequired": "Please indicate the number of classes for each level.",
+      "secondCycleRequired": "Please select at least one 2nd cycle level.",
+      "filieresRequired": "Please select at least one stream."
+    },
+    "planLabels": {
+      "DISCOVERY": "Discovery",
+      "STANDARD": "Standard",
+      "PREMIUM": "Premium"
+    },
+    "lv2Languages": {
+      "Espagnol": "Spanish",
+      "Allemand": "German",
+      "Chinois": "Chinese",
+      "Arabe": "Arabic",
+      "Latin": "Latin",
+      "Italien": "Italian"
+    },
+    "sarMetiers": {
+      "Maçonnerie": "Masonry",
+      "Menuiserie": "Carpentry",
+      "Couture": "Sewing",
+      "Cuisine": "Cooking",
+      "Agriculture": "Agriculture",
+      "Mécanique": "Mechanics"
+    },
+    "cfmFilieres": {
+      "Agro-alimentaire": "Food Processing",
+      "Artisanat": "Crafts",
+      "BTP": "Building & Public Works",
+      "Numérique": "Digital / IT"
+    },
+    "ceticFilieres": {
+      "ESF": "ESF",
+      "Couture": "Sewing",
+      "Hôtellerie": "Hospitality",
+      "Cuisine": "Cooking"
+    },
+    "errors": {
+      "noTemplate": "Unable to detect school type. Go back to step 1 and check your choices.",
+      "submitError": "Error during submission.",
+      "timeout": "Request timed out (>30s). Check your connection and try again.",
+      "network": "Network error. Check your connection and try again.",
+      "nonJsonResponse": "Non-JSON response (HTTP"
+    }
+  },
+  "phase2": {
+    "intro": {
+      "bubble": "👋 Hello! I'm the EduNexus setup assistant. With a few questions, I'll fully configure <strong>{schoolName}</strong> — classes, subjects, calendar, fees — automatically. Shall we?",
+      "start": "Start setup →"
+    },
+    "nav": {
+      "continue": "Continue →",
+      "back": "← Back",
+      "recap": "View summary →"
+    },
+    "cycles": {
+      "title": "Let's start with your school's structure. Which cycles do you teach?",
+      "maternelle": "Maternelle / Nursery",
+      "primaire": "Primary (CP → CM2 / Class 1 → 6)",
+      "premierCycle": "First cycle secondary (6e → 3e / Form 1 → 5)",
+      "secondCycle": "Second cycle secondary (2nde → Tle / Lower → Upper Sixth)",
+      "technique": "Technical and Vocational"
+    },
+    "subsystem": {
+      "title": "Is your school\u00a0?",
+      "francophone": "Francophone (French as language of instruction)",
+      "anglophone": "Anglophone (English as language of instruction)",
+      "bilingual": "Bilingual (both)"
+    },
+    "template": {
+      "bubble": "Based on your answers, your school matches: <strong>{template}</strong>.<br />We will automatically configure classes, subjects with <strong>official MINESEC coefficients</strong>, departments, and the calendar. Is this correct\u00a0?",
+      "yes": "✅ Yes, that's correct",
+      "later": "Continue anyway (I'll refine later with the assistant)"
+    },
+    "series": {
+      "title": "Which series do you offer in second cycle? (Check all that apply)",
+      "note": "ℹ️ Series D and TI are not available in 2nde (MINESEC regulations).",
+      "a1": "A1 — Arts-Philosophy",
+      "a2": "A2 — Arts-Bilingual",
+      "a3": "A3 — Arts-Humanities",
+      "a4": "A4 — Arts-Modern Languages",
+      "c": "C — Mathematics-Physics",
+      "d": "D — Biology Sciences",
+      "e": "E — Mathematics-Technology",
+      "ti": "TI — Industrial Technology",
+      "sh": "SH — Human Sciences",
+      "ac": "AC — Arts and Civilizations"
+    },
+    "enStreams": {
+      "title": "In the second cycle Anglophone section (Lower Sixth & Upper Sixth), which streams do you offer?",
+      "titleBilingual": "For your Anglophone section: in the second cycle Anglophone section (Lower Sixth & Upper Sixth), which streams do you offer?",
+      "arts": "Arts",
+      "science": "Science",
+      "commercial": "Commercial / Economics"
+    },
+    "enCombos": {
+      "title": "Would you like to predefine typical subject combinations? (Optional)",
+      "loading": "Loading combinations\u2026",
+      "error": "Unable to load combinations, please retry.",
+      "retry": "↻ Retry",
+      "info": "ℹ️ In the Anglophone system, each subject is assessed independently. Combinations serve as guidance: students can customize their choices (max 5 subjects at A-Level)."
+    },
+    "technical": {
+      "title": "Which technical fields do you offer?",
+      "f4": "Electrical Engineering (F4)",
+      "f3": "General Mechanics (F3)",
+      "f6": "Building and Public Works (F6)",
+      "g": "Business-Economics (G)",
+      "info": "Computer Science",
+      "f8": "Fashion-Sewing (F8)"
+    },
+    "primaryLevels": {
+      "title": "Which primary levels do you have?"
+    },
+    "lv2": {
+      "activeTitle": "Does your school offer a second modern language (LV2)?",
+      "yes": "Yes",
+      "no": "No",
+      "languagesTitle": "Which languages are taught as LV2?",
+      "orgTitle": "How is LV2 organized in your classes? (Multiple choices possible)",
+      "perLevelTitle": "Let's specify by level. For each level, indicate the organization (and the language if the whole class does the same).",
+      "uniforme": "An entire class does the same language (e.g. Form 4A = all German)",
+      "mixte": "Within the same class, students are split by language",
+      "variable": "It varies by level or class",
+      "sameLang": "Same language",
+      "split": "Split by language",
+      "chooseLang": "— Choose language —",
+      "allemand": "German",
+      "espagnol": "Spanish",
+      "arabe": "Arabic",
+      "chinois": "Chinese",
+      "italien": "Italian"
+    },
+    "calendar": {
+      "title": "When does your school year start?",
+      "start": "Start date",
+      "end": "End date (optional)"
+    },
+    "periods": {
+      "title": "How is your school year divided?",
+      "trimesters": "3 terms (most common in Cameroon)",
+      "semesters": "2 semesters"
+    },
+    "sequences": {
+      "title": "How many assessment sequences per {period}?",
+      "count": "{n} sequences",
+      "standard": "(standard)",
+      "trimestre": "term",
+      "semestre": "semester"
+    },
+    "fees": {
+      "title": "Which types of fees do you charge? (Check all that apply)",
+      "tuition": "Tuition fees",
+      "apeePta": "APEE / PTA fees",
+      "exam": "Exam fees",
+      "uniform": "Uniform fees",
+      "inscription": "Registration / Re-registration fees",
+      "caution": "Caution deposit (refundable)",
+      "developmentLevy": "Development levy",
+      "sportsLevy": "Sports / activities levy"
+    },
+    "tranches": {
+      "title": "In how many installments are tuition fees paid?",
+      "oneTime": "One-time payment",
+      "two": "2 installments",
+      "three": "3 installments (termly)"
+    },
+    "services": {
+      "title": "Does your school offer additional services?",
+      "canteen": "🍽️ Canteen / School meals",
+      "transport": "🚌 School transport",
+      "library": "📚 Library / Media center",
+      "boarding": "🏠 Boarding school"
+    },
+    "direction": {
+      "title": "Finally, enter your school's leadership (optional — you can complete this later).",
+      "proviseur": "Principal / Head Teacher",
+      "censeur": "Vice-Principal / Deputy Head",
+      "surveillantGeneral": "Supervisor General / Discipline Master",
+      "intendant": "Bursar / Accountant",
+      "placeholder": "Full name"
+    },
+    "recap": {
+      "bubble": "Perfect! Here's what we'll configure for <strong>{schoolName}</strong>. Review before confirming.",
+      "structure": "Academic Structure",
+      "langues": "Modern Languages",
+      "calendrier": "Calendar",
+      "finances": "Finances",
+      "direction": "Leadership",
+      "template": "Template",
+      "cycles": "Cycles",
+      "seriesFr": "Series (FR)",
+      "streamsEn": "Streams (EN)",
+      "combinaisons": "combinations",
+      "filieres": "Technical fields",
+      "autoClasses": "Classes and subjects automatically created with official MINESEC coefficients.",
+      "lv2": "LV2",
+      "lv2Inactive": "Not active",
+      "debut": "Start",
+      "sequences": "sequences",
+      "fees": "Fees",
+      "tranches": "installment(s)",
+      "services": "Services",
+      "servicesNone": "None",
+      "directionNone": "To be completed later",
+      "proviseur": "Principal",
+      "censeur": "Vice-Principal",
+      "modify": "← Modify",
+      "confirm": "✓ Confirm and configure my school"
+    },
+    "templates": {
+      "LYCEE_FR": "Lycée Général Francophone",
+      "PRIVE_FR": "Private Francophone School",
+      "CES_FR": "Collège d'Enseignement Secondaire (FR)",
+      "LYCEE_TECHNIQUE_FR": "Lycée Technique Francophone",
+      "CETIC": "CETIC",
+      "SAR_SM": "SAR/SM",
+      "CFM": "CFM",
+      "PRIMAIRE_FR": "École Primaire Francophone",
+      "MATERNELLE_FR": "École Maternelle Francophone",
+      "GHS_EN": "Government High School",
+      "GSS_EN": "Government Secondary School",
+      "PRIVE_EN": "Private Anglophone School",
+      "PRIMARY_EN": "Anglophone Primary School",
+      "NURSERY_EN": "Anglophone Nursery School",
+      "LYCEE_BILINGUE": "Lycée Bilingue",
+      "PRIMARY_BILINGUAL": "École Primaire Bilingue",
+      "COMPLEXE_SCOLAIRE": "Complexe Scolaire"
+    }
+  }
+}

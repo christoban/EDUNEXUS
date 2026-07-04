@@ -5,6 +5,7 @@ import {
   generateCarteScolairepdf,
   generateLettreTransfertPdf,
 } from '../../../utils/schoolDocuments/index';
+import { resolveLanguage } from '../../../utils/languageHelper';
 
 const VERIFY_BASE = process.env.CLIENT_URL || 'http://localhost:3000';
 
@@ -13,7 +14,7 @@ async function fetchStudent(prisma: PrismaClient, userId: string, schoolId: stri
     where: { userId, user: { schoolId } },
     include: {
       user: { select: { firstName: true, lastName: true, phone: true, schoolId: true } },
-      class: { select: { name: true } },
+      class: { select: { name: true, section: { select: { code: true } } } },
       parents: {
         include: {
           parentProfile: {
@@ -29,7 +30,7 @@ async function fetchStudent(prisma: PrismaClient, userId: string, schoolId: stri
 async function fetchSchool(prisma: PrismaClient, schoolId: string) {
   return prisma.school.findUnique({
     where: { id: schoolId },
-    select: { name: true, city: true, phone: true, logoUrl: true },
+    select: { name: true, city: true, phone: true, logoUrl: true, subsystem: true },
   });
 }
 
@@ -77,6 +78,7 @@ export class StudentDocumentController {
         },
       });
 
+      const lang = resolveLanguage(school?.subsystem, student.class?.section?.code)
       const pdf = await generateCertificatPdf({
         documentId: doc.id,
         school: {
@@ -89,12 +91,13 @@ export class StudentDocumentController {
         className: student.class?.name ?? '—',
         yearName: year?.name ?? '—',
         dateOfBirth: student.dateOfBirth
-          ? student.dateOfBirth.toLocaleDateString('fr-FR')
+          ? student.dateOfBirth.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR')
           : undefined,
         gender: student.gender ?? undefined,
         status: student.studentStatus,
         generatedAt: new Date(),
         verifyUrl: `${VERIFY_BASE}/verify/${doc.id}`,
+        language: lang,
       });
 
       res.set({
@@ -142,6 +145,7 @@ export class StudentDocumentController {
         },
       });
 
+      const lang = resolveLanguage(school?.subsystem, student.class?.section?.code)
       const pdf = await generateCarteScolairepdf({
         documentId: doc.id,
         school: {
@@ -157,6 +161,7 @@ export class StudentDocumentController {
         emergencyPhone: parent?.phone ?? student.user.phone ?? undefined,
         generatedAt: new Date(),
         verifyUrl: `${VERIFY_BASE}/verify/${doc.id}`,
+        language: lang,
       });
 
       res.set({
@@ -218,6 +223,7 @@ export class StudentDocumentController {
         },
       });
 
+      const lang = resolveLanguage(school?.subsystem, student.class?.section?.code)
       const pdf = await generateLettreTransfertPdf({
         documentId: doc.id,
         school: {
@@ -233,6 +239,7 @@ export class StudentDocumentController {
         lastAverage: lastBulletin?.generalAverage ?? undefined,
         generatedAt: new Date(),
         verifyUrl: `${VERIFY_BASE}/verify/${doc.id}`,
+        language: lang,
       });
 
       res.set({

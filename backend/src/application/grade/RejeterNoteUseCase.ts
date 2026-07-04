@@ -6,11 +6,13 @@
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
+import type { Language } from '../../utils/languageHelper';
 
 export interface RejeterNoteCommande {
   noteId: string;
   validateurId: string;
   motif: string;
+  lang?: Language;
 }
 
 export class RejeterNoteUseCase {
@@ -40,12 +42,15 @@ export class RejeterNoteUseCase {
     // 4. Notifier l'enseignant qui avait soumis la note
     const noteData = note.toObject();
     if (noteData.recordedById) {
+      const lang = commande.lang ?? 'fr';
       await this.notificationService.envoyer({
         schoolId: note.schoolId,
         userId: noteData.recordedById,
         type: 'SYSTEM',
-        titre: 'Note rejetée',
-        corps: `Votre note a été rejetée. Motif : ${commande.motif}. Veuillez la corriger et resoumettre.`,
+        titre: lang === 'en' ? 'Grade rejected' : 'Note rejetée',
+        corps: lang === 'en'
+          ? `Your grade has been rejected. Reason: ${commande.motif}. Please correct and resubmit.`
+          : `Votre note a été rejetée. Motif : ${commande.motif}. Veuillez la corriger et resoumettre.`,
         canal: 'IN_APP',
         metadata: { noteId: note.id, motif: commande.motif },
       });

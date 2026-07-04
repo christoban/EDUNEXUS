@@ -8,6 +8,7 @@ export interface DonneesIndiceSante {
   tendanceMoyennes: number[]; // Dernières 3 périodes
   nombreSanctions: number;
   tauxPaiement: number;       // 0-100
+  langue?: 'fr' | 'en';       // langue des recommandations IA (défaut 'fr')
 }
 
 export interface ResultatIndiceSante {

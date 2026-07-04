@@ -25,40 +25,29 @@ import SectionCommunications from './_components/SectionCommunications'
 import SectionPedagogie from './_components/SectionPedagogie'
 import SectionRH from './_components/SectionRH'
 import AdminToast from './_components/AdminToast'
+import AssistantWidget from './_components/AssistantWidget'
 import type { AdminSection, Toast } from './_types'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
+import { useT } from '@/lib/i18n'
 
 let toastId = 0
 
-const SECTION_TITLES: Record<AdminSection, string> = {
-  dashboard:       'Tableau de bord',
-  users:           'Utilisateurs',
-  classes:         'Classes',
-  subjects:        'Matières',
-  attendance:      'Présences',
-  grades:          'Notes',
-  bulletins:       'Bulletins',
-  timetable:       'Emploi du temps',
-  council:         'Conseil de classe',
-  pedagogie:       'Gestion de la Pédagogie',
-  'academic-year': 'Année scolaire',
-  finance:         'Mobile Money',
-  ai:              'IA Santé scolaire',
-  statistics:      'Statistiques',
-  communications:  'Communications',
-  settings:        'Paramètres',
-  rh:              'Ressources Humaines',
-}
+const ADMIN_SECTIONS: AdminSection[] = [
+  'dashboard', 'users', 'classes', 'subjects',
+  'attendance', 'grades', 'bulletins', 'timetable',
+  'council', 'academic-year', 'finance', 'ai', 'statistics', 'communications', 'settings',
+  'pedagogie', 'rh',
+]
 
-const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {
-}
+const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {}
 
 interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string }
 interface AdminBadges { users?: string; classes?: string; grades?: string; finance?: string }
 interface SessionUser { nomComplet?: string; firstName?: string; role?: string }
 
 export default function AdminDashboard() {
+  const t = useT('admin')
   const router = useRouter()
   const [section, setSection] = useState<AdminSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -97,7 +86,7 @@ export default function AdminDashboard() {
 
         const params = new URLSearchParams(window.location.search)
         if (params.get('activated') === '1') {
-          showToast('Votre espace est maintenant actif ! Bienvenue sur EduNexus 🎉', 'success')
+          showToast(t('page.toast.welcome_active'), 'success')
           window.history.replaceState(null, '', '/admin/dashboard')
         }
       })
@@ -126,18 +115,29 @@ export default function AdminDashboard() {
     return () => window.removeEventListener('keydown', handler)
   }, [router])
 
+  // Navigation temps réel déclenchée par l'assistant IA (copilot) : quand il exécute
+  // une action, on bascule vers l'écran concerné pour que le changement soit visible.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const section = (e as CustomEvent<{ section?: string }>).detail?.section
+      if (section && ADMIN_SECTIONS.includes(section as AdminSection)) setSection(section as AdminSection)
+    }
+    window.addEventListener('edunexus:navigate', onNavigate)
+    return () => window.removeEventListener('edunexus:navigate', onNavigate)
+  }, [])
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: '#f7f3ee' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: 'var(--bg)' }}>
       <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AdminTopbar title={SECTION_TITLES[section]} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />
+        <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {section === 'dashboard' && (
             <SectionDashboard
               onNav={s => setSection(s as AdminSection)}
-              onInvite={() => showToast('Fonctionnalité à venir', 'info')}
+              onInvite={() => showToast(t('page.toast.feature_coming'), 'info')}
               onToast={showToast}
             />
           )}
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
             section === key ? (
               <SectionPlaceholder
                 key={key}
-                title={SECTION_TITLES[key as AdminSection]}
+                title={t(`page.section_titles.${key}`)}
                 icon={val.icon}
                 description={val.desc}
                 onToast={showToast}
@@ -172,6 +172,7 @@ export default function AdminDashboard() {
       </div>
 
       <AdminToast toasts={toasts} onRemove={removeToast} />
+      <AssistantWidget />
       <OfflineIndicator />
       {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
     </div>

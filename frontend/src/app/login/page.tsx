@@ -4,16 +4,17 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, ChevronDown, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import AnimatedBackground from '@/components/AnimatedBackground'
 
 // ── Configuration d'affichage par rôle (emojis, badges, couleurs, redirections) ──
 type SuccessInfo = { emoji: string; badge: string; color: string; bg: string; dest: string; firstName: string }
 
 const ROLE_CONFIG: Record<string, Omit<SuccessInfo, 'firstName'>> = {
-  ADMIN:   { emoji: '🏫',   badge: 'Administrateur', color: '#059669', bg: '#d1fae5', dest: '/admin/dashboard' },
-  TEACHER: { emoji: '👨‍🏫', badge: 'Enseignant',      color: '#1d4ed8', bg: '#dbeafe', dest: '/teacher/dashboard' },
-  PARENT:  { emoji: '👨‍👩‍👧', badge: 'Parent',          color: '#b45309', bg: '#fef3c7', dest: '/parent/dashboard' },
-  STUDENT: { emoji: '👨‍🎓', badge: 'Élève',           color: '#7c3aed', bg: '#ede9fe', dest: '/student/dashboard' },
-  STAFF:   { emoji: '🔍',   badge: 'Staff',           color: '#0d9488', bg: '#ccfbf1', dest: '/staff/dashboard' },
+  ADMIN:   { emoji: '🏫',   badge: 'Administrateur', color: 'var(--green)', bg: 'var(--green-light)', dest: '/admin/dashboard' },
+  TEACHER: { emoji: '👨‍🏫', badge: 'Enseignant',      color: 'var(--blue)', bg: 'var(--blue-light)', dest: '/teacher/dashboard' },
+  PARENT:  { emoji: '👨‍👩‍👧', badge: 'Parent',          color: 'var(--amber)', bg: 'var(--amber-light)', dest: '/parent/dashboard' },
+  STUDENT: { emoji: '👨‍🎓', badge: 'Élève',           color: 'var(--purple)', bg: 'var(--purple-light)', dest: '/student/dashboard' },
+  STAFF:   { emoji: '🔍',   badge: 'Staff',           color: 'var(--teal)', bg: 'var(--teal-light)', dest: '/staff/dashboard' },
 }
 
 type SchoolOption = {
@@ -26,11 +27,11 @@ type SchoolOption = {
 }
 
 const ROLE_SELECTOR = [
-  { role: 'ADMIN',   emoji: '🏫',   label: 'Administrateur', color: '#059669', bg: '#d1fae5', border: 'rgba(5,150,105,0.3)' },
-  { role: 'TEACHER', emoji: '👨‍🏫', label: 'Enseignant',      color: '#1d4ed8', bg: '#dbeafe', border: 'rgba(29,78,216,0.3)'  },
-  { role: 'PARENT',  emoji: '👨‍👩‍👧', label: 'Parent',          color: '#b45309', bg: '#fef3c7', border: 'rgba(180,83,9,0.3)'   },
-  { role: 'STUDENT', emoji: '👨‍🎓', label: 'Élève',           color: '#7c3aed', bg: '#ede9fe', border: 'rgba(124,58,237,0.3)' },
-  { role: 'STAFF',   emoji: '🔍',   label: 'Staff / Censeur', color: '#0d9488', bg: '#ccfbf1', border: 'rgba(13,148,136,0.3)' },
+  { role: 'ADMIN',   emoji: '🏫',   label: 'Administrateur', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
+  { role: 'TEACHER', emoji: '👨‍🏫', label: 'Enseignant',      color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
+  { role: 'PARENT',  emoji: '👨‍👩‍👧', label: 'Parent',          color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
+  { role: 'STUDENT', emoji: '👨‍🎓', label: 'Élève',           color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
+  { role: 'STAFF',   emoji: '🔍',   label: 'Staff / Censeur', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
 ]
 
 const ROLES = [
@@ -184,7 +185,7 @@ export default function LoginPage() {
       const { role, nomComplet, userId, permissions, roleMismatch, redirectTo } = data.data as {
         role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; redirectTo?: string | null
       }
-      const config = ROLE_CONFIG[role] ?? { emoji: '👤', badge: role, color: '#6b7280', bg: '#f3f4f6', dest: '/' }
+      const config = ROLE_CONFIG[role] ?? { emoji: '👤', badge: role, color: 'var(--text3)', bg: 'var(--bg2)', dest: '/' }
       const dest = redirectTo ?? config.dest
       const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
 
@@ -210,20 +211,23 @@ export default function LoginPage() {
   return (
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
-      background: '#f7f3ee',
+      background: 'var(--bg)',
       fontFamily: 'var(--font-nunito), Nunito, sans-serif'
     }}>
 
       {/* ══ PANNEAU GAUCHE ══ */}
       <div style={{
-        width: '48%', background: '#1a2e1e',
+        width: '48%', background: 'var(--sidebar)',
         display: 'flex', flexDirection: 'column',
         position: 'relative', overflow: 'hidden', flexShrink: 0
       }}>
+        {/* Ciel étoilé — teinte FIXE, indépendante du thème */}
+        <AnimatedBackground variant="stars" style={{ zIndex: 0 }} />
+
         {/* Bande déco */}
         <div style={{
-          height: 6, flexShrink: 0,
-          background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 16px,#22c55e 16px,#22c55e 32px,#ef4444 32px,#ef4444 48px,#60a5fa 48px,#60a5fa 64px,#d4a843 64px,#d4a843 80px)'
+          height: 6, flexShrink: 0, position: 'relative', zIndex: 1,
+          background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 16px,var(--green) 16px,var(--green) 32px,var(--red) 32px,var(--red) 48px,#60a5fa 48px,#60a5fa 64px,#d4a843 64px,#d4a843 80px)'
         }} />
 
         {/* Cercle déco 1 */}
@@ -247,7 +251,7 @@ export default function LoginPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 60 }}>
             <div style={{
               width: 64, height: 64, borderRadius: 14, fontSize: 32,
-              background: 'linear-gradient(135deg,#f59e0b,#22c55e)',
+              background: 'linear-gradient(135deg,var(--amber),var(--green))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 20px rgba(34,197,94,0.25)'
             }}>🎓</div>
@@ -313,7 +317,7 @@ export default function LoginPage() {
       {/* ══ PANNEAU DROIT ══ */}
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 40, background: '#f7f3ee', position: 'relative'
+        padding: 40, background: 'var(--bg)', position: 'relative'
       }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -324,22 +328,22 @@ export default function LoginPage() {
           {suspended ? (
             <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
               <style>{`@keyframes edu-fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }`}</style>
-              <div style={{ background: '#fef2f2', border: '2px solid rgba(220,38,38,0.25)', borderRadius: 16, padding: '32px 36px', boxShadow: '0 4px 24px rgba(220,38,38,0.08)' }}>
+              <div style={{ background: 'var(--red-light)', border: '2px solid rgba(220,38,38,0.25)', borderRadius: 16, padding: '32px 36px', boxShadow: '0 4px 24px rgba(220,38,38,0.08)' }}>
                 <div style={{ fontSize: 40, marginBottom: 16, textAlign: 'center' }}>🚫</div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#991b1b', marginBottom: 12, textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--red)', marginBottom: 12, textAlign: 'center' }}>
                   Établissement suspendu
                 </div>
-                <div style={{ fontSize: 15, color: '#b91c1c', fontWeight: 600, lineHeight: 1.7, marginBottom: 20 }}>
+                <div style={{ fontSize: 15, color: 'var(--red)', fontWeight: 600, lineHeight: 1.7, marginBottom: 20 }}>
                   <strong>{suspended.schoolName}</strong> a été suspendu par l&apos;administrateur EduNexus.
                   L&apos;accès à la plateforme est temporairement bloqué pour cet établissement.
                 </div>
-                <div style={{ background: 'white', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, fontSize: 14, color: '#6b5c45', lineHeight: 1.6 }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, fontSize: 14, color: 'var(--text2)', lineHeight: 1.6 }}>
                   Pour toute question ou pour régulariser la situation, contactez le support EduNexus à{' '}
-                  <a href="mailto:support@edunexus.cm" style={{ color: '#059669', fontWeight: 700 }}>support@edunexus.cm</a>
+                  <a href="mailto:support@edunexus.cm" style={{ color: 'var(--green)', fontWeight: 700 }}>support@edunexus.cm</a>
                 </div>
                 <button
                   onClick={() => setSuspended(null)}
-                  style={{ width: '100%', padding: '12px 0', background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, fontSize: 15, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ width: '100%', padding: '12px 0', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, fontSize: 15, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit' }}>
                   ← Changer d&apos;établissement
                 </button>
               </div>
@@ -351,11 +355,11 @@ export default function LoginPage() {
             <span style={{ fontSize: 45, marginBottom: 10, display: 'block' }}>👋</span>
             <div style={{
               fontFamily: 'var(--font-spectral),Spectral,serif',
-              fontSize: 36, fontWeight: 700, color: '#1a1209', marginBottom: 6
+              fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6
             }}>
               Connexion à votre espace
             </div>
-            <div style={{ fontSize: 18, color: '#6b5c45', fontWeight: 500, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 18, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
               Entrez vos identifiants pour accéder à votre tableau de bord.
             </div>
           </div>
@@ -365,9 +369,9 @@ export default function LoginPage() {
             <div style={{
               padding: '12px 14px', borderRadius: 10, fontSize: 17, fontWeight: 700,
               marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
-              background: alert.type === 'error' ? '#fee2e2' : '#ffedd5',
+              background: alert.type === 'error' ? 'var(--red-light)' : 'var(--orange-light)',
               border: alert.type === 'error' ? '1px solid rgba(220,38,38,0.2)' : '1px solid rgba(234,88,12,0.2)',
-              color: alert.type === 'error' ? '#b91c1c' : '#ea580c'
+              color: alert.type === 'error' ? 'var(--red)' : 'var(--orange)'
             }}>
               <span>⚠️</span><span>{alert.msg}</span>
             </div>
@@ -375,7 +379,7 @@ export default function LoginPage() {
 
           {/* Sélecteur d'établissement */}
           <div style={{ marginBottom: 18, position: 'relative' }} ref={dropdownRef}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               🏫 Votre établissement *
             </label>
 
@@ -384,9 +388,9 @@ export default function LoginPage() {
               type="button"
               onClick={() => { setDropdownOpen(o => !o); setSchoolSearch('') }}
               style={{
-                width: '100%', padding: '16px 16px', background: 'white',
-                border: `1.5px solid ${dropdownOpen ? '#059669' : '#e8e0d4'}`,
-                borderRadius: 14, color: selectedSchool ? '#1a1209' : '#a89478',
+                width: '100%', padding: '16px 16px', background: 'var(--surface)',
+                border: `1.5px solid ${dropdownOpen ? 'var(--green)' : 'var(--border)'}`,
+                borderRadius: 14, color: selectedSchool ? 'var(--text)' : 'var(--text3)',
                 fontSize: 15, fontFamily: 'inherit', fontWeight: 600,
                 cursor: 'pointer', textAlign: 'left',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
@@ -396,7 +400,7 @@ export default function LoginPage() {
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 {schoolsLoading ? (
-                  <span style={{ color: '#a89478' }}>Chargement des établissements…</span>
+                  <span style={{ color: 'var(--text3)' }}>Chargement des établissements…</span>
                 ) : selectedSchool ? (
                   <>
                     <span style={{ fontSize: 22, flexShrink: 0 }}>🏫</span>
@@ -408,13 +412,13 @@ export default function LoginPage() {
                   <span>Sélectionner votre établissement…</span>
                 )}
               </span>
-              <ChevronDown size={16} style={{ flexShrink: 0, color: '#a89478', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }} />
+              <ChevronDown size={16} style={{ flexShrink: 0, color: 'var(--text3)', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }} />
             </button>
 
             {/* Sous-domaine affiché sous le bouton quand sélectionné */}
             {selectedSchool && (
-              <div style={{ fontSize: 13, color: '#a89478', fontWeight: 500, marginTop: 5 }}>
-                Sous-domaine : <span style={{ fontFamily: 'monospace', color: '#6b5c45' }}>{selectedSchool.subdomain}</span>
+              <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 500, marginTop: 5 }}>
+                Sous-domaine : <span style={{ fontFamily: 'monospace', color: 'var(--text2)' }}>{selectedSchool.subdomain}</span>
                 {selectedSchool.city ? ` · ${selectedSchool.city}` : ''}
               </div>
             )}
@@ -423,26 +427,26 @@ export default function LoginPage() {
             {dropdownOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50,
-                background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4',
+                background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.12)', overflow: 'hidden',
               }}>
                 {/* Barre de recherche */}
-                <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0ebe3', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Search size={15} style={{ color: '#a89478', flexShrink: 0 }} />
+                <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg2)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Search size={15} style={{ color: 'var(--text3)', flexShrink: 0 }} />
                   <input
                     autoFocus
                     type="text"
                     value={schoolSearch}
                     onChange={e => setSchoolSearch(e.target.value)}
                     placeholder="Rechercher un établissement…"
-                    style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1a1209', fontFamily: 'inherit', fontWeight: 600, width: '100%', background: 'transparent' }}
+                    style={{ border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, width: '100%', background: 'transparent' }}
                   />
                 </div>
 
                 {/* Liste */}
                 <div style={{ maxHeight: 260, overflowY: 'auto' }}>
                   {schools.length === 0 ? (
-                    <div style={{ padding: '20px 16px', textAlign: 'center', color: '#a89478', fontSize: 14 }}>
+                    <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
                       Aucun établissement disponible
                     </div>
                   ) : (() => {
@@ -452,7 +456,7 @@ export default function LoginPage() {
                       (s.city ?? '').toLowerCase().includes(schoolSearch.toLowerCase())
                     )
                     if (filtered.length === 0) return (
-                      <div style={{ padding: '20px 16px', textAlign: 'center', color: '#a89478', fontSize: 14 }}>
+                      <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
                         Aucun résultat pour &ldquo;{schoolSearch}&rdquo;
                       </div>
                     )
@@ -467,24 +471,24 @@ export default function LoginPage() {
                           setAlert(null)
                         }}
                         style={{
-                          width: '100%', padding: '12px 16px', background: selectedSchool?.id === school.id ? '#f0fdf4' : 'white',
-                          border: 'none', borderBottom: '1px solid #faf7f2',
+                          width: '100%', padding: '12px 16px', background: selectedSchool?.id === school.id ? 'var(--green-light)' : 'white',
+                          border: 'none', borderBottom: '1px solid var(--bg)',
                           cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                           display: 'flex', alignItems: 'center', gap: 12,
                           transition: 'background 0.15s',
                         }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f0fdf4' }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = selectedSchool?.id === school.id ? '#f0fdf4' : 'white' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--green-light)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = selectedSchool?.id === school.id ? 'var(--green-light)' : 'white' }}
                       >
                         <span style={{ fontSize: 26, flexShrink: 0 }}>🏫</span>
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1209', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{school.name}</span>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{school.name}</span>
                             {selectedSchool?.id === school.id && (
-                              <span style={{ fontSize: 10, color: '#059669', fontWeight: 800, flexShrink: 0 }}>✓</span>
+                              <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 800, flexShrink: 0 }}>✓</span>
                             )}
                           </span>
-                          <span style={{ fontSize: 12, color: '#a89478', fontWeight: 500, fontFamily: 'monospace' }}>
+                          <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500, fontFamily: 'monospace' }}>
                             {school.subdomain}{school.city ? ` · ${school.city}` : ''}
                           </span>
                         </span>
@@ -498,7 +502,7 @@ export default function LoginPage() {
 
           {/* Sélecteur de rôle */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               Votre rôle *
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
@@ -510,17 +514,17 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setSelectedRole(active ? null : r.role)}
                     style={{
-                      padding: '10px 6px', border: `1.5px solid ${active ? r.border : '#e8e0d4'}`,
+                      padding: '10px 6px', border: `1.5px solid ${active ? r.border : 'var(--border)'}`,
                       borderRadius: 12, background: active ? r.bg : 'white',
                       cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
                       transition: 'all 0.15s',
                       boxShadow: active ? `0 0 0 3px ${r.border}` : 'none',
                     }}
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = r.border }}
-                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = '#e8e0d4' }}
+                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
                   >
                     <div style={{ fontSize: 22, marginBottom: 4 }}>{r.emoji}</div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : '#6b5c45', lineHeight: 1.3 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3 }}>
                       {r.label}
                     </div>
                   </button>
@@ -531,7 +535,7 @@ export default function LoginPage() {
 
           {/* Email */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               Adresse email
             </label>
             <input
@@ -540,13 +544,13 @@ export default function LoginPage() {
               onKeyDown={e => e.key === 'Enter' && submit()}
               placeholder="jean.dupont@ecole.cm"
               autoComplete="off"
-              style={{ width: '100%', padding: '19px 16px', background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 14, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
+              style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
             />
           </div>
 
           {/* Mot de passe */}
           <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               Mot de passe
             </label>
             <div style={{ position: 'relative' }}>
@@ -555,10 +559,10 @@ export default function LoginPage() {
                 onChange={e => { setPassword(e.target.value); setAlert(null) }}
                 onKeyDown={e => e.key === 'Enter' && submit()}
                 placeholder="••••••••••" autoComplete="new-password"
-                style={{ width: '100%', padding: '19px 16px', background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 14, color: '#1a1209', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
+                style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
               />
               <button type="button" onClick={() => setShowPwd(s => !s)}
-                style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', padding: 4 }}>
+                style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: 4 }}>
                 {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -569,7 +573,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => { setForgotOpen(true); setForgotDone(false); setForgotError(''); setForgotEmail(email) }}
-              style={{ fontSize: 15, fontWeight: 700, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ fontSize: 15, fontWeight: 700, color: 'var(--green)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               Mot de passe oublié ?
             </button>
           </div>
@@ -578,7 +582,7 @@ export default function LoginPage() {
           <button onClick={submit} disabled={loading}
             style={{
               width: '100%', padding: 14,
-              background: 'linear-gradient(135deg,#059669,#047857)',
+              background: 'linear-gradient(135deg,var(--green),var(--green2))',
               color: 'white', fontSize: 19, fontWeight: 800,
               border: 'none', borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', transition: 'all 0.2s',
@@ -604,7 +608,7 @@ export default function LoginPage() {
           zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
           <div style={{
-            background: 'white', borderRadius: 20, padding: 40,
+            background: 'var(--surface)', borderRadius: 20, padding: 40,
             textAlign: 'center', maxWidth: 360, width: '90%',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
             animation: 'popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both'
@@ -612,15 +616,15 @@ export default function LoginPage() {
             <span style={{ fontSize: 56, marginBottom: 16, display: 'block' }}>
               {success.emoji}
             </span>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
               Bonjour, {success.firstName} !
             </div>
             {roleMismatchWarning && (
-              <div style={{ padding: '10px 14px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, fontSize: 13, color: '#92400e', fontWeight: 600, marginBottom: 10, textAlign: 'left', lineHeight: 1.6 }}>
+              <div style={{ padding: '10px 14px', background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', fontWeight: 600, marginBottom: 10, textAlign: 'left', lineHeight: 1.6 }}>
                 ⚠️ {roleMismatchWarning}
               </div>
             )}
-            <div style={{ fontSize: 14, color: '#6b5c45', fontWeight: 500, lineHeight: 1.6, marginBottom: 8 }}>
+            <div style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6, marginBottom: 8 }}>
               Connexion réussie à EduNexus · École Lycée du Succès
             </div>
             <div style={{
@@ -633,19 +637,19 @@ export default function LoginPage() {
             </div>
 
             {/* Barre de progression 2s */}
-            <div style={{ background: '#f0ebe3', borderRadius: 8, overflow: 'hidden', height: 6, marginBottom: 16 }}>
+            <div style={{ background: 'var(--bg2)', borderRadius: 8, overflow: 'hidden', height: 6, marginBottom: 16 }}>
               <div style={{
-                height: '100%', background: '#059669',
+                height: '100%', background: 'var(--green)',
                 width: progress ? '100%' : '0%',
                 transition: 'width 2s linear', borderRadius: 8
               }} />
             </div>
-            <div style={{ fontSize: 12, color: '#a89478', fontWeight: 600, marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600, marginBottom: 14 }}>
               Redirection dans 2 secondes...
             </div>
             <button
               onClick={() => router.push(success.dest)}
-              style={{ width: '100%', padding: 12, background: '#059669', color: 'white', fontSize: 14, fontWeight: 800, border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', padding: 12, background: 'var(--green)', color: 'white', fontSize: 14, fontWeight: 800, border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
               Accéder au tableau de bord →
             </button>
           </div>
@@ -658,31 +662,31 @@ export default function LoginPage() {
           onClick={() => !forgotLoading && setForgotOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background: 'white', borderRadius: 20, padding: '36px 40px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', animation: 'popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            style={{ background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', animation: 'popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}>
 
             {forgotDone ? (
               <div style={{ textAlign: 'center', padding: '8px 0' }}>
                 <div style={{ fontSize: 52, marginBottom: 14 }}>📧</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#1a1209', marginBottom: 10 }}>Email envoyé !</div>
-                <div style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.7, marginBottom: 24 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Email envoyé !</div>
+                <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 24 }}>
                   Si un compte correspond à cet email, vous recevrez un lien de réinitialisation valable <strong>1 heure</strong>. Vérifiez aussi vos spams.
                 </div>
                 <button onClick={() => setForgotOpen(false)}
-                  style={{ padding: '11px 28px', borderRadius: 11, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ padding: '11px 28px', borderRadius: 11, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                   Retour à la connexion
                 </button>
               </div>
             ) : (
               <>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
                   🔑 Mot de passe oublié ?
                 </div>
-                <div style={{ fontSize: 14, color: '#a89478', marginBottom: 24, lineHeight: 1.6 }}>
+                <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 24, lineHeight: 1.6 }}>
                   Entrez votre adresse email. Nous vous enverrons un lien pour réinitialiser votre mot de passe.
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#6b5c45', marginBottom: 6, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 6, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>
                     Adresse email *
                   </label>
                   <input
@@ -692,29 +696,29 @@ export default function LoginPage() {
                     onKeyDown={e => { if (e.key === 'Enter') handleForgotSubmit() }}
                     placeholder="votre@email.com"
                     autoFocus
-                    style={{ width: '100%', padding: '12px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 10, color: '#1a1209', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}
+                    style={{ width: '100%', padding: '12px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 10, color: 'var(--text)', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}
                   />
                 </div>
 
                 {!selectedSchool && (
-                  <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#c2410c', fontWeight: 600, marginBottom: 16, lineHeight: 1.5 }}>
+                  <div style={{ background: 'var(--orange-light)', border: '1px solid var(--orange-light)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--orange)', fontWeight: 600, marginBottom: 16, lineHeight: 1.5 }}>
                     ⚠️ Sélectionnez d&apos;abord votre établissement sur la page de connexion.
                   </div>
                 )}
 
                 {forgotError && (
-                  <div style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '10px 14px', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+                  <div style={{ background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '10px 14px', fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
                     {forgotError}
                   </div>
                 )}
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setForgotOpen(false)} disabled={forgotLoading}
-                    style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'white', color: '#374151', border: '1.5px solid #e8e0d4', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}>
                     Annuler
                   </button>
                   <button onClick={handleForgotSubmit} disabled={forgotLoading || !selectedSchool}
-                    style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: (!selectedSchool || forgotLoading) ? '#9ca3af' : 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: (!selectedSchool || forgotLoading) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                    style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: (!selectedSchool || forgotLoading) ? 'var(--text3)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: (!selectedSchool || forgotLoading) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
                     {forgotLoading ? '⏳ Envoi…' : 'Envoyer le lien'}
                   </button>
                 </div>

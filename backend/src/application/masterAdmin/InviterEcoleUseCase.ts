@@ -10,8 +10,9 @@ import { School } from '@domain/entities/School';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { InvitationRepository, InvitationProps } from '@domain/ports/repositories/InvitationRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
-import type { PlanType } from '@domain/types/enums';
+import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
 import { buildSchoolInviteTemplate } from '../../utils/emailTemplates';
+import { resolveLanguage } from '../../utils/languageHelper';
 
 export interface InviterEcoleCommande {
   email: string;
@@ -19,6 +20,8 @@ export interface InviterEcoleCommande {
   plan: PlanType;
   masterAdminId: string;
   notes?: string;
+  /** Sous-système visé (langue de l'email d'invitation). Défaut FRANCOPHONE. */
+  subsystem?: SchoolSubsystem;
 }
 
 export interface InviterEcoleResultat {
@@ -41,11 +44,16 @@ export class InviterEcoleUseCase {
 
     // 2. Créer l'école en PENDING si elle n'existe pas encore
     let schoolId: string;
+    // Sous-système déterminant la langue de l'email d'invitation.
+    let subsystemInvite: SchoolSubsystem = commande.subsystem ?? 'FRANCOPHONE';
 
     if (invitationExistante?.schoolId) {
       schoolId = invitationExistante.schoolId;
       // Expirer l'ancienne invitation
       await this.invitationRepository.expireToutes(schoolId);
+      // Réutilisation d'une école existante → on suit SON sous-système réel.
+      const existante = await this.schoolRepository.findById(schoolId);
+      if (existante) subsystemInvite = existante.subsystem;
     } else {
       const subdomain = commande.schoolName
         .toLowerCase()
@@ -56,7 +64,7 @@ export class InviterEcoleUseCase {
       const school = School.create({
         name: commande.schoolName,
         subdomain: `${subdomain}-${Date.now()}`,
-        subsystem: 'FRANCOPHONE',
+        subsystem: subsystemInvite,
         educationType: 'GENERAL',
         ownership: 'PRIVATE_SECULAR',
         plan: commande.plan,
@@ -91,7 +99,7 @@ export class InviterEcoleUseCase {
       schoolName: commande.schoolName,
       requestedAdminName: 'Administrateur',
       activationUrl,
-      language: 'fr',
+      language: resolveLanguage(subsystemInvite),
     });
 
     void this.emailService.envoyer({

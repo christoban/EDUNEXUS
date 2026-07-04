@@ -9,6 +9,7 @@ import type {
   DonneesIndiceSante,
   ResultatIndiceSante,
 } from '@domain/ports/services/IAService';
+import { instructionLangue, type Language } from '../../utils/languageHelper';
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY ?? '',
@@ -29,10 +30,10 @@ function nettoyerMarkdown(texte: string): string {
     .trim();
 }
 
-async function genererAvecGroq(prompt: string, systemPrompt?: string): Promise<string> {
+async function genererAvecGroq(prompt: string, lang: Language = 'fr'): Promise<string> {
   const { text } = await generateText({
     model: groq(GROQ_MODEL),
-    system: systemPrompt ?? 'Tu es un conseiller pédagogique camerounais. Réponds en français, sans Markdown.',
+    system: `Tu es un conseiller pédagogique camerounais. N'utilise pas de Markdown. ${instructionLangue(lang)}`,
     prompt,
     maxOutputTokens: 1000,
   });
@@ -65,7 +66,7 @@ Niveau de santé scolaire : ${niveau} (score ${score}/100).
 Donne 2-3 recommandations courtes et concrètes pour l'enseignant.
     `.trim();
 
-    const analyse = await genererAvecGroq(prompt);
+    const analyse = await genererAvecGroq(prompt, donnees.langue ?? 'fr');
     const recommandations = analyse
       .split(/[.!?]+/)
       .map(s => s.trim())
@@ -83,7 +84,8 @@ Donne 2-3 recommandations courtes et concrètes pour l'enseignant.
     pointsFaibles: string[];
     langue: 'FR' | 'EN';
   }): Promise<string> {
-    const langue = params.langue === 'EN' ? 'English' : 'français';
+    const lang: Language = params.langue === 'EN' ? 'en' : 'fr';
+    const langue = lang === 'en' ? 'English' : 'français';
     const prompt = `
 Génère un commentaire de bulletin scolaire en ${langue} pour ${params.nomEleve}.
 Moyenne : ${params.moyenneGenerale.toFixed(2)}/20. Tendance : ${params.evolution}.
@@ -92,7 +94,7 @@ Points faibles : ${params.pointsFaibles.join(', ') || 'aucun identifié'}.
 2-3 phrases, ton encourageant et professionnel.
     `.trim();
 
-    return genererAvecGroq(prompt);
+    return genererAvecGroq(prompt, lang);
   }
 
   async genererEmploiDuTemps(

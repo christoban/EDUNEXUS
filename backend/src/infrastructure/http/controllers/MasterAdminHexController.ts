@@ -6,7 +6,7 @@ import type { SuspendreEcoleUseCase } from '@application/masterAdmin/SuspendreEc
 import type { ReactiverEcoleUseCase } from '@application/masterAdmin/ReactiverEcoleUseCase';
 import type { RejeterEcoleUseCase } from '@application/masterAdmin/RejeterEcoleUseCase';
 import type { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/ChangerPlanAbonnementUseCase';
-import type { PlanType } from '@domain/types/enums';
+import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
 import { inngest } from '../../../inngest/index.ts';
 import { sendTransactionalEmail } from '../../../services/emailService';
 import { listSchoolBackups } from '../../../utils/schoolBackup';
@@ -26,7 +26,7 @@ export class MasterAdminHexController {
   inviterEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const master = (req as any).masterUser;
-      const { email, schoolName, plan, notes } = req.body;
+      const { email, schoolName, plan, notes, subsystem } = req.body;
 
       if (!email || !schoolName) {
         res.status(400).json({ success: false, message: 'email et schoolName requis' });
@@ -39,6 +39,7 @@ export class MasterAdminHexController {
         plan: (plan ?? 'DISCOVERY') as PlanType,
         masterAdminId: master.id,
         notes,
+        subsystem: subsystem as SchoolSubsystem | undefined,
       });
 
       void logMasterAction({ req, masterUserId: master.id, action: 'school_invite_sent', description: `Invitation envoyée à ${email} pour «${schoolName}»` });

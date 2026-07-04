@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { SessionUser } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -17,22 +18,23 @@ interface InvoiceItem {
 }
 interface Pagination { total: number; page: number; pages: number }
 
-const INV_STATUS: Record<string, { bg: string; color: string; label: string }> = {
-  PENDING:    { bg: '#fee2e2', color: '#991b1b', label: 'Impayé'     },
-  PARTIAL:    { bg: '#fef3c7', color: '#92400e', label: 'Partiel'    },
-  PAID:       { bg: '#d1fae5', color: '#065f46', label: '✓ Payé'     },
-  OVERDUE:    { bg: '#fecaca', color: '#7f1d1d', label: 'En retard'  },
-  CANCELLED:  { bg: '#f1f5f9', color: '#475569', label: 'Annulé'     },
+const INV_STATUS: Record<string, { bg: string; color: string }> = {
+  PENDING:    { bg: 'var(--red-light)', color: 'var(--red)' },
+  PARTIAL:    { bg: 'var(--amber-light)', color: 'var(--amber)' },
+  PAID:       { bg: 'var(--green-light)', color: 'var(--green)' },
+  OVERDUE:    { bg: 'var(--red-light)', color: 'var(--red)' },
+  CANCELLED:  { bg: 'var(--bg2)', color: 'var(--text2)' },
 }
 
 function fmtCFA(n: number) {
   return new Intl.NumberFormat('fr-FR').format(n) + ' FCFA'
 }
 
-const DEPENSE_CATEGORIES = ['Fournitures', 'Entretien', 'Électricité / Eau', 'Carburant', 'Communication', 'Frais bancaires', 'Salaires', 'Événements', 'Divers']
+const DEPENSE_CATEGORIES = ['catSupplies', 'catMaintenance', 'catUtilities', 'catFuel', 'catCommunication', 'catBankFees', 'catSalaries', 'catEvents', 'catOther']
 const EMPTY_DEP = { label: '', amount: '', category: '', date: '' }
 
 export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
+  const t = useT('staff')
   const [invoices, setInvoices] = useState<InvoiceItem[]>([])
   const [pag, setPag]           = useState<Pagination>({ total: 0, page: 1, pages: 1 })
   const [loading, setLoading]   = useState(true)
@@ -51,9 +53,9 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
 
   const submitDepense = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!depenseForm.label.trim()) { setDepenseError('Le libellé est requis'); return }
+    if (!depenseForm.label.trim()) { setDepenseError(t('finance.depenseLabelRequired')); return }
     const amt = parseFloat(depenseForm.amount)
-    if (!depenseForm.amount || isNaN(amt) || amt <= 0) { setDepenseError('Le montant doit être un nombre positif'); return }
+    if (!depenseForm.amount || isNaN(amt) || amt <= 0) { setDepenseError(t('finance.depenseAmountInvalid')); return }
     setDepenseSending(true); setDepenseError(null)
     try {
       const body: Record<string, unknown> = { label: depenseForm.label.trim(), amount: amt }
@@ -66,7 +68,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      onToast('Dépense enregistrée avec succès', 'success')
+      onToast(t('finance.depenseSuccess'), 'success')
       setDepenseOpen(false)
       setDepenseForm(EMPTY_DEP)
     } catch (err) {
@@ -96,7 +98,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
   useEffect(() => { setPage(1); fetchInvoices(1) }, [statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const initiateMobileMoney = async (invoice: InvoiceItem) => {
-    const phone = prompt(`Numéro Mobile Money pour ${invoice.student.firstName} ${invoice.student.lastName} (ex: 6XXXXXXXX):`)
+    const phone = prompt(t('finance.mobileMoneyPrompt', { firstName: invoice.student.firstName, lastName: invoice.student.lastName }))
     if (!phone?.trim()) return
     setPayingId(invoice.id)
     try {
@@ -112,7 +114,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast('Paiement Mobile Money initié — en attente de confirmation', 'success')
+      onToast(t('finance.paymentInitiated'), 'success')
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur Mobile Money', 'error')
     } finally {
@@ -124,7 +126,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
     setSendingId(invoice.id)
     try {
       await new Promise(r => setTimeout(r, 600))
-      onToast(`Rappel SMS envoyé pour ${invoice.student.firstName} ${invoice.student.lastName}`, 'success')
+      onToast(t('finance.smsSent', { firstName: invoice.student.firstName, lastName: invoice.student.lastName }), 'success')
     } finally {
       setSendingId(null)
     }
@@ -139,16 +141,16 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>Mobile Money — Paiements</div>
-          <div style={sSub}>MTN MoMo &amp; Orange Money · Suivi des impayés</div>
+          <div style={sTitle}>{t('finance.title')}</div>
+          <div style={sSub}>{t('finance.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {hasMF && (
             <button style={btnPrim} onClick={() => { setDepenseOpen(true); setDepenseError(null); setDepenseForm(EMPTY_DEP) }}>
-              💸 Enregistrer une dépense
+              {t('finance.recordExpense')}
             </button>
           )}
-          <button style={btnSec} onClick={() => fetchInvoices(page)}>🔄 Rafraîchir</button>
+          <button style={btnSec} onClick={() => fetchInvoices(page)}>{t('finance.refresh')}</button>
         </div>
       </div>
 
@@ -156,44 +158,44 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
       {!loading && !error && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 22 }}>
           {[
-            { label: 'Total impayé (page)',  val: fmtCFA(totalPending), bg: '#fee2e2', color: '#991b1b' },
-            { label: 'Paiements partiels',   val: fmtCFA(totalPartial), bg: '#fef3c7', color: '#92400e' },
-            { label: 'Résultats',            val: `${pag.total} facture${pag.total > 1 ? 's' : ''}`, bg: '#f0ebe3', color: '#6b5c45' },
+            { label: t('finance.kpiTotalUnpaid'),  val: fmtCFA(totalPending), bg: 'var(--red-light)', color: 'var(--red)' },
+            { label: t('finance.kpiPartialPayments'),   val: fmtCFA(totalPartial), bg: 'var(--amber-light)', color: 'var(--amber)' },
+            { label: '', val: t('finance.kpiResults', { count: pag.total }), bg: 'var(--bg2)', color: 'var(--text2)' },
           ].map((k, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', padding: '18px 22px' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#a89478', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>{k.label}</div>
+            <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 22px' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>{k.label}</div>
               <div style={{ fontSize: 22, fontWeight: 900, color: k.color }}>{k.val}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={filterSt}>
-            <option value="">Tous les statuts</option>
-            <option value="PENDING">Impayés</option>
-            <option value="PARTIAL">Partiels</option>
-            <option value="PAID">Payés</option>
-            <option value="OVERDUE">En retard</option>
+            <option value="">{t('finance.filterAllStatuses')}</option>
+            <option value="PENDING">{t('finance.filterUnpaid')}</option>
+            <option value="PARTIAL">{t('finance.filterPartial')}</option>
+            <option value="PAID">{t('finance.filterPaid')}</option>
+            <option value="OVERDUE">{t('finance.filterOverdue')}</option>
           </select>
-          <button style={btnPrim} onClick={() => { setPage(1); fetchInvoices(1) }}>Filtrer</button>
-          <span style={{ marginLeft: 'auto', fontSize: 14, color: '#a89478', fontWeight: 600 }}>
-            Page {pag.page}/{pag.pages} · {pag.total} total
+          <button style={btnPrim} onClick={() => { setPage(1); fetchInvoices(1) }}>{t('finance.filter')}</button>
+          <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
+            {t('finance.pageInfo', { page: pag.page, pages: pag.pages, total: pag.total })}
           </span>
         </div>
 
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 50 }}>
-            <div style={{ width: 32, height: 32, border: '3px solid #e8e0d4', borderTopColor: '#059669', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+            <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
           </div>
         )}
 
-        {!loading && error && <div style={{ padding: '16px 20px', color: '#dc2626', fontWeight: 700 }}>⚠️ {error}</div>}
+        {!loading && error && <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</div>}
 
         {!loading && !error && invoices.length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#a89478' }}>
-            Aucune facture trouvée
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
+            {t('finance.noInvoices')}
           </div>
         )}
 
@@ -201,44 +203,52 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
           <>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr>{['Élève', 'Plan de frais', 'Montant', 'Payé', 'Statut', 'Actions'].map(h => (
+                <tr>{[
+                  t('finance.tableHeaderStudent'),
+                  t('finance.tableHeaderPlan'),
+                  t('finance.tableHeaderAmount'),
+                  t('finance.tableHeaderPaid'),
+                  t('finance.tableHeaderStatus'),
+                  t('finance.tableHeaderActions'),
+                ].map(h => (
                   <th key={h} style={thSt}>{h}</th>
                 ))}</tr>
               </thead>
               <tbody>
                 {invoices.map((inv) => {
-                  const st = INV_STATUS[inv.status] ?? { bg: '#f1f5f9', color: '#475569', label: inv.status }
+                  const st = INV_STATUS[inv.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                  const invStatusKey = inv.status === 'PENDING' ? 'statusUnpaid' : inv.status === 'PARTIAL' ? 'statusPartial' : inv.status === 'PAID' ? 'statusPaid' : inv.status === 'OVERDUE' ? 'statusOverdue' : 'statusCancelled'
                   const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
                   return (
                     <tr key={inv.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                      <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
                         {inv.student.firstName} {inv.student.lastName}
                       </td>
                       <td style={tdSt}>{inv.feePlan?.name ?? '—'}</td>
                       <td style={{ ...tdSt, fontWeight: 700 }}>{fmtCFA(inv.amount)}</td>
                       <td style={tdSt}>
-                        <span style={{ fontWeight: 700, color: paid > 0 ? '#059669' : '#a89478' }}>
+                        <span style={{ fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
                           {paid > 0 ? fmtCFA(paid) : '—'}
                         </span>
                       </td>
                       <td style={tdSt}>
                         <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>
-                          {st.label}
+                          {t(`finance.${invStatusKey}`)}
                         </span>
                       </td>
                       <td style={tdSt}>
                         {(inv.status === 'PENDING' || inv.status === 'PARTIAL') && (
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#dbeafe', color: '#1e40af', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={() => initiateMobileMoney(inv)}
                               disabled={payingId === inv.id}>
                               {payingId === inv.id ? '⏳' : '📱'}
                             </button>
                             <button
-                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#f0ebe3', color: '#6b5c45', border: '1px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}
+                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={() => sendReminder(inv)}
                               disabled={sendingId === inv.id}>
                               {sendingId === inv.id ? '⏳' : '📲 SMS'}
@@ -253,12 +263,12 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
             </table>
 
             {pag.pages > 1 && (
-              <div style={{ padding: '12px 20px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'center', gap: 8 }}>
+              <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 8 }}>
                 <button style={btnSec} disabled={page <= 1}
-                  onClick={() => { const p = page - 1; setPage(p); fetchInvoices(p) }}>← Préc.</button>
-                <span style={{ padding: '6px 12px', fontSize: 14, fontWeight: 700, color: '#6b5c45' }}>{page}/{pag.pages}</span>
+                  onClick={() => { const p = page - 1; setPage(p); fetchInvoices(p) }}>{t('finance.previous')}</button>
+                <span style={{ padding: '6px 12px', fontSize: 14, fontWeight: 700, color: 'var(--text2)' }}>{page}/{pag.pages}</span>
                 <button style={btnSec} disabled={page >= pag.pages}
-                  onClick={() => { const p = page + 1; setPage(p); fetchInvoices(p) }}>Suiv. →</button>
+                  onClick={() => { const p = page + 1; setPage(p); fetchInvoices(p) }}>{t('finance.next')}</button>
               </div>
             )}
           </>
@@ -268,82 +278,82 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
       {depenseOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget && !depenseSending) { setDepenseOpen(false) } }}>
-          <div style={{ background: 'white', borderRadius: 20, border: '1.5px solid #e8e0d4', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
-            <div style={{ padding: '22px 28px', borderBottom: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 21, fontWeight: 700, color: '#1a1209' }}>💸 Enregistrer une dépense</div>
+          <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1.5px solid var(--border)', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
+            <div style={{ padding: '22px 28px', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 21, fontWeight: 700, color: 'var(--text)' }}>{t('finance.depenseModalTitle')}</div>
               <button onClick={() => !depenseSending && setDepenseOpen(false)}
-                style={{ background: 'none', border: 'none', fontSize: 22, color: '#a89478', cursor: 'pointer', lineHeight: 1, padding: 4 }}>×</button>
+                style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--text3)', cursor: 'pointer', lineHeight: 1, padding: 4 }}>×</button>
             </div>
 
             <form onSubmit={submitDepense} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Libellé */}
               <div>
-                <label style={fLb}>Libellé <span style={{ color: '#dc2626' }}>*</span></label>
+                <label style={fLb}>{t('finance.depenseLabelLabel')} <span style={{ color: 'var(--red)' }}>*</span></label>
                 <input
                   type="text"
                   value={depenseForm.label}
                   onChange={e => setDepenseForm(f => ({ ...f, label: e.target.value }))}
-                  placeholder="Ex: Achat de craies, Réparation toiture…"
+                  placeholder={t('finance.depenseLabelPlaceholder')}
                   style={fIn}
-                  onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = '#059669'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-                  onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = '#d4c8b8'; (e.currentTarget as HTMLElement).style.background = '#f0ebe3' }}
+                  onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--green)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface)' }}
+                  onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg2)' }}
                 />
               </div>
 
               {/* Montant */}
               <div>
-                <label style={fLb}>Montant (FCFA) <span style={{ color: '#dc2626' }}>*</span></label>
+                <label style={fLb}>{t('finance.depenseAmountLabel')} <span style={{ color: 'var(--red)' }}>*</span></label>
                 <input
                   type="number"
                   min="1"
                   value={depenseForm.amount}
                   onChange={e => setDepenseForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="Ex: 25000"
+                  placeholder={t('finance.depenseAmountPlaceholder')}
                   style={fIn}
-                  onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = '#059669'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-                  onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = '#d4c8b8'; (e.currentTarget as HTMLElement).style.background = '#f0ebe3' }}
+                  onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--green)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface)' }}
+                  onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg2)' }}
                 />
               </div>
 
               {/* Catégorie */}
               <div>
-                <label style={fLb}>Catégorie <span style={{ color: '#a89478', fontWeight: 600, fontSize: 12 }}>(optionnel)</span></label>
+                <label style={fLb}>{t('finance.depenseCategoryLabel')} <span style={{ color: 'var(--text3)', fontWeight: 600, fontSize: 12 }}>({t('finance.depenseCategoryOptional')})</span></label>
                 <select
                   value={depenseForm.category}
                   onChange={e => setDepenseForm(f => ({ ...f, category: e.target.value }))}
                   style={{ ...fIn, cursor: 'pointer' }}>
-                  <option value="">— Sélectionner —</option>
-                  {DEPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="">{t('finance.depenseCategoryPlaceholder')}</option>
+                  {DEPENSE_CATEGORIES.map(c => <option key={c} value={c}>{t(`finance.${c}`)}</option>)}
                 </select>
               </div>
 
               {/* Date */}
               <div>
-                <label style={fLb}>Date de la dépense <span style={{ color: '#a89478', fontWeight: 600, fontSize: 12 }}>(optionnel)</span></label>
+                <label style={fLb}>{t('finance.depenseDateLabel')} <span style={{ color: 'var(--text3)', fontWeight: 600, fontSize: 12 }}>({t('finance.depenseDateOptional')})</span></label>
                 <input
                   type="date"
                   value={depenseForm.date}
                   onChange={e => setDepenseForm(f => ({ ...f, date: e.target.value }))}
                   style={fIn}
-                  onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = '#059669'; (e.currentTarget as HTMLElement).style.background = 'white' }}
-                  onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = '#d4c8b8'; (e.currentTarget as HTMLElement).style.background = '#f0ebe3' }}
+                  onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--green)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface)' }}
+                  onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border2)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg2)' }}
                 />
               </div>
 
               {/* Erreur dans la modale */}
               {depenseError && (
-                <div style={{ background: '#fee2e2', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 14px', color: '#991b1b', fontSize: 14, fontWeight: 700 }}>
+                <div style={{ background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 14px', color: 'var(--red)', fontSize: 14, fontWeight: 700 }}>
                   ⚠️ {depenseError}
                 </div>
               )}
 
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
                 <button type="button" onClick={() => setDepenseOpen(false)} disabled={depenseSending} style={btnSec}>
-                  Annuler
+                  {t('finance.cancel')}
                 </button>
                 <button type="submit" disabled={depenseSending}
                   style={{ ...btnPrim, opacity: depenseSending ? 0.7 : 1, cursor: depenseSending ? 'wait' : 'pointer' }}>
-                  {depenseSending ? '⏳ Enregistrement…' : '✅ Enregistrer'}
+                  {depenseSending ? t('finance.saving') : t('finance.save')}
                 </button>
               </div>
             </form>
@@ -354,12 +364,12 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '9px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }
-const filterSt: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: '#6b5c45', outline: 'none', fontFamily: 'inherit' }
-const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '12px 14px', fontSize: 15, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
-const fLb: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: '#6b5c45', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }
-const fIn: React.CSSProperties = { width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8', borderRadius: 11, color: '#1a1209', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s', boxSizing: 'border-box' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const btnPrim: React.CSSProperties = { padding: '9px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', outline: 'none', fontFamily: 'inherit' }
+const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '12px 14px', fontSize: 15, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }
+const fLb: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }
+const fIn: React.CSSProperties = { width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s', boxSizing: 'border-box' }

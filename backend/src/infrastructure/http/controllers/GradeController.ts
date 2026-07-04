@@ -11,6 +11,7 @@ import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import type { GradeValidationStatus } from '@domain/types/enums';
+import { resolveLanguage } from '../../../utils/languageHelper';
 import * as XLSX from 'xlsx';
 
 export class GradeController {
@@ -78,10 +79,13 @@ export class GradeController {
         return;
       }
       const user = (req as any).user;
+      const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { subsystem: true } })
+      const lang = resolveLanguage(school?.subsystem)
       await this.rejeterNote.execute({
         noteId: req.params.id as string,
         validateurId: user.userId,
         motif,
+        lang,
       });
       res.json({ success: true, message: 'Note rejetée — enseignant notifié' });
     } catch (error) {

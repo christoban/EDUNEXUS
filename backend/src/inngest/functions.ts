@@ -1,7 +1,7 @@
 ﻿import { inngest } from "./index.ts";
 import { prisma } from "../config/prisma.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
-import { resolveUserLanguage } from "../utils/languageHelper.ts";
+import { resolveLanguage } from "../utils/languageHelper.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { createSchoolBackup, purgeSchoolLogsByRetention } from "../utils/schoolBackup.ts";
 import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms } from "../infrastructure/services/SmsNotificationService.ts";
@@ -490,6 +490,9 @@ export const generateReportCards = inngest.createFunction(
       if (!generatedStudents.length) return { sent: 0 };
       let sent = 0;
 
+      // Sous-système de l'école → langue de base (affinée par la section de l'élève si bilingue).
+      const school = await prisma.school.findUnique({ where: { id: academicYear.schoolId }, select: { subsystem: true } });
+
       for (const stdId of generatedStudents) {
         const student = await prisma.user.findUnique({
           where: { id: stdId },
@@ -500,6 +503,7 @@ export const generateReportCards = inngest.createFunction(
             email: true,
             studentProfile: {
               include: {
+                class: { select: { section: { select: { code: true } } } },
                 parents: {
                   include: {
                     parentProfile: {
@@ -514,18 +518,29 @@ export const generateReportCards = inngest.createFunction(
         if (!student?.email) continue;
 
         const studentName = `${student.firstName} ${student.lastName}`.trim();
+        const lang = resolveLanguage(school?.subsystem, student.studentProfile?.class?.section?.code ?? null);
         const parentEmails = student.studentProfile?.parents
           .map((p) => p.parentProfile?.user?.email)
           .filter((e): e is string => Boolean(e)) ?? [];
+
+        const subject = lang === "fr"
+          ? `Bulletin disponible — ${academicPeriod.name}`
+          : `Report card available — ${academicPeriod.name}`;
+        const html = lang === "fr"
+          ? `<p>Bonjour,<br><br>Le bulletin de <b>${studentName}</b> pour la période <b>${academicPeriod.name}</b> est disponible sur EduNexus.</p>`
+          : `<p>Hello,<br><br>${studentName}'s report card for <b>${academicPeriod.name}</b> is now available on EduNexus.</p>`;
+        const text = lang === "fr"
+          ? `Le bulletin de ${studentName} pour ${academicPeriod.name} est disponible.`
+          : `${studentName}'s report card for ${academicPeriod.name} is available.`;
 
         const recipients = [student.email, ...parentEmails];
         for (const email of recipients) {
           try {
             await sendTransactionalEmail({
               recipientEmail: email,
-              subject: `Bulletin disponible — ${academicPeriod.name}`,
-              html: `<p>Bonjour,<br><br>Le bulletin de <b>${studentName}</b> pour la période <b>${academicPeriod.name}</b> est disponible sur EduNexus.</p>`,
-              text: `Le bulletin de ${studentName} pour ${academicPeriod.name} est disponible.`,
+              subject,
+              html,
+              text,
               template: "report_card_available",
               eventType: "report_card_available",
             });

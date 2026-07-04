@@ -28,9 +28,13 @@ export const getMentionApc = (average: number): string => {
   return "NA";
 };
 
-export const getMention = (average: number, template: string): string => {
+export const getMention = (average: number, template: string, language: "fr" | "en" = "fr"): string => {
   if (template === "EN_SECONDARY") return getMentionEn(average);
-  if (template === "PRIMARY" || template === "MONTHLY") return getMentionApc(average);
+  if (template === "MONTHLY") return getMentionApc(average);
+  // Templates partagés entre sous-systèmes : la langue décide.
+  if (template === "PRIMARY") return language === "en" ? getMentionEn(average) : getMentionApc(average);
+  if (template === "ANNUAL") return language === "en" ? getMentionEn(average) : getMentionFr(average);
+  // FR_SECONDARY, TECHNICAL_FR
   return getMentionFr(average);
 };
 
@@ -235,12 +239,15 @@ export const drawBulletinHeader = (
     totalStudents?: number | null;
     absenceCount?: number;
     template: string;
+    language?: "fr" | "en";
   },
 ) => {
   const {
     schoolName, schoolMotto, logoUrl, studentName, className,
     periodName, yearName, rank, totalStudents, absenceCount, template,
+    language = "fr",
   } = options;
+  const isEn = language === "en";
   const b = pageBounds(doc);
 
   if (logoUrl) {
@@ -253,7 +260,7 @@ export const drawBulletinHeader = (
   }
   doc.moveDown(0.3);
 
-  const LABELS: Record<string, string> = {
+  const LABELS_FR: Record<string, string> = {
     FR_SECONDARY: "BULLETIN DE NOTES",
     EN_SECONDARY: "REPORT CARD",
     TECHNICAL_FR: "BULLETIN TECHNIQUE",
@@ -261,9 +268,23 @@ export const drawBulletinHeader = (
     ANNUAL:       "BULLETIN ANNUEL",
     MONTHLY:      "BULLETIN MENSUEL",
   };
-  doc.fontSize(13).font("Helvetica-Bold").text(LABELS[template] ?? "BULLETIN", { align: "center" });
+  const LABELS_EN: Record<string, string> = {
+    FR_SECONDARY: "REPORT CARD",
+    EN_SECONDARY: "REPORT CARD",
+    TECHNICAL_FR: "TECHNICAL REPORT CARD",
+    PRIMARY:      "PRIMARY REPORT CARD",
+    ANNUAL:       "ANNUAL REPORT CARD",
+    MONTHLY:      "MONTHLY REPORT CARD",
+  };
+  const title = (isEn ? LABELS_EN[template] : LABELS_FR[template]) ?? "BULLETIN";
+  doc.fontSize(13).font("Helvetica-Bold").text(title, { align: "center" });
   doc.fontSize(10).font("Helvetica")
-    .text(`Année scolaire : ${yearName}   |   Période : ${periodName}`, { align: "center" });
+    .text(
+      isEn
+        ? `Academic Year : ${yearName}   |   Term : ${periodName}`
+        : `Année scolaire : ${yearName}   |   Période : ${periodName}`,
+      { align: "center" },
+    );
   doc.moveDown(0.5);
 
   doc.moveTo(b.left, doc.y).lineTo(b.right, doc.y).strokeColor("#334155").lineWidth(0.5).stroke();
@@ -272,9 +293,9 @@ export const drawBulletinHeader = (
   doc.fontSize(10).font("Helvetica-Bold").text("Élève / Student : ", { continued: true });
   doc.font("Helvetica").text(studentName);
   if (rank && totalStudents) {
-    doc.text(`Classe : ${className}   Rang : ${rank} / ${totalStudents}`);
+    doc.text(isEn ? `Class : ${className}   Rank : ${rank} / ${totalStudents}` : `Classe : ${className}   Rang : ${rank} / ${totalStudents}`);
   } else {
-    doc.text(`Classe : ${className}`);
+    doc.text(isEn ? `Class : ${className}` : `Classe : ${className}`);
   }
   if (absenceCount !== undefined) {
     doc.text(`Absences : ${absenceCount}`);
@@ -322,7 +343,7 @@ export const drawBulletinFooter = (
   // Blocs de signature — répartis uniformément sur la largeur réelle de la page
   const sigY = doc.y;
   const sigLabels = language === "fr"
-    ? ["Professeur Principal", "Censeur / VP", "Proviseur", "Visa Parent"]
+    ? ["Professeur Principal", "Censeur", "Proviseur", "Visa Parent"]
     : ["Class Master",         "Vice-Principal", "Principal", "Parent Signature"];
 
   const colW = Math.floor(b.width / sigLabels.length);

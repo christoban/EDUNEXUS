@@ -1,0 +1,140 @@
+{
+  "title": "Finance",
+  "subtitle": "Fee Plans · Invoices · Mobile Money Payments",
+  "tabs": {
+    "plans": "📋 Fee Plans",
+    "invoices": "🧾 Invoices"
+  },
+  "kpi": {
+    "total_billed": "Total Billed",
+    "total_collected": "Collected Amount",
+    "pending": "Pending",
+    "overdue": "Overdue"
+  },
+  "invoice_status": {
+    "PENDING": "Pending",
+    "PAID": "✓ Paid",
+    "OVERDUE": "Overdue",
+    "CANCELLED": "Cancelled",
+    "PARTIAL": "Partial"
+  },
+  "fee_type": {
+    "TUITION": "Tuition",
+    "REGISTRATION": "Registration",
+    "EXAM": "Exam",
+    "UNIFORM": "Uniform",
+    "TRANSPORT": "Transport",
+    "CAUTION": "Caution Deposit",
+    "OTHER": "Other"
+  },
+  "actions": {
+    "create_invoice": "🧾 Create Invoice",
+    "new_plan": "+ New Plan",
+    "generate_invoices": "🧾 Generate Invoices",
+    "edit": "✏️",
+    "view": "👁 View",
+    "filter": "Filter",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "create_plan": "Create Plan",
+    "save": "Save",
+    "create_invoice_action": "Create Invoice",
+    "generate": "🧾 Generate"
+  },
+  "loading": {
+    "creating": "Creating…",
+    "saving": "Saving…",
+    "generating": "Generating…"
+  },
+  "modals": {
+    "create_fee_plan": {
+      "title": "Create Fee Plan",
+      "name_label": "Name *",
+      "name_placeholder": "e.g. Tuition 2025-2026 — 3rd Grade",
+      "amount_label": "Amount (FCFA) *",
+      "amount_placeholder": "75000",
+      "type_label": "Type",
+      "description_label": "Description",
+      "description_placeholder": "Optional",
+      "due_date_label": "Due Date",
+      "refundable_label": "Refundable (Caution)"
+    },
+    "edit_fee_plan": {
+      "title": "Edit Plan",
+      "name_label": "Name *",
+      "amount_label": "Amount *",
+      "type_label": "Type",
+      "description_label": "Description",
+      "due_date_label": "Due Date"
+    },
+    "create_invoice": {
+      "title": "Create Invoice",
+      "student_label": "Student *",
+      "student_placeholder": "Select a student…",
+      "plan_label": "Fee Plan *",
+      "plan_placeholder": "Select a plan…",
+      "description_label": "Description (optional)",
+      "description_placeholder": "e.g. First term tuition fees"
+    },
+    "bulk_generate": {
+      "title": "Generate Invoices",
+      "year_label": "Academic Year *",
+      "year_placeholder": "Select…",
+      "warning": "⚠️ An invoice will be generated for each enrolled student. This action can be undone invoice by invoice."
+    }
+  },
+  "table_headers": {
+    "student": "Student",
+    "plan": "Plan",
+    "amount": "Amount",
+    "status": "Status",
+    "paid": "Paid",
+    "date": "Date",
+    "actions": "Actions"
+  },
+  "empty_states": {
+    "no_plans_title": "No fee plans",
+    "no_plans_description": "Create fee plans to start generating invoices.",
+    "no_plans_action": "+ Create a Plan",
+    "no_invoices": "No invoices",
+    "no_invoices_with_status": "No invoices with status « {status} »"
+  },
+  "totals": {
+    "factures": "{count} invoice(s)",
+    "page_info": "Page {page}/{pages}"
+  },
+  "toasts": {
+    "plan_created": "Plan \"{name}\" created",
+    "plan_modified": "Plan modified",
+    "invoices_generated": "{count} invoices generated",
+    "invoice_created": "Invoice created successfully",
+    "feature_coming_soon": "Feature coming soon"
+  },
+  "filters": {
+    "all_statuses": "All statuses",
+    "pending": "Pending",
+    "paid": "Paid",
+    "overdue": "Overdue",
+    "partial": "Partial",
+    "cancelled": "Cancelled"
+  },
+  "pagination": {
+    "previous": "← Prev.",
+    "next": "Next →"
+  },
+  "badges": {
+    "level": "Level {level}",
+    "refundable": "Refundable",
+    "due_date": "Due {date}"
+  },
+  "errors": {
+    "server_error": "Server error",
+    "generic_error": "Error",
+    "name_and_amount_required": "Name and amount are required",
+    "select_year": "Please select an academic year",
+    "select_student_and_plan": "Please select a student and a fee plan.",
+    "payment_in_progress": "A payment is already in progress for this student.",
+    "legal_threshold_exceeded": "⚠ The Cameroonian legal contribution limit would be exceeded for this student. Check the fee plan amount.",
+    "separation_ordinator": "⚠ Separation of duties violation. The authorizing officer cannot be the accounting officer."
+  }
+}

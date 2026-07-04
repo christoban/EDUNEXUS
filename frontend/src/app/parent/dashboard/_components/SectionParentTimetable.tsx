@@ -4,13 +4,13 @@ import type { ChildWithStats } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import OfflineEmptyState from '@/components/OfflineEmptyState'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
   userId?: string
 }
 
-const DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi']
 const TIMES = ['07:30', '08:30', '09:30', '10:30', '12:00', '13:00', '14:00']
 const TIMES_END = ['08:30', '09:30', '10:30', '11:30', '13:00', '14:00', '15:00']
 
@@ -22,19 +22,19 @@ interface TimetableData {
   classNames: Record<string, string>
 }
 
-function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+function CacheBadge({ cachedAt, label }: { cachedAt: number | null; label: string }) {
   if (!cachedAt) return null
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
-    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      📦 Données du {date} — hors-ligne
+    <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      {label.replace('{date}', date)}
     </div>
   )
 }
 
 function buildSlots(data: any[]): Record<string, SlotType> {
   const slotMap: Record<string, SlotType> = {}
-  const colors = ['#059669', '#1d4ed8', '#7c3aed', '#d97706', '#0d9488', '#dc2626', '#ea580c']
+  const colors = ['var(--green)', 'var(--blue)', 'var(--purple)', 'var(--amber)', 'var(--teal)', 'var(--red)', 'var(--orange)']
   let colorIdx = 0
   const subjectColors: Record<string, string> = {}
   data.forEach((tt: any) => {
@@ -46,7 +46,7 @@ function buildSlots(data: any[]): Record<string, SlotType> {
       slotMap[`${s.dayOfWeek}-${startIdx}`] = {
         subject: subName,
         teacher: s.teacher ? `${s.teacher.firstName} ${s.teacher.lastName}` : '',
-        color: subjectColors[subName] || '#059669',
+        color: subjectColors[subName] || 'var(--green)',
       }
     })
   })
@@ -54,12 +54,13 @@ function buildSlots(data: any[]): Record<string, SlotType> {
 }
 
 export default function SectionParentTimetable({ onToast, userId }: Props) {
+  const t = useT('parent')
   const [selectedChild, setSelectedChild] = useState(0)
 
   const cacheKey = userId ? `parent:timetable:${userId}` : ''
   const fetchFn = useCallback(async (): Promise<TimetableData> => {
     const childrenRes = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
-    if (!childrenRes.success) throw new Error('Erreur de chargement des enfants')
+    if (!childrenRes.success) throw new Error(t('children.errorLoadChildren'))
     const children: ChildWithStats[] = childrenRes.data
 
     const slotsByChild: Record<string, Record<string, SlotType>> = {}
@@ -77,7 +78,7 @@ export default function SectionParentTimetable({ onToast, userId }: Props) {
     }))
 
     return { children, slotsByChild, classNames }
-  }, [userId])
+  }, [userId, t])
 
   const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<TimetableData>(cacheKey, fetchFn)
 
@@ -88,13 +89,13 @@ export default function SectionParentTimetable({ onToast, userId }: Props) {
     const friday = new Date(monday)
     friday.setDate(monday.getDate() + 4)
     const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-    return `Semaine du ${fmt(monday)} au ${fmt(friday)}`
+    return t('timetable.weekRange').replace('{start}', fmt(monday)).replace('{end}', fmt(friday))
   }
 
   if (loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{t('loading')}</div>
       </div>
     )
   }
@@ -105,10 +106,10 @@ export default function SectionParentTimetable({ onToast, userId }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={refetch}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('retry')}
           </button>
         </div>
       </div>
@@ -119,53 +120,54 @@ export default function SectionParentTimetable({ onToast, userId }: Props) {
   const child = children[selectedChild]
   const slots = child ? (data?.slotsByChild[child.studentId] ?? {}) : {}
   const className = child ? (data?.classNames[child.studentId] ?? '') : ''
+  const DAYS = t('timetable.days').split(',')
 
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       <div style={{ marginBottom: fromCache ? 8 : 26 }}>
-        <div style={sTitle}>Emploi du temps</div>
+        <div style={sTitle}>{t('timetable.title')}</div>
         <div style={sSub}>{className} · {getWeekRange()}</div>
       </div>
 
-      {fromCache && <CacheBadge cachedAt={cachedAt} />}
+      {fromCache && <CacheBadge cachedAt={cachedAt} label={t('cacheBadge')} />}
 
       {children.length > 1 && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
           {children.map((c, i) => (
             <button key={c.studentId} onClick={() => setSelectedChild(i)}
-              style={{ padding: '8px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', transition: 'all 0.12s', background: selectedChild === i ? '#d1fae5' : 'white', borderColor: selectedChild === i ? '#059669' : '#d4c8b8', color: selectedChild === i ? '#065f46' : '#6b5c45' }}>
+              style={{ padding: '8px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', transition: 'all 0.12s', background: selectedChild === i ? 'var(--green-light)' : 'white', borderColor: selectedChild === i ? 'var(--green)' : 'var(--border2)', color: selectedChild === i ? 'var(--green)' : 'var(--text2)' }}>
               {c.prenom} {c.nom}
             </button>
           ))}
         </div>
       )}
 
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
             <thead>
               <tr>
-                <th style={{ ...thSt, width: 100 }}>Horaire</th>
-                {DAYS.map(d => <th key={d} style={thSt}>{d}</th>)}
+                <th style={{ ...thSt, width: 100 }}>{t('timetable.schedule')}</th>
+                {DAYS.map((d, i) => <th key={i} style={thSt}>{d}</th>)}
               </tr>
             </thead>
             <tbody>
               {TIMES.map((time, ti) => (
                 <tr key={ti}>
-                  <td style={{ padding: '10px 11px', background: '#f0ebe3', fontSize: 13, fontWeight: 800, color: '#a89478', textAlign: 'center', border: '1px solid #e8e0d4', whiteSpace: 'nowrap' }}>
-                    {time}<br /><span style={{ fontSize: 11, color: '#d4c8b8' }}>{TIMES_END[ti]}</span>
+                  <td style={{ padding: '10px 11px', background: 'var(--bg2)', fontSize: 13, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    {time}<br /><span style={{ fontSize: 11, color: 'var(--border2)' }}>{TIMES_END[ti]}</span>
                   </td>
                   {DAYS.map((_, di) => {
                     const slot = slots[`${di}-${ti}`]
                     return (
-                      <td key={di} style={{ padding: 0, border: '1px solid #e8e0d4', verticalAlign: 'top', minWidth: 140, height: 76 }}>
+                      <td key={di} style={{ padding: 0, border: '1px solid var(--border)', verticalAlign: 'top', minWidth: 140, height: 76 }}>
                         {slot ? (
                           <div style={{ padding: 10, height: '100%', background: `${slot.color}12`, borderLeft: `3px solid ${slot.color}` }}>
                             <div style={{ fontSize: 14, fontWeight: 800, color: slot.color }}>{slot.subject}</div>
-                            <div style={{ fontSize: 12, color: '#a89478', marginTop: 3 }}>{slot.teacher}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>{slot.teacher}</div>
                           </div>
                         ) : (
-                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d4c8b8', fontSize: 20 }}>·</div>
+                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--border2)', fontSize: 20 }}>·</div>
                         )}
                       </td>
                     )
@@ -180,6 +182,6 @@ export default function SectionParentTimetable({ onToast, userId }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const thSt: React.CSSProperties = { padding: '11px 10px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', border: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.5px' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const thSt: React.CSSProperties = { padding: '11px 10px', textAlign: 'center', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.5px' }

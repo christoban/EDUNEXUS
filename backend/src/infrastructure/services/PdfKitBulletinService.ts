@@ -33,6 +33,7 @@ export class PdfKitBulletinService implements PdfService {
       mention: contexte.bulletin.mention ?? '',
       classMasterComment: contexte.bulletin.classMasterComment ?? null,
       isOfficial: contexte.bulletin.validationStatus === 'GENERATED',
+      language: contexte.langue ?? 'fr',
       subjectLines: contexte.bulletin.lignesMatiere.map(this.mapperLigne),
     };
   }

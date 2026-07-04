@@ -18,6 +18,7 @@ export interface CalculerIndiceSanteCommande {
   schoolId: string;
   academicYearId: string;
   sauvegarderScore?: boolean; // Si true → persiste le score dans studentProfile
+  langue?: 'fr' | 'en';       // langue des recommandations IA (résolue par l'appelant via resolveLanguage)
 }
 
 export class CalculerIndiceSanteUseCase {
@@ -71,6 +72,7 @@ export class CalculerIndiceSanteUseCase {
       tendanceMoyennes: donnees.moyennesPrecedentes,
       nombreSanctions: donnees.nombreSanctions,
       tauxPaiement: scorePaiements,
+      langue: commande.langue,
     });
 
     // 5. Sauvegarder si demandé

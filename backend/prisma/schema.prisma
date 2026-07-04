@@ -156,6 +156,8 @@ model SchoolConfig {
   offlineModeEnabled               Boolean          @default(true)
   aiAlertsEnabled                  Boolean          @default(true)
   messageModeration                Boolean          @default(false)
+  /// Redondant avec School.subsystem. Utilisé par l'API SchoolSettings (frontend + locale auto-dérivation).
+  /// La résolution de langue RUNTIME utilise School.subsystem via resolveLanguage() — NE PAS utiliser pour la langue.
   schoolLanguageMode               String           @default("francophone")
   attendanceLateAsAbsence          Boolean          @default(false)
   bulletinBlockOnUnpaidFees        Boolean          @default(false)
@@ -180,6 +182,8 @@ model SchoolSettings {
   id        String   @id @default(cuid())
   schoolId  String   @unique
   timezone  String   @default("Africa/Douala")
+  /// Locale régionale pour le formatage (dates, nombres, monnaie). Ne détermine PAS la langue d'affichage.
+  /// La langue d'affichage est résolue par resolveLanguage(subsystem, sectionCode).
   locale    String   @default("fr-CM")
   currency  String   @default("XAF")
   lastBackupAt   DateTime?
@@ -317,11 +321,28 @@ model StudentProfile {
   healthScore         Int?                        @default(75)
   pebsFiliere         String?
   photoUrl            String?
+  lv2SubjectId        String?
   parents             ParentStudent[]
   class               Class?                      @relation(fields: [classId], references: [id])
+  lv2Subject          Subject?                    @relation("StudentLV2", fields: [lv2SubjectId], references: [id])
   user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   subGroupAssignments StudentSubGroupAssignment[]
+  alevelSubjects      StudentALevelSubject[]
   verifiableDocuments VerifiableDocument[]
+}
+
+// Choix individuel des matières A-Level par élève (max 5, min 3 — GCE Advanced Level).
+// Même philosophie que lv2SubjectId : la matière appartient à l'élève, pas à la classe.
+model StudentALevelSubject {
+  id        String         @id @default(cuid())
+  studentId String
+  subjectId String
+  createdAt DateTime       @default(now())
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject        @relation("SubjectALevelStudents", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([subjectId])
 }
 
 model TeacherProfile {
@@ -621,6 +642,7 @@ model Subject {
   createdAt              DateTime                @default(now())
   subjectType            SubjectType             @default(THEORETICAL)
   departmentId           String?
+  isLV2                  Boolean                 @default(false)
   exams                  Exam[]
   grades                 Grade[]
   attendances            Attendance[]
@@ -634,6 +656,8 @@ model Subject {
   department             Department?             @relation(fields: [departmentId], references: [id])
   programmes             Programme[]
   cahierDeTexte          CahierDeTexte[]
+  lv2Students            StudentProfile[]        @relation("StudentLV2")
+  alevelStudents         StudentALevelSubject[]  @relation("SubjectALevelStudents")
 
   @@index([schoolId])
 }
@@ -889,6 +913,8 @@ model TimetableSlot {
   room        String?
   kind        SlotKind  @default(CLASS)
   subGroupId  String?
+  isLV2Slot   Boolean   @default(false)
+  isElectiveSlot Boolean @default(false)
   subGroup    ClassSubGroup? @relation(fields: [subGroupId], references: [id])
   subject     Subject?  @relation(fields: [subjectId], references: [id])
   teacher     User?     @relation("TeacherSlots", fields: [teacherId], references: [id])
@@ -1943,4 +1969,26 @@ model CahierDeTexte {
   @@index([classId])
   @@index([subjectId])
   @@index([academicYearId])
+}
+
+/// Journal des actions exécutées par l'assistant IA (copilot) dans l'interface.
+/// Permet la confirmation des actions destructives et l'annulation (undo) des
+/// actions non-destructives dans une fenêtre de temps limitée.
+model AssistantActionLog {
+  id          String    @id @default(uuid())
+  schoolId    String
+  userId      String
+  actionType  String
+  parameters  Json
+  destructive Boolean   @default(false)
+  status      String    @default("EXECUTED") // EXECUTED | UNDONE | PENDING_CONFIRMATION
+  undoable    Boolean   @default(true)
+  undoData    Json? // snapshot nécessaire à l'annulation (ex. ancien prof principal)
+  resultLabel String? // résumé lisible affiché dans le chat
+  executedAt  DateTime  @default(now())
+  undoneAt    DateTime?
+
+  @@index([schoolId])
+  @@index([userId])
+  @@index([status])
 }

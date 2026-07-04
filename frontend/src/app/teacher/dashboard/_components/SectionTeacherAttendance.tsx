@@ -4,6 +4,7 @@ import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { db } from '@/lib/offline/db'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -16,14 +17,24 @@ const ATT_SHORT: Record<string, 'P' | 'A' | 'R' | 'E'> = {
   PRESENT: 'P', ABSENT: 'A', LATE: 'R', EXCUSED: 'E',
 }
 
-const ATT_STYLE: Record<string, { selBg: string; selBorder: string; selColor: string; label: string; title: string }> = {
-  P: { selBg: '#d1fae5', selBorder: '#059669', selColor: '#065f46', label: '✓', title: 'Présent' },
-  A: { selBg: '#fee2e2', selBorder: '#dc2626', selColor: '#991b1b', label: '✗', title: 'Absent' },
-  R: { selBg: '#fef3c7', selBorder: '#d97706', selColor: '#92400e', label: '~', title: 'Retard' },
-  E: { selBg: '#dbeafe', selBorder: '#1d4ed8', selColor: '#1e40af', label: 'E', title: 'Excusé' },
+const ATT_STYLE: Record<string, { selBg: string; selBorder: string; selColor: string; label: string }> = {
+  P: { selBg: 'var(--green-light)', selBorder: 'var(--green)', selColor: 'var(--green)', label: '✓' },
+  A: { selBg: 'var(--red-light)', selBorder: 'var(--red)', selColor: 'var(--red)', label: '✗' },
+  R: { selBg: 'var(--amber-light)', selBorder: 'var(--amber)', selColor: 'var(--amber)', label: '~' },
+  E: { selBg: 'var(--blue-light)', selBorder: 'var(--blue)', selColor: 'var(--blue)', label: 'E' },
+}
+
+const ATT_TITLE_KEY: Record<string, string> = {
+  P: 'attendance.stats_present',
+  A: 'attendance.stats_absent',
+  R: 'attendance.stats_late',
+  E: 'attendance.stats_excused',
 }
 
 export default function SectionTeacherAttendance({ onToast, user }: Props) {
+  const t = useT('teacher')
+  const tcommon = useT('common')
+  const attTitle = (code: string) => t(ATT_TITLE_KEY[code] || code)
   const [classes, setClasses] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [selectedClass, setSelectedClass] = useState('')
@@ -33,6 +44,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
   const [statuses, setStatuses] = useState<Record<string, AttStatus>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [rosterLabel, setRosterLabel] = useState<string | null>(null)
 
   const { isOnline, addToQueue } = useSyncQueue()
 
@@ -63,46 +75,62 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
   }, [])
 
   const loadAttendance = async () => {
-    if (!selectedClass) { onToast('Sélectionne une classe', 'warning'); return }
+    if (!selectedClass) { onToast(t('attendance.toast_select_class'), 'warning'); return }
     setLoading(true)
     setError(null)
+    setRosterLabel(null)
     try {
       if (!isOnline) {
         const cached = await db.cachedData.get(`teacher:students:${selectedClass}`)
         if (cached) {
           setStudents(cached.data as any[])
           setStatuses({})
-          onToast('Mode hors-ligne — données en cache', 'info')
+          onToast(t('attendance.toast_offline_cache'), 'info')
         } else {
           setStudents([])
-          onToast('Aucune donnée en cache pour cette classe', 'warning')
+          onToast(t('attendance.toast_no_cache'), 'warning')
         }
         return
       }
 
       const res = await fetchApi(`/api/v2/attendance?classId=${selectedClass}&date=${selectedDate}`, { credentials: 'include' }).then(r => r.json())
+      const mapped: Record<string, AttStatus> = {}
+      let studentList: any[] = []
       if (res.records?.length) {
-        const mapped: Record<string, AttStatus> = {}
         res.records.forEach((r: any) => { mapped[r.studentId] = r.status as AttStatus })
-        const studentList = res.records.map((r: any) => ({ id: r.studentId, name: r.student?.name || 'Inconnu', ...r.student }))
-        setStudents(studentList)
-        setStatuses(mapped)
-        await db.cachedData.put({ key: `teacher:students:${selectedClass}`, data: studentList, cachedAt: Date.now() })
+          studentList = res.records.map((r: any) => ({ id: r.studentId, name: r.student?.name || t('grades_section.unknown_student'), ...r.student }))
       } else {
         const usersRes = await fetchApi(`/api/v2/users?role=STUDENT&classId=${selectedClass}`, { credentials: 'include' }).then(r => r.json())
         if (usersRes.success && usersRes.data.length) {
-          const studentList = usersRes.data.map((u: any) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`.trim() }))
-          setStudents(studentList)
-          setStatuses({})
-          await db.cachedData.put({ key: `teacher:students:${selectedClass}`, data: studentList, cachedAt: Date.now() })
-        } else {
-          setStudents([])
-          setStatuses({})
-          onToast('Aucun élève trouvé pour cette classe', 'info')
+          studentList = usersRes.data.map((u: any) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`.trim() }))
         }
       }
+
+      // Créneau électif (LV2 ou A-Level) : restreindre à la liste filtrée + en-tête
+      let filteredRoster = false
+      if (selectedSubject) {
+        try {
+          const roster = await fetchApi(`/api/v2/teacher/roster?classId=${selectedClass}&subjectId=${selectedSubject}`, { credentials: 'include' }).then(r => r.json())
+          if (roster?.success && roster.data.filtered) {
+            studentList = roster.data.students.map((s: any) => ({ id: s.id, name: s.name, className: s.className }))
+            setRosterLabel(roster.data.label)
+            filteredRoster = true
+            // Restreindre les statuts pré-chargés aux seuls élèves du roster
+            const allowed = new Set<string>(roster.data.students.map((s: any) => s.id))
+            for (const k of Object.keys(mapped)) if (!allowed.has(k)) delete mapped[k]
+          }
+        } catch { /* réseau : on garde la liste complète */ }
+      }
+
+      setStudents(studentList)
+      setStatuses(mapped)
+      if (studentList.length === 0) onToast(t('attendance.toast_no_students'), 'info')
+      // Ne pas écraser le cache classe complète avec une liste élective filtrée
+      if (!filteredRoster) {
+        await db.cachedData.put({ key: `teacher:students:${selectedClass}`, data: studentList, cachedAt: Date.now() })
+      }
     } catch (err: any) {
-      setError(err.message || 'Erreur de chargement')
+      setError(err.message || tcommon('status.error'))
     } finally {
       setLoading(false)
     }
@@ -112,7 +140,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
     setStatuses(p => ({ ...p, [id]: p[id] === s ? null : s }))
 
   const saveAttendance = async () => {
-    if (!selectedClass || !students.length) { onToast('Rien à sauvegarder', 'warning'); return }
+    if (!selectedClass || !students.length) { onToast(t('attendance.toast_nothing_save'), 'warning'); return }
     const presences = Object.entries(statuses)
       .filter(([, v]) => v !== null)
       .map(([studentId, statut]) => ({ studentId, statut }))
@@ -158,7 +186,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
   if (loading && !students.length) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>Chargement...</div>
       </div>
     )
   }
@@ -167,9 +195,9 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={loadAttendance}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
             🔄 Réessayer
           </button>
         </div>
@@ -187,14 +215,14 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
       </div>
 
       {!isOnline && (
-        <div style={{ background: '#fef3c7', border: '1.5px solid #d97706', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 18 }}>📶</span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#92400e' }}>Mode hors-ligne — les présences seront synchronisées à la reconnexion</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>Mode hors-ligne — les présences seront synchronisées à la reconnexion</span>
         </div>
       )}
 
       {/* Filtres */}
-      <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '14px 22px', marginBottom: 18, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '14px 22px', marginBottom: 18, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <select style={filterSt} value={selectedClass} onChange={e => setSelectedClass(e.target.value)}>
           <option value="">Sélectionne une classe</option>
           {classes.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -208,15 +236,22 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
         <button style={btnPrim} onClick={loadAttendance} disabled={loading}>Charger</button>
       </div>
 
+      {rosterLabel && (
+        <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>🎯</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--blue)' }}>{rosterLabel}</span>
+        </div>
+      )}
+
       {students.length > 0 && (
         <>
           {/* Stats rapides */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 18 }}>
             {[
-              { label: 'Présents', count: counts.P, bg: '#d1fae5', color: '#065f46' },
-              { label: 'Absents',  count: counts.A, bg: '#fee2e2', color: '#991b1b' },
-              { label: 'Retards',  count: counts.R, bg: '#fef3c7', color: '#92400e' },
-              { label: 'Excusés',  count: counts.E, bg: '#dbeafe', color: '#1e40af' },
+              { label: 'Présents', count: counts.P, bg: 'var(--green-light)', color: 'var(--green)' },
+              { label: 'Absents',  count: counts.A, bg: 'var(--red-light)', color: 'var(--red)' },
+              { label: 'Retards',  count: counts.R, bg: 'var(--amber-light)', color: 'var(--amber)' },
+              { label: 'Excusés',  count: counts.E, bg: 'var(--blue-light)', color: 'var(--blue)' },
             ].map((s, i) => (
               <div key={i} style={{ flex: 1, background: s.bg, borderRadius: 13, padding: '12px 16px', textAlign: 'center' }}>
                 <div style={{ fontSize: 28, fontWeight: 900, color: s.color }}>{s.count}</div>
@@ -226,10 +261,10 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
           </div>
 
           {/* Table présences */}
-          <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
-            <div style={{ padding: '12px 22px', borderBottom: '1px solid #e8e0d4' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 22px', borderBottom: '1px solid var(--border)' }}>
               <button
-                style={{ fontSize: 15, fontWeight: 800, color: '#059669', border: '1.5px solid rgba(5,150,105,0.3)', background: '#d1fae5', cursor: 'pointer', padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit' }}
+                style={{ fontSize: 15, fontWeight: 800, color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.3)', background: 'var(--green-light)', cursor: 'pointer', padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit' }}
                 onClick={() => {
                   const all: Record<string, AttStatus> = {}
                   students.forEach(s => { all[s.id] = 'PRESENT' })
@@ -244,7 +279,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
                   <th style={thSt}>N°</th>
                   <th style={thSt}>Élève</th>
                   {(['P', 'A', 'R', 'E'] as const).map(s => (
-                    <th key={s} style={{ ...thSt, textAlign: 'center' }}>{ATT_STYLE[s].title}</th>
+                    <th key={s} style={{ ...thSt, textAlign: 'center' }}>{attTitle(s)}</th>
                   ))}
                 </tr>
               </thead>
@@ -253,10 +288,13 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
                   const shortStatus = ATT_SHORT[statuses[student.id] || ''] || null
                   return (
                     <tr key={student.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                      <td style={{ ...tdSt, color: '#a89478', width: 44 }}>{i + 1}</td>
-                      <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{student.name}</td>
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, color: 'var(--text3)', width: 44 }}>{i + 1}</td>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                        {student.name}
+                        {rosterLabel && student.className && <span style={{ fontWeight: 600, color: 'var(--text3)', fontSize: 14 }}> ({student.className})</span>}
+                      </td>
                       {(['P', 'A', 'R', 'E'] as const).map(s => {
                         const sel = shortStatus === s
                         const st = ATT_STYLE[s]
@@ -267,14 +305,14 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
                                 const mapping: Record<string, AttStatus> = { P: 'PRESENT', A: 'ABSENT', R: 'LATE', E: 'EXCUSED' }
                                 toggle(student.id, sel ? null : (mapping[s] as AttStatus))
                               }}
-                              title={st.title}
+                              title={attTitle(s)}
                               style={{
                                 width: 36, height: 36, borderRadius: 9, fontSize: 17,
                                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                 cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800,
-                                border: `1.5px solid ${sel ? st.selBorder : '#d4c8b8'}`,
+                                border: `1.5px solid ${sel ? st.selBorder : 'var(--border2)'}`,
                                 background: sel ? st.selBg : 'white',
-                                color: sel ? st.selColor : '#a89478',
+                                color: sel ? st.selColor : 'var(--text3)',
                                 transition: 'all 0.1s'
                               }}>
                               {st.label}
@@ -287,7 +325,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
                 })}
               </tbody>
             </table>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #e8e0d4', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button style={btnPrim} onClick={saveAttendance} disabled={loading}>
                 {loading ? '💾 Sauvegarde...' : isOnline ? '✅ Enregistrer les présences' : '📶 Mettre en file d\'attente'}
               </button>
@@ -297,19 +335,19 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
       )}
 
       {!loading && students.length === 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: 48, textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Sélectionne une classe et clique sur Charger</div>
-          <div style={{ fontSize: 14, color: '#a89478' }}>Pour saisir les présences du jour</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Sélectionne une classe et clique sur Charger</div>
+          <div style={{ fontSize: 14, color: 'var(--text3)' }}>Pour saisir les présences du jour</div>
         </div>
       )}
     </div>
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const filterSt: React.CSSProperties = { background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: '#6b5c45', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }

@@ -1,0 +1,140 @@
+{
+  "title": "Finance",
+  "subtitle": "Plans de frais · Factures · Paiements Mobile Money",
+  "tabs": {
+    "plans": "📋 Plans de frais",
+    "invoices": "🧾 Factures"
+  },
+  "kpi": {
+    "total_billed": "Total facturé",
+    "total_collected": "Montant encaissé",
+    "pending": "En attente",
+    "overdue": "En retard"
+  },
+  "invoice_status": {
+    "PENDING": "En attente",
+    "PAID": "✓ Payée",
+    "OVERDUE": "En retard",
+    "CANCELLED": "Annulée",
+    "PARTIAL": "Partielle"
+  },
+  "fee_type": {
+    "TUITION": "Scolarité",
+    "REGISTRATION": "Inscription",
+    "EXAM": "Examen",
+    "UNIFORM": "Uniforme",
+    "TRANSPORT": "Transport",
+    "CAUTION": "Caution",
+    "OTHER": "Autre"
+  },
+  "actions": {
+    "create_invoice": "🧾 Créer une facture",
+    "new_plan": "+ Nouveau plan",
+    "generate_invoices": "🧾 Générer factures",
+    "edit": "✏️",
+    "view": "👁 Voir",
+    "filter": "Filtrer",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "create_plan": "Créer le plan",
+    "save": "Enregistrer",
+    "create_invoice_action": "Créer la facture",
+    "generate": "🧾 Générer"
+  },
+  "loading": {
+    "creating": "Création…",
+    "saving": "Enregistrement…",
+    "generating": "Génération…"
+  },
+  "modals": {
+    "create_fee_plan": {
+      "title": "Créer un plan de frais",
+      "name_label": "Nom *",
+      "name_placeholder": "Ex: Scolarité 2025-2026 — 3ème",
+      "amount_label": "Montant (FCFA) *",
+      "amount_placeholder": "75000",
+      "type_label": "Type",
+      "description_label": "Description",
+      "description_placeholder": "Optionnel",
+      "due_date_label": "Date d'échéance",
+      "refundable_label": "Remboursable (caution)"
+    },
+    "edit_fee_plan": {
+      "title": "Modifier le plan",
+      "name_label": "Nom *",
+      "amount_label": "Montant *",
+      "type_label": "Type",
+      "description_label": "Description",
+      "due_date_label": "Échéance"
+    },
+    "create_invoice": {
+      "title": "Créer une facture",
+      "student_label": "Élève *",
+      "student_placeholder": "Sélectionner un élève…",
+      "plan_label": "Plan de frais *",
+      "plan_placeholder": "Sélectionner un plan…",
+      "description_label": "Description (optionnel)",
+      "description_placeholder": "Ex : Frais de scolarité trimestre 1"
+    },
+    "bulk_generate": {
+      "title": "Générer les factures",
+      "year_label": "Année scolaire *",
+      "year_placeholder": "Sélectionner…",
+      "warning": "⚠️ Une facture sera générée pour chaque élève inscrit. Cette action peut être annulée facture par facture."
+    }
+  },
+  "table_headers": {
+    "student": "Élève",
+    "plan": "Plan",
+    "amount": "Montant",
+    "status": "Statut",
+    "paid": "Payé",
+    "date": "Date",
+    "actions": "Actions"
+  },
+  "empty_states": {
+    "no_plans_title": "Aucun plan de frais",
+    "no_plans_description": "Créez des plans de frais pour pouvoir générer des factures.",
+    "no_plans_action": "+ Créer un plan",
+    "no_invoices": "Aucune facture",
+    "no_invoices_with_status": "Aucune facture avec le statut « {status} »"
+  },
+  "totals": {
+    "factures": "{count} facture(s)",
+    "page_info": "Page {page}/{pages}"
+  },
+  "toasts": {
+    "plan_created": "Plan \"{name}\" créé",
+    "plan_modified": "Plan modifié",
+    "invoices_generated": "{count} factures générées",
+    "invoice_created": "Facture créée avec succès",
+    "feature_coming_soon": "Fonctionnalité à venir"
+  },
+  "filters": {
+    "all_statuses": "Tous les statuts",
+    "pending": "En attente",
+    "paid": "Payées",
+    "overdue": "En retard",
+    "partial": "Partielles",
+    "cancelled": "Annulées"
+  },
+  "pagination": {
+    "previous": "← Préc.",
+    "next": "Suiv. →"
+  },
+  "badges": {
+    "level": "Niveau {level}",
+    "refundable": "Remboursable",
+    "due_date": "Échéance {date}"
+  },
+  "errors": {
+    "server_error": "Erreur serveur",
+    "generic_error": "Erreur",
+    "name_and_amount_required": "Nom et montant obligatoires",
+    "select_year": "Sélectionnez une année scolaire",
+    "select_student_and_plan": "Veuillez sélectionner un élève et un plan de frais.",
+    "payment_in_progress": "Un paiement est déjà en cours pour cet élève.",
+    "legal_threshold_exceeded": "⚠ La contribution légale camerounaise serait dépassée pour cet élève. Vérifiez le montant du plan de frais.",
+    "separation_ordinator": "⚠ Violation de la règle ordonnateur/comptable. L'ordonnateur ne peut pas être le comptable."
+  }
+}

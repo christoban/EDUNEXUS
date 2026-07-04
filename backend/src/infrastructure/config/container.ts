@@ -218,7 +218,7 @@ export function creerContainer() {
   const genererBulletinUseCase = new GenererBulletinUseCase(
     noteRepository, bulletinRepository, classeRepository,
     userRepository, matiereRepository, anneeRepository,
-    presenceRepository, pdfService, classCouncilRepository
+    presenceRepository, pdfService, classCouncilRepository, prisma
   );
   const envoyerBulletinsUseCase = new EnvoyerBulletinsUseCase(
     bulletinRepository, userRepository, emailService

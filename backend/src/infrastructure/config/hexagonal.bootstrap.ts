@@ -47,6 +47,8 @@ import { DashboardController } from '@infrastructure/http/controllers/DashboardC
 import { EmailLogController } from '@infrastructure/http/controllers/EmailLogController';
 import { SearchController } from '@infrastructure/http/controllers/SearchController';
 import { AIController } from '@infrastructure/http/controllers/AIController';
+import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
+import { buildAdminActionCatalog } from '@application/assistant/adminActionCatalog';
 import { CoreDomainController } from '@infrastructure/http/controllers/CoreDomainController';
 import { PublicController } from '@infrastructure/http/controllers/PublicController';
 import { SMSController } from '@infrastructure/http/controllers/SMSController';
@@ -68,6 +70,10 @@ import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.rout
 import { HRController } from '@infrastructure/http/controllers/HRController';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
 import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
+import { ConfigurerEtablissementUseCase } from '@application/school/ConfigurerEtablissementUseCase';
+import { AffecterMatieresALevelEleveUseCase } from '@application/student/AffecterMatieresALevelEleveUseCase';
+import { PreremplirDepuisCombinaisonUseCase } from '@application/student/PreremplirDepuisCombinaisonUseCase';
+import { GetElevesParMatiereALevelUseCase } from '@application/student/GetElevesParMatiereALevelUseCase';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { getStaffTitlesForTemplate } from '@domain/rules/StaffPermissionRules';
 import {
@@ -129,6 +135,37 @@ export function bootstrapHexagonal(app: Application): void {
   app.get('/api/v2/onboarding/invite/:token', inviteOnboardingController.validateInvite);
   app.post('/api/v2/onboarding/invite/:token/complete', inviteOnboardingController.completeOnboarding);
   app.post('/api/v2/onboarding/preview-structure', inviteOnboardingController.previewStructure);
+
+  // Combinaisons de matières anglophones (Sixth Form) — source unique de vérité pour l'onboarding.
+  // Données EXCLUSIVEMENT issues de AnglophoneStreamCombination (jamais de valeurs hardcodées).
+  app.get('/api/v2/onboarding/anglophone-streams', async (_req, res, next) => {
+    try {
+      const combos = await prisma.anglophoneStreamCombination.findMany({
+        orderBy: { filiere: 'asc' },
+      });
+      const toEntry = (c: typeof combos[number]) => {
+        const core = Array.isArray(c.coreSubjects) ? (c.coreSubjects as string[]) : [];
+        const electives = Array.isArray(c.electiveGroup)
+          ? (c.electiveGroup as string[][]).flat().filter((x): x is string => typeof x === 'string')
+          : [];
+        const subjects = [...new Set([...core, ...electives])];
+        return {
+          code: c.filiere,
+          type: c.type,
+          label: c.description ?? core.join(', '),
+          coreSubjects: core,
+          subjects,
+        };
+      };
+      res.json({
+        success: true,
+        data: {
+          arts:    combos.filter(c => c.type === 'ARTS').map(toEntry),
+          science: combos.filter(c => c.type === 'SCIENCES').map(toEntry),
+        },
+      });
+    } catch (err) { next(err); }
+  });
 
   // ── Templates Excel téléchargeables (admin uniquement) ────────────────
   const templateController = new TemplateController(prisma);
@@ -935,7 +972,7 @@ export function bootstrapHexagonal(app: Application): void {
     try {
       const schoolId = req.user!.schoolId;
       const slotId = String(req.params['slotId']);
-      const { subjectId, teacherId } = req.body as { subjectId?: string | null; teacherId?: string | null };
+      const { subjectId, teacherId, isLV2Slot } = req.body as { subjectId?: string | null; teacherId?: string | null; isLV2Slot?: boolean };
 
       const slot = await prisma.timetableSlot.findFirst({
         where: { id: slotId },
@@ -1002,7 +1039,11 @@ export function bootstrapHexagonal(app: Application): void {
 
       const updated = await prisma.timetableSlot.update({
         where: { id: slotId },
-        data: { subjectId: subjectId ?? null, teacherId: teacherId ?? null },
+        data: {
+          subjectId: subjectId ?? null,
+          teacherId: teacherId ?? null,
+          ...(typeof isLV2Slot === 'boolean' ? { isLV2Slot } : {}),
+        },
         include: {
           subject: { select: { id: true, name: true } },
           teacher: { select: { id: true, firstName: true, lastName: true } },
@@ -1047,6 +1088,25 @@ export function bootstrapHexagonal(app: Application): void {
   const activerEtablissementUseCase = new ActiverEtablissementUseCase(prisma);
   app.use('/api/v2', creerSchoolConfigRoutes(activerEtablissementUseCase));
 
+  // ── Onboarding conversationnel Phase 2 : exécution déterministe ────
+  const configurerEtablissementUseCase = new ConfigurerEtablissementUseCase(prisma);
+  app.post('/api/v2/onboarding/execute', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId; // schoolId forcé depuis la session (sécurité)
+      const state = { ...(req.body ?? {}), schoolId };
+      const result = await configurerEtablissementUseCase.execute(state);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message.includes('introuvable')) { res.status(404).json({ success: false, message: error.message }); return; }
+        if (error.message.includes('déjà') || error.message.includes('approuvé') || error.message.includes('requis')) {
+          res.status(422).json({ success: false, message: error.message }); return;
+        }
+      }
+      next(error);
+    }
+  });
+
   // ── Thin controllers (pas de use case — Prisma direct, aucune logique métier) ──
   const activitiesController = new ActivitiesLogController(prisma);
   const dashboardController  = new DashboardController(prisma);
@@ -1075,6 +1135,22 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/email-logs',    creerEmailLogRoutes(emailLogController));
   app.use('/api/v2/search',        creerSearchRoutes(searchController));
   app.use('/api/v2/ai',            creerAIRoutes(aiController));
+  app.post('/api/v2/assistant/chat', requireAuth, aiController.assistantChat);
+
+  // ── Assistant IA EXÉCUTANT (copilot) — rôle ADMIN uniquement ────────────────
+  // Catalogue d'actions mappé sur les use cases existants ; RBAC filtré + revérifié serveur.
+  const adminActionCatalog = buildAdminActionCatalog({
+    creerClasse: container.class.creer,
+    supprimerClasse: container.class.supprimer,
+    assignerProfesseur: container.class.assignerProfesseur,
+    creerMatiere: container.subject.creer,
+    assignerEnseignant: container.subject.assignerEnseignant,
+    supprimerMatiere: container.subject.supprimer,
+  });
+  const assistantController = new AssistantController(prisma, adminActionCatalog);
+  app.post('/api/v2/assistant/execute', requireAuth, requireRole('ADMIN'), assistantController.execute);
+  app.post('/api/v2/assistant/confirm-action', requireAuth, requireRole('ADMIN'), assistantController.confirmAction);
+  app.post('/api/v2/assistant/undo-action', requireAuth, requireRole('ADMIN'), assistantController.undoAction);
   app.use('/api/v2/core-domain',   creerCoreDomainRoutes(coreDomainController));
   app.use('/api/v2/public',        creerPublicRoutes(publicController));
   app.use('/api/v2/sms',           creerSMSRoutes(smsController));
@@ -1833,6 +1909,388 @@ export function bootstrapHexagonal(app: Application): void {
     requireMasterSensitiveAuth,
     onboardingController.approuverEcole,
   );
+
+  // ── Module LV2 — gestion langue vivante 2 par élève ──────────────────────
+
+  // PATCH /api/v2/students/:id/lv2 — affecter une LV2 à un élève
+  app.patch('/api/v2/students/:id/lv2', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const studentUserId = req.params['id'] as string;
+      const { lv2SubjectId } = req.body as { lv2SubjectId?: string | null };
+
+      const profile = await (prisma as any).studentProfile.findFirst({
+        where: { userId: studentUserId, user: { schoolId } },
+        select: { id: true },
+      });
+      if (!profile) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
+
+      if (lv2SubjectId) {
+        const subj = await prisma.subject.findFirst({ where: { id: lv2SubjectId, schoolId }, select: { id: true } });
+        if (!subj) { res.status(404).json({ success: false, message: 'Matière introuvable' }); return; }
+      }
+
+      await (prisma as any).studentProfile.update({
+        where: { id: profile.id },
+        data: { lv2SubjectId: lv2SubjectId ?? null },
+      });
+      res.json({ success: true, message: 'LV2 affectée' });
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/v2/students/lv2/bulk — affecter la même LV2 à une liste d'élèves
+  app.post('/api/v2/students/lv2/bulk', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const { studentUserIds, lv2SubjectId } = req.body as { studentUserIds?: string[]; lv2SubjectId?: string | null };
+
+      if (!Array.isArray(studentUserIds) || studentUserIds.length === 0) {
+        res.status(400).json({ success: false, message: 'studentUserIds[] requis' }); return;
+      }
+      if (lv2SubjectId) {
+        const subj = await prisma.subject.findFirst({ where: { id: lv2SubjectId, schoolId }, select: { id: true } });
+        if (!subj) { res.status(404).json({ success: false, message: 'Matière introuvable' }); return; }
+      }
+
+      const profiles = await (prisma as any).studentProfile.findMany({
+        where: { userId: { in: studentUserIds }, user: { schoolId } },
+        select: { id: true },
+      });
+      const result = await (prisma as any).studentProfile.updateMany({
+        where: { id: { in: profiles.map((p: any) => p.id) } },
+        data: { lv2SubjectId: lv2SubjectId ?? null },
+      });
+
+      res.json({ success: true, data: { modifies: result.count } });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/classes/:id/lv2-overview — répartition LV2 d'une classe
+  app.get('/api/v2/classes/:id/lv2-overview', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.params['id'] as string;
+
+      const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
+      if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
+
+      const students = await (prisma as any).user.findMany({
+        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        select: {
+          id: true, firstName: true, lastName: true,
+          studentProfile: { select: { lv2SubjectId: true, lv2Subject: { select: { id: true, name: true } } } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+
+      const groupes: Record<string, { subjectId: string; langue: string; eleves: { id: string; firstName: string; lastName: string }[] }> = {};
+      const sansLV2: { id: string; firstName: string; lastName: string }[] = [];
+
+      for (const s of students) {
+        const lv2 = s.studentProfile?.lv2SubjectId;
+        const lv2Name = s.studentProfile?.lv2Subject?.name ?? null;
+        if (!lv2 || !lv2Name) {
+          sansLV2.push({ id: s.id, firstName: s.firstName, lastName: s.lastName });
+        } else {
+          if (!groupes[lv2]) groupes[lv2] = { subjectId: lv2, langue: lv2Name, eleves: [] };
+          groupes[lv2].eleves.push({ id: s.id, firstName: s.firstName, lastName: s.lastName });
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          className: classe.name,
+          groupes: Object.values(groupes).map(g => ({ ...g, nombreEleves: g.eleves.length })),
+          sansLV2,
+          total: students.length,
+        },
+      });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/timetable-slots/:id/students — élèves d'un créneau (filtre LV2 si isLV2Slot)
+  app.get('/api/v2/timetable-slots/:id/students', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const slotId = req.params['id'] as string;
+
+      const slot = await prisma.timetableSlot.findUnique({
+        where: { id: slotId },
+        include: { timetable: { select: { schoolId: true, classId: true } }, subject: { select: { id: true, name: true } } },
+      });
+      if (!slot || slot.timetable.schoolId !== schoolId) {
+        res.status(404).json({ success: false, message: 'Créneau introuvable' }); return;
+      }
+
+      const classId = slot.timetable.classId;
+      const isLV2 = (slot as any).isLV2Slot ?? false;
+      const isElective = (slot as any).isElectiveSlot ?? false;
+
+      const allStudents: any[] = await (prisma as any).user.findMany({
+        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        select: {
+          id: true, firstName: true, lastName: true,
+          studentProfile: {
+            select: { lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } },
+          },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+
+      // Créneau électif A-Level : seuls les élèves ayant cette matière dans leur sélection.
+      // Créneau LV2 : seuls les élèves dont la LV2 = matière du créneau. Sinon toute la classe.
+      let eleves = allStudents;
+      if (isElective && slot.subjectId) {
+        eleves = allStudents.filter(s => (s.studentProfile?.alevelSubjects ?? []).some((a: any) => a.subjectId === slot.subjectId));
+      } else if (isLV2 && slot.subjectId) {
+        eleves = allStudents.filter(s => s.studentProfile?.lv2SubjectId === slot.subjectId);
+      }
+
+      const label = isElective && slot.subject
+        ? `A-Level — ${slot.subject.name} (${eleves.length} élèves sur ${allStudents.length})`
+        : isLV2 && slot.subject
+          ? `Cours LV2 — ${slot.subject.name} (${eleves.length} élèves sur ${allStudents.length})`
+          : null;
+
+      res.json({
+        success: true,
+        data: {
+          isLV2Slot: isLV2,
+          isElectiveSlot: isElective,
+          subjectId: slot.subjectId,
+          classId,
+          label,
+          eleves: eleves.map(s => ({ id: s.id, firstName: s.firstName, lastName: s.lastName })),
+          totalClasse: allStudents.length,
+        },
+      });
+    } catch (err) { next(err); }
+  });
+
+  // ── Module A-Level — choix individuel des matières par élève (max 5) ──────
+  const affecterALevelUseCase   = new AffecterMatieresALevelEleveUseCase(prisma);
+  const preremplirALevelUseCase = new PreremplirDepuisCombinaisonUseCase(prisma);
+  const getElevesALevelUseCase  = new GetElevesParMatiereALevelUseCase(prisma);
+
+  // PUT /api/v2/students/:id/alevel-subjects — remplacer la sélection A-Level (3 à 5 matières)
+  app.put('/api/v2/students/:id/alevel-subjects', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const { subjectIds } = req.body as { subjectIds?: string[] };
+      const result = await affecterALevelUseCase.execute({
+        studentUserId: req.params['id'] as string,
+        schoolId: req.user!.schoolId,
+        subjectIds: Array.isArray(subjectIds) ? subjectIds : [],
+      });
+      res.json({ success: true, data: result });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur';
+      if (/au moins|plus de|introuvable|non A-Level/.test(msg)) { res.status(400).json({ success: false, message: msg }); return; }
+      next(err);
+    }
+  });
+
+  // POST /api/v2/students/:id/alevel-subjects/from-combination — préremplir depuis une combinaison
+  app.post('/api/v2/students/:id/alevel-subjects/from-combination', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const { combinationCode } = req.body as { combinationCode?: string };
+      if (!combinationCode) { res.status(400).json({ success: false, message: 'combinationCode requis' }); return; }
+      const result = await preremplirALevelUseCase.execute({
+        studentUserId: req.params['id'] as string,
+        schoolId: req.user!.schoolId,
+        combinationCode,
+      });
+      res.json({ success: true, data: result });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur';
+      if (/introuvable/.test(msg)) { res.status(404).json({ success: false, message: msg }); return; }
+      next(err);
+    }
+  });
+
+  // GET /api/v2/students/:id/alevel-subjects — matières A-Level actuelles de l'élève
+  app.get('/api/v2/students/:id/alevel-subjects', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const studentUserId = req.params['id'] as string;
+      const profile = await (prisma as any).studentProfile.findFirst({
+        where: { userId: studentUserId, user: { schoolId } },
+        select: { id: true },
+      });
+      if (!profile) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
+
+      const links = await (prisma as any).studentALevelSubject.findMany({
+        where: { studentId: profile.id },
+        select: { subject: { select: { id: true, name: true } } },
+        orderBy: { subject: { name: 'asc' } },
+      });
+      const subjects = links.map((l: any) => ({ id: l.subject.id, name: l.subject.name }));
+      res.json({ success: true, data: { subjects, count: subjects.length } });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/classes/:id/alevel-overview — vue d'ensemble des sélections A-Level d'une classe
+  app.get('/api/v2/classes/:id/alevel-overview', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.params['id'] as string;
+
+      const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
+      if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
+
+      // Matières A-Level disponibles de l'établissement (matières de l'école dont le nom est un sujet A-Level officiel)
+      const officialALevel = await (prisma as any).aLevelSubject.findMany({ select: { subjectName: true } });
+      const officialNames: string[] = officialALevel.map((a: any) => a.subjectName);
+      const availableSubjects = await prisma.subject.findMany({
+        where: { schoolId, name: { in: officialNames } },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+
+      const students = await (prisma as any).user.findMany({
+        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        select: {
+          id: true, firstName: true, lastName: true,
+          studentProfile: { select: { alevelSubjects: { select: { subject: { select: { id: true, name: true } } } } } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+
+      res.json({
+        success: true,
+        data: {
+          className: classe.name,
+          availableSubjects,
+          students: students.map((s: any) => {
+            const subjects = (s.studentProfile?.alevelSubjects ?? []).map((a: any) => a.subject);
+            return { id: s.id, firstName: s.firstName, lastName: s.lastName, subjects, count: subjects.length };
+          }),
+        },
+      });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/subjects/:id/alevel-students?classId= — élèves ayant cette matière A-Level
+  app.get('/api/v2/subjects/:id/alevel-students', requireAuth, async (req, res, next) => {
+    try {
+      const classId = typeof req.query['classId'] === 'string' ? (req.query['classId'] as string) : undefined;
+      const result = await getElevesALevelUseCase.execute(req.params['id'] as string, req.user!.schoolId, classId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur';
+      if (/introuvable/.test(msg)) { res.status(404).json({ success: false, message: msg }); return; }
+      next(err);
+    }
+  });
+
+  // POST /api/v2/classes/:id/alevel-subjects/bulk-from-combination — préréglage pour toute la classe
+  app.post('/api/v2/classes/:id/alevel-subjects/bulk-from-combination', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.params['id'] as string;
+      const { combinationCode } = req.body as { combinationCode?: string };
+      if (!combinationCode) { res.status(400).json({ success: false, message: 'combinationCode requis' }); return; }
+
+      const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true } });
+      if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
+
+      const students = await (prisma as any).user.findMany({
+        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        select: { id: true },
+      });
+
+      let modifies = 0;
+      for (const s of students) {
+        try {
+          await preremplirALevelUseCase.execute({ studentUserId: s.id, schoolId, combinationCode });
+          modifies++;
+        } catch { /* élève ignoré si erreur individuelle */ }
+      }
+      res.json({ success: true, data: { modifies, total: students.length } });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/teacher/roster?classId=&subjectId= — liste d'élèves d'un cours, filtrée
+  // si la matière est élective (LV2 ou A-Level). Source unique pour la saisie présences/notes.
+  app.get('/api/v2/teacher/roster', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.query['classId'] as string | undefined;
+      const subjectId = req.query['subjectId'] as string | undefined;
+      if (!classId) { res.status(400).json({ success: false, message: 'classId requis' }); return; }
+
+      const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
+      if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
+
+      const allStudents: any[] = await (prisma as any).user.findMany({
+        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        select: {
+          id: true, firstName: true, lastName: true,
+          studentProfile: { select: { lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+
+      const total = allStudents.length;
+      let mode: 'FULL' | 'LV2' | 'ALEVEL' = 'FULL';
+      let filtered: any[] = allStudents;
+      let lv2Fallback = false; // matière LV2 uniforme sans affectation individuelle → toute la classe
+
+      if (subjectId) {
+        const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId }, select: { id: true, name: true, isLV2: true } as any });
+        if (subject) {
+          if ((subject as any).isLV2) {
+            mode = 'LV2';
+            const assigned = allStudents.filter(s => s.studentProfile?.lv2SubjectId === subjectId);
+            const anyLv2InClass = allStudents.some(s => s.studentProfile?.lv2SubjectId);
+            // Repli (Situation 1) : la classe n'a AUCUNE affectation LV2 individuelle → toute la
+            // classe est présumée faire cette langue (ex. « toute la 4eA fait Allemand »).
+            // Dès qu'une répartition individuelle existe, on la respecte strictement.
+            if (assigned.length === 0 && !anyLv2InClass) {
+              filtered = allStudents;
+              lv2Fallback = true;
+            } else {
+              filtered = assigned;
+            }
+          } else {
+            const isOfficialALevel = await (prisma as any).aLevelSubject.findUnique({ where: { subjectName: subject.name }, select: { subjectName: true } });
+            if (isOfficialALevel) {
+              mode = 'ALEVEL';
+              filtered = allStudents.filter(s => (s.studentProfile?.alevelSubjects ?? []).some((a: any) => a.subjectId === subjectId));
+            }
+          }
+        }
+      }
+
+      const subjectName = subjectId
+        ? (await prisma.subject.findFirst({ where: { id: subjectId, schoolId }, select: { name: true } }))?.name ?? ''
+        : '';
+      const label = mode === 'LV2'
+        ? (lv2Fallback
+            ? `Cours LV2 — ${subjectName} — ${classe.name} (toute la classe — ${total} élèves, LV2 non répartie)`
+            : `Cours LV2 — ${subjectName} — ${classe.name} (${filtered.length} élèves sur ${total})`)
+        : mode === 'ALEVEL'
+          ? `A-Level — ${subjectName} — ${classe.name} (${filtered.length} élèves sur ${total})`
+          : null;
+
+      res.json({
+        success: true,
+        data: {
+          mode,
+          filtered: mode !== 'FULL',
+          lv2Fallback,
+          label,
+          total,
+          className: classe.name,
+          students: filtered.map(s => ({
+            id: s.id, firstName: s.firstName, lastName: s.lastName,
+            name: `${s.firstName} ${s.lastName}`.trim(),
+            className: classe.name,
+          })),
+        },
+      });
+    } catch (err) { next(err); }
+  });
 
   // ── Routes dev — DÉSACTIVÉES en production ──────────────────────────────────
   if (process.env.NODE_ENV !== 'production') {

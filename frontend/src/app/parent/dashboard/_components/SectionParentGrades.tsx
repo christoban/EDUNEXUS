@@ -5,6 +5,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import OfflineEmptyState from '@/components/OfflineEmptyState'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -15,23 +16,24 @@ interface GradesData { children: ChildWithStats[]; bulletins: ReportCard[] }
 
 const MENTION_COLOR = (m: string | null): [string, string] => {
   const map: Record<string, [string, string]> = {
-    TB: ['#d1fae5', '#065f46'], B: ['#dbeafe', '#1e40af'],
-    AB: ['#fef3c7', '#92400e'], P: ['#ffedd5', '#9a3412'], I: ['#fee2e2', '#991b1b'],
+    TB: ['var(--green-light)', 'var(--green)'], B: ['var(--blue-light)', 'var(--blue)'],
+    AB: ['var(--amber-light)', 'var(--amber)'], P: ['var(--orange-light)', 'var(--orange)'], I: ['var(--red-light)', 'var(--red)'],
   }
-  return map[m ?? ''] ?? ['#f1f5f9', '#475569']
+  return map[m ?? ''] ?? ['var(--bg2)', 'var(--text2)']
 }
 
-function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+function CacheBadge({ cachedAt, label }: { cachedAt: number | null; label: string }) {
   if (!cachedAt) return null
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
-    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      📦 Données du {date} — hors-ligne
+    <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      {label.replace('{date}', date)}
     </div>
   )
 }
 
 export default function SectionParentGrades({ onToast, userId }: Props) {
+  const t = useT('parent')
   const isOnline = useOnlineStatus()
   const [selectedChild, setSelectedChild] = useState(0)
   const [downloading, setDownloading] = useState<string | null>(null)
@@ -39,10 +41,10 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
   const cacheKey = userId ? `parent:grades:${userId}` : ''
   const fetchFn = useCallback(async (): Promise<GradesData> => {
     const childrenRes = await fetchApi('/api/v2/parent/children', { credentials: 'include' }).then(r => r.json())
-    if (!childrenRes.success) throw new Error('Erreur de chargement')
+    if (!childrenRes.success) throw new Error(t('errorLoad'))
     const rcRes = await fetchApi('/api/v2/report-cards', { credentials: 'include' }).then(r => r.json())
     return { children: childrenRes.data, bulletins: rcRes.reportCards ?? [] }
-  }, [userId])
+  }, [userId, t])
 
   const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<GradesData>(cacheKey, fetchFn)
 
@@ -53,23 +55,23 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
   const filteredBulletins = bulletins.filter(b => b.student?.id === selectedChildData?.studentId)
 
   const downloadPdf = async (id: string, label: string) => {
-    if (!isOnline) { onToast('Téléchargement PDF indisponible hors-ligne', 'warning'); return }
+    if (!isOnline) { onToast(t('grades.downloadUnavailable'), 'warning'); return }
     setDownloading(id)
     try {
       const res = await fetchApi(`/api/v2/report-cards/${id}/pdf`, { credentials: 'include' })
-      if (!res.ok) { onToast('Erreur de téléchargement', 'error'); return }
+      if (!res.ok) { onToast(t('grades.downloadError'), 'error'); return }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Bulletin_${label.replace(/\s+/g, '_')}.pdf`
+      a.download = `${t('grades.downloaded').replace(/\s/g, '_')}_${label.replace(/\s+/g, '_')}.pdf`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      onToast('Bulletin téléchargé', 'success')
+      onToast(t('grades.downloaded'), 'success')
     } catch {
-      onToast('Erreur de téléchargement', 'error')
+      onToast(t('grades.downloadError'), 'error')
     } finally {
       setDownloading(null)
     }
@@ -78,7 +80,7 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
   if (loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{t('loading')}</div>
       </div>
     )
   }
@@ -89,10 +91,10 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={refetch}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('retry')}
           </button>
         </div>
       </div>
@@ -102,17 +104,17 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <div style={{ marginBottom: fromCache ? 8 : 26 }}>
-        <div style={sTitle}>Bulletins & Notes</div>
-        <div style={sSub}>Résultats scolaires de vos enfants</div>
+        <div style={sTitle}>{t('grades.title')}</div>
+        <div style={sSub}>{t('grades.subtitle')}</div>
       </div>
 
-      {fromCache && <CacheBadge cachedAt={cachedAt} />}
+      {fromCache && <CacheBadge cachedAt={cachedAt} label={t('cacheBadge')} />}
 
       {children.length > 0 && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
           {children.map((c, i) => (
             <button key={c.studentId} onClick={() => setSelectedChild(i)}
-              style={{ padding: '8px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', transition: 'all 0.12s', background: selectedChild === i ? '#d1fae5' : 'white', borderColor: selectedChild === i ? '#059669' : '#d4c8b8', color: selectedChild === i ? '#065f46' : '#6b5c45' }}>
+              style={{ padding: '8px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', transition: 'all 0.12s', background: selectedChild === i ? 'var(--green-light)' : 'white', borderColor: selectedChild === i ? 'var(--green)' : 'var(--border2)', color: selectedChild === i ? 'var(--green)' : 'var(--text2)' }}>
               {c.prenom} {c.nom}
             </button>
           ))}
@@ -120,16 +122,16 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
       )}
 
       {filteredBulletins.length === 0 ? (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: 48, textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucun bulletin disponible</div>
-          <div style={{ fontSize: 14, color: '#a89478' }}>{selectedName ? `Aucun bulletin pour ${selectedName}` : 'Les bulletins apparaîtront ici'}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('grades.emptyTitle')}</div>
+          <div style={{ fontSize: 14, color: 'var(--text3)' }}>{selectedName ? t('grades.emptyForChild').replace('{name}', selectedName) : t('grades.emptyDesc')}</div>
         </div>
       ) : (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr>{['Période', 'Moyenne générale', 'Rang', 'Mention', 'Actions'].map(h => (
+              <tr>{[t('grades.period'), t('grades.average'), t('grades.rank'), t('grades.mention'), t('grades.actions')].map(h => (
                 <th key={h} style={thSt}>{h}</th>
               ))}</tr>
             </thead>
@@ -139,10 +141,10 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
                 const avg = b.generalAverage
                 return (
                   <tr key={b.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: '#1a1209' }}>{b.academicPeriod?.name || 'Période'}</td>
-                    <td style={{ ...tdSt, fontWeight: 900, fontSize: 20, color: avg !== null ? (avg >= 14 ? '#059669' : avg >= 10 ? '#1d4ed8' : '#dc2626') : '#a89478' }}>{avg !== null ? `${avg}/20` : '—'}</td>
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{b.academicPeriod?.name || 'Période'}</td>
+                    <td style={{ ...tdSt, fontWeight: 900, fontSize: 20, color: avg !== null ? (avg >= 14 ? 'var(--green)' : avg >= 10 ? 'var(--blue)' : 'var(--red)') : 'var(--text3)' }}>{avg !== null ? `${avg}/20` : '—'}</td>
                     <td style={tdSt}>{b.rank !== null ? `${b.rank}e` : '—'} {b.totalStudents ? `/ ${b.totalStudents}` : ''}</td>
                     <td style={tdSt}>
                       {b.mention && (
@@ -151,11 +153,11 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
                     </td>
                     <td style={tdSt}>
                       <button
-                        title={!isOnline ? 'Téléchargement PDF indisponible hors-ligne' : undefined}
-                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : '#f0ebe3', color: isOnline ? '#059669' : '#a89478', border: `1.5px solid ${isOnline ? '#059669' : '#d4c8b8'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1 }}
+                        title={!isOnline ? t('grades.downloadUnavailable') : undefined}
+                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : 'var(--bg2)', color: isOnline ? 'var(--green)' : 'var(--text3)', border: `1.5px solid ${isOnline ? 'var(--green)' : 'var(--border2)'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1 }}
                         onClick={() => downloadPdf(b.id, b.academicPeriod?.name || 'bulletin')}
                         disabled={downloading === b.id || !isOnline}>
-                        {downloading === b.id ? '⏳...' : isOnline ? '📥 PDF' : '📶'}
+                        {downloading === b.id ? t('grades.downloading') : isOnline ? t('grades.downloadPdf') : t('grades.offline')}
                       </button>
                     </td>
                   </tr>
@@ -169,7 +171,7 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
-const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
-const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: '#6b5c45', borderBottom: '1px solid #faf7f2', verticalAlign: 'middle' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
+const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }

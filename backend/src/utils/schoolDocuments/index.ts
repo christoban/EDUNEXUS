@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 
-// ─── Types ────────────────────────────────────────────────────
+export type Language = "fr" | "en";
 
 export type SchoolInfo = {
   name: string;
@@ -24,6 +24,7 @@ export type CertificatData = {
   status: string;
   generatedAt: Date;
   verifyUrl: string;
+  language?: Language;
 };
 
 export type CarteData = {
@@ -38,6 +39,7 @@ export type CarteData = {
   emergencyPhone?: string;
   generatedAt: Date;
   verifyUrl: string;
+  language?: Language;
 };
 
 export type LettreTransfertData = {
@@ -51,9 +53,8 @@ export type LettreTransfertData = {
   lastAverage?: number;
   generatedAt: Date;
   verifyUrl: string;
+  language?: Language;
 };
-
-// ─── Utilitaire : finalize PDFDocument → Buffer ───────────────
 
 function finalizePdf(
   doc: InstanceType<typeof PDFDocument>,
@@ -74,17 +75,13 @@ function finalizePdf(
   });
 }
 
-// ─── En-tête commun ──────────────────────────────────────────
-
 function drawHeader(
   doc: InstanceType<typeof PDFDocument>,
   school: SchoolInfo,
   title: string
 ) {
-  // Bandeau supérieur bleu marine
   doc.rect(0, 0, 595, 80).fill("#1e3a5f");
 
-  // République du Cameroun / Republic of Cameroon
   doc
     .fontSize(7)
     .font("Helvetica")
@@ -98,7 +95,6 @@ function drawHeader(
     .text("REPUBLIC OF CAMEROON", 320, 12, { align: "right", width: 235 })
     .text("Peace — Work — Fatherland", 320, 22, { align: "right", width: 235 });
 
-  // Nom établissement centré
   doc
     .fontSize(11)
     .font("Helvetica-Bold")
@@ -126,7 +122,6 @@ function drawHeader(
 
   doc.fillColor("black");
 
-  // Titre du document
   doc
     .rect(40, 95, 515, 28)
     .fillAndStroke("#f0f4f8", "#1e3a5f");
@@ -141,13 +136,12 @@ function drawHeader(
   doc.y = 140;
 }
 
-// ─── QR code helper ──────────────────────────────────────────
-
 async function drawQr(
   doc: InstanceType<typeof PDFDocument>,
   url: string,
   x: number,
   y: number,
+  lang: Language,
   size: number = 70
 ): Promise<void> {
   const qrBuffer = await QRCode.toBuffer(url, { type: "png", margin: 1, width: 200 });
@@ -157,10 +151,8 @@ async function drawQr(
     .fontSize(6)
     .font("Helvetica")
     .fillColor("#64748b")
-    .text("Scannez pour vérifier", x, y + size + 3, { width: size, align: "center" });
+    .text(lang === "en" ? "Scan to verify" : "Scannez pour vérifier", x, y + size + 3, { width: size, align: "center" });
 }
-
-// ─── Ligne de données ─────────────────────────────────────────
 
 function dataRow(
   doc: InstanceType<typeof PDFDocument>,
@@ -173,41 +165,47 @@ function dataRow(
   doc.moveTo(60, y + 14).lineTo(535, y + 14).strokeColor("#e2e8f0").stroke();
 }
 
-// ─── CERTIFICAT DE SCOLARITÉ ──────────────────────────────────
-
 export async function generateCertificatPdf(data: CertificatData): Promise<Buffer> {
+  const lang = data.language ?? "fr";
   const doc = new PDFDocument({ size: "A4", margin: 40 });
 
   return finalizePdf(doc, async (d) => {
-    drawHeader(d, data.school, "CERTIFICAT DE SCOLARITÉ");
+    drawHeader(d, data.school, lang === "en" ? "ENROLLMENT CERTIFICATE" : "CERTIFICAT DE SCOLARITÉ");
 
-    // Texte d'attestation
     const civilite = data.gender === "F" || data.gender === "FEMALE" ? "Mme/Mlle" : "M.";
-    const genre = data.gender === "F" || data.gender === "FEMALE" ? "elle" : "il";
     const artDefini = data.gender === "F" || data.gender === "FEMALE" ? "la" : "le";
 
     d.y = 150;
+    const intro = lang === "en"
+      ? `We, the Principal/Head of ${data.school.name}, hereby certify that ${civilite}:`
+      : `Nous soussignés, Proviseur/Directeur de l'établissement ${data.school.name}, certifions par la présente que ${civilite} :`;
     d
       .fontSize(10)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text(
-        `Nous soussignés, Proviseur/Directeur de l'établissement ${data.school.name}, certifions par la présente que ${civilite} :`,
-        60,
-        d.y,
-        { width: 475, align: "justify" }
-      );
+      .text(intro, 60, d.y, { width: 475, align: "justify" });
 
     d.y += 25;
 
-    // Bloc données
+    const fieldLabels: Record<string, string> = {
+      name: lang === "en" ? "Full Name" : "Nom et Prénoms",
+      matricule: lang === "en" ? "Matricule" : "Matricule",
+      dob: lang === "en" ? "Date of Birth" : "Date de naissance",
+      class: lang === "en" ? "Class" : "Classe",
+      year: lang === "en" ? "Academic Year" : "Année scolaire",
+      status: lang === "en" ? "Status" : "Statut",
+    };
+    const statusValue = data.status === "ACTIVE"
+      ? (lang === "en" ? "Regularly enrolled" : "Régulièrement inscrit(e)")
+      : data.status;
+
     const rows: [string, string][] = [
-      ["Nom et Prénoms", data.studentName.toUpperCase()],
-      ["Matricule", data.matricule || "—"],
-      ["Date de naissance", data.dateOfBirth || "—"],
-      ["Classe", data.className],
-      ["Année scolaire", data.yearName],
-      ["Statut", data.status === "ACTIVE" ? "Régulièrement inscrit(e)" : data.status],
+      [fieldLabels.name, data.studentName.toUpperCase()],
+      [fieldLabels.matricule, data.matricule || "—"],
+      [fieldLabels.dob, data.dateOfBirth || "—"],
+      [fieldLabels.class, data.className],
+      [fieldLabels.year, data.yearName],
+      [fieldLabels.status, statusValue],
     ];
 
     rows.forEach(([label, value], i) => {
@@ -216,67 +214,62 @@ export async function generateCertificatPdf(data: CertificatData): Promise<Buffe
 
     d.y += rows.length * 22 + 20;
 
+    const bodyLine = lang === "en"
+      ? `is duly enrolled in our institution for the academic year ${data.yearName} and ${artDefini === "la" ? "she" : "he"} is in good standing with the school administration.`
+      : `est bien inscrit(e) dans notre établissement pour l'année scolaire ${data.yearName} et que ${artDefini} dit(e) élève est en règle vis-à-vis de l'administration scolaire.`;
     d
       .fontSize(10)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text(
-        `est bien inscrit(e) dans notre établissement pour l'année scolaire ${data.yearName} et que ${artDefini} dit(e) élève est en règle vis-à-vis de l'administration scolaire.`,
-        60,
-        d.y,
-        { width: 475, align: "justify" }
-      );
+      .text(bodyLine, 60, d.y, { width: 475, align: "justify" });
 
     d.y += 40;
 
-    // En foi de quoi
+    const legalClause = lang === "en"
+      ? "In witness whereof, this certificate is issued to serve and be used for all lawful purposes."
+      : "En foi de quoi, le présent certificat lui est délivré pour servir et valoir ce que de droit.";
     d
       .fontSize(9)
       .font("Helvetica-Oblique")
       .fillColor("#475569")
-      .text(
-        `En foi de quoi, le présent certificat lui est délivré pour servir et valoir ce que de droit.`,
-        60,
-        d.y,
-        { width: 475, align: "center" }
-      );
+      .text(legalClause, 60, d.y, { width: 475, align: "center" });
 
     d.y += 30;
 
-    // Date et signature
-    const dateStr = data.generatedAt.toLocaleDateString("fr-FR", {
+    const dateStr = data.generatedAt.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
-
+    const faitA = lang === "en" ? "Done at" : "Fait à";
     d
       .fontSize(10)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text(`Fait à ${data.school.ville || "___________"}, le ${dateStr}`, 60, d.y, {
+      .text(`${faitA} ${data.school.ville || "___________"}, ${dateStr}`, 60, d.y, {
         align: "right",
         width: 475,
       });
 
     d.y += 50;
 
+    const signataire = lang === "en" ? "The Principal / Head of School" : "Le Proviseur / Directeur";
     d
       .fontSize(10)
       .font("Helvetica-Bold")
       .fillColor("#1e3a5f")
-      .text("Le Proviseur / Directeur", 60, d.y, { align: "right", width: 475 });
+      .text(signataire, 60, d.y, { align: "right", width: 475 });
 
     d.y += 15;
+    const cachet = lang === "en" ? "(Signature and official stamp)" : "(Signature et cachet officiel)";
     d
       .fontSize(8)
       .font("Helvetica-Oblique")
       .fillColor("#94a3b8")
-      .text("(Signature et cachet officiel)", 60, d.y, { align: "right", width: 475 });
+      .text(cachet, 60, d.y, { align: "right", width: 475 });
 
-    // QR code en bas à gauche
     const qrY = d.page.height - 130;
-    await drawQr(d, data.verifyUrl, 60, qrY, 70);
+    await drawQr(d, data.verifyUrl, 60, qrY, lang, 70);
 
     d
       .fontSize(7)
@@ -286,36 +279,34 @@ export async function generateCertificatPdf(data: CertificatData): Promise<Buffe
         width: 200,
       });
 
-    // Pied de page
     d.rect(0, d.page.height - 22, 595, 22).fill("#1e3a5f");
+    const footer = lang === "en"
+      ? "Document generated by EduNexus — Verifiable via QR Code"
+      : "Document généré par EduNexus — Vérifiable à l'adresse indiquée par le QR Code";
     d
       .fontSize(7)
       .font("Helvetica")
       .fillColor("white")
-      .text("Document généré par EduNexus — Vérifiable à l'adresse indiquée par le QR Code", 40, d.page.height - 15, {
+      .text(footer, 40, d.page.height - 15, {
         align: "center",
         width: 515,
       });
   });
 }
 
-// ─── CARTE D'IDENTITÉ SCOLAIRE ────────────────────────────────
-
 export async function generateCarteScolairepdf(data: CarteData): Promise<Buffer> {
-  // Format A6 paysage (148 x 105 mm) ≈ 420 x 298 pt — deux pages (recto/verso)
+  const lang = data.language ?? "fr";
   const W = 420;
   const H = 298;
   const doc = new PDFDocument({ size: [W, H], margin: 0 });
 
   return finalizePdf(doc, async (d) => {
-    // ── RECTO ────────────────────────────────────────────────
-    // Bandeau haut
     d.rect(0, 0, W, 50).fill("#1e3a5f");
     d
       .fontSize(9)
       .font("Helvetica-Bold")
       .fillColor("white")
-      .text("CARTE D'IDENTITÉ SCOLAIRE", 0, 10, { align: "center", width: W });
+      .text(lang === "en" ? "SCHOOL IDENTITY CARD" : "CARTE D'IDENTITÉ SCOLAIRE", 0, 10, { align: "center", width: W });
     d
       .fontSize(7)
       .font("Helvetica")
@@ -326,21 +317,18 @@ export async function generateCarteScolairepdf(data: CarteData): Promise<Buffer>
       .fillColor("#94a3b8")
       .text(data.yearName, 0, 38, { align: "center", width: W });
 
-    // Photo placeholder ou image
     const photoX = 18;
     const photoY = 60;
     const photoW = 75;
     const photoH = 90;
 
     if (data.photoUrl && data.photoUrl.startsWith("data:")) {
-      // Base64 data URL → buffer
       const base64 = data.photoUrl.split(",")[1];
       if (base64) {
         const imgBuf = Buffer.from(base64, "base64");
         d.image(imgBuf, photoX, photoY, { width: photoW, height: photoH });
       }
     } else {
-      // Placeholder gris
       d.rect(photoX, photoY, photoW, photoH).fillAndStroke("#e2e8f0", "#94a3b8");
       d
         .fontSize(6)
@@ -349,14 +337,13 @@ export async function generateCarteScolairepdf(data: CarteData): Promise<Buffer>
         .text("PHOTO", photoX, photoY + photoH / 2 - 3, { width: photoW, align: "center" });
     }
 
-    // Données élève
     const infoX = 108;
     d.fillColor("#0f172a");
 
     const infoItems: [string, string][] = [
-      ["Nom & Prénoms", data.studentName.toUpperCase()],
+      [lang === "en" ? "Name" : "Nom & Prénoms", data.studentName.toUpperCase()],
       ["Matricule", data.matricule || "—"],
-      ["Classe", data.className],
+      [lang === "en" ? "Class" : "Classe", data.className],
     ];
 
     infoItems.forEach(([label, val], i) => {
@@ -366,27 +353,26 @@ export async function generateCarteScolairepdf(data: CarteData): Promise<Buffer>
       d.moveTo(infoX, y + 28).lineTo(W - 20, y + 28).strokeColor("#e2e8f0").stroke();
     });
 
-    // Validité
-    d.fontSize(7).font("Helvetica-Bold").fillColor("#64748b").text("Valable pour", infoX, 163);
-    d.fontSize(8).font("Helvetica-Bold").fillColor("#1e3a5f").text(`Année scolaire ${data.yearName}`, infoX, 173);
+    d.fontSize(7).font("Helvetica-Bold").fillColor("#64748b")
+      .text(lang === "en" ? "Valid for" : "Valable pour", infoX, 163);
+    d.fontSize(8).font("Helvetica-Bold").fillColor("#1e3a5f")
+      .text(`${lang === "en" ? "Academic Year" : "Année scolaire"} ${data.yearName}`, infoX, 173);
 
-    // QR code sur le recto
     const qrBuf = await QRCode.toBuffer(data.verifyUrl, { type: "png", margin: 1, width: 120 });
     d.image(qrBuf, W - 80, 60, { fit: [65, 65] });
-    d.fontSize(5).font("Helvetica").fillColor("#94a3b8").text("Vérifier", W - 80, 128, { width: 65, align: "center" });
+    d.fontSize(5).font("Helvetica").fillColor("#94a3b8")
+      .text(lang === "en" ? "Verify" : "Vérifier", W - 80, 128, { width: 65, align: "center" });
 
-    // Bandeau bas recto
     d.rect(0, H - 22, W, 22).fill("#f0f4f8");
+    const rectoFooter = lang === "en"
+      ? "This card must be worn at all times within the school premises."
+      : "Cette carte doit être portée à tout moment dans l'enceinte de l'établissement.";
     d
       .fontSize(6)
       .font("Helvetica-Oblique")
       .fillColor("#94a3b8")
-      .text("Cette carte doit être portée à tout moment dans l'enceinte de l'établissement.", 10, H - 14, {
-        align: "center",
-        width: W - 20,
-      });
+      .text(rectoFooter, 10, H - 14, { align: "center", width: W - 20 });
 
-    // ── VERSO ────────────────────────────────────────────────
     d.addPage({ size: [W, H], margin: 0 });
 
     d.rect(0, 0, W, 50).fill("#1e3a5f");
@@ -394,16 +380,23 @@ export async function generateCarteScolairepdf(data: CarteData): Promise<Buffer>
       .fontSize(9)
       .font("Helvetica-Bold")
       .fillColor("white")
-      .text("RÈGLEMENT & CONTACT D'URGENCE", 0, 18, { align: "center", width: W });
+      .text(lang === "en" ? "RULES & EMERGENCY CONTACT" : "RÈGLEMENT & CONTACT D'URGENCE", 0, 18, { align: "center", width: W });
 
-    // Règlement intérieur (résumé)
-    const regles = [
-      "• La ponctualité et l'assiduité sont obligatoires.",
-      "• L'élève doit se présenter en tenue réglementaire.",
-      "• Il est interdit d'apporter téléphone ou appareil électronique.",
-      "• Tout manquement peut entraîner une sanction disciplinaire.",
-      "• En cas de perte, déclarer immédiatement à l'administration.",
-    ];
+    const regles = lang === "en"
+      ? [
+          "• Punctuality and regular attendance are mandatory.",
+          "• Students must wear the prescribed uniform.",
+          "• Mobile phones and electronic devices are prohibited.",
+          "• Any misconduct may result in disciplinary action.",
+          "• Report loss immediately to the administration.",
+        ]
+      : [
+          "• La ponctualité et l'assiduité sont obligatoires.",
+          "• L'élève doit se présenter en tenue réglementaire.",
+          "• Il est interdit d'apporter téléphone ou appareil électronique.",
+          "• Tout manquement peut entraîner une sanction disciplinaire.",
+          "• En cas de perte, déclarer immédiatement à l'administration.",
+        ];
 
     d.y = 60;
     regles.forEach((r) => {
@@ -411,89 +404,96 @@ export async function generateCarteScolairepdf(data: CarteData): Promise<Buffer>
       d.y += 16;
     });
 
-    // Contact d'urgence
     d.y += 5;
     d.rect(15, d.y, W - 30, 1).fill("#e2e8f0");
     d.y += 8;
-    d.fontSize(7).font("Helvetica-Bold").fillColor("#1e3a5f").text("CONTACT D'URGENCE", 20, d.y);
+    d.fontSize(7).font("Helvetica-Bold").fillColor("#1e3a5f")
+      .text(lang === "en" ? "EMERGENCY CONTACT" : "CONTACT D'URGENCE", 20, d.y);
     d.y += 12;
+    const parentLabel = lang === "en" ? "Parent/Guardian name" : "Nom parent/tuteur";
     d
       .fontSize(8)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text(data.emergencyContact || "Nom parent/tuteur : ________________________________", 20, d.y);
+      .text(data.emergencyContact || `${parentLabel} : ________________________________`, 20, d.y);
     d.y += 14;
     d
       .fontSize(8)
-      .text(data.emergencyPhone ? `Tél : ${data.emergencyPhone}` : "Tél : ________________________________", 20, d.y);
+      .text(data.emergencyPhone ? `Tel : ${data.emergencyPhone}` : "Tel : ________________________________", 20, d.y);
 
-    // Pied verso
     d.rect(0, H - 22, W, 22).fill("#1e3a5f");
     d
       .fontSize(6)
       .font("Helvetica")
       .fillColor("white")
-      .text("EduNexus — Système de Gestion Scolaire", 0, H - 14, { align: "center", width: W });
+      .text("EduNexus — School Management System", 0, H - 14, { align: "center", width: W });
   });
 }
 
-// ─── LETTRE DE TRANSFERT ──────────────────────────────────────
-
 export async function generateLettreTransfertPdf(data: LettreTransfertData): Promise<Buffer> {
+  const lang = data.language ?? "fr";
   const doc = new PDFDocument({ size: "A4", margin: 40 });
 
   return finalizePdf(doc, async (d) => {
-    drawHeader(d, data.school, "LETTRE DE TRANSFERT / SORTIE DÉFINITIVE");
+    const title = lang === "en" ? "TRANSFER LETTER / FINAL DEPARTURE" : "LETTRE DE TRANSFERT / SORTIE DÉFINITIVE";
+    drawHeader(d, data.school, title);
 
     d.y = 150;
 
-    const dateStr = data.generatedAt.toLocaleDateString("fr-FR", {
+    const dateStr = data.generatedAt.toLocaleDateString(lang === "en" ? "en-GB" : "fr-FR", {
       day: "numeric",
       month: "long",
       year: "numeric",
     });
-
-    // En-tête de la lettre
+    const faitA = lang === "en" ? "Done at" : "Fait à";
     d
       .fontSize(9)
       .font("Helvetica")
       .fillColor("#475569")
-      .text(`Fait à ${data.school.ville || "___________"}, le ${dateStr}`, 60, d.y, {
+      .text(`${faitA} ${data.school.ville || "___________"}, ${dateStr}`, 60, d.y, {
         align: "right",
         width: 475,
       });
 
     d.y += 30;
 
+    const objet = lang === "en" ? "Subject: Student Transfer / Departure" : "Objet : Transfert / Sortie d'élève";
     d
       .fontSize(10)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text("Objet : Transfert / Sortie d'élève", 60, d.y);
+      .text(objet, 60, d.y);
 
     d.y += 25;
 
+    const intro = lang === "en"
+      ? `We, the Principal/Head of ${data.school.name}, hereby certify the final departure of the following student:`
+      : `Nous soussignés, Proviseur/Directeur de l'établissement ${data.school.name}, attestons par la présente la sortie définitive de l'élève suivant(e) :`;
     d
       .fontSize(10)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text(
-        `Nous soussignés, Proviseur/Directeur de l'établissement ${data.school.name}, attestons par la présente la sortie définitive de l'élève suivant(e) :`,
-        60,
-        d.y,
-        { width: 475, align: "justify" }
-      );
+      .text(intro, 60, d.y, { width: 475, align: "justify" });
 
     d.y += 35;
 
+    const fieldLabels: Record<string, string> = {
+      name: lang === "en" ? "Full Name" : "Nom et Prénoms",
+      matricule: "Matricule",
+      lastClass: lang === "en" ? "Last class attended" : "Dernière classe fréquentée",
+      year: lang === "en" ? "Academic Year" : "Année scolaire",
+      reason: lang === "en" ? "Reason for departure" : "Motif de sortie",
+      avg: lang === "en" ? "General average (last term)" : "Moyenne générale (dernier trimestre)",
+    };
+
     const rows: [string, string][] = [
-      ["Nom et Prénoms", data.studentName.toUpperCase()],
-      ["Matricule", data.matricule || "—"],
-      ["Dernière classe fréquentée", data.className],
-      ["Année scolaire", data.yearName],
-      ["Motif de sortie", data.motif],
+      [fieldLabels.name, data.studentName.toUpperCase()],
+      [fieldLabels.matricule, data.matricule || "—"],
+      [fieldLabels.lastClass, data.className],
+      [fieldLabels.year, data.yearName],
+      [fieldLabels.reason, data.motif],
       ...(data.lastAverage !== undefined
-        ? [["Moyenne générale (dernier trimestre)", `${data.lastAverage.toFixed(2)} / 20`] as [string, string]]
+        ? [[fieldLabels.avg, `${data.lastAverage.toFixed(2)} / 20`] as [string, string]]
         : []),
     ];
 
@@ -503,63 +503,59 @@ export async function generateLettreTransfertPdf(data: LettreTransfertData): Pro
 
     d.y += rows.length * 22 + 25;
 
+    const certLine = lang === "en"
+      ? "We certify that this student has fulfilled all obligations towards our school administration as of the date of departure."
+      : "Nous certifions que cet(te) élève a satisfait à toutes les obligations vis-à-vis de l'administration de notre établissement à la date de sa sortie.";
     d
       .fontSize(10)
       .font("Helvetica")
       .fillColor("#0f172a")
-      .text(
-        "Nous certifions que cet(te) élève a satisfait à toutes les obligations vis-à-vis de l'administration de notre établissement à la date de sa sortie.",
-        60,
-        d.y,
-        { width: 475, align: "justify" }
-      );
+      .text(certLine, 60, d.y, { width: 475, align: "justify" });
 
     d.y += 40;
 
+    const legalClause = lang === "en"
+      ? "This letter is issued to the student for all lawful purposes."
+      : "La présente lettre est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.";
     d
       .fontSize(9)
       .font("Helvetica-Oblique")
       .fillColor("#475569")
-      .text(
-        "La présente lettre est délivrée à l'intéressé(e) pour servir et valoir ce que de droit.",
-        60,
-        d.y,
-        { width: 475, align: "center" }
-      );
+      .text(legalClause, 60, d.y, { width: 475, align: "center" });
 
     d.y += 40;
 
+    const signataire = lang === "en" ? "The Principal / Head of School" : "Le Proviseur / Directeur";
     d
       .fontSize(10)
       .font("Helvetica-Bold")
       .fillColor("#1e3a5f")
-      .text("Le Proviseur / Directeur", 60, d.y, { align: "right", width: 475 });
+      .text(signataire, 60, d.y, { align: "right", width: 475 });
 
     d.y += 15;
+    const cachet = lang === "en" ? "(Signature and official stamp)" : "(Signature et cachet officiel)";
     d
       .fontSize(8)
       .font("Helvetica-Oblique")
       .fillColor("#94a3b8")
-      .text("(Signature et cachet officiel)", 60, d.y, { align: "right", width: 475 });
+      .text(cachet, 60, d.y, { align: "right", width: 475 });
 
-    // QR code
     const qrY = d.page.height - 130;
-    await drawQr(d, data.verifyUrl, 60, qrY, 70);
+    await drawQr(d, data.verifyUrl, 60, qrY, lang, 70);
     d
       .fontSize(7)
       .font("Helvetica")
       .fillColor("#94a3b8")
       .text(`Document N° ${data.documentId.slice(0, 8).toUpperCase()}`, 60, qrY + 80, { width: 200 });
 
-    // Pied de page
     d.rect(0, d.page.height - 22, 595, 22).fill("#1e3a5f");
+    const footer = lang === "en"
+      ? "Document generated by EduNexus — Verifiable via QR Code"
+      : "Document généré par EduNexus — Vérifiable à l'adresse indiquée par le QR Code";
     d
       .fontSize(7)
       .font("Helvetica")
       .fillColor("white")
-      .text("Document généré par EduNexus — Vérifiable à l'adresse indiquée par le QR Code", 40, d.page.height - 15, {
-        align: "center",
-        width: 515,
-      });
+      .text(footer, 40, d.page.height - 15, { align: "center", width: 515 });
   });
 }

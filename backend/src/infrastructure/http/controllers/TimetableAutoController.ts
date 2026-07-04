@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { calculerSqelette } from './TimetableGridConfigController';
 import { generateWithGemini } from '../../../services/gemini';
+import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -324,12 +325,14 @@ export class TimetableAutoController {
       }
 
       // 12. Groq pour expliquer les cours non placés (en parallèle)
+      const ecole = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { subsystem: true } });
+      const langueEcole = resolveLanguage(ecole?.subsystem);
       const unplaced = [...unplacedMap.values()];
       await Promise.all(
         unplaced.map(async u => {
           try {
-            const prompt = `Dans un lycée camerounais, la génération automatique de l'emploi du temps n'a pas pu placer tous les cours de "${u.subjectName}" pour la classe ${u.className} avec l'enseignant ${u.teacherName}. Raison technique : ${u.reason}. Explique en 2 phrases claires pour le Censeur et propose une solution concrète.`;
-            u.explication = await generateWithGemini(prompt, 'Tu es assistant pour la gestion des emplois du temps camerounais. Réponds en français, sans Markdown.');
+            const prompt = `Dans un lycée camerounais, la génération automatique de l'emploi du temps n'a pas pu placer tous les cours de "${u.subjectName}" pour la classe ${u.className} avec l'enseignant ${u.teacherName}. Raison technique : ${u.reason}. Explique en 2 phrases claires pour le responsable pédagogique et propose une solution concrète.`;
+            u.explication = await generateWithGemini(prompt, `Tu es assistant pour la gestion des emplois du temps camerounais, sans Markdown. ${instructionLangue(langueEcole)}`);
           } catch {
             u.explication = u.reason;
           }

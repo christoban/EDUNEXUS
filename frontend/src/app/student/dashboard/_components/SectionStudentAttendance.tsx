@@ -4,6 +4,7 @@ import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import OfflineEmptyState from '@/components/OfflineEmptyState'
+import { useT } from '@/lib/i18n'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -18,16 +19,19 @@ interface AttendanceData {
 }
 
 function CacheBadge({ cachedAt }: { cachedAt: number | null }) {
+  const t = useT('student')
   if (!cachedAt) return null
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
-    <div style={{ background: '#fef3c7', border: '1px solid #d97706', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: '#92400e', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      📦 Données du {date} — hors-ligne
+    <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+      {t('common.offline_badge').replace('{date}', date)}
     </div>
   )
 }
 
 export default function SectionStudentAttendance({ onToast, user }: Props) {
+  const t = useT('student')
+  const tcommon = useT('common')
   const cacheKey = user ? `student:attendance:${user.id}` : ''
 
   const fetchFn = useCallback(async (): Promise<AttendanceData> => {
@@ -76,7 +80,7 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
   if (!user || loading) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 13, color: '#a89478', fontWeight: 600 }}>Chargement...</div>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{tcommon('status.loading')}</div>
       </div>
     )
   }
@@ -87,10 +91,10 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <div style={{ color: '#dc2626', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={refetch}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -104,44 +108,44 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <div style={{ marginBottom: fromCache ? 8 : 26 }}>
-        <div style={sTitle}>Mes présences</div>
-        <div style={sSub}>Suivi de votre assiduité</div>
+        <div style={sTitle}>{t('attendance.title')}</div>
+        <div style={sSub}>{t('attendance.subtitle')}</div>
       </div>
 
       {fromCache && <CacheBadge cachedAt={cachedAt} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 22 }}>
         {[
-          { icon: '✅', bg: '#d1fae5', val: `${rateNum}%`, label: 'Taux de présence', color: '#065f46' },
-          { icon: '✗',  bg: '#fee2e2', val: String(stats?.absent || 0), label: 'Absences', color: '#991b1b' },
-          { icon: '~',  bg: '#fef3c7', val: String(stats?.late || 0), label: 'Retards', color: '#92400e' },
-          { icon: 'E',  bg: '#dbeafe', val: String(stats?.excused || 0), label: 'Excusés', color: '#1e40af' },
+          { icon: '✅', bg: 'var(--green-light)', val: `${rateNum}%`, label: t('attendance.rate_label'), color: 'var(--green)' },
+          { icon: '✗',  bg: 'var(--red-light)', val: String(stats?.absent || 0), label: t('attendance.absences_label'), color: 'var(--red)' },
+          { icon: '~',  bg: 'var(--amber-light)', val: String(stats?.late || 0), label: t('attendance.late_label'), color: 'var(--amber)' },
+          { icon: 'E',  bg: 'var(--blue-light)', val: String(stats?.excused || 0), label: t('attendance.excused_label'), color: 'var(--blue)' },
         ].map((s, i) => (
-          <div key={i} style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '22px 26px' }}>
+          <div key={i} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '22px 26px' }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: s.color, marginBottom: 12 }}>{s.icon}</div>
-            <div style={{ fontSize: 36, fontWeight: 900, color: '#1a1209', lineHeight: 1 }}>{s.val}</div>
-            <div style={{ fontSize: 16, color: '#a89478', marginTop: 5, fontWeight: 600 }}>{s.label}</div>
+            <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{s.val}</div>
+            <div style={{ fontSize: 16, color: 'var(--text3)', marginTop: 5, fontWeight: 600 }}>{s.label}</div>
           </div>
         ))}
       </div>
 
       {weekly.length > 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: '18px 22px' }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#1a1209', marginBottom: 18 }}>📊 Évolution hebdomadaire</div>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '18px 22px' }}>
+          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', marginBottom: 18 }}>{t('attendance.weekly_evolution')}</div>
           {weekly.map((w, i) => {
             const total = w.present + w.absent + w.late + w.excused
             const pct = total > 0 ? Math.round((w.present + w.late) / total * 100) : 100
             return (
               <div key={i} style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: '#6b5c45', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>
                   <span>{w.week}</span>
-                  <span style={{ color: pct >= 100 ? '#059669' : '#dc2626', fontWeight: 900 }}>
-                    {pct >= 100 ? '100% présent' : `${100 - pct}% absent`}
+                  <span style={{ color: pct >= 100 ? 'var(--green)' : 'var(--red)', fontWeight: 900 }}>
+                    {pct >= 100 ? t('attendance.week_present') : t('attendance.week_absent').replace('{pct}', String(100 - pct))}
                   </span>
                 </div>
                 <div style={{ display: 'flex', height: 8, borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{ flex: w.present + w.late, background: '#059669', borderRadius: pct < 100 ? '8px 0 0 8px' : 8 }} />
-                  {(w.absent + w.excused) > 0 && <div style={{ flex: w.absent + w.excused, background: '#dc2626', borderRadius: '0 8px 8px 0' }} />}
+                  <div style={{ flex: w.present + w.late, background: 'var(--green)', borderRadius: pct < 100 ? '8px 0 0 8px' : 8 }} />
+                  {(w.absent + w.excused) > 0 && <div style={{ flex: w.absent + w.excused, background: 'var(--red)', borderRadius: '0 8px 8px 0' }} />}
                 </div>
               </div>
             )
@@ -150,15 +154,15 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
       )}
 
       {!stats && weekly.length === 0 && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #e8e0d4', padding: 48, textAlign: 'center' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1209', marginBottom: 8 }}>Aucune donnée de présence</div>
-          <div style={{ fontSize: 14, color: '#a89478' }}>Les données apparaîtront une fois saisies par vos enseignants</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('attendance.empty_title')}</div>
+          <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('attendance.empty_subtitle')}</div>
         </div>
       )}
     </div>
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: '#1a1209' }
-const sSub: React.CSSProperties = { fontSize: 17, color: '#a89478', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
