@@ -315,7 +315,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
           {/* Bannière slot du jour */}
           {slotBanner && (
             <div style={{
-              background: 'var(--green-light)', border: '1.5px solid #6ee7b7', borderRadius: 12,
+              background: 'var(--green-light)', border: '1.5px solid var(--green)', borderRadius: 12,
               padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--green)', fontWeight: 600,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
@@ -443,7 +443,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
               disabled={scanning}
               style={{
                 width: '100%', padding: '11px 16px', borderRadius: 12,
-                border: '1.5px dashed #d4c4a8', background: 'transparent',
+                border: '1.5px dashed var(--border)', background: 'transparent',
                 color: 'var(--text3)', fontSize: 13, fontWeight: 700,
                 fontFamily: 'inherit', cursor: scanning ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -465,7 +465,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
               disabled={saving || !isFormValid}
               style={{
                 width: '100%', padding: '16px 20px', borderRadius: 14,
-                background: (saving || !isFormValid) ? '#d4c4a8' : 'var(--sidebar)',
+                background: (saving || !isFormValid) ? 'var(--border)' : 'var(--sidebar)',
                 color: 'white', border: 'none', fontSize: 16, fontWeight: 800,
                 fontFamily: 'inherit', cursor: (saving || !isFormValid) ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s',
@@ -521,7 +521,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
                           {p._subjectName ?? p.subjectId}
                         </span>
                         <span style={{
-                          background: isFailed ? 'var(--red-light)' : 'var(--amber-light)', color: isFailed ? 'var(--red)' : '#713f12',
+                          background: isFailed ? 'var(--red-light)' : 'var(--amber-light)', color: isFailed ? 'var(--red)' : 'var(--amber)',
                           padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800,
                         }}>
                           {isFailed ? t('cahier_de_texte.history_pending_failed') : t('cahier_de_texte.history_pending_pending')}
@@ -587,7 +587,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
                         <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 6 }}>{e.contenuLibre}</div>
                       )}
                       {e.devoirsDonnes && (
-                        <div style={{ fontSize: 12, color: 'var(--text2)', fontStyle: 'italic', padding: '6px 10px', background: '#fefce8', borderRadius: 8, borderLeft: '3px solid var(--amber)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', fontStyle: 'italic', padding: '6px 10px', background: 'var(--amber-light)', borderRadius: 8, borderLeft: '3px solid var(--amber)' }}>
                           {t('cahier_de_texte.history_pending_homework').replace('{text}', e.devoirsDonnes)}
                         </div>
                       )}

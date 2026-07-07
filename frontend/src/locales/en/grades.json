@@ -1,42 +1,40 @@
 {
-  "grades": {
-    "title": "Grades",
-    "subtitle": "Browse and validate grades",
-    "status_labels": {
-      "DRAFT": "Draft",
-      "SUBMITTED": "Pending",
-      "VALIDATED": "✓ Validated",
-      "LOCKED": "🔒 Locked",
-      "REJECTED": "✕ Rejected"
-    },
-    "filters": {
-      "all_classes": "All classes",
-      "all_subjects": "All subjects",
-      "all_statuses": "All statuses",
-      "load": "Load"
-    },
-    "actions": {
-      "validate": "✓ Validate",
-      "validate_all": "✅ Validate all ({count})",
-      "retry": "Retry"
-    },
-    "table_headers": {
-      "student": "Student",
-      "subject": "Subject",
-      "grade": "Grade /20",
-      "status": "Status",
-      "actions": "Actions"
-    },
-    "toasts": {
-      "validate_success": "Grade validated successfully",
-      "validate_error": "Validation error",
-      "load_error": "Loading error",
-      "select_class_first": "Select a class",
-      "no_pending_grades": "No pending grades",
-      "bulk_validate_result": "{ok}/{total} grade(s) validated"
-    },
-    "empty_state": "Select filters then click \"Load\""
+  "title": "Grades",
+  "subtitle": "Browse and validate grades",
+  "status_labels": {
+    "DRAFT": "Draft",
+    "SUBMITTED": "Pending",
+    "VALIDATED": "✓ Validated",
+    "LOCKED": "🔒 Locked",
+    "REJECTED": "✕ Rejected"
   },
+  "filters": {
+    "all_classes": "All classes",
+    "all_subjects": "All subjects",
+    "all_statuses": "All statuses",
+    "load": "Load"
+  },
+  "actions": {
+    "validate": "✓ Validate",
+    "validate_all": "✅ Validate all ({count})",
+    "retry": "Retry"
+  },
+  "table_headers": {
+    "student": "Student",
+    "subject": "Subject",
+    "grade": "Grade /20",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "toasts": {
+    "validate_success": "Grade validated successfully",
+    "validate_error": "Validation error",
+    "load_error": "Loading error",
+    "select_class_first": "Select a class",
+    "no_pending_grades": "No pending grades",
+    "bulk_validate_result": "{ok}/{total} grade(s) validated"
+  },
+  "empty_state": "Select filters then click \"Load\"",
   "council": {
     "title": "Class Council",
     "subtitle_template": "{total} session(s) · {open} open · {locked} locked",

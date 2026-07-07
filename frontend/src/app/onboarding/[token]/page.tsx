@@ -190,7 +190,7 @@ function detectTemplate(form: FormData): DetectedTemplate | null {
         return { code: 'PRIMAIRE_FR', name: 'École Primaire Francophone', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true }
       const isLycee = n.includes('lycée') || n.includes('lycee')
       const isCollege = n.includes('collège') || n.includes('college') || n.includes('ces')
-      if (isCollege && !isLycee) return { code: 'CES_FR', name: 'Collège d\'Enseignement Secondaire', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
+      if (isCollege && !isLycee) return { code: 'CES_FR', name: 'Collège d\'Enseignement Secondaire', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: false }
       return { code: 'LYCEE_FR', name: 'Lycée Général Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
     }
     return { code: 'PRIVE_FR', name: 'Établissement Privé Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false }
@@ -532,20 +532,27 @@ export default function OnboardingPage() {
       .finally(() => clearTimeout(timeout))
   }, [token])
 
+  // Réinitialiser maternelleSections/nurseryLevels si le template ne correspond pas
+  useEffect(() => {
+    if (template?.code !== 'MATERNELLE_FR') setMaternelleSections([]);
+    if (template?.code !== 'NURSERY_EN') setNurseryLevels([]);
+  }, [template?.code])
+
   // Auto-ajouter/retirer ABI des filières quand PEBS Francophone change
   useEffect(() => {
     setForm(f => {
       const abiEntry = 'ABI — A Bilingue (Intensive English)';
       const hasABI = f.filieres.includes(abiEntry);
-      if (hasPEBSFrancophone && !hasABI) {
+      const hasSecondCycle = f.niveaux2eCycle.length > 0;
+      if (hasPEBSFrancophone && hasSecondCycle && !hasABI) {
         return { ...f, filieres: [...f.filieres, abiEntry] };
       }
-      if (!hasPEBSFrancophone && hasABI) {
+      if ((!hasPEBSFrancophone || !hasSecondCycle) && hasABI) {
         return { ...f, filieres: f.filieres.filter(x => x !== abiEntry) };
       }
       return f;
     });
-  }, [hasPEBSFrancophone])
+  }, [hasPEBSFrancophone, form.niveaux2eCycle])
 
   // Debounced preview fetch when configuration changes
   useEffect(() => {
@@ -746,6 +753,18 @@ export default function OnboardingPage() {
           <div>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'white' }}>EduNexus</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{t('phase1.leftPanel.brandTagline')}</div>
+          </div>
+          {/* Bascule de langue — FR par défaut, un anglophone passe en EN ici (mémorisé) */}
+          <div role="group" aria-label="Language / Langue" style={{ marginLeft: 'auto', display: 'flex', gap: 3, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: 3, flexShrink: 0 }}>
+            {(['fr', 'en'] as const).map((l) => {
+              const active = currentLang === l
+              return (
+                <button key={l} type="button" onClick={() => { if (!active) changeLanguage(l) }} aria-pressed={active}
+                  style={{ padding: '5px 12px', borderRadius: 8, border: 'none', cursor: active ? 'default' : 'pointer', fontFamily: 'inherit', fontWeight: 800, fontSize: 12.5, letterSpacing: '0.3px', background: active ? '#4ade80' : 'transparent', color: active ? 'var(--sidebar)' : 'rgba(255,255,255,0.7)', transition: 'background 0.15s, color 0.15s' }}>
+                  {l === 'fr' ? 'FR' : 'EN'}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -1528,48 +1547,50 @@ export default function OnboardingPage() {
                   </Field>
                 )}
 
-                {/* PEBS — Programme d'Éducation Bilingue Spécial */}
-                {template.code && TCODES_PEBS_FR.includes(template.code) && (
-                  <Field label={t('phase1.step3.secondCycle.pebsFR')}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {([{ v: true, l: t('phase1.step3.secondCycle.pebsYes') }, { v: false, l: t('phase1.step3.secondCycle.pebsNo') }]).map(opt => (
-                        <button key={String(opt.v)} type="button" onClick={() => setHasPEBSFrancophone(opt.v)}
-                          style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSFrancophone === opt.v ? 'var(--green)' : 'var(--border2)'}`,
-                            borderRadius: 10, background: hasPEBSFrancophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
-                            cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: hasPEBSFrancophone === opt.v ? 'var(--green2)' : 'var(--text2)',
-                          }}>
-                          {opt.l}
-                        </button>
-                      ))}
-                    </div>
-                    {hasPEBSFrancophone && (
-                      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontWeight: 600 }}>
-                        {t('phase1.step3.secondCycle.pebsFRHint')}
-                      </div>
-                    )}
-                  </Field>
-                )}
-                {template.code && TCODES_PEBS_EN.includes(template.code) && (
-                  <Field label={t('phase1.step3.secondCycle.pebsEN')}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      {([{ v: true, l: t('phase1.step3.secondCycle.pebsYesEN') }, { v: false, l: t('phase1.step3.secondCycle.pebsNoEN') }]).map(opt => (
-                        <button key={String(opt.v)} type="button" onClick={() => setHasPEBSAnglophone(opt.v)}
-                          style={{
-                            flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSAnglophone === opt.v ? 'var(--green)' : 'var(--border2)'}`,
-                            borderRadius: 10, background: hasPEBSAnglophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
-                            cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
-                            color: hasPEBSAnglophone === opt.v ? 'var(--green2)' : 'var(--text2)',
-                          }}>
-                          {opt.l}
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
+              </div>
             )}
 
-              </div>
+            {/* PSB / PEBS — Programme Spécial Bilingue : variable ORTHOGONALE au cycle, disponible
+                pour tout template général éligible (y compris un CES à 1er cycle seul), jamais le
+                technique. Le backend crée une classe bilingue au 1er rang de chaque niveau. */}
+            {template && !template.isComplexe && template.code && TCODES_PEBS_FR.includes(template.code) && (
+              <Field label={t('phase1.step3.secondCycle.pebsFR')}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {([{ v: true, l: t('phase1.step3.secondCycle.pebsYes') }, { v: false, l: t('phase1.step3.secondCycle.pebsNo') }]).map(opt => (
+                    <button key={String(opt.v)} type="button" onClick={() => setHasPEBSFrancophone(opt.v)}
+                      style={{
+                        flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSFrancophone === opt.v ? 'var(--green)' : 'var(--border2)'}`,
+                        borderRadius: 10, background: hasPEBSFrancophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
+                        cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
+                        color: hasPEBSFrancophone === opt.v ? 'var(--green2)' : 'var(--text2)',
+                      }}>
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+                {hasPEBSFrancophone && (
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontWeight: 600 }}>
+                    {t('phase1.step3.secondCycle.pebsFRHint')}
+                  </div>
+                )}
+              </Field>
+            )}
+            {template && !template.isComplexe && template.code && TCODES_PEBS_EN.includes(template.code) && (
+              <Field label={t('phase1.step3.secondCycle.pebsEN')}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {([{ v: true, l: t('phase1.step3.secondCycle.pebsYesEN') }, { v: false, l: t('phase1.step3.secondCycle.pebsNoEN') }]).map(opt => (
+                    <button key={String(opt.v)} type="button" onClick={() => setHasPEBSAnglophone(opt.v)}
+                      style={{
+                        flex: 1, padding: '10px 8px', border: `2px solid ${hasPEBSAnglophone === opt.v ? 'var(--green)' : 'var(--border2)'}`,
+                        borderRadius: 10, background: hasPEBSAnglophone === opt.v ? 'rgba(5,150,105,0.07)' : 'white',
+                        cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 700,
+                        color: hasPEBSAnglophone === opt.v ? 'var(--green2)' : 'var(--text2)',
+                      }}>
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </Field>
             )}
 
             {/* ── LYCEE_BILINGUE — Section Anglophone ── */}
@@ -2356,9 +2377,11 @@ export default function OnboardingPage() {
         @keyframes edu-spin { to { transform: rotate(360deg); } }
         @keyframes edu-fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
         @keyframes edu-fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+        .edu-mobile-lang { display: none; }
         @media (max-width: 768px) {
           .edu-left-panel { display: none !important; }
           .edu-right-panel { width: 100vw !important; max-width: 100vw !important; }
+          .edu-mobile-lang { display: flex !important; }
         }
       `}</style>
 
@@ -2370,6 +2393,19 @@ export default function OnboardingPage() {
         <div className="edu-right-panel" style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'var(--bg)', overflowY: 'auto', position: 'relative', padding: '32px 24px' }}>
           <div style={{ position: 'absolute', top: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.05) 0%,transparent 70%)', pointerEvents: 'none' }} />
           <div style={{ width: '100%', maxWidth: 520, position: 'relative', zIndex: 1 }}>
+            {/* Bascule de langue — visible uniquement sur mobile (le panneau gauche, qui porte
+                le toggle sur desktop, est masqué sous 768px) */}
+            <div className="edu-mobile-lang" style={{ justifyContent: 'flex-end', gap: 3, marginBottom: 16 }}>
+              {(['fr', 'en'] as const).map((l) => {
+                const active = currentLang === l
+                return (
+                  <button key={l} type="button" onClick={() => { if (!active) changeLanguage(l) }} aria-pressed={active}
+                    style={{ padding: '5px 13px', borderRadius: 8, border: `1.5px solid ${active ? 'var(--green)' : 'var(--border2)'}`, cursor: active ? 'default' : 'pointer', fontFamily: 'inherit', fontWeight: 800, fontSize: 12.5, letterSpacing: '0.3px', background: active ? 'var(--green)' : 'var(--surface)', color: active ? 'white' : 'var(--text2)', transition: 'background 0.15s, color 0.15s' }}>
+                    {l === 'fr' ? 'FR' : 'EN'}
+                  </button>
+                )
+              })}
+            </div>
             {content}
           </div>
         </div>

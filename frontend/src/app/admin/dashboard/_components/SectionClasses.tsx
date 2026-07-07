@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -27,6 +27,8 @@ interface StudentItem { id: string; firstName: string; lastName: string; student
 interface SubjectItem { id: string; name: string }
 interface LV2StudentRow { id: string; firstName: string; lastName: string; lv2SubjectId: string | null; pendingId: string | null; saving: boolean }
 interface LV2Overview { className: string; groupes: { subjectId: string; langue: string; nombreEleves: number; eleves: { id: string; firstName: string; lastName: string }[] }[]; sansLV2: { id: string; firstName: string; lastName: string }[]; total: number }
+interface PEBSStudentRow { id: string; firstName: string; lastName: string; pebsFiliere: string | null; saving: boolean }
+interface PEBSOverview { className: string; pebsCount: number; nonPEBSCount: number; total: number; eleves: { id: string; firstName: string; lastName: string; pebsFiliere: string | null }[] }
 interface ALevelStudentRow { id: string; firstName: string; lastName: string; subjects: SubjectItem[]; count: number; saving: boolean }
 interface ALevelCombo { code: string; type: string; label: string; subjects: string[] }
 const ALEVEL_MIN = 3
@@ -34,6 +36,10 @@ const ALEVEL_MAX = 5
 function isSixthForm(cls: { level: string | null; name: string }): boolean {
   const src = `${cls.level ?? ''} ${cls.name}`.toLowerCase()
   return /sixth|lower\s*6|upper\s*6/.test(src)
+}
+function isLV2Level(cls: { level: string | null }): boolean {
+  if (!cls.level) return false
+  return ['4e', '3e', '2nde', '1ère', 'Tle'].includes(cls.level)
 }
 
 function serieToFiliere(serie: string): string {
@@ -70,6 +76,7 @@ const EMPTY_MOD  = { open: false, classId: '', name: '', level: '', filiere: '',
 const EMPTY_SG   = { open: false, classId: '', className: '', subgroups: [] as SubGroup[], newName: '', creating: false, error: '' }
 const EMPTY_ASSIGN = { open: false, subGroupId: '', subGroupName: '', classId: '', students: [] as StudentItem[], selected: new Set<string>(), loading: false, submitting: false, error: '' }
 const EMPTY_LV2 = { open: false, classId: '', className: '', rows: [] as LV2StudentRow[], subjects: [] as SubjectItem[], loading: false, error: '', bulkSelected: new Set<string>(), bulkSubjectId: '', bulkAssigning: false }
+const EMPTY_PEBS = { open: false, classId: '', className: '', rows: [] as PEBSStudentRow[], loading: false, error: '', bulkSelected: new Set<string>(), bulkValue: '', bulkAssigning: false }
 const EMPTY_ALEVEL = { open: false, classId: '', className: '', rows: [] as ALevelStudentRow[], available: [] as SubjectItem[], combos: [] as ALevelCombo[], loading: false, error: '', bulkCombo: '', bulkApplying: false, editingStudentId: '' }
 
 export default function SectionClasses({ onToast }: Props) {
@@ -95,6 +102,7 @@ export default function SectionClasses({ onToast }: Props) {
   const [sgForm, setSgForm]           = useState(EMPTY_SG)
   const [assignForm, setAssignForm]   = useState(EMPTY_ASSIGN)
   const [lv2Form, setLV2Form]         = useState(EMPTY_LV2)
+  const [pebsForm, setPEBSForm]       = useState(EMPTY_PEBS)
   const [alevelForm, setALevelForm]   = useState(EMPTY_ALEVEL)
   const [schoolInfo, setSchoolInfo]   = useState<SchoolInfo | null>(null)
 
@@ -400,6 +408,73 @@ export default function SectionClasses({ onToast }: Props) {
     }
   }
 
+  // ── ACTION PEBS — Répartition PEBS d'une classe ──────────────────────────
+  const getPEBSOptions = () => {
+    const opts: { value: string; label: string }[] = []
+    if (schoolInfo?.hasPEBSFrancophone) opts.push({ value: 'FR_PEBS', label: t('classes.pebs.opt_fr') })
+    if (schoolInfo?.hasPEBSAnglophone) opts.push({ value: 'EN_PEBS', label: t('classes.pebs.opt_en') })
+    return opts
+  }
+
+  const openPEBS = async (cls: ClassItem) => {
+    setPEBSForm({ ...EMPTY_PEBS, open: true, classId: cls.id, className: cls.name, loading: true })
+    try {
+      const res = await fetchApi(`/api/v2/classes/${cls.id}/pebs-overview`, { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || t('classes.error.load'))
+      const overview: PEBSOverview = data.data
+
+      const rows: PEBSStudentRow[] = overview.eleves.map(s => ({
+        id: s.id, firstName: s.firstName, lastName: s.lastName,
+        pebsFiliere: s.pebsFiliere, saving: false,
+      }))
+
+      setPEBSForm(f => ({ ...f, rows, loading: false }))
+    } catch (err) {
+      setPEBSForm(f => ({ ...f, loading: false, error: err instanceof Error ? err.message : t('classes.error.load') }))
+    }
+  }
+
+  const updateStudentPEBS = async (studentId: string, pebsFiliere: string | null) => {
+    setPEBSForm(f => ({ ...f, rows: f.rows.map(r => r.id === studentId ? { ...r, saving: true } : r) }))
+    try {
+      const res = await fetchApi(`/api/v2/students/${studentId}/pebs`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pebsFiliere }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || t('classes.error.load'))
+      setPEBSForm(f => ({ ...f, rows: f.rows.map(r => r.id === studentId ? { ...r, pebsFiliere, saving: false } : r) }))
+    } catch {
+      setPEBSForm(f => ({ ...f, rows: f.rows.map(r => r.id === studentId ? { ...r, saving: false } : r) }))
+      onToast(t('classes.pebs.update_error'), 'error')
+    }
+  }
+
+  const bulkAssignPEBS = async () => {
+    if (pebsForm.bulkSelected.size === 0) return
+    setPEBSForm(f => ({ ...f, bulkAssigning: true }))
+    try {
+      const res = await fetchApi('/api/v2/students/pebs/bulk', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentUserIds: Array.from(pebsForm.bulkSelected), pebsFiliere: pebsForm.bulkValue || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || t('classes.error.load'))
+      const assigned = pebsForm.bulkValue || null
+      setPEBSForm(f => ({
+        ...f, bulkAssigning: false, bulkSelected: new Set(), bulkValue: '',
+        rows: f.rows.map(r => f.bulkSelected.has(r.id) ? { ...r, pebsFiliere: assigned } : r),
+      }))
+      onToast(t('classes.pebs.toast_bulk_done').replace('{count}', String(data.data?.modifies ?? pebsForm.bulkSelected.size)), 'success')
+    } catch (err) {
+      setPEBSForm(f => ({ ...f, bulkAssigning: false }))
+      onToast(err instanceof Error ? err.message : t('classes.error.load'), 'error')
+    }
+  }
+
   // ── ACTION A-Level — choix individuel des matières (Sixth Form) ───────────
   const openALevel = async (cls: ClassItem) => {
     setALevelForm({ ...EMPTY_ALEVEL, open: true, classId: cls.id, className: cls.name, loading: true })
@@ -556,11 +631,24 @@ export default function SectionClasses({ onToast }: Props) {
                   🧑‍💼 {t('classes.pp_label')} <strong style={{ color: cls.professorPrincipal ? 'var(--text2)' : 'var(--text3)', fontStyle: cls.professorPrincipal ? 'normal' : 'italic' }}>{ppName}</strong>
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {cls.filiere && (
-                    <span style={{ background: '#e0f2fe', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
-                      {{'FR_PEBS': t('classes.filiere_labels.FR_PEBS'), 'EN_PEBS': t('classes.filiere_labels.EN_PEBS'), 'FR_GENERAL': t('classes.filiere_labels.FR_GENERAL'), 'EN_GENERAL': t('classes.filiere_labels.EN_GENERAL')}[cls.filiere] ?? cls.filiere}
-                    </span>
-                  )}
+                  {(() => {
+                    const badge = (cls as any).pebsBadge as string | null;
+                    const isPEBSFiliere = cls.filiere === 'FR_PEBS' || cls.filiere === 'EN_PEBS';
+                    if (badge === 'PEBS' || isPEBSFiliere) {
+                      const label = cls.filiere === 'EN_PEBS' ? 'PEBS EN' : 'PEBS FR';
+                      return <span style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{label}</span>;
+                    }
+                    if (badge === 'MIXTE') {
+                      return <span style={{ background: 'rgba(234,179,8,0.12)', color: '#b45309', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{t('classes.filiere_labels.MIXTE')}</span>;
+                    }
+                    if (badge === 'GENERAL') {
+                      return <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{t('classes.filiere_labels.GENERAL')}</span>;
+                    }
+                    if (cls.filiere && !['FR_PEBS', 'EN_PEBS', 'FR_GENERAL', 'EN_GENERAL'].includes(cls.filiere)) {
+                      return <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{cls.filiere}</span>;
+                    }
+                    return null;
+                  })()}
                   {cls.serie && (
                     <span style={{ background: 'var(--bg2)', color: 'var(--text2)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{t('classes.serie_label').replace('{serie}', cls.serie)}</span>
                   )}
@@ -569,7 +657,12 @@ export default function SectionClasses({ onToast }: Props) {
                   <button onClick={() => openPP(cls)} style={btnSecSm}>{t('classes.btn_pp')}</button>
                   <button onClick={() => openMod(cls)} style={btnSecSm}>{t('classes.btn_edit')}</button>
                   <button onClick={() => openSubgroups(cls)} style={btnSecSm}>{t('classes.btn_subgroups')}</button>
-                  <button onClick={() => openLV2(cls)} style={{ ...btnSecSm, color: 'var(--blue)', borderColor: 'rgba(3,105,161,0.3)' }}>{t('classes.btn_lv2')}</button>
+                  {isLV2Level(cls) && (
+                    <button onClick={() => openLV2(cls)} style={{ ...btnSecSm, color: 'var(--blue)', borderColor: 'rgba(3,105,161,0.3)' }}>{t('classes.btn_lv2')}</button>
+                  )}
+                  {(schoolInfo?.hasPEBSFrancophone || schoolInfo?.hasPEBSAnglophone) && (
+                    <button onClick={() => openPEBS(cls)} style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(22,163,74,0.3)' }}>{t('classes.btn_pebs')}</button>
+                  )}
                   {isSixthForm(cls) && (
                     <button onClick={() => openALevel(cls)} style={{ ...btnSecSm, color: 'var(--purple)', borderColor: 'rgba(124,58,237,0.3)' }}>{t('classes.btn_alevel')}</button>
                   )}
@@ -853,7 +946,7 @@ export default function SectionClasses({ onToast }: Props) {
               <>
                 {/* Bulk action bar */}
                 {lv2Form.bulkSelected.size > 0 && (
-                  <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <div style={{ background: 'var(--blue-light)', border: '1.5px solid var(--blue-light)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>{t('classes.lv2.bulk_selected').replace('{count}', String(lv2Form.bulkSelected.size))}</span>
                     <select
                       value={lv2Form.bulkSubjectId}
@@ -890,7 +983,7 @@ export default function SectionClasses({ onToast }: Props) {
                   {lv2Form.rows.map((row, i) => {
                     const currentSub = lv2Form.subjects.find(s => s.id === row.lv2SubjectId)
                     return (
-                      <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px', gap: 10, padding: '8px 14px', alignItems: 'center', borderBottom: i < lv2Form.rows.length - 1 ? '1px solid var(--bg2)' : 'none', background: lv2Form.bulkSelected.has(row.id) ? '#f0f9ff' : 'white' }}>
+                      <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 200px', gap: 10, padding: '8px 14px', alignItems: 'center', borderBottom: i < lv2Form.rows.length - 1 ? '1px solid var(--bg2)' : 'none', background: lv2Form.bulkSelected.has(row.id) ? 'var(--blue-light)' : 'white' }}>
                         <div>
                           <input type="checkbox"
                             checked={lv2Form.bulkSelected.has(row.id)}
@@ -933,6 +1026,141 @@ export default function SectionClasses({ onToast }: Props) {
         </div>
       )}
 
+      {/* ── ACTION PEBS : Répartition PEBS d'une classe ── */}
+      {pebsForm.open && (
+        <div onClick={() => setPEBSForm(EMPTY_PEBS)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 680, maxWidth: '96vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <div style={sModalTitle}>{t('classes.pebs.title').replace('{name}', pebsForm.className)}</div>
+              <button onClick={() => setPEBSForm(EMPTY_PEBS)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--text3)', lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Compteur PEBS / non-PEBS */}
+            {!pebsForm.loading && pebsForm.rows.length > 0 && (() => {
+              const pebsCount = pebsForm.rows.filter(r => r.pebsFiliere !== null).length
+              const nonCount = pebsForm.rows.filter(r => r.pebsFiliere === null).length
+              const frCount = pebsForm.rows.filter(r => r.pebsFiliere === 'FR_PEBS').length
+              const enCount = pebsForm.rows.filter(r => r.pebsFiliere === 'EN_PEBS').length
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {frCount > 0 && (
+                    <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                      {t('classes.pebs.count_fr').replace('{count}', String(frCount))}
+                    </span>
+                  )}
+                  {enCount > 0 && (
+                    <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                      {t('classes.pebs.count_en').replace('{count}', String(enCount))}
+                    </span>
+                  )}
+                  {pebsCount > 0 && (
+                    <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                      {t('classes.pebs.total_pebs').replace('{count}', String(pebsCount))}
+                    </span>
+                  )}
+                  {nonCount > 0 && (
+                    <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                      {t('classes.pebs.non_pebs').replace('{count}', String(nonCount))}
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
+
+            {pebsForm.loading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+                <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+              </div>
+            ) : pebsForm.error ? (
+              <div style={sError}>{pebsForm.error}</div>
+            ) : pebsForm.rows.length === 0 ? (
+              <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '32px 0', fontStyle: 'italic' }}>{t('classes.pebs.no_students')}</div>
+            ) : (
+              <>
+                {/* Bulk action bar */}
+                {pebsForm.bulkSelected.size > 0 && (
+                  <div style={{ background: 'var(--green-light)', border: '1.5px solid var(--green-light)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>{t('classes.pebs.bulk_selected').replace('{count}', String(pebsForm.bulkSelected.size))}</span>
+                    <select
+                      value={pebsForm.bulkValue}
+                      onChange={e => setPEBSForm(f => ({ ...f, bulkValue: e.target.value }))}
+                      style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 140, fontSize: 13 }}>
+                      <option value="">{t('classes.pebs.bulk_clear_option')}</option>
+                      {getPEBSOptions().map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    <button
+                      style={{ ...btnPrim, fontSize: 13, padding: '7px 16px', opacity: pebsForm.bulkAssigning ? 0.7 : 1 }}
+                      onClick={bulkAssignPEBS} disabled={pebsForm.bulkAssigning}>
+                      {pebsForm.bulkAssigning ? t('classes.pebs.bulk_assigning') : t('classes.pebs.btn_bulk_assign')}
+                    </button>
+                    <button
+                      style={{ ...btnSec2, fontSize: 13, padding: '7px 14px' }}
+                      onClick={() => setPEBSForm(f => ({ ...f, bulkSelected: new Set() }))}>
+                      {t('classes.pebs.btn_deselect_all')}
+                    </button>
+                  </div>
+                )}
+
+                {/* Liste des élèves */}
+                <div style={{ overflowY: 'auto', flex: 1, border: '1.5px solid var(--border)', borderRadius: 12 }}>
+                  {/* En-tête */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 160px', gap: 10, padding: '8px 14px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 800, color: 'var(--text3)', position: 'sticky', top: 0 }}>
+                    <div><input type="checkbox"
+                      checked={pebsForm.rows.length > 0 && pebsForm.bulkSelected.size === pebsForm.rows.length}
+                      onChange={e => setPEBSForm(f => ({ ...f, bulkSelected: e.target.checked ? new Set(f.rows.map(r => r.id)) : new Set() }))}
+                      style={{ accentColor: 'var(--green)', cursor: 'pointer' }} /></div>
+                    <div>{t('classes.pebs.col_el')}</div>
+                    <div>{t('classes.pebs.col_status')}</div>
+                  </div>
+
+                  {pebsForm.rows.map((row, i) => {
+                    const pebsLabel = row.pebsFiliere === 'FR_PEBS' ? t('classes.pebs.status_fr')
+                      : row.pebsFiliere === 'EN_PEBS' ? t('classes.pebs.status_en')
+                      : null
+                    return (
+                      <div key={row.id} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 160px', gap: 10, padding: '8px 14px', alignItems: 'center', borderBottom: i < pebsForm.rows.length - 1 ? '1px solid var(--bg2)' : 'none', background: pebsForm.bulkSelected.has(row.id) ? 'var(--green-light)' : 'white' }}>
+                        <div>
+                          <input type="checkbox"
+                            checked={pebsForm.bulkSelected.has(row.id)}
+                            onChange={() => setPEBSForm(f => {
+                              const next = new Set(f.bulkSelected)
+                              next.has(row.id) ? next.delete(row.id) : next.add(row.id)
+                              return { ...f, bulkSelected: next }
+                            })}
+                            style={{ accentColor: 'var(--green)', cursor: 'pointer' }} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{row.lastName} {row.firstName}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {row.saving ? (
+                            <div style={{ width: 16, height: 16, border: '2px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite', flexShrink: 0 }} />
+                          ) : pebsLabel ? (
+                            <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '2px 9px', borderRadius: 14, fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}>{pebsLabel}</span>
+                          ) : (
+                            <span style={{ background: 'var(--bg2)', color: 'var(--text2)', padding: '2px 9px', borderRadius: 14, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{t('classes.filiere_labels.GENERAL')}</span>
+                          )}
+                          <select
+                            value={row.pebsFiliere ?? ''}
+                            disabled={row.saving}
+                            onChange={e => updateStudentPEBS(row.id, e.target.value || null)}
+                            style={{ fontSize: 12, border: '1px solid var(--border2)', borderRadius: 7, padding: '3px 6px', color: 'var(--text2)', background: 'var(--surface)', cursor: 'pointer', maxWidth: 110 }}>
+                            <option value="">— Aucun —</option>
+                            {getPEBSOptions().map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button style={btnSec2} onClick={() => setPEBSForm(EMPTY_PEBS)}>{t('classes.subgroups.btn_close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── ACTION A-Level : choix individuel des matières (Sixth Form) ── */}
       {alevelForm.open && (
         <div onClick={() => setALevelForm(EMPTY_ALEVEL)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -956,13 +1184,13 @@ export default function SectionClasses({ onToast }: Props) {
             ) : (
               <>
                 {/* Barre d'action de masse */}
-                <div style={{ background: 'var(--purple-light)', border: '1.5px solid #e9d5ff', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                <div style={{ background: 'var(--purple-light)', border: '1.5px solid var(--purple-light)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--purple)' }}>Combinaison de départ pour toute la classe :</span>
                   <select value={alevelForm.bulkCombo} onChange={e => setALevelForm(f => ({ ...f, bulkCombo: e.target.value }))} style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 160, fontSize: 13 }}>
                     <option value="">— Choisir —</option>
                     {alevelForm.combos.map(c => <option key={c.code} value={c.code}>{c.code} — {c.label}</option>)}
                   </select>
-                  <button style={{ ...btnPrim, background: 'linear-gradient(135deg,var(--purple),#6d28d9)', fontSize: 13, padding: '7px 16px', opacity: (!alevelForm.bulkCombo || alevelForm.bulkApplying) ? 0.6 : 1 }}
+                  <button style={{ ...btnPrim, background: 'var(--purple)', fontSize: 13, padding: '7px 16px', opacity: (!alevelForm.bulkCombo || alevelForm.bulkApplying) ? 0.6 : 1 }}
                     onClick={bulkApplyCombo} disabled={!alevelForm.bulkCombo || alevelForm.bulkApplying}>
                     {alevelForm.bulkApplying ? 'En cours…' : 'Appliquer à tous'}
                   </button>
@@ -982,7 +1210,7 @@ export default function SectionClasses({ onToast }: Props) {
                           {row.saving && <div style={{ width: 14, height: 14, border: '2px solid var(--border)', borderTopColor: 'var(--purple)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />}
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
                             {row.subjects.map(s => (
-                              <span key={s.id} style={{ background: '#f3f0fa', color: 'var(--purple)', padding: '2px 8px', borderRadius: 12, fontSize: 11.5, fontWeight: 700 }}>{s.name}</span>
+                              <span key={s.id} style={{ background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 8px', borderRadius: 12, fontSize: 11.5, fontWeight: 700 }}>{s.name}</span>
                             ))}
                             {row.count === 0 && <span style={{ color: 'var(--red)', fontSize: 12, fontStyle: 'italic', fontWeight: 700 }}>Aucune matière</span>}
                           </div>

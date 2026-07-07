@@ -5,7 +5,7 @@ const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY || "",
 });
 
-export const geminiModel = groq("llama-3.3-70b-versatile");
+export const groqModel = groq("llama-3.3-70b-versatile");
 
 const cleanMarkdownArtifacts = (text: string): string => {
   return text
@@ -20,10 +20,10 @@ const cleanMarkdownArtifacts = (text: string): string => {
     .trim();
 };
 
-export const generateWithGemini = async (prompt: string, systemPrompt?: string): Promise<string> => {
+export const generateWithGroq = async (prompt: string, systemPrompt?: string): Promise<string> => {
   try {
     const { text } = await generateText({
-      model: geminiModel,
+      model: groqModel,
       system:
         systemPrompt ||
         // Défaut volontairement SANS langue imposée : la langue est injectée par

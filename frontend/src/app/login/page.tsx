@@ -5,6 +5,8 @@ import { motion } from 'framer-motion'
 import { Eye, EyeOff, Loader2, ChevronDown, Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import LanguageSwitch from '@/components/LanguageSwitch'
+import { useT } from '@/lib/i18n'
 
 // ── Configuration d'affichage par rôle (emojis, badges, couleurs, redirections) ──
 type SuccessInfo = { emoji: string; badge: string; color: string; bg: string; dest: string; firstName: string }
@@ -27,22 +29,23 @@ type SchoolOption = {
 }
 
 const ROLE_SELECTOR = [
-  { role: 'ADMIN',   emoji: '🏫',   label: 'Administrateur', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
-  { role: 'TEACHER', emoji: '👨‍🏫', label: 'Enseignant',      color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
-  { role: 'PARENT',  emoji: '👨‍👩‍👧', label: 'Parent',          color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
-  { role: 'STUDENT', emoji: '👨‍🎓', label: 'Élève',           color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
-  { role: 'STAFF',   emoji: '🔍',   label: 'Staff / Censeur', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
+  { role: 'ADMIN',   emoji: '🏫',   label: 'login.role_admin', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
+  { role: 'TEACHER', emoji: '👨‍🏫', label: 'login.role_teacher', color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
+  { role: 'PARENT',  emoji: '👨‍👩‍👧', label: 'login.role_parent', color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
+  { role: 'STUDENT', emoji: '👨‍🎓', label: 'login.role_student', color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
+  { role: 'STAFF',   emoji: '🔍',   label: 'login.role_staff', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
 ]
 
 const ROLES = [
-  { emoji:'🏫',   name:'Administrateur',  desc:"Gestion complète de l'établissement" },
-  { emoji:'👨‍🏫', name:'Enseignant',       desc:'Présences, notes, emploi du temps' },
-  { emoji:'👨‍👩‍👧', name:'Parent',           desc:'Suivi scolaire & paiements Mobile Money' },
-  { emoji:'👨‍🎓', name:'Élève',            desc:'Notes, bulletins, emploi du temps' },
-  { emoji:'🔍',   name:'Censeur / Staff', desc:'Validation notes, EDT, conseil de classe' },
+  { emoji:'🏫',   nameKey:'login.role_admin',  descKey:'login.role_admin_desc' },
+  { emoji:'👨‍🏫', nameKey:'login.role_teacher', descKey:'login.role_teacher_desc' },
+  { emoji:'👨‍👩‍👧', nameKey:'login.role_parent', descKey:'login.role_parent_desc' },
+  { emoji:'👨‍🎓', nameKey:'login.role_student', descKey:'login.role_student_desc' },
+  { emoji:'🔍',   nameKey:'login.role_staff',  descKey:'login.role_staff_desc' },
 ]
 
 export default function LoginPage() {
+  const t = useT('common')
   const router = useRouter()
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
@@ -108,8 +111,8 @@ export default function LoginPage() {
 
   const handleForgotSubmit = async () => {
     setForgotError('')
-    if (!forgotEmail.trim()) { setForgotError('Entrez votre adresse email.'); return }
-    if (!selectedSchool) { setForgotError("Sélectionnez d'abord votre établissement."); return }
+    if (!forgotEmail.trim()) { setForgotError(t('login.forgot_error_empty')); return }
+    if (!selectedSchool) { setForgotError(t('login.forgot_error_no_school')); return }
     setForgotLoading(true)
     try {
       const res = await fetch('/api/v2/users/auth/forgot-password', {
@@ -120,10 +123,10 @@ export default function LoginPage() {
       if (res.ok) setForgotDone(true)
       else {
         const d = await res.json()
-        setForgotError(d.message || 'Erreur lors de l\'envoi.')
+        setForgotError(d.message || t('login.forgot_error'))
       }
     } catch {
-      setForgotError('Erreur réseau. Veuillez réessayer.')
+      setForgotError(t('login.forgot_error_network'))
     } finally {
       setForgotLoading(false)
     }
@@ -133,13 +136,13 @@ export default function LoginPage() {
     setAlert(null)
     setSuspended(null)
     if (!selectedRole) {
-      setAlert({ msg: 'Veuillez sélectionner votre rôle', type: 'error' }); return
+      setAlert({ msg: t('login.alert_select_role'), type: 'error' }); return
     }
     if (!selectedSchool) {
-      setAlert({ msg: "Veuillez sélectionner votre établissement", type: 'error' }); return
+      setAlert({ msg: t('login.alert_select_school'), type: 'error' }); return
     }
     if (!email.trim() || !password) {
-      setAlert({ msg: 'Email et mot de passe requis', type: 'error' }); return
+      setAlert({ msg: t('login.alert_required'), type: 'error' }); return
     }
 
     setLoading(true)
@@ -170,7 +173,7 @@ export default function LoginPage() {
           .map(r => ROLE_SELECTOR.find(s => s.role === r)?.label ?? r)
           .join(' et ')
         setAlert({
-          msg: `Votre compte dans cet établissement a plusieurs rôles : ${labels}. Sélectionnez le bon rôle ci-dessus.`,
+          msg: t('login.role_mismatch_multiple', { roles: labels }),
           type: 'error',
         })
         return
@@ -197,12 +200,12 @@ export default function LoginPage() {
       if (roleMismatch) {
         const selectedLabel = ROLE_SELECTOR.find(s => s.role === selectedRole)?.label ?? selectedRole
         const actualLabel   = ROLE_SELECTOR.find(s => s.role === role)?.label ?? role
-        setRoleMismatchWarning(`Vous avez sélectionné ${selectedLabel} mais votre rôle dans cet établissement est ${actualLabel}. Redirection vers votre espace…`)
+        setRoleMismatchWarning(t('login.role_mismatch_warning', { selected: selectedLabel, actual: actualLabel }))
       }
 
       setSuccess({ ...config, dest, firstName })
     } catch {
-      setAlert({ msg: 'Impossible de se connecter. Vérifiez votre connexion.', type: 'error' })
+      setAlert({ msg: t('messages.networkError'), type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -255,10 +258,11 @@ export default function LoginPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 20px rgba(34,197,94,0.25)'
             }}>🎓</div>
-            <div>
+            <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 36, fontWeight: 700, color: 'white' }}>EduNexus</div>
-              <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>Gestion Scolaire · Cameroun</div>
+              <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>{t('login.tagline')}</div>
             </div>
+            <LanguageSwitch style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }} />
           </div>
 
           {/* Titre */}
@@ -267,16 +271,16 @@ export default function LoginPage() {
             fontSize: 48, fontWeight: 700, lineHeight: 1.2,
             color: 'white', marginBottom: 14
           }}>
-            Bienvenue<br />
-            sur votre <span style={{ color: '#4ade80' }}>espace</span><br />
-            scolaire
+            {t('login.left_title_1')}<br />
+            {t('login.left_title_2')} <span style={{ color: '#4ade80' }}>{t('login.left_title_highlight')}</span><br />
+            {t('login.left_title_3')}
           </div>
 
           <p style={{
             fontSize: 19, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7,
             fontWeight: 500, maxWidth: 400, marginBottom: 48
           }}>
-            Accédez à votre tableau de bord personnalisé selon votre rôle dans l&apos;établissement.
+            {t('login.left_subtitle')}
           </p>
 
           {/* Rôle cards */}
@@ -299,8 +303,8 @@ export default function LoginPage() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                 }}>{role.emoji}</div>
                 <div>
-                  <div style={{ color: 'white', fontSize: 18, fontWeight: 700 }}>{role.name}</div>
-                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 15, fontWeight: 500 }}>{role.desc}</div>
+                  <div style={{ color: 'white', fontSize: 18, fontWeight: 700 }}>{t(role.nameKey)}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 15, fontWeight: 500 }}>{t(role.descKey)}</div>
                 </div>
                 <div style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.2)', fontSize: 20 }}>→</div>
               </div>
@@ -309,7 +313,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <div style={{ marginTop: 'auto', fontSize: 16, color: 'rgba(255,255,255,0.2)', fontWeight: 500, paddingTop: 16 }}>
-            © 2026 EduNexus · Système de gestion scolaire
+            {t('login.copyright')}
           </div>
         </div>
       </div>
@@ -331,20 +335,19 @@ export default function LoginPage() {
               <div style={{ background: 'var(--red-light)', border: '2px solid rgba(220,38,38,0.25)', borderRadius: 16, padding: '32px 36px', boxShadow: '0 4px 24px rgba(220,38,38,0.08)' }}>
                 <div style={{ fontSize: 40, marginBottom: 16, textAlign: 'center' }}>🚫</div>
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--red)', marginBottom: 12, textAlign: 'center' }}>
-                  Établissement suspendu
+                  {t('login.suspended_title')}
                 </div>
                 <div style={{ fontSize: 15, color: 'var(--red)', fontWeight: 600, lineHeight: 1.7, marginBottom: 20 }}>
-                  <strong>{suspended.schoolName}</strong> a été suspendu par l&apos;administrateur EduNexus.
-                  L&apos;accès à la plateforme est temporairement bloqué pour cet établissement.
+                  {t('login.suspended_msg', { school: suspended.schoolName })}
                 </div>
                 <div style={{ background: 'var(--surface)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, fontSize: 14, color: 'var(--text2)', lineHeight: 1.6 }}>
-                  Pour toute question ou pour régulariser la situation, contactez le support EduNexus à{' '}
+                  {t('login.suspended_support')}{' '}
                   <a href="mailto:support@edunexus.cm" style={{ color: 'var(--green)', fontWeight: 700 }}>support@edunexus.cm</a>
                 </div>
                 <button
                   onClick={() => setSuspended(null)}
                   style={{ width: '100%', padding: '12px 0', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, fontSize: 15, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  ← Changer d&apos;établissement
+                  {t('login.suspended_back')}
                 </button>
               </div>
             </div>
@@ -357,10 +360,10 @@ export default function LoginPage() {
               fontFamily: 'var(--font-spectral),Spectral,serif',
               fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6
             }}>
-              Connexion à votre espace
+              {t('login.right_title')}
             </div>
             <div style={{ fontSize: 18, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
-              Entrez vos identifiants pour accéder à votre tableau de bord.
+              {t('login.right_subtitle')}
             </div>
           </div>
 
@@ -380,7 +383,7 @@ export default function LoginPage() {
           {/* Sélecteur d'établissement */}
           <div style={{ marginBottom: 18, position: 'relative' }} ref={dropdownRef}>
             <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-              🏫 Votre établissement *
+              {t('login.school_label')}
             </label>
 
             {/* Bouton déclencheur */}
@@ -400,7 +403,7 @@ export default function LoginPage() {
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                 {schoolsLoading ? (
-                  <span style={{ color: 'var(--text3)' }}>Chargement des établissements…</span>
+                    <span style={{ color: 'var(--text3)' }}>{t('login.school_loading')}</span>
                 ) : selectedSchool ? (
                   <>
                     <span style={{ fontSize: 22, flexShrink: 0 }}>🏫</span>
@@ -409,7 +412,7 @@ export default function LoginPage() {
                     </span>
                   </>
                 ) : (
-                  <span>Sélectionner votre établissement…</span>
+                  <span>{t('login.school_placeholder')}</span>
                 )}
               </span>
               <ChevronDown size={16} style={{ flexShrink: 0, color: 'var(--text3)', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }} />
@@ -418,7 +421,7 @@ export default function LoginPage() {
             {/* Sous-domaine affiché sous le bouton quand sélectionné */}
             {selectedSchool && (
               <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 500, marginTop: 5 }}>
-                Sous-domaine : <span style={{ fontFamily: 'monospace', color: 'var(--text2)' }}>{selectedSchool.subdomain}</span>
+                {t('login.school_subdomain')} : <span style={{ fontFamily: 'monospace', color: 'var(--text2)' }}>{selectedSchool.subdomain}</span>
                 {selectedSchool.city ? ` · ${selectedSchool.city}` : ''}
               </div>
             )}
@@ -438,7 +441,7 @@ export default function LoginPage() {
                     type="text"
                     value={schoolSearch}
                     onChange={e => setSchoolSearch(e.target.value)}
-                    placeholder="Rechercher un établissement…"
+                    placeholder={t('login.school_search')}
                     style={{ border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, width: '100%', background: 'transparent' }}
                   />
                 </div>
@@ -447,7 +450,7 @@ export default function LoginPage() {
                 <div style={{ maxHeight: 260, overflowY: 'auto' }}>
                   {schools.length === 0 ? (
                     <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
-                      Aucun établissement disponible
+                      {t('login.school_empty')}
                     </div>
                   ) : (() => {
                     const filtered = schools.filter(s =>
@@ -457,7 +460,7 @@ export default function LoginPage() {
                     )
                     if (filtered.length === 0) return (
                       <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
-                        Aucun résultat pour &ldquo;{schoolSearch}&rdquo;
+                        {t('login.school_no_results', { query: schoolSearch })}
                       </div>
                     )
                     return filtered.map(school => (
@@ -503,7 +506,7 @@ export default function LoginPage() {
           {/* Sélecteur de rôle */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-              Votre rôle *
+              {t('login.role_label')}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
               {ROLE_SELECTOR.map(r => {
@@ -525,7 +528,7 @@ export default function LoginPage() {
                   >
                     <div style={{ fontSize: 22, marginBottom: 4 }}>{r.emoji}</div>
                     <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3 }}>
-                      {r.label}
+                      {t(r.label)}
                     </div>
                   </button>
                 )
@@ -536,13 +539,13 @@ export default function LoginPage() {
           {/* Email */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-              Adresse email
+              {t('fields.email')}
             </label>
             <input
               ref={emailRef} type="email" value={email}
               onChange={e => { setEmail(e.target.value); setAlert(null) }}
               onKeyDown={e => e.key === 'Enter' && submit()}
-              placeholder="jean.dupont@ecole.cm"
+              placeholder={t('login.email_placeholder')}
               autoComplete="off"
               style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
             />
@@ -551,14 +554,14 @@ export default function LoginPage() {
           {/* Mot de passe */}
           <div style={{ marginBottom: 18 }}>
             <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-              Mot de passe
+              {t('fields.password')}
             </label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPwd ? 'text' : 'password'} value={password}
                 onChange={e => { setPassword(e.target.value); setAlert(null) }}
                 onKeyDown={e => e.key === 'Enter' && submit()}
-                placeholder="••••••••••" autoComplete="new-password"
+                placeholder={t('login.password_placeholder')} autoComplete="new-password"
                 style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
               />
               <button type="button" onClick={() => setShowPwd(s => !s)}
@@ -574,7 +577,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => { setForgotOpen(true); setForgotDone(false); setForgotError(''); setForgotEmail(email) }}
               style={{ fontSize: 15, fontWeight: 700, color: 'var(--green)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-              Mot de passe oublié ?
+              {t('auth.forgotPassword')}
             </button>
           </div>
 
@@ -591,7 +594,7 @@ export default function LoginPage() {
               opacity: loading ? 0.8 : 1
             }}>
             {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-            {loading ? 'Connexion...' : 'Se connecter →'}
+            {loading ? t('login.signing_in') : t('auth.signIn')}
           </button>
 
         </>
@@ -617,7 +620,7 @@ export default function LoginPage() {
               {success.emoji}
             </span>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-              Bonjour, {success.firstName} !
+              {t('login.success_greeting', { name: success.firstName })}
             </div>
             {roleMismatchWarning && (
               <div style={{ padding: '10px 14px', background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', fontWeight: 600, marginBottom: 10, textAlign: 'left', lineHeight: 1.6 }}>
@@ -625,7 +628,7 @@ export default function LoginPage() {
               </div>
             )}
             <div style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6, marginBottom: 8 }}>
-              Connexion réussie à EduNexus · École Lycée du Succès
+              {t('messages.welcome')}
             </div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -645,12 +648,12 @@ export default function LoginPage() {
               }} />
             </div>
             <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600, marginBottom: 14 }}>
-              Redirection dans 2 secondes...
+              {t('login.success_redirecting')}
             </div>
             <button
               onClick={() => router.push(success.dest)}
               style={{ width: '100%', padding: 12, background: 'var(--green)', color: 'white', fontSize: 14, fontWeight: 800, border: 'none', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Accéder au tableau de bord →
+              {t('login.success_goto')}
             </button>
           </div>
         </div>
@@ -667,42 +670,42 @@ export default function LoginPage() {
             {forgotDone ? (
               <div style={{ textAlign: 'center', padding: '8px 0' }}>
                 <div style={{ fontSize: 52, marginBottom: 14 }}>📧</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>Email envoyé !</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>{t('login.forgot_success_title')}</div>
                 <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 24 }}>
-                  Si un compte correspond à cet email, vous recevrez un lien de réinitialisation valable <strong>1 heure</strong>. Vérifiez aussi vos spams.
+                  {t('login.forgot_success_msg')}
                 </div>
                 <button onClick={() => setForgotOpen(false)}
                   style={{ padding: '11px 28px', borderRadius: 11, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 15, fontWeight: 800, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Retour à la connexion
+                  {t('login.forgot_back')}
                 </button>
               </div>
             ) : (
               <>
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-                  🔑 Mot de passe oublié ?
+                  {t('login.forgot_title')}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 24, lineHeight: 1.6 }}>
-                  Entrez votre adresse email. Nous vous enverrons un lien pour réinitialiser votre mot de passe.
+                  {t('login.forgot_subtitle')}
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 6, letterSpacing: '0.5px', textTransform: 'uppercase' as const }}>
-                    Adresse email *
+                    {t('login.forgot_email_label')}
                   </label>
                   <input
                     type="email"
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleForgotSubmit() }}
-                    placeholder="votre@email.com"
+                    placeholder={t('login.forgot_email_placeholder')}
                     autoFocus
                     style={{ width: '100%', padding: '12px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 10, color: 'var(--text)', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' as const }}
                   />
                 </div>
 
-                {!selectedSchool && (
+                  {!selectedSchool && (
                   <div style={{ background: 'var(--orange-light)', border: '1px solid var(--orange-light)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--orange)', fontWeight: 600, marginBottom: 16, lineHeight: 1.5 }}>
-                    ⚠️ Sélectionnez d&apos;abord votre établissement sur la page de connexion.
+                    {t('login.forgot_warning')}
                   </div>
                 )}
 
@@ -715,11 +718,11 @@ export default function LoginPage() {
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setForgotOpen(false)} disabled={forgotLoading}
                     style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Annuler
+                    {t('login.forgot_cancel')}
                   </button>
                   <button onClick={handleForgotSubmit} disabled={forgotLoading || !selectedSchool}
                     style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: (!selectedSchool || forgotLoading) ? 'var(--text3)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: (!selectedSchool || forgotLoading) ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                    {forgotLoading ? '⏳ Envoi…' : 'Envoyer le lien'}
+                    {forgotLoading ? t('login.forgot_sending') : t('login.forgot_send')}
                   </button>
                 </div>
               </>

@@ -8,37 +8,94 @@ export class TemplateController {
   importEleves = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId;
-      const classes = await this.prisma.class.findMany({
-        where: { schoolId },
-        select: { name: true },
-        orderBy: { name: 'asc' },
-      });
 
-      const wb = XLSX.utils.book_new();
-
-      const headers = ['matricule', 'nom', 'prenom', 'email', 'date_naissance', 'classe', 'nom_parent', 'prenom_parent', 'email_parent', 'telephone_parent'];
-      const ws = XLSX.utils.aoa_to_sheet([
-        headers,
-        ['2025001', 'NGONO', 'Marie', 'marie.ngono@eleve.cm', '15/03/2010', '6e A', 'NGONO', 'Robert', 'robert.ngono@email.cm', '+237690000001'],
-        ['', 'ESSOMBA', 'Jean', '', '22/07/2009', '5e B', 'ESSOMBA', 'Cécile', '', '+237690000002'],
-        ['2025003', 'BELA', 'Paul', 'paul.bela@eleve.cm', '10/01/2011', '6e A', 'BELA', 'Hortense', 'hortense.bela@email.cm', ''],
+      const [classes, school, lv2Subjects] = await Promise.all([
+        this.prisma.class.findMany({
+          where: { schoolId },
+          select: { name: true },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.school.findUnique({
+          where: { id: schoolId },
+          select: { hasPEBSFrancophone: true, hasPEBSAnglophone: true },
+        }),
+        this.prisma.subject.findMany({
+          where: { schoolId, isLV2: true },
+          select: { name: true },
+          orderBy: { name: 'asc' },
+        }),
       ]);
 
-      ws['!cols'] = headers.map((h) => ({ wch: h.startsWith('email') ? 28 : 18 }));
+      const hasPEBS = !!(school?.hasPEBSFrancophone || school?.hasPEBSAnglophone);
+
+      const baseHeaders = ['matricule', 'nom', 'prenom', 'email', 'date_naissance', 'classe', 'nom_parent', 'prenom_parent', 'email_parent', 'telephone_parent'];
+      const baseRow1 = ['2025001', 'NGONO', 'Marie', 'marie.ngono@eleve.cm', '15/03/2010', '6e A', 'NGONO', 'Robert', 'robert.ngono@email.cm', '+237690000001'];
+      const baseRow2 = ['', 'ESSOMBA', 'Jean', '', '22/07/2009', '5e B', 'ESSOMBA', 'Cécile', '', '+237690000002'];
+      const baseRow3 = ['2025003', 'BELA', 'Paul', 'paul.bela@eleve.cm', '10/01/2011', '6e A', 'BELA', 'Hortense', 'hortense.bela@email.cm', ''];
+
+      const extraHeaders: string[] = [];
+      const extraRow1: string[] = [];
+      const extraRow2: string[] = [];
+      const extraRow3: string[] = [];
+
+      if (hasPEBS) {
+        extraHeaders.push('pebs');
+        extraRow1.push('FR_PEBS');
+        extraRow2.push('');
+        extraRow3.push('');
+      }
+      if (lv2Subjects.length > 0) {
+        extraHeaders.push('lv2');
+        extraRow1.push(lv2Subjects[0].name);
+        extraRow2.push('');
+        extraRow3.push('');
+      }
+
+      const headers = [...baseHeaders, ...extraHeaders];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([
+        headers,
+        [...baseRow1, ...extraRow1],
+        [...baseRow2, ...extraRow2],
+        [...baseRow3, ...extraRow3],
+      ]);
+
+      ws['!cols'] = headers.map((h) => ({ wch: h.startsWith('email') ? 28 : h === 'lv2' ? 22 : 18 }));
 
       XLSX.utils.book_append_sheet(wb, ws, 'Élèves');
 
-      const ws2 = XLSX.utils.aoa_to_sheet([
+      const instrLines: any[][] = [
         ['INSTRUCTIONS — Import des élèves'],
         [''],
         ['Colonnes obligatoires : nom, prenom'],
         ['Colonnes recommandées : matricule, email, date_naissance, classe'],
         ['Colonnes optionnelles : nom_parent, prenom_parent, email_parent, telephone_parent'],
+      ];
+
+      if (hasPEBS) {
+        instrLines.push(
+          [''],
+          ['--- COLONNES OPTIONNELLES AVANCÉES ---'],
+          [''],
+          ['Colonne "pebs" (Programme d\'Éducation Bilingue Spécial) :'],
+          ['  Valeurs acceptées : FR_PEBS ou EN_PEBS'],
+          ['  Laissez vide pour les élèves non-PEBS'],
+        );
+      }
+      if (lv2Subjects.length > 0) {
+        if (!hasPEBS) instrLines.push([''], ['--- COLONNES OPTIONNELLES AVANCÉES ---']);
+        instrLines.push(
+          [''],
+          ['Colonne "lv2" (Langue Vivante 2) — valeurs acceptées :'],
+          ...lv2Subjects.map(s => [`  • ${s.name}`]),
+          ['  Laissez vide si l\'élève n\'a pas de LV2'],
+        );
+      }
+
+      instrLines.push(
         [''],
         ['Format date : JJ/MM/AAAA (ex: 15/03/2010)'],
         ['Format téléphone : +237XXXXXXXXX (9 chiffres après +237)'],
-        ['Email élève : optionnel, mais recommandé — permet à l\'élève de se connecter par email'],
-        ['Email parent : optionnel, mais recommandé pour lier le parent automatiquement'],
         [''],
         ['Classes disponibles dans votre établissement :'],
         ...classes.map(c => [`  • ${c.name}`]),
@@ -48,7 +105,9 @@ export class TemplateController {
         ['  • Le matricule peut être laissé vide (généré automatiquement)'],
         ['  • Si email_parent est fourni, un compte parent sera créé automatiquement'],
         ['  • Les élèves et parents recevront un email avec leur identifiant'],
-      ]);
+      );
+
+      const ws2 = XLSX.utils.aoa_to_sheet(instrLines);
       ws2['!cols'] = [{ wch: 60 }];
       XLSX.utils.book_append_sheet(wb, ws2, 'Instructions');
 

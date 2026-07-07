@@ -1487,10 +1487,10 @@ function DraggableSubject({ subjectId, deptId, children }: { subjectId: string; 
 const DEPT_COLORS = [
   { name: 'Lettres', color: 'var(--blue)' },
   { name: 'Sciences Humaines', color: 'var(--amber)' },
-  { name: 'Langues Vivantes', color: '#10b981' },
+  { name: 'Langues Vivantes', color: 'var(--green)' },
   { name: 'Maths & Sciences', color: 'var(--red)' },
   { name: 'Informatique', color: 'var(--purple)' },
-  { name: 'Arts & Culture', color: '#f97316' },
+  { name: 'Arts & Culture', color: 'var(--orange)' },
   { name: 'Gris', color: 'var(--text3)' },
   { name: 'Personnalisé', color: 'var(--text)' },
 ]

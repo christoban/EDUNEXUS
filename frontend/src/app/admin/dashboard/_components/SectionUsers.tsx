@@ -308,7 +308,7 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
 
             {/* Submit */}
             <button onClick={submit} disabled={form.loading}
-              style={{ width: '100%', background: form.loading ? '#6b9e8e' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, fontSize: 17, padding: '16px 24px', borderRadius: 11, border: 'none', cursor: form.loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              style={{ width: '100%', background: form.loading ? 'var(--border)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, fontSize: 17, padding: '16px 24px', borderRadius: 11, border: 'none', cursor: form.loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
               {form.loading ? t('users.invite_modal.sending') : t('users.invite_modal.send')}
             </button>
           </div>
@@ -577,7 +577,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
               <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
                 <button onClick={() => setStep(1)} style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}>{t('users.import_modal.btn_back')}</button>
                 <button onClick={handleImport} disabled={!file || loading}
-                  style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: !file ? '#ccc' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1 }}>
+                  style={{ flex: 1, padding: '14px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: !file ? 'var(--border)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1 }}>
                   {loading ? t('users.import_modal.status_processing') : t('users.import_modal.btn_confirm')}
                 </button>
               </div>

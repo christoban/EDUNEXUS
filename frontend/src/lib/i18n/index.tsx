@@ -20,6 +20,22 @@ import frDiscipline from '@/locales/fr/discipline.json'
 import frErrors from '@/locales/fr/errors.json'
 import frOnboarding from '@/locales/fr/onboarding.json'
 
+// Dictionnaires EN importés STATIQUEMENT eux aussi (l'import() dynamique s'avère peu fiable
+// selon le navigateur/appareil — un toggle de langue qui « ne fait rien » sur mobile en était
+// le symptôme). Léger surcoût de bundle, mais bascule FR↔EN garantie partout, synchrone.
+import enCommon from '@/locales/en/common.json'
+import enNavigation from '@/locales/en/navigation.json'
+import enAdmin from '@/locales/en/admin.json'
+import enTeacher from '@/locales/en/teacher.json'
+import enStaff from '@/locales/en/staff.json'
+import enParent from '@/locales/en/parent.json'
+import enStudent from '@/locales/en/student.json'
+import enGrades from '@/locales/en/grades.json'
+import enFinance from '@/locales/en/finance.json'
+import enDiscipline from '@/locales/en/discipline.json'
+import enErrors from '@/locales/en/errors.json'
+import enOnboarding from '@/locales/en/onboarding.json'
+
 export type Language = 'fr' | 'en'
 type Subsystem = 'FRANCOPHONE' | 'ANGLOPHONE' | 'BILINGUAL'
 type Dictionary = Record<string, any>
@@ -34,43 +50,19 @@ const ALL_NAMESPACES: Namespace[] = [
   'onboarding',
 ]
 
-const DICTIONARY_LOADERS: Record<Language, Record<Namespace, () => Promise<Dictionary>>> = {
-  fr: {
-    common: () => import('@/locales/fr/common.json').then(m => m.default),
-    navigation: () => import('@/locales/fr/navigation.json').then(m => m.default),
-    admin: () => import('@/locales/fr/admin.json').then(m => m.default),
-    teacher: () => import('@/locales/fr/teacher.json').then(m => m.default),
-    staff: () => import('@/locales/fr/staff.json').then(m => m.default),
-    parent: () => import('@/locales/fr/parent.json').then(m => m.default),
-    student: () => import('@/locales/fr/student.json').then(m => m.default),
-    grades: () => import('@/locales/fr/grades.json').then(m => m.default),
-    finance: () => import('@/locales/fr/finance.json').then(m => m.default),
-    discipline: () => import('@/locales/fr/discipline.json').then(m => m.default),
-    errors: () => import('@/locales/fr/errors.json').then(m => m.default),
-    onboarding: () => import('@/locales/fr/onboarding.json').then(m => m.default),
-  },
-  en: {
-    common: () => import('@/locales/en/common.json').then(m => m.default),
-    navigation: () => import('@/locales/en/navigation.json').then(m => m.default),
-    admin: () => import('@/locales/en/admin.json').then(m => m.default),
-    teacher: () => import('@/locales/en/teacher.json').then(m => m.default),
-    staff: () => import('@/locales/en/staff.json').then(m => m.default),
-    parent: () => import('@/locales/en/parent.json').then(m => m.default),
-    student: () => import('@/locales/en/student.json').then(m => m.default),
-    grades: () => import('@/locales/en/grades.json').then(m => m.default),
-    finance: () => import('@/locales/en/finance.json').then(m => m.default),
-    discipline: () => import('@/locales/en/discipline.json').then(m => m.default),
-    errors: () => import('@/locales/en/errors.json').then(m => m.default),
-    onboarding: () => import('@/locales/en/onboarding.json').then(m => m.default),
-  },
-}
-
-// Dictionnaire FR complet, prêt synchrone dès le chargement du module.
+// Dictionnaires complets FR et EN, prêts synchrones dès le chargement du module.
 const FR_DICTS: Record<Namespace, Dictionary> = {
   common: frCommon, navigation: frNavigation, admin: frAdmin, teacher: frTeacher,
   staff: frStaff, parent: frParent, student: frStudent, grades: frGrades,
   finance: frFinance, discipline: frDiscipline, errors: frErrors, onboarding: frOnboarding,
 }
+const EN_DICTS: Record<Namespace, Dictionary> = {
+  common: enCommon, navigation: enNavigation, admin: enAdmin, teacher: enTeacher,
+  staff: enStaff, parent: enParent, student: enStudent, grades: enGrades,
+  finance: enFinance, discipline: enDiscipline, errors: enErrors, onboarding: enOnboarding,
+}
+
+const DICTS_BY_LANG: Record<Language, Record<Namespace, Dictionary>> = { fr: FR_DICTS, en: EN_DICTS }
 
 export function resolveLanguage(
   subsystem: Subsystem | string | null | undefined,
@@ -86,12 +78,9 @@ function getBrowserLanguage(): Language {
   return navigator.language?.startsWith('en') ? 'en' : 'fr'
 }
 
-async function loadAllDictionaries(lang: Language): Promise<Record<Namespace, Dictionary>> {
-  const loaders = DICTIONARY_LOADERS[lang]
-  const entries = await Promise.all(
-    ALL_NAMESPACES.map(async (ns) => [ns, await loaders[ns]()] as const),
-  )
-  return Object.fromEntries(entries) as Record<Namespace, Dictionary>
+// Résolution synchrone depuis les maps statiques (plus aucun import dynamique).
+function loadAllDictionaries(lang: Language): Record<Namespace, Dictionary> {
+  return DICTS_BY_LANG[lang]
 }
 
 interface I18nContextValue {
@@ -118,33 +107,54 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
     async function init() {
       let subsystem: Subsystem | null = null
+      let status: string | null = null
+      let loggedIn = false
 
       try {
         const raw = localStorage.getItem('edunexus_user')
         if (raw) {
+          loggedIn = true
           const res = await fetchApi('/api/v2/school/me')
           if (res.ok) {
             const body = await res.json()
-            if (body?.success && body.data?.subsystem) {
-              subsystem = body.data.subsystem as Subsystem
+            if (body?.success && body.data) {
+              subsystem = (body.data.subsystem ?? null) as Subsystem | null
+              status = (body.data.status ?? null) as string | null
             }
           }
         }
       } catch {
-        /* network error — will fall back to browser language */
+        /* network error — will fall back below */
       }
 
-      const resolved: Language = subsystem
-        ? resolveLanguage(subsystem)
-        : getBrowserLanguage()
+      // Priorité 1 : surcharge manuelle explicite de l'utilisateur (toggle de langue).
+      // Utile notamment pendant l'onboarding : un anglophone peut basculer en EN, et son
+      // choix est mémorisé. Prime sur toute résolution automatique.
+      const override = localStorage.getItem('edunexus_lang_override')
 
-      // FR est déjà chargé (synchrone). On ne charge dynamiquement que si EN est requis.
-      if (resolved === 'en') {
-        const loaded = await loadAllDictionaries('en')
-        if (!cancelled) {
-          setLang('en')
-          setDicts(loaded)
-        }
+      // L'onboarding (page publique par lien d'invitation) doit démarrer en FRANÇAIS, pas selon
+      // le navigateur : c'est là que l'établissement DÉCLARE sa langue, et un flip surprise
+      // FR→EN en plein remplissage est déroutant. Le toggle FR/EN reste disponible pour basculer.
+      const onOnboarding = typeof window !== 'undefined' && window.location.pathname.startsWith('/onboarding')
+
+      // Priorité 2 : la langue officielle de l'établissement ne s'applique qu'une fois l'école
+      // ACTIVE (configuration terminée). Pendant l'onboarding (statut APPROVED / route publique)
+      // ou si le sous-système est indéterminé, on reste en FRANÇAIS (défaut sûr, majorité
+      // francophone au Cameroun) — JAMAIS la langue du navigateur pour un utilisateur connecté ou
+      // en onboarding. Les pages publiques restantes (landing, login) suivent le navigateur.
+      const resolved: Language =
+        override === 'fr' || override === 'en'
+          ? override
+          : status === 'ACTIVE' && subsystem
+            ? resolveLanguage(subsystem)
+            : loggedIn || onOnboarding
+              ? 'fr'
+              : getBrowserLanguage()
+
+      // FR est déjà en place (état initial). On ne bascule que si EN est requis.
+      if (resolved === 'en' && !cancelled) {
+        setLang('en')
+        setDicts(loadAllDictionaries('en'))
       }
       if (!cancelled) setLoading(false)
     }
@@ -158,7 +168,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const dict = dicts[namespace]
     if (!dict) return key
     let val: any = key.split('.').reduce((acc: any, part) => acc?.[part], dict)
-    if (typeof val !== 'string') val = key
+    if (typeof val !== 'string') {
+      if (Array.isArray(val) || (typeof val === 'object' && val !== null)) return val
+      val = key
+    }
     if (params) val = val.replace(/\{(\w+)\}/g, (_match: string, k: string) => String(params[k] ?? `{${k}}`))
     return val
   }
@@ -170,9 +183,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const changeLanguage = useCallback(async (newLang: Language) => {
     setLoading(true)
-    const loaded = await loadAllDictionaries(newLang)
+    // Mémorise le choix explicite (persistant, prioritaire au prochain chargement).
+    try { localStorage.setItem('edunexus_lang_override', newLang) } catch { /* ignore */ }
     setLang(newLang)
-    setDicts(loaded)
+    setDicts(loadAllDictionaries(newLang))
     setLoading(false)
   }, [])
 

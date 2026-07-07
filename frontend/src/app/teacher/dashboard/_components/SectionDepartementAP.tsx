@@ -179,11 +179,11 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
       {tab === 'horaires' && (
         <div>
           {/* Alerte limite légale */}
-          <div style={{ padding: '14px 18px', background: '#fefce8', border: '1.5px solid var(--amber-light)', borderRadius: 12, marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          <div style={{ padding: '14px 18px', background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 12, marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
             <div>
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--amber)' }}>{t('department.hours_legal_warn')}</div>
-              <div style={{ fontSize: 13, color: '#a16207', fontWeight: 500, marginTop: 2 }}>{t('department.hours_legal_hint')}</div>
+              <div style={{ fontSize: 13, color: 'var(--amber)', fontWeight: 500, marginTop: 2 }}>{t('department.hours_legal_hint')}</div>
             </div>
           </div>
 
@@ -209,7 +209,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
                 </thead>
                 <tbody>
                   {horaires.map((row, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: row.isOverLimit ? '#fff7f7' : i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                    <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: row.isOverLimit ? 'var(--red-light)' : i % 2 === 0 ? 'white' : 'var(--bg)' }}>
                       <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>{row.teacherName}</td>
                       <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
                       <td style={{ padding: '12px 16px' }}>

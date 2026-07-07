@@ -62,7 +62,7 @@ const PEBS_65 = [
   { name: 'Cultures Nationales',                          coefficient: 1, hoursPerWeek: 1 },
   { name: 'Langues Nationales',                           coefficient: 1, hoursPerWeek: 1 },
   { name: 'Sport and Physical Education',                 coefficient: 2, hoursPerWeek: 2 },
-  { name: 'Travail Manuel',                               coefficient: 1, hoursPerWeek: 2 },
+  { name: 'Manual Labour',                               coefficient: 1, hoursPerWeek: 2 },
 ];
 
 /** Matières 4e et 3e — PEBS */
@@ -82,7 +82,7 @@ const PEBS_43 = [
   { name: 'Cultures Nationales',                          coefficient: 1, hoursPerWeek: 1 },
   { name: 'Langues Nationales',                           coefficient: 1, hoursPerWeek: 1 },
   { name: 'Sport and Physical Education',                 coefficient: 2, hoursPerWeek: 2 },
-  { name: 'Travail Manuel',                               coefficient: 1, hoursPerWeek: 2 },
+  { name: 'Manual Labour',                               coefficient: 1, hoursPerWeek: 2 },
 ];
 
 // ─── Export principal ─────────────────────────────────────────────────────────

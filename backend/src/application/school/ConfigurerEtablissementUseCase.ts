@@ -16,9 +16,17 @@ import { ActiverEtablissementUseCase } from './ActiverEtablissementUseCase';
 // ── OnboardingState (miroir du frontend) ─────────────────────────────────────
 export interface LV2OrgRule {
   level: string;
+  className?: string | null;  // null = règle pour tout le niveau
   organisation: 'UNIFORME' | 'MIXTE' | 'VARIABLE';
-  langue?: string | null;
+  langue?: string | null;     // pour UNIFORME
+  langues?: string[];         // pour MIXTE : langues mélangées
   note?: string;
+}
+
+export interface PEBSOrgRule {
+  className: string;
+  level: string;
+  statut: 'PEBS_PUR' | 'NON_PEBS' | 'MIXTE';
 }
 
 export interface OnboardingState {
@@ -39,6 +47,11 @@ export interface OnboardingState {
   lv2Active?: boolean;
   lv2Languages?: string[];
   lv2Organisation?: LV2OrgRule[];
+  classesPerLevel?: Record<string, number>;
+  conventionNommage?: string;
+  hasPEBSFrancophone?: boolean;
+  hasPEBSAnglophone?: boolean;
+  pebsOrganisation?: PEBSOrgRule[];
 
   academicYearStart?: string;
   academicYearEnd?: string;
@@ -117,6 +130,11 @@ export class ConfigurerEtablissementUseCase {
       lv2Languages: state.lv2Languages ?? [],
       lv2Organisation: state.lv2Organisation ?? [],
 
+      // PEBS
+      hasPEBSFrancophone: !!state.hasPEBSFrancophone,
+      hasPEBSAnglophone: !!state.hasPEBSAnglophone,
+      pebsOrganisation: state.pebsOrganisation ?? [],
+
       // Finances / services
       feesTypes: state.feesTypes ?? [],
       paymentTranches: state.paymentTranches ?? 1,
@@ -128,7 +146,8 @@ export class ConfigurerEtablissementUseCase {
       // Direction
       directionRoles: state.directionRoles ?? {},
 
-      conventionNommage: 'LETTRES',
+      conventionNommage: state.conventionNommage ?? 'LETTRES',
+      classesParNiveau: state.classesPerLevel ?? {},
     };
 
     if (cyclesHas('PRIMAIRE')) {

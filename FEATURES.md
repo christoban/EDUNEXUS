@@ -1,0 +1,147 @@
+# FEATURES — EduNexus
+
+> Le projet vu **par fonctionnalité métier** (pas fichier par fichier). Pour chaque feature : objectif, dossiers/fichiers principaux, interactions.
+> Liés : [ARCHITECTURE.md](ARCHITECTURE.md) · [MODULE_INDEX.md](MODULE_INDEX.md) · [CONVENTIONS.md](CONVENTIONS.md)
+> Raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src/infrastructure`, `fe/` = `frontend/src`.
+
+---
+
+## 1. Onboarding d'un établissement (2 phases)
+
+**Objectif** : transformer une invitation en un établissement **actif et entièrement configuré** (classes, matières, sections, calendrier), avec la structure MINESEC correcte.
+
+- **Phase 1 — Wizard d'inscription** (`fe/app/onboarding/[token]/page.tsx`) : accessible via le lien d'invitation. Collecte sous-système, type/template (`detectTemplate` + `TEMPLATE_META`), cycles, niveaux, séries/filières, LV2 (dès la 4e), **PEBS**, primaire/technique, mot de passe admin. Sauvegarde un `onboardingConfig` sur l'école (`InviteOnboardingController.completeOnboarding`).
+- **Phase 2 — Conversationnel + activation** (`fe/app/admin/configuration/`, `ConversationalOnboarding.tsx`) : après approbation, **se nourrit de la Phase 1** (réconciliation : pré-remplit et ne repose que les questions manquantes — LV2 org, calendrier, frais, direction). Puis **activation déterministe** : `ConfigurerEtablissementUseCase` → `ActiverEtablissementUseCase` crée classes/matières/sections/coefficients.
+- **Backend** : `app/school/*`, `SchoolOnboardingController`, `InviteOnboardingController`, `schoolTemplateConfig.ts`.
+- **Interactions** : email d'invitation/approbation (bilingue), langue via `resolveLanguage`, template → coefficients (`CycleCoefficient`, `BacCoefficient`, `AnglophoneSubjectLoad`).
+
+## 2. Plateforme master (super-admin)
+
+**Objectif** : gérer le cycle de vie des écoles clientes.
+- **Fonctions** : inviter, approuver/rejeter, suspendre/réactiver, changer de plan.
+- **Fichiers** : `app/masterAdmin/*`, `MasterAdminHexController`, `MasterAuthController`, `fe/app/master/`.
+- **Sécurité** : auth master dédiée + **MFA (otplib)** + audit (`MasterAuthAudit`), middlewares `masterAuthSecurity`/`masterSensitiveAuth`.
+
+## 3. Authentification & rôles (RBAC multi-tenant)
+
+**Objectif** : sécuriser l'accès et isoler chaque école.
+- **Fichiers** : `app/user/*` (connexion/refresh/logout), `middleware/auth.ts` (`requireAuth`, `requireRole`), `domain/rules/StaffPermissionRules.ts`, `fe/lib/userAuth.ts`, `fe/lib/fetchApi.ts`.
+- **Mécanique** : JWT en cookie HTTP-only (`access_token`), `req.user.schoolId` borne toutes les requêtes ; STAFF a des `StaffPermissionType` (titres terrain → permissions).
+
+## 4. Gestion des utilisateurs
+
+**Objectif** : créer/gérer élèves, parents, enseignants, staff ; imports en masse.
+- **Fichiers** : `app/user/*` (`InscrireUtilisateurUseCase`, `ImporterUtilisateursUseCase`, `TransfererEleveUseCase`), `UserController`, `fe/app/admin/dashboard/_components/SectionUsers.tsx`.
+- **Interactions** : import Excel (xlsx/multer), rattachement parent↔élève (`ParentStudent`), profils (`StudentProfile`, `TeacherProfile`, `ParentProfile`, `StaffProfile`).
+
+## 5. Classes, matières & affectations
+
+**Objectif** : structurer l'école (classes, sous-groupes TP, matières, coefficients, enseignants).
+- **Fichiers** : `app/class/*`, `app/subject/*`, `ClasseController`, `SubjectController`, `TeachingAssignmentController`, `fe/.../SectionClasses.tsx`, `SectionSubjects.tsx`, `SectionAffectations.tsx`.
+- **Interactions** : prof principal, sous-groupes TP (`ClassSubGroup`), LV2/A-Level par élève (module `student`), coefficients par cycle/filière.
+
+## 6. Notes (workflow MINESEC)
+
+**Objectif** : saisie → soumission → validation des notes, avec contrôle hiérarchique.
+- **Fichiers** : `app/grade/*` (`SaisirNoteUseCase`, `SoumettreNoteUseCase`, `ValiderNoteUseCase`, `ValiderEnBlocUseCase`, `RejeterNoteUseCase`), `GradeController`, `fe/.../SectionTeacherGrades.tsx`, `SectionGradeValidation.tsx`, `SectionGrades.tsx`.
+- **Interactions** : statuts de validation (`DRAFT`/`SUBMITTED`/`VALIDATED`/`LOCKED`), prérequis des bulletins (Loi : bulletins bloqués si notes non validées).
+
+## 7. Bulletins (report cards)
+
+**Objectif** : générer et distribuer les bulletins PDF, corrects par sous-système/langue.
+- **Fichiers** : `app/reportCard/*` (`GenererBulletinUseCase`, `EnvoyerBulletinsUseCase`), `ReportCardController`, `utils/reportCards/templates.ts` + `helpers.ts`, `PdfKitBulletinService`, `fe/.../SectionBulletins.tsx`, `SectionStudentBulletins.tsx`.
+- **6 templates** : FR_SECONDARY, EN_SECONDARY, TECHNICAL_FR, PRIMARY, ANNUAL, MONTHLY. Langue résolue via `resolveLanguage` (PRIMARY/ANNUAL dynamiques). Mentions MINESEC déterministes.
+- **Interactions** : notes validées, coefficients, présences (absences), langue/section, envoi email/SMS, génération en masse via **Inngest**.
+
+## 8. Présences
+
+**Objectif** : enregistrer les présences et alerter les parents.
+- **Fichiers** : `app/attendance/*`, `AttendanceController`, `fe/.../SectionTeacherAttendance.tsx`, `SectionAdminAttendance.tsx`.
+- **Interactions** : **SMS/notifications** aux parents (absence, seuil d'absences), créneaux électifs (LV2/A-Level).
+
+## 9. Emplois du temps
+
+**Objectif** : construire, publier et ajuster les emplois du temps ; génération automatique assistée par IA.
+- **Fichiers** : `app/timetable/*`, `TimetableController`, `TimetableAutoController` (IA), `TimetableGridConfigController`, `fe/.../SectionTimetable.tsx`, `SectionGrilleHoraire.tsx`, `SectionTimetableStaff.tsx`.
+- **Interactions** : créneaux électifs `isLV2Slot`/`isElectiveSlot`, génération auto via **Groq** + **Inngest**, drag & drop (`@dnd-kit`), demandes de rattrapage.
+
+## 10. Année scolaire, périodes & promotions
+
+**Objectif** : gérer le calendrier académique et la clôture d'année.
+- **Fichiers** : `app/academicYear/*` (`CreerAnneeAcademiqueUseCase`, `CloturerAnneeUseCase`, `DefinirPeriodeCouranteUseCase`), `AcademicYearController`, `fe/.../SectionAcademicYear.tsx`.
+- **Interactions** : périodes/séquences (`AcademicPeriod`/`AcademicSequence`), promotions d'élèves (`ClassPromotion`/`StudentPromotion`), prérequis de clôture.
+
+## 11. Finances (Mobile Money)
+
+**Objectif** : facturer et encaisser (MTN/Orange Money + cash), gérer dépenses et cautions.
+- **Fichiers** : `app/finance/*` (`CreerPlanFraisUseCase`, `GenererFacturesEnMasseUseCase`, `InitierPaiementMobileMoneyUseCase`, `TraiterWebhookCampayUseCase`, `RembourserCautionUseCase`, `EnregistrerDepenseUseCase`), `FinanceController`, `CampayPaiementService`, `fe/.../SectionFinance.tsx`, `SectionFinanceStaff.tsx`, `SectionParentPayments.tsx`.
+- **Interactions** : **Campay** (webhook), reçus SMS, factures en masse, cautions (`Expense`/`Invoice`/`Payment`).
+
+## 12. Communications & notifications
+
+**Objectif** : messagerie in-app, annonces, notifications temps réel, publipostage.
+- **Fichiers** : `app/messaging`, `CommunicationsController`, `SocketNotificationService`, `EmailLogController`, `SMSController`, `fe/.../SectionCommunications.tsx`.
+- **Interactions** : Socket.io (in-app), Email (Resend/Nodemailer), SMS (bilingues), modèles `Notification`/`Announcement`/`Message`/`BroadcastLog`.
+
+## 13. Assistant IA / Copilot admin
+
+**Objectif** : assistant conversationnel **exécutant** dans le dashboard (function-calling), soumis au RBAC, avec confirmation des actions destructives et annulation (undo).
+- **Fichiers** : `app/assistant/adminActionCatalog.ts`, `AssistantController` (`execute`/`confirm-action`/`undo-action`), `AIController` (assistant informatif, insights, commentaires), `fe/.../AssistantWidget.tsx`.
+- **Interactions** : **Groq** (tools), use cases existants (class/subject…), journal `AssistantActionLog`, langue via `resolveLanguage`.
+
+## 14. Conseils de classe & discipline
+
+**Objectif** : délibérations et suivi disciplinaire.
+- **Fichiers** : `app/classCouncil/*`, `ClassCouncilController`, `fe/.../SectionAdminCouncil.tsx`, `SectionCouncil.tsx`, `SectionDiscipline.tsx` ; modèles `ClassCouncilSession/Decision`, `DisciplineRecord`.
+
+## 15. Orientation scolaire
+
+**Objectif** : fiches d'orientation, entretiens, tests d'aptitude, recommandations de série.
+- **Fichiers** : `app/orientation/*`, `OrientationController`, `fe/.../SectionOrientation.tsx` ; modèles `FicheOrientation`, `EntretienOrientation`, `TestAptitude`, `RecommandationSerie`.
+
+## 16. RH & documents
+
+**Objectif** : dossiers employés, carrière, congés, ordres de mission ; génération de documents.
+- **Fichiers** : `HRController`, `utils/hrDocuments.ts`, `StudentDocumentController`, `utils/schoolDocuments/`, `fe/.../SectionRH.tsx` ; modèles `EmployeeFile`, `CareerEvent`, `LeaveRequest`, `MissionOrder`, `VerifiableDocument`.
+- **Interactions** : documents bilingues (certificats, attestations), QR de vérification (qrcode).
+
+## 17. Bibliothèque / patrimoine
+
+**Objectif** : gestion des livres et prêts.
+- **Fichiers** : `fe/.../SectionLibrary.tsx`, `SectionStudentLibrary.tsx` ; modèles `Book`, `BookLoan`.
+
+## 18. Pédagogie (cahier de texte, programmes)
+
+**Objectif** : suivi pédagogique (programmes, chapitres, cahier de texte).
+- **Fichiers** : `PedagogieController`, `fe/.../SectionPedagogie.tsx`, `SectionCahierDeTexte.tsx`, `SectionDepartementAP.tsx` ; modèles `Programme`, `Chapitre`, `CahierDeTexte`.
+
+## 19. Statistiques & IA santé scolaire
+
+**Objectif** : tableaux de bord analytiques + indice de santé/risque élève.
+- **Fichiers** : `StatisticsController`, `app/ai/CalculerIndiceSanteUseCase`, `AIController` (`detectRisk`), `fe/.../SectionStatistics.tsx`, `SectionAdminAI.tsx` (Recharts).
+
+## 20. Espace parent
+
+**Objectif** : suivi des enfants (notes, bulletins, paiements, présences).
+- **Fichiers** : `app/parent/*`, `ParentController`, `fe/app/parent/dashboard/_components/*`.
+
+## 21. Internationalisation (i18n) & thème
+
+**Objectif** : afficher la bonne langue par sous-système/section, et un thème clair/sombre cohérent.
+- **i18n** : `fe/lib/i18n/`, `fe/locales/{fr,en}/*.json` (12 namespaces, parité stricte), `useT` ; backend `utils/languageHelper.ts` (`resolveLanguage`). Emails/SMS/bulletins/prompts Groq alignés sur cette source unique.
+- **Thème** : `next-themes` (`providers.tsx`), tokens `.dark` (`globals.css`), `ThemeToggle`.
+
+## 22. Mode hors-ligne (PWA)
+
+**Objectif** : continuer à travailler sans connexion (ex. saisie enseignant) et synchroniser ensuite.
+- **Fichiers** : `fe/lib/offline/` (Dexie), `@ducanh2912/next-pwa`, `components/OfflineIndicator`, modèle `OfflineQueue`, `fe/.../SectionOfflineStatus.tsx`.
+
+---
+
+## Matrice d'interdépendances (survol)
+
+- **Bulletins** dépendent de : notes validées + coefficients + présences + langue/section + PDF + email/SMS.
+- **Onboarding** produit : classes + matières + sections + coefficients → base de presque tout le reste.
+- **Langue** (`resolveLanguage`) irrigue : UI, emails, SMS, bulletins, prompts IA.
+- **Finances** dépendent de : plans de frais + élèves + Campay ; alimentent reçus SMS.
+- **Assistant** consomme : use cases existants + RBAC + langue.

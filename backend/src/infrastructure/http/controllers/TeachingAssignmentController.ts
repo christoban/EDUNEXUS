@@ -33,26 +33,49 @@ export class TeachingAssignmentController {
           ? parseSerie(cls.name, cls.level)
           : null);
 
-      // Matières du programme de cette classe via SubjectCoefficient
-      const coefficients = await this.prisma.subjectCoefficient.findMany({
-        where: {
-          schoolId,
-          classLevel: cls.level ?? undefined,
-          OR: resolvedSerie
-            ? [{ serieCode: resolvedSerie }, { serieCode: null }]
-            : [{ serieCode: null }],
-        },
-        include: { subject: { select: { id: true, name: true } } },
-        orderBy: { subject: { name: 'asc' } },
-      });
+      // Matières du programme de cette classe : SubjectCoefficient (niveau) + ClassSubjectOverride (classe)
+      const [coefficients, overrides] = await Promise.all([
+        this.prisma.subjectCoefficient.findMany({
+          where: {
+            schoolId,
+            classLevel: cls.level ?? undefined,
+            OR: resolvedSerie
+              ? [{ serieCode: resolvedSerie }, { serieCode: null }]
+              : [{ serieCode: null }],
+          },
+          include: { subject: { select: { id: true, name: true } } },
+          orderBy: { subject: { name: 'asc' } },
+        }),
+        this.prisma.classSubjectOverride.findMany({
+          where: { classId, schoolId },
+          include: { subject: { select: { id: true, name: true } } },
+          orderBy: { subject: { name: 'asc' } },
+        }),
+      ]);
 
-      // Dédupliquer (une matière peut avoir plusieurs coefficients pour le même niveau si serieCode varie)
+      // Les overrides prennent priorité : on exclut les matières déjà couvertes
+      const overrideSubjectIds = new Set(overrides.map(o => o.subjectId));
       const seenSubjectIds = new Set<string>();
-      const uniqueCoeffs = coefficients.filter(c => {
+      const sharedCoeffs = coefficients.filter(c => {
+        if (overrideSubjectIds.has(c.subjectId)) return false;
         if (seenSubjectIds.has(c.subjectId)) return false;
         seenSubjectIds.add(c.subjectId);
         return true;
       });
+
+      // Fusionner les matières partagées et les overrides
+      const allSubjects = [
+        ...sharedCoeffs.map(c => ({
+          subjectId: c.subjectId,
+          subjectName: c.subject.name,
+          coefficient: c.coefficient,
+        })),
+        ...overrides.map(o => ({
+          subjectId: o.subjectId,
+          subjectName: o.subject.name,
+          coefficient: o.coefficient,
+        })),
+      ];
 
       // Affectations existantes pour cette classe
       const assignments = await this.prisma.teachingAssignment.findMany({
@@ -63,22 +86,22 @@ export class TeachingAssignmentController {
 
       // Pour chaque matière : enseignants éligibles (qui ont déclaré cette matière)
       const data = await Promise.all(
-        uniqueCoeffs.map(async c => {
-          const assignment = assignmentMap.get(c.subjectId);
+        allSubjects.map(async s => {
+          const assignment = assignmentMap.get(s.subjectId);
           const eligibleTeachers = await this.prisma.user.findMany({
             where: {
               schoolId,
               role: 'TEACHER',
-              teacherProfile: { teacherSubjects: { some: { subjectId: c.subjectId } } },
+              teacherProfile: { teacherSubjects: { some: { subjectId: s.subjectId } } },
             },
             select: { id: true, firstName: true, lastName: true },
             orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
           });
 
           return {
-            subjectId: c.subjectId,
-            subjectName: c.subject.name,
-            coefficient: c.coefficient,
+            subjectId: s.subjectId,
+            subjectName: s.subjectName,
+            coefficient: s.coefficient,
             currentTeacherId: assignment?.teacherId ?? null,
             currentTeacherName: assignment?.teacher
               ? `${assignment.teacher.firstName} ${assignment.teacher.lastName}`

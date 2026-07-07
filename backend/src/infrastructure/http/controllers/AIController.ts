@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
-import { generateWithGemini } from '../../../services/gemini';
+import { generateWithGroq } from '../../../services/groq';
 import { resolveLanguage, instructionLangue, type Language } from '../../../utils/languageHelper';
 
 export class AIController {
@@ -47,7 +47,7 @@ export class AIController {
 
       if (prompt) {
         const lang = await this.langueEcole(schoolId);
-        insight = await generateWithGemini(prompt, instructionLangue(lang));
+        insight = await generateWithGroq(prompt, instructionLangue(lang));
       }
       res.json({ success: true, insight, timestamp: new Date() });
     } catch (error) {
@@ -103,7 +103,7 @@ export class AIController {
       const lang: Language = bodyLang === 'fr' || bodyLang === 'en' ? bodyLang : await this.langueEcole(req.user!.schoolId);
       const clauseLangue = lang === 'fr' ? 'En français' : 'In English';
       const prompt = `Tu es un professeur principal dans un lycée camerounais.\nGénère un commentaire de bulletin bienveillant pour :\n- Élève : ${studentName}, Classe : ${className || 'N/A'}\n- Moyenne : ${average}/20, Mention : ${mention || 'N/A'}\n- Points forts : ${strongSubjects.join(', ') || 'aucun'}\n- À améliorer : ${weakSubjects.join(', ') || 'aucun'}\n${clauseLangue}, 2-4 phrases, encourageant, adapté au contexte camerounais.`;
-      const comment = await generateWithGemini(prompt, instructionLangue(lang));
+      const comment = await generateWithGroq(prompt, instructionLangue(lang));
       res.json({ comment });
     } catch (error) {
       next(error);
@@ -119,7 +119,7 @@ export class AIController {
       }
       const lang = await this.langueEcole(req.user!.schoolId);
       const systemPrompt = `Tu es l'assistant pédagogique d'EduNexus pour les établissements scolaires camerounais (système MINESEC). Réponds de façon concise et pratique. Pour les questions simples, 1 à 4 phrases. Pour les procédures, 3 à 5 étapes maximum. ${instructionLangue(lang)}`;
-      const response = await generateWithGemini(message, systemPrompt);
+      const response = await generateWithGroq(message, systemPrompt);
       res.json({ success: true, response, timestamp: new Date() });
     } catch (error) {
       next(error);
@@ -168,7 +168,7 @@ export class AIController {
         `Ne fabrique jamais de données : si une information n'est pas dans le contexte, dis-le.\n\n` +
         `── Contexte de l'établissement ──\n${contexte}`;
 
-      const response = await generateWithGemini(message, systemPrompt);
+      const response = await generateWithGroq(message, systemPrompt);
       res.json({ success: true, response, timestamp: new Date() });
     } catch (error) {
       next(error);
@@ -201,7 +201,7 @@ export class AIController {
 
       const prompt = `Élève : ${studentProfile.user.firstName} ${studentProfile.user.lastName}\nMoyenne : ${avgGrade.toFixed(1)}/20\nPrésence : ${attendanceRate.toFixed(1)}%\nMatières difficiles : ${weakSubjects.slice(0, 3).join(', ') || 'aucune'}\nScore risque : ${riskScore}/100\n\nAnalyse en 3 parties : 1. Diagnostic (1 phrase) 2. Facteurs de risque (2-3 points) 3. Recommandations concrètes (2-3 actions)`;
       const lang = await this.langueEcole(schoolId);
-      const analysis = await generateWithGemini(prompt, `Tu es un expert en psychologie scolaire pour lycées camerounais. Sois bienveillant mais honnête. ${instructionLangue(lang)}`);
+      const analysis = await generateWithGroq(prompt, `Tu es un expert en psychologie scolaire pour lycées camerounais. Sois bienveillant mais honnête. ${instructionLangue(lang)}`);
 
       res.json({
         studentName: `${studentProfile.user.firstName} ${studentProfile.user.lastName}`,

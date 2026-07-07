@@ -45,7 +45,7 @@ const SUBJECT_PALETTES = [
   { bg: 'rgba(5,150,105,0.10)', border: 'var(--green)', text: 'var(--green2)' },
   { bg: 'rgba(37,99,235,0.09)', border: 'var(--blue)', text: 'var(--blue)' },
   { bg: 'rgba(217,119,6,0.09)', border: 'var(--amber)', text: 'var(--amber)' },
-  { bg: 'rgba(139,92,246,0.09)', border: 'var(--purple)', text: '#6d28d9' },
+  { bg: 'rgba(139,92,246,0.09)', border: 'var(--purple)', text: 'var(--purple)' },
   { bg: 'rgba(236,72,153,0.09)', border: '#db2777', text: '#be185d' },
   { bg: 'rgba(20,184,166,0.09)', border: 'var(--teal)', text: 'var(--teal)' },
 ]
@@ -226,7 +226,7 @@ export default function SectionTimetable({ onToast }: Props) {
                 : t('timetable.autoGen')}
             </button>
           ) : (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: '#fff8ed', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '6px 10px' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '6px 10px' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>{t('timetable.overwriteConfirm')}</span>
               <button style={{ ...btnPrim, padding: '5px 12px', fontSize: 13 }} onClick={handleAutoGenerate} disabled={autoGenerating}>
                 {autoGenerating ? <><span style={spinInline} />…</> : t('timetable.yesGenerate')}
@@ -269,7 +269,7 @@ export default function SectionTimetable({ onToast }: Props) {
                 <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', marginBottom: 6 }}>{t('timetable.classesGenerated')}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {genResults.results.map(r => (
-                    <div key={r.classId} style={{ background: 'var(--green-light)', border: '1px solid #86efac', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
+                    <div key={r.classId} style={{ background: 'var(--green-light)', border: '1px solid var(--green)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
                       {r.className} · {t('timetable.lessonsCount', { n: r.slotsCreated })}
                     </div>
                   ))}
@@ -359,7 +359,7 @@ export default function SectionTimetable({ onToast }: Props) {
             <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? 'var(--green)' : 'var(--amber)' }}>{pct}%</span>
             {timetable.generatedByAI && <span style={{ fontSize: 12, background: 'var(--purple-light)', color: 'var(--purple)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>🤖 IA</span>}
             {timetable.status === 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--green-light)', color: 'var(--green)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusPublished')}</span>}
-            {timetable.status !== 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--amber-light)', color: '#713f12', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusDraft')}</span>}
+            {timetable.status !== 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--amber-light)', color: 'var(--amber)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusDraft')}</span>}
           </div>
 
           {slots.length === 0 ? (
@@ -385,7 +385,7 @@ export default function SectionTimetable({ onToast }: Props) {
                         return (
                           <tr key={`pause-${idx}`}>
                             <td colSpan={joursActifs.length + 1}
-                              style={{ textAlign: 'center', padding: '5px 12px', background: isPetite ? '#fef9f0' : '#fef3e2', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: isPetite ? 'var(--amber)' : 'var(--amber)' }}>
+                              style={{ textAlign: 'center', padding: '5px 12px', background: 'var(--amber-light)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>
                               {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} {t('timetable.to')} {periode.fin}
                             </td>
                           </tr>
@@ -478,7 +478,7 @@ export default function SectionTimetable({ onToast }: Props) {
           {adjustResult && (
             <div style={{ marginTop: 12 }}>
               {adjustResult.applied.length > 0 && (
-                <div style={{ background: 'var(--green-light)', border: '1px solid #86efac', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                <div style={{ background: 'var(--green-light)', border: '1px solid var(--green)', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', marginBottom: 4 }}>{t('timetable.changesApplied')}</div>
                   {adjustResult.applied.map((a, i) => <div key={i} style={{ fontSize: 13, color: 'var(--green)' }}>• {a}</div>)}
                 </div>

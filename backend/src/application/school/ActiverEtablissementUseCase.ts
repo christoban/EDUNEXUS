@@ -170,7 +170,7 @@ export class ActiverEtablissementUseCase {
       }
 
       // 4. Créer les classes depuis onboardingConfig
-      let classesACreer: { name: string; level: string; schoolId: string; serie?: string | null; filiere?: string | null }[] = [];
+      let classesACreer: { name: string; level: string; schoolId: string; serie?: string | null; filiere?: string | null; pebsMixte?: boolean }[] = [];
       const enSixthClassNames = new Set<string>(); // classes Sixth anglophones (matières gérées à part, exclues de 4g)
       if (config) {
 
@@ -189,19 +189,41 @@ export class ActiverEtablissementUseCase {
               const count = config.classesParNiveau?.[niveau] ?? 2;
               // Anglophone : level sans espaces pour matcher AnglophoneSubjectLoad (seeded 'Form1' etc.)
               const levelNorm = isAnglophone ? niveau.replace(/\s+/g, '') : niveau;
+              // Construire un index className → statut PEBS si pebsOrganisation fourni
+              const pebsIndex: Record<string, string> = {};
+              if (Array.isArray(config.pebsOrganisation)) {
+                for (const rule of config.pebsOrganisation as Array<{ className: string; statut: string }>) {
+                  pebsIndex[rule.className] = rule.statut;
+                }
+              }
               for (let i = 0; i < Math.min(count, 26); i++) {
                 const suffix = conv === 'LETTRES' ? LETTRES[i]
                   : conv === 'CHIFFRES' ? `${i + 1}`
                   : `${LETTRES[i]}1`;
-                // PEBS: première classe (A) = FR_PEBS/EN_PEBS, reste = GENERAL
-                const isPEBSClass = i === 0 && (
-                  (hasPEBSFrancophone && !isAnglophone) ||
-                  (hasPEBSAnglophone && isAnglophone)
-                );
-                const filiere = isPEBSClass
-                  ? (isAnglophone ? 'EN_PEBS' : 'FR_PEBS')
-                  : (isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL');
-                classesACreer.push({ name: `${niveau} ${suffix}`, level: levelNorm, schoolId, filiere });
+                const className = `${niveau} ${suffix}`;
+                // PEBS: utilise pebsOrganisation si disponible, sinon fallback i === 0
+                const pebsStatut = pebsIndex[className];
+                let filiere: string;
+                if (pebsStatut === 'PEBS_PUR') {
+                  filiere = isAnglophone ? 'EN_PEBS' : 'FR_PEBS';
+                } else if (pebsStatut === 'MIXTE') {
+                  // Classes mixtes : marquées GENERAL + pebsMixte pour le badge 3 états
+                  filiere = isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL';
+                  classesACreer.push({ name: className, level: levelNorm, schoolId, filiere, pebsMixte: true });
+                  continue;
+                } else if (pebsStatut === 'NON_PEBS') {
+                  filiere = isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL';
+                } else {
+                  // Fallback historique : première classe = PEBS si flag actif
+                  const isPEBSClass = i === 0 && (
+                    (hasPEBSFrancophone && !isAnglophone) ||
+                    (hasPEBSAnglophone && isAnglophone)
+                  );
+                  filiere = isPEBSClass
+                    ? (isAnglophone ? 'EN_PEBS' : 'FR_PEBS')
+                    : (isAnglophone ? 'EN_GENERAL' : 'FR_GENERAL');
+                }
+                classesACreer.push({ name: className, level: levelNorm, schoolId, filiere });
               }
             }
           }
@@ -364,7 +386,7 @@ export class ActiverEtablissementUseCase {
         // Sauvegarder toutes les classes (avec serie pour le 2e cycle, filiere pour le 1er cycle/PEBS)
         for (const c of classesACreer) {
           await tx.class.create({
-            data: { name: c.name, level: c.level, schoolId: c.schoolId, serie: c.serie ?? null, filiere: c.filiere ?? null },
+            data: { name: c.name, level: c.level, schoolId: c.schoolId, serie: c.serie ?? null, filiere: c.filiere ?? null, pebsMixte: c.pebsMixte ?? false } as any,
           });
         }
         classCount = classesACreer.length;
@@ -530,73 +552,54 @@ export class ActiverEtablissementUseCase {
         }
       }
 
-      // 4h. Créer les départements pédagogiques selon le template (uniquement secondaire)
+      // 4h. Créer les départements pédagogiques (uniquement secondaire)
       if (templateCode && !isPrimaire) {
         const schoolSubjects = await tx.subject.findMany({ where: { schoolId } });
-        const FR_DEPT_TEMPLATES = ['LYCEE_FR', 'PRIVE_FR', 'CES_FR', 'LYCEE_BILINGUE'];
-        const EN_DEPT_TEMPLATES = ['GHS_EN', 'GSS_EN', 'PRIVE_EN'];
-        const subjectNamesLower = new Set(schoolSubjects.map(s => s.name.toLowerCase()));
-
-        interface DeptDef { name: string; color: string; keywords: string[]; }
-        let deptDefs: DeptDef[] = [];
-
-        if (FR_DEPT_TEMPLATES.includes(templateCode)) {
-          deptDefs = [
-            { name: 'Lettres', color: '#3b82f6', keywords: ['français', 'littérature', 'philosophie', 'écriture', 'lecture', 'grammaire', 'francais', 'litterature'] },
-            { name: 'Sciences Humaines', color: '#f59e0b', keywords: ['histoire', 'géographie', 'éducation civique', 'ecm', 'hgg', 'h-g', 'geographie'] },
-            { name: 'Langues Vivantes', color: '#10b981', keywords: ['anglais', 'allemand', 'espagnol', 'langue vivante', 'lv1', 'lv2', 'lvent', 'lv', 'english'] },
-            { name: 'Mathématiques et Sciences', color: '#ef4444', keywords: ['mathématiques', 'maths', 'math', 'physique', 'chimie', 'svt', 'science'] },
-            { name: 'Arts et Culture', color: '#f97316', keywords: ['art', 'musique', 'danse', 'culture', 'éducation artistique', 'education artistique'] },
-          ];
-          if (subjectNamesLower.has('informatique')) {
-            deptDefs.push({ name: 'Informatique', color: '#8b5cf6', keywords: ['informatique', 'tic', 'ntic', 'computer', 'technologie'] });
-          }
-          deptDefs.push({ name: 'Autres', color: '#9ca3af', keywords: [] });
-        } else if (EN_DEPT_TEMPLATES.includes(templateCode)) {
-          deptDefs = [
-            { name: 'Languages', color: '#3b82f6', keywords: ['english', 'french', 'literature', 'language', 'linguistics'] },
-            { name: 'Social Sciences', color: '#f59e0b', keywords: ['history', 'geography', 'social', 'civics', 'economics'] },
-            { name: 'Sciences', color: '#ef4444', keywords: ['mathematics', 'math', 'physics', 'chemistry', 'biology', 'science'] },
-            { name: 'Technical', color: '#8b5cf6', keywords: ['computer', 'ict', 'technology', 'technical', 'engineering', 'design'] },
-            { name: 'PE & Arts', color: '#10b981', keywords: ['physical', 'pe', 'sport', 'art', 'music', 'drama', 'health'] },
-            { name: 'Others', color: '#9ca3af', keywords: [] },
-          ];
+        const DEPT_MERGE: Record<string, string> = {
+          'Sciences':                                    'SVT',
+          'SVTEEHB':                                     'SVT',
+          'Physique-Chimie-Technologie':                 'PCT',
+          'Physique':                                    'PCT',
+          'Chimie':                                      'PCT',
+          'Anglais':                                     'Anglais',
+          'English Language':                            'Anglais',
+          'Intensive English':                           'Anglais',
+          'Literature in English':                       'Anglais',
+          'Français':                                    'Français',
+          'Langue Française':                            'Français',
+          'Littérature':                                 'Français',
+        };
+        const DEPT_COLORS = [
+          '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+          '#f97316', '#06b6d4', '#ec4899', '#84cc16', '#6366f1',
+          '#14b8a6', '#f43f5e', '#d946ef', '#0ea5e9', '#22c55e',
+        ];
+        // Déterminer le département cible pour chaque matière
+        const subjectDeptMap = new Map<string, string>();
+        for (const subj of schoolSubjects) {
+          subjectDeptMap.set(subj.id, DEPT_MERGE[subj.name] ?? subj.name);
         }
-
-        if (deptDefs.length > 0) {
-          const matchedSubjectIds = new Set<string>();
-          const createdDepartments: { id: string; name: string }[] = [];
-
-          for (const def of deptDefs) {
-            const department = await tx.department.create({
-              data: { schoolId, name: def.name, color: def.color },
+        // Grouper les subjectId par département
+        const deptGroups = new Map<string, string[]>();
+        for (const [subjectId, deptName] of subjectDeptMap) {
+          const group = deptGroups.get(deptName) ?? [];
+          group.push(subjectId);
+          deptGroups.set(deptName, group);
+        }
+        // Créer UN département par groupe, trié alphabétiquement
+        let colorIdx = 0;
+        const sortedDeptNames = [...deptGroups.keys()].sort((a, b) => a.localeCompare(b));
+        for (const deptName of sortedDeptNames) {
+          const color = DEPT_COLORS[colorIdx % DEPT_COLORS.length];
+          colorIdx++;
+          const department = await tx.department.create({
+            data: { schoolId, name: deptName, color },
+          });
+          for (const subjectId of deptGroups.get(deptName)!) {
+            await tx.subject.update({
+              where: { id: subjectId },
+              data: { departmentId: department.id },
             });
-            createdDepartments.push({ id: department.id, name: def.name });
-
-            if (def.keywords.length > 0) {
-              const matching = schoolSubjects.filter(s =>
-                !matchedSubjectIds.has(s.id) &&
-                def.keywords.some(kw => s.name.toLowerCase().includes(kw))
-              );
-              for (const subj of matching) {
-                matchedSubjectIds.add(subj.id);
-                await tx.subject.update({
-                  where: { id: subj.id },
-                  data: { departmentId: department.id },
-                });
-              }
-            }
-          }
-
-          // Subjects non assignés → dernier département (Autres/Others)
-          const fallbackDept = createdDepartments[createdDepartments.length - 1];
-          for (const subj of schoolSubjects) {
-            if (!matchedSubjectIds.has(subj.id)) {
-              await tx.subject.update({
-                where: { id: subj.id },
-                data: { departmentId: fallbackDept.id },
-              });
-            }
           }
         }
       }
@@ -743,16 +746,71 @@ export class ActiverEtablissementUseCase {
                   data: { isLV2: true, ...(langDept ? { departmentId: langDept.id } : {}) } as any,
                 });
               }
-              // Copier UNIQUEMENT les coefficients LV2 du premier cycle (4e/3e)
-              for (const pc of premierCoeffs) {
-                const already = await tx.subjectCoefficient.findFirst({
-                  where: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode },
-                  select: { id: true },
-                });
-                if (!already) {
-                  await tx.subjectCoefficient.create({
-                    data: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode, coefficient: pc.coefficient },
+            }
+
+            // ── LV2 par classe (via ClassSubjectOverride) ou par niveau (SubjectCoefficient) ──
+            const lv2Org = (config?.lv2Organisation ?? []) as Array<{ className?: string | null; level: string; langue?: string | null; langues?: string[]; organisation: string }>;
+            const hasPerClassConfig = lv2Org.some(r => r.className);
+
+            if (hasPerClassConfig) {
+              // PER-CLASS : ClassSubjectOverride — chaque classe reçoit UNIQUEMENT ses langues
+              const classes = await tx.class.findMany({
+                where: { schoolId, level: { in: PREMIER_CYCLE_LV2_LEVELS } },
+                select: { id: true, name: true, level: true },
+              });
+              // Build a lookup map of language subjects by name
+              const langSubjects = await tx.subject.findMany({
+                where: { schoolId, isLV2: true },
+                select: { id: true, name: true },
+              });
+              const langSubjectByName = new Map(langSubjects.map(s => [s.name, s.id]));
+
+              for (const cls of classes) {
+                const rule = lv2Org.find(r => r.className === cls.name)
+                  ?? lv2Org.find(r => !r.className && r.level === cls.level);
+                if (!rule) continue;
+
+                const targetLangues = rule.organisation === 'MIXTE'
+                  ? (rule.langues ?? [])
+                  : rule.langue ? [rule.langue] : [];
+
+                for (const langue of targetLangues) {
+                  const sid = langSubjectByName.get(langue);
+                  if (!sid) continue;
+                  const exists = await tx.classSubjectOverride.findUnique({
+                    where: { classId_subjectId: { classId: cls.id, subjectId: sid } },
+                    select: { id: true },
                   });
+                  if (!exists) {
+                    await tx.classSubjectOverride.create({
+                      data: { schoolId, classId: cls.id, subjectId: sid, coefficient: lv2Coeff },
+                    });
+                  }
+                }
+              }
+            } else {
+              // FALLBACK : une seule langue pour TOUT l'établissement (vrai scénario "uniforme global").
+              // La règle globale UNIFORME (sans className) porte la langue unique choisie par l'admin :
+              // on n'applique QUE cette langue — plus jamais toutes les langues déclarées dans chaque classe.
+              // (Repli historique : configs anciennes sans règle globale explicite → comportement inchangé.)
+              const globalRule = lv2Org.find(r => !r.className && r.organisation === 'UNIFORME' && r.langue);
+              const globalLangues = globalRule?.langue ? [globalRule.langue] : languesActives;
+              for (const pc of premierCoeffs) {
+                for (const langue of globalLangues) {
+                  const langSubject = await tx.subject.findFirst({
+                    where: { schoolId, name: langue, isLV2: true },
+                    select: { id: true },
+                  });
+                  if (!langSubject) continue;
+                  const already = await tx.subjectCoefficient.findFirst({
+                    where: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode },
+                    select: { id: true },
+                  });
+                  if (!already) {
+                    await tx.subjectCoefficient.create({
+                      data: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode, coefficient: pc.coefficient },
+                    });
+                  }
                 }
               }
             }
@@ -769,6 +827,98 @@ export class ActiverEtablissementUseCase {
           const remaining = await tx.subjectCoefficient.count({ where: { schoolId, subjectId: abstractLV2.id } });
           if (remaining === 0) {
             await tx.subject.delete({ where: { id: abstractLV2.id } });
+          }
+        }
+      }
+
+      // ── 8c. PEBS MIXTE : ajouter les matières PEBS aux classes mixtes ──────────────
+      // Une classe MIXTE (contenant à la fois des élèves PEBS et non-PEBS) doit
+      // exposer les matières des DEUX curricula pour que l'affectation individuelle
+      // (StudentProfile.pebsFiliere) fonctionne. Les matières communes sont
+      // dédupliquées automatiquement par subjectId.
+      // Source des matières PEBS + serieCode des matières générales selon le cycle de la classe :
+      //   • 1er cycle (4e/3e…)  → CycleCoefficient filière FR_PEBS ; général sous serieCode 'FR_GENERAL'
+      //   • 2nd cycle (2nde/1ère/Tle) → BacCoefficient série ABI (Intensive English, Citizenship…) ;
+      //                                  général sous serieCode = série de la classe
+      {
+        const pebsOrg = (config?.pebsOrganisation ?? []) as Array<{ className: string; level: string; statut: string }>;
+        const mixteRules = pebsOrg.filter(r => r.statut === 'MIXTE');
+        if (mixteRules.length > 0 && hasPEBSFrancophone) {
+          const schoolClasses = await tx.class.findMany({
+            where: { schoolId },
+            select: { id: true, name: true, level: true, serie: true },
+          });
+          const allSubjects = await tx.subject.findMany({ where: { schoolId } });
+          const subjectByName = new Map(allSubjects.map(s => [s.name, s.id]));
+
+          for (const rule of mixteRules) {
+            const cls = schoolClasses.find(c => c.name === rule.className);
+            if (!cls) continue;
+
+            // Choisir la source des matières PEBS selon le cycle de la classe
+            const niveauBac = NIVEAU_MAP[cls.level];
+            const isSecondCycle = !!niveauBac;
+
+            type PebsSubj = { subjectName: string; coefficient: number; weeklyPeriods: number | null };
+            let pebsSubjects: PebsSubj[];
+            let generalSerieCode: string; // serieCode sous lequel sont stockées les matières générales de cette classe
+
+            if (isSecondCycle) {
+              // 2nd cycle : matières spécifiques ABI (série bilingue intensive) via BacCoefficient
+              const bacCoeffs = await tx.bacCoefficient.findMany({
+                where: { serie: 'ABI', niveau: niveauBac, templateCode: { in: [templateCode ?? '', '__ALL__'] } },
+              });
+              pebsSubjects = bacCoeffs.map(bc => ({ subjectName: bc.subjectName, coefficient: bc.coefficient, weeklyPeriods: null }));
+              generalSerieCode = cls.serie ?? '';
+            } else {
+              // 1er cycle : matières FR_PEBS via CycleCoefficient
+              const cycleCoeffs = await tx.cycleCoefficient.findMany({
+                where: { templateCode: templateCode ?? '', classLevel: cls.level, filiere: 'FR_PEBS' },
+              });
+              pebsSubjects = cycleCoeffs.map(cc => ({ subjectName: cc.subjectName, coefficient: cc.coefficient, weeklyPeriods: cc.weeklyPeriods }));
+              generalSerieCode = 'FR_GENERAL';
+            }
+            if (pebsSubjects.length === 0) continue;
+
+            // Lister les sujets déjà disponibles via le curriculum général de la classe (déduplication)
+            const generalSubjIds = await tx.subjectCoefficient.findMany({
+              where: { schoolId, classLevel: cls.level, serieCode: generalSerieCode },
+              select: { subjectId: true },
+            });
+            const generalSubjSet = new Set(generalSubjIds.map(s => s.subjectId));
+
+            for (const ps of pebsSubjects) {
+              // Créer la matière PEBS si elle n'existe pas encore dans l'école
+              let subjId = subjectByName.get(ps.subjectName);
+              if (!subjId) {
+                const created = await tx.subject.create({
+                  data: {
+                    schoolId,
+                    name: ps.subjectName,
+                    code: ps.subjectName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
+                    coefficient: ps.coefficient,
+                    hoursPerWeek: ps.weeklyPeriods ?? 2,
+                    subjectType: 'THEORETICAL',
+                  },
+                });
+                subjId = created.id;
+                subjectByName.set(ps.subjectName, subjId);
+                subjectCount++;
+              }
+
+              // Ne pas dupliquer une matière déjà présente dans le curriculum général
+              if (generalSubjSet.has(subjId)) continue;
+
+              const exists = await tx.classSubjectOverride.findUnique({
+                where: { classId_subjectId: { classId: cls.id, subjectId: subjId } },
+                select: { id: true },
+              });
+              if (!exists) {
+                await tx.classSubjectOverride.create({
+                  data: { schoolId, classId: cls.id, subjectId: subjId, coefficient: ps.coefficient },
+                });
+              }
+            }
           }
         }
       }

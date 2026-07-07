@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { fetchApi } from '@/lib/fetchApi'
 import ConversationalOnboarding, { type OnboardingState } from './ConversationalOnboarding'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import LanguageSwitch from '@/components/LanguageSwitch'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,7 @@ interface SchoolData {
   email: string | null
   logoUrl: string | null
   status: string
+  onboardingConfig?: Record<string, unknown> | null
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────
@@ -146,16 +148,16 @@ export default function ConfigurationPage() {
     setRedirectCountdown(3)
     const interval = setInterval(() => {
       setRedirectCountdown(n => {
-        if (n <= 1) {
-          clearInterval(interval)
-          router.replace('/admin/dashboard?activated=1')
-          return 0
-        }
+        if (n <= 1) { clearInterval(interval); return 0 }
         return n - 1
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [activationPhase, router])
+  }, [activationPhase])
+
+  useEffect(() => {
+    if (redirectCountdown === 0) router.replace('/admin/dashboard?activated=1')
+  }, [redirectCountdown, router])
 
   // ── Loading / error screens ───────────────────────────────────────────
 
@@ -246,7 +248,7 @@ export default function ConfigurationPage() {
                 <div style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>matières</div>
               </div>
             )}
-            <div style={{ background: '#fefce8', border: '1.5px solid rgba(234,179,8,0.25)', borderRadius: 12, padding: '12px 20px', minWidth: 110 }}>
+            <div style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(234,179,8,0.25)', borderRadius: 12, padding: '12px 20px', minWidth: 110 }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--amber)' }}>{activationStats.academicYear}</div>
               <div style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>année scolaire</div>
             </div>
@@ -286,6 +288,8 @@ export default function ConfigurationPage() {
           <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>EduNexus</div>
           <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>Configuration de votre espace</div>
         </div>
+        {/* Langue de l'onboarding : FR par défaut, un anglophone bascule en EN ici (mémorisé) */}
+        <LanguageSwitch style={{ marginLeft: 'auto' }} />
       </div>
 
       {activateError && (
@@ -300,6 +304,7 @@ export default function ConfigurationPage() {
         subSystem={school.subsystem as OnboardingState['subSystem']}
         ownership={school.ownership}
         educationType={school.educationType}
+        phase1Config={school.onboardingConfig ?? undefined}
         onComplete={handleExecute}
       />
 

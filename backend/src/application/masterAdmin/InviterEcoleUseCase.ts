@@ -12,7 +12,6 @@ import type { InvitationRepository, InvitationProps } from '@domain/ports/reposi
 import type { EmailService } from '@domain/ports/services/EmailService';
 import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
 import { buildSchoolInviteTemplate } from '../../utils/emailTemplates';
-import { resolveLanguage } from '../../utils/languageHelper';
 
 export interface InviterEcoleCommande {
   email: string;
@@ -99,7 +98,8 @@ export class InviterEcoleUseCase {
       schoolName: commande.schoolName,
       requestedAdminName: 'Administrateur',
       activationUrl,
-      language: resolveLanguage(subsystemInvite),
+      // Langue du destinataire encore inconnue à l'invitation → email bilingue FR + EN.
+      language: 'bilingual',
     });
 
     void this.emailService.envoyer({

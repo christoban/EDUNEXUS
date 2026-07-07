@@ -287,13 +287,16 @@
       "FR_PEBS": "PEBS FR",
       "EN_PEBS": "PEBS EN",
       "FR_GENERAL": "General FR",
-      "EN_GENERAL": "General EN"
+      "EN_GENERAL": "General EN",
+      "MIXTE": "Mixed",
+      "GENERAL": "General"
     },
     "serie_label": "Series {serie}",
     "btn_pp": "🧑‍💼 Head Teacher",
     "btn_edit": "✏️ Edit",
     "btn_subgroups": "🔗 Subgroups",
     "btn_lv2": "🌍 LV2",
+    "btn_pebs": "📖 PEBS",
     "btn_alevel": "🎓 A-Level",
     "create_modal": {
       "title": "Create a Class",
@@ -372,6 +375,28 @@
       "col_lv2": "LV2",
       "unassigned_label": "Unassigned",
       "update_error": "Error updating",
+      "toast_bulk_done": "{count} student(s) updated"
+    },
+    "pebs": {
+      "title": "PEBS Assignment — {name}",
+      "opt_fr": "PEBS Francophone",
+      "opt_en": "PEBS Anglophone",
+      "count_fr": "PEBS FR: {count}",
+      "count_en": "PEBS EN: {count}",
+      "total_pebs": "PEBS: {count}",
+      "non_pebs": "Non PEBS: {count}",
+      "no_students": "No students in this class",
+      "bulk_selected": "{count} student(s) selected",
+      "bulk_clear_option": "— Clear PEBS —",
+      "btn_bulk_assign": "Bulk Assign",
+      "btn_deselect_all": "Deselect All",
+      "bulk_assigning": "Processing…",
+      "col_el": "STUDENT",
+      "col_status": "PEBS STATUS",
+      "status_fr": "PEBS FR",
+      "status_en": "PEBS EN",
+      "unassigned_label": "General",
+      "update_error": "Error updating PEBS",
       "toast_bulk_done": "{count} student(s) updated"
     },
     "alevel": {

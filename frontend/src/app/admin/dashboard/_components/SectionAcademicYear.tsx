@@ -318,7 +318,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
         <>
           {/* Bannière année courante */}
           <div style={{
-            background: 'linear-gradient(135deg,var(--sidebar) 0%,var(--sidebar2) 60%,#1a3520 100%)',
+            background: 'linear-gradient(135deg,var(--sidebar) 0%,var(--sidebar2) 60%,var(--sidebar) 100%)',
             borderRadius: 20, padding: '32px 36px', marginBottom: 22,
             border: '1.5px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden',
           }}>

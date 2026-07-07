@@ -84,14 +84,14 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
   ]
 
   return (
-    <aside className="w-[320px] min-w-[320px] flex flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+    <aside className="w-[320px] min-w-[320px] flex-shrink-0 relative" style={{ background: 'var(--sidebar)', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       {/* Bande déco */}
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
         style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }}
       />
 
       {/* Brand */}
-      <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{padding: "25px 25px"}}>
+      <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{ padding: "25px 25px", flexShrink: 0 }}>
         <div className="w-13 h-13 rounded-[14px] bg-gradient-to-br from-[var(--amber)] to-[var(--green)] flex items-center justify-center text-[26px] flex-shrink-0">🎓</div>
         <div>
           <div className="font-spectral text-[25px] font-bold text-white leading-tight">EduNexus</div>
@@ -99,9 +99,9 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         </div>
       </div>
 
-      <div className="flex flex-col flex-1 px-[25px] gap-[25px]" style={{padding: "25px 25px"}}>
+      <div className="flex flex-col px-[25px] gap-[25px]" style={{ padding: "25px 25px", flex: 1, minHeight: 0 }}>
         {/* École pill */}
-        <div className="mx-3 my-2 bg-white/[0.06] border border-white/10 rounded-[10px]" style={{padding: "20px 23px"}}>
+        <div className="mx-3 my-2 bg-white/[0.06] border border-white/10 rounded-[10px]" style={{ padding: "20px 23px", flexShrink: 0 }}>
           <div className="flex items-center gap-[8px]">
             {logoUrl
               ? <img src={logoUrl} alt={displayName} className="w-10 h-10 rounded-[10px] flex-shrink-0" style={{ objectFit: 'cover' }} />
@@ -115,7 +115,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-[10px] py-1 scrollbar-hide">
+        <nav className="overflow-y-auto px-[10px] py-1 scrollbar-hide" style={{ flex: 1, minHeight: 0 }}>
           {NAV.map((section, si) => (
             <div key={si}>
               {section.label && (
@@ -153,7 +153,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
       </div>
 
       {/* User */}
-      <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px' }}>
+      <div className="border-t border-white/[0.07]" style={{ padding: '20px 25px', flexShrink: 0 }}>
         <div className="flex items-center gap-[12px] rounded-[10px] hover:bg-white/[0.06]" style={{ padding: '12px 14px' }}>
           <div className="w-11 h-11 rounded-[11px] bg-gradient-to-br from-[var(--amber)] to-[var(--red)] flex items-center justify-center text-white font-black text-[16px] flex-shrink-0">
             {userInitials}

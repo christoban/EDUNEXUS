@@ -417,7 +417,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         </div>
 
         {rosterLabel && (
-          <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ background: 'var(--blue-light)', border: '1.5px solid var(--blue)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 18 }}>🎯</span>
             <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--blue)' }}>{rosterLabel}</span>
           </div>
@@ -479,7 +479,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
                     SUBMITTED: { bg: 'var(--amber-light)', color: 'var(--amber)' },
                     VALIDATED: { bg: 'var(--green-light)', color: 'var(--green)' },
                     REJECTED: { bg: 'var(--red-light)', color: 'var(--red)' },
-                    LOCKED: { bg: '#e0e7ff', color: '#3730a3' },
+                    LOCKED: { bg: 'var(--blue-light)', color: 'var(--blue)' },
                   }
                   const sc = sColors[status] || sColors.DRAFT
                   return (

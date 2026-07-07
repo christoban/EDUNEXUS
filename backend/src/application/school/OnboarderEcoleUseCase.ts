@@ -8,6 +8,7 @@ import { User } from '@domain/entities/User';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
+import { resolveLanguage } from '../../utils/languageHelper';
 import type { SchoolSubsystem, EducationType, SchoolOwnership } from '@domain/types/enums';
 
 export interface OnboarderEcoleCommande {
@@ -84,13 +85,21 @@ export class OnboarderEcoleUseCase {
     await this.userRepository.save(admin);
 
     // 5. Email de confirmation à l'Admin (fire-and-forget — ne bloque pas la réponse HTTP)
+    //    Langue déjà connue ici (sous-système choisi à l'inscription) → resolveLanguage.
+    const langueConfirm = resolveLanguage(commande.subsystem);
     void this.emailService.envoyer({
       destinataire: commande.adminEmail,
-      sujet: 'Demande d\'accès EduNexus reçue',
-      contenuHtml: `
+      sujet: langueConfirm === 'fr' ? 'Demande d\'accès EduNexus reçue' : 'EduNexus access request received',
+      contenuHtml: langueConfirm === 'fr'
+        ? `
         <h2>Bonjour ${admin.nomComplet},</h2>
         <p>Votre demande d'inscription pour <strong>${school.name}</strong> a bien été reçue.</p>
         <p>Notre équipe va l'examiner sous 24-48h. Vous recevrez un email dès validation.</p>
+      `
+        : `
+        <h2>Hello ${admin.nomComplet},</h2>
+        <p>Your registration request for <strong>${school.name}</strong> has been received.</p>
+        <p>Our team will review it within 24-48h. You will receive an email once approved.</p>
       `,
     }).catch(err => console.error('[Email] Échec confirmation onboarding:', (err as Error)?.message));
 

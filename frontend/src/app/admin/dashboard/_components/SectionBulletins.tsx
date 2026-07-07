@@ -187,14 +187,14 @@ export default function SectionBulletins({ onToast }: Props) {
           <AnimatedBackground variant="celebration" style={{ zIndex: 0 }} />
           <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: 32, maxWidth: 460 }}>
             <div style={{ fontSize: 74, marginBottom: 14 }}>🎉</div>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: '#f7f3ee', marginBottom: 10 }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 10 }}>
               {t('bulletins.celebrate.title')}
             </div>
             <div style={{ fontSize: 17, color: 'rgba(247,243,238,0.75)', marginBottom: 30, lineHeight: 1.6 }}>
               {t('bulletins.celebrate.subtitle')}
             </div>
             <button onClick={() => setCelebrate(false)}
-              style={{ background: '#4ade80', color: '#0d1a12', fontWeight: 800, fontSize: 16, padding: '13px 34px', borderRadius: 11, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ background: 'var(--green)', color: 'white', fontWeight: 800, fontSize: 16, padding: '13px 34px', borderRadius: 11, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               {t('bulletins.celebrate.cta')}
             </button>
           </div>

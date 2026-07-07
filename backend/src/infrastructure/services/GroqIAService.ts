@@ -1,5 +1,5 @@
 /**
- * INFRASTRUCTURE LAYER — Adapter Groq (remplace Google Gemini)
+ * INFRASTRUCTURE LAYER — Adapter IA via Groq
  * Implémente IAService.
  */
 import { createGroq } from '@ai-sdk/groq';
@@ -40,7 +40,7 @@ async function genererAvecGroq(prompt: string, lang: Language = 'fr'): Promise<s
   return nettoyerMarkdown(text);
 }
 
-export class GeminiIAService implements IAService {
+export class GroqIAService implements IAService {
   async calculerIndiceSante(donnees: DonneesIndiceSante): Promise<ResultatIndiceSante> {
     const niveaux: Array<{ max: number; niveau: ResultatIndiceSante['niveau'] }> = [
       { max: 30,  niveau: 'CRITIQUE' },

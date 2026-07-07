@@ -1,42 +1,40 @@
 {
-  "grades": {
-    "title": "Notes",
-    "subtitle": "Consultation et validation des notes",
-    "status_labels": {
-      "DRAFT": "Brouillon",
-      "SUBMITTED": "En attente",
-      "VALIDATED": "✓ Validée",
-      "LOCKED": "🔒 Verrouillée",
-      "REJECTED": "✕ Rejetée"
-    },
-    "filters": {
-      "all_classes": "Toutes les classes",
-      "all_subjects": "Toutes les matières",
-      "all_statuses": "Tous les statuts",
-      "load": "Charger"
-    },
-    "actions": {
-      "validate": "✓ Valider",
-      "validate_all": "✅ Valider tout ({count})",
-      "retry": "Réessayer"
-    },
-    "table_headers": {
-      "student": "Élève",
-      "subject": "Matière",
-      "grade": "Note /20",
-      "status": "Statut",
-      "actions": "Actions"
-    },
-    "toasts": {
-      "validate_success": "Note validée avec succès",
-      "validate_error": "Erreur de validation",
-      "load_error": "Erreur de chargement",
-      "select_class_first": "Sélectionnez une classe",
-      "no_pending_grades": "Aucune note en attente",
-      "bulk_validate_result": "{ok}/{total} note(s) validée(s)"
-    },
-    "empty_state": "Sélectionnez des filtres puis cliquez sur « Charger »"
+  "title": "Notes",
+  "subtitle": "Consultation et validation des notes",
+  "status_labels": {
+    "DRAFT": "Brouillon",
+    "SUBMITTED": "En attente",
+    "VALIDATED": "✓ Validée",
+    "LOCKED": "🔒 Verrouillée",
+    "REJECTED": "✕ Rejetée"
   },
+  "filters": {
+    "all_classes": "Toutes les classes",
+    "all_subjects": "Toutes les matières",
+    "all_statuses": "Tous les statuts",
+    "load": "Charger"
+  },
+  "actions": {
+    "validate": "✓ Valider",
+    "validate_all": "✅ Valider tout ({count})",
+    "retry": "Réessayer"
+  },
+  "table_headers": {
+    "student": "Élève",
+    "subject": "Matière",
+    "grade": "Note /20",
+    "status": "Statut",
+    "actions": "Actions"
+  },
+  "toasts": {
+    "validate_success": "Note validée avec succès",
+    "validate_error": "Erreur de validation",
+    "load_error": "Erreur de chargement",
+    "select_class_first": "Sélectionnez une classe",
+    "no_pending_grades": "Aucune note en attente",
+    "bulk_validate_result": "{ok}/{total} note(s) validée(s)"
+  },
+  "empty_state": "Sélectionnez des filtres puis cliquez sur « Charger »",
   "council": {
     "title": "Conseil de classe",
     "subtitle_template": "{total} session(s) · {open} ouverte(s) · {locked} verrouillée(s)",

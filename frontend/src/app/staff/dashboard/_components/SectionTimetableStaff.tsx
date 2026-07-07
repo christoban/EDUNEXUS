@@ -390,7 +390,7 @@ export default function SectionTimetable({ onToast }: Props) {
                     return (
                       <tr key={`pause-${idx}`}>
                         <td colSpan={joursActifs.length + 1}
-                          style={{ textAlign: 'center', padding: '5px 12px', background: isPetite ? '#fef9f0' : '#fef3e2', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: isPetite ? 'var(--amber)' : 'var(--amber)', letterSpacing: '0.5px' }}>
+                          style={{ textAlign: 'center', padding: '5px 12px', background: 'var(--amber-light)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.5px' }}>
                           {isPetite ? '☕' : '🍽️'} {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} à {periode.fin} ({periode.duree} min)
                         </td>
                       </tr>
@@ -494,8 +494,8 @@ export default function SectionTimetable({ onToast }: Props) {
             )}
 
             <div style={{ marginBottom: 24 }}>
-              <label style={labelSt}>{t('timetable.teacherLabel')} <span style={{ fontWeight: 400, color: '#b8a898' }}>{t('timetable.teacherSubLabel')}</span></label>
-              <div style={{ ...inputSt, background: 'var(--bg)', color: modalTeacherId ? 'var(--text)' : '#c4b8a4', pointerEvents: 'none' as const }}>
+              <label style={labelSt}>{t('timetable.teacherLabel')} <span style={{ fontWeight: 400, color: 'var(--text3)' }}>{t('timetable.teacherSubLabel')}</span></label>
+              <div style={{ ...inputSt, background: 'var(--bg)', color: modalTeacherId ? 'var(--text)' : 'var(--text3)', pointerEvents: 'none' as const }}>
                 {modalTeacherId ? modalTeacherName : t('timetable.determinedByAssignments')}
               </div>
             </div>

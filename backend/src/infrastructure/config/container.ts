@@ -95,7 +95,7 @@ import { PrismaSanteEleveRepository } from '@infrastructure/persistence/prisma/P
 import { PrismaClassCouncilRepository } from '@infrastructure/persistence/prisma/PrismaClassCouncilRepository';
 
 // --- Adapter Service IA ---
-import { GeminiIAService } from '@infrastructure/services/GeminiIAService';
+import { GroqIAService } from '@infrastructure/services/GroqIAService';
 
 // --- Use Cases : AI ---
 import { CalculerIndiceSanteUseCase } from '@application/ai/CalculerIndiceSanteUseCase';
@@ -319,9 +319,9 @@ export function creerContainer() {
 
   // 14. Use Cases — AI
   const santeEleveRepository = new PrismaSanteEleveRepository(prisma);
-  const geminiIAService = new GeminiIAService();
+  const groqIAService = new GroqIAService();
   const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
-    santeEleveRepository, geminiIAService
+    santeEleveRepository, groqIAService
   );
 
   // 15. Use Cases — Parent + SchoolSettings

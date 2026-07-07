@@ -17,6 +17,8 @@ export interface ImportRow {
   telephoneParent?: string
   matieres?: string
   classePrincipale?: string
+  pebs?: string
+  lv2?: string
 }
 
 export interface ImportErreur {
@@ -70,17 +72,31 @@ export class ImporterUtilisateursUseCase {
     }
 
     // Résoudre le nom de l'école une seule fois pour éviter N requêtes dans la boucle
-    const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true, subdomain: true } })
+    const school = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { name: true, subdomain: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true },
+    })
     const schoolName = school?.name ?? 'EduNexus'
 
     // Cache classes : 1 requête pour toutes au lieu de 1 par ligne
     const allClasses = await this.prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true } })
     const classeCache = new Map(allClasses.map(c => [c.name, c.id]))
 
+    // Cache LV2 subjects : nom → id
+    const lv2Subjects = await this.prisma.subject.findMany({
+      where: { schoolId, isLV2: true },
+      select: { id: true, name: true },
+    })
+    const lv2NameToId = new Map<string, string>()
+    for (const s of lv2Subjects) {
+      lv2NameToId.set(s.name.toLowerCase().trim(), s.id)
+    }
+    const hasPEBS = !!(school?.hasPEBSFrancophone || school?.hasPEBSAnglophone)
+
     for (const row of rows) {
       try {
         if (role === 'STUDENT') {
-          await this.traiterLigneStudent(schoolId, row, sharedHash, isDevMode, schoolName, classeCache)
+          await this.traiterLigneStudent(schoolId, row, sharedHash, isDevMode, schoolName, classeCache, lv2NameToId, hasPEBS)
         } else {
           const result = await this.traiterLigneTeacher(schoolId, row, sharedHash, isDevMode, schoolName, classeCache)
           if (result.ppAssigned) professeursPrincipauxAssignes++
@@ -99,7 +115,7 @@ export class ImporterUtilisateursUseCase {
     return { total: rows.length, success, professeursPrincipauxAssignes, affectationsPedagogiquesPreremplies, errors, warnings }
   }
 
-  private async traiterLigneStudent(schoolId: string, row: ImportRow, passwordHash: string, isDevMode: boolean, schoolName: string, classeCache: Map<string, string>): Promise<void> {
+  private async traiterLigneStudent(schoolId: string, row: ImportRow, passwordHash: string, isDevMode: boolean, schoolName: string, classeCache: Map<string, string>, lv2NameToId: Map<string, string>, hasPEBS: boolean): Promise<void> {
     if (!row.nom?.trim()) throw new Error('Nom obligatoire')
     if (!row.prenom?.trim()) throw new Error('Prénom obligatoire')
 
@@ -158,6 +174,31 @@ export class ImporterUtilisateursUseCase {
       dateOfBirth,
       parentOfStudentIds: parentUserId ? [parentUserId] : [],
     })
+
+    // ── PEBS ──────────────────────────────────────────────────────────────────
+    const pebsVal = row.pebs?.trim().toUpperCase() ?? ''
+    if (pebsVal) {
+      if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {
+        throw new Error(`Valeur PEBS invalide : "${row.pebs?.trim()}" (attendu FR_PEBS ou EN_PEBS)`)
+      }
+      await (this.prisma as any).studentProfile.updateMany({
+        where: { userId: studentUser.id },
+        data: { pebsFiliere: pebsVal },
+      })
+    }
+
+    // ── LV2 ───────────────────────────────────────────────────────────────────
+    const lv2Val = row.lv2?.trim() ?? ''
+    if (lv2Val) {
+      const subjectId = lv2NameToId.get(lv2Val.toLowerCase().trim())
+      if (!subjectId) {
+        throw new Error(`Langue LV2 introuvable : "${lv2Val}" — consultez la liste des langues disponibles dans votre établissement`)
+      }
+      await (this.prisma as any).studentProfile.updateMany({
+        where: { userId: studentUser.id },
+        data: { lv2SubjectId: subjectId },
+      })
+    }
 
     // Fire-and-forget : les emails ne bloquent pas la boucle d'import
     if (isDevMode) {
@@ -264,16 +305,26 @@ export class ImporterUtilisateursUseCase {
       })
       if (classe) {
         // Matières du programme de cette classe (serie pour 2nd cycle, filiere pour 1er cycle)
+        // + overrides spécifiques à la classe (ClassSubjectOverride)
         const codeSerie = classe.serie ?? classe.filiere ?? null
-        const coefficients = await this.prisma.subjectCoefficient.findMany({
-          where: {
-            schoolId,
-            classLevel: classe.level ?? undefined,
-            OR: [{ serieCode: codeSerie }, { serieCode: null }],
-          },
-          select: { subjectId: true },
-        })
-        const programmSubjectIds = new Set(coefficients.map(c => c.subjectId))
+        const [coefficients, overrides] = await Promise.all([
+          this.prisma.subjectCoefficient.findMany({
+            where: {
+              schoolId,
+              classLevel: classe.level ?? undefined,
+              OR: [{ serieCode: codeSerie }, { serieCode: null }],
+            },
+            select: { subjectId: true },
+          }),
+          this.prisma.classSubjectOverride.findMany({
+            where: { classId: classe.id, schoolId },
+            select: { subjectId: true },
+          }),
+        ])
+        const programmSubjectIds = new Set([
+          ...coefficients.map(c => c.subjectId),
+          ...overrides.map(o => o.subjectId),
+        ])
 
         const subjectsInProgramme = subjectIds.filter(id => programmSubjectIds.has(id))
         if (subjectsInProgramme.length > 0) {

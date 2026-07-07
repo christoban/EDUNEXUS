@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { calculerSqelette } from './TimetableGridConfigController';
-import { generateWithGemini } from '../../../services/gemini';
+import { generateWithGroq } from '../../../services/groq';
 import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
 
 // ─── Types internes ───────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ export class TimetableAutoController {
         unplaced.map(async u => {
           try {
             const prompt = `Dans un lycée camerounais, la génération automatique de l'emploi du temps n'a pas pu placer tous les cours de "${u.subjectName}" pour la classe ${u.className} avec l'enseignant ${u.teacherName}. Raison technique : ${u.reason}. Explique en 2 phrases claires pour le responsable pédagogique et propose une solution concrète.`;
-            u.explication = await generateWithGemini(prompt, `Tu es assistant pour la gestion des emplois du temps camerounais, sans Markdown. ${instructionLangue(langueEcole)}`);
+            u.explication = await generateWithGroq(prompt, `Tu es assistant pour la gestion des emplois du temps camerounais, sans Markdown. ${instructionLangue(langueEcole)}`);
           } catch {
             u.explication = u.reason;
           }
@@ -404,7 +404,7 @@ export class TimetableAutoController {
 
       const prompt = `Tu gères l'emploi du temps de la classe ${timetable.class.name}.\n\nCréneaux actuels :\n${slotsContext || '(aucun créneau)'}\n\nInstruction : "${instruction}"\n\nRetourne UNIQUEMENT un JSON array des modifications, format strict :\n[{"slotId":"...","newDayOfWeek":1,"newStartTime":"HH:MM","newEndTime":"HH:MM"}]\nSi impossible ou ambigu, retourne []. Ne retourne QUE le JSON.`;
 
-      const response = await generateWithGemini(
+      const response = await generateWithGroq(
         prompt,
         'Tu es assistant emploi du temps. Réponds uniquement en JSON valide, sans explication ni Markdown.',
       );

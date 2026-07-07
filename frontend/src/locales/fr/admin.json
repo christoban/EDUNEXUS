@@ -287,13 +287,16 @@
       "FR_PEBS": "PEBS FR",
       "EN_PEBS": "PEBS EN",
       "FR_GENERAL": "Général FR",
-      "EN_GENERAL": "Général EN"
+      "EN_GENERAL": "Général EN",
+      "MIXTE": "Mixte",
+      "GENERAL": "Général"
     },
     "serie_label": "Série {serie}",
     "btn_pp": "🧑‍💼 PP",
     "btn_edit": "✏️ Modifier",
     "btn_subgroups": "🔗 Sous-groupes",
     "btn_lv2": "🌍 LV2",
+    "btn_pebs": "📖 PEBS",
     "btn_alevel": "🎓 A-Level",
     "create_modal": {
       "title": "Créer une classe",
@@ -372,6 +375,28 @@
       "col_lv2": "LV2",
       "unassigned_label": "Non affectée",
       "update_error": "Erreur lors de la mise à jour",
+      "toast_bulk_done": "{count} élève(s) mis à jour"
+    },
+    "pebs": {
+      "title": "Répartition PEBS — {name}",
+      "opt_fr": "PEBS Francophone",
+      "opt_en": "PEBS Anglophone",
+      "count_fr": "PEBS FR: {count}",
+      "count_en": "PEBS EN: {count}",
+      "total_pebs": "PEBS: {count}",
+      "non_pebs": "Non PEBS: {count}",
+      "no_students": "Aucun élève dans cette classe",
+      "bulk_selected": "{count} élève(s) sélectionné(s)",
+      "bulk_clear_option": "— Retirer PEBS —",
+      "btn_bulk_assign": "Affecter en masse",
+      "btn_deselect_all": "Tout désélectionner",
+      "bulk_assigning": "En cours…",
+      "col_el": "ÉLÈVE",
+      "col_status": "STATUT PEBS",
+      "status_fr": "PEBS FR",
+      "status_en": "PEBS EN",
+      "unassigned_label": "Général",
+      "update_error": "Erreur lors de la mise à jour PEBS",
       "toast_bulk_done": "{count} élève(s) mis à jour"
     },
     "alevel": {

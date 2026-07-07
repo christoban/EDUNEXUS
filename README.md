@@ -1,6 +1,6 @@
 # EDUNEXUS — School Management & Learning Management System
 
-EDUNEXUS is a full-stack **School Management System (SMS)** and **Learning Management System (LMS)** that enables schools to manage academic years, classes, subjects, users (students / teachers / parents / admins), timetables, and exams. It features **AI-powered timetable generation** and **AI-powered exam / quiz generation** via Google Gemini, with background job processing through Inngest. The system provides role-based dashboards, activity logging, and a modern responsive UI.
+EDUNEXUS is a full-stack **School Management System (SMS)** and **Learning Management System (LMS)** that enables schools to manage academic years, classes, subjects, users (students / teachers / parents / admins), timetables, and exams. It features **AI-powered timetable generation** and **AI-powered exam / quiz generation** via Groq, with background job processing through Inngest. The system provides role-based dashboards, activity logging, and a modern responsive UI.
 
 ---
 
@@ -67,8 +67,8 @@ EDUNEXUS is a full-stack **School Management System (SMS)** and **Learning Manag
 | CORS | cors v2.8.6 |
 | Logging | Morgan v1.10.1 (dev only) |
 | Background jobs | Inngest v4.2.0 |
-| AI | `@ai-sdk/google` v3.0.60 + Vercel AI SDK v6.0.154 |
-| AI Model | `gemini-3-flash-preview` |
+| AI | `@ai-sdk/groq` + Vercel AI SDK v6.0.154 |
+| AI Model | `llama-3.3-70b-versatile` (Groq) |
 
 ---
 
@@ -138,7 +138,7 @@ Three Inngest functions registered at `/api/inngest`:
 
 **Steps:**
 1. `fetch-class-context` — loads class with subjects, finds qualified teachers
-2. `generate-timetable-logic` — sends prompt to Gemini AI, normalizes response into daily time slots with proper break/class periods
+2. `generate-timetable-logic` — sends prompt to Groq AI, normalizes response into daily time slots with proper break/class periods
 3. `save-timetable` — deletes existing timetable for class/year, creates new one
 
 **Tracking:** Updates `TimetableGeneration` status (`queued → running → completed/failed`)
@@ -146,7 +146,7 @@ Three Inngest functions registered at `/api/inngest`:
 ### `generateExam` (event: `exam/generate`)
 
 **Steps:**
-1. `generate-exam-logic` — sends prompt to Gemini AI requesting MCQ questions in JSON
+1. `generate-exam-logic` — sends prompt to Groq AI requesting MCQ questions in JSON
 2. `save-exam` — updates the draft exam document with generated questions
 
 **Tracking:** Updates `ExamGeneration` status
@@ -356,7 +356,7 @@ Three Inngest functions registered at `/api/inngest`:
 | `CLIENT_URL` | Frontend origin for CORS |
 | `STAGE` | `"development"` enables Morgan logging |
 | `NODE_ENV` | `"production"` hides error stacks, enables secure cookies |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Google Gemini AI API key |
+| `GROQ_API_KEY` | Groq AI API key |
 | `INNGEST_EVENT_KEY` | Inngest event key (required by Inngest SDK) |
 | `INNGEST_SIGNING_KEY` | Inngest signing key (required by Inngest SDK) |
 
@@ -375,7 +375,7 @@ Three Inngest functions registered at `/api/inngest`:
 - [Bun](https://bun.sh/) (latest) or Node.js with `nodemon`
 - MongoDB instance (local or Atlas)
 - [Inngest Dev Server](https://www.inngest.com/docs/local-development): `npx inngest-cli@latest dev`
-- Google Gemini API Key (for AI features)
+- Groq API Key (for AI features)
 
 ### Backend
 
@@ -590,7 +590,7 @@ EDUNEXUS/
 4. Frontend polls `GET /api/timetables/generation/:id` every 3 seconds
 5. Inngest `generateTimeTable` function:
    - Fetches class subjects and qualified teachers
-   - Prompts Gemini AI with class context, constraints, and conflict avoidance rules
+   - Prompts Groq AI with class context, constraints, and conflict avoidance rules
    - `normalizeSchedule()` rebuilds AI output onto calculated time slots with lunch break
    - Saves timetable (deletes existing one for same class/year first)
 6. `TimetableGrid` renders the weekly schedule with color-coded periods
@@ -599,7 +599,7 @@ EDUNEXUS/
 
 1. Teacher/Admin opens `ExamGenerator` modal, selects subject, class, topic, difficulty, count
 2. `POST /api/exams/generate` creates draft exam (empty questions, `isActive: false`) + `ExamGeneration` record
-3. Inngest `generateExam` prompts Gemini AI for MCQ questions, saves to exam document
+3. Inngest `generateExam` prompts Groq AI for MCQ questions, saves to exam document
 4. Frontend polls `GET /api/exams/generation/:id` every 2.5 s
 5. Teacher reviews generated exam, toggles `PATCH /api/exams/:id/status` to publish
 6. Students see active exams for their class via `GET /api/exams`

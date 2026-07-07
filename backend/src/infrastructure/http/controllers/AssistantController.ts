@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { generateText } from 'ai';
-import { geminiModel } from '../../../services/gemini';
+import { groqModel } from '../../../services/groq';
 import {
   buildTools,
   filterCatalogForUser,
@@ -99,7 +99,7 @@ export class AssistantController {
 
       let result;
       try {
-        result = await generateText({ model: geminiModel, system, prompt: message, tools, toolChoice: 'auto' });
+        result = await generateText({ model: groqModel, system, prompt: message, tools, toolChoice: 'auto' });
       } catch (e: any) {
         console.error('Assistant Groq error:', e?.message);
         res.json({ success: true, type: 'message', response: "Le service IA est momentanément indisponible. Réessayez dans un instant." });

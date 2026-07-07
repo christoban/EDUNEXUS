@@ -145,30 +145,42 @@ export const buildSchoolInviteTemplate = (payload: {
   schoolName: string;
   requestedAdminName: string;
   activationUrl: string;
-  language?: Language;
+  /** "bilingual" = FR + EN dans le même email (langue du destinataire encore inconnue à l'invitation). */
+  language?: Language | "bilingual";
 }) => {
   const { schoolName, requestedAdminName, activationUrl, language = "fr" } = payload;
-  const isFr = language === "fr";
-  const subject = isFr ? `Invitation EDUNEXUS - ${schoolName}` : `EDUNEXUS invite - ${schoolName}`;
-  const body = isFr
-    ? `
+
+  const frBody = `
       <p>Bonjour <strong>${requestedAdminName}</strong>,</p>
       <p>Votre établissement <strong>${schoolName}</strong> est prêt pour l'activation.</p>
       <p><a href="${activationUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Activer l'établissement</a></p>
       <p>Ce lien est personnel et temporaire.</p>
-    `
-    : `
+    `;
+  const enBody = `
       <p>Hello <strong>${requestedAdminName}</strong>,</p>
       <p>Your school <strong>${schoolName}</strong> is ready for activation.</p>
       <p><a href="${activationUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Activate school</a></p>
       <p>This link is personal and temporary.</p>
     `;
+  const frText = `Bonjour ${requestedAdminName}, votre établissement ${schoolName} est prêt. Activez-le ici: ${activationUrl}`;
+  const enText = `Hello ${requestedAdminName}, your school ${schoolName} is ready. Activate it here: ${activationUrl}`;
 
+  // Email BILINGUE : bloc FR + séparateur + bloc EN, sujet dans les deux langues.
+  if (language === "bilingual") {
+    const subject = `Invitation EDUNEXUS / EDUNEXUS Invitation - ${schoolName}`;
+    const divider = `<hr style="border:none;border-top:1px solid #e5e7eb;margin:26px 0;" /><p style="color:#6b7280;font-size:13px;margin:0 0 6px;">🇬🇧 English version below</p>`;
+    return {
+      subject,
+      html: shell(subject, "Invitation / School invitation", `${frBody}${divider}${enBody}`),
+      text: `${frText}\n\n— — — — —\n\n${enText}`,
+    };
+  }
+
+  const isFr = language === "fr";
+  const subject = isFr ? `Invitation EDUNEXUS - ${schoolName}` : `EDUNEXUS invite - ${schoolName}`;
   return {
     subject,
-    html: shell(subject, isFr ? "Invitation établissement" : "School invitation", body),
-    text: isFr
-      ? `Bonjour ${requestedAdminName}, votre établissement ${schoolName} est prêt. Activez-le ici: ${activationUrl}`
-      : `Hello ${requestedAdminName}, your school ${schoolName} is ready. Activate it here: ${activationUrl}`,
+    html: shell(subject, isFr ? "Invitation établissement" : "School invitation", isFr ? frBody : enBody),
+    text: isFr ? frText : enText,
   };
 };

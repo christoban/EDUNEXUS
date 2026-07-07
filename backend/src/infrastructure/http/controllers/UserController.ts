@@ -622,7 +622,8 @@ export class UserController {
         telephoneParent: String(r.telephone_parent || '').trim(),
         matieres: String(r.matieres || '').trim(),
         classePrincipale: String(r.classe_principale || '').trim(),
-
+        pebs: String(r.pebs ?? r.PEBS ?? '').trim(),
+        lv2: String(r.lv2 ?? r.LV2 ?? '').trim(),
       }));
 
       if (rows.length === 0) {

@@ -133,7 +133,7 @@ export const bacCoefficients: BacEntry[] = [
   bc("Langues Nationales",             "ABI", S, 1, G2), bc("Langues Nationales",             "ABI", P, 1, G2), bc("Langues Nationales",             "ABI", T, 1, G2),
   bc("Cultures Nationales",            "ABI", S, 1, G2), bc("Cultures Nationales",            "ABI", P, 1, G2), bc("Cultures Nationales",            "ABI", T, 1, G2),
   bc("Éducation Artistique et Culturelle", "ABI", S, 1, G2), bc("Éducation Artistique et Culturelle", "ABI", P, 1, G2), bc("Éducation Artistique et Culturelle", "ABI", T, 1, G2),
-  bc("Manual Labor / Handicraft / Drawing", "ABI", S, 1, G2), bc("Manual Labor / Handicraft / Drawing", "ABI", P, 1, G2), bc("Manual Labor / Handicraft / Drawing", "ABI", T, 1, G2),
+  bc("Manual Labour", "ABI", S, 1, G2), bc("Manual Labour", "ABI", P, 1, G2), bc("Manual Labour", "ABI", T, 1, G2),
 
   // ══════════════════ SÉRIE C (Mathématiques) ════════════════════════════════
   // Groupe 1 (varie par niveau)

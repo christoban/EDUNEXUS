@@ -403,6 +403,7 @@
   "phase2": {
     "intro": {
       "bubble": "👋 Hello! I'm the EduNexus setup assistant. With a few questions, I'll fully configure <strong>{schoolName}</strong> — classes, subjects, calendar, fees — automatically. Shall we?",
+      "reconciled": "✅ Good news: I've already loaded what you provided at registration (cycles, levels, series, LV2…). We just need to finish a few settings.",
       "start": "Start setup →"
     },
     "nav": {
@@ -476,17 +477,43 @@
       "languagesTitle": "Which languages are taught as LV2?",
       "orgTitle": "How is LV2 organized in your classes? (Multiple choices possible)",
       "perLevelTitle": "Let's specify by level. For each level, indicate the organization (and the language if the whole class does the same).",
+      "perClassTitle": "For each class, choose its LV2 language. If several languages coexist in the same class, click « Mixed ».",
       "uniforme": "An entire class does the same language (e.g. Form 4A = all German)",
       "mixte": "Within the same class, students are split by language",
       "variable": "It varies by level or class",
       "sameLang": "Same language",
       "split": "Split by language",
       "chooseLang": "— Choose language —",
+      "chooseLangues": "— Choose —",
+      "classesCount": "How many classes for level {level}?",
+      "perClassLabel": "For {className}, how is LV2 organized?",
+      "mixedLanguages": "Which languages are mixed here?",
+      "uniformeScopeTitle": "Is it the same language across the whole school, or can it vary from class to class?",
+      "uniformeScopeGlobal": "Same language everywhere (one language for the whole school)",
+      "uniformeScopePerClass": "Each class can have its own language",
+      "uniformeGlobalTitle": "Which language is used across the whole school?",
+      "uniformeClass": "The whole class does the same language",
+      "mixteClass": "Mixed",
+      "singleLangBack": "Single language",
       "allemand": "German",
       "espagnol": "Spanish",
       "arabe": "Arabic",
       "chinois": "Chinese",
       "italien": "Italian"
+    },
+    "pebs": {
+      "bubbleFR": "🇨🇲 You have indicated that you offer the Special Bilingual Education Program (PEBS) — Francophone. Describe how it is organized in your classes.",
+      "bubbleEN": "🇨🇲 You have indicated that you offer the Special Bilingual Education Program (PEBS) — Anglophone. Describe how it is organized in your classes.",
+      "placeholder": "Example: Form 1A and Form 2A are entirely PEBS. From Form 3 onward, classes are mixed: PEBS and non-PEBS students together, sharing the same LV2.",
+      "analyze": "🔍 Analyze my description",
+      "analyzing": "Analyzing…",
+      "clarificationNeeded": "I need more details:",
+      "clarifyPlaceholder": "Add more details here…",
+      "reanalyze": "↻ Re-analyze",
+      "reformulation": "Here's what I understood:",
+      "classesCount": "Classes involved:",
+      "reject": "↩ That's not correct",
+      "approve": "✓ That's correct"
     },
     "calendar": {
       "title": "When does your school year start?",
@@ -563,7 +590,15 @@
       "proviseur": "Principal",
       "censeur": "Vice-Principal",
       "modify": "← Modify",
-      "confirm": "✓ Confirm and configure my school"
+      "confirm": "✓ Confirm and configure my school",
+      "pebs": "Special Bilingual Education Program (PEBS)",
+      "pebsFR": "Francophone",
+      "pebsEN": "Anglophone",
+      "pebsPur": "Fully PEBS",
+      "pebsMixte": "Mixed (PEBS + non-PEBS)",
+      "pebsNon": "Non-PEBS",
+      "pebsMixteNote": "ℹ️ Mixed classes require per-student adjustment after creation, via the PEBS modal in the dashboard.",
+      "pebsDefault": "Organization not specified"
     },
     "templates": {
       "LYCEE_FR": "Lycée Général Francophone",

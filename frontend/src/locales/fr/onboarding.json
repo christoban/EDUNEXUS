@@ -403,6 +403,7 @@
   "phase2": {
     "intro": {
       "bubble": "👋 Bonjour ! Je suis l'assistant de configuration d'EduNexus. En quelques questions, je vais configurer entièrement <strong>{schoolName}</strong> — classes, matières, calendrier, frais — automatiquement. C'est parti ?",
+      "reconciled": "✅ Bonne nouvelle : j'ai déjà repris ce que vous avez indiqué lors de l'inscription (cycles, niveaux, séries, LV2…). Il ne reste qu'à compléter quelques réglages.",
       "start": "Commencer la configuration →"
     },
     "nav": {
@@ -476,17 +477,43 @@
       "languagesTitle": "Quelles langues sont enseignées comme LV2\u00a0?",
       "orgTitle": "Comment la LV2 est-elle organisée dans vos classes\u00a0? (Plusieurs choix possibles)",
       "perLevelTitle": "Précisons par niveau. Pour chaque niveau, indiquez l'organisation (et la langue si toute la classe fait la même).",
+      "perClassTitle": "Pour chaque classe, choisissez la langue LV2. Si plusieurs langues cohabitent dans la même classe, cliquez sur « Mélangée ».",
       "uniforme": "Toute une classe fait la même langue (ex. 4eA = tous Allemand)",
       "mixte": "Dans une même classe, les élèves sont répartis par langue",
       "variable": "Cela varie selon le niveau ou la classe",
       "sameLang": "Même langue",
       "split": "Répartis par langue",
       "chooseLang": "— Choisir la langue —",
+      "chooseLangues": "— Choisir —",
+      "classesCount": "Combien de classes pour le niveau {level} ?",
+      "perClassLabel": "Pour {className}, comment est organisée la LV2 ?",
+      "mixedLanguages": "Quelles langues sont mélangées ici ?",
+      "uniformeScopeTitle": "Est-ce la même langue partout dans l'établissement, ou est-ce que ça peut varier d'une classe à l'autre ?",
+      "uniformeScopeGlobal": "Même langue partout (une seule langue dans tout l'établissement)",
+      "uniformeScopePerClass": "Chaque classe peut avoir sa propre langue",
+      "uniformeGlobalTitle": "Quelle langue est utilisée dans tout l'établissement ?",
+      "uniformeClass": "Toute la classe fait la même langue",
+      "mixteClass": "Mélangée",
+      "singleLangBack": "Une seule langue",
       "allemand": "Allemand",
       "espagnol": "Espagnol",
       "arabe": "Arabe",
       "chinois": "Chinois",
       "italien": "Italien"
+    },
+    "pebs": {
+      "bubbleFR": "🇨🇲 Vous avez indiqué proposer le Programme Spécial Bilingue (PEBS) — Francophone. Décrivez-moi comment il est organisé dans vos classes.",
+      "bubbleEN": "🇨🇲 Vous avez indiqué proposer le Programme Spécial Bilingue (PEBS) — Anglophone. Décrivez-moi comment il est organisé dans vos classes.",
+      "placeholder": "Exemple : les 6e1 et 5e1 sont entièrement PEBS. À partir de la 4e, les classes sont mixtes : élèves PEBS et non-PEBS mélangés, avec une LV2 commune au groupe.",
+      "analyze": "🔍 Analyser ma description",
+      "analyzing": "Analyse en cours…",
+      "clarificationNeeded": "J'ai besoin de plus de précisions :",
+      "clarifyPlaceholder": "Ajoutez des précisions ici…",
+      "reanalyze": "↻ Réanalyser",
+      "reformulation": "Voici ce que j'ai compris :",
+      "classesCount": "Classes concernées :",
+      "reject": "↩ Ce n'est pas correct",
+      "approve": "✓ C'est correct"
     },
     "calendar": {
       "title": "Quand commence votre année scolaire\u00a0?",
@@ -563,7 +590,15 @@
       "proviseur": "Proviseur",
       "censeur": "Censeur",
       "modify": "← Modifier",
-      "confirm": "✓ Confirmer et configurer mon établissement"
+      "confirm": "✓ Confirmer et configurer mon établissement",
+      "pebs": "Programme Spécial Bilingue (PEBS)",
+      "pebsFR": "Francophone",
+      "pebsEN": "Anglophone",
+      "pebsPur": "Entièrement PEBS",
+      "pebsMixte": "Mixte (PEBS + non-PEBS)",
+      "pebsNon": "Non PEBS",
+      "pebsMixteNote": "ℹ️ Les classes mixtes nécessitent un ajustement élève par élève après création, via la modale PEBS du tableau de bord.",
+      "pebsDefault": "Organisation non précisée"
     },
     "templates": {
       "LYCEE_FR": "Lycée Francophone Public",

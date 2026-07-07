@@ -65,8 +65,8 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '11px 14px',
   borderRadius: 11,
-  border: '1.5px solid #d9cdbd',
-  background: '#fffdf9',
+  border: '1.5px solid var(--border2)',
+  background: 'var(--surface)',
   color: 'var(--text)',
   fontFamily: 'inherit',
   fontSize: 14,
@@ -334,7 +334,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
   }
 
   const tabButton = (key: Tab, label: string, icon: string) => (
-    <button
+    <button key={key}
       onClick={() => setTab(key)}
       style={{
         padding: '9px 18px',
@@ -380,9 +380,9 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                       style={{
                         textAlign: 'left',
                         border: 'none',
-                        background: active ? '#f6f1e8' : 'white',
+                        background: active ? 'var(--bg2)' : 'white',
                         padding: '14px 18px',
-                        borderBottom: '1px solid #f3ece3',
+                        borderBottom: '1px solid var(--bg2)',
                         cursor: 'pointer',
                       }}
                     >
@@ -393,7 +393,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                             <span style={chipStyle(emp.role === 'TEACHER' ? 'var(--blue-light)' : 'var(--orange-light)', emp.role === 'TEACHER' ? 'var(--blue)' : 'var(--orange)')}>
                               {emp.role === 'TEACHER' ? t('rh.roleTeacher') : t('rh.roleStaff')}
                             </span>
-                            {emp.staffProfile?.title && <span style={chipStyle('#eef2ff', '#4338ca')}>{emp.staffProfile.title}</span>}
+                            {emp.staffProfile?.title && <span style={chipStyle('var(--purple-light)', 'var(--purple)')}>{emp.staffProfile.title}</span>}
                           </div>
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>{emp.email ?? '—'}</div>
@@ -450,7 +450,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                   </div>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
                     <button style={{ ...chipStyle('var(--blue-light)', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={() => saveEmployeeFile(selectedDetail.employee.id, (selectedDetail.file ?? {}) as Record<string, unknown>)}>{t('rh.saveFile')}</button>
-                    <button style={{ ...chipStyle('#e0f2fe', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
+                    <button style={{ ...chipStyle('var(--blue-light)', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
                       const type = prompt(t('rh.prompt.eventType'))
                       if (!type) return
                       const date = prompt(t('rh.prompt.date'))
@@ -468,7 +468,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                         onToast(error instanceof Error ? error.message : t('rh.toast.errEvent'), 'error')
                       }
                     }}>{t('rh.addCareer')}</button>
-                    <button style={{ ...chipStyle('#f3e8ff', 'var(--purple)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
+                    <button style={{ ...chipStyle('var(--purple-light)', 'var(--purple)'), border: 'none', cursor: 'pointer' }} onClick={async () => {
                       try {
                         const r = await fetchApi(`/api/v2/hr/employees/${selectedDetail.employee.id}/attestation-travail`, { credentials: 'include' })
                         if (!r.ok) throw new Error(t('rh.toast.errAttestation'))

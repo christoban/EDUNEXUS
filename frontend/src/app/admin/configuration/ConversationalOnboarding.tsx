@@ -16,8 +16,16 @@ import { useT, useChangeLanguage, useLanguage } from '@/lib/i18n'
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface LV2OrgRule {
   level: string
+  className?: string | null   // null = règle pour tout le niveau (ex. VARIABLE)
   organisation: 'UNIFORME' | 'MIXTE' | 'VARIABLE'
-  langue?: string | null
+  langue?: string | null       // pour UNIFORME : la langue choisie
+  langues?: string[]           // pour MIXTE : les langues mélangées dans cette classe
+}
+
+export interface PEBSOrgRule {
+  className: string
+  level: string
+  statut: 'PEBS_PUR' | 'NON_PEBS' | 'MIXTE'
 }
 
 export interface OnboardingState {
@@ -38,6 +46,11 @@ export interface OnboardingState {
   lv2Active?: boolean
   lv2Languages: string[]
   lv2Organisation: LV2OrgRule[]
+  classesPerLevel?: Record<string, number>
+  conventionNommage?: string
+  hasPEBSFrancophone?: boolean
+  hasPEBSAnglophone?: boolean
+  pebsOrganisation?: PEBSOrgRule[]
 
   academicYearStart?: string
   academicYearEnd?: string
@@ -66,7 +79,49 @@ interface Props {
   subSystem?: 'FRANCOPHONE' | 'ANGLOPHONE' | 'BILINGUAL'
   ownership?: string
   educationType?: string
+  /** Config déjà collectée en Phase 1 (formulaire d'inscription). Phase 2 s'en nourrit
+   *  pour ne pas re-poser ces questions. */
+  phase1Config?: Record<string, unknown> | null
   onComplete: (state: OnboardingState) => void
+}
+
+/**
+ * Traduit l'onboardingConfig de la Phase 1 (formulaire d'inscription) vers l'état de la Phase 2.
+ * Ne mappe que les données STRUCTURELLES fiables (cycles/séries/LV2/primaire/technique). Les
+ * streams anglophones (représentation différente en Phase 1) restent redemandés par sécurité.
+ */
+function mapPhase1ToState(cfg: Record<string, unknown> | null | undefined): Partial<OnboardingState> {
+  if (!cfg || typeof cfg !== 'object') return {}
+  const arr = (k: string): string[] => (Array.isArray((cfg as any)[k]) ? ((cfg as any)[k] as string[]) : [])
+  const cycles: string[] = []
+  if (arr('maternelleSections').length) cycles.push('MATERNELLE')
+  if (arr('niveauxPrimaire').length) cycles.push('PRIMAIRE')
+  if (arr('niveaux1erCycle').length) cycles.push('PREMIER_CYCLE')
+  if (arr('niveaux2eCycle').length) cycles.push('SECOND_CYCLE')
+  if (arr('filieresTechniques').length) cycles.push('TECHNIQUE')
+
+  const lv2Languages = arr('lv2Disponibles')
+  const lv2Debut = (cfg as any).lv2Debut
+  const lv2Active =
+    (typeof lv2Debut === 'string' && lv2Debut !== '' && lv2Debut !== 'NON_APPLICABLE') || lv2Languages.length > 0
+  const classesParNiveau = (cfg as any).classesParNiveau as Record<string, number> | undefined
+  const conventionNommage = (cfg as any).conventionNommage as string | undefined
+  const hasPEBSFrancophone = (cfg as any).hasPEBSFrancophone === true
+  const hasPEBSAnglophone = (cfg as any).hasPEBSAnglophone === true
+
+  const out: Partial<OnboardingState> = {}
+  if ((cfg as any).templateCode) out.template = (cfg as any).templateCode as string
+  if (cycles.length) out.cycles = cycles
+  if (arr('filieres').length) out.series = arr('filieres')
+  if (arr('filieresTechniques').length) out.technicalFilieres = arr('filieresTechniques')
+  if (arr('niveauxPrimaire').length) out.primaryLevels = arr('niveauxPrimaire')
+  if (lv2Languages.length) out.lv2Languages = lv2Languages
+  if (cycles.length) out.lv2Active = lv2Active // ne fixe lv2Active que si la Phase 1 a été remplie
+  if (classesParNiveau) out.classesPerLevel = classesParNiveau
+  if (conventionNommage) out.conventionNommage = conventionNommage
+  if (hasPEBSFrancophone) out.hasPEBSFrancophone = true
+  if (hasPEBSAnglophone) out.hasPEBSAnglophone = true
+  return out
 }
 
 // ── Key mappings for i18n ─────────────────────────────────────────────────────
@@ -135,6 +190,26 @@ const PRIMARY_OPTIONS_EN = [
   { value: 'Class 6', label: 'Class 6' },
 ]
 
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+function generateClassName(level: string, index: number, convention: string): string {
+  if (convention === 'CHIFFRES') return `${level} ${index + 1}`
+  if (convention === 'MIXTE') return `${level} ${LETTERS[index]}1`
+  return `${level} ${LETTERS[index]}` // LETTRES (default)
+}
+
+function generateClassList(levels: string[], perLevel: Record<string, number> | undefined, convention: string): { level: string; className: string }[] {
+  const conv = convention ?? 'LETTRES'
+  const list: { level: string; className: string }[] = []
+  for (const level of levels) {
+    const count = perLevel?.[level] ?? 2
+    for (let i = 0; i < Math.min(count, 26); i++) {
+      list.push({ level, className: generateClassName(level, i, conv) })
+    }
+  }
+  return list
+}
+
 const LV2_LANG_KEYS = [
   { value: 'Allemand', key: 'phase2.lv2.allemand' },
   { value: 'Espagnol', key: 'phase2.lv2.espagnol' },
@@ -143,11 +218,6 @@ const LV2_LANG_KEYS = [
   { value: 'Italien', key: 'phase2.lv2.italien' },
 ]
 
-const LV2_ORG_KEYS = [
-  { value: 'UNIFORME', key: 'phase2.lv2.uniforme' },
-  { value: 'MIXTE', key: 'phase2.lv2.mixte' },
-  { value: 'VARIABLE', key: 'phase2.lv2.variable' },
-]
 
 const FEES_KEYS = [
   { value: 'TUITION', key: 'phase2.fees.tuition' },
@@ -198,7 +268,7 @@ function detectTemplate(state: OnboardingState): string {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const S = {
-  card: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18, padding: '24px 22px', width: '100%', maxWidth: 560, boxShadow: '0 4px 24px rgba(26,46,30,0.07)' } as React.CSSProperties,
+  card: { background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 18, padding: '24px 22px', width: '100%', maxWidth: 560, maxHeight: 'calc(100vh - 160px)', overflowY: 'auto', boxShadow: '0 4px 24px rgba(26,46,30,0.07)' } as React.CSSProperties,
   bubble: { background: 'var(--green-light)', border: '1.5px solid rgba(5,150,105,0.18)', borderRadius: 14, padding: '14px 16px', fontSize: 15, color: 'var(--text)', lineHeight: 1.55, marginBottom: 18 } as React.CSSProperties,
   opt: (active: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 12, padding: '13px 15px', borderRadius: 12, cursor: 'pointer',
@@ -217,6 +287,8 @@ const INITIAL = (p: Props): OnboardingState => ({
   lv2Languages: [], lv2Organisation: [], directionRoles: {}, feesTypes: [],
   periodsCount: 3, sequencesPerPeriod: 2, paymentTranches: 3,
   academicYearStart: `${new Date().getFullYear()}-09-05`,
+  // Pré-remplissage depuis la Phase 1 (écrase les valeurs vides ci-dessus).
+  ...mapPhase1ToState(p.phase1Config),
 })
 
 export default function ConversationalOnboarding(props: Props) {
@@ -227,6 +299,15 @@ export default function ConversationalOnboarding(props: Props) {
   const [idx, setIdx] = useState(0)
   const [angloCombos, setAngloCombos] = useState<AngloStreamsData | null>(null)
   const [angloState, setAngloState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [pebsDescription, setPebsDescription] = useState('')
+  const [pebsAnalysis, setPebsAnalysis] = useState<{ pebsOrganisation: PEBSOrgRule[]; reformulation: string; clarificationNeeded: boolean; clarifications: string[] } | null>(null)
+  const [pebsLoading, setPebsLoading] = useState(false)
+  const [pebsError, setPebsError] = useState('')
+  const [pebsConversation, setPebsConversation] = useState<{ role: 'user' | 'assistant'; content: string }[]>([])
+
+  // Réconciliation : true si la Phase 1 (inscription) a déjà fourni la structure. On saute alors
+  // les questions déjà répondues. Immuable (basé sur les props) → ne perturbe pas la navigation.
+  const reconciled = useMemo(() => (mapPhase1ToState(props.phase1Config).cycles?.length ?? 0) > 0, [props.phase1Config])
 
   const cycleOptions = useMemo(() => CYCLE_KEYS.map(c => ({ value: c.value, icon: c.icon, label: t(c.key) })), [t])
   const subsystemOptions = useMemo(() => SUBSYSTEM_KEYS.map(s => ({ value: s.value, label: t(s.key) })), [t])
@@ -234,7 +315,6 @@ export default function ConversationalOnboarding(props: Props) {
   const angloStreamOptions = useMemo(() => ANGLO_STREAM_KEYS.map(a => ({ value: a.value, label: t(a.key) })), [t])
   const techOptions = useMemo(() => TECH_KEYS.map(tc => ({ value: tc.value, label: t(tc.key) })), [t])
   const lv2LangOptions = useMemo(() => LV2_LANG_KEYS.map(l => ({ value: l.value, label: t(l.key) })), [t])
-  const lv2OrgOptions = useMemo(() => LV2_ORG_KEYS.map(l => ({ value: l.value, label: t(l.key) })), [t])
   const feesOptions = useMemo(() => FEES_KEYS.map(f => ({ value: f.value, label: t(f.key) })), [t])
 
   const loadAngloCombos = () => {
@@ -265,31 +345,42 @@ export default function ConversationalOnboarding(props: Props) {
 
   // Liste dynamique des étapes selon l'état
   const steps = useMemo<string[]>(() => {
-    const list = ['intro', 'cycles']
-    if (!state.subSystem) list.push('subsystem')
-    list.push('templateConfirm')
+    const list = ['intro']
+    // Structure : posée seulement si la Phase 1 ne l'a pas déjà fournie.
+    if (!reconciled) {
+      list.push('cycles')
+      if (!state.subSystem) list.push('subsystem')
+      list.push('templateConfirm')
+    }
     if (state.cycles.includes('SECOND_CYCLE')) {
       const sys = state.subSystem
-      // Francophone / Bilingue → séries FR ; Anglophone / Bilingue → streams EN
-      if (sys === 'FRANCOPHONE' || sys === 'BILINGUAL' || !sys) list.push('series')
+      // Francophone / Bilingue → séries FR (sautées si Phase 1 les a fournies)
+      if ((sys === 'FRANCOPHONE' || sys === 'BILINGUAL' || !sys) && !reconciled) list.push('series')
+      // Anglophone / Bilingue → streams EN (mapping Phase 1 non fiable → toujours redemandés)
       if (sys === 'ANGLOPHONE' || sys === 'BILINGUAL') {
         list.push('enStreams')
         if (state.anglophoneStreams.length > 0) list.push('enCombos')
       }
     }
-    if (state.cycles.includes('TECHNIQUE')) list.push('technical')
-    if (state.cycles.includes('PRIMAIRE')) list.push('primaryLevels')
+    if (state.cycles.includes('TECHNIQUE') && !reconciled) list.push('technical')
+    if (state.cycles.includes('PRIMAIRE') && !reconciled) list.push('primaryLevels')
     const hasSecondary = state.cycles.includes('PREMIER_CYCLE') || state.cycles.includes('SECOND_CYCLE')
-    if (hasSecondary) {
-      list.push('lv2Active')
+    // LV2 générique : concerne uniquement le premier cycle (4e/3e). Au 2nd cycle, la LV2 est
+    // portée par les séries A (A4…), configurées ailleurs. Un seul écran : la LV2 se règle
+    // directement classe par classe (chaque classe = une langue, ou « mélangée »).
+    if (state.cycles.includes('PREMIER_CYCLE')) {
+      if (!reconciled) list.push('lv2Active')
       if (state.lv2Active) {
-        list.push('lv2Languages', 'lv2Org')
-        if (state.lv2Organisation.some(o => o.organisation === 'VARIABLE')) list.push('lv2PerLevel')
+        if (!reconciled) list.push('lv2Languages')
+        list.push('lv2PerLevel')
       }
+    }
+    if (hasSecondary && (state.hasPEBSFrancophone || state.hasPEBSAnglophone)) {
+      list.push('pebsOrg')
     }
     list.push('calYear', 'periods', 'sequences', 'fees', 'tranches', 'services', 'direction', 'recap')
     return list
-  }, [state.subSystem, state.cycles, state.lv2Active, state.lv2Organisation, state.anglophoneStreams])
+  }, [reconciled, state.subSystem, state.cycles, state.lv2Active, state.lv2Organisation, state.anglophoneStreams, state.hasPEBSFrancophone, state.hasPEBSAnglophone])
 
   const stepKey = steps[Math.min(idx, steps.length - 1)]
   const goNext = () => setIdx(i => Math.min(i + 1, steps.length - 1))
@@ -302,7 +393,8 @@ export default function ConversationalOnboarding(props: Props) {
     }
   }, [stepKey, angloState])
 
-  // Niveaux secondaires concernés (pour LV2 par niveau)
+  // Niveaux concernés par le PEBS : TOUT le premier cycle (6e→3e), car le programme bilingue
+  // spécial démarre dès la 6e — plus le second cycle (série ABI) le cas échéant.
   const concernedLevels = useMemo(() => {
     const lv: string[] = []
     if (state.cycles.includes('PREMIER_CYCLE')) lv.push('6e', '5e', '4e', '3e')
@@ -310,10 +402,18 @@ export default function ConversationalOnboarding(props: Props) {
     return lv
   }, [state.cycles])
 
-  const setPerLevel = (level: string, patchRule: Partial<LV2OrgRule>) => {
+  // Niveaux concernés par la LV2 générique : 4e/3e uniquement (jamais 6e/5e ni 2nd cycle).
+  // (Le curriculum MINESEC place la LV2 en 4e/3e ; au 2nd cycle c'est la série A qui la porte.)
+  const lv2Levels = useMemo(
+    () => (state.cycles.includes('PREMIER_CYCLE') ? ['4e', '3e'] : []),
+    [state.cycles],
+  )
+
+  const setPerClass = (level: string, className: string, patchRule: Partial<LV2OrgRule>) => {
     setState(s => {
-      const others = s.lv2Organisation.filter(o => o.level !== level)
-      const current = s.lv2Organisation.find(o => o.level === level) ?? { level, organisation: 'UNIFORME' as const }
+      const others = s.lv2Organisation.filter(o => !(o.level === level && o.className === className))
+      const current = s.lv2Organisation.find(o => o.level === level && o.className === className)
+        ?? { level, className, organisation: 'UNIFORME' as const }
       return { ...s, lv2Organisation: [...others, { ...current, ...patchRule }] }
     })
   }
@@ -336,7 +436,8 @@ export default function ConversationalOnboarding(props: Props) {
       case 'intro':
         return (
           <>
-            <Bubble>{t('phase2.intro.bubble', { schoolName: state.schoolName ?? '' })}</Bubble>
+            <Bubble><span style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: t('phase2.intro.bubble', { schoolName: state.schoolName ?? '' }) }} /></Bubble>
+            {reconciled && <Bubble>{t('phase2.intro.reconciled')}</Bubble>}
             <button style={{ ...S.primary, width: '100%' }} onClick={goNext}>{t('phase2.intro.start')}</button>
           </>
         )
@@ -454,7 +555,7 @@ export default function ConversationalOnboarding(props: Props) {
               </button>
             ))}
 
-            <div style={{ fontSize: 13, color: 'var(--blue)', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 9, padding: '9px 12px', marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: 'var(--blue)', background: 'var(--blue-light)', border: '1px solid var(--blue-light)', borderRadius: 9, padding: '9px 12px', marginTop: 4 }}>
               {t('phase2.enCombos.info')}
             </div>
             <Nav />
@@ -516,58 +617,207 @@ export default function ConversationalOnboarding(props: Props) {
           </>
         )
 
-      case 'lv2Org':
+      case 'lv2PerLevel': {
+        // Un seul écran : chaque classe reçoit UNE langue (menu déroulant), ou passe en
+        // « Mélangée » pour cocher plusieurs langues. La donnée produite est toujours
+        // par classe (className) → le backend crée un ClassSubjectOverride par langue réelle.
+        const lv2ClassNames = lv2Levels.flatMap(level => {
+          const count = state.classesPerLevel?.[level] ?? 2
+          const convention = state.conventionNommage ?? 'LETTRES'
+          return Array.from({ length: count }, (_, i) => generateClassName(level, i, convention))
+        })
+        const lv2Complete = lv2ClassNames.length > 0 && lv2ClassNames.every(cn => {
+          const r = state.lv2Organisation.find(o => o.className === cn)
+          if (!r) return false
+          return r.organisation === 'MIXTE' ? (r.langues?.length ?? 0) > 0 : !!r.langue
+        })
         return (
           <>
-            <Bubble>{t('phase2.lv2.orgTitle')}</Bubble>
-            {lv2OrgOptions.map(o => {
-              const active = state.lv2Organisation.some(r => r.organisation === o.value)
+            <Bubble>{t('phase2.lv2.perClassTitle')}</Bubble>
+            {lv2Levels.map(level => {
+              const count = state.classesPerLevel?.[level] ?? 2
+              const convention = state.conventionNommage ?? 'LETTRES'
               return (
-                <button key={o.value} style={S.opt(active)} onClick={() => setState(s => {
-                  const exists = s.lv2Organisation.some(r => r.organisation === o.value)
-                  const org = exists
-                    ? s.lv2Organisation.filter(r => r.organisation !== o.value)
-                    : [...s.lv2Organisation, { level: '*', organisation: o.value as LV2OrgRule['organisation'] }]
-                  return { ...s, lv2Organisation: org }
-                })}>
-                  <span style={{ flex: 1 }}>{o.label}</span>
-                  {active && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
-                </button>
-              )
-            })}
-            <Nav canNext={state.lv2Organisation.length > 0} />
-          </>
-        )
-
-      case 'lv2PerLevel':
-        return (
-          <>
-            <Bubble>{t('phase2.lv2.perLevelTitle')}</Bubble>
-            {concernedLevels.map(level => {
-              const rule = state.lv2Organisation.find(o => o.level === level)
-              return (
-                <div key={level} style={{ border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', marginBottom: 8 }}>{level}</div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: rule?.organisation === 'UNIFORME' ? 8 : 0 }}>
-                    {(['UNIFORME', 'MIXTE'] as const).map(org => (
-                      <button key={org} style={{ ...S.opt(rule?.organisation === org), width: 'auto', marginBottom: 0, padding: '7px 12px', fontSize: 13 }}
-                        onClick={() => setPerLevel(level, { organisation: org })}>
-                        {org === 'UNIFORME' ? t('phase2.lv2.sameLang') : t('phase2.lv2.split')}
-                      </button>
-                    ))}
-                  </div>
-                  {rule?.organisation === 'UNIFORME' && (
-                    <select style={{ ...S.input, marginBottom: 0 }} value={rule.langue ?? ''} onChange={e => setPerLevel(level, { langue: e.target.value })}>
-                      <option value="">{t('phase2.lv2.chooseLang')}</option>
-                      {state.lv2Languages.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                  )}
+                <div key={level} style={{ border: '1.5px solid var(--border)', borderRadius: 12, padding: '14px 14px', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', marginBottom: 10 }}>{level}</div>
+                  {Array.from({ length: count }, (_, i) => {
+                    const cn = generateClassName(level, i, convention)
+                    const rule = state.lv2Organisation.find(o => o.className === cn)
+                    const isMixte = rule?.organisation === 'MIXTE'
+                    return (
+                      <div key={cn} style={{ background: 'var(--bg)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', minWidth: 54 }}>{cn}</div>
+                          {!isMixte && (
+                            <select style={{ ...S.input, marginBottom: 0, flex: 1, minWidth: 140 }} value={rule?.langue ?? ''}
+                              onChange={e => setPerClass(level, cn, { organisation: 'UNIFORME', langue: e.target.value, langues: undefined })}>
+                              <option value="">{t('phase2.lv2.chooseLang')}</option>
+                              {state.lv2Languages.map(l => <option key={l} value={l}>{t(`phase2.lv2.${l.toLowerCase()}` as any) ?? l}</option>)}
+                            </select>
+                          )}
+                          <button style={{ ...S.opt(isMixte), width: 'auto', marginBottom: 0, padding: '7px 12px', fontSize: 13 }}
+                            onClick={() => isMixte
+                              ? setPerClass(level, cn, { organisation: 'UNIFORME', langues: undefined })
+                              : setPerClass(level, cn, { organisation: 'MIXTE', langue: undefined, langues: [] })}>
+                            {isMixte ? t('phase2.lv2.singleLangBack') : t('phase2.lv2.mixteClass')}
+                          </button>
+                        </div>
+                        {isMixte && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text3)', marginBottom: 4 }}>{t('phase2.lv2.mixedLanguages')}</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {state.lv2Languages.map(l => {
+                                const active = rule?.langues?.includes(l) ?? false
+                                return (
+                                  <button key={l} style={{
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                                    border: `1.5px solid ${active ? 'var(--green)' : 'var(--border)'}`,
+                                    background: active ? 'var(--green-light)' : 'var(--surface)',
+                                    color: active ? 'var(--green2)' : 'var(--text2)',
+                                  }}
+                                    onClick={() => {
+                                      const next = active
+                                        ? (rule?.langues ?? []).filter(x => x !== l)
+                                        : [...(rule?.langues ?? []), l]
+                                      setPerClass(level, cn, { langues: next })
+                                    }}>
+                                    {active && <span style={{ marginRight: 4 }}>✓</span>}
+                                    {t(`phase2.lv2.${l.toLowerCase()}` as any) ?? l}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}
-            <Nav />
+            <Nav canNext={lv2Complete} />
           </>
         )
+      }
+
+      case 'pebsOrg': {
+        const hasPEBS = state.hasPEBSFrancophone || state.hasPEBSAnglophone
+        const classList = generateClassList(concernedLevels, state.classesPerLevel, state.conventionNommage ?? 'LETTRES')
+        const analyzePEBS = async () => {
+          if (!pebsDescription.trim()) return
+          setPebsLoading(true)
+          setPebsError('')
+          try {
+            // Construire l'historique : si c'est le premier appel, l'initialiser ;
+            // sinon garder l'historique déjà accumulé + le nouveau message utilisateur
+            const updatedHistory = pebsConversation.length === 0
+              ? [{ role: 'user' as const, content: pebsDescription }]
+              : [...pebsConversation, { role: 'user' as const, content: pebsDescription }]
+            setPebsConversation(updatedHistory)
+
+            const res = await fetchApi('/api/v2/onboarding/analyze-pebs', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                description: pebsDescription,
+                conversationHistory: updatedHistory,
+                context: {
+                  subSystem: state.subSystem,
+                  cycles: state.cycles,
+                  levels: concernedLevels,
+                  classesPerLevel: state.classesPerLevel,
+                  conventionNommage: state.conventionNommage ?? 'LETTRES',
+                  hasPEBSFrancophone: state.hasPEBSFrancophone,
+                  hasPEBSAnglophone: state.hasPEBSAnglophone,
+                },
+              }),
+            })
+            const data = await res.json()
+            if (!data.success) throw new Error(data.message || "Erreur d'analyse")
+            // Si clarification demandée, ajouter la question de l'assistant à l'historique
+            if (data.data.clarificationNeeded && data.data.clarifications?.length) {
+              const assistantMsg = `Question de clarification : ${data.data.clarifications.join(' ')}`
+              setPebsConversation(prev => [...prev, { role: 'assistant', content: assistantMsg }])
+            }
+            setPebsAnalysis(data.data)
+          } catch (e: unknown) {
+            setPebsError(e instanceof Error ? e.message : "Erreur réseau")
+          } finally {
+            setPebsLoading(false)
+          }
+        }
+        return (
+          <>
+            <Bubble>{t(hasPEBS && state.subSystem === 'FRANCOPHONE' ? 'phase2.pebs.bubbleFR' : 'phase2.pebs.bubbleEN')}</Bubble>
+            {!pebsAnalysis && (
+              <>
+                <textarea style={{ ...S.input, minHeight: 120, resize: 'vertical' }}
+                  value={pebsDescription}
+                  onChange={e => setPebsDescription(e.target.value)}
+                  placeholder={t('phase2.pebs.placeholder')}
+                />
+                {pebsError && (
+                  <div style={{ fontSize: 13, color: 'var(--red)', background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 9, padding: '9px 12px', marginBottom: 8 }}>
+                    ❌ {pebsError}
+                  </div>
+                )}
+                <button style={{ ...S.primary, width: '100%', justifyContent: 'center', opacity: pebsLoading || !pebsDescription.trim() ? 0.6 : 1 }}
+                  onClick={analyzePEBS} disabled={pebsLoading || !pebsDescription.trim()}>
+                  {pebsLoading ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+                      {t('phase2.pebs.analyzing')}
+                    </span>
+                  ) : t('phase2.pebs.analyze')}
+                </button>
+              </>
+            )}
+            {pebsAnalysis && (
+              <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
+                {pebsAnalysis.clarificationNeeded ? (
+                  <>
+                    <div style={{ fontSize: 14, color: 'var(--amber)', fontWeight: 700, marginBottom: 8 }}>❓ {t('phase2.pebs.clarificationNeeded')}</div>
+                    {pebsAnalysis.clarifications.map((q, i) => (
+                      <div key={i} style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 4, paddingLeft: 8 }}>• {q}</div>
+                    ))}
+                    <textarea style={{ ...S.input, minHeight: 80, resize: 'vertical', marginTop: 8 }}
+                      value={pebsDescription}
+                      onChange={e => setPebsDescription(e.target.value)}
+                      placeholder={t('phase2.pebs.clarifyPlaceholder')}
+                    />
+                    <button style={{ ...S.primary, width: '100%', marginTop: 4 }} onClick={() => { setPebsAnalysis(null); analyzePEBS() }}>
+                      {t('phase2.pebs.reanalyze')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>{t('phase2.pebs.reformulation')}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 12, background: 'var(--surface)', borderRadius: 8, padding: '10px 12px' }}>
+                      {pebsAnalysis.reformulation}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 12 }}>
+                      {t('phase2.pebs.classesCount')} {classList.length}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button style={{ ...S.secondary, flex: 1 }} onClick={() => { setPebsAnalysis(null); setPebsDescription(''); setPebsConversation([]) }}>
+                        {t('phase2.pebs.reject')}
+                      </button>
+                      <button style={{ ...S.primary, flex: 1 }} onClick={() => {
+                        patch({ pebsOrganisation: pebsAnalysis.pebsOrganisation })
+                        goNext()
+                      }}>
+                        {t('phase2.pebs.approve')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {!pebsAnalysis && <Nav canNext={false} />}
+          </>
+        )
+      }
 
       case 'calYear':
         return (
@@ -706,6 +956,17 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
   const lv2Summary = state.lv2Active && state.lv2Languages.length
     ? state.lv2Languages.map(l => lv2LabelMap[l] ?? l).join(', ')
     : t('phase2.recap.lv2Inactive')
+  const hasPerClassOrg = state.lv2Organisation.some(r => r.className)
+  const perClassLines = hasPerClassOrg
+    ? state.lv2Organisation
+        .filter(r => r.className)
+        .sort((a, b) => (a.className ?? '').localeCompare(b.className ?? ''))
+        .map(r => {
+          if (r.organisation === 'UNIFORME' && r.langue) return `${r.className} → ${lv2LabelMap[r.langue] ?? r.langue}`
+          if (r.organisation === 'MIXTE' && r.langues?.length) return `${r.className} → ${r.langues.map(l => lv2LabelMap[l] ?? l).join(' / ')}`
+          return `${r.className} → ?`
+        })
+    : []
   const services = [
     state.hasCanteen && t('phase2.services.canteen'),
     state.hasTransport && t('phase2.services.transport'),
@@ -746,7 +1007,41 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
         {t('phase2.recap.autoClasses')}
       </Block>
 
-      <Block icon="🌍" title={t('phase2.recap.langues')}>{t('phase2.recap.lv2')}&nbsp;: {lv2Summary}</Block>
+      <Block icon="🌍" title={t('phase2.recap.langues')}>
+        {t('phase2.recap.lv2')}&nbsp;: {lv2Summary}
+        {perClassLines.length > 0 && (
+          <div style={{ marginTop: 6 }}>
+            {perClassLines.map(line => (
+              <div key={line} style={{ fontSize: 13, color: 'var(--text2)', paddingLeft: 8 }}>{line}</div>
+            ))}
+          </div>
+        )}
+      </Block>
+
+      {(state.hasPEBSFrancophone || state.hasPEBSAnglophone) && (
+        <Block icon="🇨🇲" title={t('phase2.recap.pebs')}>
+          {state.hasPEBSFrancophone && <div>{t('phase2.recap.pebsFR')}</div>}
+          {state.hasPEBSAnglophone && <div>{t('phase2.recap.pebsEN')}</div>}
+          {state.pebsOrganisation && state.pebsOrganisation.length > 0 ? (
+            <div style={{ marginTop: 6 }}>
+              {[...state.pebsOrganisation]
+                .sort((a, b) => a.className.localeCompare(b.className))
+                .map(r => (
+                  <div key={r.className} style={{ fontSize: 13, color: 'var(--text2)', paddingLeft: 8 }}>
+                    {r.className} → {t(r.statut === 'PEBS_PUR' ? 'phase2.recap.pebsPur' : r.statut === 'MIXTE' ? 'phase2.recap.pebsMixte' : 'phase2.recap.pebsNon')}
+                  </div>
+                ))}
+              {state.pebsOrganisation.some(r => r.statut === 'MIXTE') && (
+                <div style={{ fontSize: 12, color: 'var(--amber)', marginTop: 6, fontStyle: 'italic' }}>
+                  {t('phase2.recap.pebsMixteNote')}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 4 }}>{t('phase2.recap.pebsDefault')}</div>
+          )}
+        </Block>
+      )}
 
       <Block icon="📅" title={t('phase2.recap.calendrier')}>
         {t('phase2.recap.debut')}&nbsp;: {state.academicYearStart || '—'}<br />

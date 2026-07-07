@@ -71,6 +71,7 @@ import { HRController } from '@infrastructure/http/controllers/HRController';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
 import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
 import { ConfigurerEtablissementUseCase } from '@application/school/ConfigurerEtablissementUseCase';
+import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
 import { AffecterMatieresALevelEleveUseCase } from '@application/student/AffecterMatieresALevelEleveUseCase';
 import { PreremplirDepuisCombinaisonUseCase } from '@application/student/PreremplirDepuisCombinaisonUseCase';
 import { GetElevesParMatiereALevelUseCase } from '@application/student/GetElevesParMatiereALevelUseCase';
@@ -1090,6 +1091,7 @@ export function bootstrapHexagonal(app: Application): void {
 
   // ── Onboarding conversationnel Phase 2 : exécution déterministe ────
   const configurerEtablissementUseCase = new ConfigurerEtablissementUseCase(prisma);
+  const onboardingPEBSController = new OnboardingPEBSController();
   app.post('/api/v2/onboarding/execute', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId; // schoolId forcé depuis la session (sécurité)
@@ -1106,6 +1108,7 @@ export function bootstrapHexagonal(app: Application): void {
       next(error);
     }
   });
+  app.post('/api/v2/onboarding/analyze-pebs', requireAuth, requireRole('ADMIN'), onboardingPEBSController.analyze);
 
   // ── Thin controllers (pas de use case — Prisma direct, aucune logique métier) ──
   const activitiesController = new ActivitiesLogController(prisma);
@@ -1273,7 +1276,34 @@ export function bootstrapHexagonal(app: Application): void {
         orderBy: { name: 'asc' },
       });
 
-      res.json({ success: true, data: classes });
+      // Nombre d'élèves PEBS par classe (une seule requête groupée)
+      const classIds = classes.map(c => c.id);
+      const pebsCounts = classIds.length > 0
+        ? await prisma.studentProfile.groupBy({
+            by: ['classId'],
+            where: { classId: { in: classIds }, pebsFiliere: { not: null } },
+            _count: { _all: true },
+          })
+        : [];
+      const pebsCountByClass = new Map(pebsCounts.map(p => [p.classId, p._count._all]));
+
+      // Enrichir chaque classe avec pebsBadge (3 états : PEBS / MIXTE / GENERAL)
+      const data = classes.map(cls => {
+        const total = cls._count.students;
+        const pebsN = pebsCountByClass.get(cls.id) ?? 0;
+        const pebsMixte = (cls as any).pebsMixte === true;
+        let pebsBadge: 'PEBS' | 'MIXTE' | 'GENERAL' | null = null;
+        if (cls.filiere === 'FR_PEBS' || cls.filiere === 'EN_PEBS') {
+          pebsBadge = 'PEBS';
+        } else if (cls.filiere === 'FR_GENERAL' || cls.filiere === 'EN_GENERAL') {
+          pebsBadge = total === 0
+            ? (pebsMixte ? 'MIXTE' : 'GENERAL')
+            : (pebsN === 0 ? 'GENERAL' : pebsN === total ? 'PEBS' : 'MIXTE');
+        }
+        return { ...cls, pebsBadge };
+      });
+
+      res.json({ success: true, data });
     } catch (err) { next(err); }
   });
 
@@ -2004,6 +2034,101 @@ export function bootstrapHexagonal(app: Application): void {
           groupes: Object.values(groupes).map(g => ({ ...g, nombreEleves: g.eleves.length })),
           sansLV2,
           total: students.length,
+        },
+      });
+    } catch (err) { next(err); }
+  });
+
+  // ── Module PEBS — gestion Programme d'Éducation Bilingue Spécial par élève ──
+
+  // PATCH /api/v2/students/:id/pebs — affecter PEBS à un élève
+  app.patch('/api/v2/students/:id/pebs', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const studentUserId = req.params['id'] as string;
+      const { pebsFiliere } = req.body as { pebsFiliere?: string | null };
+
+      const profile = await (prisma as any).studentProfile.findFirst({
+        where: { userId: studentUserId, user: { schoolId } },
+        select: { id: true },
+      });
+      if (!profile) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
+
+      if (pebsFiliere !== null && pebsFiliere !== undefined && !['FR_PEBS', 'EN_PEBS'].includes(pebsFiliere)) {
+        res.status(400).json({ success: false, message: 'Valeur pebsFiliere invalide' }); return;
+      }
+
+      await (prisma as any).studentProfile.update({
+        where: { id: profile.id },
+        data: { pebsFiliere: pebsFiliere ?? null },
+      });
+      res.json({ success: true, message: 'PEBS affecté' });
+    } catch (err) { next(err); }
+  });
+
+  // POST /api/v2/students/pebs/bulk — affecter PEBS en masse
+  app.post('/api/v2/students/pebs/bulk', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const { studentUserIds, pebsFiliere } = req.body as { studentUserIds?: string[]; pebsFiliere?: string | null };
+
+      if (!Array.isArray(studentUserIds) || studentUserIds.length === 0) {
+        res.status(400).json({ success: false, message: 'studentUserIds[] requis' }); return;
+      }
+
+      if (pebsFiliere !== null && pebsFiliere !== undefined && !['FR_PEBS', 'EN_PEBS'].includes(pebsFiliere)) {
+        res.status(400).json({ success: false, message: 'Valeur pebsFiliere invalide' }); return;
+      }
+
+      const profiles = await (prisma as any).studentProfile.findMany({
+        where: { userId: { in: studentUserIds }, user: { schoolId } },
+        select: { id: true },
+      });
+      const result = await (prisma as any).studentProfile.updateMany({
+        where: { id: { in: profiles.map((p: any) => p.id) } },
+        data: { pebsFiliere: pebsFiliere ?? null },
+      });
+
+      res.json({ success: true, data: { modifies: result.count } });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/classes/:id/pebs-overview — répartition PEBS d'une classe
+  app.get('/api/v2/classes/:id/pebs-overview', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const classId = req.params['id'] as string;
+
+      const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
+      if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
+
+      const students = await (prisma as any).user.findMany({
+        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        select: {
+          id: true, firstName: true, lastName: true,
+          studentProfile: { select: { pebsFiliere: true } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+
+      const eleves = students.map((s: any) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        pebsFiliere: s.studentProfile?.pebsFiliere ?? null,
+      }));
+
+      const pebsCount = eleves.filter((e: any) => e.pebsFiliere !== null).length;
+      const nonPEBSCount = eleves.filter((e: any) => e.pebsFiliere === null).length;
+
+      res.json({
+        success: true,
+        data: {
+          className: classe.name,
+          pebsCount,
+          nonPEBSCount,
+          total: students.length,
+          eleves,
         },
       });
     } catch (err) { next(err); }

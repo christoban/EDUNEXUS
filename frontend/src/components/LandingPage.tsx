@@ -5,6 +5,8 @@ import type { CSSProperties } from 'react'
 import { motion, AnimatePresence, useMotionValue, animate as motionAnimate, useInView, useReducedMotion } from 'framer-motion'
 import DemoModal from './DemoModal'
 import AnimatedBackground from './AnimatedBackground'
+import LanguageSwitch from '@/components/LanguageSwitch'
+import { useLanguage } from '@/lib/i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRANSLATIONS
@@ -44,7 +46,7 @@ const textsFR = {
       { icon: '✅', title: 'Présences intelligentes', desc: "Saisie rapide par l'enseignant, alertes SMS aux parents, statistiques en temps réel." },
       { icon: '📱', title: 'Mobile Money intégré', desc: 'MTN MoMo & Orange Money via Campay. Rappels automatiques aux parents en retard de paiement.' },
       { icon: '📅', title: 'Emploi du temps', desc: 'Détection de conflits (Loi 7 MINESEC ≤14h/AP), sous-groupes TP, publication en un clic.' },
-      { icon: '🤖', title: 'IA Santé Scolaire', desc: 'Score 0-100 par élève : notes, présences, paiements, comportement. Alertes préventives Gemini AI.' },
+      { icon: '🤖', title: 'IA Santé Scolaire', desc: 'Score 0-100 par élève : notes, présences, paiements, comportement. Alertes préventives Groq AI.' },
       { icon: '📶', title: 'Mode hors-ligne', desc: 'Fonctionne sans internet (IndexedDB + service worker). Synchronisation automatique au retour du réseau.' },
     ],
   },
@@ -160,7 +162,7 @@ const textsEN = {
       { icon: '✅', title: 'Smart Attendance', desc: 'Quick teacher entry, SMS alerts to parents, real-time statistics.' },
       { icon: '📱', title: 'Integrated Mobile Money', desc: 'MTN MoMo & Orange Money via Campay. Automatic reminders to late-paying parents.' },
       { icon: '📅', title: 'Timetable', desc: 'Conflict detection (MINESEC Rule 7 ≤14h/week), lab groups, one-click publishing.' },
-      { icon: '🤖', title: 'AI School Health', desc: 'Score 0-100 per student: grades, attendance, payments, behavior. Preventive Gemini AI alerts.' },
+      { icon: '🤖', title: 'AI School Health', desc: 'Score 0-100 per student: grades, attendance, payments, behavior. Preventive Groq AI alerts.' },
       { icon: '📶', title: 'Offline Mode', desc: 'Works without internet (IndexedDB + service worker). Auto-sync when network returns.' },
     ],
   },
@@ -351,7 +353,7 @@ function HeroMockup() {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
-  const [lang, setLang] = useState<'fr' | 'en'>('fr')
+  const { lang } = useLanguage()
   const [tabRole, setTabRole] = useState(0)
   const [faqOpen, setFaqOpen] = useState<number | null>(null)
   const [navScrolled, setNavScrolled] = useState(false)
@@ -449,20 +451,7 @@ export default function LandingPage() {
 
         {/* Right actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          {/* Lang switcher */}
-          <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 8, border: '1px solid var(--border)', overflow: 'hidden' }}>
-            {(['fr', 'en'] as const).map(l => (
-              <button key={l} onClick={() => setLang(l)}
-                style={{
-                  padding: '6px 11px', fontSize: 15, fontWeight: 700, border: 'none', cursor: 'pointer',
-                  fontFamily: 'inherit', transition: 'all 150ms',
-                  background: lang === l ? 'var(--green)' : 'transparent',
-                  color: lang === l ? 'white' : 'var(--text2)',
-                }}>
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          <LanguageSwitch />
           <a href="/login" style={{ ...btnSecondary, fontSize: 17, padding: '9px 18px' }}>{tx.nav.login}</a>
           <button onClick={openDemo} style={{ ...btnPrimary, fontSize: 17, padding: '9px 18px' }}>{tx.nav.demo}</button>
         </div>
@@ -889,19 +878,7 @@ export default function LandingPage() {
           {/* Bottom bar */}
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.28)' }}>{tx.footer.copyright}</div>
-            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.07)', borderRadius: 8, overflow: 'hidden' }}>
-              {(['fr', 'en'] as const).map(l => (
-                <button key={l} onClick={() => setLang(l)}
-                  style={{
-                    padding: '6px 13px', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
-                    fontFamily: 'inherit', transition: 'all 150ms',
-                    background: lang === l ? 'var(--green)' : 'transparent',
-                    color: lang === l ? 'white' : 'rgba(255,255,255,0.38)',
-                  }}>
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
+            <LanguageSwitch style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} />
           </div>
         </div>
       </footer>

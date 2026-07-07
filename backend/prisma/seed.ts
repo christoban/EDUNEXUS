@@ -997,6 +997,12 @@ async function main() {
       }
     }
   }
+  // Nettoyage : la matière PEBS "Travail Manuel" (1er cycle FR) a été renommée "Manual Labour"
+  // (cohérence avec la série ABI du 2nd cycle + programme bilingue). Le seed étant en upsert
+  // additif, on retire l'ancienne ligne orpheline pour éviter un doublon avec la version générale FR.
+  await prisma.cycleCoefficient.deleteMany({
+    where: { filiere: 'FR_PEBS', subjectName: 'Travail Manuel', templateCode: { in: [...CYCLE1_FR_TEMPLATES] } },
+  });
   for (const cc of allCycleEntries) {
     await prisma.cycleCoefficient.upsert({
       where: { templateCode_classLevel_subjectName_filiere: { templateCode: cc.templateCode, classLevel: cc.classLevel, subjectName: cc.subjectName, filiere: cc.filiere } },

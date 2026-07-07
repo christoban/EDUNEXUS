@@ -243,7 +243,7 @@ export default function AssistantWidget() {
                 const expired = Date.now() - it.executedAt > UNDO_WINDOW_MS
                 const canUndo = it.undoable && !it.undone && !expired
                 return (
-                  <div key={it.id} style={{ marginBottom: 10, background: it.undone ? '#f5f5f4' : '#ecfdf5', border: `1.5px solid ${it.undone ? '#e7e5e4' : 'var(--green-light)'}`, borderRadius: 12, padding: '11px 13px' }}>
+                  <div key={it.id} style={{ marginBottom: 10, background: it.undone ? 'var(--bg2)' : 'var(--green-light)', border: `1.5px solid ${it.undone ? 'var(--border)' : 'var(--green-light)'}`, borderRadius: 12, padding: '11px 13px' }}>
                     <div style={{ fontSize: 13.5, color: it.undone ? 'var(--text3)' : 'var(--green)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span>{it.undone ? '↩️' : '✓'}</span>
                       <span style={{ textDecoration: it.undone ? 'line-through' : 'none' }}>{it.label}</span>
@@ -256,7 +256,7 @@ export default function AssistantWidget() {
                       }}>{t('assistant.btn_cancel_action')}</button>
                     )}
                     {it.undoable && !it.undone && expired && (
-                      <div style={{ fontSize: 11.5, color: '#a8a29e', marginTop: 6 }}>{t('assistant.expired')}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 6 }}>{t('assistant.expired')}</div>
                     )}
                   </div>
                 )
@@ -276,7 +276,7 @@ export default function AssistantWidget() {
                         borderRadius: 8, padding: '7px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                       }}>{t('assistant.btn_confirm')}</button>
                       <button onClick={() => confirm(it.pendingActionId, false)} style={{
-                        background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid #e7e5e4',
+                        background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)',
                         borderRadius: 8, padding: '7px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
                       }}>{t('assistant.btn_cancel')}</button>
                     </div>

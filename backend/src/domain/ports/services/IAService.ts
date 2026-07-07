@@ -1,6 +1,6 @@
 /**
  * DOMAIN LAYER — Port Service Intelligence Artificielle
- * Implémenté par Google Gemini via AI SDK.
+ * Implémenté par Groq via AI SDK.
  */
 export interface DonneesIndiceSante {
   moyenneGenerale: number;    // /20

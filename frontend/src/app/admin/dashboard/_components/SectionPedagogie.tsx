@@ -240,7 +240,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                       {/* Barre de progression */}
                       <div style={{ marginTop: 10, position: 'relative' }}>
                         <div style={{ background: 'var(--bg2)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${a.attenduPct}%`, background: '#e8d5b7', position: 'absolute', left: 0, top: 0, borderRadius: 6 }} />
+                          <div style={{ height: '100%', width: `${a.attenduPct}%`, background: 'var(--border)', position: 'absolute', left: 0, top: 0, borderRadius: 6 }} />
                           <div style={{ height: '100%', width: `${a.progressionPct}%`, background: a.niveau === 'CRITIQUE' ? 'var(--red)' : 'var(--amber)', borderRadius: 6, position: 'relative', zIndex: 1 }} />
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
@@ -316,7 +316,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>Progression du programme</div>
                     <div style={{ background: 'var(--bg2)', borderRadius: 8, height: 20, overflow: 'hidden', position: 'relative' }}>
                       {progressionData.attenduPct !== null && (
-                        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progressionData.attenduPct}%`, background: '#e2d9c8', zIndex: 1 }} />
+                        <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progressionData.attenduPct}%`, background: 'var(--border)', zIndex: 1 }} />
                       )}
                       {progressionData.progressionPct !== null && (
                         <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progressionData.progressionPct}%`, background: (progressionData.retardPct ?? 0) > 15 ? 'var(--red)' : 'var(--green)', zIndex: 2, borderRadius: 8, transition: 'width 0.5s ease' }} />

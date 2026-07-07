@@ -268,8 +268,8 @@ export default function SectionCommunications({ onToast }: Props) {
                 {VARIABLES.map((v) => (
                   <button key={v} onClick={() => insertVariable(v)}
                     style={{
-                      padding: '3px 10px', borderRadius: 6, border: '1px solid #c7d2fe', background: '#eef2ff',
-                      color: '#4338ca', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      padding: '3px 10px', borderRadius: 6, border: '1px solid var(--purple-light)', background: 'var(--purple-light)',
+                      color: 'var(--purple)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                     }}>
                     {v}
                   </button>

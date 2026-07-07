@@ -235,17 +235,17 @@ Appliquée après le placement, sans risquer de casser les contraintes obligatoi
 - Placement préférentiel des matières scientifiques lourdes (Maths, Physique, Chimie) en matinée plutôt qu'en fin d'après-midi — configurable par l'établissement
 
 **Couche 3 — IA en surface (groq, déjà dans la stack)**
-Gemini intervient uniquement après la génération, pour deux fonctions précises :
-- **Explication des conflits résiduels en français clair** : si un cours n'a pas pu être placé, Gemini génère une explication lisible ("La classe de 3eA n'a pas pu recevoir ses 3h de SVT hebdomadaires car M. Ondoua dépasse déjà son volume maximum. Suggestion : affecter un autre enseignant ou revoir le volume horaire de la matière")
-- **Ajustements en langage naturel** : le Censeur peut taper "Déplace tous les cours de M. Minkeng du jeudi au vendredi" — Gemini traduit cette instruction en appels API de modification de `TimetableSlot`, sans que l'utilisateur touche au drag-and-drop
+Groq intervient uniquement après la génération, pour deux fonctions précises :
+- **Explication des conflits résiduels en français clair** : si un cours n'a pas pu être placé, Groq génère une explication lisible ("La classe de 3eA n'a pas pu recevoir ses 3h de SVT hebdomadaires car M. Ondoua dépasse déjà son volume maximum. Suggestion : affecter un autre enseignant ou revoir le volume horaire de la matière")
+- **Ajustements en langage naturel** : le Censeur peut taper "Déplace tous les cours de M. Minkeng du jeudi au vendredi" — Groq traduit cette instruction en appels API de modification de `TimetableSlot`, sans que l'utilisateur touche au drag-and-drop
 
 **Endpoint à créer :**
 - `POST /api/v2/timetables/auto-generate` — lance le moteur backtracking, retourne l'emploi du temps complet en DRAFT + la liste des cours non placés avec leurs raisons
-- `POST /api/v2/timetables/:id/adjust` — reçoit une instruction en langage naturel, Gemini la traduit en modifications de slots
+- `POST /api/v2/timetables/:id/adjust` — reçoit une instruction en langage naturel, Groq la traduit en modifications de slots
 
 **Vue par enseignant et par salle** : en plus de la vue par classe existante — simple filtre sur les `TimetableSlot` déjà en base, pas de nouveau modèle.
 
-**Frontend :** bouton « Générer automatiquement » dans `SectionGrilleHoraire`, résultat affiché en DRAFT modifiable par drag-and-drop, cours non placés listés en rouge avec explication Gemini, champ texte libre pour ajustements en langage naturel, bouton « Publier » une fois satisfait.
+**Frontend :** bouton « Générer automatiquement » dans `SectionGrilleHoraire`, résultat affiché en DRAFT modifiable par drag-and-drop, cours non placés listés en rouge avec explication Groq, champ texte libre pour ajustements en langage naturel, bouton « Publier » une fois satisfait.
 
 **Definition of Done :** sur un établissement test avec 20+ classes, 30+ enseignants et les volumes horaires réels de chaque matière, la génération produit un emploi du temps complet sans aucun chevauchement enseignant ni classe, avec les règles d'optimisation respectées, les cours impossibles à placer clairement expliqués en français, et au moins un ajustement en langage naturel qui fonctionne correctement de bout en bout.
 
