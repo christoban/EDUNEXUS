@@ -1,0 +1,43 @@
+/**
+ * APPLICATION — Règles métier pures du module Onboarding Auto-Service Élèves.
+ *
+ * Extraites des use cases pour être testables sans dépendance Prisma (voir __tests__/rules.test.ts).
+ * Aucune de ces fonctions ne fait d'I/O — c'est précisément ce qui les rend unitairement
+ * testables à faible coût, contrairement aux use cases qui parlent directement à Prisma
+ * (pattern déjà en place dans ce projet pour matricule/paiementMinesec/entranceExam).
+ */
+import type { OnboardingRecipient, OnboardingSource, OnboardingStatus } from './types';
+
+/**
+ * Détermine le destinataire du lien d'onboarding.
+ *
+ * Règle métier n°3 de la spec : un candidat CONCOURS est quasi systématiquement mineur
+ * (admission en 6e) — recipientType=PARENT est donc forcé STRUCTURELLEMENT, indépendamment
+ * de tout réglage (ageThresholdForParent, defaultRecipient, ou même une valeur explicite
+ * passée par l'appelant). C'est le seul cas où l'appelant ne peut PAS override.
+ */
+export function determinerRecipientType(params: {
+  sourceType: OnboardingSource;
+  recipientTypeExplicite?: OnboardingRecipient;
+  defaultRecipient?: OnboardingRecipient;
+}): OnboardingRecipient {
+  if (params.sourceType === 'CONCOURS') return 'PARENT';
+  return params.recipientTypeExplicite ?? params.defaultRecipient ?? 'ELEVE';
+}
+
+/**
+ * Règle métier n°1 : le statut PENDING_VALIDATION est une étape obligatoire, jamais
+ * optionnelle — aucun dossier ne peut passer directement à VALIDATED/ACTIVATED (ni être
+ * rejeté) depuis un autre statut (DRAFT, LINK_SENT, SUBMITTED, déjà VALIDATED/ACTIVATED/
+ * REJECTED/EXPIRED). Utilisée à l'identique par ValiderOnboardingUseCase et
+ * RejeterOnboardingUseCase : les deux seules actions humaines possibles sur un dossier
+ * partagent exactement la même précondition de statut.
+ */
+export function peutTransitionnerDepuisPendingValidation(status: OnboardingStatus): boolean {
+  return status === 'PENDING_VALIDATION';
+}
+
+/** Un formulaire ne peut être soumis que sur un dossier dont le lien a été envoyé et pas encore utilisé. */
+export function peutSoumettreFormulaire(status: OnboardingStatus): boolean {
+  return status === 'LINK_SENT';
+}

@@ -8,6 +8,7 @@ import { ResumeSessionConcoursUseCase } from '@application/entranceExam/ResumeSe
 import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerListeCandidatsUseCase';
 import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
 import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/SmsNotificationService';
+import { notifierOnboardingLienCree } from '../../../utils/onboardingNotifications';
 import { parseDateFR } from '../../../utils/dateParsing';
 import XLSX from 'xlsx';
 
@@ -20,6 +21,7 @@ export class EntranceExamController {
     private readonly _resumeSession: ResumeSessionConcoursUseCase,
     private readonly _scannerListe: ScannerListeCandidatsUseCase,
     private readonly _detecterAnomalies: DetecterAnomaliesConcoursUseCase,
+    private readonly prisma: PrismaClient,
   ) {}
 
   // POST /api/v2/entrance-exams
@@ -134,11 +136,18 @@ export class EntranceExamController {
         res.status(400).json({ success: false, message: 'cepResult requis (REUSSI ou ECHOUE)' });
         return;
       }
-      const result = await this._enregistrerCep.execute({ schoolId, candidateId, cepResult });
+      const enregistreParId = req.user!.userId;
+      const result = await this._enregistrerCep.execute({ schoolId, candidateId, cepResult, enregistreParId });
       res.json({ success: true, data: result });
+      // SMS distinct de la notification onboarding : celui-ci annonce l'admission (Phase 4 du
+      // concours), l'autre (notifierOnboardingLienCree) invite à compléter le dossier — jamais
+      // le même message deux fois (règle métier n°6 de la spec onboarding auto-service).
       void notifyCepResultSms({
         schoolId, candidateName: result.candidateName, parentPhone: result.parentPhone, result: cepResult,
       });
+      if (result.onboarding) {
+        void notifierOnboardingLienCree(this.prisma, schoolId, result.candidateName, result.onboarding);
+      }
     } catch (err) { next(err); }
   };
 

@@ -48,7 +48,13 @@
       "WebSearch",
       "Bash(node -e ' *)",
       "Bash(bun _smoke_pdf.ts)",
-      "WebFetch(domain:opencode.ai)"
+      "WebFetch(domain:opencode.ai)",
+      "Bash(curl -s -o /dev/null -w \"backend=%{http_code}\\\\n\" http://localhost:5000/api/v2/eleve-onboarding/token/x)",
+      "Bash(curl -s -o /dev/null -w \"frontend=%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(pkill -f \"bun src/server.ts\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(bun x *)",
+      "Bash(node scripts/browser_test_onboarding.mjs)"
     ]
   }
 }

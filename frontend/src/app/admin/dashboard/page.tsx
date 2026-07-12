@@ -28,6 +28,7 @@ import SectionMatricules from './_components/SectionMatricules'
 import SectionSchoolPayments from './_components/SectionSchoolPayments'
 import SectionAdminLV2Choice from './_components/SectionAdminLV2Choice'
 import SectionAdminEntranceExams from './_components/SectionAdminEntranceExams'
+import SectionEleveOnboarding from './_components/SectionEleveOnboarding'
 import SectionAdminPebsExams from './_components/SectionAdminPebsExams'
 import AdminToast from './_components/AdminToast'
 import AssistantWidget from './_components/AssistantWidget'
@@ -42,7 +43,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
   'council', 'academic-year', 'finance', 'ai', 'statistics', 'communications', 'settings',
-  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments',
+  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding',
 ]
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {}
@@ -164,6 +165,7 @@ export default function AdminDashboard() {
           {section === 'matricules'    && <SectionMatricules    onToast={showToast} />}
           {section === 'school-payments' && <SectionSchoolPayments onToast={showToast} />}
           {section === 'entrance-exams' && <SectionAdminEntranceExams onToast={showToast} />}
+          {section === 'eleve-onboarding' && <SectionEleveOnboarding onToast={showToast} />}
           {section === 'pebs-exams'    && <SectionAdminPebsExams    onToast={showToast} />}
           {section === 'lv2-choice'    && <SectionAdminLV2Choice    onToast={showToast} />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}

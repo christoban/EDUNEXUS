@@ -619,5 +619,30 @@
       "PRIMARY_BILINGUAL": "École Primaire Bilingue",
       "COMPLEXE_SCOLAIRE": "Complexe Scolaire"
     }
+  },
+  "eleveAutoservice": {
+    "pageTitle": "Dossier d'inscription",
+    "loading": "Chargement du dossier...",
+    "invalidLink": "Ce lien est invalide.",
+    "linkExpired": "Ce lien a expiré. Contactez l'établissement pour en obtenir un nouveau.",
+    "linkUsed": "Ce dossier a déjà été soumis.",
+    "linkNotPending": "Ce dossier n'est plus en attente de saisie.",
+    "formTitle": "Complétez le dossier de {name}",
+    "suggestedClass": "Classe proposée : {className}",
+    "nomLabel": "Nom de famille *",
+    "prenomLabel": "Prénom(s) *",
+    "dateNaissanceLabel": "Date de naissance",
+    "dateNaissancePlaceholder": "JJ/MM/AAAA",
+    "genderLabel": "Sexe",
+    "genderM": "Masculin",
+    "genderF": "Féminin",
+    "genderUnset": "Non précisé",
+    "originSchoolLabel": "École d'origine",
+    "submitButton": "Soumettre le dossier",
+    "submitting": "Envoi...",
+    "successTitle": "Dossier soumis avec succès",
+    "successMessage": "Merci ! L'établissement va examiner le dossier et vous recontactera après validation.",
+    "errorRequired": "Nom et prénom sont obligatoires",
+    "errorGeneric": "Une erreur est survenue"
   }
 }

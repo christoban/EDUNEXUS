@@ -619,5 +619,30 @@
       "PRIMARY_BILINGUAL": "École Primaire Bilingue",
       "COMPLEXE_SCOLAIRE": "Complexe Scolaire"
     }
+  },
+  "eleveAutoservice": {
+    "pageTitle": "Enrollment file",
+    "loading": "Loading file...",
+    "invalidLink": "This link is invalid.",
+    "linkExpired": "This link has expired. Contact the school to get a new one.",
+    "linkUsed": "This file has already been submitted.",
+    "linkNotPending": "This file is no longer awaiting submission.",
+    "formTitle": "Complete {name}'s enrollment file",
+    "suggestedClass": "Suggested class: {className}",
+    "nomLabel": "Last name *",
+    "prenomLabel": "First name(s) *",
+    "dateNaissanceLabel": "Date of birth",
+    "dateNaissancePlaceholder": "DD/MM/YYYY",
+    "genderLabel": "Gender",
+    "genderM": "Male",
+    "genderF": "Female",
+    "genderUnset": "Not specified",
+    "originSchoolLabel": "Previous school",
+    "submitButton": "Submit file",
+    "submitting": "Submitting...",
+    "successTitle": "File submitted successfully",
+    "successMessage": "Thank you! The school will review the file and contact you after validation.",
+    "errorRequired": "Last name and first name are required",
+    "errorGeneric": "An error occurred"
   }
 }

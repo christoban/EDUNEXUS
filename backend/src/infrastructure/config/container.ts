@@ -53,6 +53,12 @@ import { ConfirmerCorrespondanceFuzzyUseCase } from '@application/matricule/Conf
 import { SignalerErreurCarteScolaireUseCase } from '@application/matricule/SignalerErreurCarteScolaireUseCase';
 import { CarteScolaireScrapingAdapter } from '@infrastructure/services/CarteScolaireScrapingAdapter';
 
+// --- Use Cases : Onboarding Auto-Service Élèves ---
+import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/CreerSqueletteOnboardingUseCase';
+import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboarding/SoumettreFormulaireOnboardingUseCase';
+import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
+import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
+
 // --- Use Cases : Paiement MINESEC ---
 import { GenererPaiementsMinesecUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecUseCase';
 import { GenererPaiementsMinesecPourEcoleUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecPourEcoleUseCase';
@@ -395,6 +401,7 @@ export function creerContainer() {
   const rejeterEcoleUseCase = new RejeterEcoleUseCase(schoolRepository, userRepository, emailService);
   const changerPlanUseCase = new ChangerPlanAbonnementUseCase(schoolRepository);
   const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(prisma);
+  const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(prisma);
 
   return {
     grade: {
@@ -506,6 +513,12 @@ export function creerContainer() {
       confirmerFuzzy: new ConfirmerCorrespondanceFuzzyUseCase(prisma),
       signalerErreur: new SignalerErreurCarteScolaireUseCase(prisma),
     },
+    eleveOnboarding: {
+      creerSquelette: creerSqueletteOnboarding,
+      soumettreFormulaire: new SoumettreFormulaireOnboardingUseCase(prisma),
+      valider: new ValiderOnboardingUseCase(prisma),
+      rejeter: new RejeterOnboardingUseCase(prisma),
+    },
     paiementMinesec: {
       genererPaiements: genererPaiementsMinesec,
       genererPaiementsEcole: new GenererPaiementsMinesecPourEcoleUseCase(prisma, genererPaiementsMinesec),
@@ -526,7 +539,7 @@ export function creerContainer() {
       creerSession: new CreerSessionConcoursUseCase(prisma),
       ajouterCandidats: new AjouterCandidatsConcoursUseCase(prisma),
       calculerAdmission: new CalculerAdmissionConcoursUseCase(prisma),
-      enregistrerCep: new EnregistrerResultatCepUseCase(prisma),
+      enregistrerCep: new EnregistrerResultatCepUseCase(prisma, creerSqueletteOnboarding),
       resumeSession: new ResumeSessionConcoursUseCase(prisma),
       scannerListe: new ScannerListeCandidatsUseCase(prisma),
       detecterAnomalies: new DetecterAnomaliesConcoursUseCase(prisma),

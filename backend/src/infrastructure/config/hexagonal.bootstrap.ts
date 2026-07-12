@@ -105,6 +105,8 @@ import { requireAuth, requireRole } from '../../middleware/auth';
 import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
 import { MatriculeController } from '@infrastructure/http/controllers/MatriculeController';
 import { creerMatriculeRoutes } from '@infrastructure/http/routes/matricule.routes';
+import { EleveOnboardingController } from '@infrastructure/http/controllers/EleveOnboardingController';
+import { creerEleveOnboardingRoutes } from '@infrastructure/http/routes/eleveOnboarding.routes';
 import { PaiementMinesecController } from '@infrastructure/http/controllers/PaiementMinesecController';
 import { creerPaiementMinesecRoutes } from '@infrastructure/http/routes/paiementMinesec.routes';
 import { ExamenController } from '@infrastructure/http/controllers/ExamenController';
@@ -1160,6 +1162,18 @@ export function bootstrapHexagonal(app: Application): void {
   // Route orpheline retrouvée : la méthode existait sur le controller mais n'était montée nulle part.
   app.patch('/api/v2/students/:id/matricule', requireAuth, requireRole('ADMIN', 'STAFF'), matriculeController.updateMatricule);
 
+  // ── Onboarding Auto-Service Élèves ──────────────────────────────────────
+  // Préfixe distinct de /api/v2/onboarding (déjà pris par l'onboarding d'établissement,
+  // module sans rapport — voir spec-onboarding-eleve-autoservice.md section 0 point 4).
+  const eleveOnboardingController = new EleveOnboardingController(
+    container.eleveOnboarding.creerSquelette,
+    container.eleveOnboarding.soumettreFormulaire,
+    container.eleveOnboarding.valider,
+    container.eleveOnboarding.rejeter,
+    prisma,
+  );
+  app.use('/api/v2/eleve-onboarding', creerEleveOnboardingRoutes(eleveOnboardingController));
+
   // ── Paiements MINESEC ───────────────────────────────────────────────────
   const paiementMinesecController = new PaiementMinesecController(
     container.paiementMinesec.genererPaiements,
@@ -1198,6 +1212,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.entranceExam.resumeSession,
     container.entranceExam.scannerListe,
     container.entranceExam.detecterAnomalies,
+    prisma,
   );
   app.use('/api/v2/entrance-exams', creerEntranceExamRoutes(entranceExamController));
 

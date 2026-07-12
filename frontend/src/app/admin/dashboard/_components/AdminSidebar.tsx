@@ -78,6 +78,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'matricules',    icon: '🪪', label: tnav('sidebar.matricules') },
         { id: 'school-payments', icon: '💰', label: tnav('sidebar.schoolPayments') },
         { id: 'entrance-exams', icon: '📝', label: tnav('sidebar.entranceExams') },
+        { id: 'eleve-onboarding', icon: '🧾', label: tnav('sidebar.eleveOnboarding') },
         { id: 'pebs-exams',    icon: '🌍', label: tnav('sidebar.pebsExams') },
         { id: 'lv2-choice',    icon: '🗣️', label: tnav('sidebar.lv2Choice') },
         { id: 'ai',            icon: '🤖', label: tnav('sidebar.ai') },

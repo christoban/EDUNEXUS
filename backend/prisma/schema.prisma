@@ -39,89 +39,91 @@ model MasterUser {
 }
 
 model School {
-  id                   String                @id @default(cuid())
-  name                 String
-  subdomain            String                @unique
-  type                 SchoolType            @default(SECONDARY)
-  plan                 PlanType              @default(DISCOVERY)
-  status               SchoolStatus          @default(PENDING)
-  city                 String?
-  region               String?
-  address              String?
-  phone                String?
-  email                String?
-  logoUrl              String?
+  id                         String                      @id @default(cuid())
+  name                       String
+  subdomain                  String                      @unique
+  type                       SchoolType                  @default(SECONDARY)
+  plan                       PlanType                    @default(DISCOVERY)
+  status                     SchoolStatus                @default(PENDING)
+  city                       String?
+  region                     String?
+  address                    String?
+  phone                      String?
+  email                      String?
+  logoUrl                    String?
   // Code officiel MINESEC de l'établissement sur cartescolaire.cm (ex. "NO02140H27") — nécessaire
   // pour interroger la recherche publique de matricule (nom+établissement → matricule). Configuré
   // une fois par l'admin, pas deviné automatiquement (la liste des établissements y est trop longue
   // et instable pour un matching fiable).
-  minesecSchoolCode    String?
-  subsystem            SchoolSubsystem       @default(FRANCOPHONE)
-  educationType        EducationType         @default(GENERAL)
-  ownership            SchoolOwnership       @default(PRIVATE_SECULAR)
-   features             Json                  @default("{}")
-   saturdaySchedule     Boolean               @default(true)
-   contractEnd          DateTime?
-   hasPEBSFrancophone   Boolean               @default(false)
-   hasPEBSAnglophone    Boolean               @default(false)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  templateCode         String?
-  onboardingConfig     Json?
-  sequences            AcademicSequence[]
-  academicYears        AcademicYear[]
-  activitiesLogs       ActivitiesLog[]
-  announcements        Announcement[]
-  attendances          Attendance[]
-  classes              Class[]
-  classCouncilSessions ClassCouncilSession[]
-  classPromotions      ClassPromotion[]
-  conversations        Conversation[]
-  disciplineRecords    DisciplineRecord[]
-  emailLogs            EmailLog[]
-  exams                Exam[]
-  expenses             Expense[]
-  feePlans             FeePlan[]
-  grades               Grade[]
-  gradeFormulas        GradeFormula[]
-  invoices             Invoice[]
-  mentionRules         MentionRule[]
-  notifications        Notification[]
-  offlineQueue         OfflineQueue[]
-  payments             Payment[]
-  reportCards          ReportCard[]
-  template             SchoolTemplate?       @relation(fields: [templateCode], references: [code])
-  schoolConfig                SchoolConfig?
-  invites                     SchoolInvite[]
-  schoolSettings              SchoolSettings?
-  schoolNotificationSettings  SchoolNotificationSettings?
-  configurationForm    SchoolConfigurationForm?
-  sections             Section[]
-  smsLogs              SmsLog[]
-  staffProfiles        StaffProfile[]
-  studentPromotions    StudentPromotion[]
-  subjects             Subject[]
-  departments          Department[]
-  subjectCoefficients    SubjectCoefficient[]
-  classSubjectOverrides  ClassSubjectOverride[]
-  timetables             Timetable[]
-  timetableGridConfig  TimetableGridConfig?
-  users                User[]
-  submissions          Submission[]
-  books                Book[]
-  bookLoans            BookLoan[]
-  ficheOrientations    FicheOrientation[]
-  verifiableDocuments  VerifiableDocument[]
-  broadcastLogs        BroadcastLog[]
-  programmes           Programme[]
-  cahierDeTexte        CahierDeTexte[]
-  employeeFiles        EmployeeFile[]
-  careerEvents         CareerEvent[]
-  staffAttendances     StaffAttendance[]
-  leaveRequests        LeaveRequest[]
-  leaveBalances        LeaveBalance[]
-  missionOrders        MissionOrder[]
-  enrollments          Enrollment[]
+  minesecSchoolCode          String?
+  subsystem                  SchoolSubsystem             @default(FRANCOPHONE)
+  educationType              EducationType               @default(GENERAL)
+  ownership                  SchoolOwnership             @default(PRIVATE_SECULAR)
+  features                   Json                        @default("{}")
+  saturdaySchedule           Boolean                     @default(true)
+  contractEnd                DateTime?
+  hasPEBSFrancophone         Boolean                     @default(false)
+  hasPEBSAnglophone          Boolean                     @default(false)
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime                    @updatedAt
+  templateCode               String?
+  onboardingConfig           Json?
+  sequences                  AcademicSequence[]
+  academicYears              AcademicYear[]
+  activitiesLogs             ActivitiesLog[]
+  announcements              Announcement[]
+  attendances                Attendance[]
+  classes                    Class[]
+  classCouncilSessions       ClassCouncilSession[]
+  classPromotions            ClassPromotion[]
+  conversations              Conversation[]
+  disciplineRecords          DisciplineRecord[]
+  emailLogs                  EmailLog[]
+  exams                      Exam[]
+  expenses                   Expense[]
+  feePlans                   FeePlan[]
+  grades                     Grade[]
+  gradeFormulas              GradeFormula[]
+  invoices                   Invoice[]
+  mentionRules               MentionRule[]
+  notifications              Notification[]
+  offlineQueue               OfflineQueue[]
+  payments                   Payment[]
+  reportCards                ReportCard[]
+  template                   SchoolTemplate?             @relation(fields: [templateCode], references: [code])
+  schoolConfig               SchoolConfig?
+  invites                    SchoolInvite[]
+  schoolSettings             SchoolSettings?
+  schoolNotificationSettings SchoolNotificationSettings?
+  configurationForm          SchoolConfigurationForm?
+  sections                   Section[]
+  smsLogs                    SmsLog[]
+  staffProfiles              StaffProfile[]
+  studentPromotions          StudentPromotion[]
+  subjects                   Subject[]
+  departments                Department[]
+  subjectCoefficients        SubjectCoefficient[]
+  classSubjectOverrides      ClassSubjectOverride[]
+  timetables                 Timetable[]
+  timetableGridConfig        TimetableGridConfig?
+  users                      User[]
+  submissions                Submission[]
+  books                      Book[]
+  bookLoans                  BookLoan[]
+  ficheOrientations          FicheOrientation[]
+  verifiableDocuments        VerifiableDocument[]
+  broadcastLogs              BroadcastLog[]
+  programmes                 Programme[]
+  cahierDeTexte              CahierDeTexte[]
+  employeeFiles              EmployeeFile[]
+  careerEvents               CareerEvent[]
+  staffAttendances           StaffAttendance[]
+  leaveRequests              LeaveRequest[]
+  leaveBalances              LeaveBalance[]
+  missionOrders              MissionOrder[]
+  enrollments                Enrollment[]
+  studentOnboardings         StudentOnboarding[]
+  schoolOnboardingSettings   SchoolOnboardingSettings?
 }
 
 model SchoolInvite {
@@ -141,62 +143,62 @@ model SchoolInvite {
 }
 
 model SchoolConfig {
-  id                    String           @id @default(cuid())
-  schoolId              String           @unique
-  ds1Weight             Float            @default(1)
-  ds2Weight             Float            @default(1)
-  compositionWeight     Float            @default(2)
-  classTestWeight       Float            @default(30)
-  terminalExamWeight    Float            @default(70)
-  moderatorUserId       String?
-  moderator             User?            @relation("SchoolModerator", fields: [moderatorUserId], references: [id])
-  aiRiskThreshold       Int              @default(50)
-  bulletinTemplate      BulletinTemplate @default(FR_SECONDARY)
-  gradesPerTerm                    Int              @default(2)
-  sequenceCalculationMode          String           @default("single")
-  legalMaxContributionFirstCycle   Int              @default(7500)
-  legalMaxContributionSecondCycle  Int              @default(10000)
-  termsPerYear                     Int              @default(3)
-  maxAbsences                      Int              @default(10)
-  smsEnabled                       Boolean          @default(false)
-  offlineModeEnabled               Boolean          @default(true)
-  aiAlertsEnabled                  Boolean          @default(true)
-  messageModeration                Boolean          @default(false)
+  id                              String           @id @default(cuid())
+  schoolId                        String           @unique
+  ds1Weight                       Float            @default(1)
+  ds2Weight                       Float            @default(1)
+  compositionWeight               Float            @default(2)
+  classTestWeight                 Float            @default(30)
+  terminalExamWeight              Float            @default(70)
+  moderatorUserId                 String?
+  moderator                       User?            @relation("SchoolModerator", fields: [moderatorUserId], references: [id])
+  aiRiskThreshold                 Int              @default(50)
+  bulletinTemplate                BulletinTemplate @default(FR_SECONDARY)
+  gradesPerTerm                   Int              @default(2)
+  sequenceCalculationMode         String           @default("single")
+  legalMaxContributionFirstCycle  Int              @default(7500)
+  legalMaxContributionSecondCycle Int              @default(10000)
+  termsPerYear                    Int              @default(3)
+  maxAbsences                     Int              @default(10)
+  smsEnabled                      Boolean          @default(false)
+  offlineModeEnabled              Boolean          @default(true)
+  aiAlertsEnabled                 Boolean          @default(true)
+  messageModeration               Boolean          @default(false)
   /// Redondant avec School.subsystem. Utilisé par l'API SchoolSettings (frontend + locale auto-dérivation).
   /// La résolution de langue RUNTIME utilise School.subsystem via resolveLanguage() — NE PAS utiliser pour la langue.
-  schoolLanguageMode               String           @default("francophone")
-  attendanceLateAsAbsence          Boolean          @default(false)
-  bulletinBlockOnUnpaidFees        Boolean          @default(false)
-  councilPassMark                  Float            @default(10)
-  passMark                         Float            @default(10)
-  passwordMinLength                Int              @default(8)
-  passwordRequireUpper             Boolean          @default(false)
-  passwordRequireDigit             Boolean          @default(true)
-  sessionTimeoutMin                Int              @default(60)
-  updatedAt             DateTime         @updatedAt
-  absenceAlertThreshold Int              @default(3)
-  christmasBreakEnd     DateTime?
-  christmasBreakStart   DateTime?
-  easterBreakEnd        DateTime?
-  easterBreakStart      DateTime?
-  schoolYearStartDate   DateTime?
-  yearEndDate           DateTime?
-  school                School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolLanguageMode              String           @default("francophone")
+  attendanceLateAsAbsence         Boolean          @default(false)
+  bulletinBlockOnUnpaidFees       Boolean          @default(false)
+  councilPassMark                 Float            @default(10)
+  passMark                        Float            @default(10)
+  passwordMinLength               Int              @default(8)
+  passwordRequireUpper            Boolean          @default(false)
+  passwordRequireDigit            Boolean          @default(true)
+  sessionTimeoutMin               Int              @default(60)
+  updatedAt                       DateTime         @updatedAt
+  absenceAlertThreshold           Int              @default(3)
+  christmasBreakEnd               DateTime?
+  christmasBreakStart             DateTime?
+  easterBreakEnd                  DateTime?
+  easterBreakStart                DateTime?
+  schoolYearStartDate             DateTime?
+  yearEndDate                     DateTime?
+  school                          School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model SchoolSettings {
-  id        String   @id @default(cuid())
-  schoolId  String   @unique
-  timezone  String   @default("Africa/Douala")
+  id               String    @id @default(cuid())
+  schoolId         String    @unique
+  timezone         String    @default("Africa/Douala")
   /// Locale régionale pour le formatage (dates, nombres, monnaie). Ne détermine PAS la langue d'affichage.
   /// La langue d'affichage est résolue par resolveLanguage(subsystem, sectionCode).
-  locale    String   @default("fr-CM")
-  currency  String   @default("XAF")
-  lastBackupAt   DateTime?
-  lastBackupFile String?
-  logRetentionDays Int      @default(90)
-  updatedAt DateTime @updatedAt
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  locale           String    @default("fr-CM")
+  currency         String    @default("XAF")
+  lastBackupAt     DateTime?
+  lastBackupFile   String?
+  logRetentionDays Int       @default(90)
+  updatedAt        DateTime  @updatedAt
+  school           School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 model SchoolNotificationSettings {
@@ -247,68 +249,69 @@ model MentionRule {
 }
 
 model User {
-  id                   String                 @id @default(cuid())
-  schoolId             String
-  role                 UserRole
-  email                String?
-  phone                String?
-  passwordHash              String?
-  resetPasswordToken        String?   @unique
-  resetPasswordTokenExpiry  DateTime?
-  firstName            String
-  lastName             String
-  avatarUrl            String?
-  isActive             Boolean                @default(true)
-  refreshTokenVersion  Int                    @default(0)
-  lastLogin            DateTime?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  announcements        Announcement[]         @relation("AnnouncementAuthor")
-  attendancesRecorded  Attendance[]           @relation("RecordedAttendances")
-  attendancesAsTeacher Attendance[]           @relation("TeacherAttendances")
-  attendancesAsStudent Attendance[]           @relation("StudentAttendances")
-  councilDecisions     ClassCouncilDecision[] @relation("CouncilDecisionStudent")
-  councilPresided      ClassCouncilSession[]  @relation("CouncilPresidedBy")
-  disciplineDecided    DisciplineRecord[]     @relation("DisciplineDecidedBy")
-  disciplineRecords    DisciplineRecord[]     @relation("StudentDiscipline")
-  expensesCreated      Expense[]              @relation("CreatedExpenses")
-  gradesRecorded       Grade[]                @relation("RecordedGrades")
-  gradesAsStudent      Grade[]                @relation("StudentGrades")
-  gradesValidated      Grade[]                @relation("ValidatedGrades")
-  invoices             Invoice[]              @relation("StudentInvoices")
-  moderatedMessages    Message[]              @relation("ModeratedMessages")
-  moderatedSchoolConfigs SchoolConfig[]        @relation("SchoolModerator")
-  sentMessages         Message[]              @relation("SentMessages")
-  receivedMessages     MessageReadStatus[]
-  parentProfile        ParentProfile?
-  payments             Payment[]              @relation("StudentPayments")
-  refundedPayments     Payment[]              @relation("RefundedPayments")
-  reportCards          ReportCard[]           @relation("StudentReportCards")
-  staffProfile         StaffProfile?
-  studentProfile       StudentProfile?
-  submissions          Submission[]           @relation("StudentSubmissions")
-  teacherProfile       TeacherProfile?
-  school               School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  notifications          Notification[]      @relation("UserNotifications")
-  notificationPreference NotificationPreference?
-  offlineQueueItems      OfflineQueue[]      @relation("UserOfflineQueue")
-  timetableSlots         TimetableSlot[]     @relation("TeacherSlots")
-  promotionsAsStudent       StudentPromotion[]  @relation("PromotedStudent")
-  promotionsDecided         StudentPromotion[]  @relation("PromotionDecidedBy")
-  classesProfessorPrincipal Class[]             @relation("ClassProfessorPrincipal")
-  bookLoans                 BookLoan[]          @relation("StudentBookLoans")
-  ficheOrientations         FicheOrientation[]  @relation("studentFiches")
-  ficheOrientationsConseille FicheOrientation[] @relation("conseillerFiches")
-  teachingAssignments       TeachingAssignment[] @relation("TeacherAssignments")
-  headedDepartments         Department[]         @relation("DepartmentHead")
-  cahierDeTexte             CahierDeTexte[]      @relation("TeacherCahierDeTexte")
-  employeeFile              EmployeeFile?        @relation("EmployeeFileUser")
-  employeeCareerEvents      CareerEvent[]         @relation("EmployeeCareerEvents")
-  staffAttendances          StaffAttendance[]     @relation("StaffAttendanceUser")
-  employeeLeaveRequests     LeaveRequest[]        @relation("EmployeeLeaveRequests")
-  leaveRequestsValidated    LeaveRequest[]        @relation("LeaveRequestValidator")
-  employeeLeaveBalances     LeaveBalance[]        @relation("EmployeeLeaveBalance")
-  employeeMissionOrders     MissionOrder[]        @relation("EmployeeMissionOrders")
+  id                         String                  @id @default(cuid())
+  schoolId                   String
+  role                       UserRole
+  email                      String?
+  phone                      String?
+  passwordHash               String?
+  resetPasswordToken         String?                 @unique
+  resetPasswordTokenExpiry   DateTime?
+  firstName                  String
+  lastName                   String
+  avatarUrl                  String?
+  isActive                   Boolean                 @default(true)
+  refreshTokenVersion        Int                     @default(0)
+  lastLogin                  DateTime?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  announcements              Announcement[]          @relation("AnnouncementAuthor")
+  attendancesRecorded        Attendance[]            @relation("RecordedAttendances")
+  attendancesAsTeacher       Attendance[]            @relation("TeacherAttendances")
+  attendancesAsStudent       Attendance[]            @relation("StudentAttendances")
+  councilDecisions           ClassCouncilDecision[]  @relation("CouncilDecisionStudent")
+  councilPresided            ClassCouncilSession[]   @relation("CouncilPresidedBy")
+  disciplineDecided          DisciplineRecord[]      @relation("DisciplineDecidedBy")
+  disciplineRecords          DisciplineRecord[]      @relation("StudentDiscipline")
+  expensesCreated            Expense[]               @relation("CreatedExpenses")
+  gradesRecorded             Grade[]                 @relation("RecordedGrades")
+  gradesAsStudent            Grade[]                 @relation("StudentGrades")
+  gradesValidated            Grade[]                 @relation("ValidatedGrades")
+  invoices                   Invoice[]               @relation("StudentInvoices")
+  moderatedMessages          Message[]               @relation("ModeratedMessages")
+  moderatedSchoolConfigs     SchoolConfig[]          @relation("SchoolModerator")
+  sentMessages               Message[]               @relation("SentMessages")
+  receivedMessages           MessageReadStatus[]
+  parentProfile              ParentProfile?
+  payments                   Payment[]               @relation("StudentPayments")
+  refundedPayments           Payment[]               @relation("RefundedPayments")
+  reportCards                ReportCard[]            @relation("StudentReportCards")
+  staffProfile               StaffProfile?
+  studentProfile             StudentProfile?
+  submissions                Submission[]            @relation("StudentSubmissions")
+  teacherProfile             TeacherProfile?
+  school                     School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  notifications              Notification[]          @relation("UserNotifications")
+  notificationPreference     NotificationPreference?
+  offlineQueueItems          OfflineQueue[]          @relation("UserOfflineQueue")
+  timetableSlots             TimetableSlot[]         @relation("TeacherSlots")
+  promotionsAsStudent        StudentPromotion[]      @relation("PromotedStudent")
+  promotionsDecided          StudentPromotion[]      @relation("PromotionDecidedBy")
+  classesProfessorPrincipal  Class[]                 @relation("ClassProfessorPrincipal")
+  bookLoans                  BookLoan[]              @relation("StudentBookLoans")
+  ficheOrientations          FicheOrientation[]      @relation("studentFiches")
+  ficheOrientationsConseille FicheOrientation[]      @relation("conseillerFiches")
+  teachingAssignments        TeachingAssignment[]    @relation("TeacherAssignments")
+  headedDepartments          Department[]            @relation("DepartmentHead")
+  cahierDeTexte              CahierDeTexte[]         @relation("TeacherCahierDeTexte")
+  employeeFile               EmployeeFile?           @relation("EmployeeFileUser")
+  employeeCareerEvents       CareerEvent[]           @relation("EmployeeCareerEvents")
+  staffAttendances           StaffAttendance[]       @relation("StaffAttendanceUser")
+  employeeLeaveRequests      LeaveRequest[]          @relation("EmployeeLeaveRequests")
+  leaveRequestsValidated     LeaveRequest[]          @relation("LeaveRequestValidator")
+  employeeLeaveBalances      LeaveBalance[]          @relation("EmployeeLeaveBalance")
+  employeeMissionOrders      MissionOrder[]          @relation("EmployeeMissionOrders")
+  onboardingsValidated       StudentOnboarding[]
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -480,18 +483,18 @@ model BacCoefficient {
 }
 
 model SchoolTemplate {
-  id               String            @id @default(cuid())
-  code             String            @unique
-  name             String
-  subsystem        SchoolSubsystem
-  educationType    EducationType
-  level            SchoolLevel
-  ownership        SchoolOwnership   @default(PRIVATE_SECULAR)
-  config           Json
-  createdAt        DateTime          @default(now())
-  schools          School[]
-  cycleCoefficients  CycleCoefficient[]
-  bacCoefficients    BacCoefficient[]
+  id                     String                  @id @default(cuid())
+  code                   String                  @unique
+  name                   String
+  subsystem              SchoolSubsystem
+  educationType          EducationType
+  level                  SchoolLevel
+  ownership              SchoolOwnership         @default(PRIVATE_SECULAR)
+  config                 Json
+  createdAt              DateTime                @default(now())
+  schools                School[]
+  cycleCoefficients      CycleCoefficient[]
+  bacCoefficients        BacCoefficient[]
   anglophoneSubjectLoads AnglophoneSubjectLoad[]
 }
 
@@ -511,7 +514,7 @@ model CycleCoefficient {
 model AnglophoneSubjectLoad {
   id            String         @id @default(cuid())
   templateCode  String
-  classLevel    String         // "Form1"..."UpperSixth"
+  classLevel    String // "Form1"..."UpperSixth"
   subjectName   String
   coefficient   Int
   weeklyPeriods Int?
@@ -538,11 +541,11 @@ model ALevelSubject {
 // ── P3 ──────────────────────────────────────────────────────────────────────
 
 model AnglophoneStreamCombination {
-  id            String @id @default(cuid())
+  id            String  @id @default(cuid())
   filiere       String // "A1", "A2", …, "S1", "S2", …
   type          String // "ARTS" | "SCIENCES"
-  coreSubjects  Json   // matières obligatoires pour cette filière
-  electiveGroup Json?  // groupes d'options au choix
+  coreSubjects  Json // matières obligatoires pour cette filière
+  electiveGroup Json? // groupes d'options au choix
   description   String?
 
   @@unique([filiere])
@@ -551,30 +554,30 @@ model AnglophoneStreamCombination {
 // ── P4 ──────────────────────────────────────────────────────────────────────
 
 model OLevelGrade {
-  id          String @id @default(cuid())
-  grade       String @unique // "A", "B", "C", …
+  id          String  @id @default(cuid())
+  grade       String  @unique // "A", "B", "C", …
   minScore    Float
   maxScore    Float
   description String?
 }
 
 model ALevelGrade {
-  id          String @id @default(cuid())
-  grade       String @unique // "A", "B", "C", …
+  id          String  @id @default(cuid())
+  grade       String  @unique // "A", "B", "C", …
   minScore    Float
   maxScore    Float
   description String?
 }
 
 model AcademicYear {
-  id          String             @id @default(cuid())
-  schoolId    String
-  name        String
-  startDate   DateTime
-  endDate     DateTime
-  isCurrent   Boolean            @default(false)
-  status      AcademicYearStatus @default(ACTIVE)
-  createdAt   DateTime           @default(now())
+  id                String             @id @default(cuid())
+  schoolId          String
+  name              String
+  startDate         DateTime
+  endDate           DateTime
+  isCurrent         Boolean            @default(false)
+  status            AcademicYearStatus @default(ACTIVE)
+  createdAt         DateTime           @default(now())
   periods           AcademicPeriod[]
   school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   exams             Exam[]
@@ -624,35 +627,36 @@ model AcademicSequence {
 }
 
 model Class {
-  id                    String                @id @default(cuid())
+  id                    String                 @id @default(cuid())
   schoolId              String
   name                  String
   level                 String?
   sectionId             String?
-  capacity              Int                   @default(40)
-  createdAt             DateTime              @default(now())
+  capacity              Int                    @default(40)
+  createdAt             DateTime               @default(now())
   filiere               String?
-  pebsMixte             Boolean               @default(false)
+  pebsMixte             Boolean                @default(false)
   serie                 String?
-  professorPrincipalId  String?               @unique
+  professorPrincipalId  String?                @unique
   attendances           Attendance[]
-  school                School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  section               Section?              @relation(fields: [sectionId], references: [id])
-  professorPrincipal    User?                 @relation("ClassProfessorPrincipal", fields: [professorPrincipalId], references: [id])
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  section               Section?               @relation(fields: [sectionId], references: [id])
+  professorPrincipal    User?                  @relation("ClassProfessorPrincipal", fields: [professorPrincipalId], references: [id])
   classCouncilSessions  ClassCouncilSession[]
   subGroups             ClassSubGroup[]
   exams                 Exam[]
   grades                Grade[]
   students              StudentProfile[]
   timetables            Timetable[]
-  studentFromPromotions StudentPromotion[]    @relation("StudentFromClass")
-  studentToPromotions   StudentPromotion[]    @relation("StudentToClass")
-  fromPromotions        ClassPromotion[]      @relation("FromClass")
-  toPromotions          ClassPromotion[]      @relation("ToClass")
+  studentFromPromotions StudentPromotion[]     @relation("StudentFromClass")
+  studentToPromotions   StudentPromotion[]     @relation("StudentToClass")
+  fromPromotions        ClassPromotion[]       @relation("FromClass")
+  toPromotions          ClassPromotion[]       @relation("ToClass")
   teachingAssignments   TeachingAssignment[]
   subjectOverrides      ClassSubjectOverride[]
   programmes            Programme[]
   cahierDeTexte         CahierDeTexte[]
+  studentOnboardings    StudentOnboarding[]
 
   @@index([schoolId])
 }
@@ -689,15 +693,15 @@ model Subject {
 }
 
 model Department {
-  id        String    @id @default(cuid())
-  schoolId  String
-  name      String
-  color     String    @default("#6b7280")
-  headId    String?   @unique
+  id       String  @id @default(cuid())
+  schoolId String
+  name     String
+  color    String  @default("#6b7280")
+  headId   String? @unique
 
-  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  head      User?     @relation("DepartmentHead", fields: [headId], references: [id])
-  subjects  Subject[]
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  head     User?     @relation("DepartmentHead", fields: [headId], references: [id])
+  subjects Subject[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -713,7 +717,7 @@ model TeacherSubject {
 }
 
 model TeachingAssignment {
-  id        String  @id @default(cuid())
+  id        String @id @default(cuid())
   classId   String
   subjectId String
   teacherId String
@@ -768,8 +772,8 @@ model Grade {
   theoreticalScore     Float?
   practicalScore       Float?
   professionalAttitude Float?
-  oralScore            Float?  // Score oral — primaire APC (composante Oral)
-  selfDevelopmentScore Float?  // Savoir-être — primaire APC (composante Savoir-être)
+  oralScore            Float? // Score oral — primaire APC (composante Oral)
+  selfDevelopmentScore Float? // Savoir-être — primaire APC (composante Savoir-être)
   coefficient          Float                 @default(1)
   maxValue             Float                 @default(20)
   sequenceAverage      Float?
@@ -803,9 +807,9 @@ model ReportCard {
   academicYearId     String
   generalAverage     Float?
   rank               Int?
-  rankTrimestre1     Int?       // Rang au 1er trimestre (bulletin annuel)
-  rankTrimestre2     Int?       // Rang au 2ème trimestre (bulletin annuel)
-  rankTrimestre3     Int?       // Rang au 3ème trimestre (bulletin annuel)
+  rankTrimestre1     Int? // Rang au 1er trimestre (bulletin annuel)
+  rankTrimestre2     Int? // Rang au 2ème trimestre (bulletin annuel)
+  rankTrimestre3     Int? // Rang au 3ème trimestre (bulletin annuel)
   mention            String?
   isGenerated        Boolean                 @default(false)
   pdfUrl             String?
@@ -839,22 +843,22 @@ model ReportCardSubjectLine {
   seq1Score            Float?
   seq2Score            Float?
   compositionScore     Float?
-  seq3Score            Float?    // Eval 3 (1ère évaluation du 2ème trimestre)
-  seq4Score            Float?    // Eval 4 (2ème évaluation du 2ème trimestre)
-  seq5Score            Float?    // Eval 5 (1ère évaluation du 3ème trimestre)
-  seq6Score            Float?    // Eval 6 (2ème évaluation du 3ème trimestre)
+  seq3Score            Float? // Eval 3 (1ère évaluation du 2ème trimestre)
+  seq4Score            Float? // Eval 4 (2ème évaluation du 2ème trimestre)
+  seq5Score            Float? // Eval 5 (1ère évaluation du 3ème trimestre)
+  seq6Score            Float? // Eval 6 (2ème évaluation du 3ème trimestre)
   classTestScore       Float?
   terminalExamScore    Float?
   theoreticalScore     Float?
   practicalScore       Float?
   professionalAttitude Float?
-  oralScore            Float?    // Score oral — primaire APC
-  selfDevelopmentScore Float?    // Savoir-être — primaire APC
+  oralScore            Float? // Score oral — primaire APC
+  selfDevelopmentScore Float? // Savoir-être — primaire APC
   subjectAverage       Float?
   weightedScore        Float?
   subjectRank          Int?
   teacherComment       String?
-  competenceLabel      String?    // Libellé court de la compétence visée (bulletins bilingues Garoua)
+  competenceLabel      String? // Libellé court de la compétence visée (bulletins bilingues Garoua)
   reportCard           ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
   subject              Subject    @relation(fields: [subjectId], references: [id])
 
@@ -929,33 +933,33 @@ model TimetableGridConfig {
 }
 
 model TimetableSlot {
-  id          String    @id @default(cuid())
-  timetableId String
-  subjectId   String?
-  teacherId   String?
-  dayOfWeek   Int
-  startTime   String
-  endTime     String
-  room        String?
-  kind        SlotKind  @default(CLASS)
-  subGroupId  String?
-  isLV2Slot   Boolean   @default(false)
-  isElectiveSlot Boolean @default(false)
-  subGroup    ClassSubGroup? @relation(fields: [subGroupId], references: [id])
-  subject     Subject?  @relation(fields: [subjectId], references: [id])
-  teacher     User?     @relation("TeacherSlots", fields: [teacherId], references: [id])
-  timetable   Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  id             String         @id @default(cuid())
+  timetableId    String
+  subjectId      String?
+  teacherId      String?
+  dayOfWeek      Int
+  startTime      String
+  endTime        String
+  room           String?
+  kind           SlotKind       @default(CLASS)
+  subGroupId     String?
+  isLV2Slot      Boolean        @default(false)
+  isElectiveSlot Boolean        @default(false)
+  subGroup       ClassSubGroup? @relation(fields: [subGroupId], references: [id])
+  subject        Subject?       @relation(fields: [subjectId], references: [id])
+  teacher        User?          @relation("TeacherSlots", fields: [teacherId], references: [id])
+  timetable      Timetable      @relation(fields: [timetableId], references: [id], onDelete: Cascade)
 }
 
 model FeePlan {
-  id          String    @id @default(cuid())
-  schoolId    String
-  sectionId   String?
-  name        String
-  amount      Float
-  currency    String    @default("XAF")
-  description String?
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(cuid())
+  schoolId     String
+  sectionId    String?
+  name         String
+  amount       Float
+  currency     String    @default("XAF")
+  description  String?
+  createdAt    DateTime  @default(now())
   feeType      FeeType   @default(TUITION)
   level        String?
   isRefundable Boolean   @default(false)
@@ -1037,6 +1041,7 @@ model Conversation {
   createdAt DateTime         @default(now())
   school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   messages  Message[]
+
   @@index([schoolId])
 }
 
@@ -1159,7 +1164,7 @@ model ClassPromotion {
 }
 
 model StudentPromotion {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   schoolId       String
   studentId      String
   fromClassId    String
@@ -1290,19 +1295,19 @@ model ActivitiesLog {
 }
 
 model EmployeeFile {
-  id            String   @id @default(cuid())
-  userId        String   @unique
+  id            String    @id @default(cuid())
+  userId        String    @unique
   schoolId      String
   dateNaissance DateTime?
-  diplomes      Json     @default("[]")
+  diplomes      Json      @default("[]")
   numeroCNPS    String?
   typeContrat   String?
   dateEmbauche  DateTime?
   echelonActuel String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation("EmployeeFileUser", fields: [userId], references: [id], onDelete: Cascade)
-  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation("EmployeeFileUser", fields: [userId], references: [id], onDelete: Cascade)
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
 }
@@ -1494,7 +1499,7 @@ enum SequenceType {
   COMPOSITION
   CLASS_TEST
   TERMINAL_EXAM
-  UA            // Unité d'Apprentissage — APC primaire (UA1 → UA8)
+  UA // Unité d'Apprentissage — APC primaire (UA1 → UA8)
 }
 
 enum GradeValidationStatus {
@@ -1620,15 +1625,15 @@ enum TimetableStatus {
 }
 
 enum SlotKind {
-  CLASS     // Cours magistral standard
-  BREAK     // Pause (récréation matin, pause midi)
-  ACTIVITY  // Activité générale (sport, sortie, etc.)
-  TD        // Travaux Dirigés ou Travaux Pratiques — pratique de certains établissements
-            // pour les classes d'examens (3e, Tle). Non standard — activable par l'école.
+  CLASS // Cours magistral standard
+  BREAK // Pause (récréation matin, pause midi)
+  ACTIVITY // Activité générale (sport, sortie, etc.)
+  TD // Travaux Dirigés ou Travaux Pratiques — pratique de certains établissements
+  // pour les classes d'examens (3e, Tle). Non standard — activable par l'école.
 }
 
 enum AttendancePeriod {
-  MORNING   // Appel du matin
+  MORNING // Appel du matin
   AFTERNOON // Appel de l'après-midi
 }
 
@@ -1698,8 +1703,8 @@ enum BulletinTemplate {
   EN_SECONDARY
   TECHNICAL_FR
   PRIMARY
-  ANNUAL      // Bulletin annuel récapitulatif (3 trimestres + jusqu'à 6 évaluations côte à côte)
-  MONTHLY     // Bulletin mensuel primaire anglophone
+  ANNUAL // Bulletin annuel récapitulatif (3 trimestres + jusqu'à 6 évaluations côte à côte)
+  MONTHLY // Bulletin mensuel primaire anglophone
 }
 
 enum ReportCardStatus {
@@ -1786,19 +1791,19 @@ enum StatutRecommandation {
 }
 
 model FicheOrientation {
-  id              String                @id @default(cuid())
+  id              String                 @id @default(cuid())
   studentId       String
   schoolId        String
   academicYearId  String
   conseillerId    String
-  status          OrientationStatus     @default(OUVERTE)
-  riskLevel       NiveauRisque          @default(FAIBLE)
+  status          OrientationStatus      @default(OUVERTE)
+  riskLevel       NiveauRisque           @default(FAIBLE)
   mainConcern     TypePreoccupation?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  student         User                  @relation("studentFiches", fields: [studentId], references: [id])
-  school          School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  conseillerStaff User                  @relation("conseillerFiches", fields: [conseillerId], references: [id])
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  student         User                   @relation("studentFiches", fields: [studentId], references: [id])
+  school          School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  conseillerStaff User                   @relation("conseillerFiches", fields: [conseillerId], references: [id])
   entretiens      EntretienOrientation[]
   tests           TestAptitude[]
   recommandation  RecommandationSerie?
@@ -1879,14 +1884,14 @@ enum VerifiableDocumentType {
 }
 
 model VerifiableDocument {
-  id               String                 @id @default(cuid())
-  type             VerifiableDocumentType
-  studentId        String
-  schoolId         String
-  generatedAt      DateTime               @default(now())
-  dataSnapshot     Json
-  student          StudentProfile         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  school           School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id           String                 @id @default(cuid())
+  type         VerifiableDocumentType
+  studentId    String
+  schoolId     String
+  generatedAt  DateTime               @default(now())
+  dataSnapshot Json
+  student      StudentProfile         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([schoolId])
@@ -2024,14 +2029,14 @@ model AssistantActionLog {
 model Lv2ChoiceWindow {
   id             String             @id @default(cuid())
   schoolId       String
-  level          String             // niveau concerné (ex. "4e", "5e")
+  level          String // niveau concerné (ex. "4e", "5e")
   academicYearId String
   openDate       DateTime
   closeDate      DateTime
   status         ChoiceWindowStatus @default(OPEN)
   createdAt      DateTime           @default(now())
 
-  submissions    Lv2ChoiceSubmission[]
+  submissions Lv2ChoiceSubmission[]
 
   @@index([schoolId])
   @@index([academicYearId])
@@ -2046,8 +2051,8 @@ model Lv2ChoiceSubmission {
   submissionMethod  SubmissionMethod
   submittedByUserId String?
 
-  window            Lv2ChoiceWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
-  chosenSubject     Subject         @relation(fields: [chosenSubjectId], references: [id])
+  window        Lv2ChoiceWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
+  chosenSubject Subject         @relation(fields: [chosenSubjectId], references: [id])
 
   @@unique([windowId, studentProfileId])
   @@index([windowId])
@@ -2067,17 +2072,21 @@ enum SubmissionMethod {
 // ─── Module Examens & Admissions : Sous-module A — Concours d'entrée 6e ───
 
 model EntranceExamSession {
-  id                String              @id @default(cuid())
-  schoolId          String
-  name              String
-  examDate          DateTime
-  academicYearId    String
+  id                 String             @id @default(cuid())
+  schoolId           String
+  name               String
+  examDate           DateTime
+  academicYearId     String
   admissionThreshold Float?
-  availableSeats    Int?
-  status            EntranceExamStatus  @default(DRAFT)
-  createdAt         DateTime            @default(now())
+  availableSeats     Int?
+  status             EntranceExamStatus @default(DRAFT)
+  createdAt          DateTime           @default(now())
+  // Suggestion de classe 6e cible pour l'onboarding post-CEP — miroir exact de
+  // PebsExamSession.targetClassId (référence légère, pas de relation Prisma stricte).
+  // Optionnel : si absent, on retombe sur la recherche par Class.level.contains('6').
+  targetClassId      String?
 
-  candidates        EntranceExamCandidate[]
+  candidates EntranceExamCandidate[]
 
   @@index([schoolId])
   @@index([academicYearId])
@@ -2097,7 +2106,8 @@ model EntranceExamCandidate {
   studentProfileId String?
   parentPhone      String?
 
-  session          EntranceExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session            EntranceExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentOnboardings StudentOnboarding[]
 
   @@index([sessionId])
   @@index([admissionStatus])
@@ -2125,34 +2135,34 @@ enum CepResult {
 // ─── Module Examens & Admissions : Sous-module B — Sélection PEBS ─────────
 
 model PebsExamSession {
-  id                String          @id @default(cuid())
-  schoolId          String
-  name              String
-  examDate          DateTime
-  level             String
-  academicYearId    String
+  id                 String         @id @default(cuid())
+  schoolId           String
+  name               String
+  examDate           DateTime
+  level              String
+  academicYearId     String
   selectionThreshold Float?
-  availableSeats    Int?
-  targetClassId     String
-  status            PebsExamStatus  @default(DRAFT)
-  createdAt         DateTime        @default(now())
+  availableSeats     Int?
+  targetClassId      String
+  status             PebsExamStatus @default(DRAFT)
+  createdAt          DateTime       @default(now())
 
-  candidates        PebsExamCandidate[]
+  candidates PebsExamCandidate[]
 
   @@index([schoolId])
   @@index([academicYearId])
 }
 
 model PebsExamCandidate {
-  id               String           @id @default(cuid())
+  id               String          @id @default(cuid())
   sessionId        String
   studentProfileId String
   currentClassId   String
   examScore        Float?
-  selectionResult  SelectionResult  @default(PENDING)
+  selectionResult  SelectionResult @default(PENDING)
 
-  session          PebsExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  studentProfile   StudentProfile  @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  session        PebsExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile  @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@index([selectionResult])
@@ -2185,8 +2195,8 @@ model Enrollment {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  student          StudentProfile        @relation(fields: [studentId], references: [id])
-  school           School                @relation(fields: [schoolId], references: [id])
+  student          StudentProfile          @relation(fields: [studentId], references: [id])
+  school           School                  @relation(fields: [schoolId], references: [id])
   paiementsMinesec PaiementMinesec[]
   paiementsEtab    PaiementEtablissement[]
 
@@ -2203,26 +2213,26 @@ enum EnrollmentStatus {
 }
 
 model PaiementMinesec {
-  id              String                @id @default(cuid())
-  studentId       String
-  enrollmentId    String
-  schoolId        String
-  anneeScolaire   String
-  typeFrais       TypeFraisMinesec
-  montantAttendu  Float
-  montantPaye     Float?
-  operateur       OperateurMinesec?
-  numeroRecu      String?
-  recuVerifie     Boolean               @default(false)
-  recuVerifieAt   DateTime?
-  status          PaiementMinesecStatus @default(IMPAYE)
-  dateEcheance    DateTime?
-  datePaiement    DateTime?
-  dataSource      DataSource            @default(MANUAL)
-  notes           String?
+  id             String                @id @default(cuid())
+  studentId      String
+  enrollmentId   String
+  schoolId       String
+  anneeScolaire  String
+  typeFrais      TypeFraisMinesec
+  montantAttendu Float
+  montantPaye    Float?
+  operateur      OperateurMinesec?
+  numeroRecu     String?
+  recuVerifie    Boolean               @default(false)
+  recuVerifieAt  DateTime?
+  status         PaiementMinesecStatus @default(IMPAYE)
+  dateEcheance   DateTime?
+  datePaiement   DateTime?
+  dataSource     DataSource            @default(MANUAL)
+  notes          String?
 
   student    StudentProfile @relation(fields: [studentId], references: [id])
-  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollment Enrollment     @relation(fields: [enrollmentId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2282,7 +2292,7 @@ model PaiementEtablissement {
   datePaiement         DateTime?
 
   student    StudentProfile @relation(fields: [studentId], references: [id])
-  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  enrollment Enrollment     @relation(fields: [enrollmentId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2327,14 +2337,14 @@ enum ImportStatus {
 }
 
 model TarifMinesecReference {
-  id            String            @id @default(cuid())
+  id            String           @id @default(cuid())
   typeFrais     TypeFraisMinesec
   anneeScolaire String
   niveau        String?
   montantFCFA   Float
   description   String?
-  actif         Boolean           @default(true)
-  createdAt     DateTime          @default(now())
+  actif         Boolean          @default(true)
+  createdAt     DateTime         @default(now())
 
   @@unique([typeFrais, anneeScolaire, niveau])
 }
@@ -2342,24 +2352,24 @@ model TarifMinesecReference {
 // ─── Module Examens : liaison matricule/candidat ──────────────────────────
 
 model ExamRegistration {
-  id            String        @id @default(cuid())
-  studentId     String
-  enrollmentId  String
-  schoolId      String
-  anneeScolaire String
-  typeExamen    TypeExamen
-  session       Int
-  matriculeNational   String
+  id                   String        @id @default(cuid())
+  studentId            String
+  enrollmentId         String
+  schoolId             String
+  anneeScolaire        String
+  typeExamen           TypeExamen
+  session              Int
+  matriculeNational    String
   numeroCandidatExamen String?
-  paiementMinesecId   String?
-  status        ExamRegStatus @default(DRAFT)
+  paiementMinesecId    String?
+  status               ExamRegStatus @default(DRAFT)
   resultatStatus       String?
   resultatMention      String?
   resultatScore        Float?
   resultatSource       String?
   resultatVerifiedAt   DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   student StudentProfile @relation(fields: [studentId], references: [id])
 
@@ -2383,4 +2393,95 @@ enum ExamRegStatus {
   SUBMITTED
   CONFIRMED
   RESULT_AVAILABLE
+}
+
+// ─── Module Onboarding Auto-Service Élèves ─────────────────────────────────
+
+enum OnboardingStatus {
+  DRAFT // squelette créé par l'établissement, lien pas encore envoyé
+  LINK_SENT // lien envoyé, en attente de saisie
+  SUBMITTED // formulaire rempli, matching en cours
+  PENDING_VALIDATION // matching terminé, en attente de validation humaine
+  VALIDATED // validé, compte en cours de création
+  ACTIVATED // compte créé, email de config mot de passe envoyé
+  REJECTED // rejeté par le responsable (doublon, erreur, etc.)
+  EXPIRED // token expiré sans soumission
+}
+
+enum OnboardingRecipient {
+  ELEVE
+  PARENT
+  LES_DEUX
+}
+
+enum OnboardingSource {
+  IMPORT_MASSE // rentrée, via Excel/CSV — ne passe normalement pas par ce modèle
+  AUTOSERVICE // nouvel arrivant en cours d'année, initié par l'établissement
+  CONCOURS // issu d'un EntranceExamCandidate confirmé (CEP réussi)
+}
+
+model StudentOnboarding {
+  id       String @id @default(cuid())
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Squelette initial (rempli par l'établissement, ou généré depuis le concours)
+  nomProvisoire    String
+  classId          String? // suggestion, éditable jusqu'à validation — nullable comme StudentProfile.classId
+  classe           Class?              @relation(fields: [classId], references: [id])
+  contactEmail     String?
+  contactTelephone String?
+  recipientType    OnboardingRecipient @default(ELEVE)
+
+  // Traçabilité de la source
+  sourceType      OnboardingSource       @default(AUTOSERVICE)
+  examCandidateId String? // rempli uniquement si sourceType = CONCOURS
+  examCandidate   EntranceExamCandidate? @relation(fields: [examCandidateId], references: [id])
+
+  // Token sécurisé
+  token          String    @unique
+  tokenExpiresAt DateTime
+  tokenUsedAt    DateTime?
+
+  // Données soumises par l'élève/parent (JSON flexible, validées ensuite)
+  submittedData Json?
+  submittedAt   DateTime?
+
+  // Résultat du matching (réutilise normalizeForMatch/compareNames de stringSimilarity.ts)
+  matchScore       Int? // pourcentage 0-100 — null si aucun candidat n'a passé le verrou date de naissance
+  matchedStudentId String? // doublon potentiel détecté
+
+  // Statut et validation
+  status          OnboardingStatus @default(DRAFT)
+  validatedById   String?
+  validatedBy     User?            @relation(fields: [validatedById], references: [id])
+  validatedAt     DateTime?
+  rejectionReason String?
+
+  // Référence légère vers le compte créé — pas de relation Prisma stricte, même pattern que
+  // EntranceExamCandidate.studentProfileId (évite d'alourdir davantage StudentProfile).
+  createdStudentId String?
+
+  // Relances
+  remindersSentCount Int       @default(0)
+  lastReminderAt     DateTime?
+  escalatedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, status])
+  @@index([token])
+}
+
+model SchoolOnboardingSettings {
+  schoolId              String              @id
+  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  selfServiceEnabled    Boolean             @default(false)
+  defaultRecipient      OnboardingRecipient @default(ELEVE)
+  ageThresholdForParent Int                 @default(15) // en dessous de cet âge → formulaire au parent
+  tokenExpiryDays       Int                 @default(14)
+  reminderDelayDays     Int[]               @default([3, 7]) // jours après envoi pour chaque relance
+  escalationDelayDays   Int                 @default(10)
+  responsableRole       UserRole            @default(ADMIN) // UserRole existant : ADMIN ou STAFF
 }

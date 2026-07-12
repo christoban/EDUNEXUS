@@ -128,7 +128,7 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
       })
       const data = await res.json()
       if (data.success) {
-        onToast(result === 'REUSSI' ? `Admission confirmée — ${data.data.studentCreated ? 'compte élève créé' : 'pas de classe 6e disponible'}` : 'Admission annulée', result === 'REUSSI' ? 'success' : 'info')
+        onToast(result === 'REUSSI' ? `Admission confirmée — ${data.data.onboardingCreated ? 'dossier d\'inscription envoyé au parent' : 'lien non envoyé (vérifiez le téléphone du parent)'}` : 'Admission annulée', result === 'REUSSI' ? 'success' : 'info')
         if (summary) openSummary(summary.session.id)
       } else onToast(data.message || 'Erreur', 'error')
     } catch { onToast('Erreur', 'error') }

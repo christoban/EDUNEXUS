@@ -2,7 +2,7 @@ export type AdminSection =
   | 'dashboard' | 'users' | 'classes' | 'subjects'
   | 'attendance' | 'grades' | 'bulletins' | 'timetable'
   | 'council' | 'academic-year' | 'finance' | 'ai' | 'statistics' | 'communications' | 'settings'
-  | 'pedagogie' | 'rh' | 'lv2-choice' | 'entrance-exams' | 'pebs-exams' | 'matricules' | 'school-payments'
+  | 'pedagogie' | 'rh' | 'lv2-choice' | 'entrance-exams' | 'pebs-exams' | 'matricules' | 'school-payments' | 'eleve-onboarding'
 
 export interface Toast {
   id: number

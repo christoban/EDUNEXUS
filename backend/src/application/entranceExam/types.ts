@@ -22,6 +22,8 @@ export interface EnregistrerResultatCepCommande {
   schoolId: string;
   candidateId: string;
   cepResult: 'REUSSI' | 'ECHOUE';
+  /** Utilisateur (staff) qui enregistre le résultat — traçabilité du squelette d'onboarding créé en cas de REUSSI. */
+  enregistreParId: string;
 }
 
 export interface CreerCompteDepuisCandidatCommande {

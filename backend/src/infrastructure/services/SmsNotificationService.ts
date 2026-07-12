@@ -9,7 +9,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
 import { sendSMS, isSmsConfigured } from '../../services/smsService'
 import { resolveLanguage, type Language } from '../../utils/languageHelper'
 
-type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2'
+type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2' | 'ONBOARDING'
 
 const DISCIPLINE_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
   WARNING_ORAL:        { fr: 'Avertissement oral',                 en: 'Verbal warning' },
@@ -73,6 +73,18 @@ const smsTemplates = {
   minesecOverdue: {
     fr: (name: string, amount: string, types: string) => `ZekoulABia: RAPPEL — Frais MINESEC (${types}) de ${amount} XAF en retard pour ${name}. Ce paiement se fait exclusivement sur cartescolaire.cm.`,
     en: (name: string, amount: string, types: string) => `ZekoulABia: REMINDER — MINESEC fees (${types}) of ${amount} XAF overdue for ${name}. This payment is made exclusively on cartescolaire.cm.`,
+  },
+  onboardingLink: {
+    fr: (nomProvisoire: string, schoolName: string, expiryDays: number) => `ZekoulABia: ${schoolName} vous invite à compléter le dossier d'inscription de ${nomProvisoire}. Consultez votre email pour le lien (valable ${expiryDays} jours).`,
+    en: (nomProvisoire: string, schoolName: string, expiryDays: number) => `ZekoulABia: ${schoolName} invites you to complete ${nomProvisoire}'s enrollment file. Check your email for the link (valid ${expiryDays} days).`,
+  },
+  onboardingReminder: {
+    fr: (nomProvisoire: string, schoolName: string) => `ZekoulABia: RAPPEL — Le dossier d'inscription de ${nomProvisoire} pour ${schoolName} n'est pas encore complété. Consultez votre email pour le lien.`,
+    en: (nomProvisoire: string, schoolName: string) => `ZekoulABia: REMINDER — ${nomProvisoire}'s enrollment file for ${schoolName} is not yet completed. Check your email for the link.`,
+  },
+  onboardingActivated: {
+    fr: (schoolName: string) => `ZekoulABia: Le dossier d'inscription a été validé par ${schoolName}. Consultez votre email pour configurer votre mot de passe.`,
+    en: (schoolName: string) => `ZekoulABia: The enrollment file has been validated by ${schoolName}. Check your email to set up your password.`,
   },
 }
 
@@ -447,5 +459,58 @@ export async function notifyLv2WindowOpenSms(opts: {
     await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'LV2')))
   } catch (err) {
     console.error('[SMS Fenêtre LV2] Erreur inattendue:', err)
+  }
+}
+
+// ── Module Onboarding Auto-Service Élèves ───────────────────────────────────
+// Le contact (téléphone) est déjà connu explicitement via StudentOnboarding.contactTelephone
+// — pas de lookup via getParentPhones ici, contrairement aux notifications post-inscription
+// (l'élève/parent n'a pas encore de compte au moment du lien ou de la relance).
+
+export async function notifyOnboardingLinkSms(opts: {
+  schoolId: string
+  nomProvisoire: string
+  schoolName: string
+  phone: string | null
+  expiryDays: number
+}): Promise<void> {
+  try {
+    if (!opts.phone) return
+    const lang = await resolveSchoolBaseLanguage(opts.schoolId)
+    const message = smsTemplates.onboardingLink[lang](opts.nomProvisoire, opts.schoolName, opts.expiryDays)
+    await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
+  } catch (err) {
+    console.error('[SMS Onboarding Lien] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyOnboardingReminderSms(opts: {
+  schoolId: string
+  nomProvisoire: string
+  schoolName: string
+  phone: string | null
+}): Promise<void> {
+  try {
+    if (!opts.phone) return
+    const lang = await resolveSchoolBaseLanguage(opts.schoolId)
+    const message = smsTemplates.onboardingReminder[lang](opts.nomProvisoire, opts.schoolName)
+    await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
+  } catch (err) {
+    console.error('[SMS Onboarding Relance] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyOnboardingActivatedSms(opts: {
+  schoolId: string
+  schoolName: string
+  phone: string | null
+}): Promise<void> {
+  try {
+    if (!opts.phone) return
+    const lang = await resolveSchoolBaseLanguage(opts.schoolId)
+    const message = smsTemplates.onboardingActivated[lang](opts.schoolName)
+    await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
+  } catch (err) {
+    console.error('[SMS Onboarding Activé] Erreur inattendue:', err)
   }
 }

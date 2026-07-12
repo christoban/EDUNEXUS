@@ -27,6 +27,7 @@ import {
   BackupSchoolDataJob,
 } from "./inngest/functions.ts";
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
+import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 
@@ -131,6 +132,7 @@ app.use(
       syncCarteScolaire,
       relancePaiements,
       auditMatricules,
+      relanceOnboarding,
     ],
   })
 );

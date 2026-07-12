@@ -184,3 +184,64 @@ export const buildSchoolInviteTemplate = (payload: {
     text: isFr ? frText : enText,
   };
 };
+
+export const buildOnboardingLinkTemplate = (payload: {
+  nomProvisoire: string;
+  schoolName: string;
+  formUrl: string;
+  expiryDays: number;
+  language?: Language;
+}) => {
+  const { nomProvisoire, schoolName, formUrl, expiryDays, language = "fr" } = payload;
+  const isFr = language === "fr";
+
+  const subject = isFr ? `Inscription de ${nomProvisoire} - ${schoolName}` : `${nomProvisoire}'s enrollment - ${schoolName}`;
+  const body = isFr
+    ? `
+      <p>Bonjour,</p>
+      <p><strong>${schoolName}</strong> vous invite à compléter le dossier d'inscription de <strong>${nomProvisoire}</strong>.</p>
+      <p><a href="${formUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Compléter le dossier</a></p>
+      <p>Ce lien est personnel et valable ${expiryDays} jours.</p>
+    `
+    : `
+      <p>Hello,</p>
+      <p><strong>${schoolName}</strong> invites you to complete <strong>${nomProvisoire}</strong>'s enrollment file.</p>
+      <p><a href="${formUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Complete the file</a></p>
+      <p>This link is personal and valid for ${expiryDays} days.</p>
+    `;
+  const text = isFr
+    ? `${schoolName} vous invite à compléter le dossier d'inscription de ${nomProvisoire}: ${formUrl}`
+    : `${schoolName} invites you to complete ${nomProvisoire}'s enrollment file: ${formUrl}`;
+
+  return { subject, html: shell(subject, isFr ? "Inscription élève" : "Student enrollment", body), text };
+};
+
+export const buildOnboardingPasswordSetupTemplate = (payload: {
+  recipientName: string;
+  schoolName: string;
+  setupUrl: string;
+  language?: Language;
+}) => {
+  const { recipientName, schoolName, setupUrl, language = "fr" } = payload;
+  const isFr = language === "fr";
+
+  const subject = isFr ? `Configurez votre mot de passe - ${schoolName}` : `Set up your password - ${schoolName}`;
+  const body = isFr
+    ? `
+      <p>Bonjour <strong>${recipientName}</strong>,</p>
+      <p>Le dossier d'inscription a été validé par <strong>${schoolName}</strong>. Votre compte est prêt.</p>
+      <p><a href="${setupUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Configurer mon mot de passe</a></p>
+      <p>Ce lien est personnel et temporaire.</p>
+    `
+    : `
+      <p>Hello <strong>${recipientName}</strong>,</p>
+      <p>The enrollment file has been validated by <strong>${schoolName}</strong>. Your account is ready.</p>
+      <p><a href="${setupUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Set up my password</a></p>
+      <p>This link is personal and temporary.</p>
+    `;
+  const text = isFr
+    ? `Votre compte ${schoolName} est prêt. Configurez votre mot de passe: ${setupUrl}`
+    : `Your ${schoolName} account is ready. Set up your password: ${setupUrl}`;
+
+  return { subject, html: shell(subject, isFr ? "Configuration du compte" : "Account setup", body), text };
+};
