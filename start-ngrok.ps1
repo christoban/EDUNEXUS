@@ -1,5 +1,5 @@
 # ============================================================
-# EDUNEXUS — Démarrage ngrok pour tests mobile
+# ZEKOULABIA — Démarrage ngrok pour tests mobile
 # ============================================================
 # Ce script :
 #  1. Lance ngrok sur le port 3000 (frontend Next.js)
@@ -16,7 +16,7 @@ $FrontendPort   = 3000
 
 Write-Host ""
 Write-Host "======================================" -ForegroundColor Cyan
-Write-Host "  EDUNEXUS — Tunnel ngrok (port $FrontendPort)" -ForegroundColor Cyan
+Write-Host "  ZEKOULABIA — Tunnel ngrok (port $FrontendPort)" -ForegroundColor Cyan
 Write-Host "======================================" -ForegroundColor Cyan
 Write-Host ""
 

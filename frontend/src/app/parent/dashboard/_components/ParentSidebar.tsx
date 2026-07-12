@@ -63,9 +63,9 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
         style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }} />
 
       <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{ padding: '25px 25px' }}>
-        <div className="w-13 h-13 rounded-[14px] bg-gradient-to-br from-[var(--amber)] to-[var(--green)] flex items-center justify-center text-[26px] flex-shrink-0">🎓</div>
+        <div className="w-13 h-13 rounded-[14px] flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: "linear-gradient(135deg,var(--amber),var(--green))" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "70%", height: "70%", objectFit: "contain" }} /></div>
         <div>
-          <div className="font-spectral text-[25px] font-bold text-white leading-tight">EduNexus</div>
+          <div className="font-spectral text-[25px] font-bold text-white leading-tight">ZekoulABia</div>
           <div className="text-[14px] text-white/35 font-semibold">{tcommon('brand.roleParent')}</div>
         </div>
       </div>

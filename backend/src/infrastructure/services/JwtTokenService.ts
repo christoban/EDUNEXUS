@@ -5,7 +5,7 @@
 import jwt from 'jsonwebtoken';
 import type { TokenService, PayloadToken, TokensGeneres } from '@domain/ports/services/TokenService';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'edunexus-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'zekoulabia-secret-change-in-production';
 const ACCESS_EXPIRY = '8h';
 const REFRESH_EXPIRY = '30d';
 

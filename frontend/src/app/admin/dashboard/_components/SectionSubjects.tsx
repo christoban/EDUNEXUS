@@ -132,8 +132,8 @@ export default function SectionSubjects({ onToast }: Props) {
     const onChanged = (e: Event) => {
       if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'subject') fetchSubjects()
     }
-    window.addEventListener('edunexus:data-changed', onChanged)
-    return () => window.removeEventListener('edunexus:data-changed', onChanged)
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
   }, [fetchSubjects])
 
   const fetchDepartments = useCallback(async () => {

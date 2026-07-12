@@ -35,7 +35,7 @@ export class RejeterEcoleUseCase {
       if (admin.email) {
         void this.emailService.envoyer({
           destinataire: admin.email,
-          sujet: `Demande d'accès EduNexus — ${school.name}`,
+          sujet: `Demande d'accès ZekoulABia — ${school.name}`,
           contenuHtml: `
             <p>Bonjour,</p>
             <p>Votre demande d'accès pour <strong>${school.name}</strong>

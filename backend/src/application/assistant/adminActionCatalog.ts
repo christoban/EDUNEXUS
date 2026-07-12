@@ -25,6 +25,9 @@ import type { AssignerProfesseurPrincipalUseCase } from '@application/class/Assi
 import type { CreerMatiereUseCase } from '@application/subject/CreerMatiereUseCase';
 import type { AssignerEnseignantMatiereUseCase } from '@application/subject/AssignerEnseignantMatiereUseCase';
 import type { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUseCase';
+import type { CreerSessionConcoursUseCase } from '@application/entranceExam/CreerSessionConcoursUseCase';
+import type { CreerSessionPebsUseCase } from '@application/pebsExam/CreerSessionPebsUseCase';
+import type { OuvrirFenetreChoixLV2UseCase } from '@application/lv2Choice/OuvrirFenetreChoixLV2UseCase';
 
 // ─── Contexte & contrats ─────────────────────────────────────────────────────
 
@@ -71,6 +74,9 @@ export interface AdminActionDeps {
   creerMatiere: CreerMatiereUseCase;
   assignerEnseignant: AssignerEnseignantMatiereUseCase;
   supprimerMatiere: SupprimerMatiereUseCase;
+  creerSessionConcours: CreerSessionConcoursUseCase;
+  creerSessionPebs: CreerSessionPebsUseCase;
+  ouvrirFenetreLV2: OuvrirFenetreChoixLV2UseCase;
 }
 
 // ─── Helpers de résolution nom → entité ──────────────────────────────────────
@@ -126,6 +132,15 @@ async function resolveSubject(ctx: ActionContext, name: string): Promise<{ id: s
   if (matches.length === 0) throw new Error(`Aucune matière nommée « ${name} » n'existe dans votre établissement.`);
   if (matches.length > 1) throw new Error(`Plusieurs matières correspondent à « ${name} ». Précisez le nom exact.`);
   return matches[0];
+}
+
+async function resolveCurrentAcademicYear(ctx: ActionContext): Promise<{ id: string; name: string }> {
+  const year = await ctx.prisma.academicYear.findFirst({
+    where: { schoolId: ctx.schoolId, isCurrent: true },
+    select: { id: true, name: true },
+  });
+  if (!year) throw new Error("Aucune année scolaire courante n'est configurée pour cet établissement.");
+  return year;
 }
 
 // ─── Construction du catalogue ───────────────────────────────────────────────
@@ -344,6 +359,141 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       },
       async undo() {
         throw new Error('La suppression de matière est irréversible et ne peut pas être annulée.');
+      },
+    },
+
+    // 7. Créer une session de concours d'entrée en 6e — NON destructif
+    {
+      name: 'creer_session_concours_entree',
+      description:
+        "Crée une nouvelle session de concours d'entrée en 6e, pour l'année scolaire courante. " +
+        "Ne calcule PAS l'admission — cela reste une action volontaire distincte de l'admin.",
+      destructive: false,
+      requiredPermission: null,
+      inputSchema: z.object({
+        name: z.string().min(1).describe('Nom de la session, ex. "Concours d\'entrée 6e 2026-2027"'),
+        examDate: z.string().describe('Date du concours au format YYYY-MM-DD'),
+        admissionThreshold: z.number().optional().describe('Seuil de notes pour être admis, si connu'),
+        availableSeats: z.number().int().positive().optional().describe('Nombre de places disponibles, si connu'),
+      }),
+      async execute(input, ctx) {
+        const year = await resolveCurrentAcademicYear(ctx);
+        const r = await deps.creerSessionConcours.execute({
+          schoolId: ctx.schoolId,
+          name: input.name,
+          examDate: new Date(input.examDate),
+          academicYearId: year.id,
+          admissionThreshold: input.admissionThreshold,
+          availableSeats: input.availableSeats,
+        });
+        return {
+          resultLabel: `Session de concours d'entrée « ${input.name} » créée`,
+          undoData: { sessionId: r.sessionId },
+          section: 'entrance-exams',
+          entity: 'entranceExamSession',
+        };
+      },
+      async undo(_params, undoData, ctx) {
+        await (ctx.prisma as any).entranceExamSession.delete({ where: { id: String(undoData.sessionId) } });
+      },
+    },
+
+    // 8. Créer une session de sélection PEBS — NON destructif
+    {
+      name: 'creer_session_selection_pebs',
+      description:
+        "Crée une nouvelle session de sélection PEBS pour un niveau donné, avec la classe cible où " +
+        "seront transférés les élèves sélectionnés. Ne calcule PAS la sélection ni le transfert.",
+      destructive: false,
+      requiredPermission: null,
+      inputSchema: z.object({
+        name: z.string().min(1).describe('Nom de la session, ex. "Sélection PEBS 6e 2026-2027"'),
+        examDate: z.string().describe("Date de l'examen au format YYYY-MM-DD"),
+        level: z.string().min(1).describe('Niveau concerné, ex. "6e"'),
+        targetClassName: z.string().min(1).describe('Nom de la classe cible où seront transférés les élèves sélectionnés'),
+        selectionThreshold: z.number().optional().describe('Seuil de notes pour être sélectionné, si connu'),
+        availableSeats: z.number().int().positive().optional().describe('Nombre de places disponibles, si connu'),
+      }),
+      async execute(input, ctx) {
+        const year = await resolveCurrentAcademicYear(ctx);
+        const targetClass = await resolveClass(ctx, input.targetClassName);
+        const r = await deps.creerSessionPebs.execute({
+          schoolId: ctx.schoolId,
+          name: input.name,
+          examDate: new Date(input.examDate),
+          level: input.level,
+          academicYearId: year.id,
+          selectionThreshold: input.selectionThreshold,
+          availableSeats: input.availableSeats,
+          targetClassId: targetClass.id,
+        });
+        return {
+          resultLabel: `Session de sélection PEBS « ${input.name} » créée (classe cible : ${targetClass.name})`,
+          undoData: { sessionId: r.sessionId },
+          section: 'pebs-exams',
+          entity: 'pebsExamSession',
+        };
+      },
+      async undo(_params, undoData, ctx) {
+        await (ctx.prisma as any).pebsExamSession.delete({ where: { id: String(undoData.sessionId) } });
+      },
+    },
+
+    // 9. Ouvrir une fenêtre de choix LV2 — NON destructif (envoie un SMS aux parents concernés)
+    {
+      name: 'ouvrir_fenetre_choix_lv2',
+      description:
+        "Ouvre une fenêtre de choix de LV2 pour un niveau, pendant laquelle les élèves peuvent choisir " +
+        "leur langue depuis leur compte. Envoie automatiquement un SMS aux parents des élèves concernés.",
+      destructive: false,
+      requiredPermission: null,
+      inputSchema: z.object({
+        level: z.string().min(1).describe('Niveau concerné, ex. "5e"'),
+        openDate: z.string().describe('Date d\'ouverture au format YYYY-MM-DD'),
+        closeDate: z.string().describe('Date de clôture au format YYYY-MM-DD'),
+      }),
+      async execute(input, ctx) {
+        const year = await resolveCurrentAcademicYear(ctx);
+        const r = await deps.ouvrirFenetreLV2.execute({
+          schoolId: ctx.schoolId,
+          level: input.level,
+          academicYearId: year.id,
+          openDate: new Date(input.openDate),
+          closeDate: new Date(input.closeDate),
+        });
+        return {
+          resultLabel: `Fenêtre de choix LV2 ouverte pour ${input.level} jusqu'au ${input.closeDate} (${r.eleves.length} élève(s) notifié(s) par SMS)`,
+          undoData: { windowId: r.windowId },
+          section: 'lv2-choice',
+          entity: 'lv2ChoiceWindow',
+        };
+      },
+      async undo(_params, undoData, ctx) {
+        await (ctx.prisma as any).lv2ChoiceWindow.update({ where: { id: String(undoData.windowId) }, data: { status: 'CLOSED' } });
+      },
+    },
+
+    // 10. Lister les candidats en attente de résultat CEP — LECTURE SEULE
+    {
+      name: 'lister_candidats_cep_en_attente',
+      description:
+        "Affiche la liste des candidats admis provisoirement au concours d'entrée, en attente de leur résultat CEP.",
+      destructive: false,
+      requiredPermission: null,
+      inputSchema: z.object({}),
+      async execute(_input, ctx) {
+        const candidats = await (ctx.prisma as any).entranceExamCandidate.findMany({
+          where: { admissionStatus: 'ADMIS_PROVISOIRE', session: { schoolId: ctx.schoolId } },
+          select: { firstName: true, lastName: true, session: { select: { name: true } } },
+        });
+        const resultLabel = candidats.length === 0
+          ? "Aucun candidat en attente de résultat CEP actuellement."
+          : `${candidats.length} candidat(s) en attente de résultat CEP : ` +
+            candidats.map((c) => `${c.firstName} ${c.lastName} (${c.session.name})`).join(', ');
+        return { resultLabel, section: 'entrance-exams', entity: 'entranceExamCandidate' };
+      },
+      async undo() {
+        throw new Error('Cette action est une simple consultation, il n\'y a rien à annuler.');
       },
     },
   ];

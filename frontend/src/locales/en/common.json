@@ -1,7 +1,7 @@
 {
   "theme": { "toLight": "Switch to light mode", "toDark": "Switch to dark mode" },
   "app": {
-    "name": "EduNexus",
+    "name": "ZekoulABia",
     "tagline": "School Management Platform",
     "admin": "Administration"
   },
@@ -209,8 +209,8 @@
     "success_redirecting": "Redirecting in 2 seconds...",
     "success_goto": "Go to dashboard →",
     "suspended_title": "School suspended",
-    "suspended_msg": "{school} has been suspended by the EduNexus administrator. Access to the platform is temporarily blocked for this school.",
-    "suspended_support": "For any questions or to resolve the situation, contact EduNexus support at",
+    "suspended_msg": "{school} has been suspended by the ZekoulABia administrator. Access to the platform is temporarily blocked for this school.",
+    "suspended_support": "For any questions or to resolve the situation, contact ZekoulABia support at",
     "suspended_back": "← Change school",
     "role_mismatch_multiple": "Your account in this school has multiple roles: {roles}. Select the correct role above.",
     "role_mismatch_warning": "You selected {selected} but your role in this school is {actual}. Redirecting to your space…",
@@ -224,7 +224,7 @@
     "confirmAction": "Are you sure you want to proceed?",
     "networkError": "Network error. Please try again.",
     "sessionExpired": "Your session has expired. Please log in again.",
-    "welcome": "Welcome to EduNexus",
-    "welcomeActivated": "Your space is now active! Welcome to EduNexus 🎉"
+    "welcome": "Welcome to ZekoulABia",
+    "welcomeActivated": "Your space is now active! Welcome to ZekoulABia 🎉"
   }
 }

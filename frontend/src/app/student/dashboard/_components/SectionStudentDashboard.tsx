@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import Lv2ChoiceBanner from './Lv2ChoiceBanner'
 
 interface Props {
   onNav: (s: string) => void
@@ -163,6 +164,7 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
+      <Lv2ChoiceBanner onToast={onToast} />
       <div style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--sidebar2))', borderRadius: 20, padding: '32px 36px', marginBottom: 26, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', right: -50, top: -50, width: 240, height: 240, borderRadius: '50%', background: 'rgba(74,222,128,0.05)', pointerEvents: 'none' }} />
         <div>

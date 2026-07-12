@@ -29,7 +29,7 @@ export const generateWithGroq = async (prompt: string, systemPrompt?: string): P
         // Défaut volontairement SANS langue imposée : la langue est injectée par
         // l'appelant via instructionLangue() selon le sous-système de l'école.
         // Ne consigne ici que le style/format.
-        "Tu es l'assistant pédagogique d'EduNexus pour les établissements scolaires camerounais. Réponds de façon concise, naturelle et bienveillante. N'utilise pas de Markdown, pas d'astérisques, pas de dièses, pas de listes décorées, et pas de blocs de code sauf si l'utilisateur le demande explicitement.",
+        "Tu es l'assistant pédagogique d'ZekoulABia pour les établissements scolaires camerounais. Réponds de façon concise, naturelle et bienveillante. N'utilise pas de Markdown, pas d'astérisques, pas de dièses, pas de listes décorées, et pas de blocs de code sauf si l'utilisateur le demande explicitement.",
       prompt,
       maxOutputTokens: 1000,
     });

@@ -74,9 +74,9 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
 
       {/* Brand */}
       <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{ padding: '25px 22px' }}>
-        <div className="w-11 h-11 rounded-[13px] bg-gradient-to-br from-[var(--amber)] to-[var(--green)] flex items-center justify-center text-[24px] flex-shrink-0">🎓</div>
+        <div className="w-11 h-11 rounded-[13px] flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: "linear-gradient(135deg,var(--amber),var(--green))" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "70%", height: "70%", objectFit: "contain" }} /></div>
         <div>
-          <div className="font-spectral text-[22px] font-bold text-white leading-tight">EduNexus</div>
+          <div className="font-spectral text-[22px] font-bold text-white leading-tight">ZekoulABia</div>
           <div className="text-[13px] text-white/35 font-semibold">{tcommon('brand.roleStaff')}</div>
         </div>
       </div>

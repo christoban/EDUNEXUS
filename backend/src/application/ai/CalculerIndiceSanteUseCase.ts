@@ -1,7 +1,7 @@
 /**
  * APPLICATION LAYER — Use Case : Calculer l'indice de santé scolaire
  *
- * 5 composantes pondérées (source : EduNexus spec) :
+ * 5 composantes pondérées (source : ZekoulABia spec) :
  * - Notes        : 35% — moyenne générale normalisée (0-20 → 0-100)
  * - Assiduité    : 25% — (jours présent / jours total) × 100
  * - Tendance     : 20% — évolution sur 3 dernières périodes

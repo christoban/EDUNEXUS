@@ -51,6 +51,11 @@ model School {
   phone                String?
   email                String?
   logoUrl              String?
+  // Code officiel MINESEC de l'établissement sur cartescolaire.cm (ex. "NO02140H27") — nécessaire
+  // pour interroger la recherche publique de matricule (nom+établissement → matricule). Configuré
+  // une fois par l'admin, pas deviné automatiquement (la liste des établissements y est trop longue
+  // et instable pour un matching fiable).
+  minesecSchoolCode    String?
   subsystem            SchoolSubsystem       @default(FRANCOPHONE)
   educationType        EducationType         @default(GENERAL)
   ownership            SchoolOwnership       @default(PRIVATE_SECULAR)
@@ -116,6 +121,7 @@ model School {
   leaveRequests        LeaveRequest[]
   leaveBalances        LeaveBalance[]
   missionOrders        MissionOrder[]
+  enrollments          Enrollment[]
 }
 
 model SchoolInvite {
@@ -313,6 +319,12 @@ model StudentProfile {
   id                  String                      @id @default(cuid())
   userId              String                      @unique
   matricule           String?
+  matriculeVerifieAt  DateTime?
+  matriculeSource     MatriculeSource             @default(MANUAL)
+  // Confiance de la correspondance nom/prénom ayant mené à l'association du matricule :
+  // 'EXACT' (auto), 'FUZZY_CONFIRMED' (approximatif confirmé par l'admin), 'MANUAL' (saisie directe).
+  // Distinct de matriculeSource, qui décrit le CANAL (import/scraping), pas la confiance du matching.
+  matriculeMatchType  String?
   dateOfBirth         DateTime?
   gender              String?
   classId             String?
@@ -329,6 +341,18 @@ model StudentProfile {
   subGroupAssignments StudentSubGroupAssignment[]
   alevelSubjects      StudentALevelSubject[]
   verifiableDocuments VerifiableDocument[]
+  enrollments         Enrollment[]
+  paiementsMinesec    PaiementMinesec[]
+  paiementsEtab       PaiementEtablissement[]
+  examRegistrations   ExamRegistration[]
+  pebsExamCandidates  PebsExamCandidate[]
+}
+
+enum MatriculeSource {
+  MANUAL
+  EXCEL_IMPORT
+  SCRAPE_AUTO
+  SYNC_NIGHTLY
 }
 
 // Choix individuel des matières A-Level par élève (max 5, min 3 — GCE Advanced Level).
@@ -659,6 +683,7 @@ model Subject {
   cahierDeTexte          CahierDeTexte[]
   lv2Students            StudentProfile[]        @relation("StudentLV2")
   alevelStudents         StudentALevelSubject[]  @relation("SubjectALevelStudents")
+  lv2ChoiceSubmissions   Lv2ChoiceSubmission[]
 
   @@index([schoolId])
 }
@@ -1992,4 +2017,370 @@ model AssistantActionLog {
   @@index([schoolId])
   @@index([userId])
   @@index([status])
+}
+
+// ─── Module Examens & Admissions : Sous-module C — Choix LV2 ──────────────
+
+model Lv2ChoiceWindow {
+  id             String             @id @default(cuid())
+  schoolId       String
+  level          String             // niveau concerné (ex. "4e", "5e")
+  academicYearId String
+  openDate       DateTime
+  closeDate      DateTime
+  status         ChoiceWindowStatus @default(OPEN)
+  createdAt      DateTime           @default(now())
+
+  submissions    Lv2ChoiceSubmission[]
+
+  @@index([schoolId])
+  @@index([academicYearId])
+}
+
+model Lv2ChoiceSubmission {
+  id                String           @id @default(cuid())
+  windowId          String
+  studentProfileId  String
+  chosenSubjectId   String
+  submittedAt       DateTime         @default(now())
+  submissionMethod  SubmissionMethod
+  submittedByUserId String?
+
+  window            Lv2ChoiceWindow @relation(fields: [windowId], references: [id], onDelete: Cascade)
+  chosenSubject     Subject         @relation(fields: [chosenSubjectId], references: [id])
+
+  @@unique([windowId, studentProfileId])
+  @@index([windowId])
+  @@index([studentProfileId])
+}
+
+enum ChoiceWindowStatus {
+  OPEN
+  CLOSED
+}
+
+enum SubmissionMethod {
+  STUDENT_DIRECT
+  ADMIN_MANUAL
+}
+
+// ─── Module Examens & Admissions : Sous-module A — Concours d'entrée 6e ───
+
+model EntranceExamSession {
+  id                String              @id @default(cuid())
+  schoolId          String
+  name              String
+  examDate          DateTime
+  academicYearId    String
+  admissionThreshold Float?
+  availableSeats    Int?
+  status            EntranceExamStatus  @default(DRAFT)
+  createdAt         DateTime            @default(now())
+
+  candidates        EntranceExamCandidate[]
+
+  @@index([schoolId])
+  @@index([academicYearId])
+}
+
+model EntranceExamCandidate {
+  id               String          @id @default(cuid())
+  sessionId        String
+  firstName        String
+  lastName         String
+  dateOfBirth      DateTime?
+  originSchool     String?
+  examScore        Float?
+  admissionStatus  AdmissionStatus @default(PENDING)
+  cepResult        CepResult?      @default(NON_PASSE)
+  cepResultDate    DateTime?
+  studentProfileId String?
+  parentPhone      String?
+
+  session          EntranceExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([admissionStatus])
+}
+
+enum EntranceExamStatus {
+  DRAFT
+  RESULTS_PENDING
+  CLOSED
+}
+
+enum AdmissionStatus {
+  PENDING
+  ADMIS_PROVISOIRE
+  CONFIRME
+  ANNULE
+}
+
+enum CepResult {
+  NON_PASSE
+  REUSSI
+  ECHOUE
+}
+
+// ─── Module Examens & Admissions : Sous-module B — Sélection PEBS ─────────
+
+model PebsExamSession {
+  id                String          @id @default(cuid())
+  schoolId          String
+  name              String
+  examDate          DateTime
+  level             String
+  academicYearId    String
+  selectionThreshold Float?
+  availableSeats    Int?
+  targetClassId     String
+  status            PebsExamStatus  @default(DRAFT)
+  createdAt         DateTime        @default(now())
+
+  candidates        PebsExamCandidate[]
+
+  @@index([schoolId])
+  @@index([academicYearId])
+}
+
+model PebsExamCandidate {
+  id               String           @id @default(cuid())
+  sessionId        String
+  studentProfileId String
+  currentClassId   String
+  examScore        Float?
+  selectionResult  SelectionResult  @default(PENDING)
+
+  session          PebsExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentProfile   StudentProfile  @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([selectionResult])
+  @@index([studentProfileId])
+}
+
+enum PebsExamStatus {
+  DRAFT
+  RESULTS_PENDING
+  APPLIED
+}
+
+enum SelectionResult {
+  PENDING
+  SELECTIONNE
+  NON_SELECTIONNE
+}
+
+// ─── Module Matricule National & Paiements MINESEC ────────────────────────
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  studentId      String
+  schoolId       String
+  anneeScolaire  String
+  classe         String
+  status         EnrollmentStatus @default(ACTIVE)
+  transferOrigin String?
+  transferDate   DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  student          StudentProfile        @relation(fields: [studentId], references: [id])
+  school           School                @relation(fields: [schoolId], references: [id])
+  paiementsMinesec PaiementMinesec[]
+  paiementsEtab    PaiementEtablissement[]
+
+  @@unique([studentId, schoolId, anneeScolaire])
+  @@index([schoolId, anneeScolaire])
+  @@index([status])
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  SUSPENDED
+  TRANSFERRED_OUT
+  TRANSFERRED_IN
+}
+
+model PaiementMinesec {
+  id              String                @id @default(cuid())
+  studentId       String
+  enrollmentId    String
+  schoolId        String
+  anneeScolaire   String
+  typeFrais       TypeFraisMinesec
+  montantAttendu  Float
+  montantPaye     Float?
+  operateur       OperateurMinesec?
+  numeroRecu      String?
+  recuVerifie     Boolean               @default(false)
+  recuVerifieAt   DateTime?
+  status          PaiementMinesecStatus @default(IMPAYE)
+  dateEcheance    DateTime?
+  datePaiement    DateTime?
+  dataSource      DataSource            @default(MANUAL)
+  notes           String?
+
+  student    StudentProfile @relation(fields: [studentId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, anneeScolaire])
+  @@index([schoolId, status])
+  @@index([typeFrais, status])
+}
+
+enum TypeFraisMinesec {
+  SCOLARITE_PREMIER_CYCLE
+  SCOLARITE_SECOND_CYCLE
+  EXAMEN_BEPC
+  EXAMEN_PROBATOIRE
+  EXAMEN_BAC
+  EXAMEN_GCE_OL
+  EXAMEN_GCE_AL
+}
+
+enum OperateurMinesec {
+  MTN_MOMO
+  ORANGE_MONEY
+  CAMPOST
+  EXPRESS_UNION
+  AFRILAND
+}
+
+enum PaiementMinesecStatus {
+  IMPAYE
+  PAYE
+  VERIFIE
+  LITIGE
+}
+
+enum DataSource {
+  MANUAL
+  EXCEL_IMPORT
+  SCRAPE_AUTO
+  SYNC_NIGHTLY
+}
+
+model PaiementEtablissement {
+  id                   String             @id @default(cuid())
+  studentId            String
+  enrollmentId         String
+  schoolId             String
+  anneeScolaire        String
+  typeFrais            String
+  montantAttendu       Float
+  montantPaye          Float              @default(0)
+  status               PaiementEtabStatus @default(IMPAYE)
+  campPayTransactionId String?            @unique
+  campPayReference     String?
+  campPayOperateur     String?
+  campPayWebhookData   Json?
+  recu                 String?
+  datePaiement         DateTime?
+
+  student    StudentProfile @relation(fields: [studentId], references: [id])
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, anneeScolaire])
+  @@index([schoolId, typeFrais, status])
+  @@index([campPayTransactionId])
+}
+
+enum PaiementEtabStatus {
+  IMPAYE
+  EN_ATTENTE
+  PAYE
+  LITIGE
+}
+
+model MatriculeImportJob {
+  id                        String       @id @default(cuid())
+  schoolId                  String
+  uploadedBy                String
+  fileName                  String
+  status                    ImportStatus @default(PENDING)
+  totalRows                 Int          @default(0)
+  matchedRows               Int          @default(0)
+  unmatchedRows             Int          @default(0)
+  errorRows                 Int          @default(0)
+  // Détail de matchedRows : correspondance exacte auto vs correspondance approximative
+  // confirmée manuellement par l'admin (fuzzy matching — voir ConfirmerCorrespondanceFuzzyUseCase).
+  matchedRowsExact          Int          @default(0)
+  matchedRowsFuzzyConfirmed Int          @default(0)
+  flaggedForCorrection      Int          @default(0)
+  resultDetails             Json?
+  processedAt               DateTime?
+  createdAt                 DateTime     @default(now())
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model TarifMinesecReference {
+  id            String            @id @default(cuid())
+  typeFrais     TypeFraisMinesec
+  anneeScolaire String
+  niveau        String?
+  montantFCFA   Float
+  description   String?
+  actif         Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+
+  @@unique([typeFrais, anneeScolaire, niveau])
+}
+
+// ─── Module Examens : liaison matricule/candidat ──────────────────────────
+
+model ExamRegistration {
+  id            String        @id @default(cuid())
+  studentId     String
+  enrollmentId  String
+  schoolId      String
+  anneeScolaire String
+  typeExamen    TypeExamen
+  session       Int
+  matriculeNational   String
+  numeroCandidatExamen String?
+  paiementMinesecId   String?
+  status        ExamRegStatus @default(DRAFT)
+  resultatStatus       String?
+  resultatMention      String?
+  resultatScore        Float?
+  resultatSource       String?
+  resultatVerifiedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [id])
+
+  @@index([studentId, anneeScolaire])
+  @@index([schoolId, typeExamen])
+  @@index([status])
+}
+
+enum TypeExamen {
+  BEPC
+  PROBATOIRE
+  BAC
+  GCE_OL
+  GCE_AL
+  CAP
+  BT
+}
+
+enum ExamRegStatus {
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  RESULT_AVAILABLE
 }

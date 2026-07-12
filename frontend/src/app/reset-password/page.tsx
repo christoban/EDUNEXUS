@@ -57,8 +57,8 @@ function ResetPasswordForm() {
       <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '40px 44px', width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.1)' }}>
         {/* Logo / en-tête */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🎓</div>
-          <div style={{ fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 26, fontWeight: 800, color: 'var(--text)' }}>EduNexus</div>
+          <div style={{ marginBottom: 8 }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: 48, height: 48 }} /></div>
+          <div style={{ fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 26, fontWeight: 800, color: 'var(--text)' }}>ZekoulABia</div>
           <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>Réinitialisation du mot de passe</div>
         </div>
 

@@ -1,4 +1,4 @@
-# FEATURES — EduNexus
+# FEATURES — ZEKOULABIA
 
 > Le projet vu **par fonctionnalité métier** (pas fichier par fichier). Pour chaque feature : objectif, dossiers/fichiers principaux, interactions.
 > Liés : [ARCHITECTURE.md](ARCHITECTURE.md) · [MODULE_INDEX.md](MODULE_INDEX.md) · [CONVENTIONS.md](CONVENTIONS.md)
@@ -144,4 +144,45 @@
 - **Onboarding** produit : classes + matières + sections + coefficients → base de presque tout le reste.
 - **Langue** (`resolveLanguage`) irrigue : UI, emails, SMS, bulletins, prompts IA.
 - **Finances** dépendent de : plans de frais + élèves + Campay ; alimentent reçus SMS.
-- **Assistant** consomme : use cases existants + RBAC + langue.
+- **Assistant** consomme : use cases existants + RBAC + langue + 14 actions (dont LV2, concours, PEBS).
+- **Examens & Admissions** : concours d'entrée 6e → CEP → création compte élève ; sélection PEBS → transfert classe ; choix LV2 → affectation matière. IA : scan Vision + anomalies + copilot.
+
+---
+
+## 23. Concours d'entrée en 6e (Sous-module A)
+
+**Objectif** : gérer le cycle complet d'admission en 6e (concours + CEP) sans création prématurée de comptes élèves.
+
+- **Backend** : `app/entranceExam/*` (7 use cases), `EntranceExamController`, `entranceExam.routes.ts`
+- **Schéma** : `EntranceExamSession` + `EntranceExamCandidate` + enums `EntranceExamStatus`, `AdmissionStatus`, `CepResult`
+- **Flux** : création session → import candidats (Excel ou scan Vision) → calcul admission (seuil/places) → ADMIS_PROVISOIRE → résultat CEP (Réussi → compte élève créé + affecté 6e / Échoué → ANNULE)
+- **IA** : scan Vision Groq (liste papier → JSON), détection anomalies (doublons, scores suspects, cas limites)
+- **Copilot** : actions `creer_session_concours`, `resume_concours`, `calculer_admission_concours`
+- **Frontend** : `SectionAdminEntranceExams.tsx` — sessions, import, calcul, suivi CEP, scan
+
+---
+
+## 24. Sélection PEBS post-examen (Sous-module B)
+
+**Objectif** :组织 l'examen interne de sélection PEBS et transférer les élèves sélectionnés vers la classe cible.
+
+- **Backend** : `app/pebsExam/*` (7 use cases), `PebsExamController`, `pebsExam.routes.ts`
+- **Schéma** : `PebsExamSession` + `PebsExamCandidate` + enums `PebsExamStatus`, `SelectionResult`
+- **Flux** : création session (niveau + classe cible) → inscrire candidats → calcul sélection → **confirmation explicite** → transfert classe + affectation `pebsFiliere`
+- **IA** : scan Vision, détection anomalies
+- **Copilot** : actions `creer_session_pebs`, `calculer_selection_pebs`, `appliquer_transfert_pebs` (destructif)
+- **Frontend** : `SectionAdminPebsExams.tsx` — sessions, calcul, écran confirmation transfert
+
+---
+
+## 25. Choix LV2 numérisé (Sous-module C)
+
+**Objectif** : numériser le choix de langue LV2 des élèves (déclaration de préférence, pas un examen).
+
+- **Backend** : `app/lv2Choice/*` (5 use cases), `Lv2ChoiceController`, `lv2Choice.routes.ts`
+- **Schéma** : `Lv2ChoiceWindow` + `Lv2ChoiceSubmission` + enums `ChoiceWindowStatus`, `SubmissionMethod`
+- **Flux** : admin ouvre fenêtre (niveau + dates) → élèves soumettent choix côté dashboard → admin suit qui a répondu → saisie manuelle de secours → application (affecte `lv2SubjectId`)
+- **Double option** : saisie directe élève (`STUDENT_DIRECT`) OU saisie manuelle admin (`ADMIN_MANUAL`)
+- **Copilot** : actions `ouvrir_fenetre_lv2`, `suivi_lv2`
+- **Frontend admin** : `SectionAdminLV2Choice.tsx` — création, suivi, saisie manuelle
+- **Frontend élève** : endpoints `/students/me/lv2-choice-window` et `/students/me/lv2-choice`

@@ -527,8 +527,8 @@ export const generateReportCards = inngest.createFunction(
           ? `Bulletin disponible — ${academicPeriod.name}`
           : `Report card available — ${academicPeriod.name}`;
         const html = lang === "fr"
-          ? `<p>Bonjour,<br><br>Le bulletin de <b>${studentName}</b> pour la période <b>${academicPeriod.name}</b> est disponible sur EduNexus.</p>`
-          : `<p>Hello,<br><br>${studentName}'s report card for <b>${academicPeriod.name}</b> is now available on EduNexus.</p>`;
+          ? `<p>Bonjour,<br><br>Le bulletin de <b>${studentName}</b> pour la période <b>${academicPeriod.name}</b> est disponible sur ZekoulABia.</p>`
+          : `<p>Hello,<br><br>${studentName}'s report card for <b>${academicPeriod.name}</b> is now available on ZekoulABia.</p>`;
         const text = lang === "fr"
           ? `Le bulletin de ${studentName} pour ${academicPeriod.name} est disponible.`
           : `${studentName}'s report card for ${academicPeriod.name} is available.`;
@@ -751,7 +751,7 @@ export const sendPaymentReminders = inngest.createFunction(
           maximumFractionDigits: 0,
         }).format(invoice.amount);
         const dueDateFormatted = new Date(invoice.dueDate).toLocaleDateString("fr-FR");
-        const schoolName = invoice.school?.name ?? "EduNexus";
+        const schoolName = invoice.school?.name ?? "ZekoulABia";
 
         const allEmails = [
           ...(invoice.student?.email ? [invoice.student.email] : []),
@@ -768,7 +768,7 @@ export const sendPaymentReminders = inngest.createFunction(
                 <p>Facture : <b>${label}</b></p>
                 <p>Montant : <b>${amountFormatted}</b></p>
                 <p>Échéance : <b>${dueDateFormatted}</b></p>
-                <p>Connectez-vous sur EduNexus pour payer en ligne.</p>
+                <p>Connectez-vous sur ZekoulABia pour payer en ligne.</p>
               `,
               text: `Facture ${label} - ${invoice.amount} XAF - Échéance ${dueDateFormatted}`,
               template: "payment_reminder",
@@ -948,7 +948,7 @@ export const handleGradeSubmitted = inngest.createFunction(
         await sendTransactionalEmail({
           recipientEmail: censeur.user.email,
           subject: `[RELANCE] Notes en attente de validation — ${grade.subject.name} ${grade.class?.name}`,
-          html: `<p>Bonjour ${censeur.user.firstName},<br><br>Des notes de <b>${grade.subject.name}</b> — <b>${grade.class?.name}</b> sont en attente de validation depuis 48h.<br><br>Connectez-vous à EduNexus pour valider.</p>`,
+          html: `<p>Bonjour ${censeur.user.firstName},<br><br>Des notes de <b>${grade.subject.name}</b> — <b>${grade.class?.name}</b> sont en attente de validation depuis 48h.<br><br>Connectez-vous à ZekoulABia pour valider.</p>`,
           text: `Notes en attente depuis 48h : ${grade.subject.name} — ${grade.class?.name}`,
           template: "grade_reminder",
           eventType: "grade_reminder_48h",

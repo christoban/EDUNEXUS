@@ -31,13 +31,9 @@ export default function MasterTopbar({ user, currentSection, mfaEnabled, onNav, 
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: 9,
-          background: 'linear-gradient(135deg,#f59e0b,#22c55e)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20
-        }}>🎓</div>
+        <div style={{ width: 40, height: 40, borderRadius: 9, background: "linear-gradient(135deg,#f59e0b,#22c55e)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 25, fontWeight: 700, color: 'white' }}>
-          EduNexus
+          ZekoulABia
         </div>
       </div>
 

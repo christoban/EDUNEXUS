@@ -1,4 +1,4 @@
-// ─── Types partagés pour les curricula de référence EDUNEXUS ────────────────
+// ─── Types partagés pour les curricula de référence ZEKOULABIA ────────────────
 // Chaque établissement est initialisé à partir de ces données selon son template.
 
 /** Une matière avec son coefficient et ses heures hebdomadaires */

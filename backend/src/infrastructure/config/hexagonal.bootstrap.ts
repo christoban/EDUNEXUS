@@ -103,6 +103,18 @@ import { sendTransactionalEmail } from '../../services/emailService';
 import { notifyDisciplineSms } from '../services/SmsNotificationService';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
+import { MatriculeController } from '@infrastructure/http/controllers/MatriculeController';
+import { creerMatriculeRoutes } from '@infrastructure/http/routes/matricule.routes';
+import { PaiementMinesecController } from '@infrastructure/http/controllers/PaiementMinesecController';
+import { creerPaiementMinesecRoutes } from '@infrastructure/http/routes/paiementMinesec.routes';
+import { ExamenController } from '@infrastructure/http/controllers/ExamenController';
+import { creerExamenRoutes } from '@infrastructure/http/routes/examen.routes';
+import { Lv2ChoiceController } from '@infrastructure/http/controllers/Lv2ChoiceController';
+import { creerLv2ChoiceRoutes, creerLv2ChoiceStudentRoutes } from '@infrastructure/http/routes/lv2Choice.routes';
+import { EntranceExamController } from '@infrastructure/http/controllers/EntranceExamController';
+import { creerEntranceExamRoutes } from '@infrastructure/http/routes/entranceExam.routes';
+import { PebsExamController } from '@infrastructure/http/controllers/PebsExamController';
+import { creerPebsExamRoutes } from '@infrastructure/http/routes/pebsExam.routes';
 
 export function bootstrapHexagonal(app: Application): void {
   const container = creerContainer();
@@ -179,7 +191,7 @@ export function bootstrapHexagonal(app: Application): void {
       const schoolId = req.user!.schoolId;
       const school = await prisma.school.findUnique({
         where: { id: schoolId },
-        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true, status: true, educationType: true, ownership: true, onboardingConfig: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true },
+        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true, status: true, educationType: true, ownership: true, onboardingConfig: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true, minesecSchoolCode: true },
       });
       if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
       res.json({ success: true, data: school });
@@ -336,13 +348,14 @@ export function bootstrapHexagonal(app: Application): void {
   app.patch('/api/v2/school/profile', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
-      const { name, city, phone, email } = req.body as { name?: string; city?: string; phone?: string; email?: string };
+      const { name, city, phone, email, minesecSchoolCode } = req.body as { name?: string; city?: string; phone?: string; email?: string; minesecSchoolCode?: string };
       const data: Record<string, string> = {};
       if (name)  data['name']  = name;
       if (city)  data['city']  = city;
       if (phone) data['phone'] = phone;
       if (email) data['email'] = email;
-      const school = await prisma.school.update({ where: { id: schoolId }, data, select: { id: true, name: true, city: true, phone: true, email: true } });
+      if (minesecSchoolCode !== undefined) data['minesecSchoolCode'] = minesecSchoolCode.trim();
+      const school = await prisma.school.update({ where: { id: schoolId }, data, select: { id: true, name: true, city: true, phone: true, email: true, minesecSchoolCode: true } });
       res.json({ success: true, data: school });
     } catch (err) { next(err); }
   });
@@ -807,7 +820,7 @@ export function bootstrapHexagonal(app: Application): void {
     async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
       const result = await sendTransactionalEmail({
         recipientEmail,
-        subject: 'EduNexus — Code de vérification connexion administrateur',
+        subject: 'ZekoulABia — Code de vérification connexion administrateur',
         html: `<p>Votre code de vérification est : <strong>${otp}</strong></p><p>Ce code expire dans 10 minutes.</p>`,
         template: 'master-login-otp',
         eventType: 'master_login_otp',
@@ -1133,6 +1146,73 @@ export function bootstrapHexagonal(app: Application): void {
 
   app.use('/api/v2/orientation', creerOrientationRoutes(orientationController));
 
+  // ── Matricule National MINESEC ──────────────────────────────────────────
+  const matriculeController = new MatriculeController(
+    container.matricule.importerMatricules,
+    container.matricule.verifierMatricule,
+    container.matricule.syncFromCarteScolaire,
+    container.matricule.verifierRecu,
+    container.matricule.confirmerFuzzy,
+    container.matricule.signalerErreur,
+    prisma,
+  );
+  app.use('/api/v2/matricules', creerMatriculeRoutes(matriculeController));
+  // Route orpheline retrouvée : la méthode existait sur le controller mais n'était montée nulle part.
+  app.patch('/api/v2/students/:id/matricule', requireAuth, requireRole('ADMIN', 'STAFF'), matriculeController.updateMatricule);
+
+  // ── Paiements MINESEC ───────────────────────────────────────────────────
+  const paiementMinesecController = new PaiementMinesecController(
+    container.paiementMinesec.genererPaiements,
+    container.paiementMinesec.genererPaiementsEcole,
+    container.paiementMinesec.getDashboard,
+    container.paiementMinesec.getOverview,
+    prisma,
+  );
+  app.use('/api/v2/paiements-minesec', creerPaiementMinesecRoutes(paiementMinesecController));
+
+  // ── Inscriptions Examens ────────────────────────────────────────────────
+  const examenController = new ExamenController(
+    container.examen.prepareDossier,
+    prisma,
+  );
+  app.use('/api/v2/examens', creerExamenRoutes(examenController));
+
+  // ── LV2 Choice (Sous-module C) ─────────────────────────────────────────
+  const lv2ChoiceController = new Lv2ChoiceController(
+    prisma,
+    container.lv2Choice.ouvrirFenetre,
+    container.lv2Choice.soumettreChoix,
+    container.lv2Choice.saisirManuel,
+    container.lv2Choice.appliquerChoix,
+    container.lv2Choice.suivreFenetre,
+  );
+  app.use('/api/v2/lv2-choice-windows', creerLv2ChoiceRoutes(lv2ChoiceController));
+  app.use('/api/v2/students/me', creerLv2ChoiceStudentRoutes(lv2ChoiceController));
+
+  // ── Entrance Exams (Sous-module A) ─────────────────────────────────────
+  const entranceExamController = new EntranceExamController(
+    container.entranceExam.creerSession,
+    container.entranceExam.ajouterCandidats,
+    container.entranceExam.calculerAdmission,
+    container.entranceExam.enregistrerCep,
+    container.entranceExam.resumeSession,
+    container.entranceExam.scannerListe,
+    container.entranceExam.detecterAnomalies,
+  );
+  app.use('/api/v2/entrance-exams', creerEntranceExamRoutes(entranceExamController));
+
+  // ── PEBS Exams (Sous-module B) ─────────────────────────────────────────
+  const pebsExamController = new PebsExamController(
+    container.pebsExam.creerSession,
+    container.pebsExam.ajouterCandidats,
+    container.pebsExam.calculerSelection,
+    container.pebsExam.appliquerTransfert,
+    container.pebsExam.resumeSession,
+    container.pebsExam.scannerListe,
+    container.pebsExam.detecterAnomalies,
+  );
+  app.use('/api/v2/pebs-exams', creerPebsExamRoutes(pebsExamController));
+
   app.use('/api/v2/activities',    creerActivitiesRoutes(activitiesController));
   app.use('/api/v2/dashboard',     creerDashboardRoutes(dashboardController));
   app.use('/api/v2/email-logs',    creerEmailLogRoutes(emailLogController));
@@ -1149,6 +1229,9 @@ export function bootstrapHexagonal(app: Application): void {
     creerMatiere: container.subject.creer,
     assignerEnseignant: container.subject.assignerEnseignant,
     supprimerMatiere: container.subject.supprimer,
+    creerSessionConcours: container.entranceExam.creerSession,
+    creerSessionPebs: container.pebsExam.creerSession,
+    ouvrirFenetreLV2: container.lv2Choice.ouvrirFenetre,
   });
   const assistantController = new AssistantController(prisma, adminActionCatalog);
   app.post('/api/v2/assistant/execute', requireAuth, requireRole('ADMIN'), assistantController.execute);
@@ -1189,7 +1272,7 @@ export function bootstrapHexagonal(app: Application): void {
           select: {
             id: true, firstName: true, lastName: true, email: true, role: true,
             isActive: true, lastLogin: true, createdAt: true,
-            studentProfile: { select: { id: true, classId: true, class: { select: { name: true } } } },
+            studentProfile: { select: { id: true, classId: true, dateOfBirth: true, gender: true, class: { select: { name: true } } } },
             staffProfile: { select: { title: true } },
             teacherProfile: {
               select: {

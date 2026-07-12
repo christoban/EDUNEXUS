@@ -94,7 +94,7 @@ type MfaFlow = 'enable-qr' | 'enable-verify' | 'enable-codes' | 'disable' | 'reg
 
 function downloadRecoveryCodes(codes: string[]): void {
   const content = [
-    'CODES DE RÉCUPÉRATION — EDUNEXUS MASTER ADMIN',
+    'CODES DE RÉCUPÉRATION — ZEKOULABIA MASTER ADMIN',
     '='.repeat(48),
     `Générés le : ${new Date().toLocaleString('fr-CM')}`,
     '',
@@ -112,7 +112,7 @@ function downloadRecoveryCodes(codes: string[]): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `edunexus-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`
+  a.download = `zekoulabia-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

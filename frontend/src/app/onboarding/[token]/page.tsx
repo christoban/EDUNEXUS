@@ -751,7 +751,7 @@ export default function OnboardingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 44, animation: 'edu-fadeDown 0.6s ease both' }}>
           <div style={{ width: 60, height: 60, borderRadius: 16, background: 'linear-gradient(135deg,var(--amber),var(--green))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, boxShadow: '0 4px 16px rgba(34,197,94,0.3)', flexShrink: 0 }}>🎓</div>
           <div>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'white' }}>EduNexus</div>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'white' }}>ZekoulABia</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{t('phase1.leftPanel.brandTagline')}</div>
           </div>
           {/* Bascule de langue — FR par défaut, un anglophone passe en EN ici (mémorisé) */}
@@ -770,7 +770,7 @@ export default function OnboardingPage() {
 
         {/* Heading */}
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 38, fontWeight: 700, lineHeight: 1.15, color: 'white', marginBottom: 12, animation: 'edu-fadeDown 0.6s 0.1s ease both' }}>
-          {step <= 2 ? <>{t('phase1.leftPanel.welcomeTitle')}<br /><span style={{ color: '#4ade80' }}>EduNexus</span></>
+          {step <= 2 ? <>{t('phase1.leftPanel.welcomeTitle')}<br /><span style={{ color: '#4ade80' }}>ZekoulABia</span></>
             : step === 3 ? <>{t('phase1.leftPanel.configTitle')}<br /><span style={{ color: '#4ade80' }}>{t('phase1.leftPanel.structureSubtitle')}</span></>
             : step === 4 ? <>{t('phase1.leftPanel.finalCheck')}<br /><span style={{ color: '#4ade80' }}>{t('phase1.leftPanel.finale')}</span></>
             : <>{t('phase1.leftPanel.submitted')}<br /><span style={{ color: '#4ade80' }}>{t('phase1.leftPanel.submittedSuffix')}</span></>}
@@ -2235,7 +2235,7 @@ export default function OnboardingPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 20px' }}>
                 {[
                   { labelKey: 'phase1.step4.fields.name', val: form.nom },
-                  { labelKey: 'phase1.step4.fields.subdomain', val: `edunexus.cm/${form.subdomain}` },
+                  { labelKey: 'phase1.step4.fields.subdomain', val: `zekoulabia.cm/${form.subdomain}` },
                   { labelKey: 'phase1.step4.fields.template', val: template?.name ?? '—' },
                   { labelKey: 'phase1.step4.fields.subsystem', val: subsystemOptions.find(o => o.value === form.subsystem)?.label ?? form.subsystem },
                   { labelKey: 'phase1.step4.fields.education', val: educationOptions.find(o => o.value === form.educationType)?.label ?? form.educationType },

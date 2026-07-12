@@ -75,6 +75,11 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
       items: [
         { id: 'academic-year', icon: '📆', label: tnav('sidebar.academicYear') },
         { id: 'finance',       icon: '📱', label: tnav('sidebar.finance'),     badge: badges.finance, badgeColor: 'amber' },
+        { id: 'matricules',    icon: '🪪', label: tnav('sidebar.matricules') },
+        { id: 'school-payments', icon: '💰', label: tnav('sidebar.schoolPayments') },
+        { id: 'entrance-exams', icon: '📝', label: tnav('sidebar.entranceExams') },
+        { id: 'pebs-exams',    icon: '🌍', label: tnav('sidebar.pebsExams') },
+        { id: 'lv2-choice',    icon: '🗣️', label: tnav('sidebar.lv2Choice') },
         { id: 'ai',            icon: '🤖', label: tnav('sidebar.ai') },
         { id: 'statistics',    icon: '📊', label: tnav('sidebar.statistics') },
         { id: 'communications', icon: '📣', label: tnav('sidebar.communications') },
@@ -92,9 +97,9 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
 
       {/* Brand */}
       <div className="flex items-center gap-[13px] border-b border-white/[0.07]" style={{ padding: "25px 25px", flexShrink: 0 }}>
-        <div className="w-13 h-13 rounded-[14px] bg-gradient-to-br from-[var(--amber)] to-[var(--green)] flex items-center justify-center text-[26px] flex-shrink-0">🎓</div>
+        <div className="w-13 h-13 rounded-[14px] flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: "linear-gradient(135deg,var(--amber),var(--green))" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "70%", height: "70%", objectFit: "contain" }} /></div>
         <div>
-          <div className="font-spectral text-[25px] font-bold text-white leading-tight">EduNexus</div>
+          <div className="font-spectral text-[25px] font-bold text-white leading-tight">ZekoulABia</div>
           <div className="text-[14px] text-white/35 font-semibold">{tcommon('brand.roleAdmin')}</div>
         </div>
       </div>

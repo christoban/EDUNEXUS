@@ -131,7 +131,7 @@ const resolveSchoolId = (metadata?: Record<string, unknown>) => {
 export const sendTransactionalEmail = async (
   input: SendEmailInput
 ): Promise<SendEmailResult> => {
-  const fromName = process.env.EMAIL_FROM_NAME || "EduNexus";
+  const fromName = process.env.EMAIL_FROM_NAME || "ZekoulABia";
   const recipientEmail = String(input.recipientEmail).toLowerCase();
 
   let status: SendEmailResult["status"] = "failed";
@@ -285,7 +285,7 @@ export const sendContactRequestEmail = async ({
         <p style="margin-top: 24px; color: #64748b; font-size: 14px;">
           Connectez-vous au hub de contrôle pour traiter cette demande.
         </p>
-        <a href="https://edunexus.cm/master/login" style="display: inline-block; background: #3b82f6; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+        <a href="https://zekoulabia.cm/master/login" style="display: inline-block; background: #3b82f6; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
           Accéder au hub
         </a>
       </div>

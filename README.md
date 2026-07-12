@@ -1,6 +1,6 @@
-# EDUNEXUS — School Management & Learning Management System
+# ZEKOULABIA — School Management & Learning Management System
 
-EDUNEXUS is a full-stack **School Management System (SMS)** and **Learning Management System (LMS)** that enables schools to manage academic years, classes, subjects, users (students / teachers / parents / admins), timetables, and exams. It features **AI-powered timetable generation** and **AI-powered exam / quiz generation** via Groq, with background job processing through Inngest. The system provides role-based dashboards, activity logging, and a modern responsive UI.
+ZEKOULABIA is a full-stack **School Management System (SMS)** and **Learning Management System (LMS)** that enables schools to manage academic years, classes, subjects, users (students / teachers / parents / admins), timetables, and exams. It features **AI-powered timetable generation** and **AI-powered exam / quiz generation** via Groq, with background job processing through Inngest. The system provides role-based dashboards, activity logging, and a modern responsive UI.
 
 ---
 
@@ -442,7 +442,7 @@ Runs at `http://localhost:8288`. The backend serves the Inngest webhook at `/api
 ## 11. Folder Structure
 
 ```
-EDUNEXUS/
+ZEKOULABIA/
 ├── .gitignore
 ├── .vscode/
 │   └── settings.json

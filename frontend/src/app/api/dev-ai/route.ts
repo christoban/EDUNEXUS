@@ -45,7 +45,7 @@ ${diag.classes.map(c =>
 ).join('\n')}
 ` : '\n## État de l\'école : non disponible (erreur de chargement)\n';
 
-  return `Tu es un assistant de développement pour EduNexus, une plateforme de gestion scolaire camerounaise.
+  return `Tu es un assistant de développement pour ZekoulABia, une plateforme de gestion scolaire camerounaise.
 Tu aides le développeur à vérifier l'état de l'école et à générer des données de test.
 L'école courante a l'ID : ${schoolId}
 ${stateSection}

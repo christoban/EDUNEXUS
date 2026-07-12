@@ -64,7 +64,7 @@ export class AssistantController {
     const periodList = periods.map((p) => p.name).join(', ') || 'non configurées';
 
     return (
-      `Tu es l'Assistant EduNexus, un copilot intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC). ` +
+      `Tu es l'Assistant ZekoulABia, un copilot intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC). ` +
       `Tu peux EXÉCUTER des actions dans l'interface via les outils (tools) qui te sont fournis, ou simplement RÉPONDRE aux questions.\n\n` +
       `Règles :\n` +
       `- Si la demande correspond à une action disponible (créer/supprimer une classe ou une matière, assigner un enseignant, nommer un professeur principal), appelle le ou les tools appropriés. Pour une demande composée, appelle plusieurs tools dans l'ordre logique.\n` +

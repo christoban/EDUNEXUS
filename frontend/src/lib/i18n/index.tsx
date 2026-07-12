@@ -111,7 +111,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       let loggedIn = false
 
       try {
-        const raw = localStorage.getItem('edunexus_user')
+        const raw = localStorage.getItem('zekoulabia_user')
         if (raw) {
           loggedIn = true
           const res = await fetchApi('/api/v2/school/me')
@@ -130,7 +130,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       // Priorité 1 : surcharge manuelle explicite de l'utilisateur (toggle de langue).
       // Utile notamment pendant l'onboarding : un anglophone peut basculer en EN, et son
       // choix est mémorisé. Prime sur toute résolution automatique.
-      const override = localStorage.getItem('edunexus_lang_override')
+      const override = localStorage.getItem('zekoulabia_lang_override')
 
       // L'onboarding (page publique par lien d'invitation) doit démarrer en FRANÇAIS, pas selon
       // le navigateur : c'est là que l'établissement DÉCLARE sa langue, et un flip surprise
@@ -184,7 +184,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const changeLanguage = useCallback(async (newLang: Language) => {
     setLoading(true)
     // Mémorise le choix explicite (persistant, prioritaire au prochain chargement).
-    try { localStorage.setItem('edunexus_lang_override', newLang) } catch { /* ignore */ }
+    try { localStorage.setItem('zekoulabia_lang_override', newLang) } catch { /* ignore */ }
     setLang(newLang)
     setDicts(loadAllDictionaries(newLang))
     setLoading(false)

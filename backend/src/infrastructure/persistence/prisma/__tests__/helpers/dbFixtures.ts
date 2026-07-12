@@ -25,7 +25,7 @@ export async function creerUtilisateurTest(
       role: opts.role ?? 'ADMIN',
       firstName: 'Test',
       lastName: `User-${suffix}`,
-      email: opts.email ?? `test-${suffix}@edunexus.cm`,
+      email: opts.email ?? `test-${suffix}@zekoulabia.cm`,
       isActive: true,
       refreshTokenVersion: 0,
     },

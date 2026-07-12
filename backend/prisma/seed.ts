@@ -1274,6 +1274,44 @@ async function main() {
 
   console.log(`   → ${defaultGradeFormulas.length} default GradeFormulas et ${defaultMentionRules.length} MentionRules seeded`);
 
+  // 1d. TarifMinesecReference — montants officiels MINESEC (scolarité + examens).
+  // Sans cette table, GenererPaiementsMinesecUseCase ne trouve jamais de tarif et ne
+  // génère jamais aucune ligne de paiement (échec silencieux constaté en production).
+  // Seedé sur deux années pour couvrir la bascule d'année scolaire.
+  console.log("\n💰 Seeding TarifMinesecReference...");
+  const tarifsMinesecBase: { typeFrais: string; montantFCFA: number; niveau: string | null }[] = [
+    { typeFrais: 'SCOLARITE_PREMIER_CYCLE', montantFCFA: 7500,  niveau: '1er_cycle' },
+    { typeFrais: 'SCOLARITE_SECOND_CYCLE',  montantFCFA: 10000, niveau: '2nd_cycle' },
+    { typeFrais: 'EXAMEN_BEPC',             montantFCFA: 7000,  niveau: null },
+    { typeFrais: 'EXAMEN_PROBATOIRE',       montantFCFA: 12000, niveau: null },
+    { typeFrais: 'EXAMEN_BAC',              montantFCFA: 12000, niveau: null },
+    { typeFrais: 'EXAMEN_GCE_OL',           montantFCFA: 8000,  niveau: null },
+    { typeFrais: 'EXAMEN_GCE_AL',           montantFCFA: 9000,  niveau: null },
+  ];
+  const anneesScolairesTarifs = ['2025-2026', '2026-2027'];
+  // Note : upsert() sur une clé composée n'accepte pas `null` pour un champ nullable
+  // (limitation Prisma) — on passe donc par findFirst + create/update.
+  let tarifsCreated = 0;
+  for (const anneeScolaire of anneesScolairesTarifs) {
+    for (const t of tarifsMinesecBase) {
+      const existing = await (prisma as any).tarifMinesecReference.findFirst({
+        where: { typeFrais: t.typeFrais, anneeScolaire, niveau: t.niveau },
+      });
+      if (existing) {
+        await (prisma as any).tarifMinesecReference.update({
+          where: { id: existing.id },
+          data: { montantFCFA: t.montantFCFA, actif: true },
+        });
+      } else {
+        await (prisma as any).tarifMinesecReference.create({
+          data: { typeFrais: t.typeFrais, anneeScolaire, niveau: t.niveau, montantFCFA: t.montantFCFA, actif: true },
+        });
+      }
+      tarifsCreated++;
+    }
+  }
+  console.log(`   ✓ ${tarifsCreated} tarifs (${anneesScolairesTarifs.join(', ')})`);
+
   console.log("\n✅ Seed Phase 0 terminé.\n");
 }
 

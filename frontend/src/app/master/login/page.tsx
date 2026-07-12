@@ -360,9 +360,9 @@ export default function SuperAdminLogin() {
           <div style={{ padding: 40, display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1, overflow: 'hidden' }}>
             {/* Brand */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48, paddingTop: 6, animation: 'edu-fadeDown 0.6s ease both' }}>
-              <div style={{ width: 70, height: 70, borderRadius: 17, background: 'linear-gradient(135deg,#f59e0b,#22c55e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, boxShadow: '0 4px 20px rgba(34,197,94,0.3)', flexShrink: 0 }}>🎓</div>
+              <div style={{ width: 70, height: 70, borderRadius: 17, background: "linear-gradient(135deg,#f59e0b,#22c55e)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(34,197,94,0.3)", flexShrink: 0, overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
               <div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 34, fontWeight: 700, color: 'white' }}>EduNexus</div>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 34, fontWeight: 700, color: 'white' }}>ZekoulABia</div>
                 <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.4)', fontWeight: 600, letterSpacing: '0.5px' }}>Plateforme Multi-Établissements · Cameroun</div>
               </div>
             </div>
@@ -375,7 +375,7 @@ export default function SuperAdminLogin() {
             </div>
 
             <p style={{ fontSize: 20, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7, fontWeight: 500, maxWidth: 500, marginBottom: 40, animation: 'edu-fadeDown 0.6s 0.2s ease both' }}>
-              Espace réservé exclusivement à l&apos;administrateur système EduNexus. Connexion sécurisée à trois facteurs.
+              Espace réservé exclusivement à l&apos;administrateur système ZekoulABia. Connexion sécurisée à trois facteurs.
             </p>
 
             {/* Features */}
@@ -396,7 +396,7 @@ export default function SuperAdminLogin() {
             </div>
 
             <div style={{ marginTop: 'auto', paddingTop: 16, fontSize: 15, color: 'rgba(255,255,255,0.2)', fontWeight: 500, animation: 'edu-fadeDown 0.6s 0.4s ease both' }}>
-              © 2026 EduNexus · Tous droits réservés · Accès réservé au personnel autorisé
+              © 2026 ZekoulABia · Tous droits réservés · Accès réservé au personnel autorisé
             </div>
           </div>
         </div>
@@ -427,13 +427,13 @@ export default function SuperAdminLogin() {
             {/* ── ÉTAPE 1 ── */}
             {step === 1 && (
               <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
-                <FormHeader title="Connexion Admin EduNexus" sub="Entrez vos identifiants pour accéder au panneau de contrôle." />
+                <FormHeader title="Connexion Admin ZekoulABia" sub="Entrez vos identifiants pour accéder au panneau de contrôle." />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 14, fontSize: 16, fontWeight: 700, color: '#92400e' }}>
                   🛡️ Connexion chiffrée — URL d&apos;accès privée
                 </div>
                 {alert1 && <Alert a={alert1} />}
                 <Field label="Adresse email">
-                  <input type="email" value={email} autoComplete="off" placeholder="admin@edunexus.cm"
+                  <input type="email" value={email} autoComplete="off" placeholder="admin@zekoulabia.cm"
                     className="edu-field"
                     onChange={e => { setEmail(e.target.value); setAlert1(null) }}
                     style={fieldInputStyle} />

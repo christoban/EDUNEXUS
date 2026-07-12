@@ -18,6 +18,16 @@
     "trend_term": "Trimestre",
     "trend_year": "Année"
   },
+  "lv2Choice": {
+    "banner_title": "Choix de votre langue vivante 2 (LV2)",
+    "banner_subtitle": "Sélectionnez la langue que vous souhaitez étudier avant le {date}.",
+    "select_placeholder": "Choisissez une langue…",
+    "submit_btn": "Valider mon choix",
+    "submitting": "Envoi…",
+    "already_submitted": "Vous avez choisi : {subject}. Ce choix a été enregistré.",
+    "toast_submitted": "Votre choix de LV2 a été enregistré",
+    "toast_error": "Erreur lors de l'enregistrement de votre choix"
+  },
   "library": {
     "title": "Mes lectures",
     "subtitle": "Livres empruntés à la bibliothèque de l'établissement",

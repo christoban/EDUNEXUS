@@ -90,8 +90,11 @@ export class StudentDocumentController {
         matricule: student.matricule ?? undefined,
         className: student.class?.name ?? '—',
         yearName: year?.name ?? '—',
+        // timeZone: 'UTC' explicite — la date est stockée en UTC minuit ; sans ça, le
+        // formatage dépend de l'heure locale du serveur (actuellement UTC+1, où ça reste
+        // correct "par accident", mais casserait sur un serveur à fuseau négatif).
         dateOfBirth: student.dateOfBirth
-          ? student.dateOfBirth.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR')
+          ? student.dateOfBirth.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', { timeZone: 'UTC' })
           : undefined,
         gender: student.gender ?? undefined,
         status: student.studentStatus,

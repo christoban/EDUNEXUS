@@ -66,7 +66,7 @@ function formatDateTimeEN(value?: Date | string | null): string {
 }
 
 function drawHeader(doc: InstanceType<typeof PDFDocument>, title: string, subtitle: string): void {
-  doc.font('Helvetica-Bold').fontSize(18).fillColor('#1a2e1e').text('EduNexus', { align: 'center' });
+  doc.font('Helvetica-Bold').fontSize(18).fillColor('#1a2e1e').text('ZekoulABia', { align: 'center' });
   doc.font('Helvetica').fontSize(11).fillColor('#6b5c45').text(subtitle, { align: 'center' });
   doc.moveDown(0.5);
   doc.moveTo(42, doc.y).lineTo(553, doc.y).strokeColor('#1a2e1e').lineWidth(1).stroke();

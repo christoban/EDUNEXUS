@@ -26,14 +26,14 @@
       "descStep2": "Create your administrator account to access the dashboard.",
       "descStep3": "Provide your school structure details. A summary will be generated automatically.",
       "descStep4": "Review all information before submitting your application.",
-      "descSubmitted": "Your application has been submitted to the EduNexus team.",
+      "descSubmitted": "Your application has been submitted to the ZekoulABia team.",
       "features": {
         "multiLevel": { "title": "Multi-level management", "desc": "Classes, sections, subjects" },
         "grades": { "title": "Grades & report cards", "desc": "Auto-calculation, PDF export" },
         "finance": { "title": "Financial management", "desc": "Fees, payments, CampPay" },
         "timetable": { "title": "AI Timetables", "desc": "Automatic generation" }
       },
-      "copyright": "© 2026 EduNexus · All rights reserved"
+      "copyright": "© 2026 ZekoulABia · All rights reserved"
     },
     "stepper": {
       "step": "Step",
@@ -54,14 +54,14 @@
       "invalid": { "icon": "🔒", "title": "Invalid link", "error": "Invalid or incomplete invitation link." },
       "expired": { "icon": "⏰", "title": "Expired invitation" },
       "used": { "icon": "✅", "title": "Invitation already used" },
-      "helpText": "For assistance, contact your EduNexus administrator at",
-      "helpEmail": "support@edunexus.cm",
+      "helpText": "For assistance, contact your ZekoulABia administrator at",
+      "helpEmail": "support@zekoulabia.cm",
       "timeout": "Verification took too long. Check your connection and try again.",
       "networkError": "Unable to verify invitation. Check your connection."
     },
     "done": {
       "title": "Application submitted!",
-      "pendingMsg": "is pending validation by the EduNexus team.",
+      "pendingMsg": "is pending validation by the ZekoulABia team.",
       "emailNotice": "You will receive an email at",
       "emailDelay": "within 24 to 48 hours.",
       "loginHint": "Once approved, you can log in with your email and password to access your administration space."
@@ -74,7 +74,7 @@
         "label": "Subdomain (URL)",
         "placeholder": "lycee-reussite",
         "hint": "Lowercase letters, numbers and hyphens only.",
-        "prefix": "edunexus.cm/"
+        "prefix": "zekoulabia.cm/"
       },
       "subsystem": {
         "label": "Subsystem",
@@ -402,7 +402,7 @@
   },
   "phase2": {
     "intro": {
-      "bubble": "👋 Hello! I'm the EduNexus setup assistant. With a few questions, I'll fully configure <strong>{schoolName}</strong> — classes, subjects, calendar, fees — automatically. Shall we?",
+      "bubble": "👋 Hello! I'm the ZekoulABia setup assistant. With a few questions, I'll fully configure <strong>{schoolName}</strong> — classes, subjects, calendar, fees — automatically. Shall we?",
       "reconciled": "✅ Good news: I've already loaded what you provided at registration (cycles, levels, series, LV2…). We just need to finish a few settings.",
       "start": "Start setup →"
     },

@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Assistant EduNexus — copilot exécutant (rôle Admin).
+ * Assistant ZekoulABia — copilot exécutant (rôle Admin).
  *
  * L'admin décrit une intention en langage naturel ; l'assistant l'exécute dans
  * l'interface via POST /api/v2/assistant/execute (function calling Groq côté serveur).
@@ -12,7 +12,7 @@
  *  - Question simple → réponse texte.
  *
  * Après chaque changement, l'interface métier derrière se met à jour EN TEMPS RÉEL et
- * navigue vers l'écran concerné via des évènements window (edunexus:navigate / :data-changed).
+ * navigue vers l'écran concerné via des évènements window (zekoulabia:navigate / :data-changed).
  */
 import { useState, useRef, useEffect } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
@@ -40,8 +40,8 @@ let itemId = 0
 
 /** Notifie l'interface métier : navigation vers l'écran + rafraîchissement des données. */
 function notifyInterface(section?: string | null, entity?: string | null) {
-  if (section) window.dispatchEvent(new CustomEvent('edunexus:navigate', { detail: { section } }))
-  if (entity) window.dispatchEvent(new CustomEvent('edunexus:data-changed', { detail: { entity } }))
+  if (section) window.dispatchEvent(new CustomEvent('zekoulabia:navigate', { detail: { section } }))
+  if (entity) window.dispatchEvent(new CustomEvent('zekoulabia:data-changed', { detail: { entity } }))
 }
 
 export default function AssistantWidget() {

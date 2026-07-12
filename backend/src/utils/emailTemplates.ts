@@ -32,7 +32,7 @@ const shell = (title: string, subtitle: string, body: string) => {
             <table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
               <tr>
                 <td style="background:#0f766e;color:#ffffff;padding:20px 24px;">
-                  <div style="font-size:22px;font-weight:700;">EDUNEXUS</div>
+                  <div style="font-size:22px;font-weight:700;">ZEKOULABIA</div>
                   <div style="font-size:14px;opacity:0.9;">${subtitle}</div>
                 </td>
               </tr>
@@ -41,7 +41,7 @@ const shell = (title: string, subtitle: string, body: string) => {
               </tr>
               <tr>
                 <td style="padding:16px 24px;background:#f9fafb;color:#6b7280;font-size:12px;">
-                  Message automatique EDUNEXUS. Merci de ne pas repondre a cet email.
+                  Message automatique ZEKOULABIA. Merci de ne pas repondre a cet email.
                 </td>
               </tr>
             </table>
@@ -84,7 +84,7 @@ export const buildReportCardTemplate = (payload: {
       <tr><td><strong>Mention:</strong></td><td>${mention}</td></tr>
       <tr><td><strong>Nombre d'examens:</strong></td><td>${totalExams}</td></tr>
     </table>
-    <p>Connectez-vous a EDUNEXUS pour consulter le bulletin complet.</p>
+    <p>Connectez-vous a ZEKOULABIA pour consulter le bulletin complet.</p>
   `
     : `
     <p>Hello <strong>${recipientName}</strong>,</p>
@@ -94,7 +94,7 @@ export const buildReportCardTemplate = (payload: {
       <tr><td><strong>Mention:</strong></td><td>${mention}</td></tr>
       <tr><td><strong>Total exams:</strong></td><td>${totalExams}</td></tr>
     </table>
-    <p>Sign in to EDUNEXUS to view the full report card.</p>
+    <p>Sign in to ZEKOULABIA to view the full report card.</p>
   `;
 
   return {
@@ -116,7 +116,7 @@ export const buildPaymentReminderTemplate = (payload: {
   const isFr = language === "fr";
   const amount = `${Math.round(totalOutstanding).toLocaleString("fr-CM")} ${currency}`;
 
-  const subject = isFr ? "Rappel de paiement - EDUNEXUS" : "Payment reminder - EDUNEXUS";
+  const subject = isFr ? "Rappel de paiement - ZEKOULABIA" : "Payment reminder - ZEKOULABIA";
   const body = isFr
     ? `
       <p>Bonjour,</p>
@@ -133,11 +133,11 @@ export const buildPaymentReminderTemplate = (payload: {
     subject,
     html: shell(subject, isFr ? "Rappel finance" : "Finance reminder", body),
     text: isFr
-      ? `Rappel EDUNEXUS: ${studentName} a un montant impaye de ${amount}. Merci de regulariser.`
-      : `EDUNEXUS reminder: ${studentName} has an outstanding balance of ${amount}. Please complete payment.`,
+      ? `Rappel ZEKOULABIA: ${studentName} a un montant impaye de ${amount}. Merci de regulariser.`
+      : `ZEKOULABIA reminder: ${studentName} has an outstanding balance of ${amount}. Please complete payment.`,
     sms: isFr
-      ? `Rappel EDUNEXUS: ${studentName} a un montant impaye de ${amount}. Merci de regulariser.`
-      : `EDUNEXUS reminder: ${studentName} has an outstanding balance of ${amount}. Please complete payment.`,
+      ? `Rappel ZEKOULABIA: ${studentName} a un montant impaye de ${amount}. Merci de regulariser.`
+      : `ZEKOULABIA reminder: ${studentName} has an outstanding balance of ${amount}. Please complete payment.`,
   };
 };
 
@@ -167,7 +167,7 @@ export const buildSchoolInviteTemplate = (payload: {
 
   // Email BILINGUE : bloc FR + séparateur + bloc EN, sujet dans les deux langues.
   if (language === "bilingual") {
-    const subject = `Invitation EDUNEXUS / EDUNEXUS Invitation - ${schoolName}`;
+    const subject = `Invitation ZEKOULABIA / ZEKOULABIA Invitation - ${schoolName}`;
     const divider = `<hr style="border:none;border-top:1px solid #e5e7eb;margin:26px 0;" /><p style="color:#6b7280;font-size:13px;margin:0 0 6px;">🇬🇧 English version below</p>`;
     return {
       subject,
@@ -177,7 +177,7 @@ export const buildSchoolInviteTemplate = (payload: {
   }
 
   const isFr = language === "fr";
-  const subject = isFr ? `Invitation EDUNEXUS - ${schoolName}` : `EDUNEXUS invite - ${schoolName}`;
+  const subject = isFr ? `Invitation ZEKOULABIA - ${schoolName}` : `ZEKOULABIA invite - ${schoolName}`;
   return {
     subject,
     html: shell(subject, isFr ? "Invitation établissement" : "School invitation", isFr ? frBody : enBody),

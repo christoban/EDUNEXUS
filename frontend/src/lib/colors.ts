@@ -1,5 +1,5 @@
 /**
- * Couleurs EduNexus — utilisées dans les composants dynamiques
+ * Couleurs ZekoulABia — utilisées dans les composants dynamiques
  * (avatars, badges colorés selon le rôle, etc.)
  */
 export const BADGE_COLORS = {

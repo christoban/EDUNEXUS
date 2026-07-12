@@ -1,11 +1,11 @@
-# ARCHITECTURE — EduNexus
+# ARCHITECTURE — ZEKOULABIA
 
 > Vision globale de l'application. À lire en premier par toute IA ou tout développeur qui rejoint le projet.
 > Documents liés : [MODULE_INDEX.md](MODULE_INDEX.md) · [FEATURES.md](FEATURES.md) · [CONVENTIONS.md](CONVENTIONS.md) · [AGENTS.md](AGENTS.md)
 
 ---
 
-## 1. Qu'est-ce qu'EduNexus ?
+## 1. Qu'est-ce qu'ZEKOULABIA ?
 
 SaaS **multi-tenant** de gestion scolaire pour les établissements **camerounais** (système MINESEC). Une seule base gère plusieurs écoles isolées par `schoolId`. Le produit couvre l'inscription/onboarding d'un établissement, la gestion des utilisateurs, classes, matières, notes, bulletins, présences, emplois du temps, finances (Mobile Money), communications, orientation, RH, discipline, etc.
 
@@ -23,7 +23,7 @@ Spécificités métier camerounaises structurantes (voir [FEATURES.md](FEATURES.
 ## 2. Vue d'ensemble (monorepo)
 
 ```
-EDUNEXUS/
+ZEKOULABIA/
 ├── backend/      API — Bun + Express + Prisma + PostgreSQL — architecture HEXAGONALE
 ├── frontend/     Web — Next.js 16 (App Router) + React 19 + Tailwind v4
 └── *.md          Documentation projet (ce fichier, MODULE_INDEX, FEATURES, CONVENTIONS, AGENTS)
@@ -66,14 +66,14 @@ Le backend applique une **architecture hexagonale** stricte en 3 couches. Règle
 - `value-objects/`, `types/` (enums), `constants/`, `errors/` (erreurs domaine typées).
 
 ### 3.2 `application/` — les cas d'usage (orchestration)
-19 modules par domaine (`class`, `subject`, `grade`, `reportCard`, `finance`, `timetable`, `school`, `student`, `user`, `masterAdmin`, `orientation`, `attendance`, `academicYear`, `classCouncil`, `schoolSettings`, `parent`, `ai`, `assistant`, `messaging`). Chaque use case :
+22 modules par domaine (`class`, `subject`, `grade`, `reportCard`, `finance`, `timetable`, `school`, `student`, `user`, `masterAdmin`, `orientation`, `attendance`, `academicYear`, `classCouncil`, `schoolSettings`, `parent`, `ai`, `assistant`, `messaging`, `lv2Choice`, `entranceExam`, `pebsExam`). Chaque use case :
 - reçoit ses dépendances par **injection de constructeur** (ports, pas d'implémentations) ;
 - ne touche **jamais** Prisma/HTTP directement (sauf `prisma?` optionnel injecté ponctuellement pour des lectures, cf. `GenererBulletinUseCase`) ;
 - porte une méthode `execute(commande)` retournant un résultat typé ;
 - est **testable en isolation** via des repos/services in-memory (`__tests__/helpers/`).
 
 ### 3.3 `infrastructure/` — les adapters (le monde réel)
-- `http/controllers/` (37) : traduisent HTTP ↔ use cases. `http/routes/` (33) : montage Express + middlewares (`requireAuth`, `requireRole`). `http/dto/`, `http/middlewares/`.
+- `http/controllers/` (40) : traduisent HTTP ↔ use cases. `http/routes/` (36) : montage Express + middlewares (`requireAuth`, `requireRole`). `http/dto/`, `http/middlewares/`.
 - `persistence/prisma/` (21 repos) : implémentent les ports repository via Prisma.
 - `services/` : adapters externes implémentant les ports (`GroqIAService` [Groq], `CampayPaiementService` [Mobile Money], `NodemailerEmailService`/Resend, `SmsNotificationService`, `PdfKitBulletinService`, `JwtTokenService`, `SocketNotificationService`).
 - `config/container.ts` : **composition root** — instancie repos + services + use cases et les câble. `config/hexagonal.bootstrap.ts` : monte toutes les routes sur l'app Express à partir du container.
@@ -100,7 +100,7 @@ frontend/src/
 └── lib/            fetchApi, i18n/, offline/ (Dexie/PWA), userAuth, colors, utils
 ```
 
-- **Dashboards** : chaque rôle a un `dashboard/page.tsx` + `_components/Section*.tsx` (admin 20, teacher 11, staff 13, parent 7, student 6, master 3) + une sidebar + topbar + toasts.
+- **Dashboards** : chaque rôle a un `dashboard/page.tsx` + `_components/Section*.tsx` (admin 23, teacher 11, staff 13, parent 7, student 6, master 3) + une sidebar + topbar + toasts.
 - **Styles** : **inline styles** majoritaires + tokens CSS (`var(--bg)`, `var(--text)`…) définis dans `globals.css`, plus quelques utilitaires Tailwind. Thème clair/sombre via **next-themes** + `@custom-variant dark` (Tailwind v4).
 - **i18n** : système **maison** (`src/lib/i18n`), 12 namespaces × fr/en, dictionnaires importés **statiquement**. Langue dérivée de l'établissement/section (jamais de l'URL).
 - **Offline/PWA** : `@ducanh2912/next-pwa` + **Dexie** (IndexedDB) pour la file d'attente offline (`lib/offline`).
@@ -112,7 +112,7 @@ frontend/src/
 
 | Rôle | Portée | Auth |
 |---|---|---|
-| **MASTER** | Plateforme (super-admin EduNexus) : invite/approuve/suspend les écoles | JWT master + **MFA (otplib)**, audit |
+| **MASTER** | Plateforme (super-admin ZEKOULABIA) : invite/approuve/suspend les écoles | JWT master + **MFA (otplib)**, audit |
 | **ADMIN** | Une école : configuration + toutes les capacités admin | JWT cookie `access_token`, `schoolId` |
 | **STAFF** | Une école, permissions granulaires via `StaffPermissionType` (Censeur, Intendant, Surveillant Général, HOD…) | idem + `permissions[]` |
 | **TEACHER / PARENT / STUDENT** | Une école, périmètre restreint | idem |
@@ -139,6 +139,7 @@ Autres flux importants :
 - **Temps réel (Socket.io)** : notifications in-app poussées via `SocketNotificationService`.
 - **Paiement Mobile Money** : `InitierPaiementMobileMoneyUseCase` → `CampayPaiementService` → webhook Campay → `TraiterWebhookCampayUseCase`.
 - **IA (Groq)** : assistant, insights, commentaires de bulletin, EDT auto — via `services/groq.ts` / `GroqIAService` (modèle **Groq** `llama-3.3-70b`).
+- **Examens & Admissions** : concours d'entrée 6e (sessions, candidats, CEP, création compte élève), sélection PEBS (transfert classe en masse), choix LV2 numérisé (fenêtres, soumission élève/admin) — modules `lv2Choice`, `entranceExam`, `pebsExam`. IA intégrée : scan Vision, détection d'anomalies, copilot admin.
 
 ---
 
@@ -155,7 +156,7 @@ Autres flux importants :
 1. **Hexagonal côté backend** : découple le métier des frameworks → testabilité (34 fichiers de tests, repos in-memory) et remplaçabilité des adapters.
 2. **Multi-tenant à base partagée** (`schoolId`) plutôt qu'une base par école : simplicité opérationnelle ; l'isolation est une **responsabilité applicative stricte**.
 3. **Source unique de langue** : `resolveLanguage(subsystem, sectionCode?)` (backend `utils/languageHelper`, miroir frontend `lib/i18n`). Ne jamais recréer de logique de langue. Langue dérivée des données, pas de l'URL.
-   - **Pages « universelles » (sans établissement précis)** — `login`, landing publique, onboarding (`/onboarding/[token]` et `/admin/configuration`) : elles servent **tous** les établissements (FR/EN/bilingue), donc la langue **n'est PAS dérivée d'une école**. Elles démarrent en **français par défaut** et exposent un **toggle FR/EN** (`components/LanguageSwitch`) dont le choix est **mémorisé** (`localStorage edunexus_lang_override`, priorité maximale dans le provider). La langue officielle de l'établissement ne s'applique **qu'une fois connecté au dashboard** (école `ACTIVE`).
+   - **Pages « universelles » (sans établissement précis)** — `login`, landing publique, onboarding (`/onboarding/[token]` et `/admin/configuration`) : elles servent **tous** les établissements (FR/EN/bilingue), donc la langue **n'est PAS dérivée d'une école**. Elles démarrent en **français par défaut** et exposent un **toggle FR/EN** (`components/LanguageSwitch`) dont le choix est **mémorisé** (`localStorage ZEKOULABIA_lang_override`, priorité maximale dans le provider). La langue officielle de l'établissement ne s'applique **qu'une fois connecté au dashboard** (école `ACTIVE`).
 4. **Onboarding en 2 phases** : Phase 1 wizard token (structure) → Phase 2 conversationnel (affinage + activation déterministe). La Phase 2 **se nourrit** de la Phase 1 (réconciliation).
 5. **Exécution déterministe de la configuration** (coefficients MINESEC exacts) plutôt que génération 100 % LLM.
 6. **PEBS orthogonal au template** : le « bilingue » établissement (2 sections) ≠ le Programme Spécial Bilingue (flag activable). Ne pas les fusionner.

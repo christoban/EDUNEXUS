@@ -125,8 +125,8 @@ export default function SectionClasses({ onToast }: Props) {
     const onChanged = (e: Event) => {
       if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'class') fetchClasses()
     }
-    window.addEventListener('edunexus:data-changed', onChanged)
-    return () => window.removeEventListener('edunexus:data-changed', onChanged)
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
   }, [fetchClasses])
 
   useEffect(() => {

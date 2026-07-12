@@ -1,4 +1,4 @@
-# MODULE_INDEX — EduNexus
+# MODULE_INDEX — ZEKOULABIA
 
 > Index des modules pour identifier **rapidement où intervenir** quand une fonctionnalité évolue.
 > Convention : un « module métier » = un dossier `application/<module>` (use cases) + son/ses controller(s), routes, repository, et sections frontend associées.
@@ -29,8 +29,11 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 | **schoolSettings** (2 UC) | Paramètres établissement (locale, notifications, etc.) | `app/schoolSettings`, `infra/http/controllers/SchoolSettingsController` | `ObtenirParametresEcoleUseCase`, `MettreAJourParametresEcoleUseCase` | `SchoolSettingsRepository` |
 | **student** (5 UC) | LV2 (par élève / en masse), matières A-Level, préremplissage combinaisons | `app/student` | `AffecterLV2EleveUseCase`, `AffecterLV2EnMasseUseCase`, `AffecterMatieresALevelEleveUseCase`, `PreremplirDepuisCombinaisonUseCase` | Prisma (LV2/A-Level) |
 | **ai** (1 UC) | Indice de santé scolaire (score + recommandations IA) | `app/ai`, `infra/http/controllers/AIController` | `CalculerIndiceSanteUseCase` | `SanteEleveRepository`, `IAService` (Groq) |
-| **assistant** | Copilot admin exécutant (function-calling Groq) : catalogue d'actions + RBAC + undo | `app/assistant`, `infra/http/controllers/AssistantController` | `adminActionCatalog.ts`, endpoints execute/confirm-action/undo-action | Groq (tools), use cases class/subject, `AssistantActionLog` |
+| **assistant** | Copilot admin exécutant (function-calling Groq) : catalogue d'actions + RBAC + undo — 14 actions (classes, matières, LV2, concours, PEBS) | `app/assistant`, `infra/http/controllers/AssistantController` | `adminActionCatalog.ts`, endpoints execute/confirm-action/undo-action | Groq (tools), use cases class/subject/lv2Choice/entranceExam/pebsExam, `AssistantActionLog` |
 | **messaging** | Conversations / messages in-app | `app/messaging`, `infra/http/controllers/CommunicationsController` | (modèles `Conversation`/`Message`/`MessageReadStatus`) | Prisma, Socket.io |
+| **lv2Choice** (5 UC) | Choix LV2 numérisé : fenêtres, soumission élève/admin, application | `app/lv2Choice`, `infra/http/controllers/Lv2ChoiceController` | `OuvrirFenetreChoixLV2UseCase`, `SoumettreChoixLV2EleveUseCase`, `SaisirChoixLV2ManuelUseCase`, `AppliquerChoixLV2UseCase`, `SuivreFenetreChoixLV2UseCase` | Prisma, `AffecterLV2EleveUseCase` |
+| **entranceExam** (7 UC) | Concours d'entrée 6e : sessions, candidats, admission, CEP, scan Vision, anomalies | `app/entranceExam`, `infra/http/controllers/EntranceExamController` | `CreerSessionConcoursUseCase`, `CalculerAdmissionConcoursUseCase`, `EnregistrerResultatCepUseCase`, `ScannerListeCandidatsUseCase`, `DetecterAnomaliesConcoursUseCase` | Prisma, `InscrireUtilisateurUseCase`, Groq (scan) |
+| **pebsExam** (7 UC) | Sélection PEBS : sessions, candidats, sélection, transfert classe, scan, anomalies | `app/pebsExam`, `infra/http/controllers/PebsExamController` | `CreerSessionPebsUseCase`, `CalculerSelectionPebsUseCase`, `AppliquerTransfertPebsUseCase`, `ScannerListeCandidatsPebsUseCase`, `DetecterAnomaliesPebsUseCase` | Prisma, Groq (scan) |
 
 ---
 
@@ -48,7 +51,7 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 | **Temps réel** | Notifications poussées | `socket/io.ts`, `infra/services/SocketNotificationService.ts` | Socket.io |
 | **Persistence** | 21 repositories Prisma | `infra/persistence/prisma/*Repository.ts`, `config/prisma.ts` | Implémentent les ports |
 | **Scripts / migrations data** | Seed, migrations ponctuelles, reset master | `scripts/` | ex. `migrate-lv2-subjects.ts`, `reset-master.ts` |
-| **Schéma DB** | 87 modèles Prisma | `backend/prisma/schema.prisma`, `backend/prisma/migrations/` | Multi-tenant par `schoolId` |
+| **Schéma DB** | 94 modèles Prisma | `backend/prisma/schema.prisma`, `backend/prisma/migrations/` | Multi-tenant par `schoolId` |
 
 ---
 
@@ -56,7 +59,7 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 
 | Module | Rôle | Emplacement | Fichiers clés |
 |---|---|---|---|
-| **Dashboard Admin** (20 sections) | Toute la gestion école | `fe/app/admin/dashboard` | `page.tsx`, `_components/Section*.tsx`, `AdminSidebar/Topbar/Toast`, `AssistantWidget` |
+| **Dashboard Admin** (23 sections) | Toute la gestion école + examens/admissions | `fe/app/admin/dashboard` | `page.tsx`, `_components/Section*.tsx`, `AdminSidebar/Topbar/Toast`, `AssistantWidget` |
 | **Dashboard Enseignant** (11) | Notes, présences, cahier de texte, PP | `fe/app/teacher/dashboard` | `_components/SectionTeacher*`, `SectionCahierDeTexte`, `SectionProfesseurPrincipal` |
 | **Dashboard Staff** (13) | Selon permissions (Censeur, Intendant, discipline, orientation, biblio…) | `fe/app/staff/dashboard` | `_components/Section*Staff`, `SectionDiscipline`, `SectionFinanceStaff`, `SectionLibrary` |
 | **Dashboard Parent** (7) | Suivi enfants, paiements, bulletins | `fe/app/parent/dashboard` | `_components/SectionParent*` |

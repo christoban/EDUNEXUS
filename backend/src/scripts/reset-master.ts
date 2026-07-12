@@ -7,7 +7,7 @@ dotenv.config();
 const prisma = new PrismaClient();
 
 const EMAIL = process.env.MASTER_ALLOWED_EMAILS?.split(",")[0]?.trim() || "christoban2005@gmail.com";
-const PASSWORD = "EduNexusMaster2025!"; // Mot de passe temporaire à changer dès la première connexion
+const PASSWORD = "ZekoulABiaMaster2025!"; // Mot de passe temporaire à changer dès la première connexion
 
 async function resetMaster() {
   console.log("🔄 Reset MasterUser en cours...");

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { passwordError } from '../../../utils/passwordValidator';
+import { parseDateFR } from '../../../utils/dateParsing';
 import { sendTransactionalEmail } from '../../../services/emailService';
 import { createHash, randomBytes } from 'crypto';
 import type { ConnecterUtilisateurUseCase } from '@application/user/ConnecterUtilisateurUseCase';
@@ -87,7 +88,7 @@ export class UserController {
         res.status(403).json({
           success: false,
           error: 'SCHOOL_SUSPENDED',
-          message: 'Votre établissement a été suspendu. Contactez le support EduNexus.',
+          message: 'Votre établissement a été suspendu. Contactez le support ZekoulABia.',
         });
         return;
       }
@@ -166,9 +167,22 @@ export class UserController {
         passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
       }
 
+      // dateOfBirth traité explicitement (voir même correctif sur `update`) : évite de
+      // dépendre implicitement de la coercion Date|string de Prisma.
+      let dateOfBirth: Date | undefined;
+      if (req.body.dateOfBirth) {
+        const parsed = parseDateFR(String(req.body.dateOfBirth));
+        if (!parsed) {
+          res.status(400).json({ success: false, message: `Date de naissance invalide : "${req.body.dateOfBirth}"` });
+          return;
+        }
+        dateOfBirth = parsed;
+      }
+
       const resultat = await this.inscrire.execute({
         schoolId: user.schoolId,
         ...req.body,
+        dateOfBirth,
         passwordHash,
       });
 
@@ -200,16 +214,16 @@ export class UserController {
             const { sendTransactionalEmail } = await import('../../../services/emailService');
             await sendTransactionalEmail({
               recipientEmail,
-              subject: `EduNexus — Créez votre mot de passe · ${schoolName}`,
+              subject: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,
               html: `
                 <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
                   <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-                    <h1 style="color:white;margin:0;font-size:20px;">🎓 EduNexus</h1>
+                    <h1 style="color:white;margin:0;font-size:20px;">🎓 ZekoulABia</h1>
                   </div>
                   <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
                     <h2 style="color:#1a1209;margin-top:0;">Bonjour ${String(req.body.firstName || '').trim()} ${String(req.body.lastName || '').trim()},</h2>
                     <p style="color:#6b5c45;font-size:15px;line-height:1.6;">
-                      Vous avez été invité(e) à rejoindre <strong>${schoolName}</strong> sur EduNexus.
+                      Vous avez été invité(e) à rejoindre <strong>${schoolName}</strong> sur ZekoulABia.
                       Cliquez sur le bouton ci-dessous pour créer votre mot de passe et accéder à votre espace.
                     </p>
                     <div style="text-align:center;margin:28px 0 16px;">
@@ -220,7 +234,7 @@ export class UserController {
                     <p style="color:#a89478;font-size:13px;text-align:center;">Ce lien expire dans 7 jours.</p>
                     <hr style="border:none;border-top:1px solid #e8e0d4;margin:20px 0;" />
                     <p style="color:#a89478;font-size:12px;margin:0;text-align:center;">
-                      EduNexus · Plateforme de gestion scolaire · Cameroun
+                      ZekoulABia · Plateforme de gestion scolaire · Cameroun
                     </p>
                   </div>
                 </div>
@@ -379,7 +393,7 @@ export class UserController {
 
         await sendTransactionalEmail({
           recipientEmail: user.email,
-          subject: 'Réinitialisation de votre mot de passe — EduNexus',
+          subject: 'Réinitialisation de votre mot de passe — ZekoulABia',
           template: 'password_reset',
           eventType: 'password_reset',
           html: `
@@ -388,7 +402,7 @@ export class UserController {
                 <h1 style="color:white;margin:0;font-size:22px;font-weight:800">🔐 Réinitialisation du mot de passe</h1>
               </div>
               <p style="color:#374151;font-size:16px">Bonjour <strong>${name}</strong>,</p>
-              <p style="color:#374151;font-size:15px">Vous avez demandé la réinitialisation de votre mot de passe pour votre compte EduNexus.</p>
+              <p style="color:#374151;font-size:15px">Vous avez demandé la réinitialisation de votre mot de passe pour votre compte ZekoulABia.</p>
               <p style="color:#374151;font-size:15px">Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Ce lien expirera dans <strong>1 heure</strong>.</p>
               <div style="text-align:center;margin:32px 0">
                 <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#047857);color:white;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:800">
@@ -397,7 +411,7 @@ export class UserController {
               </div>
               <p style="color:#6b7280;font-size:13px">Si vous n'avez pas fait cette demande, ignorez simplement cet email. Votre mot de passe ne sera pas modifié.</p>
               <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-              <p style="color:#9ca3af;font-size:12px;text-align:center">EduNexus — Système de gestion scolaire</p>
+              <p style="color:#9ca3af;font-size:12px;text-align:center">ZekoulABia — Système de gestion scolaire</p>
             </div>`,
           metadata: { schoolId: school.id },
         });
@@ -532,12 +546,25 @@ export class UserController {
         passwordHash = await bcrypt.hash(req.body.password, 10);
       }
 
+      // dateOfBirth traité explicitement (pas via le spread ...req.body) : parseDateFR valide
+      // le format et construit en UTC, plutôt que de compter sur la coercion implicite de Prisma.
+      let dateOfBirth: Date | undefined;
+      if (req.body.dateOfBirth) {
+        const parsed = parseDateFR(String(req.body.dateOfBirth));
+        if (!parsed) {
+          res.status(400).json({ success: false, message: `Date de naissance invalide : "${req.body.dateOfBirth}"` });
+          return;
+        }
+        dateOfBirth = parsed;
+      }
+
       await this.modifier.execute({
         cibleUserId: req.params.id as string,
         demandeurId: user.userId,
         demandeurRole: user.role,
         schoolId: user.schoolId,
         ...req.body,
+        dateOfBirth,
         passwordHash,
       });
 
@@ -615,6 +642,7 @@ export class UserController {
         telephone: String(r.telephone || '').trim(),
         matricule: String(r.matricule || '').trim(),
         dateNaissance: String(r.date_naissance || '').trim(),
+        sexe: String(r.sexe ?? r.genre ?? r.sex ?? '').trim(),
         classe: String(r.classe || '').trim(),
         nomParent: String(r.nom_parent || '').trim(),
         prenomParent: String(r.prenom_parent || '').trim(),

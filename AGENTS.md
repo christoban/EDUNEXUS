@@ -1,6 +1,6 @@
-# AGENTS.md — Guide officiel des agents IA sur EduNexus
+# AGENTS.md — Guide officiel des agents IA sur ZEKOULABIA
 
-> Ce fichier est lu automatiquement par les agents IA (Claude Code, opencode, etc.) travaillant sur EduNexus.
+> Ce fichier est lu automatiquement par les agents IA (Claude Code, opencode, etc.) travaillant sur ZEKOULABIA.
 > Il définit **comment** travailler. Il prime sur les habitudes de l'agent, et s'ajoute à la tâche donnée.
 > Documents projet à connaître : [ARCHITECTURE.md](ARCHITECTURE.md) · [MODULE_INDEX.md](MODULE_INDEX.md) · [FEATURES.md](FEATURES.md) · [CONVENTIONS.md](CONVENTIONS.md)
 

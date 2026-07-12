@@ -38,7 +38,7 @@ export default function StaffDashboard() {
   // Lecture session depuis localStorage (stockée au login)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('edunexus_user')
+      const raw = localStorage.getItem('zekoulabia_user')
       if (raw) {
         const user = JSON.parse(raw) as SessionUser
         setSessionUser(user)

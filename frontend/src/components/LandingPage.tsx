@@ -25,7 +25,7 @@ const textsFR = {
     badge: '🇨🇲 Plateforme officielle · Système MINESEC Cameroun',
     title: 'La plateforme scolaire de référence au Cameroun',
     subtitle:
-      'EduNexus centralise la gestion de votre établissement : notes, présences, bulletins, emploi du temps et paiements Mobile Money. Conforme MINESEC.',
+      'ZekoulABia centralise la gestion de votre établissement : notes, présences, bulletins, emploi du temps et paiements Mobile Money. Conforme MINESEC.',
     cta1: '🎓 Demander une démo gratuite',
     cta2: '▶ Voir comment ça marche',
     trust: ['✅ Conforme MINESEC', '🔒 Données hébergées en Afrique', '📱 MTN MoMo & Orange Money', '📶 Mode hors-ligne inclus'],
@@ -53,7 +53,7 @@ const textsFR = {
   howItWorks: {
     title: 'Opérationnel en 72 heures',
     steps: [
-      { icon: '📧', title: 'Invitation', desc: "L'équipe EduNexus envoie une invitation à votre directeur. Lien d'activation valable 72 heures." },
+      { icon: '📧', title: 'Invitation', desc: "L'équipe ZekoulABia envoie une invitation à votre directeur. Lien d'activation valable 72 heures." },
       { icon: '🏫', title: 'Onboarding guidé', desc: 'Configurez classes, matières, enseignants. Notre assistant vous guide étape par étape.' },
       { icon: '🚀', title: 'Tout le monde connecté', desc: 'Chaque rôle accède à son espace dédié. Enseignants, parents et élèves reçoivent leurs accès.' },
     ],
@@ -94,36 +94,36 @@ const textsFR = {
     ],
   },
   testimonials: {
-    title: 'Ils font confiance à EduNexus',
+    title: 'Ils font confiance à ZekoulABia',
     items: [
-      { quote: 'Depuis EduNexus, les bulletins sont prêts le jour même du conseil de classe. Le recouvrement des frais a augmenté de 40% grâce aux rappels Mobile Money automatiques.', author: 'Mme Ekambi', role: 'Proviseure · Lycée de la Réussite, Yaoundé', initials: 'ME' },
+      { quote: 'Depuis ZekoulABia, les bulletins sont prêts le jour même du conseil de classe. Le recouvrement des frais a augmenté de 40% grâce aux rappels Mobile Money automatiques.', author: 'Mme Ekambi', role: 'Proviseure · Lycée de la Réussite, Yaoundé', initials: 'ME' },
       { quote: 'La saisie des notes prend 10 minutes au lieu de 2 heures. Les coefficients BAC MINESEC sont automatiques — fini les erreurs de calcul.', author: 'M. Ateba', role: 'Directeur · Collège Sainte-Marie, Douala', initials: 'MA' },
-      { quote: "Le mode hors-ligne est essentiel pour nous. La connexion est instable, mais EduNexus fonctionne quand même et synchronise dès que le réseau revient.", author: 'M. Fouda', role: 'Censeur · Institut Technique de Bafoussam', initials: 'MF' },
+      { quote: "Le mode hors-ligne est essentiel pour nous. La connexion est instable, mais ZekoulABia fonctionne quand même et synchronise dès que le réseau revient.", author: 'M. Fouda', role: 'Censeur · Institut Technique de Bafoussam', initials: 'MF' },
     ],
   },
   faq: {
     title: 'Questions fréquentes',
     items: [
-      { q: 'EduNexus est-il conforme au MINESEC ?', a: 'Oui. Coefficients BAC, séquences, notes /20, seuils Art. 48 — préconfiguré selon les arrêtés MINESEC en vigueur.' },
+      { q: 'ZekoulABia est-il conforme au MINESEC ?', a: 'Oui. Coefficients BAC, séquences, notes /20, seuils Art. 48 — préconfiguré selon les arrêtés MINESEC en vigueur.' },
       { q: 'Faut-il internet en permanence ?', a: 'Non. Mode hors-ligne complet (IndexedDB + PWA). Synchronisation automatique dès le retour du réseau.' },
       { q: 'Comment fonctionne le Mobile Money ?', a: "Via Campay (MTN MoMo & Orange Money). Paiement depuis le téléphone, confirmation en temps réel pour l'intendant." },
-      { q: 'Combien de temps pour mettre en place EduNexus ?', a: '72 heures en moyenne avec l\'accompagnement de notre équipe.' },
+      { q: 'Combien de temps pour mettre en place ZekoulABia ?', a: '72 heures en moyenne avec l\'accompagnement de notre équipe.' },
       { q: 'Les données des élèves sont-elles sécurisées ?', a: 'Hébergement en Afrique, chiffrement TLS, MFA obligatoire pour les administrateurs.' },
     ],
   },
   cta: {
-    title: 'Rejoignez les établissements qui font confiance à EduNexus',
+    title: 'Rejoignez les établissements qui font confiance à ZekoulABia',
     subtitle: "Période d'essai gratuite · Aucune carte bancaire · Démarrage en 72h",
     btn: '🎓 Demander une démo gratuite',
   },
   footer: {
     tagline: 'Gestion scolaire · Cameroun · MINESEC',
-    copyright: '© 2026 EduNexus · Tous droits réservés',
+    copyright: '© 2026 ZekoulABia · Tous droits réservés',
     cols: {
       product: { title: 'Produit', links: ['Fonctionnalités', 'Plans tarifaires', 'Sécurité', 'API'] },
       resources: { title: 'Ressources', links: ['Documentation', 'Guides MINESEC', 'Blog', 'Support'] },
       company: { title: 'Entreprise', links: ['À propos', 'Carrières', 'Presse', 'Partenaires'] },
-      contact: { title: 'Contact', info: ['Yaoundé, Cameroun', 'contact@edunexus.cm', '+237 6XX XXX XXX'] },
+      contact: { title: 'Contact', info: ['Yaoundé, Cameroun', 'contact@zekoulabia.cm', '+237 6XX XXX XXX'] },
     },
   },
 }
@@ -141,7 +141,7 @@ const textsEN = {
   hero: {
     badge: '🇨🇲 Official platform · MINESEC Cameroon',
     title: 'The reference school management platform in Cameroon',
-    subtitle: 'EduNexus centralizes your school management: grades, attendance, report cards, timetables and Mobile Money payments. MINESEC compliant.',
+    subtitle: 'ZekoulABia centralizes your school management: grades, attendance, report cards, timetables and Mobile Money payments. MINESEC compliant.',
     cta1: '🎓 Request a free demo',
     cta2: '▶ See how it works',
     trust: ['✅ MINESEC Compliant', '🔒 Data hosted in Africa', '📱 MTN MoMo & Orange Money', '📶 Offline mode included'],
@@ -169,7 +169,7 @@ const textsEN = {
   howItWorks: {
     title: 'Operational in 72 hours',
     steps: [
-      { icon: '📧', title: 'Invitation', desc: 'The EduNexus team sends an invitation to your headmaster. Activation link valid 72 hours.' },
+      { icon: '📧', title: 'Invitation', desc: 'The ZekoulABia team sends an invitation to your headmaster. Activation link valid 72 hours.' },
       { icon: '🏫', title: 'Guided Onboarding', desc: 'Set up classes, subjects, teachers. Our assistant guides you step by step.' },
       { icon: '🚀', title: 'Everyone connected', desc: 'Each role accesses their dedicated space. Teachers, parents and students receive their access.' },
     ],
@@ -195,36 +195,36 @@ const textsEN = {
     ],
   },
   testimonials: {
-    title: 'Schools that trust EduNexus',
+    title: 'Schools that trust ZekoulABia',
     items: [
-      { quote: 'Since EduNexus, report cards are ready on the day of the class council. Fee collection increased by 40% thanks to automatic Mobile Money reminders.', author: 'Mme Ekambi', role: 'Principal · Lycée de la Réussite, Yaoundé', initials: 'ME' },
+      { quote: 'Since ZekoulABia, report cards are ready on the day of the class council. Fee collection increased by 40% thanks to automatic Mobile Money reminders.', author: 'Mme Ekambi', role: 'Principal · Lycée de la Réussite, Yaoundé', initials: 'ME' },
       { quote: 'Entering grades takes 10 minutes instead of 2 hours. MINESEC BAC coefficients are automatic — no more calculation errors.', author: 'M. Ateba', role: 'Director · Collège Sainte-Marie, Douala', initials: 'MA' },
-      { quote: "Offline mode is essential for us. The connection is unstable, but EduNexus still works and syncs as soon as the network comes back.", author: 'M. Fouda', role: 'Vice-Principal · Institut Technique de Bafoussam', initials: 'MF' },
+      { quote: "Offline mode is essential for us. The connection is unstable, but ZekoulABia still works and syncs as soon as the network comes back.", author: 'M. Fouda', role: 'Vice-Principal · Institut Technique de Bafoussam', initials: 'MF' },
     ],
   },
   faq: {
     title: 'Frequently asked questions',
     items: [
-      { q: 'Is EduNexus MINESEC compliant?', a: 'Yes. BAC coefficients, sequences, grades /20, Art. 48 thresholds — pre-configured according to current MINESEC regulations.' },
+      { q: 'Is ZekoulABia MINESEC compliant?', a: 'Yes. BAC coefficients, sequences, grades /20, Art. 48 thresholds — pre-configured according to current MINESEC regulations.' },
       { q: 'Do you need internet all the time?', a: 'No. Full offline mode (IndexedDB + PWA). Automatic sync when the network returns.' },
       { q: 'How does Mobile Money work?', a: 'Via Campay (MTN MoMo & Orange Money). Payment from the phone, real-time confirmation for the bursar.' },
-      { q: 'How long does it take to set up EduNexus?', a: 'On average 72 hours with our team guidance.' },
+      { q: 'How long does it take to set up ZekoulABia?', a: 'On average 72 hours with our team guidance.' },
       { q: 'Is student data secure?', a: 'Hosted in Africa, TLS encryption, mandatory MFA for administrators.' },
     ],
   },
   cta: {
-    title: 'Join the schools that trust EduNexus',
+    title: 'Join the schools that trust ZekoulABia',
     subtitle: 'Free trial · No credit card · Up and running in 72h',
     btn: '🎓 Request a free demo',
   },
   footer: {
     tagline: 'School management · Cameroon · MINESEC',
-    copyright: '© 2026 EduNexus · All rights reserved',
+    copyright: '© 2026 ZekoulABia · All rights reserved',
     cols: {
       product: { title: 'Product', links: ['Features', 'Pricing', 'Security', 'API'] },
       resources: { title: 'Resources', links: ['Documentation', 'MINESEC Guides', 'Blog', 'Support'] },
       company: { title: 'Company', links: ['About', 'Careers', 'Press', 'Partners'] },
-      contact: { title: 'Contact', info: ['Yaoundé, Cameroon', 'contact@edunexus.cm', '+237 6XX XXX XXX'] },
+      contact: { title: 'Contact', info: ['Yaoundé, Cameroon', 'contact@zekoulabia.cm', '+237 6XX XXX XXX'] },
     },
   },
 }
@@ -343,7 +343,7 @@ function HeroMockup() {
       </div>
 
       <div style={{ marginTop: 14, textAlign: 'center', fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>
-        EduNexus · Lycée Bilingue de Yaoundé · Séquence 3
+        ZekoulABia · Lycée Bilingue de Yaoundé · Séquence 3
       </div>
     </div>
   )
@@ -426,8 +426,8 @@ export default function LandingPage() {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
-          <span style={{ fontSize: 27 }}>🎓</span>
-          <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>EduNexus</span>
+          <img src="/logo.svg" alt="ZekoulABia" style={{ width: 32, height: 32 }} />
+          <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>ZekoulABia</span>
           <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: 14, fontWeight: 700, borderRadius: 20, padding: '2px 11px', marginLeft: 4, whiteSpace: 'nowrap' }}>
             {tx.nav.badge}
           </span>
@@ -827,8 +827,8 @@ export default function LandingPage() {
             {/* Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
-                <span style={{ fontSize: 24 }}>🎓</span>
-                <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'white' }}>EduNexus</span>
+                <img src="/logo.svg" alt="ZekoulABia" style={{ width: 28, height: 28, filter: "brightness(0) invert(1)" }} />
+                <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'white' }}>ZekoulABia</span>
               </div>
               <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.42)', lineHeight: 1.75 }}>{tx.footer.tagline}</div>
             </div>

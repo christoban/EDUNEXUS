@@ -1,6 +1,6 @@
 /**
  * DOMAIN LAYER — Entité User
- * Représente tout utilisateur de la plateforme EduNexus au sein d'un établissement.
+ * Représente tout utilisateur de la plateforme ZekoulABia au sein d'un établissement.
  * Rôles : ADMIN, STAFF, TEACHER, PARENT, STUDENT
  */
 import type { UserRole, StaffPermissionType } from '@domain/types/enums';

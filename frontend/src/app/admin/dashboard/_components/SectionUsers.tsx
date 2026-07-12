@@ -57,7 +57,7 @@ interface UserItem {
   isActive: boolean
   lastLogin: string | null
   createdAt: string
-  studentProfile: { class: { name: string } | null } | null
+  studentProfile: { class: { name: string } | null; dateOfBirth: string | null; gender: string | null } | null
   staffProfile: { title: string } | null
   classesProfessorPrincipal?: { id: string; name: string }[]
 }
@@ -146,7 +146,7 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
           lastName: form.lastName.trim(),
           email: form.email.trim(),
           role: form.role,
-          password: 'EduNexus2025!',
+          password: 'ZekoulABia2025!',
           ...(isStaff && {
             staffTitle: form.selectedTitles[0] ?? 'Personnalisé',
             staffPermissions: mergedPerms,
@@ -684,7 +684,7 @@ const inputSt: React.CSSProperties = {
 // ── Composant principal ──
 interface ClassItem { id: string; name: string }
 
-const EMPTY_MOD_USER = { open: false, userId: '', firstName: '', lastName: '', email: '', phone: '', loading: false, error: '' }
+const EMPTY_MOD_USER = { open: false, userId: '', role: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', loading: false, error: '' }
 const EMPTY_TRANSFER = { open: false, userId: '', userName: '', classId: '', classes: [] as ClassItem[], loading: false, error: '' }
 const EMPTY_DOC_MODAL = { open: false, userId: '', userName: '', status: '', loading: false, error: '' }
 
@@ -816,17 +816,27 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   // ── Modifier utilisateur ────────────────────────────────────────────────
   const openModUser = (user: UserItem) => {
     setOpenDD(null)
-    setModUser({ open: true, userId: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email ?? '', phone: '', loading: false, error: '' })
+    setModUser({
+      open: true, userId: user.id, role: user.role, firstName: user.firstName, lastName: user.lastName, email: user.email ?? '', phone: '',
+      dateOfBirth: user.studentProfile?.dateOfBirth ? user.studentProfile.dateOfBirth.slice(0, 10) : '',
+      gender: user.studentProfile?.gender ?? '',
+      loading: false, error: '',
+    })
   }
 
   const submitModUser = async () => {
     if (!modUser.firstName.trim() || !modUser.lastName.trim()) { setModUser(f => ({ ...f, error: t('users.edit_modal.required_error') })); return }
     setModUser(f => ({ ...f, loading: true, error: '' }))
     try {
+      const body: Record<string, unknown> = { firstName: modUser.firstName.trim(), lastName: modUser.lastName.trim(), email: modUser.email.trim() || undefined }
+      if (modUser.role === 'STUDENT') {
+        if (modUser.dateOfBirth) body.dateOfBirth = modUser.dateOfBirth
+        if (modUser.gender) body.gender = modUser.gender
+      }
       const res = await fetchApi(`/api/v2/users/${modUser.userId}`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: modUser.firstName.trim(), lastName: modUser.lastName.trim(), email: modUser.email.trim() || undefined }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
@@ -895,7 +905,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         firstName: createForm.firstName.trim(),
         lastName: createForm.lastName.trim(),
         role: createForm.role,
-        password: 'EduNexus2025!',
+        password: 'ZekoulABia2025!',
       }
       if (createForm.email.trim()) body.email = createForm.email.trim()
       if (createForm.phone.trim()) body.phone = createForm.phone.trim()
@@ -1126,6 +1136,22 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             </div>
             <div style={sLb}>{t('users.edit_modal.email_label')}</div>
             <input style={sIn} type="email" value={modUser.email} onChange={e => setModUser(f => ({ ...f, email: e.target.value }))} />
+            {modUser.role === 'STUDENT' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                <div>
+                  <div style={sLb}>{t('users.create_modal.dob_label')}</div>
+                  <input style={sIn} type="date" value={modUser.dateOfBirth} onChange={e => setModUser(f => ({ ...f, dateOfBirth: e.target.value }))} />
+                </div>
+                <div>
+                  <div style={sLb}>{t('users.create_modal.gender_label')}</div>
+                  <select style={sIn} value={modUser.gender} onChange={e => setModUser(f => ({ ...f, gender: e.target.value }))}>
+                    <option value="">—</option>
+                    <option value="M">{t('users.i18n_ext.form.male')}</option>
+                    <option value="F">{t('users.i18n_ext.form.female')}</option>
+                  </select>
+                </div>
+              </div>
+            )}
             {modUser.error && <div style={sErr}>{modUser.error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setModUser(EMPTY_MOD_USER)}>{t('users.i18n_ext.actions.cancel')}</button>

@@ -119,10 +119,8 @@ function SetPasswordContent() {
       <div style={{ background: 'var(--surface)', borderRadius: 16, padding: '40px', maxWidth: 440, width: '100%', border: '1.5px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 26 }}>
-            🎓
-          </div>
-          <h1 style={{ color: 'var(--text)', fontWeight: 800, fontSize: 22, margin: '0 0 6px', fontFamily: 'Georgia, serif' }}>EduNexus</h1>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: "linear-gradient(135deg,var(--green),var(--green2))", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
+          <h1 style={{ color: 'var(--text)', fontWeight: 800, fontSize: 22, margin: '0 0 6px', fontFamily: 'Georgia, serif' }}>ZekoulABia</h1>
           <p style={{ color: 'var(--text3)', fontSize: 14, margin: 0 }}>{invite?.schoolName}</p>
         </div>
 
@@ -130,7 +128,7 @@ function SetPasswordContent() {
           Bonjour {invite?.firstName} {invite?.lastName},
         </h2>
         <p style={{ color: 'var(--text2)', fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
-          Créez votre mot de passe pour accéder à votre espace sur EduNexus.
+          Créez votre mot de passe pour accéder à votre espace sur ZekoulABia.
         </p>
 
         <form onSubmit={handleSubmit}>
@@ -208,7 +206,7 @@ function SetPasswordContent() {
         </form>
 
         <p style={{ color: 'var(--text3)', fontSize: 12, textAlign: 'center', marginTop: 20, marginBottom: 0 }}>
-          EduNexus · Plateforme de gestion scolaire · Cameroun
+          ZekoulABia · Plateforme de gestion scolaire · Cameroun
         </p>
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>

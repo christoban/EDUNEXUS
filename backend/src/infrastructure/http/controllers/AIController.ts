@@ -118,7 +118,7 @@ export class AIController {
         return;
       }
       const lang = await this.langueEcole(req.user!.schoolId);
-      const systemPrompt = `Tu es l'assistant pédagogique d'EduNexus pour les établissements scolaires camerounais (système MINESEC). Réponds de façon concise et pratique. Pour les questions simples, 1 à 4 phrases. Pour les procédures, 3 à 5 étapes maximum. ${instructionLangue(lang)}`;
+      const systemPrompt = `Tu es l'assistant pédagogique d'ZekoulABia pour les établissements scolaires camerounais (système MINESEC). Réponds de façon concise et pratique. Pour les questions simples, 1 à 4 phrases. Pour les procédures, 3 à 5 étapes maximum. ${instructionLangue(lang)}`;
       const response = await generateWithGroq(message, systemPrompt);
       res.json({ success: true, response, timestamp: new Date() });
     } catch (error) {
@@ -126,7 +126,7 @@ export class AIController {
     }
   };
 
-  // POST /api/v2/assistant/chat — Assistant EduNexus contextualisé (dashboard admin)
+  // POST /api/v2/assistant/chat — Assistant ZekoulABia contextualisé (dashboard admin)
   // Injecte la structure réelle de l'établissement dans le prompt pour des réponses pertinentes.
   assistantChat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -161,7 +161,7 @@ export class AIController {
         `Périodes de l'année en cours : ${periodList}.`;
 
       const systemPrompt =
-        `Tu es l'Assistant EduNexus, intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC). ` +
+        `Tu es l'Assistant ZekoulABia, intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC). ` +
         `Tu connais la configuration réelle de SON établissement (ci-dessous) et tu t'appuies dessus pour répondre de façon précise et contextualisée. ` +
         `Aide-le à utiliser la plateforme, à affiner sa configuration (ajouter une classe, une matière…), et à démarrer ses premières opérations. ` +
         `${instructionLangue(resolveLanguage(school?.subsystem))} Réponds de façon concise et pratique (1 à 5 phrases, ou 3 à 5 étapes pour une procédure). ` +

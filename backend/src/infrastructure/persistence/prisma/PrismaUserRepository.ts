@@ -163,7 +163,12 @@ export class PrismaUserRepository implements UserRepository {
 
     if (data.role === 'STUDENT') {
       const studentProfile = await this.prisma.studentProfile.create({
-        data: { userId: data.id, classId: profilData.classeId ?? null },
+        data: {
+          userId: data.id,
+          classId: profilData.classeId ?? null,
+          dateOfBirth: profilData.dateOfBirth ?? null,
+          gender: profilData.gender ?? null,
+        },
       });
 
       if (profilData.parentOfStudentIds?.length) {
@@ -262,6 +267,8 @@ export class PrismaUserRepository implements UserRepository {
     passwordHash?: string;
     subjectIds?: string[];
     classeId?: string;
+    dateOfBirth?: Date;
+    gender?: string;
   }): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
@@ -296,10 +303,14 @@ export class PrismaUserRepository implements UserRepository {
       }
     }
 
-    if (data.classeId !== undefined) {
+    if (data.classeId !== undefined || data.dateOfBirth !== undefined || data.gender !== undefined) {
       await this.prisma.studentProfile.update({
         where: { userId },
-        data: { classId: data.classeId },
+        data: {
+          ...(data.classeId !== undefined && { classId: data.classeId }),
+          ...(data.dateOfBirth !== undefined && { dateOfBirth: data.dateOfBirth }),
+          ...(data.gender !== undefined && { gender: data.gender }),
+        },
       });
     }
   }

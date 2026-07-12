@@ -18,6 +18,16 @@
     "trend_term": "Term",
     "trend_year": "Year"
   },
+  "lv2Choice": {
+    "banner_title": "Choose your second language (LV2)",
+    "banner_subtitle": "Select the language you want to study before {date}.",
+    "select_placeholder": "Choose a language…",
+    "submit_btn": "Confirm my choice",
+    "submitting": "Submitting…",
+    "already_submitted": "You chose: {subject}. This choice has been recorded.",
+    "toast_submitted": "Your LV2 choice has been recorded",
+    "toast_error": "Error while recording your choice"
+  },
   "library": {
     "title": "My reading",
     "subtitle": "Books borrowed from the school library",

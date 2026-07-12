@@ -146,11 +146,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
           {/* ── Header ──────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 26 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                background: 'linear-gradient(135deg,var(--green),var(--green2))',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-              }}>🎓</div>
+              <div style={{ width: 52, height: 52, borderRadius: 14, flexShrink: 0, background: "linear-gradient(135deg,var(--green),var(--green2))", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
               <div>
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>
                   {isFr ? 'Demander une démo gratuite' : 'Request a free demo'}

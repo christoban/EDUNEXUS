@@ -1,5 +1,5 @@
 /**
- * EduNexus — Lanceur de développement unifié
+ * ZekoulABia — Lanceur de développement unifié
  *
  * Lance automatiquement :
  *  1. ngrok   → tunnel public sur le port 3000 (frontend)
@@ -81,7 +81,7 @@ if (!ngrokUrl) {
 // ─── 4. Afficher l'URL ─────────────────────────────────────────────────────
 console.log()
 console.log(`${BOLD}${GREEN}  ╔══════════════════════════════════════════╗${RESET}`)
-console.log(`${BOLD}${GREEN}  ║       EDUNEXUS — Tunnel actif !          ║${RESET}`)
+console.log(`${BOLD}${GREEN}  ║       ZEKOULABIA — Tunnel actif !        ║${RESET}`)
 console.log(`${BOLD}${GREEN}  ╚══════════════════════════════════════════╝${RESET}`)
 console.log()
 console.log(`  ${MAGENTA}${BOLD}📱 URL téléphone : ${ngrokUrl}${RESET}`)

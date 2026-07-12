@@ -1,5 +1,5 @@
 /**
- * DOMAIN LAYER — Types et énumérations du domaine EduNexus
+ * DOMAIN LAYER — Types et énumérations du domaine ZekoulABia
  * Ces types sont indépendants de Prisma et de tout framework.
  */
 

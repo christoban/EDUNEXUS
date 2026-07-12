@@ -249,12 +249,12 @@ export class MasterAdminHexController {
 
       sendTransactionalEmail({
         recipientEmail: invite.email as string,
-        subject: `EduNexus — Renvoi d'invitation : ${invite.schoolName as string}`,
+        subject: `ZekoulABia — Renvoi d'invitation : ${invite.schoolName as string}`,
         html: `
           <p>Bonjour,</p>
           <p>Votre invitation pour l'établissement <strong>${invite.schoolName as string}</strong> a été renvoyée.</p>
           <p>Cliquez sur le lien ci-dessous pour activer votre espace (lien valable 72h) :</p>
-          <p><a href="${activationUrl}" style="background:#059669;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Activer mon espace EduNexus</a></p>
+          <p><a href="${activationUrl}" style="background:#059669;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;">Activer mon espace ZekoulABia</a></p>
           <p style="color:#888;font-size:13px">Lien direct : ${activationUrl}</p>
         `,
         template: 'school_invite',

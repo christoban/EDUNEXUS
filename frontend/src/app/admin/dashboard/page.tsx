@@ -24,6 +24,11 @@ import SectionStatistics from './_components/SectionStatistics'
 import SectionCommunications from './_components/SectionCommunications'
 import SectionPedagogie from './_components/SectionPedagogie'
 import SectionRH from './_components/SectionRH'
+import SectionMatricules from './_components/SectionMatricules'
+import SectionSchoolPayments from './_components/SectionSchoolPayments'
+import SectionAdminLV2Choice from './_components/SectionAdminLV2Choice'
+import SectionAdminEntranceExams from './_components/SectionAdminEntranceExams'
+import SectionAdminPebsExams from './_components/SectionAdminPebsExams'
 import AdminToast from './_components/AdminToast'
 import AssistantWidget from './_components/AssistantWidget'
 import type { AdminSection, Toast } from './_types'
@@ -37,7 +42,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
   'council', 'academic-year', 'finance', 'ai', 'statistics', 'communications', 'settings',
-  'pedagogie', 'rh',
+  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments',
 ]
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {}
@@ -68,7 +73,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('edunexus_user')
+      const raw = localStorage.getItem('zekoulabia_user')
       if (raw) setSessionUser(JSON.parse(raw) as SessionUser)
     } catch { /* ignore */ }
 
@@ -122,8 +127,8 @@ export default function AdminDashboard() {
       const section = (e as CustomEvent<{ section?: string }>).detail?.section
       if (section && ADMIN_SECTIONS.includes(section as AdminSection)) setSection(section as AdminSection)
     }
-    window.addEventListener('edunexus:navigate', onNavigate)
-    return () => window.removeEventListener('edunexus:navigate', onNavigate)
+    window.addEventListener('zekoulabia:navigate', onNavigate)
+    return () => window.removeEventListener('zekoulabia:navigate', onNavigate)
   }, [])
 
   return (
@@ -156,6 +161,11 @@ export default function AdminDashboard() {
           {section === 'communications' && <SectionCommunications onToast={showToast} />}
           {section === 'pedagogie'     && <SectionPedagogie     onToast={showToast} />}
           {section === 'rh'            && <SectionRH            onToast={showToast} />}
+          {section === 'matricules'    && <SectionMatricules    onToast={showToast} />}
+          {section === 'school-payments' && <SectionSchoolPayments onToast={showToast} />}
+          {section === 'entrance-exams' && <SectionAdminEntranceExams onToast={showToast} />}
+          {section === 'pebs-exams'    && <SectionAdminPebsExams    onToast={showToast} />}
+          {section === 'lv2-choice'    && <SectionAdminLV2Choice    onToast={showToast} />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (

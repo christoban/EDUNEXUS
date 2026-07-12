@@ -89,7 +89,7 @@ export class OnboarderEcoleUseCase {
     const langueConfirm = resolveLanguage(commande.subsystem);
     void this.emailService.envoyer({
       destinataire: commande.adminEmail,
-      sujet: langueConfirm === 'fr' ? 'Demande d\'accès EduNexus reçue' : 'EduNexus access request received',
+      sujet: langueConfirm === 'fr' ? 'Demande d\'accès ZekoulABia reçue' : 'ZekoulABia access request received',
       contenuHtml: langueConfirm === 'fr'
         ? `
         <h2>Bonjour ${admin.nomComplet},</h2>

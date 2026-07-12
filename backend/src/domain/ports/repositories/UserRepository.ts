@@ -54,6 +54,8 @@ export interface UserRepository {
     passwordHash?: string;
     subjectIds?: string[];
     classeId?: string;
+    dateOfBirth?: Date;
+    gender?: string;
   }): Promise<void>;
 
   // Suppression en cascade (profiles + données liées)

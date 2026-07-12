@@ -1,4 +1,4 @@
-// ─── Point d'entrée du module Curriculum EDUNEXUS ────────────────────────────
+// ─── Point d'entrée du module Curriculum ZEKOULABIA ────────────────────────────
 //
 // Organisation :
 //   francophone/

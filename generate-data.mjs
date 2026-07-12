@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const XLSX = require('./backend/node_modules/xlsx/xlsx.js');
 
 // ─── Config ─────────────────────────────────────────────────────────────────
-const SCHOOL_DOMAIN = 'edu-nexus.cm';
+const SCHOOL_DOMAIN = 'zekoul-abia.cm';
 const ACADEMIC_YEAR = '2025';
 
 // ─── Classes ─────────────────────────────────────────────────────────────────

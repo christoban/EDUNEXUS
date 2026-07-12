@@ -192,7 +192,7 @@ export default function LoginPage() {
       const dest = redirectTo ?? config.dest
       const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
 
-      localStorage.setItem('edunexus_user', JSON.stringify({
+      localStorage.setItem('zekoulabia_user', JSON.stringify({
         userId, role, nomComplet, firstName,
         permissions: permissions ?? [],
       }))
@@ -252,14 +252,9 @@ export default function LoginPage() {
         }}>
           {/* Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 60 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: 14, fontSize: 32,
-              background: 'linear-gradient(135deg,var(--amber),var(--green))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(34,197,94,0.25)'
-            }}>🎓</div>
+            <div style={{ width: 64, height: 64, borderRadius: 14, background: "linear-gradient(135deg,var(--amber),var(--green))", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(34,197,94,0.25)", overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 36, fontWeight: 700, color: 'white' }}>EduNexus</div>
+              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 36, fontWeight: 700, color: 'white' }}>ZekoulABia</div>
               <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>{t('login.tagline')}</div>
             </div>
             <LanguageSwitch style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }} />
@@ -342,7 +337,7 @@ export default function LoginPage() {
                 </div>
                 <div style={{ background: 'var(--surface)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10, padding: '14px 18px', marginBottom: 20, fontSize: 14, color: 'var(--text2)', lineHeight: 1.6 }}>
                   {t('login.suspended_support')}{' '}
-                  <a href="mailto:support@edunexus.cm" style={{ color: 'var(--green)', fontWeight: 700 }}>support@edunexus.cm</a>
+                  <a href="mailto:support@zekoulabia.cm" style={{ color: 'var(--green)', fontWeight: 700 }}>support@zekoulabia.cm</a>
                 </div>
                 <button
                   onClick={() => setSuspended(null)}

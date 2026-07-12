@@ -48,19 +48,19 @@ export class ApprouverEcoleUseCase {
           subject: '✅ Votre école est approuvée — Finalisez la configuration',
           congrats: 'Félicitations !',
           approved: `La demande d'inscription de <strong>${school.name}</strong> a été <strong style="color:#059669;">approuvée</strong>.`,
-          login: 'Connectez-vous pour configurer votre espace et finaliser la mise en place de votre établissement sur EduNexus.',
+          login: 'Connectez-vous pour configurer votre espace et finaliser la mise en place de votre établissement sur ZekoulABia.',
           cta: '⚙️ Configurer mon espace',
           direct: 'Lien direct',
-          footer: 'EduNexus · Plateforme de gestion scolaire · Cameroun',
+          footer: 'ZekoulABia · Plateforme de gestion scolaire · Cameroun',
         }
       : {
           subject: '✅ Your school is approved — Complete the setup',
           congrats: 'Congratulations!',
           approved: `The registration request for <strong>${school.name}</strong> has been <strong style="color:#059669;">approved</strong>.`,
-          login: 'Log in to configure your workspace and complete your school setup on EduNexus.',
+          login: 'Log in to configure your workspace and complete your school setup on ZekoulABia.',
           cta: '⚙️ Configure my workspace',
           direct: 'Direct link',
-          footer: 'EduNexus · School management platform · Cameroon',
+          footer: 'ZekoulABia · School management platform · Cameroon',
         };
 
     const admins = await this.userRepository.findByRole(school.id, 'ADMIN');
@@ -72,7 +72,7 @@ export class ApprouverEcoleUseCase {
           contenuHtml: `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
               <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-                <h1 style="color:white;margin:0;font-size:24px;">🎓 EduNexus</h1>
+                <h1 style="color:white;margin:0;font-size:24px;">🎓 ZekoulABia</h1>
               </div>
               <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
                 <h2 style="color:#1a1209;margin-top:0;">${A.congrats}</h2>

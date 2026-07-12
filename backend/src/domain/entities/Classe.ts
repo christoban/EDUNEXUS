@@ -1,6 +1,6 @@
 /**
  * DOMAIN LAYER — Entité Classe
- * Représente une classe dans un établissement scolaire EduNexus.
+ * Représente une classe dans un établissement scolaire ZekoulABia.
  */
 import type { SectionLanguage } from '@domain/types/enums';
 

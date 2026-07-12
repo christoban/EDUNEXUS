@@ -22,7 +22,7 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
     return {
       schoolId,
 
-      schoolName: school?.name ?? 'EduNexus',
+      schoolName: school?.name ?? 'ZekoulABia',
       schoolLogoUrl: school?.logoUrl ?? undefined,
 
       timezone: settings?.timezone ?? MINESEC_DEFAULTS.TIMEZONE,

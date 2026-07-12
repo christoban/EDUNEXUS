@@ -46,6 +46,8 @@ export default function SectionParentPayments({ onToast }: Props) {
   const [childFilter, setChildFilter] = useState('')
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState<string | null>(null)
+  const [minesecConcerned, setMinesecConcerned] = useState(false)
+  const [guideOpen, setGuideOpen]   = useState(false)
 
   // ── Modal paiement ──────────────────────────────────────────────────────────
   const [modal, setModal] = useState<{
@@ -77,6 +79,15 @@ export default function SectionParentPayments({ onToast }: Props) {
 
   useEffect(() => { fetchChildren() }, [fetchChildren])
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetchApi('/api/v2/school/me', { credentials: 'include' })
+        const d = await res.json()
+        setMinesecConcerned(Boolean(d?.data?.minesecSchoolCode))
+      } catch { /* silencieux */ }
+    })()
+  }, [])
 
   const openModal = (inv: Invoice) => {
     const paidAmt = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
@@ -130,6 +141,54 @@ export default function SectionParentPayments({ onToast }: Props) {
           </select>
         )}
       </div>
+
+      {/* Guide MINESEC — uniquement si l'école utilise le système national cartescolaire.cm */}
+      {minesecConcerned && (
+        <div style={{ background: 'var(--blue-light)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 14, padding: '16px 22px', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 22 }}>📘</span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--blue)' }}>{t('minesecGuide.title')}</div>
+                <div style={{ fontSize: 14, color: 'var(--blue)', marginTop: 2 }}>{t('minesecGuide.intro')}</div>
+              </div>
+            </div>
+            <button onClick={() => setGuideOpen(o => !o)}
+              style={{ padding: '7px 16px', borderRadius: 9, fontSize: 13, fontWeight: 700, background: 'var(--surface)', color: 'var(--blue)', border: '1.5px solid var(--blue)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              {guideOpen ? t('minesecGuide.hide') : t('minesecGuide.show')}
+            </button>
+          </div>
+
+          {guideOpen && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(37,99,235,0.2)' }}>
+              <ol style={{ margin: 0, paddingLeft: 20, color: 'var(--text2)', fontSize: 14, lineHeight: 1.7 }}>
+                <li>{t('minesecGuide.step1')}</li>
+                <li>{t('minesecGuide.step2')}</li>
+                <li>{t('minesecGuide.step3')}</li>
+                <li>{t('minesecGuide.step4')}</li>
+              </ol>
+
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginTop: 14, marginBottom: 6 }}>{t('minesecGuide.operatorsTitle')}</div>
+              <div style={{ fontSize: 14, color: 'var(--text2)' }}>{t('minesecGuide.operatorsList')}</div>
+
+              <div style={{ fontSize: 14, color: 'var(--text2)', marginTop: 12, fontStyle: 'italic' }}>{t('minesecGuide.receiptNote')}</div>
+
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8 }}>{t('minesecGuide.examNote')}</div>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                <a href="https://cartescolaire.cm/pay-fees" target="_blank" rel="noopener noreferrer"
+                  style={{ padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 700, background: 'var(--blue)', color: 'white', textDecoration: 'none' }}>
+                  {t('minesecGuide.payLink')}
+                </a>
+                <a href="https://cartescolaire.cm/verify-payment" target="_blank" rel="noopener noreferrer"
+                  style={{ padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 700, background: 'var(--surface)', color: 'var(--blue)', border: '1.5px solid var(--blue)', textDecoration: 'none' }}>
+                  {t('minesecGuide.verifyLink')}
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Alerte si factures impayées */}
       {unpaid.length > 0 && (

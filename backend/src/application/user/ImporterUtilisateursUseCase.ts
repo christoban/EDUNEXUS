@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import { parseDateFR } from '../../utils/dateParsing';
 export interface ImportRow {
   ligne: number
   nom: string
@@ -10,6 +11,7 @@ export interface ImportRow {
   telephone?: string
   matricule?: string
   dateNaissance?: string
+  sexe?: string
   classe?: string
   nomParent?: string
   prenomParent?: string
@@ -76,7 +78,7 @@ export class ImporterUtilisateursUseCase {
       where: { id: schoolId },
       select: { name: true, subdomain: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true },
     })
-    const schoolName = school?.name ?? 'EduNexus'
+    const schoolName = school?.name ?? 'ZekoulABia'
 
     // Cache classes : 1 requête pour toutes au lieu de 1 par ligne
     const allClasses = await this.prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true } })
@@ -134,6 +136,8 @@ export class ImporterUtilisateursUseCase {
       dateOfBirth = this.parserDate(row.dateNaissance.trim())
     }
 
+    const gender = this.parserSexe(row.sexe)
+
     let parentUserId: string | undefined
     if (row.emailParent?.trim()) {
       const parentEmail = row.emailParent.trim().toLowerCase()
@@ -172,6 +176,7 @@ export class ImporterUtilisateursUseCase {
       passwordHash,
       classeId,
       dateOfBirth,
+      gender,
       parentOfStudentIds: parentUserId ? [parentUserId] : [],
     })
 
@@ -342,18 +347,20 @@ export class ImporterUtilisateursUseCase {
     return { ppAssigned, ppError, affectationsCreees }
   }
 
+  // Normalise les variantes courantes (FR/EN) vers 'M' ou 'F', cohérent avec le reste
+  // du backend (voir schoolDocuments/index.ts : gender === 'F' || gender === 'FEMALE').
+  private parserSexe(sexe?: string): string | undefined {
+    const v = sexe?.trim().toUpperCase()
+    if (!v) return undefined
+    if (['F', 'FEMALE', 'FEMININ', 'FÉMININ', 'FEMME', 'FILLE'].includes(v)) return 'F'
+    if (['M', 'MALE', 'MASCULIN', 'HOMME', 'GARCON', 'GARÇON'].includes(v)) return 'M'
+    throw new Error(`Valeur sexe invalide : "${sexe}" (attendu M ou F)`)
+  }
+
   private parserDate(dateStr: string): Date {
-    const parts = dateStr.split('/')
-    if (parts.length !== 3) throw new Error(`Format de date invalide : "${dateStr}" (attendu JJ/MM/AAAA)`)
-    const day = parseInt(parts[0], 10)
-    const month = parseInt(parts[1], 10) - 1
-    const year = parseInt(parts[2], 10)
-    if (isNaN(day) || isNaN(month) || isNaN(year)) {
-      throw new Error(`Date invalide : "${dateStr}"`)
-    }
-    const d = new Date(year, month, day)
-    if (d.getDate() !== day || d.getMonth() !== month || d.getFullYear() !== year) {
-      throw new Error(`Date invalide : "${dateStr}"`)
+    const d = parseDateFR(dateStr)
+    if (!d) {
+      throw new Error(`Date invalide : "${dateStr}" (attendu JJ/MM/AAAA ou AAAA-MM-JJ)`)
     }
     return d
   }
@@ -398,16 +405,16 @@ export class ImporterUtilisateursUseCase {
       const { sendTransactionalEmail } = await import('../../services/emailService')
       await sendTransactionalEmail({
         recipientEmail: email,
-        subject: `EduNexus — Créez votre mot de passe · ${schoolName}`,
+        subject: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
             <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-              <h1 style="color:white;margin:0;font-size:20px;">🎓 EduNexus</h1>
+              <h1 style="color:white;margin:0;font-size:20px;">🎓 ZekoulABia</h1>
             </div>
             <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
               <h2 style="color:#1a1209;margin-top:0;">Bonjour ${prenom} ${nom},</h2>
               <p style="color:#6b5c45;font-size:15px;line-height:1.6;">
-                Vous avez été ajouté(e) sur <strong>EduNexus — ${schoolName}</strong>.
+                Vous avez été ajouté(e) sur <strong>ZekoulABia — ${schoolName}</strong>.
                 Cliquez ci-dessous pour créer votre mot de passe et accéder à votre espace.
               </p>
               <div style="text-align:center;margin:28px 0 16px;">
@@ -418,7 +425,7 @@ export class ImporterUtilisateursUseCase {
               <p style="color:#a89478;font-size:13px;text-align:center;">Ce lien expire dans 7 jours.</p>
               <hr style="border:none;border-top:1px solid #e8e0d4;margin:20px 0;" />
               <p style="color:#a89478;font-size:12px;margin:0;text-align:center;">
-                EduNexus · Plateforme de gestion scolaire · Cameroun
+                ZekoulABia · Plateforme de gestion scolaire · Cameroun
               </p>
             </div>
           </div>

@@ -79,6 +79,22 @@
     "libelle": "Libellé",
     "remaining": "Reste dû"
   },
+  "minesecGuide": {
+    "title": "Guide de paiement MINESEC (cartescolaire.cm)",
+    "intro": "Votre établissement utilise le système national du matricule unique. Voici comment payer les frais officiels.",
+    "show": "Voir le guide",
+    "hide": "Masquer le guide",
+    "step1": "Récupérez le matricule national de votre enfant sur cartescolaire.cm (nom + établissement), s'il ne le connaît pas déjà.",
+    "step2": "Rechargez votre compte Mobile Money, puis composez le code USSD de l'opérateur choisi (ci-dessous) et suivez les instructions.",
+    "step3": "Saisissez le matricule de l'enfant quand demandé, et vérifiez que son nom s'affiche correctement avant de valider le paiement.",
+    "step4": "Attendez 48h, puis téléchargez le reçu officiel directement sur cartescolaire.cm — c'est le seul reçu valable, à conserver.",
+    "operatorsTitle": "Opérateurs agréés par le MINESEC",
+    "operatorsList": "MTN MoMo (*126*007#) · Orange Money (#150*41#) · CAMPOST Money · Express Union (#237*333#) · Afriland First Bank",
+    "receiptNote": "Seuls les reçus téléchargés depuis cartescolaire.cm sont valables — même après paiement chez l'opérateur, attendez 48h avant de le télécharger.",
+    "examNote": "Ce système couvre aussi les frais d'examens officiels (BEPC, Probatoire, BAC, GCE...) et le concours d'entrée en 6ème — même matricule, même démarche.",
+    "payLink": "💳 Payer sur cartescolaire.cm",
+    "verifyLink": "🔍 Vérifier un paiement"
+  },
   "timetable": {
     "title": "Emploi du temps",
     "schedule": "Horaire",

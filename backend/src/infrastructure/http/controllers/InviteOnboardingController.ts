@@ -107,7 +107,7 @@ export class InviteOnboardingController {
         return;
       }
       if (invite.status === 'EXPIRED' || invite.expiresAt < new Date()) {
-        res.status(410).json({ success: false, message: 'Cette invitation a expiré. Contactez EduNexus pour en obtenir une nouvelle.' });
+        res.status(410).json({ success: false, message: 'Cette invitation a expiré. Contactez ZekoulABia pour en obtenir une nouvelle.' });
         return;
       }
 
@@ -229,12 +229,12 @@ export class InviteOnboardingController {
       // Email de confirmation à l'administrateur de l'école
       sendTransactionalEmail({
         recipientEmail: String(adminEmail),
-        subject: 'EduNexus — Demande reçue, en attente d\'approbation',
+        subject: 'ZekoulABia — Demande reçue, en attente d\'approbation',
         html: `
           <p>Bonjour ${String(adminPrenom).trim()},</p>
           <p>Votre inscription pour l'établissement <strong>${String(nom).trim()}</strong> a bien été enregistrée.</p>
           <p>Notre équipe va examiner votre dossier sous <strong>24 à 48 heures</strong>. Vous recevrez un email dès validation.</p>
-          <p style="color:#888;font-size:13px">EduNexus — Plateforme de gestion scolaire · Cameroun</p>
+          <p style="color:#888;font-size:13px">ZekoulABia — Plateforme de gestion scolaire · Cameroun</p>
         `,
         template: 'school_invite',
         eventType: 'school_invite',
@@ -247,11 +247,11 @@ export class InviteOnboardingController {
 
       sendTransactionalEmail({
         recipientEmail: superAdminEmail,
-        subject: `🏫 Nouvelle demande EduNexus — ${String(nom).trim()}`,
+        subject: `🏫 Nouvelle demande ZekoulABia — ${String(nom).trim()}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;">
             <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-              <h1 style="color:white;margin:0;font-size:22px;">🎓 EduNexus — Nouvelle demande d'inscription</h1>
+              <h1 style="color:white;margin:0;font-size:22px;">🎓 ZekoulABia — Nouvelle demande d'inscription</h1>
             </div>
             <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
               <p style="color:#1a1209;font-size:16px;margin-top:0;">
@@ -311,7 +311,7 @@ export class InviteOnboardingController {
               </p>
               <hr style="border:none;border-top:1px solid #e8e0d4;margin:24px 0;" />
               <p style="color:#a89478;font-size:12px;text-align:center;margin:0;">
-                EduNexus · Plateforme de gestion scolaire · Cameroun
+                ZekoulABia · Plateforme de gestion scolaire · Cameroun
               </p>
             </div>
           </div>

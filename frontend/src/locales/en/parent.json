@@ -79,6 +79,22 @@
     "libelle": "Label",
     "remaining": "Remaining"
   },
+  "minesecGuide": {
+    "title": "MINESEC payment guide (cartescolaire.cm)",
+    "intro": "Your school uses the national unique-matricule system. Here's how to pay official fees.",
+    "show": "Show guide",
+    "hide": "Hide guide",
+    "step1": "Get your child's national matricule on cartescolaire.cm (name + school), if not already known.",
+    "step2": "Top up your Mobile Money account, then dial the USSD code of your chosen operator (below) and follow the prompts.",
+    "step3": "Enter the child's matricule when asked, and check that their name displays correctly before confirming payment.",
+    "step4": "Wait 48h, then download the official receipt directly from cartescolaire.cm — it's the only valid receipt, keep it.",
+    "operatorsTitle": "Operators authorized by MINESEC",
+    "operatorsList": "MTN MoMo (*126*007#) · Orange Money (#150*41#) · CAMPOST Money · Express Union (#237*333#) · Afriland First Bank",
+    "receiptNote": "Only receipts downloaded from cartescolaire.cm are valid — even after paying with the operator, wait 48h before downloading it.",
+    "examNote": "This system also covers official exam fees (BEPC, Probatoire, BAC, GCE...) and the entrance exam to 6ème — same matricule, same process.",
+    "payLink": "💳 Pay on cartescolaire.cm",
+    "verifyLink": "🔍 Verify a payment"
+  },
   "timetable": {
     "title": "Timetable",
     "schedule": "Schedule",

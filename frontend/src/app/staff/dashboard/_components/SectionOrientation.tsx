@@ -208,7 +208,7 @@ export default function SectionOrientation({ onToast }: Props) {
   const [canEditEnt, setCanEditEnt] = useState(false)
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('edunexus_user')
+      const raw = localStorage.getItem('zekoulabia_user')
       if (raw) {
         const u = JSON.parse(raw)
         setCanEditEnt(u.role === 'ADMIN' || (u.permissions ?? []).includes('MANAGE_ORIENTATION'))

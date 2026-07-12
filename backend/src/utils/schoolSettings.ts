@@ -1,7 +1,7 @@
 import { prisma } from "../config/prisma.ts";
 
 export const DEFAULT_SCHOOL_SETTINGS = {
-  schoolName: "EDUNEXUS Education",
+  schoolName: "ZEKOULABIA Education",
   schoolMotto: "Excellence in Education & Innovation",
   schoolLogoUrl: "",
   academicCalendarType: "trimester" as "trimester" | "semester",

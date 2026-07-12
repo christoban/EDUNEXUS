@@ -31,6 +31,8 @@ export interface ModifierUtilisateurCommande {
 
   // STUDENT : sync classe
   classeId?: string;
+  dateOfBirth?: Date;
+  gender?: string;
 }
 
 export class ModifierUtilisateurUseCase {
@@ -75,6 +77,8 @@ export class ModifierUtilisateurUseCase {
       passwordHash: estAdmin ? commande.passwordHash : undefined,
       subjectIds: commande.subjectIds,
       classeId: commande.classeId,
+      dateOfBirth: commande.dateOfBirth,
+      gender: commande.gender,
     });
   }
 }

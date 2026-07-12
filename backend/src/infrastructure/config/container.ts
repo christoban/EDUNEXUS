@@ -1,5 +1,5 @@
 /**
- * INFRASTRUCTURE LAYER — Container d'injection de dépendances EduNexus
+ * INFRASTRUCTURE LAYER — Container d'injection de dépendances ZekoulABia
  *
  * Ce fichier branche les implémentations concrètes sur les interfaces (ports).
  * C'est le seul endroit où Prisma, SendGrid, Campay etc. sont instanciés.
@@ -43,6 +43,49 @@ import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletin
 
 // --- Use Cases : Conseil de Classe ---
 import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
+
+// --- Use Cases : Matricule ---
+import { ImporterMatriculesUseCase } from '@application/matricule/ImporterMatriculesUseCase';
+import { VerifierMatriculeUseCase } from '@application/matricule/VerifierMatriculeUseCase';
+import { SyncFromCarteScolaireUseCase } from '@application/matricule/SyncFromCarteScolaireUseCase';
+import { VerifierRecuUseCase } from '@application/matricule/VerifierRecuUseCase';
+import { ConfirmerCorrespondanceFuzzyUseCase } from '@application/matricule/ConfirmerCorrespondanceFuzzyUseCase';
+import { SignalerErreurCarteScolaireUseCase } from '@application/matricule/SignalerErreurCarteScolaireUseCase';
+import { CarteScolaireScrapingAdapter } from '@infrastructure/services/CarteScolaireScrapingAdapter';
+
+// --- Use Cases : Paiement MINESEC ---
+import { GenererPaiementsMinesecUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecUseCase';
+import { GenererPaiementsMinesecPourEcoleUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecPourEcoleUseCase';
+import { GetStudentPaymentDashboardUseCase } from '@application/paiementMinesec/GetStudentPaymentDashboardUseCase';
+import { GetSchoolPaymentOverviewUseCase } from '@application/paiementMinesec/GetSchoolPaymentOverviewUseCase';
+
+// --- Use Cases : Examen ---
+import { PrepareExamDossierUseCase } from '@application/examen/PrepareExamDossierUseCase';
+
+// --- Use Cases : LV2 Choice ---
+import { OuvrirFenetreChoixLV2UseCase } from '@application/lv2Choice/OuvrirFenetreChoixLV2UseCase';
+import { SoumettreChoixLV2EleveUseCase } from '@application/lv2Choice/SoumettreChoixLV2EleveUseCase';
+import { SaisirChoixLV2ManuelUseCase } from '@application/lv2Choice/SaisirChoixLV2ManuelUseCase';
+import { AppliquerChoixLV2UseCase } from '@application/lv2Choice/AppliquerChoixLV2UseCase';
+import { SuivreFenetreChoixLV2UseCase } from '@application/lv2Choice/SuivreFenetreChoixLV2UseCase';
+
+// --- Use Cases : Entrance Exam ---
+import { CreerSessionConcoursUseCase } from '@application/entranceExam/CreerSessionConcoursUseCase';
+import { AjouterCandidatsConcoursUseCase } from '@application/entranceExam/AjouterCandidatsConcoursUseCase';
+import { CalculerAdmissionConcoursUseCase } from '@application/entranceExam/CalculerAdmissionConcoursUseCase';
+import { EnregistrerResultatCepUseCase } from '@application/entranceExam/EnregistrerResultatCepUseCase';
+import { ResumeSessionConcoursUseCase } from '@application/entranceExam/ResumeSessionConcoursUseCase';
+import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerListeCandidatsUseCase';
+import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
+
+// --- Use Cases : PEBS Exam ---
+import { CreerSessionPebsUseCase } from '@application/pebsExam/CreerSessionPebsUseCase';
+import { AjouterCandidatsPebsUseCase } from '@application/pebsExam/AjouterCandidatsPebsUseCase';
+import { CalculerSelectionPebsUseCase } from '@application/pebsExam/CalculerSelectionPebsUseCase';
+import { AppliquerTransfertPebsUseCase } from '@application/pebsExam/AppliquerTransfertPebsUseCase';
+import { ResumeSessionPebsUseCase } from '@application/pebsExam/ResumeSessionPebsUseCase';
+import { ScannerListeCandidatsPebsUseCase } from '@application/pebsExam/ScannerListeCandidatsPebsUseCase';
+import { DetecterAnomaliesPebsUseCase } from '@application/pebsExam/DetecterAnomaliesPebsUseCase';
 
 // --- Adapters Services ---
 import { NodemailerEmailService } from '@infrastructure/services/NodemailerEmailService';
@@ -351,6 +394,7 @@ export function creerContainer() {
   const reactiverEcoleUseCase = new ReactiverEcoleUseCase(schoolRepository);
   const rejeterEcoleUseCase = new RejeterEcoleUseCase(schoolRepository, userRepository, emailService);
   const changerPlanUseCase = new ChangerPlanAbonnementUseCase(schoolRepository);
+  const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(prisma);
 
   return {
     grade: {
@@ -453,6 +497,48 @@ export function creerContainer() {
       listerFiches: listerFichesOrientationUseCase,
       getStats: getStatsOrientationUseCase,
       repo: orientationRepository,
+    },
+    matricule: {
+      importerMatricules: new ImporterMatriculesUseCase(prisma),
+      verifierMatricule: new VerifierMatriculeUseCase(prisma, new CarteScolaireScrapingAdapter()),
+      syncFromCarteScolaire: new SyncFromCarteScolaireUseCase(prisma, new CarteScolaireScrapingAdapter()),
+      verifierRecu: new VerifierRecuUseCase(prisma, new CarteScolaireScrapingAdapter()),
+      confirmerFuzzy: new ConfirmerCorrespondanceFuzzyUseCase(prisma),
+      signalerErreur: new SignalerErreurCarteScolaireUseCase(prisma),
+    },
+    paiementMinesec: {
+      genererPaiements: genererPaiementsMinesec,
+      genererPaiementsEcole: new GenererPaiementsMinesecPourEcoleUseCase(prisma, genererPaiementsMinesec),
+      getDashboard: new GetStudentPaymentDashboardUseCase(prisma),
+      getOverview: new GetSchoolPaymentOverviewUseCase(prisma),
+    },
+    examen: {
+      prepareDossier: new PrepareExamDossierUseCase(prisma),
+    },
+    lv2Choice: {
+      ouvrirFenetre: new OuvrirFenetreChoixLV2UseCase(prisma),
+      soumettreChoix: new SoumettreChoixLV2EleveUseCase(prisma),
+      saisirManuel: new SaisirChoixLV2ManuelUseCase(prisma),
+      appliquerChoix: new AppliquerChoixLV2UseCase(prisma),
+      suivreFenetre: new SuivreFenetreChoixLV2UseCase(prisma),
+    },
+    entranceExam: {
+      creerSession: new CreerSessionConcoursUseCase(prisma),
+      ajouterCandidats: new AjouterCandidatsConcoursUseCase(prisma),
+      calculerAdmission: new CalculerAdmissionConcoursUseCase(prisma),
+      enregistrerCep: new EnregistrerResultatCepUseCase(prisma),
+      resumeSession: new ResumeSessionConcoursUseCase(prisma),
+      scannerListe: new ScannerListeCandidatsUseCase(prisma),
+      detecterAnomalies: new DetecterAnomaliesConcoursUseCase(prisma),
+    },
+    pebsExam: {
+      creerSession: new CreerSessionPebsUseCase(prisma),
+      ajouterCandidats: new AjouterCandidatsPebsUseCase(prisma),
+      calculerSelection: new CalculerSelectionPebsUseCase(prisma),
+      appliquerTransfert: new AppliquerTransfertPebsUseCase(prisma),
+      resumeSession: new ResumeSessionPebsUseCase(prisma),
+      scannerListe: new ScannerListeCandidatsPebsUseCase(prisma),
+      detecterAnomalies: new DetecterAnomaliesPebsUseCase(prisma),
     },
   };
 }

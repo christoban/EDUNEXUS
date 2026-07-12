@@ -53,7 +53,7 @@ async function buildRecuPdf(payment: {
 
     const fmt = (v: number) => new Intl.NumberFormat('fr-FR').format(v) + ' XAF';
 
-    const schoolName = payment.school?.name ?? 'EDUNEXUS';
+    const schoolName = payment.school?.name ?? 'ZEKOULABIA';
     const studentName = `${payment.student?.firstName ?? ''} ${payment.student?.lastName ?? ''}`.trim();
     const matricule = payment.student?.studentProfile?.matricule ?? '-';
     const className = payment.student?.studentProfile?.class?.name ?? '-';
@@ -164,7 +164,7 @@ async function envoyerRecuParEmail(paymentId: string): Promise<void> {
     const year = new Date(payment.paidAt ?? payment.createdAt).getFullYear();
     const receiptNum = `REC-${year}-${shortId}`;
     const amountStr = new Intl.NumberFormat('fr-FR').format(payment.amount);
-    const schoolName = payment.school?.name ?? 'EduNexus';
+    const schoolName = payment.school?.name ?? 'ZekoulABia';
 
     await sendTransactionalEmail({
       recipientEmail: payment.student.email,

@@ -281,11 +281,9 @@ export default function ConfigurationPage() {
 
       {/* Brand header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,var(--sidebar),var(--green))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-          🎓
-        </div>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,var(--sidebar),var(--green))", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
         <div>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>EduNexus</div>
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>ZekoulABia</div>
           <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>Configuration de votre espace</div>
         </div>
         {/* Langue de l'onboarding : FR par défaut, un anglophone bascule en EN ici (mémorisé) */}
@@ -309,7 +307,7 @@ export default function ConfigurationPage() {
       />
 
       <div style={{ marginTop: 28, fontSize: 13, color: 'var(--text3)', textAlign: 'center' }}>
-        EduNexus · Plateforme de gestion scolaire · Cameroun
+        ZekoulABia · Plateforme de gestion scolaire · Cameroun
       </div>
     </div>
   )

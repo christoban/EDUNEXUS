@@ -63,7 +63,7 @@ export class PublicController {
                     style="background-color:#1a2e1e;padding:22px 20px;border-radius:12px 12px 0 0;">
                     <p style="color:white;margin:0;font-size:20px;font-weight:bold;
                       font-family:Arial,sans-serif;">
-                      🎓 EduNexus — Nouvelle demande de démo
+                      🎓 ZekoulABia — Nouvelle demande de démo
                     </p>
                   </td>
                 </tr>
@@ -155,7 +155,7 @@ export class PublicController {
                     <hr style="border:none;border-top:1px solid #e8e0d4;margin:18px 0;" />
                     <p style="color:#a89478;font-size:11px;text-align:center;margin:0;
                       font-family:Arial,sans-serif;">
-                      EduNexus · Plateforme de gestion scolaire · Cameroun
+                      ZekoulABia · Plateforme de gestion scolaire · Cameroun
                     </p>
 
                   </td>

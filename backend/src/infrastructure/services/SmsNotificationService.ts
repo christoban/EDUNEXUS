@@ -9,7 +9,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
 import { sendSMS, isSmsConfigured } from '../../services/smsService'
 import { resolveLanguage, type Language } from '../../utils/languageHelper'
 
-type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE'
+type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2'
 
 const DISCIPLINE_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
   WARNING_ORAL:        { fr: 'Avertissement oral',                 en: 'Verbal warning' },
@@ -23,28 +23,56 @@ const DISCIPLINE_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
 // La langue est résolue par resolveSmsLanguage() (sous-système + section si bilingue).
 const smsTemplates = {
   absence: {
-    fr: (name: string, date: string, subjectPart: string) => `EduNexus: ${name} a été marqué(e) absent(e) le ${date}${subjectPart}.`,
-    en: (name: string, date: string, subjectPart: string) => `EduNexus: ${name} was marked absent on ${date}${subjectPart}.`,
+    fr: (name: string, date: string, subjectPart: string) => `ZekoulABia: ${name} a été marqué(e) absent(e) le ${date}${subjectPart}.`,
+    en: (name: string, date: string, subjectPart: string) => `ZekoulABia: ${name} was marked absent on ${date}${subjectPart}.`,
   },
   payment: {
-    fr: (name: string, amount: string) => `EduNexus: Paiement de ${amount} XAF reçu pour ${name}. Merci !`,
-    en: (name: string, amount: string) => `EduNexus: Payment of ${amount} XAF received for ${name}. Thank you!`,
+    fr: (name: string, amount: string) => `ZekoulABia: Paiement de ${amount} XAF reçu pour ${name}. Merci !`,
+    en: (name: string, amount: string) => `ZekoulABia: Payment of ${amount} XAF received for ${name}. Thank you!`,
   },
   overdue: {
-    fr: (name: string, label: string, amount: string, days: number) => `EduNexus: RAPPEL — Facture "${label}" de ${amount} XAF pour ${name} est en retard de ${days} jour(s). Veuillez régulariser.`,
-    en: (name: string, label: string, amount: string, days: number) => `EduNexus: REMINDER — Invoice "${label}" of ${amount} XAF for ${name} is ${days} day(s) overdue. Please settle it.`,
+    fr: (name: string, label: string, amount: string, days: number) => `ZekoulABia: RAPPEL — Facture "${label}" de ${amount} XAF pour ${name} est en retard de ${days} jour(s). Veuillez régulariser.`,
+    en: (name: string, label: string, amount: string, days: number) => `ZekoulABia: REMINDER — Invoice "${label}" of ${amount} XAF for ${name} is ${days} day(s) overdue. Please settle it.`,
   },
   discipline: {
-    fr: (name: string, typeLabel: string, reason: string) => `EduNexus: ${name} a fait l'objet d'une sanction (${typeLabel}). Motif : ${reason}. Contactez l'établissement pour plus d'informations.`,
-    en: (name: string, typeLabel: string, reason: string) => `EduNexus: ${name} received a disciplinary sanction (${typeLabel}). Reason: ${reason}. Please contact the school for more information.`,
+    fr: (name: string, typeLabel: string, reason: string) => `ZekoulABia: ${name} a fait l'objet d'une sanction (${typeLabel}). Motif : ${reason}. Contactez l'établissement pour plus d'informations.`,
+    en: (name: string, typeLabel: string, reason: string) => `ZekoulABia: ${name} received a disciplinary sanction (${typeLabel}). Reason: ${reason}. Please contact the school for more information.`,
   },
   absenceThreshold: {
-    fr: (name: string, count: number, threshold: number) => `EduNexus: ALERTE — ${name} cumule ${count} absences non justifiées (seuil : ${threshold}). Merci de contacter l'établissement.`,
-    en: (name: string, count: number, threshold: number) => `EduNexus: ALERT — ${name} has ${count} unexcused absences (threshold: ${threshold}). Please contact the school.`,
+    fr: (name: string, count: number, threshold: number) => `ZekoulABia: ALERTE — ${name} cumule ${count} absences non justifiées (seuil : ${threshold}). Merci de contacter l'établissement.`,
+    en: (name: string, count: number, threshold: number) => `ZekoulABia: ALERT — ${name} has ${count} unexcused absences (threshold: ${threshold}). Please contact the school.`,
   },
   bulletin: {
-    fr: (name: string, period: string) => `EduNexus: Le bulletin de ${name} (${period}) est disponible. Connectez-vous pour le consulter.`,
-    en: (name: string, period: string) => `EduNexus: ${name}'s report card (${period}) is available. Log in to view it.`,
+    fr: (name: string, period: string) => `ZekoulABia: Le bulletin de ${name} (${period}) est disponible. Connectez-vous pour le consulter.`,
+    en: (name: string, period: string) => `ZekoulABia: ${name}'s report card (${period}) is available. Log in to view it.`,
+  },
+  admissionProvisoire: {
+    fr: (name: string) => `ZekoulABia: ${name} est admis(e) provisoirement au concours d'entrée. L'admission sera confirmée après résultat du CEP.`,
+    en: (name: string) => `ZekoulABia: ${name} has been provisionally admitted to the entrance exam. Admission will be confirmed after the CEP result.`,
+  },
+  cepConfirme: {
+    fr: (name: string) => `ZekoulABia: Félicitations ! ${name} a réussi le CEP, son admission en 6e est confirmée.`,
+    en: (name: string) => `ZekoulABia: Congratulations! ${name} passed the CEP, admission into Form 1 is confirmed.`,
+  },
+  cepAnnule: {
+    fr: (name: string) => `ZekoulABia: ${name} n'a pas obtenu le CEP. L'admission en 6e ne peut malheureusement pas être maintenue. Contactez l'établissement pour plus d'informations.`,
+    en: (name: string) => `ZekoulABia: ${name} did not pass the CEP. Admission into Form 1 unfortunately cannot be maintained. Please contact the school for more information.`,
+  },
+  pebsSelectionne: {
+    fr: (name: string) => `ZekoulABia: ${name} a été sélectionné(e) pour le Programme Spécial Bilingue (PEBS) et a été transféré(e) dans la classe correspondante.`,
+    en: (name: string) => `ZekoulABia: ${name} has been selected for the Special Bilingual Programme (PEBS) and has been transferred to the corresponding class.`,
+  },
+  pebsNonSelectionne: {
+    fr: (name: string) => `ZekoulABia: ${name} n'a pas été sélectionné(e) pour le Programme Spécial Bilingue (PEBS) cette année.`,
+    en: (name: string) => `ZekoulABia: ${name} was not selected for the Special Bilingual Programme (PEBS) this year.`,
+  },
+  lv2WindowOpen: {
+    fr: (name: string, level: string, closeDate: string) => `ZekoulABia: La période de choix de la LV2 pour ${level} est ouverte jusqu'au ${closeDate}. Merci de faire le choix de ${name} depuis son compte élève.`,
+    en: (name: string, level: string, closeDate: string) => `ZekoulABia: The LV2 choice period for ${level} is open until ${closeDate}. Please submit ${name}'s choice from their student account.`,
+  },
+  minesecOverdue: {
+    fr: (name: string, amount: string, types: string) => `ZekoulABia: RAPPEL — Frais MINESEC (${types}) de ${amount} XAF en retard pour ${name}. Ce paiement se fait exclusivement sur cartescolaire.cm.`,
+    en: (name: string, amount: string, types: string) => `ZekoulABia: REMINDER — MINESEC fees (${types}) of ${amount} XAF overdue for ${name}. This payment is made exclusively on cartescolaire.cm.`,
   },
 }
 
@@ -303,5 +331,121 @@ export async function notifyBulletinSms(opts: {
     await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'BULLETIN')))
   } catch (err) {
     console.error('[SMS Bulletin] Erreur inattendue:', err)
+  }
+}
+
+/**
+ * Résout la langue pour un candidat au concours d'entrée — celui-ci n'a pas encore de
+ * compte élève/classe/section à ce stade, on se limite donc à la langue de base de l'école.
+ */
+async function resolveSchoolBaseLanguage(schoolId: string): Promise<Language> {
+  try {
+    const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { subsystem: true } })
+    return resolveLanguage(school?.subsystem)
+  } catch {
+    return 'fr'
+  }
+}
+
+// ── Module Examens & Affectations (concours d'entrée, sélection PEBS, choix LV2) ──
+
+export async function notifyAdmissionProvisoireSms(opts: {
+  schoolId: string
+  candidateName: string
+  parentPhone: string | null
+}): Promise<void> {
+  try {
+    if (!opts.parentPhone) return
+    const lang = await resolveSchoolBaseLanguage(opts.schoolId)
+    const message = smsTemplates.admissionProvisoire[lang](opts.candidateName)
+    await dispatchSms(opts.schoolId, opts.parentPhone, message, 'ADMISSION')
+  } catch (err) {
+    console.error('[SMS Admission Provisoire] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyCepResultSms(opts: {
+  schoolId: string
+  candidateName: string
+  parentPhone: string | null
+  result: 'REUSSI' | 'ECHOUE'
+}): Promise<void> {
+  try {
+    if (!opts.parentPhone) return
+    const lang = await resolveSchoolBaseLanguage(opts.schoolId)
+    const message = opts.result === 'REUSSI'
+      ? smsTemplates.cepConfirme[lang](opts.candidateName)
+      : smsTemplates.cepAnnule[lang](opts.candidateName)
+    await dispatchSms(opts.schoolId, opts.parentPhone, message, 'ADMISSION')
+  } catch (err) {
+    console.error('[SMS Résultat CEP] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyPebsSelectionSms(opts: {
+  schoolId: string
+  studentUserId: string
+  studentName: string
+  selected: boolean
+}): Promise<void> {
+  try {
+    const phones = await getParentPhones(opts.studentUserId)
+    if (phones.length === 0) return
+
+    const lang = await resolveSmsLanguage(opts.schoolId, opts.studentUserId)
+    const message = opts.selected
+      ? smsTemplates.pebsSelectionne[lang](opts.studentName)
+      : smsTemplates.pebsNonSelectionne[lang](opts.studentName)
+
+    await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'PEBS')))
+  } catch (err) {
+    console.error('[SMS Sélection PEBS] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyMinesecOverdueSms(opts: {
+  schoolId: string
+  studentUserId: string
+  studentName: string
+  amount: number
+  typesFrais: string
+}): Promise<void> {
+  try {
+    const settings = await getNotifSettings(opts.schoolId)
+    if (!settings.smsPayments) return
+
+    const phones = await getParentPhones(opts.studentUserId)
+    if (phones.length === 0) return
+
+    const lang = await resolveSmsLanguage(opts.schoolId, opts.studentUserId)
+    const amountStr = new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US').format(opts.amount)
+    const message = smsTemplates.minesecOverdue[lang](opts.studentName, amountStr, opts.typesFrais)
+
+    await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'PAYMENT')))
+  } catch (err) {
+    console.error('[SMS MINESEC Overdue] Erreur inattendue:', err)
+  }
+}
+
+export async function notifyLv2WindowOpenSms(opts: {
+  schoolId: string
+  studentUserId: string
+  studentName: string
+  level: string
+  closeDate: Date
+}): Promise<void> {
+  try {
+    const phones = await getParentPhones(opts.studentUserId)
+    if (phones.length === 0) return
+
+    const lang = await resolveSmsLanguage(opts.schoolId, opts.studentUserId)
+    const dateStr = opts.closeDate.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+    })
+    const message = smsTemplates.lv2WindowOpen[lang](opts.studentName, opts.level, dateStr)
+
+    await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'LV2')))
+  } catch (err) {
+    console.error('[SMS Fenêtre LV2] Erreur inattendue:', err)
   }
 }

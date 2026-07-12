@@ -16,12 +16,12 @@ export interface CachedData {
   cachedAt: number
 }
 
-class EduNexusDB extends Dexie {
+class ZekoulABiaDB extends Dexie {
   pendingActions!: Table<PendingAction>
   cachedData!: Table<CachedData>
 
   constructor() {
-    super('EduNexusDB')
+    super('ZekoulABiaDB')
     this.version(1).stores({
       pendingActions: '++id, type, status, createdAt',
       cachedData: 'key, cachedAt',
@@ -29,4 +29,4 @@ class EduNexusDB extends Dexie {
   }
 }
 
-export const db = new EduNexusDB()
+export const db = new ZekoulABiaDB()

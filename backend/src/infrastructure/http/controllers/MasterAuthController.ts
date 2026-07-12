@@ -204,7 +204,7 @@ export class MasterAuthController {
 
       await prisma.masterUser.update({ where: { id: masterUser.id }, data: { mfaTempSecret: secret } });
 
-      const otpauthUrl: string = generateURI({ issuer: 'EduNexus Admin', label: masterUser.email, secret });
+      const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia Admin', label: masterUser.email, secret });
       const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
 
       res.json({ success: true, data: { qrDataUri, manualKey: secret, otpauthUrl } });

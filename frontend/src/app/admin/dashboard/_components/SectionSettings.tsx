@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
-interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string }
+interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string; minesecSchoolCode?: string | null }
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
   schoolInfo?: SchoolInfo | null
@@ -49,6 +49,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [schoolCity, setSchoolCity] = useState('')
   const [schoolPhone, setSchoolPhone] = useState('')
   const [schoolEmail, setSchoolEmail] = useState('')
+  const [minesecSchoolCode, setMinesecSchoolCode] = useState('')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoLoading, setLogoLoading] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -232,7 +233,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       const blob = await res.blob()
       const contentDisposition = res.headers.get('content-disposition') || ''
       const match = contentDisposition.match(/filename="?([^";]+)"?/i)
-      const fileName = match?.[1] ?? 'edunexus-rgpd.json'
+      const fileName = match?.[1] ?? 'zekoulabia-rgpd.json'
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -256,6 +257,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
     setSchoolCity(schoolInfo.city || '')
     setSchoolPhone(schoolInfo.phone || '')
     setSchoolEmail(schoolInfo.email || '')
+    setMinesecSchoolCode(schoolInfo.minesecSchoolCode || '')
     setLogoPreview(schoolInfo.logoUrl || null)
     setSubdomainInput(schoolInfo.subdomain || '')
   }, [schoolInfo])
@@ -531,11 +533,19 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                   onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
               </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={fieldLabel}>{t('settings.profile.minesec_code_label')}</div>
+                <input value={minesecSchoolCode} onChange={e => setMinesecSchoolCode(e.target.value)} style={fieldInput}
+                  placeholder={t('settings.profile.minesec_code_placeholder')}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>{t('settings.profile.minesec_code_hint')}</div>
+              </div>
             </div>
             <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
               <button style={btnPrim} onClick={async () => {
                 try {
-                  const res = await fetchApi('/api/v2/school/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: schoolName, city: schoolCity, phone: schoolPhone, email: schoolEmail }) })
+                  const res = await fetchApi('/api/v2/school/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: schoolName, city: schoolCity, phone: schoolPhone, email: schoolEmail, minesecSchoolCode }) })
                   const data = await res.json()
                   if (!res.ok) throw new Error(data.message || 'Erreur')
                   onToast(t('settings.profile.toast_saved'), 'success')
@@ -551,7 +561,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               {schoolInfo?.subdomain && (
                 <div style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 16, fontWeight: 500 }}>
                   {t('settings.profile.subdomain_desc')}{' '}
-                  <strong style={{ color: 'var(--green)' }}>https://{schoolInfo.subdomain}.edunexus.cm</strong>
+                  <strong style={{ color: 'var(--green)' }}>https://{schoolInfo.subdomain}.zekoulabia.cm</strong>
                 </div>
               )}
 
@@ -571,7 +581,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                   onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }}
                 />
-                <span style={{ fontSize: 14, color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>.edunexus.cm</span>
+                <span style={{ fontSize: 14, color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>.zekoulabia.cm</span>
               </div>
 
               <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600, minHeight: 20 }}>

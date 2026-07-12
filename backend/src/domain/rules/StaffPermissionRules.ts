@@ -1,7 +1,7 @@
 /**
  * DOMAIN LAYER — Règles de permissions STAFF
  * Mapping officiel : titre terrain → permissions système
- * Source : Spécification EduNexus + terrain Cameroun
+ * Source : Spécification ZekoulABia + terrain Cameroun
  *
  * ─── Règle de nommage ────────────────────────────────────────────────────────
  *   Titres FR    → utilisés dans les templates francophones
