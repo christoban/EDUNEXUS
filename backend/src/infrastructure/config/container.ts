@@ -58,6 +58,9 @@ import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/Cr
 import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboarding/SoumettreFormulaireOnboardingUseCase';
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
 import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
+import { VerifierCompletudeSupplementUseCase } from '@application/statisticalCampaign/VerifierCompletudeSupplementUseCase';
+import { GenererDeclarationStatistiqueMinesecUseCase } from '@application/statisticalCampaign/GenererDeclarationStatistiqueMinesecUseCase';
+import { GenererRapportSyntheseMinedubUseCase } from '@application/statisticalCampaignMinedub/GenererRapportSyntheseMinedubUseCase';
 
 // --- Use Cases : Paiement MINESEC ---
 import { GenererPaiementsMinesecUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecUseCase';
@@ -518,6 +521,13 @@ export function creerContainer() {
       soumettreFormulaire: new SoumettreFormulaireOnboardingUseCase(prisma),
       valider: new ValiderOnboardingUseCase(prisma),
       rejeter: new RejeterOnboardingUseCase(prisma),
+    },
+    statisticalCampaign: {
+      verifierCompletude: new VerifierCompletudeSupplementUseCase(prisma),
+      genererDeclaration: new GenererDeclarationStatistiqueMinesecUseCase(prisma, new VerifierCompletudeSupplementUseCase(prisma)),
+    },
+    statisticalCampaignMinedub: {
+      genererRapport: new GenererRapportSyntheseMinedubUseCase(prisma),
     },
     paiementMinesec: {
       genererPaiements: genererPaiementsMinesec,

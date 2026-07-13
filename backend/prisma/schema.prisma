@@ -39,12 +39,12 @@ model MasterUser {
 }
 
 model School {
-  id                         String                      @id @default(cuid())
+  id                         String                       @id @default(cuid())
   name                       String
-  subdomain                  String                      @unique
-  type                       SchoolType                  @default(SECONDARY)
-  plan                       PlanType                    @default(DISCOVERY)
-  status                     SchoolStatus                @default(PENDING)
+  subdomain                  String                       @unique
+  type                       SchoolType                   @default(SECONDARY)
+  plan                       PlanType                     @default(DISCOVERY)
+  status                     SchoolStatus                 @default(PENDING)
   city                       String?
   region                     String?
   address                    String?
@@ -56,16 +56,16 @@ model School {
   // une fois par l'admin, pas deviné automatiquement (la liste des établissements y est trop longue
   // et instable pour un matching fiable).
   minesecSchoolCode          String?
-  subsystem                  SchoolSubsystem             @default(FRANCOPHONE)
-  educationType              EducationType               @default(GENERAL)
-  ownership                  SchoolOwnership             @default(PRIVATE_SECULAR)
-  features                   Json                        @default("{}")
-  saturdaySchedule           Boolean                     @default(true)
+  subsystem                  SchoolSubsystem              @default(FRANCOPHONE)
+  educationType              EducationType                @default(GENERAL)
+  ownership                  SchoolOwnership              @default(PRIVATE_SECULAR)
+  features                   Json                         @default("{}")
+  saturdaySchedule           Boolean                      @default(true)
   contractEnd                DateTime?
-  hasPEBSFrancophone         Boolean                     @default(false)
-  hasPEBSAnglophone          Boolean                     @default(false)
-  createdAt                  DateTime                    @default(now())
-  updatedAt                  DateTime                    @updatedAt
+  hasPEBSFrancophone         Boolean                      @default(false)
+  hasPEBSAnglophone          Boolean                      @default(false)
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
   templateCode               String?
   onboardingConfig           Json?
   sequences                  AcademicSequence[]
@@ -90,7 +90,7 @@ model School {
   offlineQueue               OfflineQueue[]
   payments                   Payment[]
   reportCards                ReportCard[]
-  template                   SchoolTemplate?             @relation(fields: [templateCode], references: [code])
+  template                   SchoolTemplate?              @relation(fields: [templateCode], references: [code])
   schoolConfig               SchoolConfig?
   invites                    SchoolInvite[]
   schoolSettings             SchoolSettings?
@@ -124,6 +124,10 @@ model School {
   enrollments                Enrollment[]
   studentOnboardings         StudentOnboarding[]
   schoolOnboardingSettings   SchoolOnboardingSettings?
+  statisticalSubmissions     StatisticalSubmission[]
+  statisticalSupplement      SchoolStatisticalSupplement?
+  minedubSupplement          MinedubSchoolSupplement?
+  minedubReports             MinedubStatisticalReport[]
 }
 
 model SchoolInvite {
@@ -249,69 +253,71 @@ model MentionRule {
 }
 
 model User {
-  id                         String                  @id @default(cuid())
-  schoolId                   String
-  role                       UserRole
-  email                      String?
-  phone                      String?
-  passwordHash               String?
-  resetPasswordToken         String?                 @unique
-  resetPasswordTokenExpiry   DateTime?
-  firstName                  String
-  lastName                   String
-  avatarUrl                  String?
-  isActive                   Boolean                 @default(true)
-  refreshTokenVersion        Int                     @default(0)
-  lastLogin                  DateTime?
-  createdAt                  DateTime                @default(now())
-  updatedAt                  DateTime                @updatedAt
-  announcements              Announcement[]          @relation("AnnouncementAuthor")
-  attendancesRecorded        Attendance[]            @relation("RecordedAttendances")
-  attendancesAsTeacher       Attendance[]            @relation("TeacherAttendances")
-  attendancesAsStudent       Attendance[]            @relation("StudentAttendances")
-  councilDecisions           ClassCouncilDecision[]  @relation("CouncilDecisionStudent")
-  councilPresided            ClassCouncilSession[]   @relation("CouncilPresidedBy")
-  disciplineDecided          DisciplineRecord[]      @relation("DisciplineDecidedBy")
-  disciplineRecords          DisciplineRecord[]      @relation("StudentDiscipline")
-  expensesCreated            Expense[]               @relation("CreatedExpenses")
-  gradesRecorded             Grade[]                 @relation("RecordedGrades")
-  gradesAsStudent            Grade[]                 @relation("StudentGrades")
-  gradesValidated            Grade[]                 @relation("ValidatedGrades")
-  invoices                   Invoice[]               @relation("StudentInvoices")
-  moderatedMessages          Message[]               @relation("ModeratedMessages")
-  moderatedSchoolConfigs     SchoolConfig[]          @relation("SchoolModerator")
-  sentMessages               Message[]               @relation("SentMessages")
-  receivedMessages           MessageReadStatus[]
-  parentProfile              ParentProfile?
-  payments                   Payment[]               @relation("StudentPayments")
-  refundedPayments           Payment[]               @relation("RefundedPayments")
-  reportCards                ReportCard[]            @relation("StudentReportCards")
-  staffProfile               StaffProfile?
-  studentProfile             StudentProfile?
-  submissions                Submission[]            @relation("StudentSubmissions")
-  teacherProfile             TeacherProfile?
-  school                     School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  notifications              Notification[]          @relation("UserNotifications")
-  notificationPreference     NotificationPreference?
-  offlineQueueItems          OfflineQueue[]          @relation("UserOfflineQueue")
-  timetableSlots             TimetableSlot[]         @relation("TeacherSlots")
-  promotionsAsStudent        StudentPromotion[]      @relation("PromotedStudent")
-  promotionsDecided          StudentPromotion[]      @relation("PromotionDecidedBy")
-  classesProfessorPrincipal  Class[]                 @relation("ClassProfessorPrincipal")
-  bookLoans                  BookLoan[]              @relation("StudentBookLoans")
-  ficheOrientations          FicheOrientation[]      @relation("studentFiches")
-  ficheOrientationsConseille FicheOrientation[]      @relation("conseillerFiches")
-  teachingAssignments        TeachingAssignment[]    @relation("TeacherAssignments")
-  headedDepartments          Department[]            @relation("DepartmentHead")
-  cahierDeTexte              CahierDeTexte[]         @relation("TeacherCahierDeTexte")
-  employeeFile               EmployeeFile?           @relation("EmployeeFileUser")
-  employeeCareerEvents       CareerEvent[]           @relation("EmployeeCareerEvents")
-  staffAttendances           StaffAttendance[]       @relation("StaffAttendanceUser")
-  employeeLeaveRequests      LeaveRequest[]          @relation("EmployeeLeaveRequests")
-  leaveRequestsValidated     LeaveRequest[]          @relation("LeaveRequestValidator")
-  employeeLeaveBalances      LeaveBalance[]          @relation("EmployeeLeaveBalance")
-  employeeMissionOrders      MissionOrder[]          @relation("EmployeeMissionOrders")
-  onboardingsValidated       StudentOnboarding[]
+  id                              String                     @id @default(cuid())
+  schoolId                        String
+  role                            UserRole
+  email                           String?
+  phone                           String?
+  passwordHash                    String?
+  resetPasswordToken              String?                    @unique
+  resetPasswordTokenExpiry        DateTime?
+  firstName                       String
+  lastName                        String
+  avatarUrl                       String?
+  isActive                        Boolean                    @default(true)
+  refreshTokenVersion             Int                        @default(0)
+  lastLogin                       DateTime?
+  createdAt                       DateTime                   @default(now())
+  updatedAt                       DateTime                   @updatedAt
+  announcements                   Announcement[]             @relation("AnnouncementAuthor")
+  attendancesRecorded             Attendance[]               @relation("RecordedAttendances")
+  attendancesAsTeacher            Attendance[]               @relation("TeacherAttendances")
+  attendancesAsStudent            Attendance[]               @relation("StudentAttendances")
+  councilDecisions                ClassCouncilDecision[]     @relation("CouncilDecisionStudent")
+  councilPresided                 ClassCouncilSession[]      @relation("CouncilPresidedBy")
+  disciplineDecided               DisciplineRecord[]         @relation("DisciplineDecidedBy")
+  disciplineRecords               DisciplineRecord[]         @relation("StudentDiscipline")
+  expensesCreated                 Expense[]                  @relation("CreatedExpenses")
+  gradesRecorded                  Grade[]                    @relation("RecordedGrades")
+  gradesAsStudent                 Grade[]                    @relation("StudentGrades")
+  gradesValidated                 Grade[]                    @relation("ValidatedGrades")
+  invoices                        Invoice[]                  @relation("StudentInvoices")
+  moderatedMessages               Message[]                  @relation("ModeratedMessages")
+  moderatedSchoolConfigs          SchoolConfig[]             @relation("SchoolModerator")
+  sentMessages                    Message[]                  @relation("SentMessages")
+  receivedMessages                MessageReadStatus[]
+  parentProfile                   ParentProfile?
+  payments                        Payment[]                  @relation("StudentPayments")
+  refundedPayments                Payment[]                  @relation("RefundedPayments")
+  reportCards                     ReportCard[]               @relation("StudentReportCards")
+  staffProfile                    StaffProfile?
+  studentProfile                  StudentProfile?
+  submissions                     Submission[]               @relation("StudentSubmissions")
+  teacherProfile                  TeacherProfile?
+  school                          School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  notifications                   Notification[]             @relation("UserNotifications")
+  notificationPreference          NotificationPreference?
+  offlineQueueItems               OfflineQueue[]             @relation("UserOfflineQueue")
+  timetableSlots                  TimetableSlot[]            @relation("TeacherSlots")
+  promotionsAsStudent             StudentPromotion[]         @relation("PromotedStudent")
+  promotionsDecided               StudentPromotion[]         @relation("PromotionDecidedBy")
+  classesProfessorPrincipal       Class[]                    @relation("ClassProfessorPrincipal")
+  bookLoans                       BookLoan[]                 @relation("StudentBookLoans")
+  ficheOrientations               FicheOrientation[]         @relation("studentFiches")
+  ficheOrientationsConseille      FicheOrientation[]         @relation("conseillerFiches")
+  teachingAssignments             TeachingAssignment[]       @relation("TeacherAssignments")
+  headedDepartments               Department[]               @relation("DepartmentHead")
+  cahierDeTexte                   CahierDeTexte[]            @relation("TeacherCahierDeTexte")
+  employeeFile                    EmployeeFile?              @relation("EmployeeFileUser")
+  employeeCareerEvents            CareerEvent[]              @relation("EmployeeCareerEvents")
+  staffAttendances                StaffAttendance[]          @relation("StaffAttendanceUser")
+  employeeLeaveRequests           LeaveRequest[]             @relation("EmployeeLeaveRequests")
+  leaveRequestsValidated          LeaveRequest[]             @relation("LeaveRequestValidator")
+  employeeLeaveBalances           LeaveBalance[]             @relation("EmployeeLeaveBalance")
+  employeeMissionOrders           MissionOrder[]             @relation("EmployeeMissionOrders")
+  onboardingsValidated            StudentOnboarding[]
+  statisticalSubmissionsGenerated StatisticalSubmission[]
+  minedubReportsGenerated         MinedubStatisticalReport[] @relation("MinedubReportGeneratedBy")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -2484,4 +2490,164 @@ model SchoolOnboardingSettings {
   reminderDelayDays     Int[]               @default([3, 7]) // jours après envoi pour chaque relance
   escalationDelayDays   Int                 @default(10)
   responsableRole       UserRole            @default(ADMIN) // UserRole existant : ADMIN ou STAFF
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Interopérabilité statistique MINESEC — génération du questionnaire officiel
+// DPPC (1-DPPC-MINESEC-SECONDAIRE-2022.xls) à partir des données déjà saisies.
+// Principe non négociable : on écrit dans une copie du vrai fichier téléchargé
+// depuis minesec.gov.cm, on ne recrée jamais un fac-similé. Voir
+// spec-minesec-interoperabilite.md pour le détail des catégories A/B/C.
+// ─────────────────────────────────────────────────────────────────────────
+
+model StatisticalCampaignTemplate {
+  id            String                  @id @default(cuid())
+  ministry      String // "MINESEC" (seul ministère couvert pour l'instant — voir doc section 4 pour MINEDUB)
+  year          String // campagne de référence, ex. "2022" (suffixe du fichier officiel)
+  fileName      String // nom du fichier stocké (copie protégée du .xls original)
+  filePath      String // chemin de stockage du template déchiffrable (jamais modifié directement)
+  fileFormat    String                  @default("XLS_LEGACY_BIFF8")
+  isActive      Boolean                 @default(true) // un seul template actif par ministère à la fois
+  uploadedAt    DateTime                @default(now())
+  fieldMappings CampaignFieldMapping[]
+  submissions   StatisticalSubmission[]
+
+  @@index([ministry, isActive])
+}
+
+model CampaignFieldMapping {
+  id               String                      @id @default(cuid())
+  templateId       String
+  template         StatisticalCampaignTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  sheetName        String // ex. "Eleves_ESG_Fr"
+  fieldCode        String // code officiel DPPC, ex. "2100" — jamais de position de cellule brute comme clé
+  fieldLabel       String // libellé FR tel qu'affiché dans le fichier, pour le rapport d'accompagnement
+  cellReference    String // ex. "R17" — cellule où écrire la valeur résolue
+  dataType         String                      @default("NUMBER") // "NUMBER" | "TEXT" | "BOOLEAN"
+  category         MappingCategory
+  zekoulabiaSource String? // description technique de la résolution (ex. "StudentProfile.lv2SubjectId=ESP_ID"), null si C_MANUAL
+
+  @@unique([templateId, fieldCode, cellReference])
+  @@index([templateId, category])
+}
+
+enum MappingCategory {
+  A_AUTO // dérivé automatiquement des données ZekoulABia (élèves, personnel, FeePlan)
+  B_PARTIAL // dérivé si la donnée RH existe (EmployeeFile), sinon cellule vide + signalé
+  C_MANUAL // saisi une fois dans SchoolStatisticalSupplement, vérifié à chaque campagne
+}
+
+model StatisticalSubmission {
+  id                     String                      @id @default(cuid())
+  schoolId               String
+  school                 School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  templateId             String
+  template               StatisticalCampaignTemplate @relation(fields: [templateId], references: [id])
+  generatedAt            DateTime                    @default(now())
+  generatedBy            String
+  generatedByUser        User                        @relation(fields: [generatedBy], references: [id])
+  status                 SubmissionStatus            @default(DRAFT)
+  filePath               String? // null tant que status = PENDING_MANUAL_DATA (aucun fichier généré)
+  unresolvedFieldsReport Json? // liste des champs B_PARTIAL non résolus (gap RH) — jamais inventé, toujours signalé
+
+  @@index([schoolId, generatedAt])
+}
+
+enum SubmissionStatus {
+  DRAFT
+  PENDING_MANUAL_DATA
+  REVIEWED
+  SUBMITTED
+}
+
+// Faits administratifs qui changent rarement (superficie, titre foncier, historique BIP...).
+// Saisis une fois par l'admin, vérifiés/ajustés à chaque nouvelle campagne — jamais ressaisis
+// depuis zéro. Champs Json pour les structures répétitives (infrastructures par salle,
+// historique BIP, effectifs techniques par spécialité) : saisie rare, pas besoin de la
+// richesse relationnelle d'une vraie table pour ce cas d'usage.
+model SchoolStatisticalSupplement {
+  id       String @id @default(cuid())
+  schoolId String @unique
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  // Section Identification (Catégorie C — codes 1100-1200)
+  hasTitreFoncier                   Boolean?
+  siteProvisoire                    Boolean?
+  distanceEtablissementProchePublic Float?
+  superficieTerrainM2               Float?
+  superficieExtensionM2             Float?
+  natureVoiesAcces                  String?
+  nombreCycles                      Int?
+  hasInternat                       Boolean?
+  placesInternatFilles              Int?
+  placesInternatGarcons             Int?
+  historiqueTransformations         Json? // liste [{type, annee}]
+  ecolesPrimairesProximite          Json? // {moins1km, entre1et3km, entre4et5km, plus5km}
+  posteComptable                    String?
+
+  // Section Infrastructures (Catégorie C — codes 3100-3311), séparée par sous-système
+  // (Général Francophone / Général Anglophone / Technique Francophone / Technique Anglophone)
+  infrastructuresDetail Json?
+
+  // Section Financement (Catégorie C — codes 6000-6010, historique BIP uniquement ;
+  // les frais APE/inscription 6011-6023 sont Catégorie A, dérivés de FeePlan)
+  historiqueBip Json? // liste [{designation, anneeObtention}]
+
+  // Section effectifs techniques ESTP (Catégorie C intégrale pour cette phase — pas de
+  // correspondance fiable entre les ~12 filières internes EduNexus et les 100+ spécialités
+  // officielles MINESEC, voir CampaignFieldMapping catégorie C pour Eleves_ESTP_Fr/Atelier_Workshop)
+  effectifsTechniquesDetail Json? // liste [{specialiteAcronyme, anneeEtude, divisions, fillesTotal, garconsTotal, fillesRedoublants, garconsRedoublants}]
+  ateliersDetail            Json? // liste [{atelier, etat, equipements: [{designation, quantite, etat}], nombrePostesTravail}]
+
+  lastUpdatedAt DateTime @updatedAt
+  lastUpdatedBy String
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Interopérabilité statistique MINEDUB (préscolaire/primaire) — voir
+// spec-minedub-interoperabilite.md. Contrairement à MINESEC, aucun
+// questionnaire officiel téléchargeable n'existe : on produit un RAPPORT PDF
+// DE SYNTHÈSE (jamais présenté comme un document officiel), reconstitué à
+// partir des Annuaires Statistiques MINEDUB publiés. Pas de blocage strict
+// à la génération (contrairement à MINESEC) : les champs manquants sont
+// listés directement dans le rapport imprimable, qui reste un support de
+// préparation avant saisie du vrai questionnaire papier remis par l'IAEB.
+// ─────────────────────────────────────────────────────────────────────────
+
+model MinedubSchoolSupplement {
+  id       String @id @default(cuid())
+  schoolId String @unique
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  zoneImplantation  String? // "URBAINE" | "RURALE"
+  ordreEnseignement String? // "PUBLIC" | "PRIVE_CATHOLIQUE" | "PRIVE_PROTESTANT" | "PRIVE_ISLAMIQUE" | "PRIVE_LAIC" | "COMMUNAUTAIRE"
+
+  // Élèves vulnérables — comptage global déclaratif (aucun champ par élève dans
+  // StudentProfile), par niveau et sexe : { "CP": { refugiesF, refugiesG, deplacesF,
+  // deplacesG, handicapesF, handicapesG }, ... }
+  elevesVulnerablesDetail Json?
+
+  // Infrastructures — Dur/Semi-dur/Provisoire × Bon/Assez bon/Mauvais (3×3, différent
+  // de MINESEC qui n'a que 2 matériaux). { "sallesClasseOccupees": { durBon, durAssezBon,
+  // durMauvais, semiDurBon, ... }, ... }
+  infrastructuresDetail Json?
+
+  commoditesDetail Json? // { pointEau: bool, latrines: nombre, electricite: bool, ... }
+  manuelsDetail    Json? // { "CP": { manuelsEleves, manuelsEnseignants }, ... } par niveau
+
+  lastUpdatedAt DateTime @updatedAt
+  lastUpdatedBy String
+}
+
+model MinedubStatisticalReport {
+  id               String   @id @default(cuid())
+  schoolId         String
+  school           School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  generatedAt      DateTime @default(now())
+  generatedBy      String
+  generatedByUser  User     @relation("MinedubReportGeneratedBy", fields: [generatedBy], references: [id])
+  filePath         String
+  champsNonResolus Json? // liste des champs non résolus au moment de la génération, pour audit
+
+  @@index([schoolId, generatedAt])
 }

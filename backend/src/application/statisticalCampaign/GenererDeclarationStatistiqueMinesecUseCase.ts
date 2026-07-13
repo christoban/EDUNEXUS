@@ -1,0 +1,234 @@
+/**
+ * APPLICATION — Use case : générer la déclaration statistique MINESEC officielle, en
+ * écrivant dans une copie du vrai fichier téléchargé (jamais un fac-similé). Bloque
+ * immédiatement si le formulaire complémentaire (Catégorie C) n'est pas complet.
+ */
+import fs from 'fs';
+import path from 'path';
+import type { PrismaClient } from '@prisma/client';
+import { decryptTemplate, setCellValue, writeWorkbookToFile } from './xlsEngine';
+import { resolveEsgFields, resolveIdentificationAutoFields, resolveFeeAutoFields, type ResolvedCell } from './resolveAutoFields';
+import { resolvePersonnelFields } from './resolvePersonnelFields';
+import { VerifierCompletudeSupplementUseCase } from './VerifierCompletudeSupplementUseCase';
+import { IDENTIFICATION_FIELDS, INFRASTRUCTURE_FIELDS, FINANCEMENT_FIELDS, INFRA_ROWS, SUBSYSTEM_BASE_COL, type SubsystemBlock } from './minesecFixedFieldMap';
+import { ESTP_GRID_BLOCKS } from './minesecEstpGridMap';
+import type { ChampNonResolu, GenererDeclarationStatistiqueCommande, GenererDeclarationStatistiqueResultat } from './types';
+
+function getByPath(obj: any, keyPath: string): any {
+  // Supporte "a.b.c" et "a[0].b"
+  const parts = keyPath.replace(/\[(\d+)\]/g, '.$1').split('.');
+  let cur = obj;
+  for (const p of parts) {
+    if (cur === null || cur === undefined) return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+const STORAGE_DIR = path.resolve(process.cwd(), 'storage', 'statistical-submissions');
+
+export class GenererDeclarationStatistiqueMinesecUseCase {
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly verifierCompletude: VerifierCompletudeSupplementUseCase,
+  ) {}
+
+  async execute(cmd: GenererDeclarationStatistiqueCommande): Promise<GenererDeclarationStatistiqueResultat> {
+    const completude = await this.verifierCompletude.execute({ schoolId: cmd.schoolId });
+    if (!completude.complet) {
+      const submission = await (this.prisma as any).statisticalSubmission.create({
+        data: {
+          schoolId: cmd.schoolId,
+          templateId: (await this.getActiveTemplate()).id,
+          generatedBy: cmd.generatedByUserId,
+          status: 'PENDING_MANUAL_DATA',
+          filePath: null,
+        },
+      });
+      return {
+        status: 'PENDING_MANUAL_DATA',
+        submissionId: submission.id,
+        filePath: null,
+        champsManquants: completude.champsManquants,
+        champsNonResolus: [],
+      };
+    }
+
+    const template = await this.getActiveTemplate();
+    const supplement = await (this.prisma as any).schoolStatisticalSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
+    const school = await (this.prisma as any).school.findUnique({ where: { id: cmd.schoolId } });
+
+    const wb = await decryptTemplate(template.filePath);
+    const champsNonResolus: ChampNonResolu[] = [];
+
+    const applyCells = (cells: ResolvedCell[]) => {
+      for (const cell of cells) {
+        const ws = wb.Sheets[cell.sheetName];
+        if (!ws) continue;
+        setCellValue(ws, cell.cellReference, cell.value, cell.dataType, cell.isComputedTotal === true);
+      }
+    };
+
+    // ── Catégorie A_AUTO ──
+    applyCells(await resolveIdentificationAutoFields(this.prisma, cmd.schoolId));
+    const esg = await resolveEsgFields(this.prisma, cmd.schoolId);
+    applyCells(esg.cells);
+    champsNonResolus.push(...esg.nonCouverts);
+    applyCells(await resolveFeeAutoFields(this.prisma, cmd.schoolId));
+    const personnel = await resolvePersonnelFields(this.prisma, cmd.schoolId);
+    applyCells(personnel.cells);
+    champsNonResolus.push(...personnel.nonCouverts);
+
+    // ── Catégorie C_MANUAL (Identification/Infrastructures/Financement) ──
+    const fixedManualFields = [...IDENTIFICATION_FIELDS, ...INFRASTRUCTURE_FIELDS, ...FINANCEMENT_FIELDS].filter(
+      (f) => f.category === 'C_MANUAL',
+    );
+    for (const field of fixedManualFields) {
+      const ws = wb.Sheets[field.sheetName];
+      if (!ws || !field.supplementKey) continue;
+      const value = getByPath(supplement, field.supplementKey);
+      if (value === undefined || value === null) {
+        champsNonResolus.push({
+          fieldCode: field.fieldCode,
+          sheetName: field.sheetName,
+          cellReference: field.cellReference,
+          fieldLabel: field.fieldLabel,
+          raison: 'Non renseigné dans le formulaire complémentaire.',
+        });
+        continue;
+      }
+      const dataType = typeof value === 'boolean' ? 'BOOLEAN' : typeof value === 'number' ? 'NUMBER' : 'TEXT';
+      const written = setCellValue(ws, field.cellReference, value, dataType as any);
+      if (!written) {
+        // La cellule cible contient une formule (bug de mapping potentiel) — jamais perdre
+        // silencieusement une donnée renseignée par l'admin, toujours le signaler.
+        champsNonResolus.push({
+          fieldCode: field.fieldCode,
+          sheetName: field.sheetName,
+          cellReference: field.cellReference,
+          fieldLabel: field.fieldLabel,
+          raison: `Valeur renseignée (${value}) mais la cellule cible est une formule Excel — mapping à corriger, valeur non écrite.`,
+        });
+      }
+    }
+
+    // ── Total "Nombre de locaux" par sous-système/type (Infrastructures) ──
+    // Cellule F/N/V/AD = formule SUM(...) dans le template, non préservée à l'écriture BIFF8
+    // (voir minesecEsgFieldMap.ts pour la même situation côté ESG) : calculée et écrite ici
+    // comme valeur statique à partir des 6 valeurs de répartition matériau × état saisies.
+    const wsInfra = wb.Sheets['Infrastructures'];
+    if (wsInfra && supplement?.infrastructuresDetail) {
+      const BREAKDOWN_SUM_KEYS = ['definitifBon', 'definitifAcceptable', 'definitifMauvais', 'provisoireBon', 'provisoireAcceptable', 'provisoireMauvais'];
+      for (const sub of Object.keys(SUBSYSTEM_BASE_COL) as SubsystemBlock[]) {
+        const subDetail = supplement.infrastructuresDetail[sub];
+        if (!subDetail) continue;
+        for (const row of INFRA_ROWS) {
+          const roomDetail = subDetail[row.code];
+          if (!roomDetail) continue;
+          const total = BREAKDOWN_SUM_KEYS.reduce((sum, k) => sum + (Number(roomDetail[k]) || 0), 0);
+          setCellValue(wsInfra, `${SUBSYSTEM_BASE_COL[sub]}${row.row}`, total, 'NUMBER', true);
+        }
+      }
+    }
+
+    // ── Catégorie C_MANUAL — spécialités techniques ESTP (grille dynamique) ──
+    const wsEstp = wb.Sheets['Eleves_ESTP_Fr'];
+    const effectifsTechniques: any[] = Array.isArray(supplement?.effectifsTechniquesDetail) ? supplement.effectifsTechniquesDetail : [];
+    const blockByAnnee = new Map<string, typeof ESTP_GRID_BLOCKS>();
+    for (const block of ESTP_GRID_BLOCKS) {
+      const base = block.blockLabel.replace(/ suite$/, '');
+      if (!blockByAnnee.has(base)) blockByAnnee.set(base, []);
+      blockByAnnee.get(base)!.push(block);
+    }
+    const usedSlotIndex = new Map<string, number>(); // "base" -> nombre de créneaux déjà utilisés
+
+    if (wsEstp) {
+      for (const entry of effectifsTechniques) {
+        const base: string = entry.anneeEtude;
+        const blocks = blockByAnnee.get(base);
+        if (!blocks) {
+          champsNonResolus.push({ fieldCode: 'ESTP_ANNEE_INCONNUE', sheetName: 'Eleves_ESTP_Fr', cellReference: '', fieldLabel: `Spécialité ${entry.specialiteAcronyme} — année "${base}"`, raison: "Année d'étude non reconnue dans la grille officielle." });
+          continue;
+        }
+        const used = usedSlotIndex.get(base) ?? 0;
+        // Trouve le bloc (principal ou "suite") et l'index de créneau correspondant à `used`
+        let remaining = used;
+        let targetBlock = null as typeof ESTP_GRID_BLOCKS[number] | null;
+        let slotIdx = 0;
+        for (const b of blocks) {
+          if (remaining < b.nbSlots) { targetBlock = b; slotIdx = remaining; break; }
+          remaining -= b.nbSlots;
+        }
+        if (!targetBlock) {
+          champsNonResolus.push({ fieldCode: 'ESTP_CRENEAUX_INSUFFISANTS', sheetName: 'Eleves_ESTP_Fr', cellReference: '', fieldLabel: `Spécialité ${entry.specialiteAcronyme} — ${base}`, raison: 'Nombre de spécialités déclarées supérieur au nombre de créneaux disponibles sur le formulaire officiel (19 max par année).' });
+          continue;
+        }
+        usedSlotIndex.set(base, used + 1);
+
+        // Colonnes calculées par décalage direct depuis firstSlotCols (2 colonnes par créneau)
+        const startColIdx = colToIndex(targetBlock.firstSlotCols[0]);
+        const fillesColIdx = startColIdx + slotIdx * 2;
+        const garconsColIdx = fillesColIdx + 1;
+        const fillesCol = indexToCol(fillesColIdx);
+        const garconsCol = indexToCol(garconsColIdx);
+
+        setCellValue(wsEstp, `${fillesCol}${targetBlock.nameRow}`, entry.specialiteAcronyme, 'TEXT');
+        setCellValue(wsEstp, `${fillesCol}${targetBlock.divRow}`, entry.divisions ?? 0, 'NUMBER');
+        setCellValue(wsEstp, `${fillesCol}${targetBlock.totalRow}`, entry.fillesTotal ?? 0, 'NUMBER');
+        setCellValue(wsEstp, `${garconsCol}${targetBlock.totalRow}`, entry.garconsTotal ?? 0, 'NUMBER');
+        setCellValue(wsEstp, `${fillesCol}${targetBlock.redoubRow}`, entry.fillesRedoublants ?? 0, 'NUMBER');
+        setCellValue(wsEstp, `${garconsCol}${targetBlock.redoubRow}`, entry.garconsRedoublants ?? 0, 'NUMBER');
+      }
+    }
+
+    const outDir = path.join(STORAGE_DIR, cmd.schoolId);
+    fs.mkdirSync(outDir, { recursive: true });
+    const fileName = `declaration-minesec-${school?.subdomain ?? cmd.schoolId}-${Date.now()}.xls`;
+    const outputPath = path.join(outDir, fileName);
+    writeWorkbookToFile(wb, outputPath);
+
+    const submission = await (this.prisma as any).statisticalSubmission.create({
+      data: {
+        schoolId: cmd.schoolId,
+        templateId: template.id,
+        generatedBy: cmd.generatedByUserId,
+        status: 'DRAFT',
+        filePath: outputPath,
+        unresolvedFieldsReport: champsNonResolus as any,
+      },
+    });
+
+    return {
+      status: 'DRAFT',
+      submissionId: submission.id,
+      filePath: outputPath,
+      champsManquants: [],
+      champsNonResolus,
+    };
+  }
+
+  private async getActiveTemplate() {
+    const template = await (this.prisma as any).statisticalCampaignTemplate.findFirst({
+      where: { ministry: 'MINESEC', isActive: true },
+      orderBy: { uploadedAt: 'desc' },
+    });
+    if (!template) throw new Error("Aucun template de campagne MINESEC actif — contactez l'équipe technique.");
+    return template;
+  }
+}
+
+function colToIndex(col: string): number {
+  let idx = 0;
+  for (const ch of col) idx = idx * 26 + (ch.charCodeAt(0) - 64);
+  return idx - 1;
+}
+function indexToCol(idx: number): string {
+  let n = idx + 1;
+  let col = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    col = String.fromCharCode(65 + rem) + col;
+    n = Math.floor((n - 1) / 26);
+  }
+  return col;
+}

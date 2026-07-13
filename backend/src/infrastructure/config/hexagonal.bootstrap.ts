@@ -107,6 +107,10 @@ import { MatriculeController } from '@infrastructure/http/controllers/MatriculeC
 import { creerMatriculeRoutes } from '@infrastructure/http/routes/matricule.routes';
 import { EleveOnboardingController } from '@infrastructure/http/controllers/EleveOnboardingController';
 import { creerEleveOnboardingRoutes } from '@infrastructure/http/routes/eleveOnboarding.routes';
+import { StatisticalCampaignController } from '@infrastructure/http/controllers/StatisticalCampaignController';
+import { creerStatisticalCampaignRoutes } from '@infrastructure/http/routes/statisticalCampaign.routes';
+import { StatisticalCampaignMinedubController } from '@infrastructure/http/controllers/StatisticalCampaignMinedubController';
+import { creerStatisticalCampaignMinedubRoutes } from '@infrastructure/http/routes/statisticalCampaignMinedub.routes';
 import { PaiementMinesecController } from '@infrastructure/http/controllers/PaiementMinesecController';
 import { creerPaiementMinesecRoutes } from '@infrastructure/http/routes/paiementMinesec.routes';
 import { ExamenController } from '@infrastructure/http/controllers/ExamenController';
@@ -1173,6 +1177,21 @@ export function bootstrapHexagonal(app: Application): void {
     prisma,
   );
   app.use('/api/v2/eleve-onboarding', creerEleveOnboardingRoutes(eleveOnboardingController));
+
+  // ── Interopérabilité statistique MINESEC ────────────────────────────────
+  const statisticalCampaignController = new StatisticalCampaignController(
+    container.statisticalCampaign.verifierCompletude,
+    container.statisticalCampaign.genererDeclaration,
+    prisma,
+  );
+  app.use('/api/v2/statistical-campaign', creerStatisticalCampaignRoutes(statisticalCampaignController));
+
+  // ── Interopérabilité statistique MINEDUB (rapport PDF non officiel) ────
+  const statisticalCampaignMinedubController = new StatisticalCampaignMinedubController(
+    container.statisticalCampaignMinedub.genererRapport,
+    prisma,
+  );
+  app.use('/api/v2/statistical-campaign-minedub', creerStatisticalCampaignMinedubRoutes(statisticalCampaignMinedubController));
 
   // ── Paiements MINESEC ───────────────────────────────────────────────────
   const paiementMinesecController = new PaiementMinesecController(

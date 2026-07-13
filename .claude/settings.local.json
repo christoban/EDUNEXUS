@@ -54,7 +54,10 @@
       "Bash(pkill -f \"bun src/server.ts\")",
       "Bash(pkill -f \"next dev\")",
       "Bash(bun x *)",
-      "Bash(node scripts/browser_test_onboarding.mjs)"
+      "Bash(node scripts/browser_test_onboarding.mjs)",
+      "Bash(bun ./scratch_minesec/dump_cells.ts Eleves_ESG_Fr 100)",
+      "Bash(bun ./scratch_minesec/test_generation.ts)",
+      "Bash(node_modules/.bin/tsx scratch_test/playwright_minesec.ts \"admin-1783889508898@test.cm\" \"TestMinesec123!\" \"test-minesec-ui-1783889508521\")"
     ]
   }
 }

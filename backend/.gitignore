@@ -3,3 +3,7 @@ node_modules
 .env
 
 /src/generated/prisma
+
+# Déclarations statistiques générées (par école) — artefacts runtime, jamais versionnés
+storage/statistical-submissions/
+storage/minedub-reports/
