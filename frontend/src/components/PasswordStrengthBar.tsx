@@ -1,6 +1,7 @@
 'use client'
 
 import { useT } from '@/lib/i18n'
+import { Check, Circle } from 'lucide-react'
 
 export interface PasswordRule {
   label: string
@@ -66,7 +67,7 @@ export default function PasswordStrengthBar({ password, style }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {rules.map(r => (
           <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-            <span style={{ color: r.ok ? 'var(--green)' : 'var(--text3)', fontSize: 13 }}>{r.ok ? '✓' : '○'}</span>
+            <span style={{ display: 'flex', color: r.ok ? 'var(--green)' : 'var(--text3)' }}>{r.ok ? <Check size={13} strokeWidth={2.5} /> : <Circle size={13} strokeWidth={2} />}</span>
             <span style={{ color: r.ok ? 'var(--text)' : 'var(--text3)', fontWeight: r.ok ? 600 : 400 }}>{r.label}</span>
           </div>
         ))}

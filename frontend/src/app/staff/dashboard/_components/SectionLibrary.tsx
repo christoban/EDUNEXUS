@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { BookOpen, CheckCircle2, AlertTriangle, Search, Loader2, Trash2, Check, X } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -197,9 +198,9 @@ export default function SectionLibrary({ onToast }: Props) {
       {tab === 'books' && !loading && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
           {[
-            { icon: '📚', bg: 'var(--blue-light)', val: String(bookPag.total), label: t('library.kpiTitles'), color: 'var(--blue)' },
-            { icon: '✅', bg: 'var(--green-light)', val: String(totalAvailable), label: t('library.kpiAvailable'), color: 'var(--green)' },
-            { icon: '📖', bg: 'var(--amber-light)', val: String(totalBooks - totalAvailable), label: t('library.kpiBorrowed'), color: 'var(--amber)' },
+            { icon: <BookOpen size={18} strokeWidth={2} />, bg: 'var(--blue-light)', val: String(bookPag.total), label: t('library.kpiTitles'), color: 'var(--blue)' },
+            { icon: <CheckCircle2 size={18} strokeWidth={2} />, bg: 'var(--green-light)', val: String(totalAvailable), label: t('library.kpiAvailable'), color: 'var(--green)' },
+            { icon: <BookOpen size={18} strokeWidth={2} />, bg: 'var(--amber-light)', val: String(totalBooks - totalAvailable), label: t('library.kpiBorrowed'), color: 'var(--amber)' },
           ].map((k, i) => (
             <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 10 }}>{k.icon}</div>
@@ -228,7 +229,7 @@ export default function SectionLibrary({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <span style={{ display: 'inline-flex' }}><AlertTriangle size={16} strokeWidth={2} /></span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={() => tab === 'books' ? fetchBooks(1) : fetchLoans(1)} style={btnRetry}>{t('library.retry')}</button>
         </div>
       )}
@@ -238,7 +239,7 @@ export default function SectionLibrary({ onToast }: Props) {
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 12px', flex: 1, minWidth: 180 }}>
-              <span>🔍</span>
+              <span style={{ display: 'inline-flex' }}><Search size={15} strokeWidth={2} /></span>
               <input value={bookSearch} onChange={e => setBookSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && fetchBooks(1)}
                 placeholder={t('library.searchPlaceholder')}
@@ -291,7 +292,7 @@ export default function SectionLibrary({ onToast }: Props) {
                         style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
                         disabled={deletingId === b.id}
                         onClick={() => deleteBook(b.id, b.title)}>
-                        {deletingId === b.id ? '⏳' : '🗑️'}
+                        {deletingId === b.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Trash2 size={13} strokeWidth={2} />}
                       </button>
                     </td>
                   </tr>
@@ -350,7 +351,7 @@ export default function SectionLibrary({ onToast }: Props) {
                       <td style={tdSt}>
                         {l.dueDate ? (
                           <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>
-                            {isOverdue && '⚠️ '}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                            {isOverdue && <AlertTriangle size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
                           </span>
                         ) : '—'}
                       </td>
@@ -365,7 +366,7 @@ export default function SectionLibrary({ onToast }: Props) {
                             style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
                             onClick={() => returnLoan(l.id, l.book.title)}
                             disabled={returningId === l.id}>
-                            {returningId === l.id ? '⏳' : t('library.return')}
+                            {returningId === l.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('library.return')}
                           </button>
                         )}
                       </td>
@@ -417,7 +418,7 @@ export default function SectionLibrary({ onToast }: Props) {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button style={btnSec} onClick={() => setAddBookOpen(false)}>{t('library.cancel')}</button>
-              <button style={btnPrim} onClick={addBook} disabled={savingBook}>{savingBook ? '⏳' : t('library.add')}</button>
+              <button style={btnPrim} onClick={addBook} disabled={savingBook}>{savingBook ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : t('library.add')}</button>
             </div>
           </div>
         </>
@@ -435,9 +436,9 @@ export default function SectionLibrary({ onToast }: Props) {
                 <label style={labelSt}>{t('library.bookLabel')}</label>
                 {borrowForm.bookId ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1 }}>📚 {borrowForm.bookTitle}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}><BookOpen size={16} strokeWidth={2} /> {borrowForm.bookTitle}</span>
                     <button onClick={() => setBorrowForm(f => ({ ...f, bookId: '', bookTitle: '' }))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16 }}>✕</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16, display: 'inline-flex' }}><X size={16} strokeWidth={2} /></button>
                   </div>
                 ) : (
                   <input
@@ -455,9 +456,9 @@ export default function SectionLibrary({ onToast }: Props) {
                 <label style={labelSt}>{t('library.studentLabel')}</label>
                 {borrowForm.selectedStudent ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1 }}>✓ {borrowForm.selectedStudent.firstName} {borrowForm.selectedStudent.lastName}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}><Check size={16} strokeWidth={2} /> {borrowForm.selectedStudent.firstName} {borrowForm.selectedStudent.lastName}</span>
                     <button onClick={() => setBorrowForm(f => ({ ...f, selectedStudent: null, studentSearch: '', studentResults: [] }))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16 }}>✕</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16, display: 'inline-flex' }}><X size={16} strokeWidth={2} /></button>
                   </div>
                 ) : (
                   <div style={{ position: 'relative' }}>
@@ -497,7 +498,7 @@ export default function SectionLibrary({ onToast }: Props) {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button style={btnSec} onClick={() => setBorrowOpen(false)}>{t('library.cancel')}</button>
               <button style={btnPrim} onClick={submitBorrow} disabled={borrowForm.loading || !borrowForm.bookId}>
-                {borrowForm.loading ? '⏳' : t('library.save')}
+                {borrowForm.loading ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : t('library.save')}
               </button>
             </div>
           </div>

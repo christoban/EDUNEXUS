@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { AlertTriangle, School, GraduationCap, Armchair, UserCheck, Trash2, Link2, Check, ArrowLeft } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -594,7 +595,7 @@ export default function SectionClasses({ onToast }: Props) {
       )}
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span>
+          <AlertTriangle size={18} color="var(--red)" />
           <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchClasses} style={btnRetry}>{t('dashboard.retry')}</button>
         </div>
@@ -602,7 +603,7 @@ export default function SectionClasses({ onToast }: Props) {
 
       {!loading && !error && classes.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>🏫</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><School size={52} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('classes.empty.title')}</div>
           <div style={{ fontSize: 16, color: 'var(--text3)', marginBottom: 22 }}>{t('classes.empty.desc')}</div>
           <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('classes.btn_create')}</button>
@@ -624,11 +625,11 @@ export default function SectionClasses({ onToast }: Props) {
                   <span style={{ background: badge.bg, color: badge.color, padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800 }}>{badge.label}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 16, fontSize: 16, color: 'var(--text2)', fontWeight: 600, marginBottom: 12 }}>
-                  <span>👨‍🎓 {t('classes.student_count').replace('{count}', String(cls._count.students))}</span>
-                  <span>🪑 {t('classes.capacity_label').replace('{capacity}', String(cls.capacity))}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><GraduationCap size={15} /> {t('classes.student_count').replace('{count}', String(cls._count.students))}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Armchair size={15} /> {t('classes.capacity_label').replace('{capacity}', String(cls.capacity))}</span>
                 </div>
-                <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, marginBottom: 14 }}>
-                  🧑‍💼 {t('classes.pp_label')} <strong style={{ color: cls.professorPrincipal ? 'var(--text2)' : 'var(--text3)', fontStyle: cls.professorPrincipal ? 'normal' : 'italic' }}>{ppName}</strong>
+                <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <UserCheck size={15} /> {t('classes.pp_label')} <strong style={{ color: cls.professorPrincipal ? 'var(--text2)' : 'var(--text3)', fontStyle: cls.professorPrincipal ? 'normal' : 'italic' }}>{ppName}</strong>
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {(() => {
@@ -666,7 +667,7 @@ export default function SectionClasses({ onToast }: Props) {
                   {isSixthForm(cls) && (
                     <button onClick={() => openALevel(cls)} style={{ ...btnSecSm, color: 'var(--purple)', borderColor: 'rgba(124,58,237,0.3)' }}>{t('classes.btn_alevel')}</button>
                   )}
-                  <button onClick={() => setDelConfirm({ classId: cls.id, className: cls.name })} style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)' }}>🗑️</button>
+                  <button onClick={() => setDelConfirm({ classId: cls.id, className: cls.name })} style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={14} /></button>
                 </div>
               </div>
             )
@@ -864,7 +865,7 @@ export default function SectionClasses({ onToast }: Props) {
             <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 18 }}>
               {sgForm.subgroups.map((sg, i) => (
                 <div key={sg.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: i < sgForm.subgroups.length - 1 ? '1px solid var(--bg2)' : 'none', fontSize: 14, color: 'var(--text)' }}>
-                  <span style={{ fontWeight: 700 }}>🔗 {sg.name}</span>
+                  <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Link2 size={14} /> {sg.name}</span>
                   <button onClick={() => openAssign(sg)} style={btnSecSm}>
                     {t('classes.subgroups.btn_assign')}
                   </button>
@@ -1204,8 +1205,8 @@ export default function SectionClasses({ onToast }: Props) {
                       <div key={row.id} style={{ padding: '10px 14px', borderBottom: i < alevelForm.rows.length - 1 ? '1px solid var(--bg2)' : 'none', background: editing ? 'var(--purple-light)' : 'white' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', minWidth: 150 }}>{row.lastName} {row.firstName}</span>
-                          <span style={{ background: incomplete ? 'var(--red-light)' : 'var(--purple-light)', color: incomplete ? 'var(--red)' : 'var(--purple)', padding: '2px 9px', borderRadius: 14, fontSize: 12, fontWeight: 800 }}>
-                            {row.count}/{ALEVEL_MAX}{incomplete ? ' ⚠' : ''}
+                          <span style={{ background: incomplete ? 'var(--red-light)' : 'var(--purple-light)', color: incomplete ? 'var(--red)' : 'var(--purple)', padding: '2px 9px', borderRadius: 14, fontSize: 12, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {row.count}/{ALEVEL_MAX}{incomplete && <AlertTriangle size={11} />}
                           </span>
                           {row.saving && <div style={{ width: 14, height: 14, border: '2px solid var(--border)', borderTopColor: 'var(--purple)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />}
                           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flex: 1 }}>
@@ -1238,7 +1239,7 @@ export default function SectionClasses({ onToast }: Props) {
                                     border: `1.5px solid ${selected ? 'var(--purple)' : 'var(--border)'}`, background: selected ? 'var(--purple)' : 'white',
                                     color: selected ? 'white' : blocked ? 'var(--border2)' : 'var(--text2)', opacity: blocked ? 0.5 : 1,
                                   }}>
-                                  {selected ? '✓ ' : ''}{subj.name}
+                                  {selected && <Check size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} />}{subj.name}
                                 </button>
                               )
                             })}
@@ -1252,8 +1253,8 @@ export default function SectionClasses({ onToast }: Props) {
                   })}
                 </div>
 
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8 }}>
-                  ⚠ = sélection incomplète (moins de {ALEVEL_MIN} matières). Les modifications sont enregistrées automatiquement.
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <AlertTriangle size={12} /> = sélection incomplète (moins de {ALEVEL_MIN} matières). Les modifications sont enregistrées automatiquement.
                 </div>
               </>
             )}
@@ -1271,8 +1272,8 @@ export default function SectionClasses({ onToast }: Props) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <button
               onClick={() => setAssignForm(EMPTY_ASSIGN)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 20, padding: 0, lineHeight: 1 }}>
-              ←
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 0, lineHeight: 1, display: 'flex' }}>
+              <ArrowLeft size={20} />
             </button>
             <div style={sModalTitle}>{t('classes.subgroups.btn_assign')}</div>
           </div>

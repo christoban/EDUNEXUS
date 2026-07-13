@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Inbox, AlertTriangle, CheckCircle2, BarChart3, Clock, TrendingUp, Circle, Target } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -95,11 +96,12 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
     }
   }, [tab, departementId])
 
-  const tabBtn = (t: Tab, label: string) => (
-    <button onClick={() => setTab(t)}
+  const tabBtn = (tabId: Tab, label: string, Icon: typeof BarChart3) => (
+    <button onClick={() => setTab(tabId)}
       style={{ padding: '8px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
-        background: tab === t ? 'var(--sidebar)' : 'var(--bg2)', color: tab === t ? 'white' : 'var(--text2)', transition: 'all 0.15s' }}>
-      {label}
+        background: tab === tabId ? 'var(--sidebar)' : 'var(--bg2)', color: tab === tabId ? 'white' : 'var(--text2)', transition: 'all 0.15s',
+        display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <Icon size={14} strokeWidth={2} />{label}
     </button>
   )
 
@@ -107,8 +109,8 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-          {t('department.title').replace('{name}', departementNom)}
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Target size={22} strokeWidth={2} />{t('department.title').replace('{name}', departementNom)}
         </div>
         <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
           {t('department.subtitle')}
@@ -117,9 +119,9 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {tabBtn('performances', t('department.tab_performances'))}
-        {tabBtn('horaires', t('department.tab_horaires'))}
-        {tabBtn('progression', t('department.tab_progression'))}
+        {tabBtn('performances', t('department.tab_performances'), BarChart3)}
+        {tabBtn('horaires', t('department.tab_horaires'), Clock)}
+        {tabBtn('progression', t('department.tab_progression'), TrendingUp)}
       </div>
 
       {error && (
@@ -137,7 +139,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{tcommon('status.loading')}</div>
           ) : perf.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Inbox size={36} strokeWidth={2} /></div>
               <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>{t('department.performance_empty')}</div>
               <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 6 }}>{t('department.performance_empty_hint')}</div>
             </div>
@@ -180,7 +182,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
         <div>
           {/* Alerte limite légale */}
           <div style={{ padding: '14px 18px', background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 12, marginBottom: 18, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+            <span style={{ display: 'flex', flexShrink: 0 }}><AlertTriangle size={18} strokeWidth={2} /></span>
             <div>
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--amber)' }}>{t('department.hours_legal_warn')}</div>
               <div style={{ fontSize: 13, color: 'var(--amber)', fontWeight: 500, marginTop: 2 }}>{t('department.hours_legal_hint')}</div>
@@ -195,7 +197,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{tcommon('status.loading')}</div>
             ) : horaires.length === 0 ? (
               <div style={{ padding: 60, textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Inbox size={36} strokeWidth={2} /></div>
                 <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>{t('department.hours_empty')}</div>
               </div>
             ) : (
@@ -224,8 +226,8 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         {row.isOverLimit
-                          ? <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{t('department.hours_over')}</span>
-                          : <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{t('department.hours_ok')}</span>
+                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-light)', color: 'var(--red)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}><Circle size={8} fill="var(--red)" stroke="none" />{t('department.hours_over')}</span>
+                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--green-light)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}><CheckCircle2 size={12} strokeWidth={2} />{t('department.hours_ok')}</span>
                         }
                       </td>
                     </tr>
@@ -247,7 +249,7 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{t('department.progression_loading')}</div>
           ) : alertes.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><CheckCircle2 size={36} strokeWidth={2} color="var(--green)" /></div>
               <div style={{ fontSize: 15, color: 'var(--green)', fontWeight: 700 }}>{t('department.progression_no_alerts')}</div>
               <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{t('department.progression_no_alerts_hint')}</div>
             </div>

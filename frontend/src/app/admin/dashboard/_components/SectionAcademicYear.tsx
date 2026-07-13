@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, Calendar, Star, ChevronRight, Loader2, Pencil, FolderOpen, X, Lock, Save, Check } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -296,7 +297,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-          <span>⚠️</span>
+          <AlertTriangle size={18} strokeWidth={2} />
           <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchYears}
             style={{ padding: '7px 16px', borderRadius: 9, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
@@ -307,7 +308,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
 
       {!loading && !error && years.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>📅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Calendar size={52} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('academic_year.noYear')}</div>
           <div style={{ fontSize: 16, color: 'var(--text3)', marginBottom: 22 }}>{t('academic_year.noYearHint')}</div>
           <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('academic_year.createYear')}</button>
@@ -322,7 +323,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
             borderRadius: 20, padding: '32px 36px', marginBottom: 22,
             border: '1.5px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden',
           }}>
-            <div style={{ position: 'absolute', right: 36, top: '50%', transform: 'translateY(-50%)', fontSize: 100, opacity: 0.04, color: 'white', pointerEvents: 'none' }}>★</div>
+            <div style={{ position: 'absolute', right: 36, top: '50%', transform: 'translateY(-50%)', opacity: 0.04, color: 'white', pointerEvents: 'none' }}><Star size={100} fill="white" /></div>
 
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
@@ -386,7 +387,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                       style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 22px', cursor: 'pointer', userSelect: 'none', transition: 'background 0.1s' }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <span style={{ fontSize: 14, color: 'var(--text3)', transition: 'transform 0.2s', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }}>▶</span>
+                      <span style={{ color: 'var(--text3)', transition: 'transform 0.2s', display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }}><ChevronRight size={14} /></span>
                       <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{period.name}</span>
                       <span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>
                         {fmtDate(period.startDate)} → {fmtDate(period.endDate)}
@@ -399,7 +400,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                           style={btnSecSm}
                           onClick={e => { e.stopPropagation(); handleSetCurrent(period.id) }}
                           disabled={settingCurrentId === period.id}>
-                          {settingCurrentId === period.id ? '⏳' : t('academic_year.setActive')}
+                          {settingCurrentId === period.id ? <Loader2 size={14} className="animate-spin" /> : t('academic_year.setActive')}
                         </button>
                       )}
                     </div>
@@ -425,7 +426,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                                     style={btnSecSm}
                                     onClick={e => { e.stopPropagation(); handleSetSequenceCurrent(seq.id) }}
                                     disabled={settingSequenceId === seq.id}>
-                                    {settingSequenceId === seq.id ? '⏳' : t('academic_year.setActiveFem')}
+                                    {settingSequenceId === seq.id ? <Loader2 size={14} className="animate-spin" /> : t('academic_year.setActiveFem')}
                                   </button>
                                 )}
                               </div>
@@ -486,7 +487,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {!loading && !error && currentYear && (
         <div style={{ background: 'var(--surface)', borderRadius: 18, border: '2px solid rgba(220,38,38,0.2)', overflow: 'hidden' }}>
           <div style={{ padding: '20px 26px', background: 'var(--red-light)', borderBottom: '1px solid rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 22 }}>⚠️</span>
+            <AlertTriangle size={22} color="var(--red)" />
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--red)' }}>{t('academic_year.dangerZone')}</div>
           </div>
           <div style={{ padding: '22px 26px' }}>
@@ -550,7 +551,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                     <div key={si} style={{ background: 'var(--bg2)', borderRadius: 10, padding: '12px 14px', marginBottom: 10, border: '1px solid var(--bg2)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <span style={{ fontWeight: 700, color: 'var(--text2)', fontSize: 14 }}>{t('academic_year.sequenceN', { n: si + 1 })}</span>
-                        <button onClick={() => remSeq(pi, si)} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
+                        <button onClick={() => remSeq(pi, si)} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }}><X size={12} /></button>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 70px', gap: 8 }}>
                         <div>

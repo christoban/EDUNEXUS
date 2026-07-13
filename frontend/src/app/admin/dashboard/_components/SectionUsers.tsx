@@ -2,6 +2,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import {
+  Search, Eye, Wallet, Wrench, BookOpen, Compass, Package, School, KeyRound,
+  X, GraduationCap, Presentation, Download, FileText, FolderOpen, AlertTriangle,
+  UserCheck, Star, Pencil, RefreshCw, Trash2, ClipboardList, IdCard, Upload,
+  Loader2, CheckCircle2, MoreHorizontal, type LucideIcon,
+} from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -31,17 +37,17 @@ type StaffTitle = {
   permissions: StaffPermission[]
 }
 
-// Emoji par titre (fallback générique selon les permissions typiques)
-function emojiForTitle(key: string): string {
-  if (key.includes('Censeur') || key.includes('Vice-Principal') || key.includes('Deputy Head') || key.includes('Directeur Adjoint')) return '🔍'
-  if (key.includes('Surveillant') || key.includes('Discipline')) return '👁'
-  if (key.includes('Intendant') || key.includes('Économe') || key.includes('Bursar')) return '💰'
-  if (key.includes('Chef des Travaux')) return '🔧'
-  if (key.includes('Documentaliste') || key.includes('Librarian')) return '📚'
-  if (key.includes('Orientation') || key.includes('Counsellor') || key.includes('Pédagogique')) return '🧭'
-  if (key.includes('Comptable') || key.includes('Matières')) return '📦'
-  if (key.includes('HOD') || key.includes('Animateur')) return '🏫'
-  return '🔑'
+// Icône par titre (fallback générique selon les permissions typiques)
+function iconForTitle(key: string): LucideIcon {
+  if (key.includes('Censeur') || key.includes('Vice-Principal') || key.includes('Deputy Head') || key.includes('Directeur Adjoint')) return Search
+  if (key.includes('Surveillant') || key.includes('Discipline')) return Eye
+  if (key.includes('Intendant') || key.includes('Économe') || key.includes('Bursar')) return Wallet
+  if (key.includes('Chef des Travaux')) return Wrench
+  if (key.includes('Documentaliste') || key.includes('Librarian')) return BookOpen
+  if (key.includes('Orientation') || key.includes('Counsellor') || key.includes('Pédagogique')) return Compass
+  if (key.includes('Comptable') || key.includes('Matières')) return Package
+  if (key.includes('HOD') || key.includes('Animateur')) return School
+  return KeyRound
 }
 
 
@@ -185,7 +191,7 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
               </div>
             </div>
             <button onClick={onClose}
-              style={{ background: 'var(--bg2)', border: 'none', cursor: 'pointer', color: 'var(--text2)', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0 }}>✕</button>
+              style={{ background: 'var(--bg2)', border: 'none', cursor: 'pointer', color: 'var(--text2)', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><X size={16} strokeWidth={2} /></button>
           </div>
 
           <div style={{ height: 1, background: 'var(--border)', marginBottom: 26 }} />
@@ -232,14 +238,14 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
                     )}
                   {staffTitles.map(title => {
                     const checked = form.selectedTitles.includes(title.key)
-                    const emoji = emojiForTitle(title.key)
+                    const TitleIcon = iconForTitle(title.key)
                     return (
                       <label key={title.key}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${checked ? 'var(--green)' : 'var(--border)'}`, background: checked ? 'var(--green-light)' : 'white', cursor: 'pointer', transition: 'all 0.12s' }}>
                         <input type="checkbox" checked={checked} onChange={() => toggleTitle(title.key)}
                           style={{ marginTop: 3, accentColor: 'var(--green)', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{emoji} {title.label}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}><TitleIcon size={16} strokeWidth={2} /> {title.label}</div>
                           <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 3, lineHeight: 1.5 }}>
                             {(title.permissions as StaffPermission[]).slice(0, 4).map(p => t(`users.permissions.${p}`)).join(' · ')}
                             {title.permissions.length > 4 ? ` + ${title.permissions.length - 4}` : ''}
@@ -465,7 +471,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                 {step === 3 && result && t('users.import_modal.result_success').replace('{count}', String(result.success))}
               </div>
             </div>
-            <button onClick={handleClose} style={{ background: 'var(--bg2)', border: 'none', cursor: 'pointer', color: 'var(--text2)', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0 }}>✕</button>
+            <button onClick={handleClose} style={{ background: 'var(--bg2)', border: 'none', cursor: 'pointer', color: 'var(--text2)', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><X size={16} strokeWidth={2} /></button>
           </div>
 
           <div style={{ height: 1, background: 'var(--border)', marginBottom: 26 }} />
@@ -485,7 +491,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
             <div style={{ display: 'flex', gap: 16, flexDirection: 'column' }}>
               <button onClick={() => { setImportType('STUDENT'); setStep(1) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 14, border: `2px solid ${importType === 'STUDENT' ? 'var(--green)' : 'var(--border)'}`, background: importType === 'STUDENT' ? 'var(--green-light)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
-                <span style={{ fontSize: 32 }}>👨‍🎓</span>
+                <GraduationCap size={32} strokeWidth={1.5} />
                 <div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{t('users.import_modal.choose_student')}</div>
                   <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{t('users.import_modal.choose_student_desc')}</div>
@@ -493,7 +499,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
               </button>
               <button onClick={() => { setImportType('TEACHER'); setStep(1) }}
                 style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 14, border: `2px solid ${importType === 'TEACHER' ? 'var(--green)' : 'var(--border)'}`, background: importType === 'TEACHER' ? 'var(--green-light)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
-                <span style={{ fontSize: 32 }}>👨‍🏫</span>
+                <Presentation size={32} strokeWidth={1.5} />
                 <div>
                   <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{t('users.import_modal.choose_teacher')}</div>
                   <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{t('users.import_modal.choose_teacher_desc')}</div>
@@ -505,7 +511,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
           {/* Step 1 — Download template */}
           {step === 1 && (
             <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📥</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Download size={48} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 16, color: 'var(--text2)', marginBottom: 24, lineHeight: 1.6 }}>
                 {t('users.import_modal.step1_desc')}
               </div>
@@ -526,7 +532,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
           {step === 2 && (
             <div>
               <label style={{ display: 'block', border: `2px dashed ${file ? 'var(--green)' : 'var(--border2)'}`, borderRadius: 14, padding: '36px 20px', textAlign: 'center', cursor: 'pointer', background: file ? 'var(--green-light)' : 'var(--bg)', transition: 'all 0.12s' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>{file ? '📄' : '📂'}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>{file ? <FileText size={40} strokeWidth={1.5} /> : <FolderOpen size={40} strokeWidth={1.5} />}</div>
                 {file ? (
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--green)' }}>{file.name}</div>
                 ) : (
@@ -588,7 +594,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
           {step === 3 && result && (
             <div>
               <div style={{ textAlign: 'center', padding: '12px 0' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>{result.errors?.length > 0 ? '⚠️' : '✅'}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: result.errors?.length > 0 ? 'var(--red)' : 'var(--green)' }}>{result.errors?.length > 0 ? <AlertTriangle size={48} strokeWidth={1.5} /> : <CheckCircle2 size={48} strokeWidth={1.5} />}</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
                   {t('users.import_modal.result_success').replace('{count}', String(result.success))}
                 </div>
@@ -602,13 +608,13 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                 <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
                   {result.professeursPrincipauxAssignes > 0 && (
                     <div style={{ flex: 1, background: 'var(--green-light)', border: '1px solid var(--green-light)', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 20, marginBottom: 2 }}>🧑‍💼</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}><UserCheck size={20} strokeWidth={1.5} /></div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)' }}>{t('users.import_modal.result_pp').replace('{count}', String(result.professeursPrincipauxAssignes))}</div>
                     </div>
                   )}
                   {result.animateursPedagogiquesAssignes > 0 && (
                     <div style={{ flex: 1, background: 'var(--blue-light)', border: '1px solid var(--blue-light)', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 20, marginBottom: 2 }}>⭐</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}><Star size={20} strokeWidth={1.5} /></div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--blue)' }}>{t('users.import_modal.result_ap').replace('{count}', String(result.animateursPedagogiquesAssignes))}</div>
                     </div>
                   )}
@@ -995,7 +1001,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', flex: 1, minWidth: 200 }}>
-            <span style={{ fontSize: 16 }}>🔍</span>
+            <Search size={16} strokeWidth={2} color="var(--text3)" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
@@ -1004,7 +1010,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%', color: 'var(--text)' }}
             />
           </div>
-          <button style={btnSecSm} onClick={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}>🔍 Rechercher</button>
+          <button style={{ ...btnSecSm, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}><Search size={14} strokeWidth={2} /> Rechercher</button>
         </div>
 
         {loading && (
@@ -1015,7 +1021,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
 
         {!loading && error && (
           <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</span>
+            <span style={{ color: 'var(--red)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={15} strokeWidth={2} /> {error}</span>
             <button onClick={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}
               style={{ padding: '5px 12px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
               Réessayer
@@ -1061,15 +1067,15 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                       {className ? <span style={badge('var(--bg2)', 'var(--text2)')}>{className}</span>
                         : ppClasses.length > 0
                           ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <span style={badge('var(--blue-light)', 'var(--blue)')}>🏫 PP {ppClasses[0]}</span>
+                              <span style={{ ...badge('var(--blue-light)', 'var(--blue)'), gap: 4 }}><School size={12} strokeWidth={2} /> PP {ppClasses[0]}</span>
                               {staffTitle && (
-                                <span style={badge(staffTitle === 'Animateur Pédagogique' ? 'var(--green-light)' : 'var(--orange-light)', staffTitle === 'Animateur Pédagogique' ? 'var(--green)' : 'var(--orange)')}>
-                                  {staffTitle === 'Animateur Pédagogique' ? '⭐ AP' : staffTitle}
+                                <span style={{ ...badge(staffTitle === 'Animateur Pédagogique' ? 'var(--green-light)' : 'var(--orange-light)', staffTitle === 'Animateur Pédagogique' ? 'var(--green)' : 'var(--orange)'), gap: 4 }}>
+                                  {staffTitle === 'Animateur Pédagogique' ? <><Star size={12} strokeWidth={2} /> AP</> : staffTitle}
                                 </span>
                               )}
                             </div>
                         : (user.role === 'TEACHER' && staffTitle === 'Animateur Pédagogique')
-                          ? <span style={badge('var(--green-light)', 'var(--green)')}>⭐ AP</span>
+                          ? <span style={{ ...badge('var(--green-light)', 'var(--green)'), gap: 4 }}><Star size={12} strokeWidth={2} /> AP</span>
                         : staffTitle ? <span style={badge('var(--orange-light)', 'var(--orange)')}>{staffTitle}</span>
                         : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
@@ -1079,25 +1085,28 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                           style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)', transition: 'all 0.12s' }}
                           onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', color: 'var(--green)', background: 'var(--green-light)' })}
                           onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', color: 'var(--text3)', background: 'none' })}>
-                          ⋯
+                          <MoreHorizontal size={16} strokeWidth={2} />
                         </button>
                         {openDD === user.id && (
                           <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 200, zIndex: 100, overflow: 'hidden' }}>
                             {[
-                              { icon: '✏️', label: t('users.action_menu.edit'), danger: false, onClick: () => openModUser(user) },
+                              { icon: Pencil, label: t('users.action_menu.edit'), danger: false, onClick: () => openModUser(user) },
                               ...(user.role === 'STUDENT' ? [
-                                { icon: '🔄', label: t('users.action_menu.change_class'), danger: false, onClick: () => openTransfer(user) },
-                                { icon: '📄', label: t('users.action_menu.generate_doc'), danger: false, onClick: () => openDocModal(user) },
+                                { icon: RefreshCw, label: t('users.action_menu.change_class'), danger: false, onClick: () => openTransfer(user) },
+                                { icon: FileText, label: t('users.action_menu.generate_doc'), danger: false, onClick: () => openDocModal(user) },
                               ] : []),
-                              { icon: '🗑', label: t('users.action_menu.delete'), danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
-                            ].map((item, j) => (
+                              { icon: Trash2, label: t('users.action_menu.delete'), danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
+                            ].map((item, j) => {
+                              const ItemIcon: LucideIcon = item.icon
+                              return (
                               <div key={j} onClick={item.onClick}
                                 style={{ padding: '11px 16px', fontSize: 16, fontWeight: 600, color: item.danger ? 'var(--red)' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}
                                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = item.danger ? 'var(--red-light)' : 'var(--bg2)'}
                                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                                {item.icon} {item.label}
+                                <ItemIcon size={15} strokeWidth={2} /> {item.label}
                               </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -1155,8 +1164,8 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             {modUser.error && <div style={sErr}>{modUser.error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setModUser(EMPTY_MOD_USER)}>{t('users.i18n_ext.actions.cancel')}</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: modUser.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: modUser.loading ? 0.7 : 1 }} onClick={submitModUser} disabled={modUser.loading}>
-                {modUser.loading ? '⏳…' : t('users.edit_modal.btn_save')}
+              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: modUser.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: modUser.loading ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={submitModUser} disabled={modUser.loading}>
+                {modUser.loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : t('users.edit_modal.btn_save')}
               </button>
             </div>
           </div>
@@ -1177,8 +1186,8 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             {transfer.error && <div style={sErr}>{transfer.error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setTransfer(EMPTY_TRANSFER)}>{t('users.i18n_ext.actions.cancel')}</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: transfer.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: transfer.loading ? 0.7 : 1 }} onClick={submitTransfer} disabled={transfer.loading}>
-                {transfer.loading ? '⏳…' : t('users.transfer_modal.btn_transfer')}
+              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: transfer.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: transfer.loading ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={submitTransfer} disabled={transfer.loading}>
+                {transfer.loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : t('users.transfer_modal.btn_transfer')}
               </button>
             </div>
           </div>
@@ -1193,24 +1202,27 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{docModal.userName}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { icon: '📋', label: t('users.doc_modal.certificat'), sub: t('users.i18n_ext.certificatSub'), type: 'certificat' as const },
-                { icon: '🪪', label: t('users.doc_modal.carte'), sub: t('users.i18n_ext.carteSub'), type: 'carte' as const },
-                { icon: '📤', label: t('users.doc_modal.lettre_transfert'), sub: t('users.i18n_ext.lettreTransfertSub'), type: 'lettre-transfert' as const, disabled: !['TRANSFERRED', 'LEFT', 'GRADUATED'].includes(docModal.status) },
-              ].map(item => (
+                { icon: ClipboardList, label: t('users.doc_modal.certificat'), sub: t('users.i18n_ext.certificatSub'), type: 'certificat' as const },
+                { icon: IdCard, label: t('users.doc_modal.carte'), sub: t('users.i18n_ext.carteSub'), type: 'carte' as const },
+                { icon: Upload, label: t('users.doc_modal.lettre_transfert'), sub: t('users.i18n_ext.lettreTransfertSub'), type: 'lettre-transfert' as const, disabled: !['TRANSFERRED', 'LEFT', 'GRADUATED'].includes(docModal.status) },
+              ].map(item => {
+                const ItemIcon = item.icon
+                return (
                 <button key={item.type} disabled={item.disabled || docModal.loading}
                   onClick={() => generateDoc(item.type)}
                   style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderRadius: 12, border: `1.5px solid ${item.disabled ? 'var(--bg2)' : 'var(--border2)'}`, background: item.disabled ? 'var(--bg)' : 'white', cursor: item.disabled || docModal.loading ? 'not-allowed' : 'pointer', textAlign: 'left', fontFamily: 'inherit', opacity: item.disabled ? 0.45 : 1, transition: 'all 0.12s' }}
                   onMouseEnter={e => { if (!item.disabled && !docModal.loading) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', background: 'var(--green-light)' }) }}
                   onMouseLeave={e => { if (!item.disabled) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', background: 'var(--surface)' }) }}>
-                  <span style={{ fontSize: 28 }}>{item.icon}</span>
+                  <ItemIcon size={26} strokeWidth={1.5} />
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{item.label}</div>
                     <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{item.sub}</div>
                   </div>
                 </button>
-              ))}
+                )
+              })}
             </div>
-            {docModal.loading && <div style={{ marginTop: 16, textAlign: 'center', color: 'var(--green)', fontSize: 14, fontWeight: 600 }}>⏳ {t('users.doc_modal.loading')}</div>}
+            {docModal.loading && <div style={{ marginTop: 16, textAlign: 'center', color: 'var(--green)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><Loader2 size={14} strokeWidth={2} className="animate-spin" /> {t('users.doc_modal.loading')}</div>}
             {docModal.error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--red-light)', border: '1px solid var(--red-light)', borderRadius: 8, color: 'var(--red)', fontSize: 13 }}>{docModal.error}</div>}
             <button style={{ marginTop: 20, width: '100%', padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setDocModal(EMPTY_DOC_MODAL)}>{t('users.i18n_ext.actions.close')}</button>
           </div>
@@ -1306,7 +1318,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               <Field label={t('users.create_modal.staff_title_label')}>
                 <select value={createForm.staffTitle} onChange={e => setCreate('staffTitle', e.target.value)} style={sIn}>
                   <option value="">{t('users.i18n_ext.form.selectPost')}</option>
-                  {staffTitles.map(t => <option key={t.key} value={t.key}>{emojiForTitle(t.key)} {t.label}</option>)}
+                  {staffTitles.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                 </select>
               </Field>
             )}
@@ -1314,8 +1326,8 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             {createForm.error && <div style={sErr}>{createForm.error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => { setCreateOpen(false); setCreateForm(EMPTY_CREATE_USER) }}>{t('users.i18n_ext.actions.cancel')}</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: createForm.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: createForm.loading ? 0.7 : 1 }} onClick={submitCreateUser} disabled={createForm.loading}>
-                {createForm.loading ? '⏳…' : t('users.create_modal.btn_create')}
+              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: createForm.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: createForm.loading ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={submitCreateUser} disabled={createForm.loading}>
+                {createForm.loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : t('users.create_modal.btn_create')}
               </button>
             </div>
           </div>

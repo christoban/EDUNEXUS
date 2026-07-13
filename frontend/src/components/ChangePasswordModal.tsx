@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import PasswordStrengthBar, { getPasswordStrength } from './PasswordStrengthBar'
 import { useT } from '@/lib/i18n'
+import { CheckCircle2, EyeOff, Eye, AlertTriangle } from 'lucide-react'
 
 interface Props {
   onClose: () => void
@@ -67,7 +68,7 @@ export default function ChangePasswordModal({ onClose, onToast }: Props) {
 
         {success ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 12 }}><CheckCircle2 size={48} strokeWidth={2} /></div>
             <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--green)' }}>{t('password.successTitle')}</div>
           </div>
         ) : (
@@ -84,7 +85,7 @@ export default function ChangePasswordModal({ onClose, onToast }: Props) {
                   autoComplete="current-password"
                 />
                 <button type="button" onClick={() => setShowCurrent(s => !s)} style={eyeSt}>
-                  {showCurrent ? '🙈' : '👁'}
+                  {showCurrent ? <EyeOff size={17} strokeWidth={2} /> : <Eye size={17} strokeWidth={2} />}
                 </button>
               </div>
             </div>
@@ -101,7 +102,7 @@ export default function ChangePasswordModal({ onClose, onToast }: Props) {
                   autoComplete="new-password"
                 />
                 <button type="button" onClick={() => setShowNew(s => !s)} style={eyeSt}>
-                  {showNew ? '🙈' : '👁'}
+                  {showNew ? <EyeOff size={17} strokeWidth={2} /> : <Eye size={17} strokeWidth={2} />}
                 </button>
               </div>
               {newPwd && <PasswordStrengthBar password={newPwd} />}
@@ -119,12 +120,12 @@ export default function ChangePasswordModal({ onClose, onToast }: Props) {
                   autoComplete="new-password"
                 />
                 <button type="button" onClick={() => setShowConfirm(s => !s)} style={eyeSt}>
-                  {showConfirm ? '🙈' : '👁'}
+                  {showConfirm ? <EyeOff size={17} strokeWidth={2} /> : <Eye size={17} strokeWidth={2} />}
                 </button>
               </div>
               {mismatch && (
-                <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
-                  ⚠️ {t('password.errorMismatch')}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
+                  <AlertTriangle size={13} strokeWidth={2} /> {t('password.errorMismatch')}
                 </div>
               )}
             </div>
@@ -159,4 +160,4 @@ export default function ChangePasswordModal({ onClose, onToast }: Props) {
 
 const labelSt: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 6, letterSpacing: '0.5px', textTransform: 'uppercase' }
 const inputSt: React.CSSProperties = { width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 10, color: 'var(--text)', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
-const eyeSt: React.CSSProperties = { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, color: 'var(--text3)', padding: 0 }
+const eyeSt: React.CSSProperties = { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', padding: 0 }

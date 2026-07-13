@@ -1,5 +1,5 @@
 'use client'
-import { Bell } from 'lucide-react'
+import { Bell, KeyRound } from 'lucide-react'
 import type { StaffSection } from '../_types'
 import { useT } from '@/lib/i18n'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -33,8 +33,8 @@ export default function StaffTopbar({ section, periodLabel, onChangePassword }: 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
         {onChangePassword && (
           <button onClick={onChangePassword} title={tcommon('auth.changePassword')}
-            style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
-            🔐
+            style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <KeyRound size={18} color="var(--text2)" />
           </button>
         )}
         <ThemeToggle />

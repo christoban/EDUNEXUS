@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { RefreshCw, WifiOff, Target, Check, X, CheckCircle2, Save, ClipboardList } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
@@ -17,9 +18,9 @@ const ATT_SHORT: Record<string, 'P' | 'A' | 'R' | 'E'> = {
   PRESENT: 'P', ABSENT: 'A', LATE: 'R', EXCUSED: 'E',
 }
 
-const ATT_STYLE: Record<string, { selBg: string; selBorder: string; selColor: string; label: string }> = {
-  P: { selBg: 'var(--green-light)', selBorder: 'var(--green)', selColor: 'var(--green)', label: '✓' },
-  A: { selBg: 'var(--red-light)', selBorder: 'var(--red)', selColor: 'var(--red)', label: '✗' },
+const ATT_STYLE: Record<string, { selBg: string; selBorder: string; selColor: string; label: string; Icon?: typeof Check }> = {
+  P: { selBg: 'var(--green-light)', selBorder: 'var(--green)', selColor: 'var(--green)', label: '', Icon: Check },
+  A: { selBg: 'var(--red-light)', selBorder: 'var(--red)', selColor: 'var(--red)', label: '', Icon: X },
   R: { selBg: 'var(--amber-light)', selBorder: 'var(--amber)', selColor: 'var(--amber)', label: '~' },
   E: { selBg: 'var(--blue-light)', selBorder: 'var(--blue)', selColor: 'var(--blue)', label: 'E' },
 }
@@ -197,8 +198,8 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={loadAttendance}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            🔄 Réessayer
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <RefreshCw size={14} strokeWidth={2} /> Réessayer
           </button>
         </div>
       </div>
@@ -216,7 +217,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
 
       {!isOnline && (
         <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>📶</span>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>Mode hors-ligne — les présences seront synchronisées à la reconnexion</span>
         </div>
       )}
@@ -238,7 +239,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
 
       {rosterLabel && (
         <div style={{ background: 'var(--blue-light)', border: '1.5px solid var(--blue)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>🎯</span>
+          <span style={{ display: 'flex', alignItems: 'center' }}><Target size={18} strokeWidth={2} /></span>
           <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--blue)' }}>{rosterLabel}</span>
         </div>
       )}
@@ -264,13 +265,13 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '12px 22px', borderBottom: '1px solid var(--border)' }}>
               <button
-                style={{ fontSize: 15, fontWeight: 800, color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.3)', background: 'var(--green-light)', cursor: 'pointer', padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 800, color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.3)', background: 'var(--green-light)', cursor: 'pointer', padding: '7px 16px', borderRadius: 10, fontFamily: 'inherit' }}
                 onClick={() => {
                   const all: Record<string, AttStatus> = {}
                   students.forEach(s => { all[s.id] = 'PRESENT' })
                   setStatuses(all)
                 }}>
-                ✓ Tous présents
+                <Check size={16} strokeWidth={2.5} /> Tous présents
               </button>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -315,7 +316,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
                                 color: sel ? st.selColor : 'var(--text3)',
                                 transition: 'all 0.1s'
                               }}>
-                              {st.label}
+                              {st.Icon ? <st.Icon size={18} strokeWidth={2.5} /> : st.label}
                             </button>
                           </td>
                         )
@@ -326,8 +327,9 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
               </tbody>
             </table>
             <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button style={btnPrim} onClick={saveAttendance} disabled={loading}>
-                {loading ? '💾 Sauvegarde...' : isOnline ? '✅ Enregistrer les présences' : '📶 Mettre en file d\'attente'}
+              <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={saveAttendance} disabled={loading}>
+                {loading ? <Save size={16} strokeWidth={2} /> : isOnline ? <CheckCircle2 size={16} strokeWidth={2} /> : <WifiOff size={16} strokeWidth={2} />}
+                {loading ? 'Sauvegarde...' : isOnline ? 'Enregistrer les présences' : 'Mettre en file d\'attente'}
               </button>
             </div>
           </div>
@@ -336,7 +338,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
 
       {!loading && students.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><ClipboardList size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Sélectionne une classe et clique sur Charger</div>
           <div style={{ fontSize: 14, color: 'var(--text3)' }}>Pour saisir les présences du jour</div>
         </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { CheckCircle2, Users, X, AlarmClock, Loader2, Search, AlertTriangle } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -125,10 +126,10 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
           {stats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 22 }}>
               {[
-                { icon: '✅', bg: 'var(--green-light)', val: stats.attendanceRate, label: t('attendance.kpiRate'), color: 'var(--green)' },
-                { icon: '👥', bg: 'var(--blue-light)', val: String(stats.total),   label: t('attendance.kpiRecords'), color: 'var(--blue)' },
-                { icon: '✗',  bg: 'var(--red-light)', val: String(stats.absent),  label: t('attendance.kpiAbsences'), color: 'var(--red)' },
-                { icon: '⏰', bg: 'var(--amber-light)', val: String(stats.late),    label: t('attendance.kpiLate'), color: 'var(--amber)' },
+                { icon: <CheckCircle2 size={18} strokeWidth={2} />, bg: 'var(--green-light)', val: stats.attendanceRate, label: t('attendance.kpiRate'), color: 'var(--green)' },
+                { icon: <Users size={18} strokeWidth={2} />, bg: 'var(--blue-light)', val: String(stats.total),   label: t('attendance.kpiRecords'), color: 'var(--blue)' },
+                { icon: <X size={18} strokeWidth={2} />,  bg: 'var(--red-light)', val: String(stats.absent),  label: t('attendance.kpiAbsences'), color: 'var(--red)' },
+                { icon: <AlarmClock size={18} strokeWidth={2} />, bg: 'var(--amber-light)', val: String(stats.late),    label: t('attendance.kpiLate'), color: 'var(--amber)' },
               ].map((k, i) => (
                 <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 10 }}>{k.icon}</div>
@@ -148,8 +149,8 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
               </select>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 style={{ ...filterSt, cursor: 'pointer' }} />
-              <button style={btnPrim} onClick={fetchRecords} disabled={loadingRecords}>
-                {loadingRecords ? '⏳' : '🔍'} {t('attendance.filter')}
+              <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={fetchRecords} disabled={loadingRecords}>
+                {loadingRecords ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} {t('attendance.filter')}
               </button>
               {records.length > 0 && (
                 <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
@@ -165,7 +166,7 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
             )}
 
             {!loadingRecords && error && (
-              <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</div>
+              <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} strokeWidth={2} /> {error}</div>
             )}
 
             {!loadingRecords && !error && records.length === 0 && (
@@ -214,7 +215,7 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
                               style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={() => justify(r.id)}
                               disabled={justifyingId === r.id}>
-                              {justifyingId === r.id ? '⏳' : t('attendance.justify')}
+                              {justifyingId === r.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('attendance.justify')}
                             </button>
                           )}
                         </td>

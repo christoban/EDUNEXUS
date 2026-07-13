@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { Users, Palmtree, CheckCircle2, FileText, AlertTriangle } from 'lucide-react'
 
 interface OnToast { (msg: string, type?: 'success' | 'error' | 'info' | 'warning'): void }
 
@@ -100,11 +101,11 @@ const chipStyle = (bg: string, color: string): React.CSSProperties => ({
   fontWeight: 800,
 })
 
-const TABS: Array<{ key: Tab; icon: string }> = [
-  { key: 'personnel', icon: '👥' },
-  { key: 'conges', icon: '🏖️' },
-  { key: 'pointage', icon: '✅' },
-  { key: 'documents', icon: '📄' },
+const TABS: Array<{ key: Tab; icon: React.ReactNode }> = [
+  { key: 'personnel', icon: <Users size={15} strokeWidth={2} /> },
+  { key: 'conges', icon: <Palmtree size={15} strokeWidth={2} /> },
+  { key: 'pointage', icon: <CheckCircle2 size={15} strokeWidth={2} /> },
+  { key: 'documents', icon: <FileText size={15} strokeWidth={2} /> },
 ]
 
 function fmtDate(value?: string | null): string {
@@ -336,7 +337,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
     }
   }
 
-  const tabButton = (key: Tab, label: string, icon: string) => (
+  const tabButton = (key: Tab, label: string, icon: React.ReactNode) => (
     <button key={key}
       onClick={() => setTab(key)}
       style={{
@@ -349,6 +350,9 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
         fontWeight: 800,
         background: tab === key ? 'var(--sidebar)' : 'var(--bg2)',
         color: tab === key ? 'white' : 'var(--text2)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
       }}
     >
       {icon} {label}
@@ -463,11 +467,11 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                     <div style={labelStyle}>{t('rh.selfServiceStatus')}</div>
                     {selectedDetail.file?.selfServiceCompletedAt ? (
                       <span style={{ ...chipStyle('rgba(22,163,74,0.12)', 'var(--green)'), fontSize: 13, fontWeight: 700 }}>
-                        ✅ {t('rh.selfServiceCompletedOn', { date: new Date(selectedDetail.file.selfServiceCompletedAt).toLocaleDateString() })}
+                        <CheckCircle2 size={13} strokeWidth={2} /> {t('rh.selfServiceCompletedOn', { date: new Date(selectedDetail.file.selfServiceCompletedAt).toLocaleDateString() })}
                       </span>
                     ) : (
                       <span style={{ ...chipStyle('rgba(234,179,8,0.12)', '#b45309'), fontSize: 13, fontWeight: 700 }}>
-                        ⚠️ {t('rh.selfServiceNotCompleted')}
+                        <AlertTriangle size={13} strokeWidth={2} /> {t('rh.selfServiceNotCompleted')}
                       </span>
                     )}
                   </div>

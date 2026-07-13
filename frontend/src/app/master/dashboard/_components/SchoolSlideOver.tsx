@@ -1,3 +1,5 @@
+import { X, Users, BookOpen, FileText, Wallet, Pencil, Ban } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import Badge from './Badge'
 import type { SchoolDetailDto } from '../_types'
 
@@ -66,20 +68,20 @@ export default function SchoolSlideOver({ open, schoolDetail, loading, onClose, 
                   width: 36, height: 36, borderRadius: 8, border: '1.5px solid #d4c8b8',
                   background: 'none', cursor: 'pointer', fontSize: 18, color: '#a89478',
                   display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>✕</button>
+                }}><X size={18} /></button>
               </div>
             </div>
 
             {/* Stats */}
             <div style={{ padding: '18px 28px', background: '#f7f3ee', borderBottom: '1px solid #e8e0d4', display: 'flex', gap: 12, flexShrink: 0 }}>
-              {[
-                { icon: '👥', val: String(schoolDetail._count?.users ?? 0), label: 'Utilisateurs' },
-                { icon: '📚', val: String(schoolDetail._count?.classes ?? 0), label: 'Classes' },
-                { icon: '📝', val: String(schoolDetail._count?.subjects ?? 0), label: 'Matières' },
-                { icon: '💰', val: String(schoolDetail._count?.feePlans ?? 0), label: 'Frais' },
-              ].map((s, i) => (
+              {([
+                { icon: Users, val: String(schoolDetail._count?.users ?? 0), label: 'Utilisateurs' },
+                { icon: BookOpen, val: String(schoolDetail._count?.classes ?? 0), label: 'Classes' },
+                { icon: FileText, val: String(schoolDetail._count?.subjects ?? 0), label: 'Matières' },
+                { icon: Wallet, val: String(schoolDetail._count?.feePlans ?? 0), label: 'Frais' },
+              ] as { icon: LucideIcon; val: string; label: string }[]).map((s, i) => (
                 <div key={i} style={{ flex: 1, background: 'white', borderRadius: 10, padding: '14px 12px', textAlign: 'center', border: '1px solid #e8e0d4' }}>
-                  <div style={{ fontSize: 20 }}>{s.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}><s.icon size={20} /></div>
                   <div style={{ fontSize: 22, fontWeight: 900, color: '#1a1209', lineHeight: 1, marginTop: 5 }}>{s.val}</div>
                   <div style={{ fontSize: 13, color: '#a89478', fontWeight: 700, marginTop: 3 }}>{s.label}</div>
                 </div>
@@ -141,14 +143,16 @@ export default function SchoolSlideOver({ open, schoolDetail, loading, onClose, 
               <button style={{
                 flex: 1, padding: '12px 16px', borderRadius: 10, fontSize: 16, fontWeight: 800,
                 background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8',
-                cursor: 'pointer', fontFamily: 'inherit'
-              }}>✏️ Modifier</button>
+                cursor: 'pointer', fontFamily: 'inherit',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}><Pencil size={16} /> Modifier</button>
               {schoolDetail.status === 'ACTIVE' && (
                 <button onClick={() => onSuspend(schoolDetail.id, schoolDetail.name, schoolDetail.subdomain)} style={{
                   flex: 1, padding: '12px 16px', borderRadius: 10, fontSize: 16, fontWeight: 800,
                   background: '#fee2e2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)',
-                  cursor: 'pointer', fontFamily: 'inherit'
-                }}>⛔ Suspendre</button>
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}><Ban size={16} /> Suspendre</button>
               )}
             </div>
           </>

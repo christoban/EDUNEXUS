@@ -1,13 +1,19 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut } from 'lucide-react'
+import {
+  LogOut, LayoutDashboard, Users, School, BookOpen, ClipboardCheck, FileText,
+  ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
+  Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
+  Globe, Languages, Bot, Megaphone, Settings,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import type { AdminSection } from '../_types'
 
 interface NavItem {
   id: AdminSection
-  icon: string
+  icon: LucideIcon
   label: string
   badge?: string
   badgeColor?: 'red' | 'green' | 'amber'
@@ -52,41 +58,41 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
   const NAV: NavSection[] = [
     {
       items: [
-        { id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') },
-        { id: 'users',     icon: '👥', label: tnav('sidebar.users'),     badge: badges.users,   badgeColor: 'green' },
-        { id: 'classes',   icon: '🏫', label: tnav('sidebar.classes'),   badge: badges.classes, badgeColor: 'green' },
-        { id: 'subjects',  icon: '📚', label: tnav('sidebar.subjects') },
+        { id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') },
+        { id: 'users',     icon: Users, label: tnav('sidebar.users'),     badge: badges.users,   badgeColor: 'green' },
+        { id: 'classes',   icon: School, label: tnav('sidebar.classes'),   badge: badges.classes, badgeColor: 'green' },
+        { id: 'subjects',  icon: BookOpen, label: tnav('sidebar.subjects') },
       ]
     },
     {
       label: tnav('group.academic'),
       items: [
-        { id: 'attendance', icon: '✅', label: tnav('sidebar.attendance') },
-        { id: 'grades',     icon: '📝', label: tnav('sidebar.grades'),     badge: badges.grades, badgeColor: 'red' },
-        { id: 'bulletins',  icon: '📄', label: tnav('sidebar.bulletins') },
-        { id: 'timetable',  icon: '📅', label: tnav('sidebar.timetable') },
-        { id: 'council',    icon: '🎓', label: tnav('sidebar.council') },
-        { id: 'pedagogie',  icon: '📓', label: tnav('sidebar.pedagogie') },
-        { id: 'rh',         icon: '👔', label: tnav('sidebar.rh') },
+        { id: 'attendance', icon: ClipboardCheck, label: tnav('sidebar.attendance') },
+        { id: 'grades',     icon: FileText, label: tnav('sidebar.grades'),     badge: badges.grades, badgeColor: 'red' },
+        { id: 'bulletins',  icon: ScrollText, label: tnav('sidebar.bulletins') },
+        { id: 'timetable',  icon: Calendar, label: tnav('sidebar.timetable') },
+        { id: 'council',    icon: GraduationCap, label: tnav('sidebar.council') },
+        { id: 'pedagogie',  icon: NotebookPen, label: tnav('sidebar.pedagogie') },
+        { id: 'rh',         icon: Briefcase, label: tnav('sidebar.rh') },
       ]
     },
     {
       label: tnav('group.services'),
       items: [
-        { id: 'academic-year', icon: '📆', label: tnav('sidebar.academicYear') },
-        { id: 'finance',       icon: '📱', label: tnav('sidebar.finance'),     badge: badges.finance, badgeColor: 'amber' },
-        { id: 'matricules',    icon: '🪪', label: tnav('sidebar.matricules') },
-        { id: 'school-payments', icon: '💰', label: tnav('sidebar.schoolPayments') },
-        { id: 'entrance-exams', icon: '📝', label: tnav('sidebar.entranceExams') },
-        { id: 'eleve-onboarding', icon: '🧾', label: tnav('sidebar.eleveOnboarding') },
-        { id: 'minesec-stats', icon: '📊', label: tnav('sidebar.minesecStats') },
-        { id: 'minedub-stats', icon: '📋', label: tnav('sidebar.minedubStats') },
-        { id: 'pebs-exams',    icon: '🌍', label: tnav('sidebar.pebsExams') },
-        { id: 'lv2-choice',    icon: '🗣️', label: tnav('sidebar.lv2Choice') },
-        { id: 'ai',            icon: '🤖', label: tnav('sidebar.ai') },
-        { id: 'statistics',    icon: '📊', label: tnav('sidebar.statistics') },
-        { id: 'communications', icon: '📣', label: tnav('sidebar.communications') },
-        { id: 'settings',      icon: '⚙️', label: tnav('sidebar.settings') },
+        { id: 'academic-year', icon: CalendarDays, label: tnav('sidebar.academicYear') },
+        { id: 'finance',       icon: Smartphone, label: tnav('sidebar.finance'),     badge: badges.finance, badgeColor: 'amber' },
+        { id: 'matricules',    icon: IdCard, label: tnav('sidebar.matricules') },
+        { id: 'school-payments', icon: Wallet, label: tnav('sidebar.schoolPayments') },
+        { id: 'entrance-exams', icon: ClipboardEdit, label: tnav('sidebar.entranceExams') },
+        { id: 'eleve-onboarding', icon: UserPlus, label: tnav('sidebar.eleveOnboarding') },
+        { id: 'minesec-stats', icon: BarChart3, label: tnav('sidebar.minesecStats') },
+        { id: 'minedub-stats', icon: ClipboardList, label: tnav('sidebar.minedubStats') },
+        { id: 'pebs-exams',    icon: Globe, label: tnav('sidebar.pebsExams') },
+        { id: 'lv2-choice',    icon: Languages, label: tnav('sidebar.lv2Choice') },
+        { id: 'ai',            icon: Bot, label: tnav('sidebar.ai') },
+        { id: 'statistics',    icon: BarChart3, label: tnav('sidebar.statistics') },
+        { id: 'communications', icon: Megaphone, label: tnav('sidebar.communications') },
+        { id: 'settings',      icon: Settings, label: tnav('sidebar.settings') },
       ]
     }
   ]
@@ -146,7 +152,9 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
                       style={{ background: 'var(--sidebar-active)' }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
                   )}
-                  <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
+                  <span className="relative z-10 w-[20px] flex items-center justify-center flex-shrink-0">
+                    <item.icon size={20} strokeWidth={2} />
+                  </span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
                   {item.badge && (
                     <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES[item.badgeColor ?? 'green'])} style={{ padding: '3px 6px' }}>

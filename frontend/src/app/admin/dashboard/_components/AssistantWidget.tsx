@@ -15,6 +15,7 @@
  * navigue vers l'écran concerné via des évènements window (zekoulabia:navigate / :data-changed).
  */
 import { useState, useRef, useEffect } from 'react'
+import { X, Bot, Hand, AlertTriangle, Undo2, Check, Send } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -178,7 +179,7 @@ export default function AssistantWidget() {
           display: 'flex', alignItems: 'center', gap: 9,
           boxShadow: '0 8px 24px rgba(5,150,105,0.4)',
         }}>
-        <span style={{ fontSize: 22 }}>{open ? '✕' : '🤖'}</span>
+        <span style={{ display: 'flex', alignItems: 'center' }}>{open ? <X size={22} /> : <Bot size={22} />}</span>
         {!open && <span>{t('assistant.title')}</span>}
       </button>
 
@@ -193,7 +194,7 @@ export default function AssistantWidget() {
           <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
           {/* Header */}
           <div style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--green))', color: 'white', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🤖</div>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bot size={20} /></div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 15.5 }}>{t('assistant.title')}</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Décrivez une action, je l’exécute</div>
@@ -204,8 +205,8 @@ export default function AssistantWidget() {
           <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'var(--bg)' }}>
             {items.length === 0 && (
               <div>
-                <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 14 }}>
-                  👋 Bonjour ! Demandez-moi de créer une classe, une matière, d’assigner un enseignant… ou posez-moi une question sur votre établissement.
+                <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 14, display: 'flex', gap: 8 }}>
+                  <Hand size={16} style={{ flexShrink: 0, marginTop: 2 }} /> <span>Bonjour ! Demandez-moi de créer une classe, une matière, d’assigner un enseignant… ou posez-moi une question sur votre établissement.</span>
                 </div>
                 {SUGGESTIONS.map(s => (
                   <button key={s} onClick={() => send(s)} style={{
@@ -233,8 +234,8 @@ export default function AssistantWidget() {
 
               if (it.kind === 'error') {
                 return (
-                  <div key={it.id} style={{ marginBottom: 10, background: 'var(--red-light)', border: '1.5px solid var(--red-light)', borderRadius: 12, padding: '10px 13px', fontSize: 13.5, color: 'var(--red)' }}>
-                    ⚠️ {it.text}
+                  <div key={it.id} style={{ marginBottom: 10, background: 'var(--red-light)', border: '1.5px solid var(--red-light)', borderRadius: 12, padding: '10px 13px', fontSize: 13.5, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={14} style={{ flexShrink: 0 }} /> {it.text}
                   </div>
                 )
               }
@@ -245,7 +246,7 @@ export default function AssistantWidget() {
                 return (
                   <div key={it.id} style={{ marginBottom: 10, background: it.undone ? 'var(--bg2)' : 'var(--green-light)', border: `1.5px solid ${it.undone ? 'var(--border)' : 'var(--green-light)'}`, borderRadius: 12, padding: '11px 13px' }}>
                     <div style={{ fontSize: 13.5, color: it.undone ? 'var(--text3)' : 'var(--green)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{it.undone ? '↩️' : '✓'}</span>
+                      <span style={{ display: 'flex', alignItems: 'center' }}>{it.undone ? <Undo2 size={13} /> : <Check size={13} />}</span>
                       <span style={{ textDecoration: it.undone ? 'line-through' : 'none' }}>{it.label}</span>
                     </div>
                     {it.undone && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>Action annulée.</div>}
@@ -266,7 +267,7 @@ export default function AssistantWidget() {
               return (
                 <div key={it.id} style={{ marginBottom: 10, background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 12, padding: '12px 14px' }}>
                   <div style={{ fontSize: 13.5, color: 'var(--amber)', lineHeight: 1.5, display: 'flex', gap: 6 }}>
-                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <AlertTriangle size={16} style={{ flexShrink: 0 }} />
                     <span>{it.summary}</span>
                   </div>
                   {!it.resolved && (
@@ -306,9 +307,9 @@ export default function AssistantWidget() {
             />
             <button onClick={() => send(input)} disabled={loading || !input.trim()} style={{
               background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none',
-              borderRadius: 10, padding: '0 16px', fontSize: 18, cursor: loading || !input.trim() ? 'default' : 'pointer',
-              opacity: loading || !input.trim() ? 0.5 : 1,
-            }}>➤</button>
+              borderRadius: 10, padding: '0 16px', cursor: loading || !input.trim() ? 'default' : 'pointer',
+              opacity: loading || !input.trim() ? 0.5 : 1, display: 'flex', alignItems: 'center',
+            }}><Send size={17} /></button>
           </div>
         </div>
       )}

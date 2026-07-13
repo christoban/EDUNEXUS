@@ -1,4 +1,5 @@
 'use client'
+import { LogOut } from 'lucide-react'
 import type { Section, MasterUserDto } from '../_types'
 
 interface Props {
@@ -90,8 +91,9 @@ export default function MasterTopbar({ user, currentSection, mfaEnabled, onNav, 
           padding: '8px 17px', borderRadius: 8,
           border: '1px solid rgba(255,255,255,0.15)', background: 'transparent',
           color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s'
-        }}>↗ Déconnexion</button>
+          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}><LogOut size={15} /> Déconnexion</button>
       </div>
     </header>
   )

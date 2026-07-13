@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { CheckCircle2, AlertTriangle, ClipboardList, BookOpen, Loader2, Check, GraduationCap } from 'lucide-react'
 
 interface ClassItem { id: string; name: string; level: string | null }
 interface AssignmentRow {
@@ -127,7 +128,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
       {meta && classId && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
           <div style={{ background: meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)', border: `1.5px solid ${meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)'}`, borderRadius: 12, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 24 }}>{meta.assigned === meta.total ? '✅' : '⚠️'}</span>
+            <span style={{ fontSize: 24, display: 'inline-flex' }}>{meta.assigned === meta.total ? <CheckCircle2 size={24} strokeWidth={2} /> : <AlertTriangle size={24} strokeWidth={2} />}</span>
             <div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{meta.assigned}/{meta.total}</div>
               <div style={{ fontSize: 13, color: 'var(--text2)' }}>matières affectées</div>
@@ -135,7 +136,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
           </div>
           {meta.assigned < meta.total && (
             <div style={{ background: 'var(--orange-light)', border: '1.5px solid var(--orange-light)', borderRadius: 12, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 20 }}>📋</span>
+              <span style={{ fontSize: 20, display: 'inline-flex' }}><ClipboardList size={20} strokeWidth={2} /></span>
               <div style={{ fontSize: 14, color: 'var(--orange)' }}>
                 <strong>{meta.total - meta.assigned}</strong> matière{meta.total - meta.assigned > 1 ? 's' : ''} sans enseignant
               </div>
@@ -151,7 +152,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text3)' }}>Chargement des matières…</div>
           ) : rows.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+              <div style={{ fontSize: 40, marginBottom: 12, display: 'flex', justifyContent: 'center' }}><BookOpen size={40} strokeWidth={2} /></div>
               <div style={{ fontSize: 16, color: 'var(--text3)' }}>
                 Aucune matière dans le programme de {selectedClass?.name}.<br />
                 Configurez d'abord les coefficients dans la section Matières.
@@ -174,7 +175,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
                   return (
                     <tr key={row.subjectId} style={{ borderBottom: '1px solid var(--bg2)', background: unassigned ? 'var(--amber-light)' : 'white' }}>
                       <td style={{ padding: '12px 14px', fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
-                        {unassigned && <span style={{ marginRight: 6, fontSize: 14 }}>⚠️</span>}
+                        {unassigned && <span style={{ marginRight: 6, fontSize: 14, display: 'inline-flex' }}><AlertTriangle size={14} strokeWidth={2} /></span>}
                         {row.subjectName}
                       </td>
                       <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 15, color: 'var(--text2)', fontWeight: 700 }}>
@@ -209,8 +210,8 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
                         )}
                       </td>
                       <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                        {isSaving && <span style={{ fontSize: 16 }}>⏳</span>}
-                        {!isSaving && !unassigned && <span style={{ fontSize: 16, color: 'var(--green)' }}>✓</span>}
+                        {isSaving && <span style={{ fontSize: 16, display: 'inline-flex' }}><Loader2 size={16} strokeWidth={2} className="animate-spin" /></span>}
+                        {!isSaving && !unassigned && <span style={{ fontSize: 16, color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={2} /></span>}
                       </td>
                     </tr>
                   )
@@ -223,7 +224,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
 
       {!classId && !loadingClasses && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
+          <div style={{ fontSize: 48, marginBottom: 16, display: 'flex', justifyContent: 'center' }}><GraduationCap size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 17 }}>Sélectionnez une classe pour gérer ses affectations.</div>
         </div>
       )}

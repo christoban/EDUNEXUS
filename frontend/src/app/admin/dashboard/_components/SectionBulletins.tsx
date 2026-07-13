@@ -1,5 +1,6 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
+import { PartyPopper, Search, AlertTriangle, CheckCircle2, Loader2, FileText, BarChart3, Package, Upload, Eye } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
 import AnimatedBackground from '@/components/AnimatedBackground'
@@ -169,7 +170,7 @@ export default function SectionBulletins({ onToast }: Props) {
     },
     {
       warn: !check.canGenerateReportCard,
-      title: check.canGenerateReportCard ? '✅ Prêt pour la génération' : (check.reason ?? 'Non prêt'),
+      title: check.canGenerateReportCard ? 'Prêt pour la génération' : (check.reason ?? 'Non prêt'),
       sub: check.canGenerateReportCard
         ? 'Toutes les conditions sont remplies'
         : 'Réglez les points ci-dessus avant de générer',
@@ -186,7 +187,7 @@ export default function SectionBulletins({ onToast }: Props) {
           <style>{`@keyframes edu-celebIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
           <AnimatedBackground variant="celebration" style={{ zIndex: 0 }} />
           <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: 32, maxWidth: 460 }}>
-            <div style={{ fontSize: 74, marginBottom: 14 }}>🎉</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, color: 'white' }}><PartyPopper size={74} /></div>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 10 }}>
               {t('bulletins.celebrate.title')}
             </div>
@@ -212,8 +213,8 @@ export default function SectionBulletins({ onToast }: Props) {
           <option value="">{loadingClasses ? 'Chargement…' : 'Sélectionner une classe'}</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <button style={btnPrim} onClick={loadClass} disabled={loadingClasses || loadingCheck || !classId}>
-          {loadingCheck ? '⏳ Chargement…' : 'Charger'}
+        <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={loadClass} disabled={loadingClasses || loadingCheck || !classId}>
+          {loadingCheck ? <><Loader2 size={15} className="animate-spin" /> Chargement…</> : 'Charger'}
         </button>
       </div>
 
@@ -229,12 +230,12 @@ export default function SectionBulletins({ onToast }: Props) {
           {/* Pré-vérification */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>🔍 Pré-vérification — {className}</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Search size={16} /> Pré-vérification — {className}</span>
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
               {checks.map((c, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '13px 16px', background: c.warn ? 'var(--amber-light)' : 'var(--green-light)', borderRadius: 11 }}>
-                  <span style={{ fontSize: 22 }}>{c.warn ? '⚠️' : '✅'}</span>
+                  {c.warn ? <AlertTriangle size={22} color="var(--amber)" /> : <CheckCircle2 size={22} color="var(--green)" />}
                   <div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: c.warn ? 'var(--amber)' : 'var(--green)' }}>{c.title}</div>
                     <div style={{ fontSize: 14, color: c.warn ? 'var(--amber)' : 'var(--green)', marginTop: 3, lineHeight: 1.5 }}>{c.sub}</div>
@@ -242,10 +243,10 @@ export default function SectionBulletins({ onToast }: Props) {
                 </div>
               ))}
               <button
-                style={{ ...btnPrim, marginTop: 6, opacity: check.canGenerateReportCard ? 1 : 0.45, cursor: check.canGenerateReportCard ? 'pointer' : 'not-allowed' }}
+                style={{ ...btnPrim, marginTop: 6, opacity: check.canGenerateReportCard ? 1 : 0.45, cursor: check.canGenerateReportCard ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 8 }}
                 onClick={handleGenerate}
                 disabled={!check.canGenerateReportCard || generating}>
-                {generating ? '⏳ Génération en cours…' : '📄 Générer les bulletins →'}
+                {generating ? <><Loader2 size={16} className="animate-spin" /> Génération en cours…</> : <><FileText size={16} /> Générer les bulletins →</>}
               </button>
             </div>
           </div>
@@ -253,16 +254,16 @@ export default function SectionBulletins({ onToast }: Props) {
           {/* Bulletins générés */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
-                📊 Bulletins générés ({reportCards.length})
+              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <BarChart3 size={16} /> Bulletins générés ({reportCards.length})
               </span>
               {reportCards.length > 0 && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={btnSec} onClick={handleExportZip} disabled={exporting}>
-                    {exporting ? '⏳' : '📦'} ZIP
+                  <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleExportZip} disabled={exporting}>
+                    {exporting ? <Loader2 size={14} className="animate-spin" /> : <Package size={14} />} ZIP
                   </button>
-                  <button style={btnSec} onClick={handleSendParents} disabled={sending}>
-                    {sending ? '⏳' : '📤'} Envoyer
+                  <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleSendParents} disabled={sending}>
+                    {sending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Envoyer
                   </button>
                 </div>
               )}
@@ -296,9 +297,9 @@ export default function SectionBulletins({ onToast }: Props) {
                       </td>
                       <td style={tdSt}>{b.rank != null ? `${b.rank}e` : '—'}</td>
                       <td style={tdSt}>
-                        <button style={btnSec}
+                        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                           onClick={() => window.open(`/api/v2/report-cards/${b.id}/pdf`, '_blank')}>
-                          👁 PDF
+                          <Eye size={14} /> PDF
                         </button>
                       </td>
                     </tr>
@@ -319,7 +320,7 @@ export default function SectionBulletins({ onToast }: Props) {
 
       {!loadingCheck && !check && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '70px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>📄</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><FileText size={52} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
             Sélectionnez une classe
           </div>

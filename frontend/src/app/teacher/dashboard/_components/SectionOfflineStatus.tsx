@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Wifi, WifiOff, CheckCircle2, FileText, Pin, RefreshCw, Loader2 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { db } from '@/lib/offline/db'
@@ -44,9 +45,9 @@ export default function SectionOfflineStatus({ onToast }: Props) {
   }
 
   const typeLabel = (type: string) => {
-    if (type === 'ATTENDANCE') return { label: t('sync.type_attendance'), icon: '✅' }
-    if (type === 'GRADE') return { label: t('sync.type_grade'), icon: '📝' }
-    return { label: type, icon: '📌' }
+    if (type === 'ATTENDANCE') return { label: t('sync.type_attendance'), Icon: CheckCircle2 }
+    if (type === 'GRADE') return { label: t('sync.type_grade'), Icon: FileText }
+    return { label: type, Icon: Pin }
   }
 
   const statusLabel = (status: string) => {
@@ -64,7 +65,7 @@ export default function SectionOfflineStatus({ onToast }: Props) {
 
       {/* Status card */}
       <div style={{ background: isOnline ? 'var(--green-light)' : 'var(--red-light)', borderRadius: 16, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ fontSize: 28 }}>{isOnline ? '🌐' : '📶'}</span>
+        <span style={{ display: 'flex', alignItems: 'center' }}>{isOnline ? <Wifi size={28} strokeWidth={2} /> : <WifiOff size={28} strokeWidth={2} />}</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 17, fontWeight: 800, color: isOnline ? 'var(--green)' : 'var(--red)' }}>
             {isOnline ? t('sync.online') : t('sync.offline')}
@@ -75,7 +76,8 @@ export default function SectionOfflineStatus({ onToast }: Props) {
         </div>
         {isOnline && pendingCount > 0 && (
           <button onClick={handleSync} disabled={syncing}
-            style={{ padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: syncing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: syncing ? 0.7 : 1 }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: syncing ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: syncing ? 0.7 : 1 }}>
+            {syncing ? <Loader2 size={16} strokeWidth={2} className="animate-spin" /> : <RefreshCw size={16} strokeWidth={2} />}
             {syncing ? t('sync.syncing') : t('sync.sync_now')}
           </button>
         )}
@@ -83,7 +85,7 @@ export default function SectionOfflineStatus({ onToast }: Props) {
 
       {actions.length === 0 ? (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><CheckCircle2 size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('sync.all_synced_title')}</div>
           <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('sync.all_synced_sub')}</div>
         </div>
@@ -111,8 +113,8 @@ export default function SectionOfflineStatus({ onToast }: Props) {
                   <tr key={action.id}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                      <span style={{ marginRight: 8 }}>{meta.icon}</span>{meta.label}
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <meta.Icon size={16} strokeWidth={2} />{meta.label}
                     </td>
                     <td style={{ ...tdSt, fontFamily: 'monospace', fontSize: 14, color: 'var(--text2)' }}>{action.endpoint}</td>
                     <td style={{ ...tdSt, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{date}</td>

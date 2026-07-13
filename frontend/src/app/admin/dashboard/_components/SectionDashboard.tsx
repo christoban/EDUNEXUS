@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { GraduationCap, Presentation, CheckCircle2, FileText, RefreshCw, AlertTriangle, Users, User, ScrollText } from 'lucide-react'
 
 interface Props {
   onNav: (s: string) => void
@@ -41,10 +42,10 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
   useEffect(() => { fetchStats() }, [fetchStats])
 
   const kpi = stats ? [
-    { icon: '👨‍🎓', bg: 'var(--blue-light)', val: String(stats.totalStudents), label: t('dashboard.kpi.students'),  trendBg: 'var(--green-light)', trendColor: 'var(--green)', nav: 'users' },
-    { icon: '👨‍🏫', bg: 'var(--amber-light)', val: String(stats.totalTeachers), label: t('dashboard.kpi.teachers'),       trendBg: 'var(--amber-light)', trendColor: 'var(--amber)', nav: 'users' },
-    { icon: '✅',   bg: 'var(--green-light)', val: stats.avgAttendance,          label: t('dashboard.kpi.attendance_rate'), trendBg: 'var(--green-light)', trendColor: 'var(--green)' },
-    { icon: '📝',   bg: 'var(--orange-light)', val: String(stats.activeExams),    label: t('dashboard.kpi.active_exams'),   trendBg: 'var(--orange-light)', trendColor: 'var(--orange)' },
+    { icon: <GraduationCap size={22} strokeWidth={2} />, bg: 'var(--blue-light)', val: String(stats.totalStudents), label: t('dashboard.kpi.students'),  trendBg: 'var(--green-light)', trendColor: 'var(--green)', nav: 'users' },
+    { icon: <Presentation size={22} strokeWidth={2} />, bg: 'var(--amber-light)', val: String(stats.totalTeachers), label: t('dashboard.kpi.teachers'),       trendBg: 'var(--amber-light)', trendColor: 'var(--amber)', nav: 'users' },
+    { icon: <CheckCircle2 size={22} strokeWidth={2} />,   bg: 'var(--green-light)', val: stats.avgAttendance,          label: t('dashboard.kpi.attendance_rate'), trendBg: 'var(--green-light)', trendColor: 'var(--green)' },
+    { icon: <FileText size={22} strokeWidth={2} />,   bg: 'var(--orange-light)', val: String(stats.activeExams),    label: t('dashboard.kpi.active_exams'),   trendBg: 'var(--orange-light)', trendColor: 'var(--orange)' },
   ] : []
 
   return (
@@ -62,7 +63,7 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
         <button
           onClick={() => { fetchStats(); onToast(t('dashboard.refreshing'), 'info') }}
           style={btnSecSm}
-        >🔄 {t('dashboard.refresh')}</button>
+        ><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><RefreshCw size={15} strokeWidth={2} />{t('dashboard.refresh')}</span></button>
       </div>
 
       {/* Loading */}
@@ -75,7 +76,7 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
       {/* Error */}
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.2)', borderRadius: 14, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
-          <span style={{ fontSize: 22 }}>⚠️</span>
+          <AlertTriangle size={22} strokeWidth={2} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, color: 'var(--red)', fontSize: 16 }}>{error}</div>
           </div>
@@ -138,10 +139,10 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
               </div>
               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  { icon: '📝', label: t('dashboard.quick_actions.pending_grades'),    nav: 'grades'    },
-                  { icon: '📄', label: t('dashboard.quick_actions.generate_reports'),   nav: 'bulletins' },
-                  { icon: '👥', label: t('dashboard.quick_actions.manage_classes'),   nav: 'classes'   },
-                  { icon: '👤', label: t('dashboard.quick_actions.invite_user'), action: onInvite },
+                  { icon: <FileText size={16} strokeWidth={2} />, label: t('dashboard.quick_actions.pending_grades'),    nav: 'grades'    },
+                  { icon: <ScrollText size={16} strokeWidth={2} />, label: t('dashboard.quick_actions.generate_reports'),   nav: 'bulletins' },
+                  { icon: <Users size={16} strokeWidth={2} />, label: t('dashboard.quick_actions.manage_classes'),   nav: 'classes'   },
+                  { icon: <User size={16} strokeWidth={2} />, label: t('dashboard.quick_actions.invite_user'), action: onInvite },
                 ].map((btn, i) => (
                   <button key={i}
                     onClick={() => btn.action ? btn.action() : onNav(btn.nav!)}

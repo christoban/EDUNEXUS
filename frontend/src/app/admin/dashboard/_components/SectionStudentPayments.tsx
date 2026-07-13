@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { ArrowLeft } from 'lucide-react'
 
 interface Props { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }
 
@@ -144,8 +145,8 @@ export default function SectionStudentPayments({ onToast }: Props) {
 
       {selected && (
         <div>
-          <button onClick={() => { setSelected(null); setDashboard(null); setResults([]) }} style={{ ...btnSec, marginBottom: 14, fontSize: 12, padding: '5px 12px' }}>
-            ← {t('matricules.back_to_search')}
+          <button onClick={() => { setSelected(null); setDashboard(null); setResults([]) }} style={{ ...btnSec, marginBottom: 14, fontSize: 12, padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <ArrowLeft size={13} strokeWidth={2} /> {t('matricules.back_to_search')}
           </button>
 
           {loadingDashboard ? (

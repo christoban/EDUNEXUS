@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, Wallet, Pencil, CheckCircle2, Loader2, Circle } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -273,7 +274,7 @@ export default function SectionFinance({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span>
+          <AlertTriangle size={16} strokeWidth={2} />
           <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={() => tab === 'plans' ? fetchPlans() : fetchInvoices(page)}
             style={{ padding: '7px 16px', borderRadius: 9, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
@@ -287,7 +288,7 @@ export default function SectionFinance({ onToast }: Props) {
         <>
           {plans.length === 0 ? (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-              <div style={{ fontSize: 52, marginBottom: 14 }}>💰</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Wallet size={52} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('empty_states.no_plans_title')}</div>
               <div style={{ fontSize: 16, color: 'var(--text3)', marginBottom: 22 }}>
                 {t('empty_states.no_plans_description')}
@@ -333,7 +334,7 @@ export default function SectionFinance({ onToast }: Props) {
                   </div>
                   <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
                     <button style={btnSecSm} onClick={() => openBulk(plan)}>{t('actions.generate_invoices')}</button>
-                    <button style={btnSecSm} onClick={() => openModPlan(plan)}>✏️</button>
+                    <button style={btnSecSm} onClick={() => openModPlan(plan)}><Pencil size={14} strokeWidth={2} /></button>
                   </div>
                 </div>
               ))}
@@ -348,10 +349,10 @@ export default function SectionFinance({ onToast }: Props) {
           {/* KPIs factures (sur la page courante) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
             {[
-              { icon: '💰', label: t('kpi.total_billed'),        val: fmtCFA(totalAmount),   bg: 'var(--blue-light)' },
-              { icon: '✅', label: t('kpi.total_collected'),      val: fmtCFA(paidAmount),    bg: 'var(--green-light)' },
-              { icon: '⏳', label: t('kpi.pending'),             val: String(pendingCount),  bg: 'var(--amber-light)' },
-              { icon: '🔴', label: t('kpi.overdue'),             val: String(overdueCount),  bg: 'var(--red-light)' },
+              { icon: <Wallet size={20} strokeWidth={2} />, label: t('kpi.total_billed'),        val: fmtCFA(totalAmount),   bg: 'var(--blue-light)' },
+              { icon: <CheckCircle2 size={20} strokeWidth={2} />, label: t('kpi.total_collected'),      val: fmtCFA(paidAmount),    bg: 'var(--green-light)' },
+              { icon: <Loader2 size={20} strokeWidth={2} />, label: t('kpi.pending'),             val: String(pendingCount),  bg: 'var(--amber-light)' },
+              { icon: <Circle size={12} fill="var(--red)" stroke="none" />, label: t('kpi.overdue'),             val: String(overdueCount),  bg: 'var(--red-light)' },
             ].map((k, i) => (
               <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 10 }}>{k.icon}</div>

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Languages } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -61,7 +62,7 @@ export default function Lv2ChoiceBanner({ onToast }: Props) {
   return (
     <div style={{ background: 'var(--blue-light)', border: '1.5px solid var(--blue)', borderRadius: 16, padding: '20px 24px', marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <span style={{ fontSize: 22 }}>🗣️</span>
+        <Languages size={22} strokeWidth={2} />
         <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('lv2Choice.banner_title')}</span>
       </div>
 

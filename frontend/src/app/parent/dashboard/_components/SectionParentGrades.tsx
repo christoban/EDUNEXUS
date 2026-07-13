@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useState } from 'react'
+import { ScrollText, Loader2, Download, WifiOff, Package } from 'lucide-react'
 import type { ChildWithStats, ReportCard } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
@@ -27,7 +28,7 @@ function CacheBadge({ cachedAt, label }: { cachedAt: number | null; label: strin
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
     <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      {label.replace('{date}', date)}
+      <Package size={14} strokeWidth={2} /> {label.replace('{date}', date)}
     </div>
   )
 }
@@ -123,7 +124,7 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
 
       {filteredBulletins.length === 0 ? (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><ScrollText size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('grades.emptyTitle')}</div>
           <div style={{ fontSize: 14, color: 'var(--text3)' }}>{selectedName ? t('grades.emptyForChild').replace('{name}', selectedName) : t('grades.emptyDesc')}</div>
         </div>
@@ -154,10 +155,10 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
                     <td style={tdSt}>
                       <button
                         title={!isOnline ? t('grades.downloadUnavailable') : undefined}
-                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : 'var(--bg2)', color: isOnline ? 'var(--green)' : 'var(--text3)', border: `1.5px solid ${isOnline ? 'var(--green)' : 'var(--border2)'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1 }}
+                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : 'var(--bg2)', color: isOnline ? 'var(--green)' : 'var(--text3)', border: `1.5px solid ${isOnline ? 'var(--green)' : 'var(--border2)'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                         onClick={() => downloadPdf(b.id, b.academicPeriod?.name || 'bulletin')}
                         disabled={downloading === b.id || !isOnline}>
-                        {downloading === b.id ? t('grades.downloading') : isOnline ? t('grades.downloadPdf') : t('grades.offline')}
+                        {downloading === b.id ? <><Loader2 size={14} strokeWidth={2} className="animate-spin" /> {t('grades.downloading')}</> : isOnline ? <><Download size={14} strokeWidth={2} /> {t('grades.downloadPdf')}</> : <WifiOff size={14} strokeWidth={2} />}
                       </button>
                     </td>
                   </tr>

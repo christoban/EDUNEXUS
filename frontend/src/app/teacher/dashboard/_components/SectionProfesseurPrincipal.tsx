@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Inbox, CheckCircle2, AlertTriangle, Circle, BarChart3, ClipboardList, AlarmClock } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -67,17 +68,18 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
     }
   }, [tab, classeId, dateFilter])
 
-  const tabBtn = (t: Tab, label: string) => (
+  const tabBtn = (tabId: Tab, label: string, Icon: typeof BarChart3) => (
     <button
-      onClick={() => setTab(t)}
+      onClick={() => setTab(tabId)}
       style={{
         padding: '8px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800,
         fontFamily: 'inherit', cursor: 'pointer', border: 'none',
-        background: tab === t ? 'var(--sidebar)' : 'var(--bg2)',
-        color: tab === t ? 'white' : 'var(--text2)',
+        background: tab === tabId ? 'var(--sidebar)' : 'var(--bg2)',
+        color: tab === tabId ? 'white' : 'var(--text2)',
         transition: 'all 0.15s',
+        display: 'inline-flex', alignItems: 'center', gap: 6,
       }}>
-      {label}
+      <Icon size={14} strokeWidth={2} />{label}
     </button>
   )
 
@@ -85,8 +87,8 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-          {t('pp.class_title').replace('{name}', classeNom)}
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <ClipboardList size={22} strokeWidth={2} />{t('pp.class_title').replace('{name}', classeNom)}
         </div>
         <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
           {t('pp.view_title')}
@@ -95,8 +97,8 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        {tabBtn('eleves',   t('pp.tab_students'))}
-        {tabBtn('presences',t('pp.tab_attendance'))}
+        {tabBtn('eleves',   t('pp.tab_students'), BarChart3)}
+        {tabBtn('presences',t('pp.tab_attendance'), CheckCircle2)}
       </div>
 
       {tab === 'eleves' && (
@@ -111,7 +113,7 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--red)', fontSize: 14 }}>{error}</div>
           ) : students.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Inbox size={32} strokeWidth={2} /></div>
               <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>Aucune note saisie pour cette classe</div>
             </div>
           ) : (
@@ -140,10 +142,11 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         {s.moyenne !== null && (
-                          <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
                             background: s.moyenne >= 12 ? 'var(--green-light)' : s.moyenne >= 8 ? 'var(--amber-light)' : 'var(--red-light)',
                             color: s.moyenne >= 12 ? 'var(--green)' : s.moyenne >= 8 ? 'var(--amber)' : 'var(--red)' }}>
-                            {s.moyenne >= 12 ? '✅ Admis' : s.moyenne >= 8 ? '⚠️ Passable' : '🔴 En difficulté'}
+                            {s.moyenne >= 12 ? <CheckCircle2 size={12} strokeWidth={2} /> : s.moyenne >= 8 ? <AlertTriangle size={12} strokeWidth={2} /> : <Circle size={8} fill="var(--red)" stroke="none" />}
+                            {s.moyenne >= 12 ? 'Admis' : s.moyenne >= 8 ? 'Passable' : 'En difficulté'}
                           </span>
                         )}
                       </td>
@@ -183,11 +186,11 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
               </thead>
               <tbody>
                 {attendances.map((a, i) => {
-                  const statusStyle: Record<string, { bg: string; color: string; label: string }> = {
-                    PRESENT:          { bg: 'var(--green-light)', color: 'var(--green)', label: '✅ Présent' },
-                    ABSENT:           { bg: 'var(--red-light)', color: 'var(--red)', label: '🔴 Absent' },
-                    ABSENT_JUSTIFIED: { bg: 'var(--amber-light)', color: 'var(--amber)', label: '📋 Justifié' },
-                    LATE:             { bg: 'var(--blue-light)', color: 'var(--blue)', label: '⏰ Retard' },
+                  const statusStyle: Record<string, { bg: string; color: string; label: string; Icon?: typeof CheckCircle2; dot?: boolean }> = {
+                    PRESENT:          { bg: 'var(--green-light)', color: 'var(--green)', label: 'Présent', Icon: CheckCircle2 },
+                    ABSENT:           { bg: 'var(--red-light)', color: 'var(--red)', label: 'Absent', dot: true },
+                    ABSENT_JUSTIFIED: { bg: 'var(--amber-light)', color: 'var(--amber)', label: 'Justifié', Icon: ClipboardList },
+                    LATE:             { bg: 'var(--blue-light)', color: 'var(--blue)', label: 'Retard', Icon: AlarmClock },
                   }
                   const s = statusStyle[a.status] ?? { bg: 'var(--bg2)', color: 'var(--text3)', label: a.status }
                   return (
@@ -199,7 +202,10 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
                         {a.studentName ?? a.studentId}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>{s.label}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+                          {s.dot ? <Circle size={8} fill="var(--red)" stroke="none" /> : s.Icon ? <s.Icon size={13} strokeWidth={2} /> : null}
+                          {s.label}
+                        </span>
                       </td>
                     </tr>
                   )

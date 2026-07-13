@@ -21,18 +21,18 @@
     "APPEALED": "Appealed"
   },
   "status_badges": {
-    "ACTIVE": "⚡ Active",
-    "LIFTED": "✓ Lifted",
-    "APPEALED": "⚖️ Appealed"
+    "ACTIVE": "Active",
+    "LIFTED": "Lifted",
+    "APPEALED": "Appealed"
   },
   "actions": {
     "new_sanction": "+ New Sanction",
-    "save": "✓ Save",
+    "save": "Save",
     "cancel": "Cancel",
-    "lift": "✓ Lift",
+    "lift": "Lift",
     "filter": "Filter",
     "retry": "Retry",
-    "saving": "⏳ Saving…",
+    "saving": "Saving…",
     "lifting": "⏳"
   },
   "form_fields": {

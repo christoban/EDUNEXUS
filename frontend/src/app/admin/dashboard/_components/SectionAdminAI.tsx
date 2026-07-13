@@ -1,5 +1,7 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Siren, AlertTriangle, Eye, CheckCircle2, Star, RefreshCw, X, Bot } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -16,12 +18,12 @@ interface HealthSummary { critical: number; warning: number; recommendation: num
 
 interface ClassItem { id: string; name: string }
 
-const ALERT_STYLE: Record<string, { bg: string; color: string; label: string; icon: string }> = {
-  critical:       { bg: 'var(--red-light)', color: 'var(--red)', label: 'Critique',        icon: '🚨' },
-  warning:        { bg: 'var(--orange-light)', color: 'var(--orange)', label: 'Avertissement',    icon: '⚠️' },
-  recommendation: { bg: 'var(--amber-light)', color: 'var(--amber)', label: 'Surveillance',     icon: '👁️' },
-  good:           { bg: 'var(--blue-light)', color: 'var(--blue)', label: 'Bien',             icon: '✅' },
-  excellent:      { bg: 'var(--green-light)', color: 'var(--green)', label: 'Excellent',        icon: '⭐' },
+const ALERT_STYLE: Record<string, { bg: string; color: string; label: string; icon: LucideIcon }> = {
+  critical:       { bg: 'var(--red-light)', color: 'var(--red)', label: 'Critique',        icon: Siren },
+  warning:        { bg: 'var(--orange-light)', color: 'var(--orange)', label: 'Avertissement',    icon: AlertTriangle },
+  recommendation: { bg: 'var(--amber-light)', color: 'var(--amber)', label: 'Surveillance',     icon: Eye },
+  good:           { bg: 'var(--blue-light)', color: 'var(--blue)', label: 'Bien',             icon: CheckCircle2 },
+  excellent:      { bg: 'var(--green-light)', color: 'var(--green)', label: 'Excellent',        icon: Star },
 }
 
 export default function SectionAdminAI({ onToast }: Props) {
@@ -72,7 +74,7 @@ export default function SectionAdminAI({ onToast }: Props) {
           <div style={sTitle}>{t('ai.title')}</div>
           <div style={sSub}>Scores de bien-être académique · Alertes automatiques</div>
         </div>
-        <button style={btnSec} onClick={fetchHealth}>🔄 Actualiser</button>
+        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={fetchHealth}><RefreshCw size={15} /> Actualiser</button>
       </div>
 
       {/* KPIs */}
@@ -81,7 +83,7 @@ export default function SectionAdminAI({ onToast }: Props) {
           {(Object.entries(ALERT_STYLE) as [string, typeof ALERT_STYLE[string]][]).map(([key, s]) => (
             <div key={key} style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${alertFilter === key ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
               onClick={() => setAlertFilter(alertFilter === key ? '' : key)}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, marginBottom: 8 }}>{s.icon}</div>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}><s.icon size={16} color={s.color} /></div>
               <div style={{ fontSize: 24, fontWeight: 900, color: s.color }}>{summary[key as keyof HealthSummary]}</div>
               <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 3 }}>{s.label}</div>
             </div>
@@ -91,7 +93,7 @@ export default function SectionAdminAI({ onToast }: Props) {
 
       {atRisk > 0 && !loading && (
         <div style={{ background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 14, padding: '14px 20px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 20 }}>🚨</span>
+          <Siren size={20} color="var(--red)" />
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--red)' }}>
             {atRisk} élève{atRisk > 1 ? 's' : ''} nécessite{atRisk === 1 ? '' : 'nt'} une attention immédiate
           </span>
@@ -105,8 +107,8 @@ export default function SectionAdminAI({ onToast }: Props) {
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {alertFilter && (
-          <button onClick={() => setAlertFilter('')} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            ✕ {ALERT_STYLE[alertFilter]?.label}
+          <button onClick={() => setAlertFilter('')} style={{ padding: '8px 14px', borderRadius: 10, fontSize: 14, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <X size={14} /> {ALERT_STYLE[alertFilter]?.label}
           </button>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600, alignSelf: 'center' }}>
@@ -124,7 +126,7 @@ export default function SectionAdminAI({ onToast }: Props) {
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--red)', fontWeight: 700 }}>{error}</div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text3)' }}>
-            <div style={{ fontSize: 44, marginBottom: 12 }}>🤖</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Bot size={44} /></div>
             <div style={{ fontSize: 17 }}>Aucun élève pour ce filtre</div>
           </div>
         ) : (
@@ -153,8 +155,8 @@ export default function SectionAdminAI({ onToast }: Props) {
                       </div>
                     </td>
                     <td style={tdSt}>
-                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, background: al.bg, color: al.color }}>
-                        {al.icon} {al.label}
+                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, background: al.bg, color: al.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        <al.icon size={13} /> {al.label}
                       </span>
                     </td>
                   </tr>

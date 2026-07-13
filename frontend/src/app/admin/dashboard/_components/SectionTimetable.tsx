@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { X, AlertTriangle, CalendarDays, Calendar, Bot } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -259,7 +260,7 @@ export default function SectionTimetable({ onToast }: Props) {
                 {genResults.stats.coursNonPlaces > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{t('timetable.genUnplacedSuffix', { n: genResults.stats.coursNonPlaces })}</span>}
               </span>
             </div>
-            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)', padding: 4 }}>✕</button>
+            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)', padding: 4, display: 'inline-flex', alignItems: 'center' }}><X size={16} strokeWidth={2} /></button>
           </div>
 
           <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -319,7 +320,7 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* Erreur */}
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span>
+          <AlertTriangle size={16} strokeWidth={2} color="var(--red)" />
           <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={() => fetchTimetable()} style={btnSec}>{t('timetable.retry')}</button>
         </div>
@@ -328,7 +329,7 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* Pas de classe */}
       {!loading && !error && !classId && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>🗓️</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarDays size={52} strokeWidth={1.5} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.selectClassTitle')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{t('timetable.selectClassHint')}</div>
           <button style={{ ...btnAI, fontSize: 16, padding: '12px 24px' }} disabled={autoGenerating}
@@ -341,7 +342,7 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* Classe sélectionnée, pas d'EDT */}
       {!loading && !error && classId && !timetable && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>📅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Calendar size={52} strokeWidth={1.5} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetable')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)' }}>{t('timetable.noTimetableHint')}</div>
         </div>
@@ -357,7 +358,7 @@ export default function SectionTimetable({ onToast }: Props) {
               <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--green)' : 'var(--amber)', transition: 'width 0.3s', borderRadius: 4 }} />
             </div>
             <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? 'var(--green)' : 'var(--amber)' }}>{pct}%</span>
-            {timetable.generatedByAI && <span style={{ fontSize: 12, background: 'var(--purple-light)', color: 'var(--purple)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>🤖 IA</span>}
+            {timetable.generatedByAI && <span style={{ fontSize: 12, background: 'var(--purple-light)', color: 'var(--purple)', fontWeight: 700, borderRadius: 20, padding: '3px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Bot size={12} strokeWidth={2} /> IA</span>}
             {timetable.status === 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--green-light)', color: 'var(--green)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusPublished')}</span>}
             {timetable.status !== 'PUBLISHED' && <span style={{ fontSize: 12, background: 'var(--amber-light)', color: 'var(--amber)', fontWeight: 700, borderRadius: 20, padding: '3px 10px' }}>{t('timetable.statusDraft')}</span>}
           </div>

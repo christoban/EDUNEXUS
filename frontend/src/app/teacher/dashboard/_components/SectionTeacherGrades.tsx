@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { WifiOff, Save, Target, AlertTriangle, CheckCircle2, X, Download, Upload, Loader2, RefreshCw, Pencil } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -323,8 +324,8 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={loadGrades}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t('grades_section.retry')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <RefreshCw size={14} strokeWidth={2} />{t('grades_section.retry')}
           </button>
         </div>
       </div>
@@ -342,7 +343,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
       {!isOnline && (
         <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>📶</span>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>{t('grades_section.offline_banner')}</span>
         </div>
       )}
@@ -350,7 +351,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       {/* Prompt restauration brouillon */}
       {showDraftPrompt && localDraft && (
         <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 22 }}>💾</span>
+          <span style={{ display: 'flex', alignItems: 'center' }}><Save size={22} strokeWidth={2} /></span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--amber)' }}>{t('grades_section.draft_prompt_title')}</div>
             <div style={{ fontSize: 13, color: 'var(--amber)', marginTop: 2 }}>{t('grades_section.draft_prompt_desc')}</div>
@@ -396,12 +397,13 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
           <button style={btnPrim} onClick={loadGrades} disabled={loading}>{t('grades_section.load')}</button>
           <div style={{ flex: 1 }} />
           <button
-            style={{ ...btnSec, fontSize: 14 }}
+            style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             onClick={downloadTemplate}
             title={t('grades_section.template_tooltip')}>
-            {t('grades_section.download_template')}
+            <Download size={14} strokeWidth={2} />{t('grades_section.download_template')}
           </button>
-          <label style={{ ...btnSec, fontSize: 14, cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+          <label style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.6 : 1 }}>
+            {importing ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : <Upload size={14} strokeWidth={2} />}
             {importing ? t('grades_section.import_loading') : t('grades_section.import_excel')}
             <input
               type="file"
@@ -418,7 +420,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
         {rosterLabel && (
           <div style={{ background: 'var(--blue-light)', border: '1.5px solid var(--blue)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 18 }}>🎯</span>
+            <span style={{ display: 'flex', alignItems: 'center' }}><Target size={18} strokeWidth={2} /></span>
             <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--blue)' }}>{rosterLabel}</span>
           </div>
         )}
@@ -426,14 +428,15 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
         {importResult && (
           <div style={{ padding: '14px 22px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: importResult.errors.length > 0 ? 10 : 0 }}>
-              <span style={{ fontWeight: 800, fontSize: 15, color: importResult.errors.length > 0 ? 'var(--amber)' : 'var(--green)' }}>
-                {importResult.errors.length > 0 ? '⚠️' : '✅'} {t('grades_section.toast_import_result').replace('{imported}', String(importResult.imported))}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: 15, color: importResult.errors.length > 0 ? 'var(--amber)' : 'var(--green)' }}>
+                {importResult.errors.length > 0 ? <AlertTriangle size={16} strokeWidth={2} /> : <CheckCircle2 size={16} strokeWidth={2} />}
+                {t('grades_section.toast_import_result').replace('{imported}', String(importResult.imported))}
                 {importResult.errors.length > 0 && ` · ${t('grades_section.toast_import_errors').replace('{count}', String(importResult.errors.length))}`}
               </span>
               <button
                 onClick={() => setImportResult(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)' }}>
-                ✕
+                style={{ display: 'flex', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}>
+                <X size={18} strokeWidth={2} />
               </button>
             </div>
             {importResult.errors.length > 0 && (
@@ -532,15 +535,18 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
               <div style={{ display: 'flex', gap: 10 }}>
                 {modifiableCount > 0 ? (
                   <>
-                    <button style={btnSec} onClick={saveDraft} disabled={saving}>
+                    <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={saveDraft} disabled={saving}>
+                      {saving ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : <Save size={14} strokeWidth={2} />}
                       {saving ? '...' : t('grades_section.draft_save')}
                     </button>
-                    <button style={btnPrim} onClick={submitGrades} disabled={saving}>
+                    <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={submitGrades} disabled={saving}>
+                      {saving ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : isOnline ? <Upload size={14} strokeWidth={2} /> : <WifiOff size={14} strokeWidth={2} />}
                       {saving ? '...' : isOnline ? t('grades_section.submit_online') : t('grades_section.submit_offline')}
                     </button>
                   </>
                 ) : (
-                  <span style={{ fontSize: 15, color: 'var(--green)', fontWeight: 700 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 15, color: 'var(--green)', fontWeight: 700 }}>
+                    <CheckCircle2 size={16} strokeWidth={2} />
                     {t('grades_section.all_submitted')}
                   </span>
                 )}
@@ -553,7 +559,8 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       {/* Notes rejetées */}
       {rejectedGrades.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid rgba(220,38,38,0.3)', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 22px', background: 'var(--red-light)', borderBottom: '1px solid rgba(220,38,38,0.15)' }}>
+          <div style={{ padding: '14px 22px', background: 'var(--red-light)', borderBottom: '1px solid rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <X size={16} strokeWidth={2} color="var(--red)" />
             <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--red)' }}>{t('grades_section.rejected_title').replace('{count}', String(rejectedGrades.length))}</span>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -566,14 +573,14 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
                   <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700 }}>{g.rejectionReason || t('grades_section.rejected_no_reason')}</td>
                   <td style={tdSt}>
                     <button
-                      style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
                       onClick={() => {
                         setSelectedClass(g.classId || '')
                         setSelectedSubject(g.subjectId || '')
                         setSelectedSequence(g.sequenceId || '')
                         loadGrades()
                       }}>
-                      {t('grades_section.rejected_correct')}
+                      <Pencil size={14} strokeWidth={2} />{t('grades_section.rejected_correct')}
                     </button>
                   </td>
                 </tr>

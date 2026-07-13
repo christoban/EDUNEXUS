@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import SectionStudentPayments from './SectionStudentPayments'
+import { Wallet, RefreshCw, Settings } from 'lucide-react'
 
 interface Props { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }
 
@@ -90,8 +91,8 @@ export default function SectionSchoolPayments({ onToast }: Props) {
 
   return (
     <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>
-        💰 {t('matricules.minesec_dashboard_title')}
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Wallet size={20} strokeWidth={2} /> {t('matricules.minesec_dashboard_title')}
       </h2>
 
       {/* Filtre année */}
@@ -157,9 +158,9 @@ export default function SectionSchoolPayments({ onToast }: Props) {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={loadOverview} style={btnSec}>🔄 {t('matricules.sync_btn')}</button>
-            <button onClick={generateForSchool} disabled={generatingSchool} style={btnPri}>
-              {generatingSchool ? '...' : `⚙️ ${t('matricules.generate_school_btn')}`}
+            <button onClick={loadOverview} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }}><RefreshCw size={14} strokeWidth={2} /> {t('matricules.sync_btn')}</button>
+            <button onClick={generateForSchool} disabled={generatingSchool} style={{ ...btnPri, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {generatingSchool ? '...' : <><Settings size={14} strokeWidth={2} /> {t('matricules.generate_school_btn')}</>}
             </button>
           </div>
 

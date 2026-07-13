@@ -3,10 +3,23 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import type { CSSProperties } from 'react'
 import { motion, AnimatePresence, useMotionValue, animate as motionAnimate, useInView, useReducedMotion } from 'framer-motion'
+import {
+  CheckCircle2, XCircle, Lock, Smartphone, WifiOff, School, GraduationCap, Presentation,
+  FileText, Calendar, Bot, Mail, Rocket, Users, Search, Check, Star, ArrowRight, Play,
+  ChevronDown, Wallet, AlertTriangle,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import DemoModal from './DemoModal'
 import AnimatedBackground from './AnimatedBackground'
 import LanguageSwitch from '@/components/LanguageSwitch'
 import { useLanguage } from '@/lib/i18n'
+
+// Lookup tables for data-driven emoji-as-icon fields (same order FR/EN — see textsFR/textsEN below)
+const STATS_ICONS: LucideIcon[] = [School, GraduationCap, Presentation, Smartphone]
+const FEATURES_ICONS: LucideIcon[] = [FileText, CheckCircle2, Smartphone, Calendar, Bot, WifiOff]
+const HOWITWORKS_ICONS: LucideIcon[] = [Mail, School, Rocket]
+const ROLES_ICONS: LucideIcon[] = [School, Presentation, Users, GraduationCap, Search]
+const TRUST_ICONS: LucideIcon[] = [CheckCircle2, Lock, Smartphone, WifiOff]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRANSLATIONS
@@ -26,59 +39,59 @@ const textsFR = {
     title: 'La plateforme scolaire de référence au Cameroun',
     subtitle:
       'ZekoulABia centralise la gestion de votre établissement : notes, présences, bulletins, emploi du temps et paiements Mobile Money. Conforme MINESEC.',
-    cta1: '🎓 Demander une démo gratuite',
-    cta2: '▶ Voir comment ça marche',
-    trust: ['✅ Conforme MINESEC', '🔒 Données hébergées en Afrique', '📱 MTN MoMo & Orange Money', '📶 Mode hors-ligne inclus'],
+    cta1: 'Demander une démo gratuite',
+    cta2: 'Voir comment ça marche',
+    trust: ['Conforme MINESEC', 'Données hébergées en Afrique', 'MTN MoMo & Orange Money', 'Mode hors-ligne inclus'],
   },
   stats: {
     items: [
-      { icon: '🏫', value: '24+', label: 'Écoles actives' },
-      { icon: '👨‍🎓', value: '6 000+', label: 'Élèves gérés' },
-      { icon: '👨‍🏫', value: '342', label: 'Enseignants inscrits' },
-      { icon: '📱', value: '89%', label: 'Recouvrement Mobile Money' },
+      { value: '24+', label: 'Écoles actives' },
+      { value: '6 000+', label: 'Élèves gérés' },
+      { value: '342', label: 'Enseignants inscrits' },
+      { value: '89%', label: 'Recouvrement Mobile Money' },
     ],
   },
   features: {
     title: 'Tout ce dont votre école a besoin',
     subtitle: 'Pensé pour le système éducatif camerounais',
     items: [
-      { icon: '📝', title: 'Notes & Bulletins', desc: 'Coefficients BAC MINESEC, calcul automatique des moyennes, bulletins PDF générés en un clic.' },
-      { icon: '✅', title: 'Présences intelligentes', desc: "Saisie rapide par l'enseignant, alertes SMS aux parents, statistiques en temps réel." },
-      { icon: '📱', title: 'Mobile Money intégré', desc: 'MTN MoMo & Orange Money via Campay. Rappels automatiques aux parents en retard de paiement.' },
-      { icon: '📅', title: 'Emploi du temps', desc: 'Détection de conflits (Loi 7 MINESEC ≤14h/AP), sous-groupes TP, publication en un clic.' },
-      { icon: '🤖', title: 'IA Santé Scolaire', desc: 'Score 0-100 par élève : notes, présences, paiements, comportement. Alertes préventives Groq AI.' },
-      { icon: '📶', title: 'Mode hors-ligne', desc: 'Fonctionne sans internet (IndexedDB + service worker). Synchronisation automatique au retour du réseau.' },
+      { title: 'Notes & Bulletins', desc: 'Coefficients BAC MINESEC, calcul automatique des moyennes, bulletins PDF générés en un clic.' },
+      { title: 'Présences intelligentes', desc: "Saisie rapide par l'enseignant, alertes SMS aux parents, statistiques en temps réel." },
+      { title: 'Mobile Money intégré', desc: 'MTN MoMo & Orange Money via Campay. Rappels automatiques aux parents en retard de paiement.' },
+      { title: 'Emploi du temps', desc: 'Détection de conflits (Loi 7 MINESEC ≤14h/AP), sous-groupes TP, publication en un clic.' },
+      { title: 'IA Santé Scolaire', desc: 'Score 0-100 par élève : notes, présences, paiements, comportement. Alertes préventives Groq AI.' },
+      { title: 'Mode hors-ligne', desc: 'Fonctionne sans internet (IndexedDB + service worker). Synchronisation automatique au retour du réseau.' },
     ],
   },
   howItWorks: {
     title: 'Opérationnel en 72 heures',
     steps: [
-      { icon: '📧', title: 'Invitation', desc: "L'équipe ZekoulABia envoie une invitation à votre directeur. Lien d'activation valable 72 heures." },
-      { icon: '🏫', title: 'Onboarding guidé', desc: 'Configurez classes, matières, enseignants. Notre assistant vous guide étape par étape.' },
-      { icon: '🚀', title: 'Tout le monde connecté', desc: 'Chaque rôle accède à son espace dédié. Enseignants, parents et élèves reçoivent leurs accès.' },
+      { title: 'Invitation', desc: "L'équipe ZekoulABia envoie une invitation à votre directeur. Lien d'activation valable 72 heures." },
+      { title: 'Onboarding guidé', desc: 'Configurez classes, matières, enseignants. Notre assistant vous guide étape par étape.' },
+      { title: 'Tout le monde connecté', desc: 'Chaque rôle accède à son espace dédié. Enseignants, parents et élèves reçoivent leurs accès.' },
     ],
   },
   roles: {
     title: 'Un espace dédié pour chaque acteur',
     items: [
       {
-        icon: '🏫', label: 'Proviseur',
+        label: 'Proviseur',
         benefits: ["Vue d'ensemble : KPIs, présences, recouvrement en temps réel", 'Gestion des utilisateurs, classes et matières', 'Clôture d\'année avec promotions automatiques MINESEC', 'Configuration complète de l\'établissement'],
       },
       {
-        icon: '👨‍🏫', label: 'Enseignant',
+        label: 'Enseignant',
         benefits: ['Saisie des présences en 2 minutes chrono', 'Notes par séquence avec calcul automatique', 'Emploi du temps personnel + alertes conflits', 'Demandes de rattrapage en un clic'],
       },
       {
-        icon: '👨‍👩‍👧', label: 'Parent',
+        label: 'Parent',
         benefits: ['Suivi des notes et bulletins de ses enfants', 'Alertes absences en temps réel par SMS', "Paiements Mobile Money MTN/Orange depuis l'app", "Communication directe avec l'établissement"],
       },
       {
-        icon: '👨‍🎓', label: 'Élève',
+        label: 'Élève',
         benefits: ['Notes, moyennes et bulletins disponibles 24h/24', 'Emploi du temps personnel', 'Examens en ligne soumis directement dans la plateforme', 'Accessible hors-ligne'],
       },
       {
-        icon: '🔍', label: 'Censeur',
+        label: 'Censeur',
         benefits: ['Validation des notes des enseignants', 'Conseil de classe avec décisions de promotion', 'Gestion des cautions et discipline', 'Mobile Money : suivi des impayés et rappels'],
       },
     ],
@@ -114,7 +127,7 @@ const textsFR = {
   cta: {
     title: 'Rejoignez les établissements qui font confiance à ZekoulABia',
     subtitle: "Période d'essai gratuite · Aucune carte bancaire · Démarrage en 72h",
-    btn: '🎓 Demander une démo gratuite',
+    btn: 'Demander une démo gratuite',
   },
   footer: {
     tagline: 'Gestion scolaire · Cameroun · MINESEC',
@@ -142,46 +155,46 @@ const textsEN = {
     badge: '🇨🇲 Official platform · MINESEC Cameroon',
     title: 'The reference school management platform in Cameroon',
     subtitle: 'ZekoulABia centralizes your school management: grades, attendance, report cards, timetables and Mobile Money payments. MINESEC compliant.',
-    cta1: '🎓 Request a free demo',
-    cta2: '▶ See how it works',
-    trust: ['✅ MINESEC Compliant', '🔒 Data hosted in Africa', '📱 MTN MoMo & Orange Money', '📶 Offline mode included'],
+    cta1: 'Request a free demo',
+    cta2: 'See how it works',
+    trust: ['MINESEC Compliant', 'Data hosted in Africa', 'MTN MoMo & Orange Money', 'Offline mode included'],
   },
   stats: {
     items: [
-      { icon: '🏫', value: '24+', label: 'Active schools' },
-      { icon: '👨‍🎓', value: '6,000+', label: 'Students managed' },
-      { icon: '👨‍🏫', value: '342', label: 'Teachers registered' },
-      { icon: '📱', value: '89%', label: 'Mobile Money recovery' },
+      { value: '24+', label: 'Active schools' },
+      { value: '6,000+', label: 'Students managed' },
+      { value: '342', label: 'Teachers registered' },
+      { value: '89%', label: 'Mobile Money recovery' },
     ],
   },
   features: {
     title: 'Everything your school needs',
     subtitle: 'Designed for the Cameroonian education system',
     items: [
-      { icon: '📝', title: 'Grades & Report Cards', desc: 'MINESEC BAC coefficients, automatic average calculation, PDF report cards generated in one click.' },
-      { icon: '✅', title: 'Smart Attendance', desc: 'Quick teacher entry, SMS alerts to parents, real-time statistics.' },
-      { icon: '📱', title: 'Integrated Mobile Money', desc: 'MTN MoMo & Orange Money via Campay. Automatic reminders to late-paying parents.' },
-      { icon: '📅', title: 'Timetable', desc: 'Conflict detection (MINESEC Rule 7 ≤14h/week), lab groups, one-click publishing.' },
-      { icon: '🤖', title: 'AI School Health', desc: 'Score 0-100 per student: grades, attendance, payments, behavior. Preventive Groq AI alerts.' },
-      { icon: '📶', title: 'Offline Mode', desc: 'Works without internet (IndexedDB + service worker). Auto-sync when network returns.' },
+      { title: 'Grades & Report Cards', desc: 'MINESEC BAC coefficients, automatic average calculation, PDF report cards generated in one click.' },
+      { title: 'Smart Attendance', desc: 'Quick teacher entry, SMS alerts to parents, real-time statistics.' },
+      { title: 'Integrated Mobile Money', desc: 'MTN MoMo & Orange Money via Campay. Automatic reminders to late-paying parents.' },
+      { title: 'Timetable', desc: 'Conflict detection (MINESEC Rule 7 ≤14h/week), lab groups, one-click publishing.' },
+      { title: 'AI School Health', desc: 'Score 0-100 per student: grades, attendance, payments, behavior. Preventive Groq AI alerts.' },
+      { title: 'Offline Mode', desc: 'Works without internet (IndexedDB + service worker). Auto-sync when network returns.' },
     ],
   },
   howItWorks: {
     title: 'Operational in 72 hours',
     steps: [
-      { icon: '📧', title: 'Invitation', desc: 'The ZekoulABia team sends an invitation to your headmaster. Activation link valid 72 hours.' },
-      { icon: '🏫', title: 'Guided Onboarding', desc: 'Set up classes, subjects, teachers. Our assistant guides you step by step.' },
-      { icon: '🚀', title: 'Everyone connected', desc: 'Each role accesses their dedicated space. Teachers, parents and students receive their access.' },
+      { title: 'Invitation', desc: 'The ZekoulABia team sends an invitation to your headmaster. Activation link valid 72 hours.' },
+      { title: 'Guided Onboarding', desc: 'Set up classes, subjects, teachers. Our assistant guides you step by step.' },
+      { title: 'Everyone connected', desc: 'Each role accesses their dedicated space. Teachers, parents and students receive their access.' },
     ],
   },
   roles: {
     title: 'A dedicated space for each stakeholder',
     items: [
-      { icon: '🏫', label: 'Principal', benefits: ['Overview: KPIs, attendance, recovery in real time', 'User, class and subject management', 'Year-end with automatic MINESEC promotions', 'Complete school configuration'] },
-      { icon: '👨‍🏫', label: 'Teacher', benefits: ['Attendance entry in 2 minutes', 'Grades per sequence with automatic calculation', 'Personal timetable + conflict alerts', 'Make-up class requests in one click'] },
-      { icon: '👨‍👩‍👧', label: 'Parent', benefits: ["Track children's grades and report cards", 'Real-time absence alerts by SMS', 'MTN/Orange Mobile Money payments from the app', 'Direct communication with the school'] },
-      { icon: '👨‍🎓', label: 'Student', benefits: ['Grades, averages and report cards 24/7', 'Personal timetable', 'Online exams submitted directly in the platform', 'Offline accessible'] },
-      { icon: '🔍', label: 'Vice-Principal', benefits: ['Validation of teacher grades', 'Class council with promotion decisions', 'Caution and discipline management', 'Mobile Money: overdue tracking and reminders'] },
+      { label: 'Principal', benefits: ['Overview: KPIs, attendance, recovery in real time', 'User, class and subject management', 'Year-end with automatic MINESEC promotions', 'Complete school configuration'] },
+      { label: 'Teacher', benefits: ['Attendance entry in 2 minutes', 'Grades per sequence with automatic calculation', 'Personal timetable + conflict alerts', 'Make-up class requests in one click'] },
+      { label: 'Parent', benefits: ["Track children's grades and report cards", 'Real-time absence alerts by SMS', 'MTN/Orange Mobile Money payments from the app', 'Direct communication with the school'] },
+      { label: 'Student', benefits: ['Grades, averages and report cards 24/7', 'Personal timetable', 'Online exams submitted directly in the platform', 'Offline accessible'] },
+      { label: 'Vice-Principal', benefits: ['Validation of teacher grades', 'Class council with promotion decisions', 'Caution and discipline management', 'Mobile Money: overdue tracking and reminders'] },
     ],
   },
   pricing: {
@@ -215,7 +228,7 @@ const textsEN = {
   cta: {
     title: 'Join the schools that trust ZekoulABia',
     subtitle: 'Free trial · No credit card · Up and running in 72h',
-    btn: '🎓 Request a free demo',
+    btn: 'Request a free demo',
   },
   footer: {
     tagline: 'School management · Cameroon · MINESEC',
@@ -288,11 +301,11 @@ function CompteurAnime({ valeur, suffix = '' }: { valeur: number; suffix?: strin
 // HERO MOCKUP (pure HTML, no external images)
 // ─────────────────────────────────────────────────────────────────────────────
 function HeroMockup() {
-  const kpis = [
-    { label: 'Élèves présents', value: '418 / 460', icon: '✅', bg: 'var(--green-light)', text: 'var(--green)' },
-    { label: 'Notes à valider', value: '12', icon: '📝', bg: 'var(--amber-light)', text: 'var(--amber)' },
-    { label: 'Frais recouvrés', value: '76%', icon: '💰', bg: 'var(--blue-light)', text: 'var(--blue)' },
-    { label: 'Alertes actives', value: '3', icon: '⚠️', bg: 'var(--red-light)', text: 'var(--red)' },
+  const kpis: { label: string; value: string; icon: LucideIcon; bg: string; text: string }[] = [
+    { label: 'Élèves présents', value: '418 / 460', icon: CheckCircle2, bg: 'var(--green-light)', text: 'var(--green)' },
+    { label: 'Notes à valider', value: '12', icon: FileText, bg: 'var(--amber-light)', text: 'var(--amber)' },
+    { label: 'Frais recouvrés', value: '76%', icon: Wallet, bg: 'var(--blue-light)', text: 'var(--blue)' },
+    { label: 'Alertes actives', value: '3', icon: AlertTriangle, bg: 'var(--red-light)', text: 'var(--red)' },
   ]
   const bars = [
     { cls: '3ème A', pct: 92 },
@@ -305,7 +318,7 @@ function HeroMockup() {
     <div style={{ ...CARD, padding: 24, width: '100%', maxWidth: 460, boxShadow: '0 24px 72px rgba(0,0,0,0.14)', borderRadius: 20 }}>
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg,var(--green),var(--green2))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>🎓</div>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: 'linear-gradient(135deg,var(--green),var(--green2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}><GraduationCap size={16} strokeWidth={2} /></div>
         <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>Tableau de bord — Trimestre 2</div>
         <div style={{ marginLeft: 'auto', background: 'var(--green-light)', color: 'var(--green)', fontSize: 10, fontWeight: 900, borderRadius: 20, padding: '3px 10px', whiteSpace: 'nowrap' }}>LIVE</div>
       </div>
@@ -314,7 +327,7 @@ function HeroMockup() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
         {kpis.map(k => (
           <div key={k.label} style={{ background: k.bg, borderRadius: 12, padding: '12px 14px' }}>
-            <div style={{ fontSize: 18, marginBottom: 3 }}>{k.icon}</div>
+            <div style={{ color: k.text, marginBottom: 3 }}><k.icon size={18} strokeWidth={2} /></div>
             <div style={{ fontSize: 19, fontWeight: 900, color: k.text, lineHeight: 1.1 }}>{k.value}</div>
             <div style={{ fontSize: 10, color: k.text, opacity: 0.7, fontWeight: 600, marginTop: 3 }}>{k.label}</div>
           </div>
@@ -489,21 +502,26 @@ export default function LandingPage() {
               transition={{ duration: 0.6, delay: 0.34, ease: 'easeOut' }}
               style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 32 }}>
               <motion.button onClick={openDemo}
-                style={{ ...btnPrimary, fontSize: 16, padding: '16px 32px' }}
+                style={{ ...btnPrimary, fontSize: 16, padding: '16px 32px', display: 'inline-flex', alignItems: 'center', gap: 9 }}
                 whileHover={{ scale: 1.04, boxShadow: '0 6px 20px rgba(5,150,105,0.38)' }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 20 }}
-              >{tx.hero.cta1}</motion.button>
-              <a href="#comment" style={{ ...btnSecondary, fontSize: 16, padding: '16px 32px' }}>{tx.hero.cta2}</a>
+              ><GraduationCap size={17} strokeWidth={2} />{tx.hero.cta1}</motion.button>
+              <a href="#comment" style={{ ...btnSecondary, fontSize: 16, padding: '16px 32px', display: 'inline-flex', alignItems: 'center', gap: 9 }}><Play size={16} strokeWidth={2} />{tx.hero.cta2}</a>
             </motion.div>
             {/* Trust badges */}
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.44 }}
               style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
-              {tx.hero.trust.map(badge => (
-                <span key={badge} style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 700 }}>{badge}</span>
-              ))}
+              {tx.hero.trust.map((badge, i) => {
+                const Icon = TRUST_ICONS[i]
+                return (
+                  <span key={badge} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: 'var(--text2)', fontWeight: 700 }}>
+                    <Icon size={15} strokeWidth={2} />{badge}
+                  </span>
+                )
+              })}
             </motion.div>
           </div>
 
@@ -527,12 +545,13 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 32 }}>
           {tx.stats.items.map((s, i) => {
             const { num, suffix } = parseStatVal(s.value)
+            const Icon = STATS_ICONS[i]
             return (
               <motion.div key={s.label} style={{ textAlign: 'center' }}
                 initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.4 }}
                 transition={{ duration: 0.55, delay: i * 0.1, ease: 'easeOut' }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>{s.icon}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 8 }}><Icon size={36} strokeWidth={2} /></div>
                 <div style={{ fontFamily: 'var(--font-nunito),Nunito,sans-serif', fontSize: 52, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>
                   <CompteurAnime valeur={num} suffix={suffix} />
                 </div>
@@ -554,20 +573,23 @@ export default function LandingPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
-            {tx.features.items.map((f, i) => (
-              <motion.div key={f.title}
-                style={{ ...CARD, padding: 32, cursor: 'default' }}
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.15 }}
-                transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
-                whileHover={{ y: -5, boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: { duration: 0.2 } }}
-              >
-                <div style={{ fontSize: 36, marginBottom: 16 }}>{f.icon}</div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{f.title}</div>
-                <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7 }}>{f.desc}</div>
-              </motion.div>
-            ))}
+            {tx.features.items.map((f, i) => {
+              const Icon = FEATURES_ICONS[i]
+              return (
+                <motion.div key={f.title}
+                  style={{ ...CARD, padding: 32, cursor: 'default' }}
+                  initial={{ opacity: 0, y: 28 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.15 }}
+                  transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
+                  whileHover={{ y: -5, boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: { duration: 0.2 } }}
+                >
+                  <div style={{ color: 'var(--green)', marginBottom: 16 }}><Icon size={36} strokeWidth={2} /></div>
+                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{f.title}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7 }}>{f.desc}</div>
+                </motion.div>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -580,23 +602,26 @@ export default function LandingPage() {
           <h2 style={{ ...SH, marginBottom: 72 }}>{tx.howItWorks.title}</h2>
 
           <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            {tx.howItWorks.steps.map((step, i) => (
-              <Fragment key={i}>
-                <div style={{ flex: 1, textAlign: 'center', padding: '0 32px' }}>
-                  <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'var(--green-light)', color: 'var(--green)', fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                    {i + 1}
+            {tx.howItWorks.steps.map((step, i) => {
+              const Icon = HOWITWORKS_ICONS[i]
+              return (
+                <Fragment key={i}>
+                  <div style={{ flex: 1, textAlign: 'center', padding: '0 32px' }}>
+                    <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'var(--green-light)', color: 'var(--green)', fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                      {i + 1}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 14 }}><Icon size={44} strokeWidth={2} /></div>
+                    <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+                      Étape {i + 1} — {step.title}
+                    </div>
+                    <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>{step.desc}</div>
                   </div>
-                  <div style={{ fontSize: 44, marginBottom: 14 }}>{step.icon}</div>
-                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
-                    Étape {i + 1} — {step.title}
-                  </div>
-                  <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>{step.desc}</div>
-                </div>
-                {i < tx.howItWorks.steps.length - 1 && (
-                  <div style={{ paddingTop: 22, color: 'var(--border2)', fontSize: 28, flexShrink: 0, alignSelf: 'flex-start' }}>→</div>
-                )}
-              </Fragment>
-            ))}
+                  {i < tx.howItWorks.steps.length - 1 && (
+                    <div style={{ paddingTop: 22, color: 'var(--border2)', flexShrink: 0, alignSelf: 'flex-start' }}><ArrowRight size={28} strokeWidth={2} /></div>
+                  )}
+                </Fragment>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -610,19 +635,23 @@ export default function LandingPage() {
 
           {/* Role tabs */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 40 }}>
-            {tx.roles.items.map((r, i) => (
-              <button key={i} onClick={() => setTabRole(i)}
-                style={{
-                  padding: '10px 24px', fontSize: 14, fontWeight: 700, borderRadius: 28, cursor: 'pointer',
-                  fontFamily: 'inherit', transition: 'all 150ms',
-                  background: tabRole === i ? 'var(--green)' : 'white',
-                  color: tabRole === i ? 'white' : 'var(--text2)',
-                  boxShadow: tabRole === i ? '0 4px 14px rgba(5,150,105,0.25)' : '0 2px 6px rgba(0,0,0,0.06)',
-                  border: tabRole !== i ? '1.5px solid var(--border)' : '1.5px solid transparent',
-                }}>
-                {r.icon} {r.label}
-              </button>
-            ))}
+            {tx.roles.items.map((r, i) => {
+              const Icon = ROLES_ICONS[i]
+              return (
+                <button key={i} onClick={() => setTabRole(i)}
+                  style={{
+                    padding: '10px 24px', fontSize: 14, fontWeight: 700, borderRadius: 28, cursor: 'pointer',
+                    fontFamily: 'inherit', transition: 'all 150ms',
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    background: tabRole === i ? 'var(--green)' : 'white',
+                    color: tabRole === i ? 'white' : 'var(--text2)',
+                    boxShadow: tabRole === i ? '0 4px 14px rgba(5,150,105,0.25)' : '0 2px 6px rgba(0,0,0,0.06)',
+                    border: tabRole !== i ? '1.5px solid var(--border)' : '1.5px solid transparent',
+                  }}>
+                  <Icon size={15} strokeWidth={2} /> {r.label}
+                </button>
+              )
+            })}
           </div>
 
           {/* Tab content */}
@@ -631,14 +660,16 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }}
               style={{ ...CARD, padding: 40 }}>
-              <div style={{ fontSize: 52, marginBottom: 14 }}>{tx.roles.items[tabRole].icon}</div>
+              {(() => { const Icon = ROLES_ICONS[tabRole]; return (
+                <div style={{ display: 'flex', color: 'var(--green)', marginBottom: 14 }}><Icon size={52} strokeWidth={2} /></div>
+              ) })()}
               <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 24 }}>
                 Espace {tx.roles.items[tabRole].label}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {tx.roles.items[tabRole].benefits.map((b, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--green-light)', color: 'var(--green)', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>✓</div>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--green-light)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}><Check size={13} strokeWidth={2.5} /></div>
                     <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.6 }}>{b}</div>
                   </div>
                 ))}
@@ -679,8 +710,8 @@ export default function LandingPage() {
                 }}
               >
                 {plan.recommended && (
-                  <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--green)', color: 'white', fontSize: 10, fontWeight: 900, borderRadius: 20, padding: '4px 16px', whiteSpace: 'nowrap' }}>
-                    ⭐ {tx.pricing.recommended}
+                  <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: 'var(--green)', color: 'white', fontSize: 10, fontWeight: 900, borderRadius: 20, padding: '4px 16px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Star size={11} strokeWidth={2} fill="currentColor" /> {tx.pricing.recommended}
                   </div>
                 )}
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{plan.name}</div>
@@ -688,7 +719,7 @@ export default function LandingPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
                   {plan.features.map(f => (
                     <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14, color: 'var(--text2)' }}>
-                      <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>{f}
+                      <span style={{ display: 'flex', color: 'var(--green)' }}><Check size={15} strokeWidth={2.5} /></span>{f}
                     </div>
                   ))}
                 </div>
@@ -751,7 +782,7 @@ export default function LandingPage() {
                 <button onClick={() => setFaqOpen(faqOpen === i ? null : i)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                   <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{faq.q}</span>
-                  <span style={{ fontSize: 20, color: 'var(--green)', fontWeight: 900, transition: 'transform 150ms', transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0, marginLeft: 16 }}>▾</span>
+                  <span style={{ display: 'flex', color: 'var(--green)', transition: 'transform 150ms', transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0, marginLeft: 16 }}><ChevronDown size={20} strokeWidth={2.5} /></span>
                 </button>
                 {faqOpen === i && (
                   <div style={{ padding: '0 24px 20px', fontSize: 15, color: 'var(--text2)', lineHeight: 1.75, animation: 'fadeIn 0.15s ease' }}>
@@ -797,7 +828,7 @@ export default function LandingPage() {
               background: '#4ade80', color: 'var(--sidebar)',
               fontWeight: 900, fontSize: 18, padding: '20px 52px', borderRadius: 12,
               border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              transition: 'all 150ms',
+              transition: 'all 150ms', display: 'inline-flex', alignItems: 'center', gap: 10,
               boxShadow: '0 6px 24px rgba(74,222,128,0.32)',
             }}
             onMouseEnter={e => {
@@ -813,6 +844,7 @@ export default function LandingPage() {
               el.style.transform = 'translateY(0)'
             }}
           >
+            <GraduationCap size={19} strokeWidth={2} />
             {tx.cta.btn}
           </button>
         </div>
@@ -889,9 +921,9 @@ export default function LandingPage() {
         onClose={() => setDemoOpen(false)}
         onSuccess={() => {
           setDemoOpen(false)
-          setToast({ msg: '✅ Demande envoyée ! Nous vous contactons dans les 24h.', type: 'success' })
+          setToast({ msg: 'Demande envoyée ! Nous vous contactons dans les 24h.', type: 'success' })
         }}
-        onError={msg => setToast({ msg: `❌ ${msg}`, type: 'error' })}
+        onError={msg => setToast({ msg, type: 'error' })}
         lang={lang}
       />
 
@@ -907,10 +939,11 @@ export default function LandingPage() {
               position: 'fixed', bottom: 32, right: 32, zIndex: 300,
               background: toast.type === 'success' ? 'var(--green)' : 'var(--red)',
               color: 'white', padding: '14px 22px', borderRadius: 12,
-              fontSize: 15, fontWeight: 700,
+              fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10,
               boxShadow: '0 8px 28px rgba(0,0,0,0.16)',
               maxWidth: 400, lineHeight: 1.5,
             }}>
+            {toast.type === 'success' ? <CheckCircle2 size={18} strokeWidth={2} style={{ flexShrink: 0 }} /> : <XCircle size={18} strokeWidth={2} style={{ flexShrink: 0 }} />}
             {toast.msg}
           </motion.div>
         )}

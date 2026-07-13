@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Eye, EyeOff, Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { Eye, EyeOff, Loader2, CheckCircle, XCircle, KeyRound } from 'lucide-react'
 
 interface InviteData {
   email: string
@@ -201,7 +201,7 @@ function SetPasswordContent() {
             disabled={submitting}
             style={{ width: '100%', padding: '12px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: submitting ? 'var(--green-light)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
-            {submitting ? <><Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> Création...</> : '🔑 Créer mon mot de passe'}
+            {submitting ? <><Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> Création...</> : <><KeyRound size={16} strokeWidth={2} /> Créer mon mot de passe</>}
           </button>
         </form>
 

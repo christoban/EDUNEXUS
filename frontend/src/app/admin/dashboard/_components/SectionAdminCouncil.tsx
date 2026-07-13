@@ -1,5 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import {
+  ClipboardList, Loader2, Lock, Upload, AlertTriangle, GraduationCap, BookOpen,
+  Vote, FileText, X, Trophy, CheckCircle2,
+} from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
 
@@ -88,7 +92,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
       onToast(data.count > 0
-        ? `✅ ${data.count} bulletin${data.count > 1 ? 's' : ''} publié${data.count > 1 ? 's' : ''} — SMS envoyés aux parents`
+        ? `${data.count} bulletin${data.count > 1 ? 's' : ''} publié${data.count > 1 ? 's' : ''} — SMS envoyés aux parents`
         : 'Aucun bulletin généré à publier pour cette classe',
         data.count > 0 ? 'success' : 'info')
       fetchSessions()
@@ -141,13 +145,13 @@ export default function SectionAdminCouncil({ onToast }: Props) {
       {!loading && !error && sessions.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
           {([
-            { icon: '📋', value: totalSessions,  label: 'Sessions au total' },
-            { icon: '⏳', value: openCount,       label: 'En cours' },
-            { icon: '🔒', value: lockedCount,     label: 'Verrouillés' },
-            { icon: '📤', value: publishedCount,  label: 'Bulletins publiés' },
-          ] as const).map(({ icon, value, label }) => (
+            { icon: ClipboardList, value: totalSessions,  label: 'Sessions au total' },
+            { icon: Loader2, value: openCount,       label: 'En cours' },
+            { icon: Lock, value: lockedCount,     label: 'Verrouillés' },
+            { icon: Upload, value: publishedCount,  label: 'Bulletins publiés' },
+          ] as { icon: typeof ClipboardList; value: number; label: string }[]).map(({ icon: Icon, value, label }) => (
             <div key={label} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '16px 18px' }}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+              <div style={{ marginBottom: 6 }}><Icon size={22} /></div>
               <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
               <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
             </div>
@@ -163,14 +167,14 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <AlertTriangle size={18} color="var(--red)" /><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchSessions} style={btnRetry}>Réessayer</button>
         </div>
       )}
 
       {!loading && !error && filteredSessions.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>🎓</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><GraduationCap size={52} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Aucun conseil de classe</div>
           <div style={{ fontSize: 16, color: 'var(--text3)' }}>
             {selectedPeriodId !== 'all' ? 'Aucune session pour ce trimestre.' : 'Les sessions seront créées par le personnel.'}
@@ -189,8 +193,8 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                 onMouseLeave={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border)', boxShadow: 'none' }) }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{s.class.name}</div>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: s.status === 'LOCKED' ? 'var(--green-light)' : 'var(--blue-light)', color: s.status === 'LOCKED' ? 'var(--green)' : 'var(--blue)' }}>
-                    {s.status === 'LOCKED' ? '🔒 Verrouillé' : '📖 Ouvert'}
+                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: s.status === 'LOCKED' ? 'var(--green-light)' : 'var(--blue-light)', color: s.status === 'LOCKED' ? 'var(--green)' : 'var(--blue)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {s.status === 'LOCKED' ? <><Lock size={12} /> Verrouillé</> : <><BookOpen size={12} /> Ouvert</>}
                   </span>
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{s.academicPeriod.name}</div>
@@ -209,46 +213,46 @@ export default function SectionAdminCouncil({ onToast }: Props) {
               ) : (
                 <>
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                    <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
-                      🗳️ {selected.class.name} · {selected.academicPeriod.name}
+                    <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Vote size={17} /> {selected.class.name} · {selected.academicPeriod.name}
                     </span>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       {selected.status === 'LOCKED' && (
                         <>
-                          <button style={btnPrim} onClick={() => publishBulletins(selected.id)} disabled={publishing}>
-                            {publishing ? '⏳ Publication…' : '📤 Publier les bulletins'}
+                          <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => publishBulletins(selected.id)} disabled={publishing}>
+                            {publishing ? <><Loader2 size={14} className="animate-spin" /> Publication…</> : <><Upload size={14} /> Publier les bulletins</>}
                           </button>
-                          <button style={{ ...btnSec, fontSize: 14 }}
+                          <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/class-councils/${selected.id}/pv`, '_blank')}
                             title="Procès-Verbal officiel de la délibération">
-                            📋 PV officiel
+                            <ClipboardList size={14} /> PV officiel
                           </button>
-                          <button style={{ ...btnSec, fontSize: 14 }}
+                          <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/classes/${selected.class.id}/tableau-honneur?periodId=${selected.academicPeriod.id}`, '_blank')}
                             title="Tableau d'honneur du trimestre">
-                            🏆 Tableau d'honneur
+                            <Trophy size={14} /> Tableau d'honneur
                           </button>
-                          <button style={{ ...btnSec, fontSize: 14 }}
+                          <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/classes/${selected.class.id}/tableau-honneur-annuel`, '_blank')}
                             title="Tableau d'honneur annuel (disponible uniquement si tous les conseils sont verrouillés)">
-                            🏆 Annuel
+                            <Trophy size={14} /> Annuel
                           </button>
                         </>
                       )}
-                      <button style={btnSec} onClick={() => window.open(`/api/v2/class-councils/${selected.id}/report`, '_blank')}>📄 Rapport</button>
-                      <button style={{ ...btnSec, fontSize: 14 }} onClick={() => setSelected(null)}>✕</button>
+                      <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => window.open(`/api/v2/class-councils/${selected.id}/report`, '_blank')}><FileText size={14} /> Rapport</button>
+                      <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center' }} onClick={() => setSelected(null)}><X size={14} /></button>
                     </div>
                   </div>
 
                   {selected.status === 'OPEN' && (
-                    <div style={{ background: 'var(--orange-light)', borderBottom: '1px solid var(--orange-light)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--orange)' }}>
-                      ⏳ En attente du verrouillage par le Censeur
+                    <div style={{ background: 'var(--orange-light)', borderBottom: '1px solid var(--orange-light)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--orange)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Loader2 size={14} /> En attente du verrouillage par le Censeur
                     </div>
                   )}
 
                   {selected.status === 'LOCKED' && (
-                    <div style={{ background: 'var(--green-light)', borderBottom: '1px solid var(--border)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
-                      🔒 Ce conseil est verrouillé.
+                    <div style={{ background: 'var(--green-light)', borderBottom: '1px solid var(--border)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Lock size={14} /> Ce conseil est verrouillé.
                     </div>
                   )}
 

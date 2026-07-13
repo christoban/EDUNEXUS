@@ -2,8 +2,8 @@
   "title": "Finance",
   "subtitle": "Fee Plans · Invoices · Mobile Money Payments",
   "tabs": {
-    "plans": "📋 Fee Plans",
-    "invoices": "🧾 Invoices"
+    "plans": "Fee Plans",
+    "invoices": "Invoices"
   },
   "kpi": {
     "total_billed": "Total Billed",
@@ -13,7 +13,7 @@
   },
   "invoice_status": {
     "PENDING": "Pending",
-    "PAID": "✓ Paid",
+    "PAID": "Paid",
     "OVERDUE": "Overdue",
     "CANCELLED": "Cancelled",
     "PARTIAL": "Partial"
@@ -28,18 +28,18 @@
     "OTHER": "Other"
   },
   "actions": {
-    "create_invoice": "🧾 Create Invoice",
+    "create_invoice": "Create Invoice",
     "new_plan": "+ New Plan",
-    "generate_invoices": "🧾 Generate Invoices",
+    "generate_invoices": "Generate Invoices",
     "edit": "✏️",
-    "view": "👁 View",
+    "view": "View",
     "filter": "Filter",
     "retry": "Retry",
     "cancel": "Cancel",
     "create_plan": "Create Plan",
     "save": "Save",
     "create_invoice_action": "Create Invoice",
-    "generate": "🧾 Generate"
+    "generate": "Generate"
   },
   "loading": {
     "creating": "Creating…",
@@ -80,7 +80,7 @@
       "title": "Generate Invoices",
       "year_label": "Academic Year *",
       "year_placeholder": "Select…",
-      "warning": "⚠️ An invoice will be generated for each enrolled student. This action can be undone invoice by invoice."
+      "warning": "An invoice will be generated for each enrolled student. This action can be undone invoice by invoice."
     }
   },
   "table_headers": {
@@ -119,7 +119,7 @@
     "cancelled": "Cancelled"
   },
   "pagination": {
-    "previous": "← Prev.",
+    "previous": "Prev.",
     "next": "Next →"
   },
   "badges": {
@@ -134,7 +134,7 @@
     "select_year": "Please select an academic year",
     "select_student_and_plan": "Please select a student and a fee plan.",
     "payment_in_progress": "A payment is already in progress for this student.",
-    "legal_threshold_exceeded": "⚠ The Cameroonian legal contribution limit would be exceeded for this student. Check the fee plan amount.",
-    "separation_ordinator": "⚠ Separation of duties violation. The authorizing officer cannot be the accounting officer."
+    "legal_threshold_exceeded": "The Cameroonian legal contribution limit would be exceeded for this student. Check the fee plan amount.",
+    "separation_ordinator": "Separation of duties violation. The authorizing officer cannot be the accounting officer."
   }
 }

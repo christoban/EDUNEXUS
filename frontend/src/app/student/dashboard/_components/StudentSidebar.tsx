@@ -1,6 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut } from 'lucide-react'
+import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -8,7 +9,7 @@ import type { StudentSection, UserInfo } from '../_types'
 
 interface NavItem {
   id: StudentSection
-  icon: string
+  icon: LucideIcon
   label: string
 }
 
@@ -31,27 +32,27 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
   const NAV: NavGroup[] = [
     {
       items: [
-        { id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') },
+        { id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') },
       ]
     },
     {
       label: tnav('group.results'),
       items: [
-        { id: 'grades',    icon: '📝', label: tnav('sidebar.myGrades') },
-        { id: 'bulletins', icon: '📄', label: tnav('sidebar.bulletins') },
+        { id: 'grades',    icon: FileText, label: tnav('sidebar.myGrades') },
+        { id: 'bulletins', icon: ScrollText, label: tnav('sidebar.bulletins') },
       ]
     },
     {
       label: tnav('group.schoolAgenda'),
       items: [
-        { id: 'timetable',  icon: '📅', label: tnav('sidebar.timetable') },
-        { id: 'attendance', icon: '✅', label: tnav('sidebar.myAttendance') },
+        { id: 'timetable',  icon: Calendar, label: tnav('sidebar.timetable') },
+        { id: 'attendance', icon: ClipboardCheck, label: tnav('sidebar.myAttendance') },
       ]
     },
     {
       label: tnav('group.services'),
       items: [
-        { id: 'library', icon: '📚', label: tnav('sidebar.myLibrary') },
+        { id: 'library', icon: BookOpen, label: tnav('sidebar.myLibrary') },
       ]
     },
   ]
@@ -110,7 +111,9 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
                       className="absolute inset-0 rounded-lg" style={{ background: 'var(--sidebar-active)' }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
                   )}
-                  <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
+                  <span className="relative z-10 w-[20px] flex items-center justify-center flex-shrink-0">
+                    <item.icon size={20} strokeWidth={2} />
+                  </span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
                 </button>
               ))}

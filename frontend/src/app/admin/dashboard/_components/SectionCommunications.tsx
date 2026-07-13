@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Smartphone, Mail, PenLine, ClipboardList, Eye, Upload, AlertTriangle, Paperclip, Inbox } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -31,10 +33,11 @@ interface BroadcastLog {
 interface PreviewData { total: number; withPhone: number; withEmail: number }
 
 const CANAL_LABEL: Record<string, string> = {
-  SMS:   '📱 SMS',
-  EMAIL: '📧 Email',
-  BOTH:  '📱+📧 SMS & Email',
+  SMS:   'SMS',
+  EMAIL: 'Email',
+  BOTH:  'SMS & Email',
 }
+const CANAL_ICON: Record<string, LucideIcon> = { SMS: Smartphone, EMAIL: Mail, BOTH: Smartphone }
 
 const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }> = {
   completed: { color: 'var(--green)', bg: 'var(--green-light)', label: 'Envoyé' },
@@ -42,20 +45,21 @@ const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }>
   failed:    { color: 'var(--red)', bg: 'var(--red-light)', label: 'Échoué' },
 }
 
+// Options de <select> natif — pas d'icône possible dans un <option>, texte seul.
 const ROLE_OPTIONS = [
   { value: '',        label: '— Choisir un rôle —' },
-  { value: 'PARENT',  label: '👨‍👩‍👧 Parents d\'élèves' },
-  { value: 'STUDENT', label: '🎒 Élèves' },
-  { value: 'TEACHER', label: '📖 Enseignants' },
-  { value: 'STAFF',   label: '🏫 Personnel administratif' },
+  { value: 'PARENT',  label: 'Parents d\'élèves' },
+  { value: 'STUDENT', label: 'Élèves' },
+  { value: 'TEACHER', label: 'Enseignants' },
+  { value: 'STAFF',   label: 'Personnel administratif' },
 ]
 
 const PAYMENT_OPTIONS = [
   { value: '',        label: '— Tout statut —' },
-  { value: 'OVERDUE', label: '🔴 En retard' },
-  { value: 'PENDING', label: '🟡 En attente' },
-  { value: 'PARTIAL', label: '🟠 Partiel' },
-  { value: 'PAID',    label: '🟢 À jour' },
+  { value: 'OVERDUE', label: 'En retard' },
+  { value: 'PENDING', label: 'En attente' },
+  { value: 'PARTIAL', label: 'Partiel' },
+  { value: 'PAID',    label: 'À jour' },
 ]
 
 const VARIABLES = ['{nom_eleve}', '{classe}', '{solde}']
@@ -203,8 +207,9 @@ export default function SectionCommunications({ onToast }: Props) {
               color: tab === t ? 'var(--text)' : 'var(--text3)',
               boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
               transition: 'all 0.15s',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
-            {t === 'compose' ? '✍️ Composer' : `📋 Historique${totalLogs > 0 ? ` (${totalLogs})` : ''}`}
+            {t === 'compose' ? <><PenLine size={14} /> Composer</> : <><ClipboardList size={14} /> Historique{totalLogs > 0 ? ` (${totalLogs})` : ''}</>}
           </button>
         ))}
       </div>
@@ -216,16 +221,20 @@ export default function SectionCommunications({ onToast }: Props) {
           <div style={{ background: 'var(--surface)', borderRadius: 14, padding: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: 'var(--text2)' }}>1. Canal d'envoi</h3>
             <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
-              {(['SMS', 'EMAIL', 'BOTH'] as const).map((c) => (
+              {(['SMS', 'EMAIL', 'BOTH'] as const).map((c) => {
+                const Icon = CANAL_ICON[c]
+                return (
                 <button key={c} onClick={() => setChannel(c)}
                   style={{
                     flex: 1, padding: '10px 0', borderRadius: 9, border: channel === c ? '2px solid var(--blue)' : '2px solid var(--border)',
                     background: channel === c ? 'var(--blue-light)' : 'white', color: channel === c ? 'var(--blue)' : 'var(--text3)',
                     fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}>
-                  {CANAL_LABEL[c]}
+                  <Icon size={14} /> {CANAL_LABEL[c]}
                 </button>
-              ))}
+                )
+              })}
             </div>
 
             <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: 'var(--text2)' }}>2. Cibler les destinataires</h3>
@@ -290,8 +299,8 @@ export default function SectionCommunications({ onToast }: Props) {
             <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text3)', textAlign: 'right' }}>
               {message.length} caractère(s)
               {message.length > 160 && channel !== 'EMAIL' && (
-                <span style={{ color: 'var(--amber)', marginLeft: 8 }}>
-                  ⚠ {Math.ceil(message.length / 160)} SMS par destinataire
+                <span style={{ color: 'var(--amber)', marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <AlertTriangle size={12} /> {Math.ceil(message.length / 160)} SMS par destinataire
                 </span>
               )}
             </div>
@@ -302,16 +311,18 @@ export default function SectionCommunications({ onToast }: Props) {
                   flex: 1, padding: '11px 0', borderRadius: 10, border: '2px solid var(--blue)',
                   background: 'var(--surface)', color: 'var(--blue)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
                   opacity: previewing ? 0.6 : 1,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}>
-                {previewing ? 'Calcul…' : '👁 Prévisualiser'}
+                {previewing ? 'Calcul…' : <><Eye size={15} /> Prévisualiser</>}
               </button>
               <button onClick={handleSend} disabled={sending || !preview}
                 style={{
                   flex: 2, padding: '11px 0', borderRadius: 10, border: 'none',
                   background: !preview || sending ? 'var(--text3)' : 'var(--blue)',
                   color: 'white', fontWeight: 700, fontSize: 14, cursor: !preview || sending ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}>
-                {sending ? 'Envoi en cours…' : `📤 Envoyer via ${channel}`}
+                {sending ? 'Envoi en cours…' : <><Upload size={15} /> Envoyer via {channel}</>}
               </button>
             </div>
           </div>
@@ -340,8 +351,8 @@ export default function SectionCommunications({ onToast }: Props) {
                     ))}
                   </div>
                   {preview.total === 0 && (
-                    <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--amber-light)', borderRadius: 8, fontSize: 12, color: 'var(--amber)' }}>
-                      ⚠ Aucun destinataire trouvé avec ces filtres.
+                    <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--amber-light)', borderRadius: 8, fontSize: 12, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <AlertTriangle size={13} /> Aucun destinataire trouvé avec ces filtres.
                     </div>
                   )}
                 </>
@@ -350,7 +361,7 @@ export default function SectionCommunications({ onToast }: Props) {
 
             {/* Aide variables */}
             <div style={{ background: 'var(--blue-light)', borderRadius: 14, padding: 18, border: '1px solid var(--blue-light)' }}>
-              <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>📎 Variables disponibles</h4>
+              <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--blue)', display: 'flex', alignItems: 'center', gap: 6 }}><Paperclip size={14} /> Variables disponibles</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {[
                   { var: '{nom_eleve}', desc: 'Nom complet de l\'élève' },
@@ -373,7 +384,7 @@ export default function SectionCommunications({ onToast }: Props) {
         <div style={{ background: 'var(--surface)', borderRadius: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
           {logs.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center', color: 'var(--text3)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Inbox size={40} /></div>
               <div style={{ fontSize: 15, fontWeight: 600 }}>Aucun envoi pour l'instant</div>
               <div style={{ fontSize: 13, marginTop: 6 }}>Les campagnes envoyées apparaîtront ici.</div>
             </div>

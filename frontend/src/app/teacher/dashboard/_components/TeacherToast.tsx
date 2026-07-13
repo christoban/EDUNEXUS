@@ -1,8 +1,9 @@
 'use client'
 import { useEffect } from 'react'
+import { CheckCircle2, XCircle, Info, AlertTriangle } from 'lucide-react'
 import type { Toast } from '../_types'
 
-const ICONS = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' }
+const ICONS = { success: CheckCircle2, error: XCircle, info: Info, warning: AlertTriangle }
 const STYLES: Record<string, string> = {
   success: 'bg-[var(--green-light)] border-[rgba(5,150,105,0.3)] text-[var(--green)]',
   error:   'bg-[var(--red-light)] border-[rgba(220,38,38,0.3)] text-[var(--red)]',
@@ -15,10 +16,11 @@ function ToastItem({ t, onRemove }: { t: Toast; onRemove: () => void }) {
     const timer = setTimeout(onRemove, 3500)
     return () => clearTimeout(timer)
   }, [onRemove])
+  const Icon = ICONS[t.type]
   return (
     <div className={`flex items-center gap-[10px] px-5 py-[14px] rounded-[12px] border-[1.5px] min-w-[280px] max-w-[400px] text-[15px] font-bold shadow-lg ${STYLES[t.type]}`}
       style={{ animation: 'slideInRight 0.3s ease' }}>
-      <span className="text-[18px] flex-shrink-0">{ICONS[t.type]}</span>
+      <span className="flex-shrink-0 flex items-center"><Icon size={18} strokeWidth={2} /></span>
       <span>{t.msg}</span>
     </div>
   )

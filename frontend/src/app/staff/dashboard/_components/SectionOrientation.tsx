@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { ClipboardList, Circle, Calendar, GraduationCap, Compass, FlaskConical, BarChart3, Loader2, Check, ArrowRight } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -594,10 +595,10 @@ export default function SectionOrientation({ onToast }: Props) {
         {/* KPIs */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 16, marginBottom: 26 }}>
           {[
-            { icon: '📋', bg: 'var(--green-light)', color: 'var(--green)', val: loadingStats ? '…' : String(stats?.fichesOuvertes ?? 0),            label: t('orientation.kpiOpenFiches')          },
-            { icon: '🔴', bg: 'var(--red-light)', color: 'var(--red)', val: loadingStats ? '…' : String((stats?.elevesArisqueEleve ?? 0) + (stats?.elevesArisqueCritique ?? 0)), label: t('orientation.kpiAtRisk') },
-            { icon: '📅', bg: 'var(--blue-light)', color: 'var(--blue)', val: loadingStats ? '…' : String(stats?.entretiensThisMois ?? 0),        label: t('orientation.kpiInterviewsThisMonth') },
-            { icon: '🎓', bg: 'var(--purple-light)', color: 'var(--purple)', val: loadingStats ? '…' : String(stats?.recommandationsEnAttente ?? 0),  label: t('orientation.kpiPendingRecommendations')},
+            { icon: <ClipboardList size={20} strokeWidth={2} />, bg: 'var(--green-light)', color: 'var(--green)', val: loadingStats ? '…' : String(stats?.fichesOuvertes ?? 0),            label: t('orientation.kpiOpenFiches')          },
+            { icon: <Circle size={20} fill="var(--red)" stroke="none" />, bg: 'var(--red-light)', color: 'var(--red)', val: loadingStats ? '…' : String((stats?.elevesArisqueEleve ?? 0) + (stats?.elevesArisqueCritique ?? 0)), label: t('orientation.kpiAtRisk') },
+            { icon: <Calendar size={20} strokeWidth={2} />, bg: 'var(--blue-light)', color: 'var(--blue)', val: loadingStats ? '…' : String(stats?.entretiensThisMois ?? 0),        label: t('orientation.kpiInterviewsThisMonth') },
+            { icon: <GraduationCap size={20} strokeWidth={2} />, bg: 'var(--purple-light)', color: 'var(--purple)', val: loadingStats ? '…' : String(stats?.recommandationsEnAttente ?? 0),  label: t('orientation.kpiPendingRecommendations')},
           ].map((s, i) => (
             <div key={i} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '20px 24px' }}>
               <div style={{ width: 44, height: 44, borderRadius: 11, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 12 }}>{s.icon}</div>
@@ -620,7 +621,7 @@ export default function SectionOrientation({ onToast }: Props) {
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--red)' }}>{error}</div>
           ) : fiches.length === 0 ? (
             <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text3)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🧭</div>
+              <div style={{ fontSize: 40, marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Compass size={40} strokeWidth={2} /></div>
               <div style={{ fontSize: 16 }}>{t('orientation.noFichesForFilters')}</div>
             </div>
           ) : (
@@ -747,7 +748,7 @@ export default function SectionOrientation({ onToast }: Props) {
               <button style={btnPrim} onClick={() => setEntretienOpen(true)}>{t('orientation.planInterview')}</button>
             </div>
             {f.entretiens.length === 0 ? (
-              <EmptyState icon="📋" text={t('orientation.noInterviews')} />
+              <EmptyState icon={<ClipboardList size={36} strokeWidth={2} />} text={t('orientation.noInterviews')} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {f.entretiens.map(e => (
@@ -789,7 +790,7 @@ export default function SectionOrientation({ onToast }: Props) {
               <button style={btnPrim} onClick={() => setTestOpen(true)}>{t('orientation.addTest')}</button>
             </div>
             {f.tests.length === 0 ? (
-              <EmptyState icon="🧪" text={t('orientation.noTests')} />
+              <EmptyState icon={<FlaskConical size={36} strokeWidth={2} />} text={t('orientation.noTests')} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {f.tests.map(test => (
@@ -821,7 +822,7 @@ export default function SectionOrientation({ onToast }: Props) {
               </button>
             </div>
             {!f.recommandation ? (
-              <EmptyState icon="🎓" text={t('orientation.noRecommendation')} />
+              <EmptyState icon={<GraduationCap size={36} strokeWidth={2} />} text={t('orientation.noRecommendation')} />
             ) : (
               <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '24px 28px' }}>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -829,7 +830,7 @@ export default function SectionOrientation({ onToast }: Props) {
                     <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700, marginBottom: 4 }}>{t('orientation.currentSeries')}</div>
                     <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--text)' }}>{f.recommandation.serieActuelle}</div>
                   </div>
-                  <div style={{ fontSize: 28, color: 'var(--text3)', alignSelf: 'center' }}>→</div>
+                  <div style={{ fontSize: 28, color: 'var(--text3)', alignSelf: 'center', display: 'flex' }}><ArrowRight size={28} strokeWidth={2} /></div>
                   <div style={{ flex: 1, minWidth: 120 }}>
                     <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700, marginBottom: 4 }}>{t('orientation.recommendedSeries')}</div>
                     <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--green)' }}>{f.recommandation.serieRecommandee}</div>
@@ -853,7 +854,7 @@ export default function SectionOrientation({ onToast }: Props) {
                       {f.recommandation.status === 'PROPOSEE' && (
                         <button onClick={validerRecommandation} disabled={validatingReco}
                           style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.3)', cursor: validatingReco ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
-                          {validatingReco ? '⏳' : t('orientation.validateReco')}
+                          {validatingReco ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('orientation.validateReco')}
                         </button>
                       )}
                     </div>
@@ -877,7 +878,7 @@ export default function SectionOrientation({ onToast }: Props) {
               <button style={btnPrim} onClick={() => setSuiviOpen(true)}>{t('orientation.addFollowUp')}</button>
             </div>
             {f.suivis.length === 0 ? (
-              <EmptyState icon="📊" text={t('orientation.noFollowUps')} />
+              <EmptyState icon={<BarChart3 size={36} strokeWidth={2} />} text={t('orientation.noFollowUps')} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {f.suivis.map(s => (
@@ -904,10 +905,10 @@ export default function SectionOrientation({ onToast }: Props) {
     )
   }
 
-  function EmptyState({ icon, text }: { icon: string; text: string }) {
+  function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', background: 'var(--bg)', borderRadius: 14, border: '1.5px dashed var(--border)' }}>
-        <div style={{ fontSize: 36, marginBottom: 10 }}>{icon}</div>
+        <div style={{ fontSize: 36, marginBottom: 10, display: 'flex', justifyContent: 'center' }}>{icon}</div>
         <div style={{ fontSize: 15 }}>{text}</div>
       </div>
     )
@@ -932,8 +933,8 @@ export default function SectionOrientation({ onToast }: Props) {
           }}
         />
         {newFicheForm.selectedStudent && (
-          <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
-            ✓ {newFicheForm.selectedStudent.firstName} {newFicheForm.selectedStudent.lastName}
+          <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Check size={14} strokeWidth={2} /> {newFicheForm.selectedStudent.firstName} {newFicheForm.selectedStudent.lastName}
           </div>
         )}
         {newFicheForm.studentResults.length > 0 && !newFicheForm.selectedStudent && (

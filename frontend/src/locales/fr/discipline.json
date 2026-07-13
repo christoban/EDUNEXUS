@@ -21,18 +21,18 @@
     "APPEALED": "Contestée"
   },
   "status_badges": {
-    "ACTIVE": "⚡ Active",
-    "LIFTED": "✓ Levée",
-    "APPEALED": "⚖️ Contestée"
+    "ACTIVE": "Active",
+    "LIFTED": "Levée",
+    "APPEALED": "Contestée"
   },
   "actions": {
     "new_sanction": "+ Nouvelle sanction",
-    "save": "✓ Enregistrer",
+    "save": "Enregistrer",
     "cancel": "Annuler",
-    "lift": "✓ Lever",
+    "lift": "Lever",
     "filter": "Filtrer",
     "retry": "Réessayer",
-    "saving": "⏳ Enregistrement…",
+    "saving": "Enregistrement…",
     "lifting": "⏳"
   },
   "form_fields": {

@@ -1,6 +1,6 @@
 {
   "dashboard": {
-    "greeting": "Hello, {name} 👋",
+    "greeting": "Hello, {name}",
     "matricule_label": "ID:",
     "average_label": "Overall avg /20",
     "general_avg_label": "Overall average",
@@ -8,12 +8,12 @@
     "rate_label": "Attendance rate",
     "subjects_label": "Subjects",
     "rank_short": "Rank",
-    "today_title": "📅 Today's upcoming classes",
+    "today_title": "Today's upcoming classes",
     "today_empty": "No classes today",
-    "health_high": "EXCELLENT 📈",
-    "health_medium_high": "STABLE ✅",
-    "health_medium": "AVERAGE ⚠️",
-    "health_low": "NEEDS ATTENTION 🚨",
+    "health_high": "EXCELLENT",
+    "health_medium_high": "STABLE",
+    "health_medium": "AVERAGE",
+    "health_low": "NEEDS ATTENTION",
     "trend_this_term": "This term",
     "trend_term": "Term",
     "trend_year": "Year"
@@ -68,7 +68,7 @@
     "absences_label": "Absences",
     "late_label": "Late arrivals",
     "excused_label": "Excused",
-    "weekly_evolution": "📊 Weekly evolution",
+    "weekly_evolution": "Weekly evolution",
     "week_present": "100% present",
     "week_absent": "{pct}% absent",
     "empty_title": "No attendance data",
@@ -93,16 +93,16 @@
     "rank_label": "Rank / {total} students",
     "empty_title": "No report cards available",
     "empty_subtitle": "Report cards will appear here once generated",
-    "download_button": "📥 Download report card PDF",
-    "downloading_label": "⏳ Downloading...",
-    "offline_label": "📶 PDF unavailable offline",
+    "download_button": "Download report card PDF",
+    "downloading_label": "Downloading...",
+    "offline_label": "PDF unavailable offline",
     "toast_download_offline": "PDF download unavailable offline",
     "toast_download_error": "Download error",
     "toast_download_success": "Report card downloaded"
   },
   "common": {
-    "retry": "🔄 Retry",
+    "retry": "Retry",
     "error_fallback": "Error",
-    "offline_badge": "📦 Data from {date} — offline"
+    "offline_badge": "Data from {date} — offline"
   }
 }

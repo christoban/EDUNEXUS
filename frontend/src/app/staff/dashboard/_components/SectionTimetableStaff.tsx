@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, Calendar, CalendarDays, Coffee, UtensilsCrossed } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -236,8 +237,8 @@ export default function SectionTimetable({ onToast }: Props) {
       })
       const data = await res.json()
       if (!res.ok) {
-        if (data.code === 'CONFLIT_HORAIRE') { setConflictMsg(`⚠️ ${data.message}`); return; }
-        if (data.code === 'VOLUME_AP_DEPASSE') { setConflictMsg(`⚠️ ${data.message}`); return; }
+        if (data.code === 'CONFLIT_HORAIRE') { setConflictMsg(data.message); return; }
+        if (data.code === 'VOLUME_AP_DEPASSE') { setConflictMsg(data.message); return; }
         throw new Error(data.message || 'Erreur sauvegarde')
       }
 
@@ -336,7 +337,7 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* Erreur */}
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span>
+          <span style={{ display: 'inline-flex' }}><AlertTriangle size={16} strokeWidth={2} /></span>
           <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={() => fetchTimetable()} style={btnSec}>{t('timetable.retry')}</button>
         </div>
@@ -344,13 +345,13 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Aucune classe */}
       {!loading && !error && !classId && (
-        <EmptyState icon="🗓️" title={t('timetable.emptyStateTitle')} sub={t('timetable.emptyStateSub')} />
+        <EmptyState icon={<CalendarDays size={52} strokeWidth={2} />} title={t('timetable.emptyStateTitle')} sub={t('timetable.emptyStateSub')} />
       )}
 
       {/* Classe sélectionnée, pas d'EDT */}
       {!loading && !error && classId && !timetable && gridConfig && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>📅</div>
+          <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}><Calendar size={52} strokeWidth={2} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetableTitle')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 28 }} dangerouslySetInnerHTML={{ __html: t('timetable.noTimetableDesc') }}>
           </div>
@@ -391,7 +392,7 @@ export default function SectionTimetable({ onToast }: Props) {
                       <tr key={`pause-${idx}`}>
                         <td colSpan={joursActifs.length + 1}
                           style={{ textAlign: 'center', padding: '5px 12px', background: 'var(--amber-light)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 700, color: 'var(--amber)', letterSpacing: '0.5px' }}>
-                          {isPetite ? '☕' : '🍽️'} {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} à {periode.fin} ({periode.duree} min)
+                          {isPetite ? <Coffee size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> : <UtensilsCrossed size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />}{isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} à {periode.fin} ({periode.duree} min)
                         </td>
                       </tr>
                     )
@@ -460,8 +461,8 @@ export default function SectionTimetable({ onToast }: Props) {
             </div>
 
             {conflictMsg && (
-              <div style={{ background: 'var(--orange-light)', border: '1px solid var(--orange-light)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--amber)', fontWeight: 600 }}>
-                {conflictMsg}
+              <div style={{ background: 'var(--orange-light)', border: '1px solid var(--orange-light)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--amber)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} strokeWidth={2} /> {conflictMsg}
               </div>
             )}
 
@@ -472,7 +473,7 @@ export default function SectionTimetable({ onToast }: Props) {
                 {assignments.map(a => (
                   <option key={a.subjectId} value={a.subjectId}>
                     {a.subjectName} {a.coefficient > 0 ? t('timetable.coefficientTag', { coeff: a.coefficient }) : ''}
-                    {a.currentTeacherId ? '' : ' ⚠️'}
+                    {a.currentTeacherId ? '' : ` — ${t('timetable.unassigned')}`}
                   </option>
                 ))}
               </select>
@@ -519,10 +520,10 @@ export default function SectionTimetable({ onToast }: Props) {
 }
 
 // ─── Petits composants ────────────────────────────────────────────────────────
-function EmptyState({ icon, title, sub }: { icon: string; title: string; sub: string }) {
+function EmptyState({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
   return (
     <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-      <div style={{ fontSize: 52, marginBottom: 14 }}>{icon}</div>
+      <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}>{icon}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{title}</div>
       <div style={{ fontSize: 16, color: 'var(--text3)' }}>{sub}</div>
     </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { Circle, TrendingUp, BookOpen, CheckCircle2, Inbox, Check } from 'lucide-react'
 
 interface OnToast { (msg: string, type?: 'success' | 'error' | 'info' | 'warning'): void }
 
@@ -157,7 +158,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
       .finally(() => setLoadingProg(false))
   }
 
-  const tabBtn = (t: Tab, label: string) => (
+  const tabBtn = (t: Tab, label: React.ReactNode) => (
     <button onClick={() => setTab(t)}
       style={{ padding: '8px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
         background: tab === t ? 'var(--sidebar)' : 'var(--bg2)', color: tab === t ? 'white' : 'var(--text2)', transition: 'all 0.15s' }}>
@@ -189,9 +190,9 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
-        {tabBtn('alertes', '🔴 Alertes retard')}
-        {tabBtn('progression', '📈 Progression')}
-        {tabBtn('programmes', '📚 Programmes')}
+        {tabBtn('alertes', <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Circle size={10} fill="var(--red)" stroke="none" /> Alertes retard</span>)}
+        {tabBtn('progression', <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp size={15} strokeWidth={2} /> Progression</span>)}
+        {tabBtn('programmes', <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><BookOpen size={15} strokeWidth={2} /> Programmes</span>)}
       </div>
 
       {/* ─── Onglet Alertes ─── */}
@@ -210,7 +211,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Calcul en cours...</div>
           ) : alertes.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--green)' }}><CheckCircle2 size={40} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--green)', marginBottom: 4 }}>Aucun retard significatif détecté</div>
               <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500 }}>
                 Toutes les classes sont dans les délais prévus, ou aucun programme n'est encore défini.
@@ -286,7 +287,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
             <>
               {!progressionData.programme ? (
                 <div style={{ padding: 40, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-                  <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text3)' }}><Inbox size={36} strokeWidth={1.5} /></div>
                   <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>Aucun programme défini pour cette classe/matière</div>
                   <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 4 }}>Créez d'abord un programme dans l'onglet Programmes.</div>
                 </div>
@@ -336,7 +337,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                     {(progressionData.chapitres ?? []).map((c: Chapitre & { realise: boolean }) => (
                       <div key={c.id} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '10px 16px', background: c.realise ? 'var(--green-light)' : 'var(--bg)', borderRadius: 10, border: `1px solid ${c.realise ? 'var(--green-light)' : 'var(--bg2)'}` }}>
                         <div style={{ width: 24, height: 24, borderRadius: '50%', background: c.realise ? 'var(--green)' : 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: c.realise ? 'white' : 'var(--text3)', fontWeight: 900, flexShrink: 0 }}>
-                          {c.realise ? '✓' : c.ordre}
+                          {c.realise ? <Check size={14} strokeWidth={3} /> : c.ordre}
                         </div>
                         <span style={{ flex: 1, fontSize: 14, fontWeight: c.realise ? 700 : 600, color: c.realise ? 'var(--green)' : 'var(--text2)' }}>{c.titre}</span>
                         <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{c.volumeHeuresPrevu}h</span>
@@ -398,7 +399,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>Chargement...</div>
           ) : programmes.length === 0 ? (
             <div style={{ padding: 60, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text3)' }}><Inbox size={36} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>Aucun programme défini</div>
               <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 4 }}>Créez un programme ci-dessus, puis ajoutez ses chapitres.</div>
             </div>

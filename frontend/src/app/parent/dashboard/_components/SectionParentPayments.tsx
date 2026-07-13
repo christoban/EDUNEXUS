@@ -1,5 +1,6 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Book, AlertTriangle, Smartphone, Check, Circle, CreditCard, Search } from 'lucide-react'
 import type { Toast } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
@@ -147,7 +148,7 @@ export default function SectionParentPayments({ onToast }: Props) {
         <div style={{ background: 'var(--blue-light)', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 14, padding: '16px 22px', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 22 }}>📘</span>
+              <span style={{ color: 'var(--blue)', display: 'flex', alignItems: 'center' }}><Book size={22} strokeWidth={2} /></span>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--blue)' }}>{t('minesecGuide.title')}</div>
                 <div style={{ fontSize: 14, color: 'var(--blue)', marginTop: 2 }}>{t('minesecGuide.intro')}</div>
@@ -178,11 +179,11 @@ export default function SectionParentPayments({ onToast }: Props) {
               <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                 <a href="https://cartescolaire.cm/pay-fees" target="_blank" rel="noopener noreferrer"
                   style={{ padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 700, background: 'var(--blue)', color: 'white', textDecoration: 'none' }}>
-                  {t('minesecGuide.payLink')}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><CreditCard size={14} strokeWidth={2} /> {t('minesecGuide.payLink')}</span>
                 </a>
                 <a href="https://cartescolaire.cm/verify-payment" target="_blank" rel="noopener noreferrer"
                   style={{ padding: '8px 16px', borderRadius: 9, fontSize: 13, fontWeight: 700, background: 'var(--surface)', color: 'var(--blue)', border: '1.5px solid var(--blue)', textDecoration: 'none' }}>
-                  {t('minesecGuide.verifyLink')}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Search size={14} strokeWidth={2} /> {t('minesecGuide.verifyLink')}</span>
                 </a>
               </div>
             </div>
@@ -193,7 +194,7 @@ export default function SectionParentPayments({ onToast }: Props) {
       {/* Alerte si factures impayées */}
       {unpaid.length > 0 && (
         <div style={{ background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 14, padding: '16px 22px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ fontSize: 22 }}>⚠️</span>
+          <span style={{ color: 'var(--amber)', display: 'flex', alignItems: 'center' }}><AlertTriangle size={22} strokeWidth={2} /></span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--amber)' }}>
               {t('payments.pendingPayment').replace('{count}', String(unpaid.length))}
@@ -213,7 +214,7 @@ export default function SectionParentPayments({ onToast }: Props) {
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--red)', fontWeight: 700 }}>{error}</div>
         ) : invoices.length === 0 ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text3)' }}>
-            <div style={{ fontSize: 44, marginBottom: 14 }}>📱</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Smartphone size={44} strokeWidth={2} /></div>
             <div style={{ fontSize: 17 }}>{t('payments.noInvoices')}</div>
           </div>
         ) : (
@@ -243,14 +244,14 @@ export default function SectionParentPayments({ onToast }: Props) {
                       {paid > 0 ? fmtCFA(paid) : '—'}
                     </td>
                     <td style={{ ...tdSt, fontWeight: 700, color: remaining > 0 ? 'var(--red)' : 'var(--green)' }}>
-                      {remaining > 0 ? fmtCFA(remaining) : '✓'}
+                      {remaining > 0 ? fmtCFA(remaining) : <Check size={16} strokeWidth={2.5} />}
                     </td>
                     <td style={tdSt}>
                       <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>{st.label}</span>
                     </td>
                     <td style={tdSt}>
                       {canPay && (
-                        <button style={btnPay} onClick={() => openModal(inv)}>{t('payments.payButton')}</button>
+                        <button style={{ ...btnPay, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => openModal(inv)}><Smartphone size={14} strokeWidth={2} /> {t('payments.payButton')}</button>
                       )}
                     </td>
                   </tr>
@@ -281,8 +282,9 @@ export default function SectionParentPayments({ onToast }: Props) {
             <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
               {(['MTN_MOMO', 'ORANGE_MONEY'] as const).map(m => (
                 <button key={m} onClick={() => setModal(s => ({ ...s, method: m }))}
-                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', borderColor: modal.method === m ? 'var(--green)' : 'var(--border)', background: modal.method === m ? 'var(--green-light)' : 'white', color: modal.method === m ? 'var(--green)' : 'var(--text3)', transition: 'all 0.12s' }}>
-                  {m === 'MTN_MOMO' ? '🟡 MTN MoMo' : '🟠 Orange Money'}
+                  style={{ flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: '1.5px solid', borderColor: modal.method === m ? 'var(--green)' : 'var(--border)', background: modal.method === m ? 'var(--green-light)' : 'white', color: modal.method === m ? 'var(--green)' : 'var(--text3)', transition: 'all 0.12s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <Circle size={10} fill={m === 'MTN_MOMO' ? 'var(--amber)' : 'var(--orange)'} stroke="none" />
+                  {m === 'MTN_MOMO' ? 'MTN MoMo' : 'Orange Money'}
                 </button>
               ))}
             </div>
@@ -303,8 +305,8 @@ export default function SectionParentPayments({ onToast }: Props) {
                 {tc('actions.cancel')}
               </button>
               <button onClick={submitPayment} disabled={modal.loading}
-                style={{ flex: 2, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: modal.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: modal.loading ? 0.7 : 1 }}>
-                {modal.loading ? t('payments.initiating') : t('payments.confirmPayment')}
+                style={{ flex: 2, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: modal.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: modal.loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {modal.loading ? t('payments.initiating') : <><Smartphone size={16} strokeWidth={2} /> {t('payments.confirmPayment')}</>}
               </button>
             </div>
           </div>

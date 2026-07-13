@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { Calendar, AlertTriangle, Loader2, RotateCcw, X, Inbox, Camera, Save, WifiOff, Check, Pencil, ClipboardList } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -269,13 +270,14 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
   const isFormValid = !!selectedClass && !!selectedSubject &&
     (hasProgramme === false ? !!contenuLibre.trim() : !!contenu.trim())
 
-  const tabBtn = (t: Tab, label: string) => (
-    <button key={t} onClick={() => setTab(t)} style={{
+  const tabBtn = (tabId: Tab, label: string, Icon: typeof Calendar) => (
+    <button key={tabId} onClick={() => setTab(tabId)} style={{
       padding: '10px 18px', borderRadius: 10, fontSize: 14, fontWeight: 800,
       fontFamily: 'inherit', cursor: 'pointer', border: 'none',
-      background: tab === t ? 'var(--sidebar)' : 'var(--bg2)',
-      color: tab === t ? 'white' : 'var(--text2)', transition: 'all 0.15s',
-    }}>{label}</button>
+      background: tab === tabId ? 'var(--sidebar)' : 'var(--bg2)',
+      color: tab === tabId ? 'white' : 'var(--text2)', transition: 'all 0.15s',
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+    }}><Icon size={14} strokeWidth={2} />{label}</button>
   )
 
   return (
@@ -288,6 +290,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
           padding: '8px 14px', marginBottom: 14, fontSize: 13, color: 'var(--orange)', fontWeight: 700,
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
+          <WifiOff size={16} strokeWidth={2} />
           {t('cahier_de_texte.offline_banner')}
         </div>
       )}
@@ -304,8 +307,8 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {tabBtn('saisie', t('cahier_de_texte.tab_new_entry'))}
-        {tabBtn('historique', t('cahier_de_texte.tab_history'))}
+        {tabBtn('saisie', t('cahier_de_texte.tab_new_entry'), Pencil)}
+        {tabBtn('historique', t('cahier_de_texte.tab_history'), ClipboardList)}
       </div>
 
       {/* ── Onglet Saisie ── */}
@@ -319,7 +322,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
               padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--green)', fontWeight: 600,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <span>📅</span>
+              <span style={{ display: 'flex', alignItems: 'center' }}><Calendar size={16} strokeWidth={2} /></span>
               <span style={{ flex: 1 }}>{slotBanner}</span>
               <button onClick={() => setSlotBanner(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
@@ -332,7 +335,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
               padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--amber)', fontWeight: 600,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <span>⚠️</span>
+              <span style={{ display: 'flex', alignItems: 'center' }}><AlertTriangle size={16} strokeWidth={2} /></span>
               <span style={{ flex: 1 }}>{scanBanner}</span>
               <button onClick={() => setScanBanner(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--amber)', fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
@@ -450,8 +453,8 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
               }}
             >
               {scanning
-                ? <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> {t('cahier_de_texte.scan_scanning')}</>
-                : <>{t('cahier_de_texte.scan_idle')}</>
+                ? <><Loader2 size={16} strokeWidth={2} className="animate-spin" /> {t('cahier_de_texte.scan_scanning')}</>
+                : <><Camera size={16} strokeWidth={2} /> {t('cahier_de_texte.scan_idle')}</>
               }
             </button>
             <input ref={cameraRef} type="file" accept="image/*" capture="environment"
@@ -469,8 +472,10 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
                 color: 'white', border: 'none', fontSize: 16, fontWeight: 800,
                 fontFamily: 'inherit', cursor: (saving || !isFormValid) ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}
             >
+              {saving ? <Save size={18} strokeWidth={2} /> : !isOnline ? <WifiOff size={18} strokeWidth={2} /> : <Check size={18} strokeWidth={2} />}
               {saving ? t('cahier_de_texte.save_saving') : !isOnline ? t('cahier_de_texte.save_offline') : t('cahier_de_texte.save_online')}
             </button>
           </div>
@@ -491,7 +496,8 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
             <button onClick={loadEntries} style={{
               padding: '13px 18px', borderRadius: 12, background: 'var(--sidebar)', color: 'white',
               border: 'none', fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0,
-            }}>↺</button>
+              display: 'flex', alignItems: 'center',
+            }}><RotateCcw size={16} strokeWidth={2} /></button>
           </div>
 
           {/* ── CAS 3 : Entrées hors-ligne en attente ── */}
@@ -510,8 +516,8 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
                       border: `1.5px solid ${isFailed ? 'var(--red-light)' : 'var(--amber)'}`,
                       borderRadius: 14, padding: '14px 16px', position: 'relative',
                     }}>
-                      <div style={{ position: 'absolute', top: 12, right: 14, fontSize: 16 }}>
-                        {isFailed ? '✗' : '⏳'}
+                      <div style={{ position: 'absolute', top: 12, right: 14, display: 'flex' }}>
+                        {isFailed ? <X size={16} strokeWidth={2} /> : <Loader2 size={16} strokeWidth={2} className="animate-spin" />}
                       </div>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                         <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
@@ -550,7 +556,7 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{t('cahier_de_texte.history_loading')}</div>
           ) : entries.length === 0 && pendingEntries.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>📭</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Inbox size={32} strokeWidth={2} /></div>
               <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{t('cahier_de_texte.history_empty')}</div>
             </div>
           ) : (

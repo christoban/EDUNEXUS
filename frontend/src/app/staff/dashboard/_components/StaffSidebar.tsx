@@ -1,5 +1,10 @@
 'use client'
-import { LogOut } from 'lucide-react'
+import {
+  LogOut, LayoutDashboard, GraduationCap, FileText, ClipboardCheck, Clock,
+  Link2, Calendar, Landmark, Smartphone, Lock, AlertTriangle, BookOpen,
+  Compass, IdCard,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { logoutUser } from '@/lib/userAuth'
@@ -7,7 +12,7 @@ import type { StaffSection, SessionUser } from '../_types'
 
 interface NavItem {
   id: StaffSection
-  icon: string
+  icon: LucideIcon
   label: string
   badge?: string
   badgeColor?: 'red' | 'amber' | 'green'
@@ -40,26 +45,26 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
   const can = (s: StaffSection) => allowedSections.has(s)
 
   const supervisionItems: NavItem[] = []
-  if (can('council'))          supervisionItems.push({ id: 'council',          icon: '🎓', label: tnav('sidebar.council'),         badge: badges.council,   badgeColor: 'amber' })
-  if (can('grades'))           supervisionItems.push({ id: 'grades',           icon: '📝', label: tnav('sidebar.gradeValidation'), badge: badges.grades,    badgeColor: 'red'   })
-  if (can('attendance'))       supervisionItems.push({ id: 'attendance',       icon: '✅', label: tnav('sidebar.attendance'),      badge: badges.attendance })
-  if (can('grille-horaire'))   supervisionItems.push({ id: 'grille-horaire',   icon: '⏱️', label: tnav('sidebar.scheduleGrid') })
-  if (can('affectations'))     supervisionItems.push({ id: 'affectations',     icon: '🔗', label: tnav('sidebar.assignments') })
-  if (can('timetable'))        supervisionItems.push({ id: 'timetable',        icon: '📅', label: tnav('sidebar.timetable') })
-  if (can('departements'))     supervisionItems.push({ id: 'departements',     icon: '🏛️', label: tnav('sidebar.departments') })
+  if (can('council'))          supervisionItems.push({ id: 'council',          icon: GraduationCap, label: tnav('sidebar.council'),         badge: badges.council,   badgeColor: 'amber' })
+  if (can('grades'))           supervisionItems.push({ id: 'grades',           icon: FileText, label: tnav('sidebar.gradeValidation'), badge: badges.grades,    badgeColor: 'red'   })
+  if (can('attendance'))       supervisionItems.push({ id: 'attendance',       icon: ClipboardCheck, label: tnav('sidebar.attendance'),      badge: badges.attendance })
+  if (can('grille-horaire'))   supervisionItems.push({ id: 'grille-horaire',   icon: Clock, label: tnav('sidebar.scheduleGrid') })
+  if (can('affectations'))     supervisionItems.push({ id: 'affectations',     icon: Link2, label: tnav('sidebar.assignments') })
+  if (can('timetable'))        supervisionItems.push({ id: 'timetable',        icon: Calendar, label: tnav('sidebar.timetable') })
+  if (can('departements'))     supervisionItems.push({ id: 'departements',     icon: Landmark, label: tnav('sidebar.departments') })
 
   const servicesItems: NavItem[] = []
-  if (can('finance'))     servicesItems.push({ id: 'finance',     icon: '📱', label: tnav('sidebar.finance'),    badge: badges.finance,  badgeColor: 'red' })
-  if (can('cautions'))    servicesItems.push({ id: 'cautions',    icon: '🔒', label: tnav('sidebar.cautionMoney') })
-  if (can('discipline'))  servicesItems.push({ id: 'discipline',  icon: '⚠️', label: tnav('sidebar.discipline') })
-  if (can('library'))     servicesItems.push({ id: 'library',     icon: '📚', label: tnav('sidebar.library') })
-  if (can('orientation')) servicesItems.push({ id: 'orientation', icon: '🧭', label: tnav('sidebar.orientation') })
+  if (can('finance'))     servicesItems.push({ id: 'finance',     icon: Smartphone, label: tnav('sidebar.finance'),    badge: badges.finance,  badgeColor: 'red' })
+  if (can('cautions'))    servicesItems.push({ id: 'cautions',    icon: Lock, label: tnav('sidebar.cautionMoney') })
+  if (can('discipline'))  servicesItems.push({ id: 'discipline',  icon: AlertTriangle, label: tnav('sidebar.discipline') })
+  if (can('library'))     servicesItems.push({ id: 'library',     icon: BookOpen, label: tnav('sidebar.library') })
+  if (can('orientation')) servicesItems.push({ id: 'orientation', icon: Compass, label: tnav('sidebar.orientation') })
 
   const navGroups: NavGroup[] = [
-    { items: [{ id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') }] },
+    { items: [{ id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') }] },
     ...(supervisionItems.length > 0 ? [{ label: tnav('group.supervision'), items: supervisionItems }] : []),
     ...(servicesItems.length > 0    ? [{ label: tnav('group.services'),    items: servicesItems    }] : []),
-    { label: tnav('group.moncompte'), items: [{ id: 'mon-profil-rh', icon: '🪪', label: tnav('sidebar.monProfilRH') }] },
+    { label: tnav('group.moncompte'), items: [{ id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') }] },
   ]
 
   const userFallback = sessionUser?.nomComplet ?? tcommon('user.staffFallback')
@@ -119,7 +124,9 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
                       : 'bg-transparent text-white/50 hover:bg-[var(--sidebar2)] hover:text-white/80'
                 )}
                 style={{ padding: '8px 10px' }}>
-                <span style={{ fontSize: 20, width: 20, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <item.icon size={20} strokeWidth={2} />
+                </span>
                 <span className="truncate flex-1">{item.label}</span>
                 {item.badge && (
                   <span className={cn('ml-auto text-[12px] font-black rounded-md', BADGE_STYLES[item.badgeColor ?? 'red'])} style={{ padding: '2px 6px' }}>

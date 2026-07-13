@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, Lock, Loader2 } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -136,14 +137,14 @@ export default function SectionCautions({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <span style={{ display: 'inline-flex' }}><AlertTriangle size={16} strokeWidth={2} /></span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchCautions} style={btnRetry}>{t('cautions.retry')}</button>
         </div>
       )}
 
       {!loading && !error && cautions.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>🔒</div>
+          <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}><Lock size={52} strokeWidth={2} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('cautions.noCautionsTitle')}</div>
           <div style={{ fontSize: 16, color: 'var(--text3)' }}>{t('cautions.noCautionsDesc')}</div>
         </div>
@@ -191,7 +192,7 @@ export default function SectionCautions({ onToast }: Props) {
                             style={{ padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
                             onClick={() => handleRemboursement(c)}
                             disabled={actionId === c.id}>
-                            {actionId === c.id ? '⏳' : t('cautions.refund')}
+                            {actionId === c.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('cautions.refund')}
                           </button>
                           <button
                             style={{ padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}

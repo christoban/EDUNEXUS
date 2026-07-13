@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Bell, Search } from 'lucide-react'
+import { Bell, Search, KeyRound } from 'lucide-react'
 import { logoutUser } from '@/lib/userAuth'
 import TeacherSidebar from './_components/TeacherSidebar'
 import TeacherToast from './_components/TeacherToast'
@@ -96,8 +96,8 @@ export default function TeacherDashboard() {
               <input placeholder={tcommon('actions.search') + '...'} style={{ background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px 8px 34px', fontSize: 15, fontWeight: 600, color: 'var(--text)', outline: 'none', width: 260, fontFamily: 'inherit' }} />
             </div>
             <button onClick={() => setChangePwdOpen(true)} title={tcommon('auth.changePassword')}
-              style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
-              🔐
+              style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <KeyRound size={18} color="var(--text2)" />
             </button>
             <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
               <Bell size={18} color="var(--text2)" />

@@ -1,3 +1,5 @@
+import { School, Loader2, Mail, Sparkles, Clock } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import Badge from './Badge'
 import type { KpiData, ActivityRow } from '../_types'
 
@@ -25,15 +27,15 @@ export default function SectionOverview({ kpi, activity, onInvite, onGoToSchools
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 29 }}>
-        <KpiCard icon="🏫" bg="#d1fae5" val={String(kpi.activeSchools)} label="Écoles actives" sub={`dont ${kpi.suspendedCount} suspendue${kpi.suspendedCount > 1 ? 's' : ''}`} trend={kpi.activeSchools > 0 ? `+${kpi.activeSchools}` : '0'} trendBg="#d1fae5" trendColor="#065f46" onClick={() => onGoToSchools('active')} />
-        <KpiCard icon="⏳" bg="#fef3c7" val={String(kpi.pendingSchools)} label="En attente d'approbation" trend="Urgent" trendBg="#fef3c7" trendColor="#92400e" onClick={() => onGoToSchools('pending')} />
-        <KpiCard icon="✉️" bg="#dbeafe" val={String(kpi.pendingInvites)} label="Invitations en cours" sub="statut PENDING" trend={kpi.pendingInvites > 0 ? `${kpi.pendingInvites} en attente` : '0'} trendBg={kpi.pendingInvites > 0 ? '#fef3c7' : '#d1fae5'} trendColor={kpi.pendingInvites > 0 ? '#92400e' : '#065f46'} />
-        <KpiCard icon="🆕" bg="#ede9fe" val={String(kpi.newThisMonth)} label="Nouveaux ce mois" sub="30 derniers jours" trend={kpi.newThisMonth > 0 ? `+${kpi.newThisMonth}` : '0'} trendBg="#d1fae5" trendColor="#065f46" />
+        <KpiCard icon={School} bg="#d1fae5" val={String(kpi.activeSchools)} label="Écoles actives" sub={`dont ${kpi.suspendedCount} suspendue${kpi.suspendedCount > 1 ? 's' : ''}`} trend={kpi.activeSchools > 0 ? `+${kpi.activeSchools}` : '0'} trendBg="#d1fae5" trendColor="#065f46" onClick={() => onGoToSchools('active')} />
+        <KpiCard icon={Loader2} bg="#fef3c7" val={String(kpi.pendingSchools)} label="En attente d'approbation" trend="Urgent" trendBg="#fef3c7" trendColor="#92400e" onClick={() => onGoToSchools('pending')} />
+        <KpiCard icon={Mail} bg="#dbeafe" val={String(kpi.pendingInvites)} label="Invitations en cours" sub="statut PENDING" trend={kpi.pendingInvites > 0 ? `${kpi.pendingInvites} en attente` : '0'} trendBg={kpi.pendingInvites > 0 ? '#fef3c7' : '#d1fae5'} trendColor={kpi.pendingInvites > 0 ? '#92400e' : '#065f46'} />
+        <KpiCard icon={Sparkles} bg="#ede9fe" val={String(kpi.newThisMonth)} label="Nouveaux ce mois" sub="30 derniers jours" trend={kpi.newThisMonth > 0 ? `+${kpi.newThisMonth}` : '0'} trendBg="#d1fae5" trendColor="#065f46" />
       </div>
 
       <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', overflow: 'hidden', marginBottom: 20 }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209' }}>🕐 Activité récente</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209', display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={18} /> Activité récente</span>
           <button onClick={onGoToLogs} style={btnSecondarySmall}>Voir tous les logs →</button>
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -64,8 +66,8 @@ export default function SectionOverview({ kpi, activity, onInvite, onGoToSchools
   )
 }
 
-function KpiCard({ icon, bg, val, label, sub, trend, trendBg, trendColor, onClick }: {
-  icon: string; bg: string; val: string; label: string; sub?: string; trend: string; trendBg: string; trendColor: string; onClick?: () => void
+function KpiCard({ icon: Icon, bg, val, label, sub, trend, trendBg, trendColor, onClick }: {
+  icon: LucideIcon; bg: string; val: string; label: string; sub?: string; trend: string; trendBg: string; trendColor: string; onClick?: () => void
 }) {
   return (
     <div onClick={onClick}
@@ -78,8 +80,8 @@ function KpiCard({ icon, bg, val, label, sub, trend, trendBg, trendColor, onClic
       onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'none', boxShadow: 'none', borderColor: '#e8e0d4' })}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ width: 46, height: 46, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-          {icon}
+        <div style={{ width: 46, height: 46, borderRadius: 10, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon size={22} strokeWidth={2} />
         </div>
         <span style={{ fontSize: 15, fontWeight: 800, padding: '3px 8px', borderRadius: 20, background: trendBg, color: trendColor }}>
           {trend}

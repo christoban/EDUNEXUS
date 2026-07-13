@@ -10,9 +10,9 @@
     }
   },
   "loading": "Chargement...",
-  "retry": "🔄 Réessayer",
+  "retry": "Réessayer",
   "errorLoad": "Erreur de chargement",
-  "cacheBadge": "📦 Données du {date} — hors-ligne",
+  "cacheBadge": "Données du {date} — hors-ligne",
   "children": {
     "title": "Mes enfants",
     "subtitle": "Suivi scolaire en temps réel",
@@ -23,11 +23,11 @@
     "latestAverage": "Dernière moyenne",
     "attendanceRate": "Taux présence",
     "punctuality": "Ponctualité",
-    "mention": "🏆 Mention :",
+    "mention": "Mention :",
     "absenceDays": "{count} jour(s) d'absence",
-    "actionGrades": "📄 Bulletins",
-    "actionAttendance": "✅ Présences",
-    "actionPayments": "📱 Paiements",
+    "actionGrades": "Bulletins",
+    "actionAttendance": "Présences",
+    "actionPayments": "Paiements",
     "errorLoadChildren": "Erreur de chargement des enfants"
   },
   "grades": {
@@ -41,9 +41,9 @@
     "rank": "Rang",
     "mention": "Mention",
     "actions": "Actions",
-    "downloadPdf": "📥 PDF",
-    "downloading": "⏳...",
-    "offline": "📶",
+    "downloadPdf": "PDF",
+    "downloading": "...",
+    "offline": "",
     "downloadUnavailable": "Téléchargement PDF indisponible hors-ligne",
     "downloadError": "Erreur de téléchargement",
     "downloaded": "Bulletin téléchargé"
@@ -74,8 +74,8 @@
     "phoneLabel": "Numéro de téléphone *",
     "phonePlaceholder": "Ex: 677000000",
     "initiating": "Initiation…",
-    "confirmPayment": "📱 Confirmer le paiement",
-    "payButton": "📱 Payer",
+    "confirmPayment": "Confirmer le paiement",
+    "payButton": "Payer",
     "libelle": "Libellé",
     "remaining": "Reste dû"
   },
@@ -92,8 +92,8 @@
     "operatorsList": "MTN MoMo (*126*007#) · Orange Money (#150*41#) · CAMPOST Money · Express Union (#237*333#) · Afriland First Bank",
     "receiptNote": "Seuls les reçus téléchargés depuis cartescolaire.cm sont valables — même après paiement chez l'opérateur, attendez 48h avant de le télécharger.",
     "examNote": "Ce système couvre aussi les frais d'examens officiels (BEPC, Probatoire, BAC, GCE...) et le concours d'entrée en 6ème — même matricule, même démarche.",
-    "payLink": "💳 Payer sur cartescolaire.cm",
-    "verifyLink": "🔍 Vérifier un paiement"
+    "payLink": "Payer sur cartescolaire.cm",
+    "verifyLink": "Vérifier un paiement"
   },
   "timetable": {
     "title": "Emploi du temps",
@@ -116,7 +116,7 @@
     "borrowedOn": "Emprunté le",
     "dueDate": "Date limite",
     "status": "Statut",
-    "overdueBadge": "⏰ En retard"
+    "overdueBadge": "En retard"
   },
   "settings": {
     "title": "Paramètres",

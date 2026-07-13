@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { SessionUser } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, Loader2, Smartphone } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -191,7 +192,7 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
           </div>
         )}
 
-        {!loading && error && <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</div>}
+        {!loading && error && <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} strokeWidth={2} /> {error}</div>}
 
         {!loading && !error && invoices.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
@@ -245,13 +246,13 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
                               style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={() => initiateMobileMoney(inv)}
                               disabled={payingId === inv.id}>
-                              {payingId === inv.id ? '⏳' : '📱'}
+                              {payingId === inv.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Smartphone size={13} strokeWidth={2} />}
                             </button>
                             <button
-                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
                               onClick={() => sendReminder(inv)}
                               disabled={sendingId === inv.id}>
-                              {sendingId === inv.id ? '⏳' : '📲 SMS'}
+                              {sendingId === inv.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <><Smartphone size={13} strokeWidth={2} /> SMS</>}
                             </button>
                           </div>
                         )}
@@ -342,8 +343,8 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
 
               {/* Erreur dans la modale */}
               {depenseError && (
-                <div style={{ background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 14px', color: 'var(--red)', fontSize: 14, fontWeight: 700 }}>
-                  ⚠️ {depenseError}
+                <div style={{ background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 14px', color: 'var(--red)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <AlertTriangle size={14} strokeWidth={2} /> {depenseError}
                 </div>
               )}
 

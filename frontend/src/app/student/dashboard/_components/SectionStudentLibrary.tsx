@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { BookOpen, AlarmClock, AlertTriangle } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -43,12 +44,12 @@ export default function SectionStudentLibrary() {
       {!loading && !error && loans.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
           {[
-            { icon: '📚', bg: 'var(--blue-light)', val: loans.length,  label: t('library.total_loans'), color: 'var(--blue)' },
-            { icon: '📖', bg: 'var(--green-light)', val: active,         label: t('library.active_label'), color: 'var(--green)' },
-            { icon: '⏰', bg: 'var(--red-light)', val: overdue,        label: t('library.overdue_label'), color: 'var(--red)' },
+            { icon: BookOpen, bg: 'var(--blue-light)', val: loans.length,  label: t('library.total_loans'), color: 'var(--blue)' },
+            { icon: BookOpen, bg: 'var(--green-light)', val: active,         label: t('library.active_label'), color: 'var(--green)' },
+            { icon: AlarmClock, bg: 'var(--red-light)', val: overdue,        label: t('library.overdue_label'), color: 'var(--red)' },
           ].map((k, i) => (
             <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 10 }}>{k.icon}</div>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}><k.icon size={18} strokeWidth={2} /></div>
               <div style={{ fontSize: 26, fontWeight: 900, color: k.color }}>{k.val}</div>
               <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
             </div>
@@ -64,12 +65,12 @@ export default function SectionStudentLibrary() {
       )}
 
       {!loading && error && (
-        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</div>
+        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} strokeWidth={2} /> {error}</div>
       )}
 
       {!loading && !error && loans.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 20px', textAlign: 'center', color: 'var(--text3)' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><BookOpen size={40} strokeWidth={2} /></div>
           <div style={{ fontSize: 17, fontWeight: 700 }}>{t('library.empty_title')}</div>
           <div style={{ fontSize: 14, marginTop: 6 }}>{t('library.empty_subtitle')}</div>
         </div>
@@ -113,14 +114,14 @@ export default function SectionStudentLibrary() {
                     <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td style={tdSt}>
                       {l.dueDate ? (
-                        <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>
-                          {isOverdue && '⚠️ '}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          {isOverdue && <AlertTriangle size={14} strokeWidth={2} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                       ) : '—'}
                     </td>
                     <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color }}>
-                        {isOverdue ? `⏰ ${t('library.overdue_label')}` : badge.label}
+                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        {isOverdue ? <><AlarmClock size={13} strokeWidth={2} /> {t('library.overdue_label')}</> : badge.label}
                       </span>
                     </td>
                   </tr>

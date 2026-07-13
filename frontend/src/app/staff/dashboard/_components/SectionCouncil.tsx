@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { CheckCircle2, RotateCcw, Scale, AlertTriangle, GraduationCap } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -41,8 +42,10 @@ const DEC_COLOR: Record<string, { color: string; bg: string }> = {
   DELIBERATION: { color: 'var(--amber)', bg: 'var(--amber-light)' },
 }
 
-const DEC_LABEL: Record<string, string> = {
-  PASS: '✅ Admis(e)', REPEAT: '↩️ Redoublant(e)', DELIBERATION: '⚖️ En délibération',
+const DEC_LABEL: Record<string, { icon: React.ReactNode; text: string }> = {
+  PASS:         { icon: <CheckCircle2 size={14} strokeWidth={2} />, text: 'Admis(e)' },
+  REPEAT:       { icon: <RotateCcw size={14} strokeWidth={2} />, text: 'Redoublant(e)' },
+  DELIBERATION: { icon: <Scale size={14} strokeWidth={2} />, text: 'En délibération' },
 }
 
 export default function SectionCouncil({ onToast }: Props) {
@@ -213,14 +216,14 @@ export default function SectionCouncil({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <span style={{ display: 'inline-flex' }}><AlertTriangle size={16} strokeWidth={2} /></span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchSessions} style={btnRetry}>Réessayer</button>
         </div>
       )}
 
       {!loading && !error && sessions.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>🎓</div>
+          <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}><GraduationCap size={52} strokeWidth={2} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('council.noSessions')}</div>
           <div style={{ fontSize: 16, color: 'var(--text3)' }}>{t('council.noSessionsDesc')}</div>
         </div>
@@ -307,8 +310,8 @@ export default function SectionCouncil({ onToast }: Props) {
                               </td>
                               <td style={tdSt}>
                                 {selected.status === 'LOCKED' ? (
-                                  <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc.bg, color: dc.color }}>
-                                    {DEC_LABEL[cur.decision] ?? cur.decision}
+                                  <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc.bg, color: dc.color, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    {DEC_LABEL[cur.decision] ? <>{DEC_LABEL[cur.decision].icon}{DEC_LABEL[cur.decision].text}</> : cur.decision}
                                   </span>
                                 ) : (
                                   <select

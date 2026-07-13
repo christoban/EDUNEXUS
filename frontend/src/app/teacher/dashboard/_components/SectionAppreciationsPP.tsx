@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { PenLine, Save, Loader2, Lock, ScrollText } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -143,8 +144,8 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-            {t('pp.title')}
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <PenLine size={22} strokeWidth={2} />{t('pp.title')}
           </div>
           <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
             {t('pp.subtitle')}
@@ -153,8 +154,9 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
         <button
           onClick={handleBulkSave}
           disabled={bulkSaving || reportCards.length === 0}
-          style={{ padding: '10px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800, cursor: 'pointer', border: 'none', fontFamily: 'inherit',
             background: bulkSaving ? 'var(--border)' : 'var(--sidebar)', color: bulkSaving ? 'var(--text3)' : 'white', transition: 'all 0.15s' }}>
+          {bulkSaving ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : <Save size={14} strokeWidth={2} />}
           {bulkSaving ? t('pp.save_progress').replace('{progress}', String(bulkProgress)) : t('pp.save_all')}
         </button>
       </div>
@@ -186,7 +188,7 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
         <div style={{ padding: 60, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>{t('pp.loading_bulletins')}</div>
       ) : reportCards.length === 0 ? (
         <div style={{ padding: 60, textAlign: 'center', background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><ScrollText size={36} strokeWidth={2} /></div>
           <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>{t('pp.no_bulletins')}</div>
           <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 6 }}>{t('pp.no_bulletins_hint')}</div>
         </div>
@@ -212,11 +214,11 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {saving[rc.id] && <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{t('pp.saving')}</span>}
-                    {saved[rc.id] && !saving[rc.id] && <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700 }}>{t('pp.saved')}</span>}
+                    {saving[rc.id] && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}><Loader2 size={12} strokeWidth={2} className="animate-spin" />{t('pp.saving')}</span>}
+                    {saved[rc.id] && !saving[rc.id] && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--green)', fontWeight: 700 }}><Save size={12} strokeWidth={2} />{t('pp.saved')}</span>}
                     {locked && (
-                      <span style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 700, background: 'var(--bg2)', padding: '4px 10px', borderRadius: 20 }}>
-                        {t('pp.locked')}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text2)', fontWeight: 700, background: 'var(--bg2)', padding: '4px 10px', borderRadius: 20 }}>
+                        <Lock size={12} strokeWidth={2} />{t('pp.locked')}
                       </span>
                     )}
                   </div>
@@ -224,7 +226,7 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
 
                 {locked ? (
                   <div style={{ padding: '12px 16px', background: 'var(--bg)', borderRadius: 10, border: '1.5px solid var(--border)', color: 'var(--text3)', fontSize: 14, fontWeight: 600 }}>
-                    {t('pp.council_locked')}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Lock size={14} strokeWidth={2} />{t('pp.council_locked')}</span>
                     {text && <div style={{ marginTop: 8, color: 'var(--text2)', fontStyle: 'italic' }}>&ldquo;{text}&rdquo;</div>}
                   </div>
                 ) : (

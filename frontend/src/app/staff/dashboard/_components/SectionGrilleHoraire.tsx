@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle } from 'lucide-react'
 
 const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
 const JOURS_LABELS: Record<string, string> = {
@@ -158,7 +159,7 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
       {/* Avertissement EDT existants */}
       {isConfigured && existingTimetables > 0 && (
         <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber-light)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <span style={{ fontSize: 20 }}>⚠️</span>
+          <span style={{ fontSize: 20, display: 'inline-flex' }}><AlertTriangle size={20} strokeWidth={2} /></span>
           <div style={{ fontSize: 14, color: 'var(--amber)' }}>
             <span dangerouslySetInnerHTML={{ __html: t('grilleHoraire.warningTitle') }} /> {t('grilleHoraire.warningExisting', { count: existingTimetables })}
           </div>

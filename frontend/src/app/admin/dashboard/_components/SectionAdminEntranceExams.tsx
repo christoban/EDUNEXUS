@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { ClipboardList, Check, X } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -185,7 +186,7 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
 
   return (
     <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>📋 {t('entrance_exams.title')}</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}><ClipboardList size={22} /> {t('entrance_exams.title')}</h2>
 
       {/* Création */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
@@ -328,8 +329,8 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
                     <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
                       {c.admissionStatus === 'ADMIS_PROVISOIRE' && c.cepResult !== 'REUSSI' && c.cepResult !== 'ECHOUE' ? (
                         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)' }}>✓ Réussi</button>
-                          <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)' }}>✗ Échoué</button>
+                          <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Réussi</button>
+                          <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> Échoué</button>
                         </div>
                       ) : (
                         <span style={{ color: 'var(--text2)' }}>{c.cepResult ?? '—'}</span>

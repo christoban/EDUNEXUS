@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, CheckCircle2, Check, X } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -153,14 +154,14 @@ export default function SectionDiscipline({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <span style={{ display: 'inline-flex' }}><AlertTriangle size={16} strokeWidth={2} /></span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchRecords} style={btnRetry}>{t('actions.retry')}</button>
         </div>
       )}
 
       {!loading && !error && records.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>✅</div>
+          <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={52} strokeWidth={2} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('empty_state.title')}</div>
           <div style={{ fontSize: 16, color: 'var(--text3)' }}>{t('empty_state.description')}</div>
         </div>
@@ -241,9 +242,9 @@ export default function SectionDiscipline({ onToast }: Props) {
                 <label style={labelSt}>{t('form_fields.student_label')}</label>
                 {form.selectedStudent ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1 }}>✓ {form.selectedStudent.firstName} {form.selectedStudent.lastName}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}><Check size={16} strokeWidth={2} /> {form.selectedStudent.firstName} {form.selectedStudent.lastName}</span>
                     <button onClick={() => setForm(f => ({ ...f, selectedStudent: null, studentSearch: '', studentResults: [] }))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16 }}>✕</button>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', fontSize: 16, display: 'inline-flex' }}><X size={16} strokeWidth={2} /></button>
                   </div>
                 ) : (
                   <div style={{ position: 'relative' }}>

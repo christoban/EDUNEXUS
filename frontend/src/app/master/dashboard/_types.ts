@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react'
 import type { MasterUserDto, SchoolDto, AuditLogDto, SchoolDetailDto } from './_api'
 
 export type { MasterUserDto, SchoolDto, AuditLogDto, SchoolDetailDto }
@@ -14,7 +15,7 @@ export type ModalId =
 export interface ConfirmActionTarget {
   title: string
   description: string
-  icon: string
+  icon: LucideIcon
   danger?: boolean
   execute: (sensitiveAuth: { password: string; code?: string }) => Promise<void>
   successMsg: string

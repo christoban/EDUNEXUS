@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { IdCard, Check, HelpCircle, X, AlertTriangle, ArrowLeftRight } from 'lucide-react'
 
 interface Props { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }
 
@@ -136,8 +137,8 @@ export default function SectionMatricules({ onToast }: Props) {
 
   return (
     <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>
-        🪪 {t('matricules.title')}
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <IdCard size={20} strokeWidth={2} /> {t('matricules.title')}
       </h2>
 
       {/* Import */}
@@ -170,14 +171,14 @@ export default function SectionMatricules({ onToast }: Props) {
                     <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: j.status === 'COMPLETED' ? 'rgba(22,163,74,0.12)' : 'var(--bg2)', color: j.status === 'COMPLETED' ? 'var(--green)' : 'var(--text2)' }}>{j.status}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--text2)', alignItems: 'center' }}>
-                    <span>✓ {j.matchedRows}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} strokeWidth={2} /> {j.matchedRows}</span>
                     {pendingFuzzy > 0 && (
-                      <span style={{ padding: '2px 8px', borderRadius: 10, fontWeight: 700, background: 'rgba(234,179,8,0.15)', color: '#b45309' }}>
-                        ❓ {pendingFuzzy}
+                      <span style={{ padding: '2px 8px', borderRadius: 10, fontWeight: 700, background: 'rgba(234,179,8,0.15)', color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <HelpCircle size={12} strokeWidth={2} /> {pendingFuzzy}
                       </span>
                     )}
-                    <span>✗ {j.unmatchedRows}</span>
-                    <span>⚠ {j.errorRows}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={12} strokeWidth={2} /> {j.unmatchedRows}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} strokeWidth={2} /> {j.errorRows}</span>
                     <button onClick={() => viewJob(j.id)} style={{ ...btnSec, fontSize: 11, padding: '4px 10px' }}>{t('matricules.view')}</button>
                   </div>
                 </div>
@@ -207,8 +208,8 @@ export default function SectionMatricules({ onToast }: Props) {
           {/* Correspondances probables à confirmer */}
           {fuzzyMatches.length > 0 && (
             <div style={{ marginBottom: 20 }}>
-              <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-                ❓ {t('matricules.fuzzy_section_title')}
+              <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <HelpCircle size={15} strokeWidth={2} /> {t('matricules.fuzzy_section_title')}
               </h4>
               <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 10 }}>{t('matricules.fuzzy_section_desc')}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -220,7 +221,7 @@ export default function SectionMatricules({ onToast }: Props) {
                           <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, marginBottom: 2 }}>{t('matricules.fuzzy_base_label')}</div>
                           <div style={{ fontWeight: 700, color: 'var(--text)' }}>{f.nomBase} {f.prenomBase}</div>
                         </div>
-                        <div style={{ color: 'var(--text3)', alignSelf: 'center' }}>↔</div>
+                        <div style={{ color: 'var(--text3)', alignSelf: 'center', display: 'flex' }}><ArrowLeftRight size={14} strokeWidth={2} /></div>
                         <div>
                           <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, marginBottom: 2 }}>{t('matricules.fuzzy_file_label')}</div>
                           <div style={{ fontWeight: 700, color: 'var(--text)' }}>{f.nomFichier} {f.prenomFichier}</div>
@@ -237,12 +238,12 @@ export default function SectionMatricules({ onToast }: Props) {
                     )}
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => confirmFuzzy(f.ligne)} disabled={processingLigne === f.ligne}
-                        style={{ ...btnPri, fontSize: 12, padding: '6px 14px' }}>
-                        ✓ {t('matricules.fuzzy_confirm_btn')}
+                        style={{ ...btnPri, fontSize: 12, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Check size={13} strokeWidth={2} /> {t('matricules.fuzzy_confirm_btn')}
                       </button>
                       <button onClick={() => flagFuzzy(f.ligne)} disabled={processingLigne === f.ligne}
-                        style={{ ...btnSec, fontSize: 12, padding: '6px 14px', color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)' }}>
-                        ⚠ {t('matricules.fuzzy_flag_btn')}
+                        style={{ ...btnSec, fontSize: 12, padding: '6px 14px', color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <AlertTriangle size={13} strokeWidth={2} /> {t('matricules.fuzzy_flag_btn')}
                       </button>
                     </div>
                   </div>

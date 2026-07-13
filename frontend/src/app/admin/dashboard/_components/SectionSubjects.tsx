@@ -3,6 +3,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { DndContext, DragOverlay, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import {
+  AlertTriangle, BookOpen, Loader2, Trash2, X, Search, GraduationCap, MoreHorizontal,
+  Users, Pencil, BarChart3, FolderOpen, Presentation, Check, type LucideIcon,
+} from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -628,12 +632,12 @@ export default function SectionSubjects({ onToast }: Props) {
           {loadingCV && <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} /></div>}
 
           {classViewError && (
-            <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '14px 18px', color: 'var(--red)', fontWeight: 700, fontSize: 14 }}>⚠️ {classViewError}</div>
+            <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '14px 18px', color: 'var(--red)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={15} strokeWidth={2} /> {classViewError}</div>
           )}
 
           {!loadingCV && selectedClass && classSubjects.length === 0 && !classViewError && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text3)' }}><BookOpen size={40} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 16, color: 'var(--text3)', marginBottom: 16 }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.no_subjects').replace('{name}', selectedClassName ?? '') }} />
               <div style={{ fontSize: 14, color: 'var(--text3)' }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.sync_hint') }} />
             </div>
@@ -687,7 +691,7 @@ export default function SectionSubjects({ onToast }: Props) {
                             <button onClick={() => handleUpdateCoefficient(s.subjectId)}
                               style={{ background: 'var(--green)', color: 'white', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>OK</button>
                             <button onClick={() => setEditingCoeffId(null)}
-                              style={{ background: 'var(--bg2)', color: 'var(--text2)', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>✕</button>
+                              style={{ background: 'var(--bg2)', color: 'var(--text2)', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center' }}><X size={13} strokeWidth={2} /></button>
                           </div>
                         ) : (
                           <span onClick={() => { setEditingCoeffId(s.id); setEditingCoeffValue(String(s.coefficient)) }}
@@ -706,7 +710,7 @@ export default function SectionSubjects({ onToast }: Props) {
                           disabled={deletingSubjId === s.subjectId}
                           onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'var(--red-light)' })}
                           onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'none' })}>
-                          {deletingSubjId === s.subjectId ? '⏳' : '🗑'}
+                          {deletingSubjId === s.subjectId ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : <Trash2 size={14} strokeWidth={2} />}
                         </button>
                       </td>
                     </tr>
@@ -718,7 +722,7 @@ export default function SectionSubjects({ onToast }: Props) {
 
           {!selectedClass && !loadingCV && (
             <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><GraduationCap size={48} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 17 }}>{t('subjects.class_view.no_selection')}</div>
             </div>
           )}
@@ -730,7 +734,7 @@ export default function SectionSubjects({ onToast }: Props) {
 
       {view === 'catalogue' && !loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} strokeWidth={2} /> {error}</span>
           <button onClick={fetchSubjects} style={btnRetry}>Réessayer</button>
         </div>
       )}
@@ -739,7 +743,7 @@ export default function SectionSubjects({ onToast }: Props) {
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px' }}>
-              <span>🔍</span>
+              <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('subjects.search_placeholder')}
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
             </div>
@@ -779,23 +783,26 @@ export default function SectionSubjects({ onToast }: Props) {
                           style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)' }}
                           onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', color: 'var(--green)', background: 'var(--green-light)' })}
                           onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', color: 'var(--text3)', background: 'none' })}>
-                          {deletingId === sub.id ? '⏳' : '⋯'}
+                          {deletingId === sub.id ? <Loader2 size={16} strokeWidth={2} className="animate-spin" /> : <MoreHorizontal size={16} strokeWidth={2} />}
                         </button>
                         {openDD === sub.id && (
                           <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 210, zIndex: 100, overflow: 'hidden' }}>
                             {[
-                              { icon: '👥', key: 'assign_teacher', action: () => openAssign(sub), danger: false },
-                              { icon: '✏️', key: 'edit',            action: () => openMod(sub),    danger: false },
-                              { icon: '📊', key: 'bac_coefficients', action: () => openCoeff(sub),  danger: false },
-                              { icon: '🗑', key: 'delete',            action: () => handleDelete(sub), danger: false },
-                            ].map((item, j) => (
+                              { icon: Users, key: 'assign_teacher', action: () => openAssign(sub), danger: false },
+                              { icon: Pencil, key: 'edit',            action: () => openMod(sub),    danger: false },
+                              { icon: BarChart3, key: 'bac_coefficients', action: () => openCoeff(sub),  danger: false },
+                              { icon: Trash2, key: 'delete',            action: () => handleDelete(sub), danger: false },
+                            ].map((item, j) => {
+                              const ItemIcon: LucideIcon = item.icon
+                              return (
                               <div key={j} onClick={item.action}
                                 style={{ padding: '11px 16px', fontSize: 16, fontWeight: 600, color: item.danger ? 'var(--red)' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
                                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = item.danger ? 'var(--red-light)' : 'var(--bg2)'}
                                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                                {item.icon} {t(`subjects.action_menu.${item.key}`)}
+                                <ItemIcon size={15} strokeWidth={2} /> {t(`subjects.action_menu.${item.key}`)}
                               </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -814,11 +821,11 @@ export default function SectionSubjects({ onToast }: Props) {
           {/* Barre d'outils */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', minWidth: 200, maxWidth: 400 }}>
-              <span>🔍</span>
+              <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={deptSearch} onChange={e => setDeptSearch(e.target.value)}
                 placeholder={t('subjects.departments.search_placeholder')}
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
-              {deptSearch && <span onClick={() => setDeptSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14 }}>✕</span>}
+              {deptSearch && <span onClick={() => setDeptSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14, display: 'inline-flex' }}><X size={14} strokeWidth={2} /></span>}
             </div>
             {deptSearch && searchMatchCount > 0 && (
               <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
@@ -839,14 +846,14 @@ export default function SectionSubjects({ onToast }: Props) {
 
           {!deptLoading && deptError && (
             <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{deptError}</span>
+              <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} strokeWidth={2} /> {deptError}</span>
               <button onClick={fetchDepartments} style={btnRetry}>Réessayer</button>
             </div>
           )}
 
           {!deptLoading && !deptError && allDepartments.length === 0 && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '64px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><FolderOpen size={48} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 17, color: 'var(--text3)', marginBottom: 16 }}>
                 {t('subjects.departments.no_depts')}
               </div>
@@ -884,9 +891,9 @@ export default function SectionSubjects({ onToast }: Props) {
                           </div>
                           {!isVirtual && (
                             <button onClick={() => openEditDept(dept)}
-                              style={{ background: 'var(--bg2)', border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 14, color: 'var(--text2)', fontFamily: 'inherit' }}
+                              style={{ background: 'var(--bg2)', border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 14, color: 'var(--text2)', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center' }}
                               title={t('subjects.departments.edit_modal.title')}>
-                              ✏️
+                              <Pencil size={13} strokeWidth={2} />
                             </button>
                           )}
                         </div>
@@ -898,7 +905,7 @@ export default function SectionSubjects({ onToast }: Props) {
                                 AP : {dept.head.firstName} {dept.head.lastName}
                               </span>
                             : !isVirtual
-                              ? <span style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>⚠️ {t('subjects.departments.no_head')}</span>
+                              ? <span style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={13} strokeWidth={2} /> {t('subjects.departments.no_head')}</span>
                               : <span style={{ color: 'var(--text3)', fontSize: 13, fontStyle: 'italic' }}>{t('subjects.departments.unassigned')}</span>
                           }
                         </div>
@@ -959,7 +966,7 @@ export default function SectionSubjects({ onToast }: Props) {
                         {/* Pied */}
                         {isVirtual && (
                           <div style={{ marginTop: 8, background: 'var(--red-light)', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 14 }}>⚠️</span>
+                            <AlertTriangle size={14} strokeWidth={2} color="var(--red)" />
                             <span style={{ fontSize: 13, color: 'var(--red)', fontWeight: 600 }}>{t('subjects.teacher_view.unassigned_title')}</span>
                           </div>
                         )}
@@ -987,11 +994,11 @@ export default function SectionSubjects({ onToast }: Props) {
           {/* Barre outils */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', maxWidth: 400 }}>
-              <span>🔍</span>
+              <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={teacherViewSearch} onChange={e => setTeacherViewSearch(e.target.value)}
                 placeholder={t('subjects.teacher_view.search_placeholder')}
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
-              {teacherViewSearch && <span onClick={() => setTeacherViewSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14 }}>✕</span>}
+              {teacherViewSearch && <span onClick={() => setTeacherViewSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14, display: 'inline-flex' }}><X size={14} strokeWidth={2} /></span>}
             </div>
             <span style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{teacherViewTeachers.length} enseignant{teacherViewTeachers.length > 1 ? 's' : ''}</span>
           </div>
@@ -1004,7 +1011,7 @@ export default function SectionSubjects({ onToast }: Props) {
 
           {!teacherViewLoading && teacherViewTeachers.length === 0 && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '64px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>👨‍🏫</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Presentation size={48} strokeWidth={1.5} /></div>
               <div style={{ fontSize: 17, color: 'var(--text3)' }}>{t('subjects.teacher_view.no_results')}</div>
             </div>
           )}
@@ -1050,8 +1057,8 @@ export default function SectionSubjects({ onToast }: Props) {
                                     fetchTeacherView()
                                   } catch { onToast(t('subjects.departments.toast_move_error'), 'error') }
                                 }}
-                                  style={{ cursor: 'pointer', marginLeft: 2, fontSize: 14, lineHeight: 1 }} title="Retirer">
-                                  ✕
+                                  style={{ cursor: 'pointer', marginLeft: 2, fontSize: 14, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }} title="Retirer">
+                                  <X size={12} strokeWidth={2} />
                                 </span>
                               </span>
                             ))}
@@ -1124,7 +1131,7 @@ export default function SectionSubjects({ onToast }: Props) {
           {!teacherViewLoading && subjects.length > 0 && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', marginTop: 18 }}>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>⚠️</span>
+                <AlertTriangle size={16} strokeWidth={2} />
                 <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{t('subjects.teacher_view.unassigned_title')}</span>
               </div>
               {(() => {
@@ -1340,8 +1347,8 @@ export default function SectionSubjects({ onToast }: Props) {
           <input style={sInput} placeholder={t('subjects.assign_modal.search_placeholder')} value={assignForm.teacherSearch}
             onChange={e => setAssignForm(f => ({ ...f, teacherSearch: e.target.value, selected: null }))} />
           {assignForm.selected && (
-            <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
-              ✓ {assignForm.selected.firstName} {assignForm.selected.lastName}
+            <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} strokeWidth={2} /> {assignForm.selected.firstName} {assignForm.selected.lastName}
             </div>
           )}
           {!assignForm.selected && (
@@ -1407,8 +1414,8 @@ export default function SectionSubjects({ onToast }: Props) {
               onFocus={() => { if (!deptEditForm.headId) setDeptEditForm(f => ({ ...f, teacherSearch: '' })) }} />
             {deptEditForm.headId && (
               <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 8, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>✓ {deptEditForm.teachers.find(t => t.id === deptEditForm.headId)?.firstName} {deptEditForm.teachers.find(t => t.id === deptEditForm.headId)?.lastName}</span>
-                <button onClick={() => setDeptEditForm(f => ({ ...f, headId: '', teacherSearch: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', fontSize: 14, fontFamily: 'inherit', fontWeight: 700 }}>✕ Retirer</button>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Check size={14} strokeWidth={2} /> {deptEditForm.teachers.find(t => t.id === deptEditForm.headId)?.firstName} {deptEditForm.teachers.find(t => t.id === deptEditForm.headId)?.lastName}</span>
+                <button onClick={() => setDeptEditForm(f => ({ ...f, headId: '', teacherSearch: '' }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', fontSize: 14, fontFamily: 'inherit', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={13} strokeWidth={2} /> Retirer</button>
               </div>
             )}
             {!deptEditForm.headId && (
@@ -1448,10 +1455,11 @@ export default function SectionSubjects({ onToast }: Props) {
                 background: departmentHasSubjects(deptEditForm.id) ? 'var(--bg2)' : 'var(--red-light)',
                 color: departmentHasSubjects(deptEditForm.id) ? 'var(--text3)' : 'var(--red)',
                 border: `1.5px solid ${departmentHasSubjects(deptEditForm.id) ? 'var(--border)' : 'var(--red-light)'}`,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
               disabled={departmentHasSubjects(deptEditForm.id)}
               title={departmentHasSubjects(deptEditForm.id) ? t('subjects.departments.toast_move_error') : t('subjects.departments.edit_modal.btn_delete')}>
-              🗑 {t('subjects.departments.edit_modal.btn_delete')}
+              <Trash2 size={14} strokeWidth={2} /> {t('subjects.departments.edit_modal.btn_delete')}
             </button>
             {departmentHasSubjects(deptEditForm.id) && (
               <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>{t('subjects.departments.toast_move_error')}</div>

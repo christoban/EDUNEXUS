@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -94,7 +95,7 @@ export default function EleveOnboardingPage() {
 
           {(state === 'invalid' || state === 'expired' || state === 'used' || state === 'notPending') && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 14 }}>⚠️</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, color: '#374151' }}><AlertTriangle size={40} strokeWidth={2} /></div>
               <p style={{ color: '#374151', fontSize: 15 }}>
                 {state === 'expired' ? t('eleveAutoservice.linkExpired')
                   : state === 'used' ? t('eleveAutoservice.linkUsed')
@@ -106,7 +107,7 @@ export default function EleveOnboardingPage() {
 
           {state === 'submitted' && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, color: '#065f46' }}><CheckCircle2 size={40} strokeWidth={2} /></div>
               <div style={{ fontSize: 17, fontWeight: 800, color: '#065f46', marginBottom: 8 }}>{t('eleveAutoservice.successTitle')}</div>
               <p style={{ color: '#374151', fontSize: 15 }}>{t('eleveAutoservice.successMessage')}</p>
             </div>

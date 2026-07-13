@@ -1,5 +1,7 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Check, X, ClipboardList, AlarmClock, RefreshCw, CheckCircle2, Users, Search, Loader2, AlertTriangle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -16,11 +18,11 @@ interface AttendanceRecord {
   markedBy: { id: string; firstName: string; lastName: string } | null
 }
 
-const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  PRESENT:          { bg: 'var(--green-light)', color: 'var(--green)', label: '✓ Présent'  },
-  ABSENT:           { bg: 'var(--red-light)', color: 'var(--red)', label: '✗ Absent'   },
-  ABSENT_JUSTIFIED: { bg: 'var(--amber-light)', color: 'var(--amber)', label: '📋 Justifié' },
-  LATE:             { bg: 'var(--blue-light)', color: 'var(--blue)', label: '⏰ Retard'   },
+const STATUS_STYLE: Record<string, { bg: string; color: string; label: string; icon: LucideIcon }> = {
+  PRESENT:          { bg: 'var(--green-light)', color: 'var(--green)', label: 'Présent', icon: Check },
+  ABSENT:           { bg: 'var(--red-light)', color: 'var(--red)', label: 'Absent', icon: X },
+  ABSENT_JUSTIFIED: { bg: 'var(--amber-light)', color: 'var(--amber)', label: 'Justifié', icon: ClipboardList },
+  LATE:             { bg: 'var(--blue-light)', color: 'var(--blue)', label: 'Retard', icon: AlarmClock },
 }
 
 export default function SectionAdminAttendance({ onToast }: Props) {
@@ -101,7 +103,7 @@ export default function SectionAdminAttendance({ onToast }: Props) {
           <div style={sTitle}>{t('attendance.title')}</div>
           <div style={sSub}>Supervision · Toutes les classes de l&apos;établissement</div>
         </div>
-        <button style={btnSec} onClick={() => { fetchStats(); fetchRecords() }}>🔄 Rafraîchir</button>
+        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { fetchStats(); fetchRecords() }}><RefreshCw size={15} /> Rafraîchir</button>
       </div>
 
       {loading ? (
@@ -112,14 +114,14 @@ export default function SectionAdminAttendance({ onToast }: Props) {
         <>
           {stats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 22 }}>
-              {[
-                { icon: '✅', bg: 'var(--green-light)', val: stats.attendanceRate, label: 'Taux de présence', color: 'var(--green)' },
-                { icon: '👥', bg: 'var(--blue-light)', val: String(stats.total),   label: 'Enregistrements', color: 'var(--blue)' },
-                { icon: '✗',  bg: 'var(--red-light)', val: String(stats.absent),  label: 'Absences',         color: 'var(--red)' },
-                { icon: '⏰', bg: 'var(--amber-light)', val: String(stats.late),    label: 'Retards',           color: 'var(--amber)' },
-              ].map((k, i) => (
+              {([
+                { icon: CheckCircle2, bg: 'var(--green-light)', val: stats.attendanceRate, label: 'Taux de présence', color: 'var(--green)' },
+                { icon: Users, bg: 'var(--blue-light)', val: String(stats.total),   label: 'Enregistrements', color: 'var(--blue)' },
+                { icon: X,  bg: 'var(--red-light)', val: String(stats.absent),  label: 'Absences',         color: 'var(--red)' },
+                { icon: AlarmClock, bg: 'var(--amber-light)', val: String(stats.late),    label: 'Retards',           color: 'var(--amber)' },
+              ] as { icon: LucideIcon; bg: string; val: string; label: string; color: string }[]).map((k, i) => (
                 <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, marginBottom: 10 }}>{k.icon}</div>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}><k.icon size={18} color={k.color} /></div>
                   <div style={{ fontSize: 26, fontWeight: 900, color: k.color }}>{k.val}</div>
                   <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
                 </div>
@@ -134,12 +136,12 @@ export default function SectionAdminAttendance({ onToast }: Props) {
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...filterSt, cursor: 'pointer' }} />
-              <button style={btnPrim} onClick={fetchRecords} disabled={loadingRecords}>
-                {loadingRecords ? '⏳' : '🔍'} Charger
+              <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={fetchRecords} disabled={loadingRecords}>
+                {loadingRecords ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Charger
               </button>
               {records.length > 0 && (
-                <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
-                  ✓ {presentCount} · ✗ {absentCount} · ⏰ {lateCount}
+                <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <Check size={13} /> {presentCount} · <X size={13} /> {absentCount} · <AlarmClock size={13} /> {lateCount}
                 </span>
               )}
             </div>
@@ -149,7 +151,7 @@ export default function SectionAdminAttendance({ onToast }: Props) {
                 <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
               </div>
             )}
-            {!loadingRecords && error && <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</div>}
+            {!loadingRecords && error && <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} /> {error}</div>}
             {!loadingRecords && !error && records.length === 0 && (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                 {classId || date ? 'Aucun enregistrement pour ces filtres' : 'Sélectionnez une classe ou une date pour afficher les présences'}
@@ -164,7 +166,7 @@ export default function SectionAdminAttendance({ onToast }: Props) {
                 </thead>
                 <tbody>
                   {records.map(r => {
-                    const st = STATUS_STYLE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: r.status }
+                    const st = STATUS_STYLE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: r.status, icon: Check }
                     return (
                       <tr key={r.id}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
@@ -174,15 +176,15 @@ export default function SectionAdminAttendance({ onToast }: Props) {
                         <td style={tdSt}>{new Date(r.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td>
                         <td style={tdSt}>{r.period}</td>
                         <td style={tdSt}>
-                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>{st.label}</span>
+                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}><st.icon size={13} /> {st.label}</span>
                         </td>
                         <td style={tdSt}>{r.markedBy ? `${r.markedBy.firstName} ${r.markedBy.lastName}` : '—'}</td>
                         <td style={tdSt}>
                           {r.status === 'ABSENT' && (
                             <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
+                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
                               onClick={() => justify(r.id)} disabled={justifyingId === r.id}>
-                              {justifyingId === r.id ? '⏳' : '📋 Justifier'}
+                              {justifyingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <><ClipboardList size={13} /> Justifier</>}
                             </button>
                           )}
                         </td>

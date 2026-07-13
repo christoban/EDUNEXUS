@@ -10,9 +10,9 @@
     }
   },
   "loading": "Loading...",
-  "retry": "🔄 Retry",
+  "retry": "Retry",
   "errorLoad": "Loading error",
-  "cacheBadge": "📦 Data from {date} — offline",
+  "cacheBadge": "Data from {date} — offline",
   "children": {
     "title": "My Children",
     "subtitle": "Real-time academic tracking",
@@ -23,11 +23,11 @@
     "latestAverage": "Latest average",
     "attendanceRate": "Attendance rate",
     "punctuality": "Punctuality",
-    "mention": "🏆 Mention:",
+    "mention": "Mention:",
     "absenceDays": "{count} day(s) absent",
-    "actionGrades": "📄 Report Cards",
-    "actionAttendance": "✅ Attendance",
-    "actionPayments": "📱 Payments",
+    "actionGrades": "Report Cards",
+    "actionAttendance": "Attendance",
+    "actionPayments": "Payments",
     "errorLoadChildren": "Error loading children"
   },
   "grades": {
@@ -41,9 +41,9 @@
     "rank": "Rank",
     "mention": "Honors",
     "actions": "Actions",
-    "downloadPdf": "📥 PDF",
-    "downloading": "⏳...",
-    "offline": "📶",
+    "downloadPdf": "PDF",
+    "downloading": "...",
+    "offline": "",
     "downloadUnavailable": "PDF download unavailable offline",
     "downloadError": "Download error",
     "downloaded": "Report card downloaded"
@@ -74,8 +74,8 @@
     "phoneLabel": "Phone number *",
     "phonePlaceholder": "e.g. 677000000",
     "initiating": "Initiating…",
-    "confirmPayment": "📱 Confirm Payment",
-    "payButton": "📱 Pay",
+    "confirmPayment": "Confirm Payment",
+    "payButton": "Pay",
     "libelle": "Label",
     "remaining": "Remaining"
   },
@@ -92,8 +92,8 @@
     "operatorsList": "MTN MoMo (*126*007#) · Orange Money (#150*41#) · CAMPOST Money · Express Union (#237*333#) · Afriland First Bank",
     "receiptNote": "Only receipts downloaded from cartescolaire.cm are valid — even after paying with the operator, wait 48h before downloading it.",
     "examNote": "This system also covers official exam fees (BEPC, Probatoire, BAC, GCE...) and the entrance exam to 6ème — same matricule, same process.",
-    "payLink": "💳 Pay on cartescolaire.cm",
-    "verifyLink": "🔍 Verify a payment"
+    "payLink": "Pay on cartescolaire.cm",
+    "verifyLink": "Verify a payment"
   },
   "timetable": {
     "title": "Timetable",
@@ -116,7 +116,7 @@
     "borrowedOn": "Borrowed on",
     "dueDate": "Due date",
     "status": "Status",
-    "overdueBadge": "⏰ Overdue"
+    "overdueBadge": "Overdue"
   },
   "settings": {
     "title": "Settings",

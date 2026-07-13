@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { AlertTriangle, CheckCircle2, ArrowLeft, KeyRound, School, BarChart3, Shield, Check, EyeOff, Eye, Clock } from 'lucide-react'
 
 // URL relative → proxy Next.js (next.config.ts)
 const API_BASE = ''
@@ -24,7 +25,7 @@ function Alert({ a }: { a: AlertState }) {
       border: a.type === 'error' ? '1px solid rgba(220,38,38,0.2)' : '1px solid rgba(5,150,105,0.2)',
       color: a.type === 'error' ? '#b91c1c' : '#065f46'
     }}>
-      <span>{a.type === 'error' ? '⚠️' : '✅'}</span><span>{a.msg}</span>
+      <span style={{ display: 'flex', alignItems: 'center' }}>{a.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}</span><span>{a.msg}</span>
     </div>
   )
 }
@@ -43,7 +44,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
     <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, fontWeight: 700, color: '#a89478', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 20, padding: 0, transition: 'color 0.15s' }}>
-      ← Retour
+      <ArrowLeft size={16} /> Retour
     </button>
   )
 }
@@ -381,13 +382,13 @@ export default function SuperAdminLogin() {
             {/* Features */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, animation: 'edu-fadeDown 0.6s 0.3s ease both' }}>
               {[
-                { bg: 'rgba(34,197,94,0.1)',  icon: '🔐', title: 'Authentification triple facteur', desc: 'Email + OTP + TOTP' },
-                { bg: 'rgba(96,165,250,0.1)',  icon: '🏫', title: 'Gestion multi-établissements',  desc: 'Invite, approuve, supervise' },
-                { bg: 'rgba(245,158,11,0.1)',  icon: '📊', title: 'Hub de contrôle centralisé',    desc: 'Toutes les écoles en un lieu' },
-                { bg: 'rgba(212,168,67,0.1)',  icon: '🛡️', title: 'Audit complet',                 desc: 'Chaque action tracée et sécurisée' },
+                { bg: 'rgba(34,197,94,0.1)',  icon: KeyRound, title: 'Authentification triple facteur', desc: 'Email + OTP + TOTP' },
+                { bg: 'rgba(96,165,250,0.1)',  icon: School, title: 'Gestion multi-établissements',  desc: 'Invite, approuve, supervise' },
+                { bg: 'rgba(245,158,11,0.1)',  icon: BarChart3, title: 'Hub de contrôle centralisé',    desc: 'Toutes les écoles en un lieu' },
+                { bg: 'rgba(212,168,67,0.1)',  icon: Shield, title: 'Audit complet',                 desc: 'Chaque action tracée et sécurisée' },
               ].map((f, i) => (
                 <div key={i} className="edu-feature" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, transition: 'all 0.2s' }}>
-                  <div style={{ width: 46, height: 46, borderRadius: 14, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, flexShrink: 0 }}>{f.icon}</div>
+                  <div style={{ width: 46, height: 46, borderRadius: 14, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><f.icon size={23} /></div>
                   <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.55)' }}>
                     <strong style={{ color: 'white', fontWeight: 700 }}>{f.title}</strong> — {f.desc}
                   </div>
@@ -416,7 +417,7 @@ export default function SuperAdminLogin() {
                     className={`edu-step${active ? ' s-active' : ''}${done ? ' s-done' : ''}`}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, position: 'relative' }}>
                     <div style={{ width: 35, height: 35, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, zIndex: 1, border: `6px solid ${done ? '#047857' : active ? '#059669' : '#d4c8b8'}`, color: done ? 'white' : active ? '#059669' : '#a89478', background: done ? '#047857' : active ? 'rgba(5,150,105,0.08)' : 'white', transition: 'all 0.3s' }}>
-                      {done ? '✓' : n}
+                      {done ? <Check size={16} /> : n}
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 700, textAlign: 'center', color: done ? '#047857' : active ? '#059669' : '#a89478' }}>{label}</div>
                   </div>
@@ -429,7 +430,7 @@ export default function SuperAdminLogin() {
               <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
                 <FormHeader title="Connexion Admin ZekoulABia" sub="Entrez vos identifiants pour accéder au panneau de contrôle." />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 14, fontSize: 16, fontWeight: 700, color: '#92400e' }}>
-                  🛡️ Connexion chiffrée — URL d&apos;accès privée
+                  <Shield size={16} /> Connexion chiffrée — URL d&apos;accès privée
                 </div>
                 {alert1 && <Alert a={alert1} />}
                 <Field label="Adresse email">
@@ -446,7 +447,7 @@ export default function SuperAdminLogin() {
                       style={fieldInputStyle} />
                     <button type="button" onClick={() => setShowPwd(s => !s)}
                       style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 18, padding: 4, transition: 'color 0.15s' }}>
-                      {showPwd ? '🙈' : '👁'}
+                      {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </Field>
@@ -477,7 +478,7 @@ export default function SuperAdminLogin() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                   <div style={{ fontSize: 17, fontWeight: 700, color: timerSecs <= 60 ? '#dc2626' : '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ⏱ {timerMin}:{String(timerSecDisp).padStart(2, '0')}
+                    <Clock size={16} /> {timerMin}:{String(timerSecDisp).padStart(2, '0')}
                   </div>
                   <button onClick={resendOtp} disabled={!resendEnabled}
                     style={{ fontSize: 17, fontWeight: 700, color: resendEnabled ? '#059669' : '#a89478', cursor: resendEnabled ? 'pointer' : 'default', background: 'none', border: 'none', fontFamily: 'inherit' }}>
@@ -537,8 +538,8 @@ export default function SuperAdminLogin() {
 
                 <div style={{ textAlign: 'center', marginBottom: 12 }}>
                   <button onClick={() => setIsRecovery(r => !r)}
-                    style={{ fontSize: 18, fontWeight: 700, color: '#059669', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit' }}>
-                    {isRecovery ? '← Utiliser le code TOTP' : '🔑 Utiliser un code de récupération'}
+                    style={{ fontSize: 18, fontWeight: 700, color: '#059669', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    {isRecovery ? <><ArrowLeft size={16} /> Utiliser le code TOTP</> : <><KeyRound size={16} /> Utiliser un code de récupération</>}
                   </button>
                 </div>
 

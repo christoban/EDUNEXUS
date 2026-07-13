@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { X, Rocket } from 'lucide-react'
 
 // ─── Helper label + error ─────────────────────────────────────────────────────
 function Field({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
@@ -162,12 +163,13 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
                 background: 'var(--bg2)', border: 'none', cursor: 'pointer',
                 color: 'var(--text2)', fontSize: 19, padding: '7px 11px',
                 borderRadius: 9, lineHeight: 1, marginLeft: 16, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'background 150ms',
               }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--border)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg2)' }}
               title={isFr ? 'Fermer' : 'Close'}
-            >✕</button>
+            ><X size={19} strokeWidth={2} /></button>
           </div>
 
           {/* Séparateur */}
@@ -288,7 +290,7 @@ export default function DemoModal({ isOpen, onClose, onSuccess, onError, lang }:
                   {isFr ? 'Envoi en cours...' : 'Sending...'}
                 </>
               ) : (
-                isFr ? '🚀 Envoyer la demande' : '🚀 Send request'
+                <><Rocket size={18} strokeWidth={2} />{isFr ? 'Envoyer la demande' : 'Send request'}</>
               )}
             </button>
 

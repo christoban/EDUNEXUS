@@ -1,5 +1,6 @@
 'use client'
 import { useCallback } from 'react'
+import { Package, CheckCircle2, User } from 'lucide-react'
 import type { ChildWithStats } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
@@ -16,7 +17,7 @@ function CacheBadge({ cachedAt, label }: { cachedAt: number | null; label: strin
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
     <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      {label.replace('{date}', date)}
+      <Package size={14} strokeWidth={2} /> {label.replace('{date}', date)}
     </div>
   )
 }
@@ -67,7 +68,7 @@ export default function SectionParentAttendance({ onToast, userId }: Props) {
         </div>
         {fromCache && <CacheBadge cachedAt={cachedAt} label={t('cacheBadge')} />}
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><CheckCircle2 size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('attendance.emptyTitle')}</div>
         </div>
       </div>
@@ -87,7 +88,7 @@ export default function SectionParentAttendance({ onToast, userId }: Props) {
         {list.map((child) => (
           <div key={child.studentId} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>👤 {child.prenom} {child.nom}</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><User size={16} strokeWidth={2} /> {child.prenom} {child.nom}</span>
               <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)' }}>{child.classeNom || '—'}</span>
             </div>
             <div style={{ padding: '18px 22px' }}>

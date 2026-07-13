@@ -1,5 +1,6 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Hand, Trophy, TrendingUp, CheckCircle2, AlertTriangle, Siren, FileText, BookOpen, type LucideIcon } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -38,6 +39,13 @@ const HEALTH_LABEL = (s: number): [string, string, string] =>
   : s >= 71 ? ['var(--blue-light)', 'var(--blue)', 'dashboard.health_medium_high']
   : s >= 51 ? ['var(--amber-light)', 'var(--amber)', 'dashboard.health_medium']
   : ['var(--red-light)', 'var(--red)', 'dashboard.health_low']
+
+const HEALTH_ICON: Record<string, LucideIcon> = {
+  'dashboard.health_high': TrendingUp,
+  'dashboard.health_medium_high': CheckCircle2,
+  'dashboard.health_medium': AlertTriangle,
+  'dashboard.health_low': Siren,
+}
 
 export default function SectionStudentDashboard({ onNav, onToast, user }: Props) {
   const t = useT('student')
@@ -168,18 +176,19 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
       <div style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--sidebar2))', borderRadius: 20, padding: '32px 36px', marginBottom: 26, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', right: -50, top: -50, width: 240, height: 240, borderRadius: '50%', background: 'rgba(74,222,128,0.05)', pointerEvents: 'none' }} />
         <div>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 8 }}>
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Hand size={26} strokeWidth={2} />
             {t('dashboard.greeting').replace('{name}', user?.firstName || tcommon('user.studentFallback'))}
           </div>
           <div style={{ fontSize: 17, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
             {className} · {t('dashboard.matricule_label')} {matricule}
           </div>
           <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ background: mBg, color: mC, padding: '5px 14px', borderRadius: 22, fontSize: 15, fontWeight: 800 }}>
-              🏆 {rankDisplay}
+            <span style={{ background: mBg, color: mC, padding: '5px 14px', borderRadius: 22, fontSize: 15, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Trophy size={15} strokeWidth={2} /> {rankDisplay}
             </span>
-            <span style={{ background: hBg, color: hC, padding: '5px 14px', borderRadius: 22, fontSize: 15, fontWeight: 800 }}>
-              ❤️ {t(hLabel)}
+            <span style={{ background: hBg, color: hC, padding: '5px 14px', borderRadius: 22, fontSize: 15, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {(() => { const HIcon = HEALTH_ICON[hLabel]; return <HIcon size={15} strokeWidth={2} /> })()} {t(hLabel)}
             </span>
           </div>
         </div>
@@ -194,17 +203,17 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 22 }}>
         {[
-          { icon: '📝', bg: 'var(--green-light)', val: `${displayAvg.toFixed(1)}/20`, label: t('dashboard.general_avg_label'),  trend: mention,    tBg: mBg, tC: mC },
-          { icon: '🏆', bg: 'var(--blue-light)', val: rank ? `${rank.pos}e` : '—', label: rank ? t('dashboard.rank_label').replace('{total}', String(rank.total)) : t('dashboard.rank_short'), trend: t('dashboard.trend_this_term'), tBg: 'var(--blue-light)', tC: 'var(--blue)' },
-          { icon: '✅', bg: 'var(--amber-light)', val: `${attendanceRate}%`, label: t('dashboard.rate_label'), trend: t('dashboard.trend_term'),  tBg: 'var(--green-light)', tC: 'var(--green)' },
-          { icon: '📚', bg: 'var(--purple-light)', val: String(subjectCount || '...'),  label: t('dashboard.subjects_label'), trend: t('dashboard.trend_year'), tBg: 'var(--purple-light)', tC: 'var(--purple)' },
+          { icon: FileText, bg: 'var(--green-light)', val: `${displayAvg.toFixed(1)}/20`, label: t('dashboard.general_avg_label'),  trend: mention,    tBg: mBg, tC: mC },
+          { icon: Trophy, bg: 'var(--blue-light)', val: rank ? `${rank.pos}e` : '—', label: rank ? t('dashboard.rank_label').replace('{total}', String(rank.total)) : t('dashboard.rank_short'), trend: t('dashboard.trend_this_term'), tBg: 'var(--blue-light)', tC: 'var(--blue)' },
+          { icon: CheckCircle2, bg: 'var(--amber-light)', val: `${attendanceRate}%`, label: t('dashboard.rate_label'), trend: t('dashboard.trend_term'),  tBg: 'var(--green-light)', tC: 'var(--green)' },
+          { icon: BookOpen, bg: 'var(--purple-light)', val: String(subjectCount || '...'),  label: t('dashboard.subjects_label'), trend: t('dashboard.trend_year'), tBg: 'var(--purple-light)', tC: 'var(--purple)' },
         ].map((k, i) => (
           <div key={i}
             style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '22px 26px', cursor: 'pointer', transition: 'all 0.15s' }}
             onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'translateY(-2px)', boxShadow: '0 6px 20px rgba(0,0,0,0.07)' })}
             onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'none', boxShadow: 'none' })}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 12, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{k.icon}</div>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><k.icon size={22} strokeWidth={2} /></div>
               <span style={{ fontSize: 14, fontWeight: 800, padding: '3px 10px', borderRadius: 20, background: k.tBg, color: k.tC, whiteSpace: 'nowrap' }}>{k.trend}</span>
             </div>
             <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{k.val}</div>

@@ -1,13 +1,17 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut } from 'lucide-react'
+import {
+  LogOut, LayoutDashboard, School, ClipboardCheck, FileText, Calendar,
+  NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import type { TeacherSection, UserInfo } from '../_types'
 
 interface NavItem {
   id: TeacherSection
-  icon: string
+  icon: LucideIcon
   label: string
   badge?: string
   badgeColor?: 'red' | 'green' | 'amber'
@@ -21,28 +25,28 @@ interface NavGroup {
 function buildNav(user: UserInfo | null | undefined, pendingGrades: number | undefined, tnav: ReturnType<typeof useT>, tcommon: ReturnType<typeof useT>): NavGroup[] {
   const groups: NavGroup[] = [
     {
-      items: [{ id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') }],
+      items: [{ id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') }],
     },
     {
       label: tnav('group.academic'),
       items: [
-        { id: 'classes',    icon: '🏫', label: tnav('sidebar.myClasses') },
-        { id: 'attendance', icon: '✅', label: tnav('sidebar.attendance') },
-        { id: 'grades',     icon: '📝', label: tnav('sidebar.grades'), ...(pendingGrades ? { badge: String(pendingGrades), badgeColor: 'red' as const } : {}) },
-        { id: 'timetable',  icon: '📅', label: tnav('sidebar.timetable') },
+        { id: 'classes',    icon: School, label: tnav('sidebar.myClasses') },
+        { id: 'attendance', icon: ClipboardCheck, label: tnav('sidebar.attendance') },
+        { id: 'grades',     icon: FileText, label: tnav('sidebar.grades'), ...(pendingGrades ? { badge: String(pendingGrades), badgeColor: 'red' as const } : {}) },
+        { id: 'timetable',  icon: Calendar, label: tnav('sidebar.timetable') },
       ],
     },
     {
       label: tnav('group.pedagogie'),
-      items: [{ id: 'cahier-de-texte', icon: '📓', label: tnav('sidebar.cahierDeTexte') }],
+      items: [{ id: 'cahier-de-texte', icon: NotebookPen, label: tnav('sidebar.cahierDeTexte') }],
     },
     {
       label: tnav('group.ressources'),
-      items: [{ id: 'resources', icon: '📦', label: tnav('sidebar.pedagogicalResources') }],
+      items: [{ id: 'resources', icon: FolderOpen, label: tnav('sidebar.pedagogicalResources') }],
     },
     {
       label: tnav('group.moncompte'),
-      items: [{ id: 'mon-profil-rh', icon: '🪪', label: tnav('sidebar.monProfilRH') }],
+      items: [{ id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') }],
     },
   ]
 
@@ -52,8 +56,8 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
     groups.push({
       label: tnav('group.pp'),
       items: [
-        { id: 'pp-classe',        icon: '📋', label: `${tnav('sidebar.myClass')} · ${cls.name}` },
-        { id: 'pp-appreciations', icon: '✍️',  label: tnav('sidebar.appreciations') },
+        { id: 'pp-classe',        icon: ClipboardList, label: `${tnav('sidebar.myClass')} · ${cls.name}` },
+        { id: 'pp-appreciations', icon: PenLine,  label: tnav('sidebar.appreciations') },
       ],
     })
   }
@@ -62,7 +66,7 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
   if (depts.length > 0) {
     groups.push({
       label: tnav('group.ap'),
-      items: depts.map(d => ({ id: 'ap-departement' as TeacherSection, icon: '🎯', label: d.name })),
+      items: depts.map(d => ({ id: 'ap-departement' as TeacherSection, icon: Target, label: d.name })),
     })
   }
 
@@ -148,7 +152,9 @@ export default function TeacherSidebar({
                       className="absolute inset-0 rounded-lg" style={{ background: 'var(--sidebar-active)' }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
                   )}
-                  <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
+                  <span className="relative z-10 w-[20px] flex items-center justify-center flex-shrink-0">
+                    <item.icon size={20} strokeWidth={2} />
+                  </span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
                   {item.badge && item.badgeColor && (
                     <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES[item.badgeColor])} style={{ padding: '3px 6px' }}>
@@ -178,7 +184,9 @@ export default function TeacherSidebar({
                     className="absolute inset-0 rounded-lg" style={{ background: 'var(--sidebar-active)' }}
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
                 )}
-                <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">📶</span>
+                <span className="relative z-10 w-[20px] flex items-center justify-center flex-shrink-0">
+                  <RefreshCw size={20} strokeWidth={2} />
+                </span>
                 <span className="relative z-10 truncate flex-1">{tnav('sidebar.sync')}</span>
                 <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES.amber)} style={{ padding: '3px 6px' }}>
                   {pendingCount}

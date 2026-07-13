@@ -2,21 +2,22 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Loader2, ChevronDown, Search } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown, ChevronRight, Search, School, Presentation, Users, GraduationCap, User, Ban, Hand, AlertTriangle, Check, Mail } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import LanguageSwitch from '@/components/LanguageSwitch'
 import { useT } from '@/lib/i18n'
 
-// ── Configuration d'affichage par rôle (emojis, badges, couleurs, redirections) ──
-type SuccessInfo = { emoji: string; badge: string; color: string; bg: string; dest: string; firstName: string }
+// ── Configuration d'affichage par rôle (icônes, badges, couleurs, redirections) ──
+type SuccessInfo = { icon: LucideIcon; badge: string; color: string; bg: string; dest: string; firstName: string }
 
 const ROLE_CONFIG: Record<string, Omit<SuccessInfo, 'firstName'>> = {
-  ADMIN:   { emoji: '🏫',   badge: 'Administrateur', color: 'var(--green)', bg: 'var(--green-light)', dest: '/admin/dashboard' },
-  TEACHER: { emoji: '👨‍🏫', badge: 'Enseignant',      color: 'var(--blue)', bg: 'var(--blue-light)', dest: '/teacher/dashboard' },
-  PARENT:  { emoji: '👨‍👩‍👧', badge: 'Parent',          color: 'var(--amber)', bg: 'var(--amber-light)', dest: '/parent/dashboard' },
-  STUDENT: { emoji: '👨‍🎓', badge: 'Élève',           color: 'var(--purple)', bg: 'var(--purple-light)', dest: '/student/dashboard' },
-  STAFF:   { emoji: '🔍',   badge: 'Staff',           color: 'var(--teal)', bg: 'var(--teal-light)', dest: '/staff/dashboard' },
+  ADMIN:   { icon: School,       badge: 'Administrateur', color: 'var(--green)', bg: 'var(--green-light)', dest: '/admin/dashboard' },
+  TEACHER: { icon: Presentation, badge: 'Enseignant',      color: 'var(--blue)', bg: 'var(--blue-light)', dest: '/teacher/dashboard' },
+  PARENT:  { icon: Users,        badge: 'Parent',          color: 'var(--amber)', bg: 'var(--amber-light)', dest: '/parent/dashboard' },
+  STUDENT: { icon: GraduationCap,badge: 'Élève',           color: 'var(--purple)', bg: 'var(--purple-light)', dest: '/student/dashboard' },
+  STAFF:   { icon: Search,       badge: 'Staff',           color: 'var(--teal)', bg: 'var(--teal-light)', dest: '/staff/dashboard' },
 }
 
 type SchoolOption = {
@@ -29,19 +30,19 @@ type SchoolOption = {
 }
 
 const ROLE_SELECTOR = [
-  { role: 'ADMIN',   emoji: '🏫',   label: 'login.role_admin', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
-  { role: 'TEACHER', emoji: '👨‍🏫', label: 'login.role_teacher', color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
-  { role: 'PARENT',  emoji: '👨‍👩‍👧', label: 'login.role_parent', color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
-  { role: 'STUDENT', emoji: '👨‍🎓', label: 'login.role_student', color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
-  { role: 'STAFF',   emoji: '🔍',   label: 'login.role_staff', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
+  { role: 'ADMIN',   icon: School,       label: 'login.role_admin', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
+  { role: 'TEACHER', icon: Presentation, label: 'login.role_teacher', color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
+  { role: 'PARENT',  icon: Users,        label: 'login.role_parent', color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
+  { role: 'STUDENT', icon: GraduationCap,label: 'login.role_student', color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
+  { role: 'STAFF',   icon: Search,       label: 'login.role_staff', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
 ]
 
 const ROLES = [
-  { emoji:'🏫',   nameKey:'login.role_admin',  descKey:'login.role_admin_desc' },
-  { emoji:'👨‍🏫', nameKey:'login.role_teacher', descKey:'login.role_teacher_desc' },
-  { emoji:'👨‍👩‍👧', nameKey:'login.role_parent', descKey:'login.role_parent_desc' },
-  { emoji:'👨‍🎓', nameKey:'login.role_student', descKey:'login.role_student_desc' },
-  { emoji:'🔍',   nameKey:'login.role_staff',  descKey:'login.role_staff_desc' },
+  { icon: School,       nameKey:'login.role_admin',  descKey:'login.role_admin_desc' },
+  { icon: Presentation, nameKey:'login.role_teacher', descKey:'login.role_teacher_desc' },
+  { icon: Users,        nameKey:'login.role_parent', descKey:'login.role_parent_desc' },
+  { icon: GraduationCap,nameKey:'login.role_student', descKey:'login.role_student_desc' },
+  { icon: Search,       nameKey:'login.role_staff',  descKey:'login.role_staff_desc' },
 ]
 
 export default function LoginPage() {
@@ -188,7 +189,7 @@ export default function LoginPage() {
       const { role, nomComplet, userId, permissions, roleMismatch, redirectTo } = data.data as {
         role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; redirectTo?: string | null
       }
-      const config = ROLE_CONFIG[role] ?? { emoji: '👤', badge: role, color: 'var(--text3)', bg: 'var(--bg2)', dest: '/' }
+      const config = ROLE_CONFIG[role] ?? { icon: User, badge: role, color: 'var(--text3)', bg: 'var(--bg2)', dest: '/' }
       const dest = redirectTo ?? config.dest
       const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
 
@@ -293,15 +294,15 @@ export default function LoginPage() {
                 onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)', transform: 'none' })}
               >
                 <div style={{
-                  fontSize: 26, width: 50, height: 50,
+                  width: 50, height: 50, color: 'white',
                   background: 'rgba(255,255,255,0.06)', borderRadius: 10,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                }}>{role.emoji}</div>
+                }}><role.icon size={26} strokeWidth={2} /></div>
                 <div>
                   <div style={{ color: 'white', fontSize: 18, fontWeight: 700 }}>{t(role.nameKey)}</div>
                   <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 15, fontWeight: 500 }}>{t(role.descKey)}</div>
                 </div>
-                <div style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.2)', fontSize: 20 }}>→</div>
+                <div style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.2)', display: 'flex' }}><ChevronRight size={20} strokeWidth={2} /></div>
               </div>
             ))}
           </div>
@@ -328,7 +329,7 @@ export default function LoginPage() {
             <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
               <style>{`@keyframes edu-fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }`}</style>
               <div style={{ background: 'var(--red-light)', border: '2px solid rgba(220,38,38,0.25)', borderRadius: 16, padding: '32px 36px', boxShadow: '0 4px 24px rgba(220,38,38,0.08)' }}>
-                <div style={{ fontSize: 40, marginBottom: 16, textAlign: 'center' }}>🚫</div>
+                <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--red)', marginBottom: 16 }}><Ban size={40} strokeWidth={2} /></div>
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--red)', marginBottom: 12, textAlign: 'center' }}>
                   {t('login.suspended_title')}
                 </div>
@@ -350,7 +351,7 @@ export default function LoginPage() {
 
           <>{/* Welcome */}
           <div style={{ marginBottom: 32 }}>
-            <span style={{ fontSize: 45, marginBottom: 10, display: 'block' }}>👋</span>
+            <span style={{ color: 'var(--text)', marginBottom: 10, display: 'block' }}><Hand size={45} strokeWidth={2} /></span>
             <div style={{
               fontFamily: 'var(--font-spectral),Spectral,serif',
               fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6
@@ -371,7 +372,7 @@ export default function LoginPage() {
               border: alert.type === 'error' ? '1px solid rgba(220,38,38,0.2)' : '1px solid rgba(234,88,12,0.2)',
               color: alert.type === 'error' ? 'var(--red)' : 'var(--orange)'
             }}>
-              <span>⚠️</span><span>{alert.msg}</span>
+              <AlertTriangle size={17} strokeWidth={2} /><span>{alert.msg}</span>
             </div>
           )}
 
@@ -401,7 +402,7 @@ export default function LoginPage() {
                     <span style={{ color: 'var(--text3)' }}>{t('login.school_loading')}</span>
                 ) : selectedSchool ? (
                   <>
-                    <span style={{ fontSize: 22, flexShrink: 0 }}>🏫</span>
+                    <School size={22} strokeWidth={2} style={{ flexShrink: 0 }} />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {selectedSchool.name}
                     </span>
@@ -478,12 +479,12 @@ export default function LoginPage() {
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--green-light)' }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = selectedSchool?.id === school.id ? 'var(--green-light)' : 'white' }}
                       >
-                        <span style={{ fontSize: 26, flexShrink: 0 }}>🏫</span>
+                        <School size={26} strokeWidth={2} style={{ flexShrink: 0, color: 'var(--text2)' }} />
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{school.name}</span>
                             {selectedSchool?.id === school.id && (
-                              <span style={{ fontSize: 10, color: 'var(--green)', fontWeight: 800, flexShrink: 0 }}>✓</span>
+                              <span style={{ display: 'flex', color: 'var(--green)', flexShrink: 0 }}><Check size={13} strokeWidth={2.5} /></span>
                             )}
                           </span>
                           <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500, fontFamily: 'monospace' }}>
@@ -521,7 +522,7 @@ export default function LoginPage() {
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = r.border }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
                   >
-                    <div style={{ fontSize: 22, marginBottom: 4 }}>{r.emoji}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', color: active ? r.color : 'var(--text2)', marginBottom: 4 }}><r.icon size={22} strokeWidth={2} /></div>
                     <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3 }}>
                       {t(r.label)}
                     </div>
@@ -611,15 +612,15 @@ export default function LoginPage() {
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
             animation: 'popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both'
           }}>
-            <span style={{ fontSize: 56, marginBottom: 16, display: 'block' }}>
-              {success.emoji}
+            <span style={{ color: success.color, marginBottom: 16, display: 'flex', justifyContent: 'center' }}>
+              <success.icon size={56} strokeWidth={2} />
             </span>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
               {t('login.success_greeting', { name: success.firstName })}
             </div>
             {roleMismatchWarning && (
-              <div style={{ padding: '10px 14px', background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', fontWeight: 600, marginBottom: 10, textAlign: 'left', lineHeight: 1.6 }}>
-                ⚠️ {roleMismatchWarning}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, fontSize: 13, color: 'var(--amber)', fontWeight: 600, marginBottom: 10, textAlign: 'left', lineHeight: 1.6 }}>
+                <AlertTriangle size={14} strokeWidth={2} style={{ flexShrink: 0 }} /> {roleMismatchWarning}
               </div>
             )}
             <div style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6, marginBottom: 8 }}>
@@ -631,7 +632,7 @@ export default function LoginPage() {
               fontSize: 13, fontWeight: 800, margin: '12px 0 20px',
               background: success.bg, color: success.color
             }}>
-              {success.emoji} {success.badge}
+              <success.icon size={14} strokeWidth={2} /> {success.badge}
             </div>
 
             {/* Barre de progression 2s */}
@@ -664,7 +665,7 @@ export default function LoginPage() {
 
             {forgotDone ? (
               <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <div style={{ fontSize: 52, marginBottom: 14 }}>📧</div>
+                <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 14 }}><Mail size={52} strokeWidth={2} /></div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>{t('login.forgot_success_title')}</div>
                 <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 24 }}>
                   {t('login.forgot_success_msg')}

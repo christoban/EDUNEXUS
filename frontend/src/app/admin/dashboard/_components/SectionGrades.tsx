@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
+import { AlertTriangle, Loader2, Search, CheckCircle2, Check, X } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -108,8 +109,8 @@ export default function SectionGrades({ onToast }: Props) {
           <div style={sSub}>Consultation et validation des notes</div>
         </div>
         {pendingCount > 0 && (
-          <div style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>
-            ⚠️ {pendingCount} note{pendingCount > 1 ? 's' : ''} en attente
+          <div style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 700, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <AlertTriangle size={15} strokeWidth={2} /> {pendingCount} note{pendingCount > 1 ? 's' : ''} en attente
           </div>
         )}
       </div>
@@ -133,12 +134,12 @@ export default function SectionGrades({ onToast }: Props) {
             <option value="REJECTED">{t('status_labels.REJECTED')}</option>
             <option value="LOCKED">{t('status_labels.LOCKED')}</option>
           </select>
-          <button style={btnPrim} onClick={fetchGrades} disabled={loading}>
-            {loading ? '⏳' : '🔍'} Charger
+          <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={fetchGrades} disabled={loading}>
+            {loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} Charger
           </button>
           {pendingCount > 0 && (
-            <button style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto' }} onClick={handleBulkValidate}>
-              ✅ Valider tout ({pendingCount})
+            <button style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleBulkValidate}>
+              <CheckCircle2 size={15} strokeWidth={2} /> Valider tout ({pendingCount})
             </button>
           )}
         </div>
@@ -151,7 +152,7 @@ export default function SectionGrades({ onToast }: Props) {
 
         {!loading && error && (
           <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: 'var(--red)', fontWeight: 700 }}>⚠️ {error}</span>
+            <span style={{ color: 'var(--red)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={15} strokeWidth={2} /> {error}</span>
             <button onClick={fetchGrades}
               style={{ padding: '5px 12px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
               Réessayer
@@ -202,14 +203,14 @@ export default function SectionGrades({ onToast }: Props) {
                         {grade.validationStatus === 'SUBMITTED' && (
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button
-                              style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)' }}
+                              style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                               onClick={() => handleValidate(grade.id)}>
-                              ✓ Valider
+                              <Check size={14} strokeWidth={2} /> Valider
                             </button>
                             <button
-                              style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)' }}
+                              style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)', display: 'inline-flex', alignItems: 'center' }}
                               onClick={() => onToast('Saisissez un motif de rejet dans le module notes', 'info')}>
-                              ✕
+                              <X size={14} strokeWidth={2} />
                             </button>
                           </div>
                         )}

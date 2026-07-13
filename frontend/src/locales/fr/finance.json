@@ -2,8 +2,8 @@
   "title": "Finance",
   "subtitle": "Plans de frais · Factures · Paiements Mobile Money",
   "tabs": {
-    "plans": "📋 Plans de frais",
-    "invoices": "🧾 Factures"
+    "plans": "Plans de frais",
+    "invoices": "Factures"
   },
   "kpi": {
     "total_billed": "Total facturé",
@@ -13,7 +13,7 @@
   },
   "invoice_status": {
     "PENDING": "En attente",
-    "PAID": "✓ Payée",
+    "PAID": "Payée",
     "OVERDUE": "En retard",
     "CANCELLED": "Annulée",
     "PARTIAL": "Partielle"
@@ -28,18 +28,18 @@
     "OTHER": "Autre"
   },
   "actions": {
-    "create_invoice": "🧾 Créer une facture",
+    "create_invoice": "Créer une facture",
     "new_plan": "+ Nouveau plan",
-    "generate_invoices": "🧾 Générer factures",
+    "generate_invoices": "Générer factures",
     "edit": "✏️",
-    "view": "👁 Voir",
+    "view": "Voir",
     "filter": "Filtrer",
     "retry": "Réessayer",
     "cancel": "Annuler",
     "create_plan": "Créer le plan",
     "save": "Enregistrer",
     "create_invoice_action": "Créer la facture",
-    "generate": "🧾 Générer"
+    "generate": "Générer"
   },
   "loading": {
     "creating": "Création…",
@@ -80,7 +80,7 @@
       "title": "Générer les factures",
       "year_label": "Année scolaire *",
       "year_placeholder": "Sélectionner…",
-      "warning": "⚠️ Une facture sera générée pour chaque élève inscrit. Cette action peut être annulée facture par facture."
+      "warning": "Une facture sera générée pour chaque élève inscrit. Cette action peut être annulée facture par facture."
     }
   },
   "table_headers": {
@@ -119,7 +119,7 @@
     "cancelled": "Annulées"
   },
   "pagination": {
-    "previous": "← Préc.",
+    "previous": "Préc.",
     "next": "Suiv. →"
   },
   "badges": {
@@ -134,7 +134,7 @@
     "select_year": "Sélectionnez une année scolaire",
     "select_student_and_plan": "Veuillez sélectionner un élève et un plan de frais.",
     "payment_in_progress": "Un paiement est déjà en cours pour cet élève.",
-    "legal_threshold_exceeded": "⚠ La contribution légale camerounaise serait dépassée pour cet élève. Vérifiez le montant du plan de frais.",
-    "separation_ordinator": "⚠ Violation de la règle ordonnateur/comptable. L'ordonnateur ne peut pas être le comptable."
+    "legal_threshold_exceeded": "La contribution légale camerounaise serait dépassée pour cet élève. Vérifiez le montant du plan de frais.",
+    "separation_ordinator": "Violation de la règle ordonnateur/comptable. L'ordonnateur ne peut pas être le comptable."
   }
 }

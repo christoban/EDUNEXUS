@@ -1,5 +1,6 @@
 ﻿'use client'
 import { useState, useEffect } from 'react'
+import { Calendar, RefreshCw } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
@@ -123,8 +124,8 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
         <div style={{ padding: 24, textAlign: 'center' }}>
           <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{error}</div>
           <button onClick={fetchData}
-            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t('timetable.retry')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <RefreshCw size={14} strokeWidth={2} />{t('timetable.retry')}
           </button>
         </div>
       </div>
@@ -158,8 +159,8 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
             {t('timetable.free')}
           </span>
           <button onClick={openCatchupModal}
-            style={{ padding: '9px 16px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            {t('timetable.catchup_request')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <Calendar size={14} strokeWidth={2} />{t('timetable.catchup_request')}
           </button>
         </div>
       </div>
@@ -198,8 +199,8 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
             {catchup.error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8, lineHeight: 1.5 }}>{catchup.error}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setCatchup(EMPTY_CATCHUP)}>{t('timetable.catchup_cancel')}</button>
-              <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: catchup.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: catchup.loading ? 0.7 : 1 }} onClick={submitCatchup} disabled={catchup.loading}>
-                {catchup.loading ? t('timetable.catchup_submit_loading') : t('timetable.catchup_submit')}
+              <button style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: catchup.loading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: catchup.loading ? 0.7 : 1 }} onClick={submitCatchup} disabled={catchup.loading}>
+                <Calendar size={14} strokeWidth={2} />{catchup.loading ? t('timetable.catchup_submit_loading') : t('timetable.catchup_submit')}
               </button>
             </div>
           </div>

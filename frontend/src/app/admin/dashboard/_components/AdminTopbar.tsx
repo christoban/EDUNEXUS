@@ -1,6 +1,7 @@
 ﻿'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Bell, Search, Loader2 } from 'lucide-react'
+import { Bell, Search, Loader2, User, School, BookOpen, ClipboardList, KeyRound } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT, useLanguage } from '@/lib/i18n'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -22,11 +23,11 @@ interface Props {
 export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassword }: Props) {
   const t = useT('admin')
 
-  const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon: string }> = {
-    user:     { label: t('topbar.type_labels.user'), section: 'users',   icon: '👤' },
-    class:    { label: t('topbar.type_labels.class'), section: 'classes', icon: '🏫' },
-    subject:  { label: t('topbar.type_labels.subject'), section: 'subjects',icon: '📚' },
-    activity: { label: t('topbar.type_labels.activity'), section: null,      icon: '📋' },
+  const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon: LucideIcon }> = {
+    user:     { label: t('topbar.type_labels.user'), section: 'users',   icon: User },
+    class:    { label: t('topbar.type_labels.class'), section: 'classes', icon: School },
+    subject:  { label: t('topbar.type_labels.subject'), section: 'subjects',icon: BookOpen },
+    activity: { label: t('topbar.type_labels.activity'), section: null,      icon: ClipboardList },
   }
 
   const CATEGORY_ORDER = ['user', 'class', 'subject', 'activity']
@@ -126,10 +127,13 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
                 <div style={{ padding: '18px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
                   {t('topbar.no_results_for')} <strong>"{query}"</strong>
                 </div>
-              ) : grouped.map(g => (
+              ) : grouped.map(g => {
+                const TypeIcon = TYPE_CONFIG[g.type]?.icon
+                return (
                 <div key={g.type}>
-                  <div style={{ padding: '10px 18px 6px', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {TYPE_CONFIG[g.type]?.icon} {TYPE_CONFIG[g.type]?.label}
+                  <div style={{ padding: '10px 18px 6px', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {TypeIcon && <TypeIcon size={13} strokeWidth={2.25} />}
+                    {TYPE_CONFIG[g.type]?.label}
                   </div>
                   {g.items.map(r => (
                     <div key={`${r.type}_${r.id}`} onClick={() => handleSelect(r)}
@@ -141,7 +145,8 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
                     </div>
                   ))}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -152,8 +157,8 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
         </div>
         {onChangePassword && (
           <button onClick={onChangePassword} title={t('topbar.change_password')}
-            style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18 }}>
-            🔐
+            style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <KeyRound size={18} color="var(--text2)" />
           </button>
         )}
         <button onClick={onInvite} style={{

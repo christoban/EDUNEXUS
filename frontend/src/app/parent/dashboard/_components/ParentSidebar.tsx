@@ -1,6 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut } from 'lucide-react'
+import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
@@ -8,7 +9,7 @@ import type { ParentSection } from '../_types'
 
 interface NavItem {
   id: ParentSection
-  icon: string
+  icon: LucideIcon
   label: string
 }
 
@@ -33,23 +34,23 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
   const NAV_GROUPS: NavGroup[] = [
     {
       items: [
-        { id: 'children', icon: '👨‍👩‍👧', label: tnav('sidebar.myChildren') },
+        { id: 'children', icon: Users, label: tnav('sidebar.myChildren') },
       ]
     },
     {
       label: tnav('group.academic'),
       items: [
-        { id: 'grades',     icon: '📄', label: tnav('sidebar.grades') },
-        { id: 'attendance', icon: '✅', label: tnav('sidebar.attendance') },
-        { id: 'timetable',  icon: '📅', label: tnav('sidebar.timetable') },
+        { id: 'grades',     icon: FileText, label: tnav('sidebar.grades') },
+        { id: 'attendance', icon: ClipboardCheck, label: tnav('sidebar.attendance') },
+        { id: 'timetable',  icon: Calendar, label: tnav('sidebar.timetable') },
       ]
     },
     {
       label: tnav('group.services'),
       items: [
-        { id: 'payments', icon: '📱', label: tnav('sidebar.payments') },
-        { id: 'library',  icon: '📚', label: tnav('sidebar.readings') },
-        { id: 'settings', icon: '⚙️', label: tnav('sidebar.settings') },
+        { id: 'payments', icon: Smartphone, label: tnav('sidebar.payments') },
+        { id: 'library',  icon: BookOpen, label: tnav('sidebar.readings') },
+        { id: 'settings', icon: Settings, label: tnav('sidebar.settings') },
       ]
     },
   ]
@@ -109,7 +110,9 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
                       className="absolute inset-0 rounded-lg" style={{ background: 'var(--sidebar-active)' }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
                   )}
-                  <span className="relative z-10 text-[23px] w-[18px] text-center flex-shrink-0">{item.icon}</span>
+                  <span className="relative z-10 w-[20px] flex items-center justify-center flex-shrink-0">
+                    <item.icon size={20} strokeWidth={2} />
+                  </span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
                 </button>
               ))}

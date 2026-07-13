@@ -1,5 +1,6 @@
 'use client'
 import { useCallback } from 'react'
+import { ScrollText, Download, Loader2, WifiOff } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
@@ -106,7 +107,7 @@ export default function SectionStudentBulletins({ onToast, user }: Props) {
         </div>
         {fromCache && <CacheBadge cachedAt={cachedAt} />}
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><ScrollText size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('bulletins.empty_title')}</div>
           <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('bulletins.empty_subtitle')}</div>
         </div>
@@ -148,10 +149,10 @@ export default function SectionStudentBulletins({ onToast, user }: Props) {
                 </div>
                 <button
                   title={!isOnline ? t('bulletins.toast_download_offline') : undefined}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: isOnline ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'var(--border2)', color: 'white', border: 'none', cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.7 : 1 }}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: isOnline ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'var(--border2)', color: 'white', border: 'none', cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                   onClick={() => downloadPdf(b.id, b.academicPeriod?.name || 'bulletin')}
                   disabled={downloading === b.id || !isOnline}>
-                  {!isOnline ? t('bulletins.offline_label') : downloading === b.id ? t('bulletins.downloading_label') : t('bulletins.download_button')}
+                  {!isOnline ? <><WifiOff size={16} strokeWidth={2} /> {t('bulletins.offline_label')}</> : downloading === b.id ? <><Loader2 size={16} strokeWidth={2} className="animate-spin" /> {t('bulletins.downloading_label')}</> : <><Download size={16} strokeWidth={2} /> {t('bulletins.download_button')}</>}
                 </button>
               </div>
             </div>

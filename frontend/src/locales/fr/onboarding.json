@@ -28,10 +28,22 @@
       "descStep4": "Vérifiez l'ensemble des informations avant de soumettre votre dossier.",
       "descSubmitted": "Votre demande a été transmise à l'équipe ZekoulABia.",
       "features": {
-        "multiLevel": { "title": "Gestion multi-niveaux", "desc": "Classes, sections, matières" },
-        "grades": { "title": "Notes & bulletins", "desc": "Calcul automatique, export PDF" },
-        "finance": { "title": "Gestion financière", "desc": "Frais, paiements, CampPay" },
-        "timetable": { "title": "Emplois du temps IA", "desc": "Génération automatique" }
+        "multiLevel": {
+          "title": "Gestion multi-niveaux",
+          "desc": "Classes, sections, matières"
+        },
+        "grades": {
+          "title": "Notes & bulletins",
+          "desc": "Calcul automatique, export PDF"
+        },
+        "finance": {
+          "title": "Gestion financière",
+          "desc": "Frais, paiements, CampPay"
+        },
+        "timetable": {
+          "title": "Emplois du temps IA",
+          "desc": "Génération automatique"
+        }
       },
       "copyright": "© 2026 ZekoulABia · Tous droits réservés"
     },
@@ -51,9 +63,19 @@
       "computing": "Calcul de la structure…"
     },
     "invite": {
-      "invalid": { "icon": "🔒", "title": "Lien invalide", "error": "Lien d'invitation invalide ou incomplet." },
-      "expired": { "icon": "⏰", "title": "Invitation expirée" },
-      "used": { "icon": "✅", "title": "Invitation déjà utilisée" },
+      "invalid": {
+        "icon": "🔒",
+        "title": "Lien invalide",
+        "error": "Lien d'invitation invalide ou incomplet."
+      },
+      "expired": {
+        "icon": "⏰",
+        "title": "Invitation expirée"
+      },
+      "used": {
+        "icon": "✅",
+        "title": "Invitation déjà utilisée"
+      },
       "helpText": "Pour obtenir de l'aide, contactez votre administrateur ZekoulABia à",
       "helpEmail": "support@zekoulabia.cm",
       "timeout": "La vérification a pris trop de temps. Vérifiez votre connexion et réessayez.",
@@ -69,7 +91,10 @@
     "step1": {
       "title": "Votre établissement",
       "subtitle": "Renseignez les informations de votre école.",
-      "schoolName": { "label": "Nom de l'établissement", "placeholder": "Lycée de la Réussite" },
+      "schoolName": {
+        "label": "Nom de l'établissement",
+        "placeholder": "Lycée de la Réussite"
+      },
       "subdomain": {
         "label": "Sous-domaine (URL)",
         "placeholder": "lycee-reussite",
@@ -79,48 +104,87 @@
       "subsystem": {
         "label": "Sous-système",
         "options": {
-          "FRANCOPHONE": { "label": "Francophone", "icon": "🇫🇷" },
-          "ANGLOPHONE": { "label": "Anglophone", "icon": "🇬🇧" },
-          "BILINGUAL": { "label": "Bilingue", "icon": "🌍" }
+          "FRANCOPHONE": {
+            "label": "Francophone",
+            "icon": "🇫🇷"
+          },
+          "ANGLOPHONE": {
+            "label": "Anglophone",
+            "icon": "🇬🇧"
+          },
+          "BILINGUAL": {
+            "label": "Bilingue",
+            "icon": "🌍"
+          }
         }
       },
       "educationType": {
         "label": "Type d'enseignement",
         "options": {
-          "GENERAL": { "label": "Enseignement général", "icon": "📚" },
-          "TECHNICAL": { "label": "Enseignement technique", "icon": "⚙️" },
-          "PROFESSIONAL": { "label": "Enseignement professionnel", "icon": "🔧" },
-          "MIXED": { "label": "Mixte", "icon": "🎓" }
+          "GENERAL": {
+            "label": "Enseignement général",
+            "icon": "📚"
+          },
+          "TECHNICAL": {
+            "label": "Enseignement technique",
+            "icon": "⚙️"
+          },
+          "PROFESSIONAL": {
+            "label": "Enseignement professionnel",
+            "icon": "🔧"
+          },
+          "MIXED": {
+            "label": "Mixte",
+            "icon": "🎓"
+          }
         }
       },
       "ownership": {
         "label": "Statut juridique",
         "options": {
-          "PUBLIC": { "label": "Public", "icon": "🏛️" },
-          "PRIVATE_SECULAR": { "label": "Privé laïc", "icon": "🏫" },
-          "PRIVATE_FAITH": { "label": "Privé confessionnel", "icon": "⛪" }
+          "PUBLIC": {
+            "label": "Public",
+            "icon": "🏛️"
+          },
+          "PRIVATE_SECULAR": {
+            "label": "Privé laïc",
+            "icon": "🏫"
+          },
+          "PRIVATE_FAITH": {
+            "label": "Privé confessionnel",
+            "icon": "⛪"
+          }
         }
       },
-      "city": { "label": "Ville", "placeholder": "Yaoundé" },
-      "region": { "label": "Région", "placeholder": "— Sélectionner —" },
-      "phone": { "label": "Téléphone de l'établissement", "placeholder": "+237 6XX XXX XXX" },
+      "city": {
+        "label": "Ville",
+        "placeholder": "Yaoundé"
+      },
+      "region": {
+        "label": "Région",
+        "placeholder": "— Sélectionner —"
+      },
+      "phone": {
+        "label": "Téléphone de l'établissement",
+        "placeholder": "+237 6XX XXX XXX"
+      },
       "logo": {
         "label": "Logo de l'établissement (facultatif)",
-        "upload": "📤 Téléverser un logo",
-        "change": "🔄 Changer le logo",
-        "remove": "✕ Supprimer",
+        "upload": "Téléverser un logo",
+        "change": "Changer le logo",
+        "remove": "Supprimer",
         "hint": "PNG, JPG, SVG · max 1.5 MB",
         "errorSize": "Logo trop volumineux (max 1.5 MB).",
         "uploaded": "Logo téléversé ✓"
       },
       "templateDetected": {
-        "title": "🏫 Template d'établissement détecté",
-        "cesOrLycee": "🤔 Votre établissement est-il un CES (Collège) ou un Lycée ?",
-        "lycee": "🏫 Lycée",
+        "title": "Template d'établissement détecté",
+        "cesOrLycee": "Votre établissement est-il un CES (Collège) ou un Lycée ?",
+        "lycee": "Lycée",
         "lyceeDesc": "Avec 2nd cycle (2nde→Tle)",
-        "ces": "📖 CES (Collège)",
+        "ces": "CES (Collège)",
         "cesDesc": "Sans 2nd cycle (6e→3e)",
-        "ghsOrGss": "🤔 Is your school a Government High School (GHS) or Government Secondary School (GSS)?",
+        "ghsOrGss": "Is your school a Government High School (GHS) or Government Secondary School (GSS)?",
         "ghs": "GHS",
         "ghsDesc": "High School (Form 1→Upper Sixth)",
         "gss": "GSS",
@@ -131,45 +195,63 @@
     "step2": {
       "title": "Votre compte administrateur",
       "subtitle": "Créez votre compte pour accéder au dashboard.",
-      "back": "← Retour",
-      "firstName": { "label": "Prénom", "placeholder": "Jean" },
-      "lastName": { "label": "Nom", "placeholder": "Ngono" },
+      "back": "Retour",
+      "firstName": {
+        "label": "Prénom",
+        "placeholder": "Jean"
+      },
+      "lastName": {
+        "label": "Nom",
+        "placeholder": "Ngono"
+      },
       "email": {
         "label": "Email administrateur",
         "placeholder": "admin@ecole.cm",
         "hint": "Cet email sera votre identifiant de connexion."
       },
-      "password": { "label": "Mot de passe", "placeholder": "••••••••" },
+      "password": {
+        "label": "Mot de passe",
+        "placeholder": "••••••••"
+      },
       "confirmPassword": {
         "label": "Confirmer le mot de passe",
         "placeholder": "••••••••",
-        "mismatch": "⚠️ Les mots de passe ne correspondent pas."
+        "mismatch": "Les mots de passe ne correspondent pas."
       },
       "button": "Continuer → Configuration"
     },
     "step3": {
       "title": "Configuration de votre structure",
       "subtitle": "Détaillez votre structure scolaire.",
-      "back": "← Retour",
+      "back": "Retour",
       "templateDetected": {
-        "title": "🏫 Template détecté",
+        "title": "Template détecté",
         "hint": "Détecté automatiquement d'après vos choix (sous-système, enseignement, statut). Vous pourrez modifier la configuration après activation depuis le tableau de bord."
       },
       "complexe": {
-        "title": "⏳ Complexe Scolaire — Bientôt disponible",
+        "title": "Complexe Scolaire — Bientôt disponible",
         "msg": "Ce type d'établissement sera bientôt disponible.",
         "hint": "Pour continuer, veuillez sélectionner un autre type d'enseignement à l'étape 1 (Enseignement général au lieu de Mixte)."
       },
       "noTemplate": "Impossible de détecter le type d'établissement. Revenez à l'étape 1 et vérifiez vos choix.",
       "firstCycle": {
-        "sectionTitle": "📖 1er cycle — Secondaire",
+        "sectionTitle": "1er cycle — Secondaire",
         "q5": "Q5 — Quels niveaux de 1er cycle avez-vous ?",
         "q6": "Q6 — Combien de classes par niveau ?",
         "q7": "Q7 — Comment nommez-vous vos classes ?",
         "naming": {
-          "LETTRES": { "label": "Lettres", "desc": "6e A, 6e B, 6e C…" },
-          "CHIFFRES": { "label": "Chiffres", "desc": "6e 1, 6e 2, 6e 3…" },
-          "MIXTE": { "label": "Mixte", "desc": "6e A1, 6e A2…" }
+          "LETTRES": {
+            "label": "Lettres",
+            "desc": "6e A, 6e B, 6e C…"
+          },
+          "CHIFFRES": {
+            "label": "Chiffres",
+            "desc": "6e 1, 6e 2, 6e 3…"
+          },
+          "MIXTE": {
+            "label": "Mixte",
+            "desc": "6e A1, 6e A2…"
+          }
         },
         "previewLabel": "Aperçu de vos classes"
       },
@@ -181,14 +263,14 @@
         "other": "Autre :",
         "add": "+ Ajouter",
         "placeholder": "Tapez et Entrée",
-        "hint": "💡 Si des élèves de LV2 différentes sont dans la même classe, ne cochez que les langues disponibles. Vous pourrez configurer les sous-groupes depuis votre tableau de bord."
+        "hint": "Si des élèves de LV2 différentes sont dans la même classe, ne cochez que les langues disponibles. Vous pourrez configurer les sous-groupes depuis votre tableau de bord."
       },
       "secondCycle": {
-        "sectionTitleFR": "🎓 2e cycle — Lycée",
-        "sectionTitleEN": "🎓 Upper Secondary",
-        "bilingualSection": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Configuration Section Anglophone",
-        "cesNotice": "ℹ️ Le CES n'a que le 1er cycle (6e→3e). Les filières du 2e cycle ne s'appliquent pas.",
-        "gssNotice": "ℹ️ GSS_EN stops at Form 5 — GCE O-Level only. Lower Sixth and Upper Sixth are not applicable.",
+        "sectionTitleFR": "2e cycle — Lycée",
+        "sectionTitleEN": "Upper Secondary",
+        "bilingualSection": "󠁧󠁢󠁥󠁮󠁧󠁿 Configuration Section Anglophone",
+        "cesNotice": "Le CES n'a que le 1er cycle (6e→3e). Les filières du 2e cycle ne s'appliquent pas.",
+        "gssNotice": "GSS_EN stops at Form 5 — GCE O-Level only. Lower Sixth and Upper Sixth are not applicable.",
         "q10FR": "Q10 — Quels niveaux de 2e cycle avez-vous ?",
         "q10EN": "Q10 — Which levels do you have?",
         "q11FR": "Q11 — Quelles filières proposez-vous ?",
@@ -233,12 +315,12 @@
         "marks100": "Marks out of 100"
       },
       "technical": {
-        "sectionTitle": "⚙️ Filières techniques",
-        "sarNotice": "🏛️ SAR/SM sous tutelle MINEFOP",
+        "sectionTitle": "Filières techniques",
+        "sarNotice": "SAR/SM sous tutelle MINEFOP",
         "sarMetiers": "Métiers pratiqués :",
-        "sarHint": "ℹ️ Année 1 et Année 2 créées automatiquement",
+        "sarHint": "Année 1 et Année 2 créées automatiquement",
         "cfmFilieres": "Filières de formation :",
-        "cfmHint": "ℹ️ Niveaux 1, 2 et 3 créés automatiquement",
+        "cfmHint": "Niveaux 1, 2 et 3 créés automatiquement",
         "lyceeTechType": "Type de lycée technique :",
         "industriel": "Industriel (IND)",
         "industrielDesc": "Filières F",
@@ -271,13 +353,13 @@
         "mixteEnDesc": "STT + IND"
       },
       "primary": {
-        "sectionTitle": "🏫 Primaire & Maternelle",
+        "sectionTitle": "Primaire & Maternelle",
         "maternelleSections": "Sections présentes :",
-        "maternelleHint": "ℹ️ Évaluation par observations — pas de notes numériques",
+        "maternelleHint": "Évaluation par observations — pas de notes numériques",
         "nurseryLevels": "Levels present:",
-        "nurseryHint": "ℹ️ Assessment by observations — no numeric grades",
-        "frSection": "🇫🇷 Section Francophone",
-        "enSection": "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Section Anglophone",
+        "nurseryHint": "Assessment by observations — no numeric grades",
+        "frSection": "Section Francophone",
+        "enSection": "󠁧󠁢󠁥󠁮󠁧󠁿 Section Anglophone",
         "levelsFR": "Niveaux (Francophone) :",
         "levelsEN": "Levels (Anglophone):",
         "evalSystem": "Système d'évaluation :",
@@ -298,27 +380,27 @@
         "q16": "Q16 — Combien de classes par niveau ?"
       },
       "preview": {
-        "title": "📋 Récapitulatif — ce qui sera créé",
+        "title": "Récapitulatif — ce qui sera créé",
         "totalClasses": "classes au total",
         "firstCycleGroup": "1er cycle —",
         "secondCycleGroup": "2e cycle —",
-        "subjects": "📚 Matières :",
+        "subjects": "Matières :",
         "withCoefficients": "(avec coefficients BAC)",
         "placeholder": "Configurez les niveaux ci-dessus pour voir un aperçu.",
-        "yearAutoConfig": "📅 Année scolaire configurée automatiquement",
-        "minesecConfig": "⚙️ Configuration MINESEC par défaut",
-        "modifiableLater": "⚠️ Tout pourra être modifié depuis votre tableau de bord après activation."
+        "yearAutoConfig": "Année scolaire configurée automatiquement",
+        "minesecConfig": "Configuration MINESEC par défaut",
+        "modifiableLater": "Tout pourra être modifié depuis votre tableau de bord après activation."
       },
       "button": "Continuer → Confirmation",
-      "buttonDisabled": "⏳ Bientôt disponible"
+      "buttonDisabled": "Bientôt disponible"
     },
     "step4": {
       "title": "Vérification finale",
       "subtitle": "Relisez avant de soumettre votre dossier.",
-      "back": "← Retour",
-      "establishmentSection": "🏫 Établissement",
-      "adminSection": "👤 Administrateur",
-      "configSection": "📋 Configuration",
+      "back": "Retour",
+      "establishmentSection": "Établissement",
+      "adminSection": "Administrateur",
+      "configSection": "Configuration",
       "fields": {
         "name": "Nom",
         "subdomain": "Sous-domaine",
@@ -349,8 +431,8 @@
       "step1Submit": "Continuer → Compte administrateur",
       "step2Submit": "Continuer → Configuration",
       "step3Submit": "Continuer → Confirmation",
-      "step4Submit": "🚀 Soumettre ma demande d'inscription",
-      "backToStep1": "← Retour"
+      "step4Submit": "Soumettre ma demande d'inscription",
+      "backToStep1": "Retour"
     },
     "validation": {
       "schoolNameRequired": "Le nom de l'établissement est requis.",
@@ -412,13 +494,13 @@
   },
   "phase2": {
     "intro": {
-      "bubble": "👋 Bonjour ! Je suis l'assistant de configuration d'ZekoulABia. En quelques questions, je vais configurer entièrement <strong>{schoolName}</strong> — classes, matières, calendrier, frais — automatiquement. C'est parti ?",
-      "reconciled": "✅ Bonne nouvelle : j'ai déjà repris ce que vous avez indiqué lors de l'inscription (cycles, niveaux, séries, LV2…). Il ne reste qu'à compléter quelques réglages.",
+      "bubble": "Bonjour ! Je suis l'assistant de configuration d'ZekoulABia. En quelques questions, je vais configurer entièrement <strong>{schoolName}</strong> — classes, matières, calendrier, frais — automatiquement. C'est parti ?",
+      "reconciled": "Bonne nouvelle : j'ai déjà repris ce que vous avez indiqué lors de l'inscription (cycles, niveaux, séries, LV2…). Il ne reste qu'à compléter quelques réglages.",
       "start": "Commencer la configuration →"
     },
     "nav": {
       "continue": "Continuer →",
-      "back": "← Retour",
+      "back": "Retour",
       "recap": "Voir le récapitulatif →"
     },
     "cycles": {
@@ -430,19 +512,19 @@
       "technique": "Technique et Professionnel"
     },
     "subsystem": {
-      "title": "Votre établissement est-il\u00a0?",
-      "francophone": "Francophone (fran\u00e7ais comme langue d'instruction)",
+      "title": "Votre établissement est-il ?",
+      "francophone": "Francophone (français comme langue d'instruction)",
       "anglophone": "Anglophone (English as language of instruction)",
       "bilingual": "Bilingue (les deux)"
     },
     "template": {
-      "bubble": "D'après vos réponses, votre établissement correspond à\u00a0: <strong>{template}</strong>.<br />Nous allons configurer automatiquement les classes, les matières avec leurs <strong>coefficients MINESEC officiels</strong>, les départements et le calendrier. Est-ce correct\u00a0?",
-      "yes": "✅ Oui, c'est correct",
+      "bubble": "D'après vos réponses, votre établissement correspond à : <strong>{template}</strong>.<br />Nous allons configurer automatiquement les classes, les matières avec leurs <strong>coefficients MINESEC officiels</strong>, les départements et le calendrier. Est-ce correct ?",
+      "yes": "Oui, c'est correct",
       "later": "Continuer quand même (je préciserai plus tard avec l'assistant)"
     },
     "series": {
-      "title": "Quelles séries proposez-vous au second cycle\u00a0? (Cochez toutes celles que vous avez)",
-      "note": "ℹ️ Les séries D et TI ne sont pas disponibles en classe de Seconde (réglementation MINESEC).",
+      "title": "Quelles séries proposez-vous au second cycle ? (Cochez toutes celles que vous avez)",
+      "note": "Les séries D et TI ne sont pas disponibles en classe de Seconde (réglementation MINESEC).",
       "a1": "A1 — Lettres-Philosophie",
       "a2": "A2 — Lettres-Bilingues",
       "a3": "A3 — Lettres-Sciences Humaines",
@@ -455,21 +537,21 @@
       "ac": "AC — Arts et Civilisations"
     },
     "enStreams": {
-      "title": "Au second cycle anglophone (Lower Sixth & Upper Sixth), quels streams proposez-vous\u00a0?",
-      "titleBilingual": "Pour votre section anglophone : au second cycle anglophone (Lower Sixth & Upper Sixth), quels streams proposez-vous\u00a0?",
+      "title": "Au second cycle anglophone (Lower Sixth & Upper Sixth), quels streams proposez-vous ?",
+      "titleBilingual": "Pour votre section anglophone : au second cycle anglophone (Lower Sixth & Upper Sixth), quels streams proposez-vous ?",
       "arts": "Arts",
       "science": "Science",
       "commercial": "Commercial / Economics"
     },
     "enCombos": {
-      "title": "Souhaitez-vous prédéfinir des combinaisons de matières typiques\u00a0? (Optionnel)",
-      "loading": "Chargement des combinaisons\u2026",
+      "title": "Souhaitez-vous prédéfinir des combinaisons de matières typiques ? (Optionnel)",
+      "loading": "Chargement des combinaisons…",
       "error": "Impossible de charger les combinaisons, réessayez.",
-      "retry": "↻ Réessayer",
-      "info": "ℹ️ Dans le système anglophone, chaque matière est évaluée indépendamment. Les combinaisons servent d'orientation\u00a0: les élèves peuvent personnaliser leur choix (maximum 5 matières au A-Level)."
+      "retry": "Réessayer",
+      "info": "Dans le système anglophone, chaque matière est évaluée indépendamment. Les combinaisons servent d'orientation : les élèves peuvent personnaliser leur choix (maximum 5 matières au A-Level)."
     },
     "technical": {
-      "title": "Quelles filières techniques proposez-vous\u00a0?",
+      "title": "Quelles filières techniques proposez-vous ?",
       "f4": "Électrotechnique (F4)",
       "f3": "Mécanique Générale (F3)",
       "f6": "Bâtiment et Travaux Publics (F6)",
@@ -478,14 +560,14 @@
       "f8": "Couture-Mode (F8)"
     },
     "primaryLevels": {
-      "title": "Quels niveaux primaires avez-vous\u00a0?"
+      "title": "Quels niveaux primaires avez-vous ?"
     },
     "lv2": {
-      "activeTitle": "Votre établissement propose-t-il une deuxième langue vivante (LV2)\u00a0?",
+      "activeTitle": "Votre établissement propose-t-il une deuxième langue vivante (LV2) ?",
       "yes": "Oui",
       "no": "Non",
-      "languagesTitle": "Quelles langues sont enseignées comme LV2\u00a0?",
-      "orgTitle": "Comment la LV2 est-elle organisée dans vos classes\u00a0? (Plusieurs choix possibles)",
+      "languagesTitle": "Quelles langues sont enseignées comme LV2 ?",
+      "orgTitle": "Comment la LV2 est-elle organisée dans vos classes ? (Plusieurs choix possibles)",
       "perLevelTitle": "Précisons par niveau. Pour chaque niveau, indiquez l'organisation (et la langue si toute la classe fait la même).",
       "perClassTitle": "Pour chaque classe, choisissez la langue LV2. Si plusieurs langues cohabitent dans la même classe, cliquez sur « Mélangée ».",
       "uniforme": "Toute une classe fait la même langue (ex. 4eA = tous Allemand)",
@@ -512,38 +594,38 @@
       "italien": "Italien"
     },
     "pebs": {
-      "bubbleFR": "🇨🇲 Vous avez indiqué proposer le Programme Spécial Bilingue (PEBS) — Francophone. Décrivez-moi comment il est organisé dans vos classes.",
-      "bubbleEN": "🇨🇲 Vous avez indiqué proposer le Programme Spécial Bilingue (PEBS) — Anglophone. Décrivez-moi comment il est organisé dans vos classes.",
+      "bubbleFR": "Vous avez indiqué proposer le Programme Spécial Bilingue (PEBS) — Francophone. Décrivez-moi comment il est organisé dans vos classes.",
+      "bubbleEN": "Vous avez indiqué proposer le Programme Spécial Bilingue (PEBS) — Anglophone. Décrivez-moi comment il est organisé dans vos classes.",
       "placeholder": "Exemple : les 6e1 et 5e1 sont entièrement PEBS. À partir de la 4e, les classes sont mixtes : élèves PEBS et non-PEBS mélangés, avec une LV2 commune au groupe.",
-      "analyze": "🔍 Analyser ma description",
+      "analyze": "Analyser ma description",
       "analyzing": "Analyse en cours…",
       "clarificationNeeded": "J'ai besoin de plus de précisions :",
       "clarifyPlaceholder": "Ajoutez des précisions ici…",
-      "reanalyze": "↻ Réanalyser",
+      "reanalyze": "Réanalyser",
       "reformulation": "Voici ce que j'ai compris :",
       "classesCount": "Classes concernées :",
-      "reject": "↩ Ce n'est pas correct",
-      "approve": "✓ C'est correct"
+      "reject": "Ce n'est pas correct",
+      "approve": "C'est correct"
     },
     "calendar": {
-      "title": "Quand commence votre année scolaire\u00a0?",
+      "title": "Quand commence votre année scolaire ?",
       "start": "Date de début",
       "end": "Date de fin (optionnel)"
     },
     "periods": {
-      "title": "Comment est découpée votre année scolaire\u00a0?",
+      "title": "Comment est découpée votre année scolaire ?",
       "trimesters": "3 trimestres (le plus courant au Cameroun)",
       "semesters": "2 semestres"
     },
     "sequences": {
-      "title": "Combien de séquences d'évaluation par {period}\u00a0?",
+      "title": "Combien de séquences d'évaluation par {period} ?",
       "count": "{n} séquences",
       "standard": "(standard)",
       "trimestre": "trimestre",
       "semestre": "semestre"
     },
     "fees": {
-      "title": "Quels types de frais pratiquez-vous\u00a0? (Cochez tout ce qui s'applique)",
+      "title": "Quels types de frais pratiquez-vous ? (Cochez tout ce qui s'applique)",
       "tuition": "Frais de scolarité",
       "apeePta": "Frais APEE / PTA",
       "exam": "Frais d'examen",
@@ -554,17 +636,17 @@
       "sportsLevy": "Frais de sport / activités"
     },
     "tranches": {
-      "title": "En combien de tranches les frais de scolarité sont-ils payés\u00a0?",
+      "title": "En combien de tranches les frais de scolarité sont-ils payés ?",
       "oneTime": "Paiement en 1 fois",
       "two": "2 tranches",
       "three": "3 tranches (trimestriel)"
     },
     "services": {
-      "title": "Votre établissement propose-t-il des services additionnels\u00a0?",
-      "canteen": "🍽️ Cantine / Restauration scolaire",
-      "transport": "🚌 Transport scolaire",
-      "library": "📚 Bibliothèque / Médiathèque",
-      "boarding": "🏠 Internat"
+      "title": "Votre établissement propose-t-il des services additionnels ?",
+      "canteen": "Cantine / Restauration scolaire",
+      "transport": "Transport scolaire",
+      "library": "Bibliothèque / Médiathèque",
+      "boarding": "Internat"
     },
     "direction": {
       "title": "Pour finir, renseignez les responsables de votre établissement (optionnel — vous pourrez compléter plus tard).",
@@ -575,7 +657,7 @@
       "placeholder": "Nom complet"
     },
     "recap": {
-      "bubble": "Parfait\u00a0! Voici ce que nous allons configurer pour <strong>{schoolName}</strong>. Vérifiez avant de confirmer.",
+      "bubble": "Parfait ! Voici ce que nous allons configurer pour <strong>{schoolName}</strong>. Vérifiez avant de confirmer.",
       "structure": "Structure pédagogique",
       "langues": "Langues vivantes",
       "calendrier": "Calendrier",
@@ -599,15 +681,15 @@
       "directionNone": "À compléter plus tard",
       "proviseur": "Proviseur",
       "censeur": "Censeur",
-      "modify": "← Modifier",
-      "confirm": "✓ Confirmer et configurer mon établissement",
+      "modify": "Modifier",
+      "confirm": "Confirmer et configurer mon établissement",
       "pebs": "Programme Spécial Bilingue (PEBS)",
       "pebsFR": "Francophone",
       "pebsEN": "Anglophone",
       "pebsPur": "Entièrement PEBS",
       "pebsMixte": "Mixte (PEBS + non-PEBS)",
       "pebsNon": "Non PEBS",
-      "pebsMixteNote": "ℹ️ Les classes mixtes nécessitent un ajustement élève par élève après création, via la modale PEBS du tableau de bord.",
+      "pebsMixteNote": "Les classes mixtes nécessitent un ajustement élève par élève après création, via la modale PEBS du tableau de bord.",
       "pebsDefault": "Organisation non précisée"
     },
     "templates": {

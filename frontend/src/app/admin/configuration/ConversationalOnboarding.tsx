@@ -10,6 +10,8 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
+import { Baby, BookOpen, Book, GraduationCap, Wrench, Check, XCircle, HelpCircle, BarChart3, Languages, Landmark, Calendar, Wallet, Users } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT, useChangeLanguage, useLanguage } from '@/lib/i18n'
 
@@ -126,11 +128,11 @@ function mapPhase1ToState(cfg: Record<string, unknown> | null | undefined): Part
 
 // ── Key mappings for i18n ─────────────────────────────────────────────────────
 const CYCLE_KEYS = [
-  { value: 'MATERNELLE', icon: '🧸', key: 'phase2.cycles.maternelle' },
-  { value: 'PRIMAIRE', icon: '📗', key: 'phase2.cycles.primaire' },
-  { value: 'PREMIER_CYCLE', icon: '📘', key: 'phase2.cycles.premierCycle' },
-  { value: 'SECOND_CYCLE', icon: '📙', key: 'phase2.cycles.secondCycle' },
-  { value: 'TECHNIQUE', icon: '🔧', key: 'phase2.cycles.technique' },
+  { value: 'MATERNELLE', icon: Baby, key: 'phase2.cycles.maternelle' },
+  { value: 'PRIMAIRE', icon: BookOpen, key: 'phase2.cycles.primaire' },
+  { value: 'PREMIER_CYCLE', icon: Book, key: 'phase2.cycles.premierCycle' },
+  { value: 'SECOND_CYCLE', icon: GraduationCap, key: 'phase2.cycles.secondCycle' },
+  { value: 'TECHNIQUE', icon: Wrench, key: 'phase2.cycles.technique' },
 ]
 
 const SUBSYSTEM_KEYS = [
@@ -452,9 +454,9 @@ export default function ConversationalOnboarding(props: Props) {
             <Bubble>{t('phase2.cycles.title')}</Bubble>
             {cycleOptions.map(o => (
               <button key={o.value} style={S.opt(state.cycles.includes(o.value))} onClick={() => toggleIn('cycles', o.value)}>
-                <span style={{ fontSize: 20 }}>{o.icon}</span>
+                <span style={{ display: 'flex', alignItems: 'center' }}><o.icon size={20} /></span>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.cycles.includes(o.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.cycles.includes(o.value) && <Check size={16} color="var(--green)" strokeWidth={3} />}
               </button>
             ))}
             <Nav canNext={state.cycles.length > 0} />
@@ -468,7 +470,7 @@ export default function ConversationalOnboarding(props: Props) {
             {subsystemOptions.map(o => (
               <button key={o.value} style={S.opt(state.subSystem === o.value)} onClick={() => patch({ subSystem: o.value as OnboardingState['subSystem'] })}>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.subSystem === o.value && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.subSystem === o.value && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav canNext={!!state.subSystem} />
@@ -496,7 +498,7 @@ export default function ConversationalOnboarding(props: Props) {
             {seriesOptions.map(o => (
               <button key={o.value} style={S.opt(state.series.includes(o.value))} onClick={() => toggleIn('series', o.value)}>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.series.includes(o.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.series.includes(o.value) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <div style={{ fontSize: 13, color: 'var(--amber)', background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 9, padding: '9px 12px', marginTop: 4 }}>
@@ -515,7 +517,7 @@ export default function ConversationalOnboarding(props: Props) {
             {angloStreamOptions.map(o => (
               <button key={o.value} style={S.opt(state.anglophoneStreams.includes(o.value))} onClick={() => toggleIn('anglophoneStreams', o.value)}>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.anglophoneStreams.includes(o.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.anglophoneStreams.includes(o.value) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav canNext={state.anglophoneStreams.length > 0} />
@@ -555,7 +557,7 @@ export default function ConversationalOnboarding(props: Props) {
                   <div style={{ fontWeight: 700 }}>{c.code} — {c.label}</div>
                   <div style={{ fontSize: 12.5, color: 'var(--text3)', fontWeight: 500 }}>{c.subjects.join(', ')}</div>
                 </div>
-                {state.anglophoneCombinations.includes(c.code) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.anglophoneCombinations.includes(c.code) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
 
@@ -574,7 +576,7 @@ export default function ConversationalOnboarding(props: Props) {
             {techOptions.map(o => (
               <button key={o.value} style={S.opt(state.technicalFilieres.includes(o.value))} onClick={() => toggleIn('technicalFilieres', o.value)}>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.technicalFilieres.includes(o.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.technicalFilieres.includes(o.value) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav canNext={state.technicalFilieres.length > 0} />
@@ -589,7 +591,7 @@ export default function ConversationalOnboarding(props: Props) {
             {opts.map(o => (
               <button key={o.value} style={S.opt(state.primaryLevels.includes(o.value))} onClick={() => toggleIn('primaryLevels', o.value)}>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.primaryLevels.includes(o.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.primaryLevels.includes(o.value) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav canNext={state.primaryLevels.length > 0} />
@@ -614,7 +616,7 @@ export default function ConversationalOnboarding(props: Props) {
             {lv2LangOptions.map(l => (
               <button key={l.value} style={S.opt(state.lv2Languages.includes(l.value))} onClick={() => toggleIn('lv2Languages', l.value)}>
                 <span style={{ flex: 1 }}>{l.label}</span>
-                {state.lv2Languages.includes(l.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.lv2Languages.includes(l.value) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav canNext={state.lv2Languages.length > 0} />
@@ -685,7 +687,7 @@ export default function ConversationalOnboarding(props: Props) {
                                         : [...(rule?.langues ?? []), l]
                                       setPerClass(level, cn, { langues: next })
                                     }}>
-                                    {active && <span style={{ marginRight: 4 }}>✓</span>}
+                                    {active && <Check size={13} style={{ marginRight: 4, verticalAlign: 'middle' }} />}
                                     {t(`phase2.lv2.${l.toLowerCase()}` as any) ?? l}
                                   </button>
                                 )
@@ -762,8 +764,8 @@ export default function ConversationalOnboarding(props: Props) {
                   placeholder={t('phase2.pebs.placeholder')}
                 />
                 {pebsError && (
-                  <div style={{ fontSize: 13, color: 'var(--red)', background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 9, padding: '9px 12px', marginBottom: 8 }}>
-                    ❌ {pebsError}
+                  <div style={{ fontSize: 13, color: 'var(--red)', background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 9, padding: '9px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <XCircle size={14} style={{ flexShrink: 0 }} /> {pebsError}
                   </div>
                 )}
                 <button style={{ ...S.primary, width: '100%', justifyContent: 'center', opacity: pebsLoading || !pebsDescription.trim() ? 0.6 : 1 }}
@@ -781,7 +783,7 @@ export default function ConversationalOnboarding(props: Props) {
               <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '14px 16px', marginBottom: 14 }}>
                 {pebsAnalysis.clarificationNeeded ? (
                   <>
-                    <div style={{ fontSize: 14, color: 'var(--amber)', fontWeight: 700, marginBottom: 8 }}>❓ {t('phase2.pebs.clarificationNeeded')}</div>
+                    <div style={{ fontSize: 14, color: 'var(--amber)', fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><HelpCircle size={15} /> {t('phase2.pebs.clarificationNeeded')}</div>
                     {pebsAnalysis.clarifications.map((q, i) => (
                       <div key={i} style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 4, paddingLeft: 8 }}>• {q}</div>
                     ))}
@@ -865,7 +867,7 @@ export default function ConversationalOnboarding(props: Props) {
             {feesOptions.map(o => (
               <button key={o.value} style={S.opt(state.feesTypes.includes(o.value))} onClick={() => toggleIn('feesTypes', o.value)}>
                 <span style={{ flex: 1 }}>{o.label}</span>
-                {state.feesTypes.includes(o.value) && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state.feesTypes.includes(o.value) && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav canNext={state.feesTypes.length > 0} />
@@ -895,7 +897,7 @@ export default function ConversationalOnboarding(props: Props) {
             ] as const).map(([key, tKey]) => (
               <button key={key} style={S.opt(!!state[key])} onClick={() => patch({ [key]: !state[key] } as Partial<OnboardingState>)}>
                 <span style={{ flex: 1 }}>{t(tKey)}</span>
-                {state[key] && <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓</span>}
+                {state[key] && <span style={{ color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={3} /></span>}
               </button>
             ))}
             <Nav />
@@ -982,9 +984,9 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
     state.directionRoles.censeur && `${t('phase2.recap.censeur')}: ${state.directionRoles.censeur}`,
   ].filter(Boolean).join(' · ') || t('phase2.recap.directionNone')
 
-  const Block = ({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) => (
+  const Block = ({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) => (
     <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '13px 15px', marginBottom: 10 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{icon} {title}</div>
+      <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}><Icon size={13} /> {title}</div>
       <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.6 }}>{children}</div>
     </div>
   )
@@ -993,7 +995,7 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
     <>
       <div style={S.bubble} dangerouslySetInnerHTML={{ __html: t('phase2.recap.bubble', { schoolName: state.schoolName ?? '' }) }} />
 
-      <Block icon="📚" title={t('phase2.recap.structure')}>
+      <Block icon={BookOpen} title={t('phase2.recap.structure')}>
         {t('phase2.recap.template')}&nbsp;: <strong>{TEMPLATE_LABELS[template] ?? template}</strong><br />
         {t('phase2.recap.cycles')}&nbsp;: {state.cycles.length ? state.cycles.map(c => {
           const match = CYCLE_KEYS.find(o => o.value === c)
@@ -1011,7 +1013,7 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
         {t('phase2.recap.autoClasses')}
       </Block>
 
-      <Block icon="🌍" title={t('phase2.recap.langues')}>
+      <Block icon={Languages} title={t('phase2.recap.langues')}>
         {t('phase2.recap.lv2')}&nbsp;: {lv2Summary}
         {perClassLines.length > 0 && (
           <div style={{ marginTop: 6 }}>
@@ -1023,7 +1025,7 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
       </Block>
 
       {(state.hasPEBSFrancophone || state.hasPEBSAnglophone) && (
-        <Block icon="🇨🇲" title={t('phase2.recap.pebs')}>
+        <Block icon={Landmark} title={t('phase2.recap.pebs')}>
           {state.hasPEBSFrancophone && <div>{t('phase2.recap.pebsFR')}</div>}
           {state.hasPEBSAnglophone && <div>{t('phase2.recap.pebsEN')}</div>}
           {state.pebsOrganisation && state.pebsOrganisation.length > 0 ? (
@@ -1047,12 +1049,12 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
         </Block>
       )}
 
-      <Block icon="📅" title={t('phase2.recap.calendrier')}>
+      <Block icon={Calendar} title={t('phase2.recap.calendrier')}>
         {t('phase2.recap.debut')}&nbsp;: {state.academicYearStart || '—'}<br />
         {state.periodsCount === 2 ? t('phase2.periods.semesters') : t('phase2.periods.trimesters')} × {state.sequencesPerPeriod} {t('phase2.recap.sequences')}
       </Block>
 
-      <Block icon="💰" title={t('phase2.recap.finances')}>
+      <Block icon={Wallet} title={t('phase2.recap.finances')}>
         {t('phase2.recap.fees')}&nbsp;: {state.feesTypes.length ? state.feesTypes.map(f => {
           const match = FEES_KEYS.find(o => o.value === f)
           return match ? t(match.key) : f
@@ -1060,7 +1062,7 @@ function Recap({ state, template, onConfirm, onBack }: { state: OnboardingState;
         {state.paymentTranches} {t('phase2.recap.tranches')} · {t('phase2.recap.services')}&nbsp;: {services}
       </Block>
 
-      <Block icon="👥" title={t('phase2.recap.direction')}>{roles}</Block>
+      <Block icon={Users} title={t('phase2.recap.direction')}>{roles}</Block>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
         <button style={S.secondary} onClick={onBack}>{t('phase2.recap.modify')}</button>

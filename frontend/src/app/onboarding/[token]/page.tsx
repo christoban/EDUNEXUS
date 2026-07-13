@@ -4,6 +4,12 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import PasswordStrengthBar, { getPasswordStrength } from '@/components/PasswordStrengthBar'
 import { useT, useChangeLanguage, useLanguage } from '@/lib/i18n'
+import {
+  Languages, BookOpen, Settings, Wrench, GraduationCap, Landmark, School, Church,
+  AlertTriangle, CheckCircle2, Info, Check, Star, BarChart3, CreditCard, Calendar,
+  Lock, AlarmClock, PartyPopper, Eye, EyeOff,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -100,20 +106,20 @@ const PLAN_COLOR: Record<string, string> = {
 }
 
 const SUBSYSTEM_KEYS = [
-  { value: 'FRANCOPHONE', key: 'phase1.step1.subsystem.options.FRANCOPHONE.label', icon: '🇫🇷' },
-  { value: 'ANGLOPHONE',  key: 'phase1.step1.subsystem.options.ANGLOPHONE.label',  icon: '🇬🇧' },
-  { value: 'BILINGUAL',   key: 'phase1.step1.subsystem.options.BILINGUAL.label',   icon: '🌍' },
+  { value: 'FRANCOPHONE', key: 'phase1.step1.subsystem.options.FRANCOPHONE.label', icon: Languages },
+  { value: 'ANGLOPHONE',  key: 'phase1.step1.subsystem.options.ANGLOPHONE.label',  icon: Languages },
+  { value: 'BILINGUAL',   key: 'phase1.step1.subsystem.options.BILINGUAL.label',   icon: Languages },
 ]
 const EDUCATION_KEYS = [
-  { value: 'GENERAL',      key: 'phase1.step1.educationType.options.GENERAL.label',      icon: '📚' },
-  { value: 'TECHNICAL',    key: 'phase1.step1.educationType.options.TECHNICAL.label',    icon: '⚙️' },
-  { value: 'PROFESSIONAL', key: 'phase1.step1.educationType.options.PROFESSIONAL.label',  icon: '🔧' },
-  { value: 'MIXED',        key: 'phase1.step1.educationType.options.MIXED.label',        icon: '🎓' },
+  { value: 'GENERAL',      key: 'phase1.step1.educationType.options.GENERAL.label',      icon: BookOpen },
+  { value: 'TECHNICAL',    key: 'phase1.step1.educationType.options.TECHNICAL.label',    icon: Settings },
+  { value: 'PROFESSIONAL', key: 'phase1.step1.educationType.options.PROFESSIONAL.label',  icon: Wrench },
+  { value: 'MIXED',        key: 'phase1.step1.educationType.options.MIXED.label',        icon: GraduationCap },
 ]
 const OWNERSHIP_KEYS = [
-  { value: 'PUBLIC',          key: 'phase1.step1.ownership.options.PUBLIC.label',          icon: '🏛️' },
-  { value: 'PRIVATE_SECULAR', key: 'phase1.step1.ownership.options.PRIVATE_SECULAR.label', icon: '🏫' },
-  { value: 'PRIVATE_FAITH',   key: 'phase1.step1.ownership.options.PRIVATE_FAITH.label',   icon: '⛪' },
+  { value: 'PUBLIC',          key: 'phase1.step1.ownership.options.PUBLIC.label',          icon: Landmark },
+  { value: 'PRIVATE_SECULAR', key: 'phase1.step1.ownership.options.PRIVATE_SECULAR.label', icon: School },
+  { value: 'PRIVATE_FAITH',   key: 'phase1.step1.ownership.options.PRIVATE_FAITH.label',   icon: Church },
 ]
 
 const TCODES_PEBS_FR = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_BILINGUE']
@@ -282,19 +288,20 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 function Alert({ msg, type }: { msg: string; type: 'error' | 'success' | 'info' }) {
   const styles = {
-    error:   { bg: 'var(--red-light)', border: 'rgba(220,38,38,0.25)',  color: 'var(--red)', icon: '⚠️' },
-    success: { bg: 'var(--green-light)', border: 'rgba(5,150,105,0.25)',  color: 'var(--green)', icon: '✅' },
-    info:    { bg: 'var(--blue-light)', border: 'rgba(37,99,235,0.25)',  color: 'var(--blue)', icon: 'ℹ️' },
+    error:   { bg: 'var(--red-light)', border: 'rgba(220,38,38,0.25)',  color: 'var(--red)', icon: AlertTriangle },
+    success: { bg: 'var(--green-light)', border: 'rgba(5,150,105,0.25)',  color: 'var(--green)', icon: CheckCircle2 },
+    info:    { bg: 'var(--blue-light)', border: 'rgba(37,99,235,0.25)',  color: 'var(--blue)', icon: Info },
   }[type]
+  const Icon = styles.icon
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', background: styles.bg, border: `1.5px solid ${styles.border}`, borderRadius: 10, marginBottom: 14, fontSize: 14, fontWeight: 700, color: styles.color }}>
-      <span>{styles.icon}</span><span>{msg}</span>
+      <Icon size={16} strokeWidth={2} style={{ flexShrink: 0 }} /><span>{msg}</span>
     </div>
   )
 }
 
 function RadioCards({ options, value, onChange }: {
-  options: { value: string; label: string; icon: string }[]
+  options: { value: string; label: string; icon: LucideIcon }[]
   value: string
   onChange: (v: string) => void
 }) {
@@ -310,7 +317,7 @@ function RadioCards({ options, value, onChange }: {
               cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
             }}>
-            <span style={{ fontSize: 22 }}>{o.icon}</span>
+            <span style={{ display: 'flex', color: active ? 'var(--green2)' : 'var(--text2)' }}><o.icon size={22} strokeWidth={2} /></span>
             <span style={{ fontSize: 12, fontWeight: 700, color: active ? 'var(--green2)' : 'var(--text2)', textAlign: 'center', lineHeight: 1.2 }}>{o.label}</span>
           </button>
         )
@@ -357,7 +364,7 @@ function CheckboxGroup({ options, values, onChange, note }: {
                 transition: 'all 0.15s', userSelect: 'none',
               }}>
               <span style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${checked ? 'var(--green)' : 'var(--border2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: checked ? 'var(--green)' : 'transparent', flexShrink: 0 }}>
-                {checked && <span style={{ color: 'white', fontSize: 12 }}>✓</span>}
+                {checked && <Check size={12} strokeWidth={3} style={{ color: 'white' }} />}
               </span>
               {o.label}
             </label>
@@ -765,7 +772,7 @@ export default function OnboardingPage() {
       <div style={{ padding: '36px 32px', display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1 }}>
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 44, animation: 'edu-fadeDown 0.6s ease both' }}>
-          <div style={{ width: 60, height: 60, borderRadius: 16, background: 'linear-gradient(135deg,var(--amber),var(--green))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, boxShadow: '0 4px 16px rgba(34,197,94,0.3)', flexShrink: 0 }}>🎓</div>
+          <div style={{ width: 60, height: 60, borderRadius: 16, background: 'linear-gradient(135deg,var(--amber),var(--green))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 4px 16px rgba(34,197,94,0.3)', flexShrink: 0 }}><GraduationCap size={28} strokeWidth={2} /></div>
           <div>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'white' }}>ZekoulABia</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{t('phase1.leftPanel.brandTagline')}</div>
@@ -802,7 +809,7 @@ export default function OnboardingPage() {
         {/* Plan badge */}
         {inviteData && (
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, marginBottom: 28, animation: 'edu-fadeDown 0.6s 0.25s ease both', alignSelf: 'flex-start' }}>
-            <span style={{ fontSize: 18 }}>⭐</span>
+            <Star size={18} strokeWidth={2} style={{ color: PLAN_COLOR[inviteData.plan] ?? 'var(--green)' }} />
             <span style={{ fontSize: 14, fontWeight: 800, color: PLAN_COLOR[inviteData.plan] ?? 'var(--green)' }}>{t('phase1.step1.planBadge')} {t('phase1.planLabels.' + inviteData.plan) ?? inviteData.plan}</span>
           </div>
         )}
@@ -811,13 +818,13 @@ export default function OnboardingPage() {
         {step <= 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, animation: 'edu-fadeDown 0.6s 0.3s ease both' }}>
             {[
-              { bg: 'rgba(34,197,94,0.1)',   icon: '🏫', title: t('phase1.leftPanel.features.multiLevel.title'),      desc: t('phase1.leftPanel.features.multiLevel.desc') },
-              { bg: 'rgba(96,165,250,0.1)',   icon: '📊', title: t('phase1.leftPanel.features.grades.title'),          desc: t('phase1.leftPanel.features.grades.desc') },
-              { bg: 'rgba(245,158,11,0.1)',   icon: '💳', title: t('phase1.leftPanel.features.finance.title'),         desc: t('phase1.leftPanel.features.finance.desc') },
-              { bg: 'rgba(212,168,67,0.1)',   icon: '📅', title: t('phase1.leftPanel.features.timetable.title'),        desc: t('phase1.leftPanel.features.timetable.desc') },
+              { bg: 'rgba(34,197,94,0.1)',   icon: School,     title: t('phase1.leftPanel.features.multiLevel.title'),      desc: t('phase1.leftPanel.features.multiLevel.desc') },
+              { bg: 'rgba(96,165,250,0.1)',   icon: BarChart3,  title: t('phase1.leftPanel.features.grades.title'),          desc: t('phase1.leftPanel.features.grades.desc') },
+              { bg: 'rgba(245,158,11,0.1)',   icon: CreditCard, title: t('phase1.leftPanel.features.finance.title'),         desc: t('phase1.leftPanel.features.finance.desc') },
+              { bg: 'rgba(212,168,67,0.1)',   icon: Calendar,   title: t('phase1.leftPanel.features.timetable.title'),        desc: t('phase1.leftPanel.features.timetable.desc') },
             ].map((f, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{f.icon}</div>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}><f.icon size={20} strokeWidth={2} /></div>
                 <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>
                   <strong style={{ color: 'white', fontWeight: 700 }}>{f.title}</strong> — {f.desc}
                 </div>
@@ -871,13 +878,14 @@ export default function OnboardingPage() {
     )
   } else if (loadState === 'invalid' || loadState === 'expired' || loadState === 'used') {
     const info = {
-      invalid:  { icon: '🔒', title: t('phase1.invite.invalid.title'),          color: 'var(--red)', bg: 'var(--red-light)', border: 'rgba(220,38,38,0.2)' },
-      expired:  { icon: '⏰', title: t('phase1.invite.expired.title'),     color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(217,119,6,0.2)' },
-      used:     { icon: '✅', title: t('phase1.invite.used.title'), color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.2)' },
+      invalid:  { icon: Lock,        title: t('phase1.invite.invalid.title'),          color: 'var(--red)', bg: 'var(--red-light)', border: 'rgba(220,38,38,0.2)' },
+      expired:  { icon: AlarmClock,  title: t('phase1.invite.expired.title'),     color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(217,119,6,0.2)' },
+      used:     { icon: CheckCircle2, title: t('phase1.invite.used.title'), color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.2)' },
     }[loadState]
+    const InfoIcon = info.icon
     content = (
       <div style={{ animation: 'edu-fadeUp 0.4s ease both', textAlign: 'center' }}>
-        <div style={{ fontSize: 64, marginBottom: 20 }}>{info.icon}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', color: info.color, marginBottom: 20 }}><InfoIcon size={64} strokeWidth={2} /></div>
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>{info.title}</div>
         <div style={{ padding: '16px 20px', background: info.bg, border: `1.5px solid ${info.border}`, borderRadius: 12, marginBottom: 24, fontSize: 15, fontWeight: 600, color: info.color, lineHeight: 1.6 }}>
           {errorMsg}
@@ -890,13 +898,13 @@ export default function OnboardingPage() {
   } else if (done) {
     content = (
       <div style={{ animation: 'edu-fadeUp 0.4s ease both', textAlign: 'center' }}>
-        <div style={{ fontSize: 72, marginBottom: 16 }}>🎉</div>
+        <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 16 }}><PartyPopper size={72} strokeWidth={2} /></div>
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
           {t('phase1.done.title')}
         </div>
-        <div style={{ padding: '16px 20px', background: 'var(--green-light)', border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 24, fontSize: 15, fontWeight: 600, color: 'var(--green)', lineHeight: 1.8 }}>
-          ✅ <strong>{form.nom}</strong> {t('phase1.done.pendingMsg')}<br />
-          {t('phase1.done.emailNotice')} <strong>{form.adminEmail}</strong> {t('phase1.done.emailDelay')}
+        <div style={{ padding: '16px 20px', background: 'var(--green-light)', border: '1.5px solid rgba(5,150,105,0.2)', borderRadius: 12, marginBottom: 24, fontSize: 15, fontWeight: 600, color: 'var(--green)', lineHeight: 1.8, display: 'flex', alignItems: 'flex-start', gap: 6, textAlign: 'left' }}>
+          <CheckCircle2 size={17} strokeWidth={2} style={{ flexShrink: 0, marginTop: 2 }} /><span><strong>{form.nom}</strong> {t('phase1.done.pendingMsg')}<br />
+          {t('phase1.done.emailNotice')} <strong>{form.adminEmail}</strong> {t('phase1.done.emailDelay')}</span>
         </div>
         <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.7 }}>
           {t('phase1.done.loginHint')}
@@ -1055,7 +1063,7 @@ export default function OnboardingPage() {
                   style={{ width: 72, height: 72, borderRadius: 14, border: `2px dashed ${form.logoBase64 ? 'var(--green)' : 'var(--border2)'}`, background: form.logoBase64 ? 'transparent' : 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, transition: 'all 0.15s' }}>
                   {form.logoBase64
                     ? <img src={form.logoBase64} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <span style={{ fontSize: 28 }}>🏫</span>}
+                    : <School size={28} strokeWidth={2} style={{ color: 'var(--text3)' }} />}
                 </div>
                 <div>
                   <button type="button" onClick={() => logoInputRef.current?.click()}
@@ -1110,8 +1118,8 @@ export default function OnboardingPage() {
                   style={{ ...INPUT, paddingRight: 44 }}
                   onChange={e => set('password')(e.target.value)} placeholder={t('phase1.step2.password.placeholder')} />
                 <button type="button" onClick={() => setShowPwd(s => !s)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)' }}>
-                  {showPwd ? '🙈' : '👁'}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--text3)' }}>
+                  {showPwd ? <EyeOff size={18} strokeWidth={2} /> : <Eye size={18} strokeWidth={2} />}
                 </button>
               </div>
               {form.password && <PasswordStrengthBar password={form.password} />}
@@ -1123,8 +1131,8 @@ export default function OnboardingPage() {
                   style={{ ...INPUT, paddingRight: 44, borderColor: form.confirmPassword && form.confirmPassword !== form.password ? 'var(--red)' : 'var(--border2)' }}
                   onChange={e => set('confirmPassword')(e.target.value)} placeholder={t('phase1.step2.confirmPassword.placeholder')} />
                 <button type="button" onClick={() => setShowConfirm(s => !s)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)' }}>
-                  {showConfirm ? '🙈' : '👁'}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'var(--text3)' }}>
+                  {showConfirm ? <EyeOff size={18} strokeWidth={2} /> : <Eye size={18} strokeWidth={2} />}
                 </button>
               </div>
               {form.confirmPassword && form.confirmPassword !== form.password && (
@@ -2234,8 +2242,8 @@ export default function OnboardingPage() {
                   background: 'var(--bg2)', border: '1.5px solid var(--border)',
                   borderRadius: 12, padding: '14px 16px',
                 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
-                    🏫 {template.name}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 10 }}>
+                    <School size={16} strokeWidth={2} /> {template.name}
                   </div>
 
                   {previewLoading && (

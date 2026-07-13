@@ -1,5 +1,10 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import {
+  CheckCircle2, XCircle, Ban, Trash2, Mail, RotateCw, KeyRound, Smartphone,
+  AlertTriangle, EyeOff, Eye, ArrowLeft, Download, Search, Shield, Zap, Info, Globe,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import Badge from './Badge'
 import type { AuditLogDto } from '../_types'
 import type { EmailLogDto } from '../_api'
@@ -63,14 +68,25 @@ const AUTH_BADGE: Record<string, 'event-success' | 'event-warning' | 'event-erro
 // ── Labels & badges pour les actions métier ─────────────────────────────────
 
 const ACTION_LABELS: Record<string, string> = {
-  'action:school_approved':      '✅ École approuvée',
-  'action:school_rejected':      '❌ École rejetée',
-  'action:school_suspended':     '⛔ École suspendue',
-  'action:school_reactivated':   '✅ École réactivée',
-  'action:school_deleted':       '🗑️ École supprimée',
-  'action:school_invite_sent':   '📧 Invitation envoyée',
-  'action:school_invite_resent': '📧 Invitation renvoyée',
-  'action:school_reexamined':    '🔄 Demande réexaminée',
+  'action:school_approved':      'École approuvée',
+  'action:school_rejected':      'École rejetée',
+  'action:school_suspended':     'École suspendue',
+  'action:school_reactivated':   'École réactivée',
+  'action:school_deleted':       'École supprimée',
+  'action:school_invite_sent':   'Invitation envoyée',
+  'action:school_invite_resent': 'Invitation renvoyée',
+  'action:school_reexamined':    'Demande réexaminée',
+}
+
+const ACTION_ICONS: Record<string, LucideIcon> = {
+  'action:school_approved':      CheckCircle2,
+  'action:school_rejected':      XCircle,
+  'action:school_suspended':     Ban,
+  'action:school_reactivated':   CheckCircle2,
+  'action:school_deleted':       Trash2,
+  'action:school_invite_sent':   Mail,
+  'action:school_invite_resent': Mail,
+  'action:school_reexamined':    RotateCw,
 }
 
 const ACTION_BADGE: Record<string, 'event-success' | 'event-warning' | 'event-error' | 'event-info'> = {
@@ -224,14 +240,14 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
       {/* ── Mot de passe ── */}
       <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 22 }}>🔑</span>
+          <KeyRound size={20} />
           <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209' }}>Mot de passe</span>
         </div>
         <div style={{ padding: '20px 24px' }}>
           <p style={{ fontSize: 15, color: '#6b5c45', lineHeight: 1.7, marginBottom: 16, marginTop: 0 }}>
             Modifiez votre mot de passe master. Vous devrez saisir votre mot de passe actuel{mfaEnabled ? ' et votre code MFA' : ''}.
           </p>
-          <button style={btnGreen} onClick={onChangePwd}>🔑 Changer le mot de passe</button>
+          <button style={{ ...btnGreen, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={onChangePwd}><KeyRound size={16} /> Changer le mot de passe</button>
         </div>
       </div>
 
@@ -239,17 +255,17 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
       <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>📱</span>
+            <Smartphone size={20} />
             <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209' }}>Authentification à deux facteurs (MFA)</span>
           </div>
-          <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: mfaEnabled ? 'rgba(5,150,105,0.1)' : 'rgba(220,38,38,0.08)', color: mfaEnabled ? '#059669' : '#dc2626', border: `1px solid ${mfaEnabled ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.2)'}` }}>
-            {mfaEnabled ? '✅ Actif' : '❌ Inactif'}
+          <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: mfaEnabled ? 'rgba(5,150,105,0.1)' : 'rgba(220,38,38,0.08)', color: mfaEnabled ? '#059669' : '#dc2626', border: `1px solid ${mfaEnabled ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.2)'}`, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            {mfaEnabled ? <><CheckCircle2 size={13} /> Actif</> : <><XCircle size={13} /> Inactif</>}
           </span>
         </div>
 
         <div style={{ padding: '20px 24px' }}>
           {error && (
-            <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 9, fontSize: 14, fontWeight: 700, color: '#991b1b', marginBottom: 14 }}>⚠️ {error}</div>
+            <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 9, fontSize: 14, fontWeight: 700, color: '#991b1b', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={15} style={{ flexShrink: 0 }} /> {error}</div>
           )}
 
           {/* ── Pas de flow actif ── */}
@@ -262,14 +278,14 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {!mfaEnabled && (
-                  <button style={btnGreen} disabled={loading} onClick={startEnableMfa}>
-                    {loading ? '…' : '📱 Activer le MFA'}
+                  <button style={{ ...btnGreen, display: 'inline-flex', alignItems: 'center', gap: 7 }} disabled={loading} onClick={startEnableMfa}>
+                    {loading ? '…' : <><Smartphone size={16} /> Activer le MFA</>}
                   </button>
                 )}
                 {mfaEnabled && (
                   <>
-                    <button style={btnGray} onClick={() => { setError(''); setFlow('regen') }}>🔄 Régénérer les codes de récupération</button>
-                    <button style={btnRed} onClick={() => { setError(''); setFlow('disable') }}>⚠️ Désactiver le MFA</button>
+                    <button style={{ ...btnGray, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={() => { setError(''); setFlow('regen') }}><RotateCw size={16} /> Régénérer les codes de récupération</button>
+                    <button style={{ ...btnRed, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={() => { setError(''); setFlow('disable') }}><AlertTriangle size={16} /> Désactiver le MFA</button>
                   </>
                 )}
               </div>
@@ -316,15 +332,15 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
                   <input style={{ ...inp, paddingRight: 40 }} type={showEnablePwd ? 'text' : 'password'} placeholder="••••••••••••" value={password}
                     autoComplete="new-password" onChange={e => setPassword(e.target.value)} />
                   <button type="button" onClick={() => setShowEnablePwd(s => !s)}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
-                    {showEnablePwd ? '🙈' : '👁'}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', padding: 4, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+                    {showEnablePwd ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button style={btnGray} onClick={() => { setError(''); setFlow('enable-qr') }}>← Retour</button>
-                <button style={btnGreen} disabled={loading} onClick={handleEnableVerify}>
-                  {loading ? '…' : '✅ Activer le MFA'}
+                <button style={{ ...btnGray, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={() => { setError(''); setFlow('enable-qr') }}><ArrowLeft size={15} /> Retour</button>
+                <button style={{ ...btnGreen, display: 'inline-flex', alignItems: 'center', gap: 7 }} disabled={loading} onClick={handleEnableVerify}>
+                  {loading ? '…' : <><CheckCircle2 size={16} /> Activer le MFA</>}
                 </button>
               </div>
             </div>
@@ -334,7 +350,7 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
           {flow === 'enable-codes' && (
             <div>
               <div style={{ padding: '14px 16px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 10, marginBottom: 16 }}>
-                <strong style={{ color: '#92400e' }}>⚠️ Sauvegardez ces codes maintenant !</strong>
+                <strong style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: 7 }}><AlertTriangle size={16} /> Sauvegardez ces codes maintenant !</strong>
                 <p style={{ color: '#92400e', fontSize: 14, marginTop: 6, marginBottom: 0, lineHeight: 1.6 }}>
                   Ces codes de récupération ne seront affichés <strong>qu&apos;une seule fois</strong>. Conservez-les dans un endroit sûr. Chaque code est à usage unique.
                 </p>
@@ -347,10 +363,10 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button style={btnGray} onClick={() => downloadRecoveryCodes(recoveryCodes)}>
-                  ⬇️ Télécharger (.txt)
+                <button style={{ ...btnGray, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={() => downloadRecoveryCodes(recoveryCodes)}>
+                  <Download size={16} /> Télécharger (.txt)
                 </button>
-                <button style={btnGreen} onClick={() => { reset(); onMfaChange() }}>✅ J&apos;ai sauvegardé mes codes → Terminer</button>
+                <button style={{ ...btnGreen, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={() => { reset(); onMfaChange() }}><CheckCircle2 size={16} /> J&apos;ai sauvegardé mes codes → Terminer</button>
               </div>
             </div>
           )}
@@ -358,8 +374,8 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
           {/* ── DISABLE MFA ── */}
           {flow === 'disable' && (
             <div>
-              <div style={{ padding: '12px 14px', background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, marginBottom: 16, fontSize: 14, color: '#991b1b', fontWeight: 600 }}>
-                ⚠️ La désactivation du MFA affaiblit la sécurité de ce compte. Soyez certain de votre choix.
+              <div style={{ padding: '12px 14px', background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, marginBottom: 16, fontSize: 14, color: '#991b1b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0 }} /> La désactivation du MFA affaiblit la sécurité de ce compte. Soyez certain de votre choix.
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={fieldLabel}>Mot de passe actuel *</label>
@@ -369,8 +385,8 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
                   <input style={{ ...inp, paddingRight: 40 }} type={showDisablePwd ? 'text' : 'password'} placeholder="••••••••••••" value={disablePwd}
                     autoComplete="new-password" onChange={e => setDisablePwd(e.target.value)} />
                   <button type="button" onClick={() => setShowDisablePwd(s => !s)}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
-                    {showDisablePwd ? '🙈' : '👁'}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', padding: 4, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+                    {showDisablePwd ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
               </div>
@@ -382,8 +398,8 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button style={btnGray} onClick={reset}>Annuler</button>
-                <button style={btnRed} disabled={loading} onClick={handleDisable}>
-                  {loading ? '…' : '⚠️ Confirmer la désactivation'}
+                <button style={{ ...btnRed, display: 'inline-flex', alignItems: 'center', gap: 7 }} disabled={loading} onClick={handleDisable}>
+                  {loading ? '…' : <><AlertTriangle size={16} /> Confirmer la désactivation</>}
                 </button>
               </div>
             </div>
@@ -403,8 +419,8 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
                   <input style={{ ...inp, paddingRight: 40 }} type={showDisablePwd ? 'text' : 'password'} placeholder="••••••••••••" value={disablePwd}
                     autoComplete="new-password" onChange={e => setDisablePwd(e.target.value)} />
                   <button type="button" onClick={() => setShowDisablePwd(s => !s)}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
-                    {showDisablePwd ? '🙈' : '👁'}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', padding: 4, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+                    {showDisablePwd ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                 </div>
               </div>
@@ -416,8 +432,8 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button style={btnGray} onClick={reset}>Annuler</button>
-                <button style={btnGreen} disabled={loading} onClick={handleRegenCodes}>
-                  {loading ? '…' : '🔄 Régénérer les codes'}
+                <button style={{ ...btnGreen, display: 'inline-flex', alignItems: 'center', gap: 7 }} disabled={loading} onClick={handleRegenCodes}>
+                  {loading ? '…' : <><RotateCw size={16} /> Régénérer les codes</>}
                 </button>
               </div>
             </div>
@@ -427,7 +443,7 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
           {flow === 'regen-codes' && (
             <div>
               <div style={{ padding: '14px 16px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 10, marginBottom: 16 }}>
-                <strong style={{ color: '#92400e' }}>⚠️ Nouveaux codes — sauvegardez-les maintenant !</strong>
+                <strong style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: 7 }}><AlertTriangle size={16} /> Nouveaux codes — sauvegardez-les maintenant !</strong>
                 <p style={{ color: '#92400e', fontSize: 14, marginTop: 6, marginBottom: 0 }}>Les anciens codes sont désormais invalides.</p>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
@@ -438,10 +454,10 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button style={btnGray} onClick={() => downloadRecoveryCodes(recoveryCodes)}>
-                  ⬇️ Télécharger (.txt)
+                <button style={{ ...btnGray, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={() => downloadRecoveryCodes(recoveryCodes)}>
+                  <Download size={16} /> Télécharger (.txt)
                 </button>
-                <button style={btnGreen} onClick={reset}>✅ J&apos;ai sauvegardé → Fermer</button>
+                <button style={{ ...btnGreen, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={reset}><CheckCircle2 size={16} /> J&apos;ai sauvegardé → Fermer</button>
               </div>
             </div>
           )}
@@ -451,7 +467,7 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
       {/* ── Activité récente ── */}
       <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 22 }}>🌐</span>
+          <Globe size={20} />
           <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209' }}>Activité récente</span>
         </div>
         <div style={{ padding: '16px 22px' }}>
@@ -526,12 +542,12 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, background: '#f0ebe3', padding: 4, borderRadius: 10, marginBottom: 20, width: 'fit-content' }}>
-        {[
-          { id: 'auth'     as const, label: '🔐 Authentification' },
-          { id: 'actions'  as const, label: '⚡ Actions admin' },
-          { id: 'emails'   as const, label: '📧 Logs emails' },
-          { id: 'security' as const, label: '🛡️ Sécurité du compte' },
-        ].map(t => (
+        {([
+          { id: 'auth'     as const, label: 'Authentification', icon: KeyRound },
+          { id: 'actions'  as const, label: 'Actions admin', icon: Zap },
+          { id: 'emails'   as const, label: 'Logs emails', icon: Mail },
+          { id: 'security' as const, label: 'Sécurité du compte', icon: Shield },
+        ] as { id: LogTab; label: string; icon: LucideIcon }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '9px 20px', borderRadius: 8, fontSize: 17, fontWeight: 700,
             background: tab === t.id ? 'white' : 'transparent',
@@ -539,7 +555,8 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
             border: 'none', cursor: 'pointer', fontFamily: 'inherit',
             boxShadow: tab === t.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             transition: 'all 0.15s',
-          }}>{t.label}</button>
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+          }}><t.icon size={16} />{t.label}</button>
         ))}
       </div>
 
@@ -604,7 +621,10 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
                       <td style={tdStyle}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
                       <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
                         <Badge type={ACTION_BADGE[log.action] ?? 'event-info'}>
-                          {ACTION_LABELS[log.action] ?? log.action.replace('action:', '')}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {ACTION_ICONS[log.action] && (() => { const Icon = ACTION_ICONS[log.action]; return <Icon size={13} /> })()}
+                            {ACTION_LABELS[log.action] ?? log.action.replace('action:', '')}
+                          </span>
                         </Badge>
                       </td>
                       <td style={{ ...tdStyle, maxWidth: 320, wordBreak: 'break-word' }}>{log.description ?? '—'}</td>
@@ -623,7 +643,7 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
           {/* Barre de recherche */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'white', border: '1.5px solid #e8e0d4', borderRadius: 9, padding: '8px 14px', flex: 1 }}>
-              <span>🔍</span>
+              <Search size={16} color="#a89478" />
               <input
                 type="text"
                 value={emailSearch}
@@ -664,7 +684,9 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
                         <td style={tdStyle}>{log.school?.name ?? '—'}</td>
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
                           <Badge type={log.status === 'sent' ? 'event-success' : 'event-error'}>
-                            {log.status === 'sent' ? '✅ Envoyé' : '❌ Échoué'}
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              {log.status === 'sent' ? <><CheckCircle2 size={13} /> Envoyé</> : <><XCircle size={13} /> Échoué</>}
+                            </span>
                           </Badge>
                         </td>
                         <td style={{ ...tdStyle, color: '#a89478', fontSize: 13 }}>{log.provider ?? '—'}</td>
@@ -676,8 +698,8 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
           </div>
 
           {/* Note : master admin emails (invitations, approbations) loggés dans Actions admin */}
-          <div style={{ padding: '12px 16px', background: '#eff6ff', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, fontSize: 14, color: '#1e40af', fontWeight: 600 }}>
-            ℹ️ Les emails d&apos;invitation et d&apos;approbation envoyés par le master admin sont tracés dans l&apos;onglet <strong>Actions admin</strong>.
+          <div style={{ padding: '12px 16px', background: '#eff6ff', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, fontSize: 14, color: '#1e40af', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Info size={16} style={{ flexShrink: 0 }} /> Les emails d&apos;invitation et d&apos;approbation envoyés par le master admin sont tracés dans l&apos;onglet <strong>Actions admin</strong>.
           </div>
         </div>
       )}

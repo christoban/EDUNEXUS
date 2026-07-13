@@ -4,9 +4,9 @@
   "status_labels": {
     "DRAFT": "Draft",
     "SUBMITTED": "Pending",
-    "VALIDATED": "✓ Validated",
-    "LOCKED": "🔒 Locked",
-    "REJECTED": "✕ Rejected"
+    "VALIDATED": "Validated",
+    "LOCKED": "Locked",
+    "REJECTED": "Rejected"
   },
   "filters": {
     "all_classes": "All classes",
@@ -15,8 +15,8 @@
     "load": "Load"
   },
   "actions": {
-    "validate": "✓ Validate",
-    "validate_all": "✅ Validate all ({count})",
+    "validate": "Validate",
+    "validate_all": "Validate all ({count})",
     "retry": "Retry"
   },
   "table_headers": {
@@ -42,9 +42,9 @@
       "all_periods": "All terms"
     },
     "decisions": {
-      "PASS": "✅ Passed",
-      "REPEAT": "↩️ Repeating",
-      "DELIBERATION": "⚖️ Under deliberation"
+      "PASS": "Passed",
+      "REPEAT": "Repeating",
+      "DELIBERATION": "Under deliberation"
     },
     "kpi": {
       "total_sessions": "Total sessions",
@@ -53,12 +53,12 @@
       "bulletins_published": "Report cards published"
     },
     "actions": {
-      "publishing": "⏳ Publishing…",
-      "publish_bulletins": "📤 Publish report cards",
-      "official_report": "📋 Official minutes",
-      "honor_roll": "🏆 Honor roll",
-      "honor_roll_annual": "🏆 Annual",
-      "report": "📄 Report",
+      "publishing": "Publishing…",
+      "publish_bulletins": "Publish report cards",
+      "official_report": "Official minutes",
+      "honor_roll": "Honor roll",
+      "honor_roll_annual": "Annual",
+      "report": "Report",
       "close": "✕",
       "retry": "Retry"
     },
@@ -75,12 +75,12 @@
       "empty": "No students in this session."
     },
     "status_banners": {
-      "OPEN": "⏳ Waiting for Vice-Principal to lock",
-      "LOCKED": "🔒 This council is locked."
+      "OPEN": "Waiting for Vice-Principal to lock",
+      "LOCKED": "This council is locked."
     },
     "session_badges": {
-      "LOCKED": "🔒 Locked",
-      "OPEN": "📖 Open"
+      "LOCKED": "Locked",
+      "OPEN": "Open"
     },
     "empty_states": {
       "title": "No class councils",
@@ -89,7 +89,7 @@
     "toasts": {
       "server_error": "Server error",
       "load_error": "Loading error",
-      "publish_success": "✅ {count} report card(s) published — SMS sent to parents",
+      "publish_success": "{count} report card(s) published — SMS sent to parents",
       "nothing_to_publish": "No report cards to publish for this class",
       "publish_error": "Publishing error"
     }
@@ -106,10 +106,10 @@
       "loading": "Loading…",
       "select_placeholder": "Select a class",
       "load": "Load",
-      "loading_button": "⏳ Loading…"
+      "loading_button": "Loading…"
     },
     "checks": {
-      "section_title": "🔍 Pre-check — {className}",
+      "section_title": "Pre-check — {className}",
       "notes": {
         "no_grades_title": "No grades recorded",
         "no_grades_sub": "Enter grades before generating",
@@ -123,18 +123,18 @@
         "unlocked_sub": "The Vice-Principal must lock the class council before generation"
       },
       "readiness": {
-        "ready_title": "✅ Ready for generation",
+        "ready_title": "Ready for generation",
         "ready_sub": "All conditions are met",
         "not_ready_title": "Not ready",
         "not_ready_sub": "Resolve the issues above before generating"
       }
     },
     "actions": {
-      "generate": "📄 Generate report cards →",
-      "generating": "⏳ Generating…",
-      "export_zip": "📦 ZIP",
-      "send": "📤 Send",
-      "view_pdf": "👁 PDF"
+      "generate": "Generate report cards →",
+      "generating": "Generating…",
+      "export_zip": "ZIP",
+      "send": "Send",
+      "view_pdf": "PDF"
     },
     "table_headers": {
       "student": "Student",

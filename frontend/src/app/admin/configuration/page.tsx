@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircle2, Loader2, PartyPopper, XCircle } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import ConversationalOnboarding, { type OnboardingState } from './ConversationalOnboarding'
 import AnimatedBackground from '@/components/AnimatedBackground'
@@ -197,11 +198,11 @@ export default function ConfigurationPage() {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: done ? 'var(--green-light)' : active ? 'var(--bg)' : 'var(--bg)', borderRadius: 10, border: `1.5px solid ${done ? 'rgba(5,150,105,0.2)' : 'var(--border)'}`, transition: 'all 0.3s' }}>
                   <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {done ? (
-                      <span style={{ fontSize: 20, animation: 'edu-checkIn 0.3s ease both' }}>✅</span>
+                      <span style={{ display: 'flex', color: 'var(--green)', animation: 'edu-checkIn 0.3s ease both' }}><CheckCircle2 size={20} /></span>
                     ) : active ? (
                       <div style={{ width: 20, height: 20, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.8s linear infinite' }} />
                     ) : (
-                      <span style={{ fontSize: 18, opacity: 0.35 }}>⏳</span>
+                      <span style={{ display: 'flex', opacity: 0.35 }}><Loader2 size={18} /></span>
                     )}
                   </div>
                   <span style={{ fontSize: 15, fontWeight: done ? 700 : 500, color: done ? 'var(--green)' : active ? 'var(--text)' : 'var(--text3)' }}>
@@ -227,7 +228,7 @@ export default function ConfigurationPage() {
         {/* Célébration — particules dorées/vertes, teinte fixe */}
         <AnimatedBackground variant="celebration" style={{ zIndex: 0 }} />
         <div style={{ ...CARD, maxWidth: 480, textAlign: 'center', animation: 'edu-fadeUp 0.4s ease both', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 64, marginBottom: 12, animation: 'edu-popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}>🎉</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, animation: 'edu-popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}><PartyPopper size={64} /></div>
           <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
             Votre établissement est configuré et prêt !
           </div>
@@ -291,8 +292,8 @@ export default function ConfigurationPage() {
       </div>
 
       {activateError && (
-        <div style={{ maxWidth: 560, width: '100%', background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: 'var(--red)', fontSize: 14, fontWeight: 600 }}>
-          ❌ {activateError}
+        <div style={{ maxWidth: 560, width: '100%', background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, color: 'var(--red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <XCircle size={16} style={{ flexShrink: 0 }} /> {activateError}
         </div>
       )}
 

@@ -1,6 +1,6 @@
 {
   "dashboard": {
-    "greeting": "Bonjour, {name} 👋",
+    "greeting": "Bonjour, {name}",
     "matricule_label": "Matricule :",
     "average_label": "Moyenne générale /20",
     "general_avg_label": "Moyenne générale",
@@ -8,12 +8,12 @@
     "rate_label": "Taux de présence",
     "subjects_label": "Matières suivies",
     "rank_short": "Rang",
-    "today_title": "📅 Prochains cours aujourd'hui",
+    "today_title": "Prochains cours aujourd'hui",
     "today_empty": "Aucun cours aujourd'hui",
-    "health_high": "PROGRESSION 📈",
-    "health_medium_high": "STABLE ✅",
-    "health_medium": "MOYEN ⚠️",
-    "health_low": "À SURVEILLER 🚨",
+    "health_high": "PROGRESSION",
+    "health_medium_high": "STABLE",
+    "health_medium": "MOYEN",
+    "health_low": "À SURVEILLER",
     "trend_this_term": "Ce trimestre",
     "trend_term": "Trimestre",
     "trend_year": "Année"
@@ -68,7 +68,7 @@
     "absences_label": "Absences",
     "late_label": "Retards",
     "excused_label": "Excusés",
-    "weekly_evolution": "📊 Évolution hebdomadaire",
+    "weekly_evolution": "Évolution hebdomadaire",
     "week_present": "100% présent",
     "week_absent": "{pct}% absent",
     "empty_title": "Aucune donnée de présence",
@@ -93,16 +93,16 @@
     "rank_label": "Rang / {total} élèves",
     "empty_title": "Aucun bulletin disponible",
     "empty_subtitle": "Les bulletins apparaîtront ici une fois générés",
-    "download_button": "📥 Télécharger le bulletin PDF",
-    "downloading_label": "⏳ Téléchargement...",
-    "offline_label": "📶 PDF indisponible hors-ligne",
+    "download_button": "Télécharger le bulletin PDF",
+    "downloading_label": "Téléchargement...",
+    "offline_label": "PDF indisponible hors-ligne",
     "toast_download_offline": "Téléchargement PDF indisponible hors-ligne",
     "toast_download_error": "Erreur de téléchargement",
     "toast_download_success": "Bulletin téléchargé"
   },
   "common": {
-    "retry": "🔄 Réessayer",
+    "retry": "Réessayer",
     "error_fallback": "Erreur",
-    "offline_badge": "📦 Données du {date} — hors-ligne"
+    "offline_badge": "Données du {date} — hors-ligne"
   }
 }

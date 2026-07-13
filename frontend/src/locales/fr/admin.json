@@ -68,11 +68,36 @@
   },
   "users": {
     "i18n_ext": {
-      "toast": { "downloadError": "Erreur de téléchargement", "networkError": "Erreur réseau", "userDeleted": "Utilisateur supprimé", "importError": "Erreur lors de l'import", "error": "Erreur" },
-      "table": { "user": "Utilisateur", "role": "Rôle", "status": "Statut", "lastLogin": "Dernière connexion", "classTitle": "Classe / Titre", "actions": "Actions" },
-      "status": { "active": "✓ Actif", "inactive": "Inactif" },
-      "form": { "selectClass": "Sélectionner une classe…", "noSubjects": "Aucune matière disponible", "male": "Masculin", "female": "Féminin", "selectPost": "Sélectionner un poste…" },
-      "actions": { "cancel": "Annuler", "close": "Fermer" },
+      "toast": {
+        "downloadError": "Erreur de téléchargement",
+        "networkError": "Erreur réseau",
+        "userDeleted": "Utilisateur supprimé",
+        "importError": "Erreur lors de l'import",
+        "error": "Erreur"
+      },
+      "table": {
+        "user": "Utilisateur",
+        "role": "Rôle",
+        "status": "Statut",
+        "lastLogin": "Dernière connexion",
+        "classTitle": "Classe / Titre",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Actif",
+        "inactive": "Inactif"
+      },
+      "form": {
+        "selectClass": "Sélectionner une classe…",
+        "noSubjects": "Aucune matière disponible",
+        "male": "Masculin",
+        "female": "Féminin",
+        "selectPost": "Sélectionner un poste…"
+      },
+      "actions": {
+        "cancel": "Annuler",
+        "close": "Fermer"
+      },
       "rowsDetected": "{n} ligne(s) détectée(s)",
       "certificatSub": "Atteste l'inscription de l'élève",
       "carteSub": "Recto (photo, classe) + Verso (règlement)",
@@ -128,8 +153,8 @@
     },
     "count_label": "{count} compte(s)",
     "btn_create": "+ Créer",
-    "btn_invite": "✉️ Inviter",
-    "btn_import": "📊 Import Excel",
+    "btn_invite": "Inviter",
+    "btn_import": "Import Excel",
     "invite_modal": {
       "title": "Inviter un utilisateur",
       "subtitle": "Un mot de passe temporaire sera généré automatiquement.",
@@ -140,19 +165,19 @@
       "email_label": "Email *",
       "email_placeholder": "marie.ngono@lycee.cm",
       "role_label": "Rôle",
-      "role_teacher": "👨‍🏫 Enseignant",
-      "role_staff": "🔍 Personnel (Staff)",
-      "role_student": "👨‍🎓 Élève",
-      "role_parent": "👨‍👩‍👧 Parent",
+      "role_teacher": "Enseignant",
+      "role_staff": "Personnel (Staff)",
+      "role_student": "Élève",
+      "role_parent": "Parent",
       "staff_positions": "Postes (cochez un ou plusieurs)",
       "loading_titles": "Chargement des postes…",
-      "custom_title": "🛠 Personnalisé",
+      "custom_title": "Personnalisé",
       "custom_subtitle": "Sélectionner les permissions manuellement",
       "custom_perms_header": "Permissions individuelles",
       "merged_count": "{count} permission(s) assignée(s)",
       "merged_plus": "+ {count} autres",
-      "send": "✉️ Envoyer l'invitation",
-      "sending": "⏳ Envoi...",
+      "send": "Envoyer l'invitation",
+      "sending": "Envoi...",
       "success": "{name} invité(e) avec succès",
       "errors": {
         "required": "Prénom, nom et email sont obligatoires",
@@ -169,27 +194,46 @@
       "step1_desc": "Utilisez notre modèle pour éviter les erreurs",
       "step2_title": "Importer le fichier",
       "step3_title": "Résultat",
-      "steps": ["Choix", "Modèle", "Import", "Résultat"],
-      "choose_student": "👨‍🎓 Élèves + Parents",
+      "steps": [
+        "Choix",
+        "Modèle",
+        "Import",
+        "Résultat"
+      ],
+      "choose_student": "Élèves + Parents",
       "choose_student_desc": "Importez vos élèves avec leurs parents (optionnel)",
-      "choose_teacher": "👨‍🏫 Enseignants",
+      "choose_teacher": "Enseignants",
       "choose_teacher_desc": "Importez vos enseignants avec leurs matières",
-      "download": "📥 Télécharger le modèle {type}",
+      "download": "Télécharger le modèle {type}",
       "download_type_student": "élèves",
       "download_type_teacher": "enseignants",
       "already_have_file": "J'ai déjà mon fichier → Passer à l'import",
       "upload_prompt": "Cliquez pour sélectionner un fichier",
       "upload_hint": ".xlsx ou .xls — 5 MB max",
       "preview": "Aperçu ({shown} premières lignes sur {total})",
-      "preview_headers_student": ["Nom", "Prénom", "Email", "Téléphone", "Classe"],
-      "preview_headers_teacher": ["Nom", "Prénom", "Email", "Téléphone", "Matières", "Prof. Principal", "AP"],
-      "btn_back": "← Changer",
-      "btn_confirm": "✅ Confirmer l'import",
+      "preview_headers_student": [
+        "Nom",
+        "Prénom",
+        "Email",
+        "Téléphone",
+        "Classe"
+      ],
+      "preview_headers_teacher": [
+        "Nom",
+        "Prénom",
+        "Email",
+        "Téléphone",
+        "Matières",
+        "Prof. Principal",
+        "AP"
+      ],
+      "btn_back": "Changer",
+      "btn_confirm": "Confirmer l'import",
       "btn_import_another": "Importer un autre fichier",
       "btn_close": "Fermer",
-      "loading": "⏳ Traitement en cours...",
+      "loading": "Traitement en cours...",
       "loading_sub": "Création des comptes et envoi des invitations",
-      "status_processing": "⏳ Traitement en cours...",
+      "status_processing": "Traitement en cours...",
       "result_success": "{count} compte(s) créé(s)",
       "result_errors": "{count} ligne(s) ignorée(s)",
       "result_pp": "{count} PP assigné(s)",
@@ -208,7 +252,7 @@
       "last_name_label": "Nom",
       "email_label": "Email",
       "required_error": "Prénom et nom obligatoires",
-      "btn_save": "💾 Enregistrer",
+      "btn_save": "Enregistrer",
       "toast_success": "Utilisateur modifié"
     },
     "transfer_modal": {
@@ -221,9 +265,9 @@
     },
     "doc_modal": {
       "title": "Générer un document",
-      "certificat": "📄 Certificat de scolarité",
-      "carte": "🪪 Carte d'identité scolaire",
-      "lettre_transfert": "📄 Lettre de transfert",
+      "certificat": "Certificat de scolarité",
+      "carte": "Carte d'identité scolaire",
+      "lettre_transfert": "Lettre de transfert",
       "loading": "Génération…",
       "toast_error": "Erreur génération PDF"
     },
@@ -254,10 +298,10 @@
       "yesterday_time": "Hier {time}"
     },
     "action_menu": {
-      "edit": "✏️ Modifier",
-      "change_class": "🔄 Changer de classe",
-      "generate_doc": "📄 Générer document",
-      "delete": "🗑️ Supprimer"
+      "edit": "Modifier",
+      "change_class": "Changer de classe",
+      "generate_doc": "Générer document",
+      "delete": "Supprimer"
     },
     "no_users": "Aucun utilisateur",
     "search_placeholder": "Rechercher…"
@@ -267,19 +311,52 @@
     "subtitle": "{count} classe(s) · {students} élève(s)",
     "btn_create": "+ Créer une classe",
     "second_cycle_series": [
-      { "value": "A4-Allemand", "label": "A4 – Allemand" },
-      { "value": "A4-Arabe", "label": "A4 – Arabe" },
-      { "value": "A4-Chinois", "label": "A4 – Chinois" },
-      { "value": "A4-Espagnol", "label": "A4 – Espagnol" },
-      { "value": "A", "label": "A" },
-      { "value": "C", "label": "C" },
-      { "value": "D", "label": "D" },
-      { "value": "TI", "label": "TI" }
+      {
+        "value": "A4-Allemand",
+        "label": "A4 – Allemand"
+      },
+      {
+        "value": "A4-Arabe",
+        "label": "A4 – Arabe"
+      },
+      {
+        "value": "A4-Chinois",
+        "label": "A4 – Chinois"
+      },
+      {
+        "value": "A4-Espagnol",
+        "label": "A4 – Espagnol"
+      },
+      {
+        "value": "A",
+        "label": "A"
+      },
+      {
+        "value": "C",
+        "label": "C"
+      },
+      {
+        "value": "D",
+        "label": "D"
+      },
+      {
+        "value": "TI",
+        "label": "TI"
+      }
     ],
     "filiere_options": [
-      { "value": "Scientifique", "label": "Scientifique" },
-      { "value": "Littéraire", "label": "Littéraire" },
-      { "value": "Technique", "label": "Technique" }
+      {
+        "value": "Scientifique",
+        "label": "Scientifique"
+      },
+      {
+        "value": "Littéraire",
+        "label": "Littéraire"
+      },
+      {
+        "value": "Technique",
+        "label": "Technique"
+      }
     ],
     "level_badges": {
       "college": "Collège",
@@ -300,12 +377,12 @@
       "GENERAL": "Général"
     },
     "serie_label": "Série {serie}",
-    "btn_pp": "🧑‍💼 PP",
-    "btn_edit": "✏️ Modifier",
-    "btn_subgroups": "🔗 Sous-groupes",
-    "btn_lv2": "🌍 LV2",
-    "btn_pebs": "📖 PEBS",
-    "btn_alevel": "🎓 A-Level",
+    "btn_pp": "PP",
+    "btn_edit": "Modifier",
+    "btn_subgroups": "Sous-groupes",
+    "btn_lv2": "LV2",
+    "btn_pebs": "PEBS",
+    "btn_alevel": "A-Level",
     "create_modal": {
       "title": "Créer une classe",
       "name_label": "Nom de la classe *",
@@ -362,7 +439,7 @@
       "new_name_label": "Nouveau sous-groupe",
       "new_name_placeholder": "Ex: Groupe A, Groupe Bilingue…",
       "btn_create": "+ Créer",
-      "btn_assign": "👥 Assigner des élèves",
+      "btn_assign": "Assigner des élèves",
       "btn_close": "Fermer",
       "assign_modal": {
         "selected_error": "Sélectionnez au moins un élève",
@@ -371,7 +448,7 @@
       }
     },
     "lv2": {
-      "title": "🌍 Répartition LV2 — {name}",
+      "title": "Répartition LV2 — {name}",
       "unassigned": "Non affectés: {count}",
       "no_students": "Aucun élève dans cette classe",
       "bulk_selected": "{count} élève(s) sélectionné(s)",
@@ -408,7 +485,7 @@
       "toast_bulk_done": "{count} élève(s) mis à jour"
     },
     "alevel": {
-      "title": "🎓 A-Level — {name}",
+      "title": "A-Level — {name}",
       "max_error": "Maximum {max} matières",
       "toast_bulk_done": "{count} élève(s) préremplis"
     },
@@ -443,21 +520,35 @@
     },
     "btn_create": "+ Créer une matière",
     "btn_create_dept": "+ Créer un département",
-    "btn_sync": "🔄 Sync Matières",
-    "syncing": "⏳ Sync…",
+    "btn_sync": "Sync Matières",
+    "syncing": "Sync…",
     "sync_title": "Créer rétroactivement les coefficients manquants",
     "search_placeholder": "Rechercher une matière…",
-    "table_headers": ["Matière", "Code", "Coeff.", "H/sem.", "Type", "Enseignants", "Actions"],
-    "class_view_headers": ["Matière", "Code", "Coefficient", "Série", "Actions"],
+    "table_headers": [
+      "Matière",
+      "Code",
+      "Coeff.",
+      "H/sem.",
+      "Type",
+      "Enseignants",
+      "Actions"
+    ],
+    "class_view_headers": [
+      "Matière",
+      "Code",
+      "Coefficient",
+      "Série",
+      "Actions"
+    ],
     "assign_status": {
       "assigned": "{count} assigné(s)",
       "unassigned": "Non assigné"
     },
     "action_menu": {
-      "assign_teacher": "👥 Assigner enseignant",
-      "edit": "✏️ Modifier",
-      "bac_coefficients": "📊 Coefficients BAC",
-      "delete": "🗑 Supprimer"
+      "assign_teacher": "Assigner enseignant",
+      "edit": "Modifier",
+      "bac_coefficients": "Coefficients BAC",
+      "delete": "Supprimer"
     },
     "create_modal": {
       "title": "Créer une matière",
@@ -481,7 +572,7 @@
       "program_label": "Programme de <strong>{name}</strong>",
       "count_badge": "{count} matière(s)",
       "btn_add": "+ Ajouter",
-      "class_only_badge": "📌 cette classe",
+      "class_only_badge": "cette classe",
       "first_cycle": "1er cycle",
       "no_selection": "Sélectionnez une classe pour voir son programme.",
       "add_modal": {
@@ -493,7 +584,7 @@
         "coeff_placeholder": "Ex: 1, 2, 3…",
         "scope_label": "Appliquer à",
         "scope_all": "Pour toutes les classes du même niveau",
-        "scope_only": "📌 Cette classe uniquement",
+        "scope_only": "Cette classe uniquement",
         "btn_add": "Ajouter",
         "btn_cancel": "Annuler",
         "adding": "Ajout…",
@@ -556,7 +647,7 @@
         "btn_delete": "Supprimer le département",
         "delete_confirm": "Supprimer le département \"{name}\" ?"
       },
-      "toast_moved": "✅ {subject} déplacé vers {target}",
+      "toast_moved": "{subject} déplacé vers {target}",
       "toast_move_error": "Erreur lors du déplacement"
     },
     "teacher_view": {
@@ -566,8 +657,8 @@
       "all_assigned": "Toutes les matières sont déjà assignées",
       "btn_add": "+ Ajouter une matière",
       "choose_subject": "Choisir une matière",
-      "unassigned_title": "⚠️ Matières sans enseignant",
-      "all_covered": "✅ Toutes les matières ont au moins un enseignant",
+      "unassigned_title": "Matières sans enseignant",
+      "all_covered": "Toutes les matières ont au moins un enseignant",
       "remove_confirm": "Retirer {subject} de {teacher} ?"
     },
     "delete_confirm": "Supprimer la matière \"{name}\" ? Cette action est irréversible.",
@@ -579,20 +670,29 @@
   "settings": {
     "title": "Paramètres",
     "subtitle": "Configuration de l'établissement",
-    "tabs": ["Profil", "Notifications", "Sécurité", "Pédagogie", "Préférences", "Activités", "Emails", "Structure"],
+    "tabs": [
+      "Profil",
+      "Notifications",
+      "Sécurité",
+      "Pédagogie",
+      "Préférences",
+      "Activités",
+      "Emails",
+      "Structure"
+    ],
     "profile": {
-      "logo_section": "🖼️ Logo de l'établissement",
+      "logo_section": "Logo de l'établissement",
       "current_logo": "Logo actuel",
       "no_logo": "Aucun logo défini",
       "logo_desc": "Ce logo apparaît dans la barre latérale de tous les utilisateurs de votre établissement",
-      "btn_change": "🔄 Changer",
-      "btn_upload": "📤 Téléverser",
-      "btn_delete": "🗑️ Supprimer",
+      "btn_change": "Changer",
+      "btn_upload": "Téléverser",
+      "btn_delete": "Supprimer",
       "logo_hint": "PNG, JPG, SVG · max 1.5 MB · Recommandé : 256×256 px",
       "logo_too_large": "Logo trop volumineux (max 1.5 MB)",
-      "toast_updated": "Logo mis à jour avec succès",
+      "toast_updated": "Sous-domaine mis à jour avec succès",
       "toast_deleted": "Logo supprimé",
-      "identity_section": "🏫 Identité de l'établissement",
+      "identity_section": "Identité de l'établissement",
       "name_label": "Nom de l'établissement",
       "type_label": "Type d'établissement",
       "city_label": "Ville",
@@ -601,39 +701,63 @@
       "minesec_code_label": "Code établissement MINESEC",
       "minesec_code_placeholder": "Ex : NO02140H27",
       "minesec_code_hint": "Trouvable sur cartescolaire.cm — nécessaire pour rechercher automatiquement le matricule d'un élève.",
-      "btn_save": "💾 Enregistrer les modifications",
+      "btn_save": "Enregistrer les modifications",
       "toast_saved": "Profil sauvegardé avec succès",
-      "subdomain_section": "🌐 Sous-domaine ZekoulABia",
+      "subdomain_section": "Sous-domaine ZekoulABia",
       "subdomain_desc": "Votre établissement est accessible sur :",
-      "subdomain_warning": "⚠️ Changer votre sous-domaine modifiera l'URL d'accès de tous vos utilisateurs. Les anciens liens ne fonctionneront plus.",
+      "subdomain_warning": "Changer votre sous-domaine modifiera l'URL d'accès de tous vos utilisateurs. Les anciens liens ne fonctionneront plus.",
       "subdomain_label": "Modifier le sous-domaine",
       "subdomain_placeholder": "mon-etablissement",
-      "checking": "⏳ Vérification de disponibilité…",
-      "available": "✅ Disponible",
-      "taken": "❌ Déjà utilisé",
+      "checking": "Vérification de disponibilité…",
+      "available": "Disponible",
+      "taken": "Déjà utilisé",
       "min_chars": "Minimum 3 caractères",
       "hint": "Lettres minuscules, chiffres et tirets uniquement · 3-30 caractères",
-      "btn_update": "🌐 Mettre à jour",
-      "updating": "⏳ Mise à jour…",
-      "toast_updated": "Sous-domaine mis à jour avec succès",
+      "btn_update": "Mettre à jour",
+      "updating": "Mise à jour…",
       "invalid_format": "Format invalide : lettres, chiffres et tirets uniquement",
       "too_short": "Minimum 3 caractères"
     },
     "notifications": {
-      "title": "🔔 Préférences de notifications",
+      "title": "Préférences de notifications",
       "load_error": "Impossible de charger les préférences de notifications.",
-      "btn_retry": "🔄 Réessayer",
+      "btn_retry": "Réessayer",
       "toast_saved": "Préférence enregistrée",
       "rows": [
-        { "key": "smsAbsences", "icon": "📱", "label": "SMS Absences", "sub": "Envoyer un SMS au parent quand son enfant est marqué absent" },
-        { "key": "smsPayments", "icon": "📱", "label": "SMS Paiements", "sub": "Confirmer chaque paiement Mobile Money par SMS" },
-        { "key": "smsBulletins", "icon": "📱", "label": "SMS Bulletins disponibles", "sub": "Notifier les parents quand un bulletin est publié" },
-        { "key": "emailDigestAdmin", "icon": "📧", "label": "Résumé hebdomadaire Admin", "sub": "Recevoir un résumé hebdomadaire par email (statistiques, alertes)" },
-        { "key": "smsLowBalance", "icon": "📱", "label": "Alerte solde SMS faible", "sub": "Être notifié quand le crédit SMS est presque épuisé" }
+        {
+          "key": "smsAbsences",
+          "icon": "📱",
+          "label": "SMS Absences",
+          "sub": "Envoyer un SMS au parent quand son enfant est marqué absent"
+        },
+        {
+          "key": "smsPayments",
+          "icon": "📱",
+          "label": "SMS Paiements",
+          "sub": "Confirmer chaque paiement Mobile Money par SMS"
+        },
+        {
+          "key": "smsBulletins",
+          "icon": "📱",
+          "label": "SMS Bulletins disponibles",
+          "sub": "Notifier les parents quand un bulletin est publié"
+        },
+        {
+          "key": "emailDigestAdmin",
+          "icon": "📧",
+          "label": "Résumé hebdomadaire Admin",
+          "sub": "Recevoir un résumé hebdomadaire par email (statistiques, alertes)"
+        },
+        {
+          "key": "smsLowBalance",
+          "icon": "📱",
+          "label": "Alerte solde SMS faible",
+          "sub": "Être notifié quand le crédit SMS est presque épuisé"
+        }
       ]
     },
     "security": {
-      "password_policy": "🔑 Politique de mot de passe",
+      "password_policy": "Politique de mot de passe",
       "min_length": "Longueur minimale",
       "require_upper": "Majuscule obligatoire",
       "require_digit": "Chiffre obligatoire",
@@ -642,40 +766,63 @@
       "no": "Non",
       "characters": "{count} caractères",
       "load_error": "Impossible de charger la politique de sécurité.",
-      "btn_edit": "⚙️ Modifier la politique",
+      "btn_edit": "Modifier la politique",
       "toast_updated": "Politique de sécurité mise à jour",
-      "audit_logs": "🛡️ Journaux d'audit",
+      "audit_logs": "Journaux d'audit",
       "audit_desc": "Consultez les dernières connexions et modifications importantes effectuées dans votre établissement.",
-      "btn_view": "📋 Voir les journaux d'audit",
+      "btn_view": "Voir les journaux d'audit",
       "filter_placeholder": "Filtrer par action…",
-      "btn_close": "✕ Fermer",
+      "btn_close": "Fermer",
       "no_logs": "Aucun journal trouvé",
-      "table_headers": ["Date", "Utilisateur", "Action", "Détails"],
+      "table_headers": [
+        "Date",
+        "Utilisateur",
+        "Action",
+        "Détails"
+      ],
       "page_info": "Page {current} / {total}",
-      "btn_prev": "← Précédent",
+      "btn_prev": "Précédent",
       "btn_next": "Suivant →",
       "entries_count": "{count} entrée(s)",
       "modal": {
-        "title": "⚙️ Politique de sécurité",
+        "title": "Politique de sécurité",
         "min_length_label": "Longueur minimale du mot de passe",
         "require_upper_label": "Exiger une majuscule",
         "require_digit_label": "Exiger un chiffre",
         "session_label": "Durée de session avant déconnexion",
         "btn_cancel": "Annuler",
-        "btn_save": "💾 Enregistrer",
-        "saving": "⏳ Enregistrement…"
+        "btn_save": "Enregistrer",
+        "saving": "Enregistrement…"
       },
       "session_options": [
-        { "value": 15, "label": "15 minutes" },
-        { "value": 30, "label": "30 minutes" },
-        { "value": 60, "label": "1 heure" },
-        { "value": 120, "label": "2 heures" },
-        { "value": 240, "label": "4 heures" },
-        { "value": 480, "label": "8 heures" }
+        {
+          "value": 15,
+          "label": "15 minutes"
+        },
+        {
+          "value": 30,
+          "label": "30 minutes"
+        },
+        {
+          "value": 60,
+          "label": "1 heure"
+        },
+        {
+          "value": 120,
+          "label": "2 heures"
+        },
+        {
+          "value": 240,
+          "label": "4 heures"
+        },
+        {
+          "value": 480,
+          "label": "8 heures"
+        }
       ]
     },
     "pedagogy": {
-      "academic_rules": "📚 Règles académiques",
+      "academic_rules": "Règles académiques",
       "pass_mark": "Moyenne de passage (/20)",
       "council_pass_mark": "Moyenne conseil (/20)",
       "grades_per_term": "Notes par trimestre",
@@ -691,16 +838,16 @@
         "anglophone": "Anglophone",
         "bilingual": "Bilingue"
       },
-      "attendance_section": "👥 Gestion des présences",
+      "attendance_section": "Gestion des présences",
       "max_absences": "Absences max. autorisées",
       "late_label": "Retard = Absence",
       "late_sub": "Compter les retards comme des absences",
-      "contributions_section": "💰 Contributions financières",
+      "contributions_section": "Contributions financières",
       "max_first_cycle": "Plafond 1er cycle (FCFA)",
       "max_second_cycle": "Plafond 2nd cycle (FCFA)",
       "block_bulletin_label": "Bloquer bulletins si impayés",
       "block_bulletin_sub": "Empêcher la génération des bulletins si des frais sont dus",
-      "features_section": "⚡ Fonctionnalités",
+      "features_section": "Fonctionnalités",
       "sms_label": "SMS",
       "sms_sub": "Notifications par SMS aux parents",
       "offline_label": "Mode hors-ligne",
@@ -709,21 +856,26 @@
       "ai_sub": "Détection automatique des anomalies de notes",
       "moderation_label": "Modération messages",
       "moderation_sub": "Valider les messages avant envoi",
-      "btn_save": "💾 Enregistrer les modifications",
-      "saving": "⏳ Enregistrement…",
+      "btn_save": "Enregistrer les modifications",
+      "saving": "Enregistrement…",
       "toast_saved": "Paramètres pédagogiques sauvegardés"
     },
     "preferences": {
-      "title": "⚙️ Préférences système"
+      "title": "Préférences système"
     },
     "activities": {
       "search_placeholder": "Rechercher par action ou description…",
       "btn_search": "🔍",
       "title": "📋 Journal d'activités",
       "no_activities": "Aucune activité enregistrée",
-      "table_headers": ["Date", "Action", "Description", "Utilisateur"],
+      "table_headers": [
+        "Date",
+        "Action",
+        "Description",
+        "Utilisateur"
+      ],
       "page_info": "Page {current} / {total}",
-      "btn_prev": "← Précédent",
+      "btn_prev": "Précédent",
       "btn_next": "Suivant →",
       "entries_count": "{count} entrée(s)"
     },
@@ -733,32 +885,37 @@
       "btn_search": "🔍",
       "title": "📧 Journal des emails",
       "no_emails": "Aucun email enregistré",
-      "table_headers": ["Date", "Destinataire", "Sujet", "Statut"],
+      "table_headers": [
+        "Date",
+        "Destinataire",
+        "Sujet",
+        "Statut"
+      ],
       "page_info": "Page {current} / {total}",
-      "btn_prev": "← Précédent",
+      "btn_prev": "Précédent",
       "btn_next": "Suivant →",
       "count": "{count} email(s)"
     },
     "structure": {
-      "title": "🏫 Structure",
-      "structure_warning": "⚠️ Cette action crée uniquement les classes manquantes. Elle ne supprime aucune classe existante.",
-      "classes_per_level": "🏫 Nombre de classes par niveau",
+      "title": "Structure",
+      "structure_warning": "Cette action crée uniquement les classes manquantes. Elle ne supprime aucune classe existante.",
+      "classes_per_level": "Nombre de classes par niveau",
       "no_levels": "Aucun niveau configuré.",
-      "btn_apply": "🏗️ Appliquer la structure",
-      "applying": "⏳ Mise à jour…",
+      "btn_apply": "Appliquer la structure",
+      "applying": "Mise à jour…",
       "toast_saved": "Structure mise à jour",
-      "backup_title": "🗂️ Dernière sauvegarde",
+      "backup_title": "Dernière sauvegarde",
       "no_backup": "Aucune sauvegarde enregistrée pour le moment.",
-      "rgpd_title": "🛡️ RGPD et rétention des logs",
+      "rgpd_title": "RGPD et rétention des logs",
       "log_retention": "Conservation des logs (jours)",
       "log_retention_hint": "Les activités, emails et SMS plus vieux que cette durée seront purgés chaque dimanche.",
       "export_label": "Export RGPD",
       "export_desc": "Téléchargez les données de l'établissement dans un fichier JSON attaché.",
-      "btn_export": "⬇️ Exporter mes données (RGPD)",
-      "exporting": "⏳ Export en cours…",
+      "btn_export": "Exporter mes données (RGPD)",
+      "exporting": "Export en cours…",
       "toast_exported": "Export RGPD téléchargé",
-      "btn_save_retention": "💾 Enregistrer la rétention",
-      "saving_retention": "⏳ Enregistrement…",
+      "btn_save_retention": "Enregistrer la rétention",
+      "saving_retention": "Enregistrement…",
       "toast_retention_saved": "Rétention des logs mise à jour"
     }
   },
@@ -777,32 +934,32 @@
     "noYearHint": "Créez votre première année scolaire.",
     "createYear": "+ Créer une année",
     "currentYearLabel": "Année en cours",
-    "seqInProgress": "⏳ {name} en cours",
+    "seqInProgress": "{name} en cours",
     "currentPeriodLabel": "Période en cours",
     "type": "Type",
     "trimesters": "3 Trimestres",
     "semesters": "2 Semestres",
     "sequenceLabel": "Séquence",
-    "calendarTitle": "📅 Calendrier scolaire — {name}",
-    "editCalendar": "✏️ Modifier le calendrier",
+    "calendarTitle": "Calendrier scolaire — {name}",
+    "editCalendar": "Modifier le calendrier",
     "noPeriod": "Aucune période configurée",
     "setActive": "Définir comme actif",
     "setActiveFem": "Définir comme active",
     "noDates": "Dates non définies",
-    "historyTitle": "🗂️ Historique des années",
+    "historyTitle": "Historique des années",
     "thYear": "Année",
     "thFrom": "Du",
     "thTo": "Au",
     "thStatus": "Statut",
     "thActions": "Actions",
     "archived": "Archivée",
-    "view": "📂 Voir",
+    "view": "Voir",
     "archivesToast": "Archives {name}",
-    "calendar": "📅 Calendrier",
+    "calendar": "Calendrier",
     "dangerZone": "Zone de danger — Actions irréversibles",
     "dangerText": "La clôture de l'année est définitive. Toutes les données seront archivées et l'accès sera verrouillé. Assurez-vous que tous les bulletins ont été générés et validés avant de procéder.",
-    "closingInProgress": "⏳ Clôture en cours…",
-    "closeYear": "🔒 Clôturer l'année {name}",
+    "closingInProgress": "Clôture en cours…",
+    "closeYear": "Clôturer l'année {name}",
     "calModalTitle": "Calendrier scolaire",
     "periodN": "Période {n}",
     "delete": "Supprimer",
@@ -822,15 +979,19 @@
     "addSequence": "+ Ajouter une séquence",
     "addPeriod": "+ Ajouter une période",
     "cancel": "Annuler",
-    "saving": "⏳ Enregistrement…",
-    "save": "💾 Enregistrer",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer",
     "createYearTitle": "Créer une année scolaire",
     "yearPlaceholder": "Ex: 2025-2026",
     "startDateFull": "Date de début *",
     "endDateFull": "Date de fin *",
     "creating": "Création…",
     "create": "Créer",
-    "status": { "done": "✓ Terminé", "active": "⏳ En cours", "pending": "À venir" },
+    "status": {
+      "done": "Terminé",
+      "active": "En cours",
+      "pending": "À venir"
+    },
     "toast": {
       "errServer": "Erreur serveur",
       "errLoad": "Erreur de chargement",
@@ -858,9 +1019,14 @@
   "rh": {
     "title": "Ressources Humaines",
     "subtitle": "Personnel, congés, pointage et documents administratifs",
-    "tabs": { "personnel": "Personnel", "conges": "Congés", "pointage": "Pointage", "documents": "Documents" },
+    "tabs": {
+      "personnel": "Personnel",
+      "conges": "Congés",
+      "pointage": "Pointage",
+      "documents": "Documents"
+    },
     "loading": "Chargement...",
-    "refresh": "↻ Actualiser",
+    "refresh": "Actualiser",
     "staffList": "Liste du personnel",
     "noEmployees": "Aucun employé trouvé",
     "roleTeacher": "Enseignant",
@@ -882,10 +1048,10 @@
     "selfServiceStatus": "Statut self-service",
     "selfServiceCompletedOn": "Confirmé par l'employé le {date}",
     "selfServiceNotCompleted": "Non confirmé par l'employé",
-    "saveFile": "💾 Sauver dossier",
-    "addCareer": "➕ Ajouter carrière",
-    "attestation": "📄 Attestation",
-    "certificat": "📄 Certificat",
+    "saveFile": "Sauver dossier",
+    "addCareer": "Ajouter carrière",
+    "attestation": "Attestation",
+    "certificat": "Certificat",
     "historyTitle": "Historique carrière et congés",
     "selectForHistory": "Sélectionnez un employé pour voir l’historique.",
     "careerEvents": "Événements carrière",
@@ -903,7 +1069,7 @@
     "validatedBy": "Validé par",
     "noHistory": "Aucun historique",
     "dailyAttendance": "Pointage journalier",
-    "saveAttendance": "💾 Enregistrer le pointage",
+    "saveAttendance": "Enregistrer le pointage",
     "date": "Date",
     "attendanceSavedLabel": "Pointage enregistré",
     "noRecentRecord": "Aucun enregistrement récent",
@@ -979,16 +1145,16 @@
     "loading": "Chargement…",
     "selectClass": "Sélectionner une classe",
     "generating": "Génération…",
-    "autoGen": "🤖 Générer automatiquement",
+    "autoGen": "Générer automatiquement",
     "overwriteConfirm": "Écraser les brouillons existants ?",
     "yesGenerate": "Oui, générer",
     "cancel": "Annuler",
     "publishing": "Publication…",
-    "publishBtn": "✅ Valider et publier",
+    "publishBtn": "Valider et publier",
     "slotsFilled": "{filled}/{total} créneaux remplis",
-    "statusPublished": "✅ Publié",
-    "statusAIDraft": "🤖 Généré par IA · Brouillon",
-    "statusDraft": "📝 Brouillon",
+    "statusPublished": "Publié",
+    "statusAIDraft": "Généré par IA · Brouillon",
+    "statusDraft": "Brouillon",
     "bannerRole": "Vue Proviseur",
     "bannerText1": "— Le remplissage manuel est effectué par le",
     "bannerCenseur": "Censeur",
@@ -996,36 +1162,43 @@
     "bannerAutoGen": "générer automatiquement",
     "bannerText3": "pour toutes les classes, puis",
     "bannerPublish": "valider et publier",
-    "genResultsTitle": "🤖 Résultats de la génération automatique",
+    "genResultsTitle": "Résultats de la génération automatique",
     "genToast": "{classes} classe(s) générée(s) · {slots} créneaux placés",
     "genUnplacedSuffix": " · {n} cours non placés",
     "genPanelSummary": "{classes} classes · {slots} créneaux",
-    "classesGenerated": "✅ Classes générées",
+    "classesGenerated": "Classes générées",
     "lessonsCount": "{n} cours",
-    "skipped": "⏭️ Ignorées",
-    "unplacedTitle": "❌ Cours impossibles à placer",
+    "skipped": "Ignorées",
+    "unplacedTitle": "Cours impossibles à placer",
     "retry": "Réessayer",
     "selectClassTitle": "Sélectionnez une classe",
     "selectClassHint": "ou lancez la génération automatique pour créer tous les emplois du temps en une fois.",
     "genInProgress": "Génération en cours…",
-    "autoGenAll": "🤖 Générer automatiquement pour toutes les classes",
+    "autoGenAll": "Générer automatiquement pour toutes les classes",
     "noTimetable": "Aucun emploi du temps",
     "noTimetableHint": "Le Censeur n'a pas encore élaboré l'emploi du temps pour cette classe.",
     "slotsCount": "{filled}/{total} créneaux",
     "skeletonEmpty": "Le squelette a été généré mais aucun créneau n'a encore été rempli.",
     "schedule": "Horaire",
-    "smallBreak": "☕ Petite pause",
-    "bigBreak": "🍽️ Grande pause",
+    "smallBreak": "Petite pause",
+    "bigBreak": "Grande pause",
     "to": "à",
     "noTeacher": "Sans enseignant",
-    "adjustTitle": "🤖 Ajustement en langage naturel (Groq)",
+    "adjustTitle": "Ajustement en langage naturel (Groq)",
     "adjustHint": "Décrivez un ajustement à apporter en français, ex : \"Déplace tous les cours de M. Dupont du lundi au mardi\" ou \"Mets les mathématiques le matin\"",
     "adjustPlaceholder": "Votre instruction en français…",
     "processing": "Traitement…",
-    "apply": "✨ Appliquer",
-    "changesApplied": "✅ Modifications appliquées",
-    "conflicts": "⚠️ Conflits non résolus",
-    "days": { "LUNDI": "Lundi", "MARDI": "Mardi", "MERCREDI": "Mercredi", "JEUDI": "Jeudi", "VENDREDI": "Vendredi", "SAMEDI": "Samedi" }
+    "apply": "Appliquer",
+    "changesApplied": "Modifications appliquées",
+    "conflicts": "Conflits non résolus",
+    "days": {
+      "LUNDI": "Lundi",
+      "MARDI": "Mardi",
+      "MERCREDI": "Mercredi",
+      "JEUDI": "Jeudi",
+      "VENDREDI": "Vendredi",
+      "SAMEDI": "Samedi"
+    }
   },
   "grille_horaire": {
     "title": "Grille horaire",
@@ -1033,7 +1206,7 @@
     "loading": "Chargement…",
     "warnStrong": "Attention :",
     "warnBody": "{n} emploi(s) du temps existe(nt) déjà. Modifier la grille affectera tous les emplois du temps existants.",
-    "settings": "⚙️ Paramètres",
+    "settings": "Paramètres",
     "startTime": "Heure de début",
     "periodDuration": "Durée d'une période (min)",
     "block1": "Bloc 1 → Petite pause",
@@ -1048,19 +1221,31 @@
     "periodsPerDay": "période(s) par jour",
     "endAt": "Fin à",
     "daysPerWeek": "jours/semaine",
-    "saving": "⏳ Enregistrement…",
-    "save": "💾 Enregistrer la configuration",
-    "previewTitle": "👁️ Aperçu de la grille",
+    "saving": "Enregistrement…",
+    "save": "Enregistrer la configuration",
+    "previewTitle": "Aperçu de la grille",
     "configureToPreview": "Configurez au moins une période pour voir l'aperçu.",
     "colStart": "Début",
     "colEnd": "Fin",
     "colDuration": "Durée",
     "colType": "Type",
     "periodN": "Période {n}",
-    "smallBreak": "☕ Petite pause",
-    "bigBreak": "🍽️ Grande pause",
-    "days": { "LUNDI": "Lun", "MARDI": "Mar", "MERCREDI": "Mer", "JEUDI": "Jeu", "VENDREDI": "Ven", "SAMEDI": "Sam" },
-    "toast": { "minPeriod": "Configurez au moins 1 période", "minDay": "Sélectionnez au moins un jour", "err": "Erreur", "saved": "Configuration enregistrée" }
+    "smallBreak": "Petite pause",
+    "bigBreak": "Grande pause",
+    "days": {
+      "LUNDI": "Lun",
+      "MARDI": "Mar",
+      "MERCREDI": "Mer",
+      "JEUDI": "Jeu",
+      "VENDREDI": "Ven",
+      "SAMEDI": "Sam"
+    },
+    "toast": {
+      "minPeriod": "Configurez au moins 1 période",
+      "minDay": "Sélectionnez au moins un jour",
+      "err": "Erreur",
+      "saved": "Configuration enregistrée"
+    }
   },
   "bulletin": {
     "title": "Bulletins"
@@ -1093,7 +1278,7 @@
     "title": "Matricules MINESEC",
     "import_title": "Importer des matricules",
     "import_desc": "Importez un fichier Excel contenant les matricules (format ZekoulABia ou format cartescolaire.cm). Le système détecte automatiquement le format et associe les matricules aux élèves existants.",
-    "select_file": "📥 Sélectionner un fichier",
+    "select_file": "Sélectionner un fichier",
     "start_import": "Lancer l'import",
     "history": "Historique des imports",
     "no_imports": "Aucun import effectué",
@@ -1120,13 +1305,13 @@
     "fuzzy_flagged_toast": "Signalé. Aucun matricule associé — à corriger sur cartescolaire.cm",
     "verify_title": "Vérification cartescolaire.cm",
     "verify_desc": "Vérifiez le matricule d'un élève sur cartescolaire.cm (scraping automatique ou saisie manuelle).",
-    "verify_btn": "🔍 Vérifier le matricule",
+    "verify_btn": "Vérifier le matricule",
     "sync_title": "Synchronisation paiements",
     "sync_desc": "Synchronise les statuts de paiement depuis cartescolaire.cm pour tous les élèves avec matricule.",
-    "sync_btn": "🔄 Synchroniser",
+    "sync_btn": "Synchroniser",
     "verify_recu_title": "Vérifier un reçu",
     "verify_recu_desc": "Saisissez le numéro de reçu fourni par le parent. Le système vérifie automatiquement si possible.",
-    "verify_recu_btn": "✅ Vérifier le reçu",
+    "verify_recu_btn": "Vérifier le reçu",
     "source_auto": "Vérifié automatiquement",
     "source_manual": "Saisi manuellement",
     "minesec_title": "Frais MINESEC",
@@ -1147,7 +1332,7 @@
     "exam_result": "Résultat",
     "exam_pass": "Admis",
     "exam_fail": "Non admis",
-    "student_dashboard_title": "🔍 Consulter les paiements d'un élève",
+    "student_dashboard_title": "Consulter les paiements d'un élève",
     "search_placeholder": "Nom de l'élève…",
     "search_btn": "Rechercher",
     "back_to_search": "Retour à la recherche",
@@ -1161,7 +1346,7 @@
     "error_generic": "Une erreur est survenue",
     "generate_school_btn": "Générer les frais pour toute l'école",
     "generate_school_toast": "{eleves} élève(s) traité(s), {paiements} paiement(s) généré(s)",
-    "verif_btn": "🔍 Vérifier sur cartescolaire.cm",
+    "verif_btn": "Vérifier sur cartescolaire.cm",
     "verif_loading": "Vérification…",
     "verif_field_matricule": "Matricule",
     "verif_field_nom": "Nom complet",
@@ -1170,7 +1355,7 @@
     "verif_field_gender": "Sexe",
     "verif_confirm_btn": "Confirmer et associer",
     "verif_applied_toast": "Matricule associé avec succès",
-    "pay_on_cartescolaire_btn": "💳 Payer sur cartescolaire.cm"
+    "pay_on_cartescolaire_btn": "Payer sur cartescolaire.cm"
   },
   "eleveOnboarding": {
     "title": "Inscriptions en cours d'année",
@@ -1212,7 +1397,7 @@
     "source_IMPORT_MASSE": "Import en masse",
     "source_AUTOSERVICE": "Auto-service",
     "source_CONCOURS": "Concours",
-    "matchWarning": "⚠️ Correspondance possible avec un élève existant ({score}%) — vérifiez avant de valider",
+    "matchWarning": "Correspondance possible avec un élève existant ({score}%) — vérifiez avant de valider",
     "validateBtn": "Valider",
     "rejectBtn": "Rejeter",
     "resendBtn": "Renvoyer le lien",
@@ -1283,7 +1468,7 @@
     "saveSupplement": "Enregistrer",
     "supplementSaved": "Formulaire complémentaire enregistré",
     "generateDescription": "Cette déclaration est générée à partir du vrai fichier officiel MINESEC (jamais un fac-similé). Les données déjà connues de ZekoulABia sont remplies automatiquement ; les champs administratifs rares proviennent du formulaire complémentaire.",
-    "generateBtn": "📊 Générer ma déclaration statistique MINESEC",
+    "generateBtn": "Générer ma déclaration statistique MINESEC",
     "generationBlocked": "Formulaire complémentaire incomplet — génération bloquée",
     "generationSuccess": "Déclaration générée avec succès",
     "downloadBtn": "Télécharger le fichier",
@@ -1298,7 +1483,7 @@
   "minedubStats": {
     "title": "Statistiques MINEDUB",
     "subtitle": "Rapport de préparation pour la collecte statistique MINEDUB (préscolaire/primaire), basé sur les données déjà saisies dans ZekoulABia",
-    "nonOfficialWarning": "⚠️ Document de travail non officiel — aucun questionnaire officiel MINEDUB n'est publiquement disponible. Ce rapport aide à préparer la saisie du vrai questionnaire papier remis par votre IAEB, il ne le remplace pas.",
+    "nonOfficialWarning": "Document de travail non officiel — aucun questionnaire officiel MINEDUB n'est publiquement disponible. Ce rapport aide à préparer la saisie du vrai questionnaire papier remis par votre IAEB, il ne le remplace pas.",
     "tabSupplement": "Formulaire complémentaire",
     "tabGenerer": "Générer le rapport",
     "lastUpdated": "Dernière mise à jour",
@@ -1333,7 +1518,7 @@
     "saveSupplement": "Enregistrer",
     "supplementSaved": "Formulaire complémentaire enregistré",
     "generateDescription": "Génère un rapport PDF de synthèse (non officiel) organisant les données déjà connues par catégorie MINEDUB — à utiliser comme support de préparation avant la vraie collecte IAEB.",
-    "generateBtn": "📋 Générer mon rapport de préparation MINEDUB",
+    "generateBtn": "Générer mon rapport de préparation MINEDUB",
     "generationSuccess": "Rapport généré avec succès",
     "downloadBtn": "Télécharger le PDF",
     "champsNonResolusTitle": "{count} champ(s) non résolu(s) — signalés dans le rapport",

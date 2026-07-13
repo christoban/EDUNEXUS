@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Search, Check, X, MoreHorizontal, Eye, Pencil, Ban, Trash2, RotateCw, Mail, Undo2, CheckCircle2 } from 'lucide-react'
 import Badge from './Badge'
 import type { SchoolTab, SchoolRow, ConfirmActionTarget } from '../_types'
 
@@ -94,7 +95,7 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
 
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #e8e0d4', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0ebe3', border: '1.5px solid #e8e0d4', borderRadius: 9, padding: '8px 12px', flex: 1, minWidth: 200 }}>
-            <span>🔍</span>
+            <Search size={16} color="#a89478" />
             <input type="text" value={searchTerm} onChange={e => onSearchChange(e.target.value)} placeholder="Rechercher par nom, sous-domaine, email..."
               style={{ background: 'none', border: 'none', outline: 'none', fontSize: 17, color: '#1a1209', fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
           </div>
@@ -146,14 +147,14 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center', position: 'relative' }}>
                     {school.status === 'pending' && (
                       <>
-                        <button onClick={() => onApprove(school.id)} style={{ ...btnPrimary, padding: '7px 14px', fontSize: 15 }}>✅</button>
-                        <button onClick={() => onReject(school.id)} style={{ padding: '6px 12px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fee2e2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}>❌</button>
+                        <button onClick={() => onApprove(school.id)} style={{ ...btnPrimary, padding: '7px 14px', fontSize: 15 }}><Check size={16} /></button>
+                        <button onClick={() => onReject(school.id)} style={{ padding: '6px 12px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fee2e2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }}><X size={16} /></button>
                       </>
                     )}
                     <div style={{ position: 'relative' }}>
                       <button onClick={() => setOpenDropdown(openDropdown === school.id ? null : school.id)}
-                        style={{ background: 'none', border: '1.5px solid #d4c8b8', borderRadius: 8, padding: '5px 14px', cursor: 'pointer', fontSize: 16, color: '#6b5c45', transition: 'all 0.15s' }}>
-                        ⋯
+                        style={{ background: 'none', border: '1.5px solid #d4c8b8', borderRadius: 8, padding: '5px 14px', cursor: 'pointer', fontSize: 16, color: '#6b5c45', transition: 'all 0.15s', display: 'flex', alignItems: 'center' }}>
+                        <MoreHorizontal size={16} />
                       </button>
                       {openDropdown === school.id && (
                         <div style={{
@@ -161,16 +162,16 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                           background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 12,
                           boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 230, zIndex: 100, overflow: 'hidden'
                         }}>
-                          <DropdownItem onClick={() => { onViewDetails(school.id); setOpenDropdown(null) }}>🔍 Voir les détails</DropdownItem>
+                          <DropdownItem onClick={() => { onViewDetails(school.id); setOpenDropdown(null) }}><Eye size={16} /> Voir les détails</DropdownItem>
 
                           {/* ── Écoles ACTIVES ────────────────────────────── */}
                           {school.status === 'active' && (
                             <>
-                              <DropdownItem onClick={() => { onToast('Fonctionnalité à venir', 'info'); setOpenDropdown(null) }}>✏️ Modifier les infos</DropdownItem>
+                              <DropdownItem onClick={() => { onToast('Fonctionnalité à venir', 'info'); setOpenDropdown(null) }}><Pencil size={16} /> Modifier les infos</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onSuspend(school.id, school.name, school.subdomain); setOpenDropdown(null) }} danger>⛔ Suspendre</DropdownItem>
+                              <DropdownItem onClick={() => { onSuspend(school.id, school.name, school.subdomain); setOpenDropdown(null) }} danger><Ban size={16} /> Suspendre</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
                             </>
                           )}
 
@@ -183,7 +184,7 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                 onConfirmAction({
                                   title: 'Réactiver l\'établissement',
                                   description: `Réactiver «${school.name}» — tous les utilisateurs retrouveront l'accès.`,
-                                  icon: '✅',
+                                  icon: CheckCircle2,
                                   successMsg: `${school.name} a été réactivée`,
                                   execute: async (auth) => {
                                     const { reactivateSchool } = await import('../_api')
@@ -191,9 +192,9 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                     onRefresh()
                                   },
                                 })
-                              }} color="#059669">✅ Réactiver</DropdownItem>
+                              }} color="#059669"><CheckCircle2 size={16} /> Réactiver</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
                             </>
                           )}
 
@@ -206,7 +207,7 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                 onConfirmAction({
                                   title: 'Réexaminer la demande',
                                   description: `Remettre «${school.name}» en file d'attente pour approbation.`,
-                                  icon: '🔄',
+                                  icon: RotateCw,
                                   successMsg: `La demande de ${school.name} est remise en examen`,
                                   execute: async (auth) => {
                                     const { reexamineSchool } = await import('../_api')
@@ -214,9 +215,9 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                     onRefresh()
                                   },
                                 })
-                              }} color="#1d4ed8">🔄 Réexaminer la demande</DropdownItem>
+                              }} color="#1d4ed8"><RotateCw size={16} /> Réexaminer la demande</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
                             </>
                           )}
 
@@ -229,16 +230,16 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                 onConfirmAction({
                                   title: 'Renvoyer l\'invitation',
                                   description: `Envoyer un nouveau lien d'invitation à «${school.name}».`,
-                                  icon: '📧',
+                                  icon: Mail,
                                   successMsg: 'Invitation renvoyée avec succès',
                                   execute: async (auth) => {
                                     const { resendInvite } = await import('../_api')
                                     await resendInvite(school.id, auth)
                                   },
                                 })
-                              }} color="#059669">📧 Renvoyer l'invitation</DropdownItem>
+                              }} color="#059669"><Mail size={16} /> Renvoyer l'invitation</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
                             </>
                           )}
 
@@ -246,7 +247,7 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                           {school.status === 'pending' && (
                             <>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
                             </>
                           )}
 
@@ -259,7 +260,7 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                 onConfirmAction({
                                   title: "Annuler l'approbation",
                                   description: `Remettre «${school.name}» en attente d'approbation. L'admin ne pourra plus se connecter tant que l'école n'est pas ré-approuvée.`,
-                                  icon: '↩️',
+                                  icon: Undo2,
                                   successMsg: `L'approbation de ${school.name} a été annulée`,
                                   execute: async (auth) => {
                                     const { cancelApproval } = await import('../_api')
@@ -267,9 +268,9 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
                                     onRefresh()
                                   },
                                 })
-                              }} color="#92400e">↩️ Annuler l'approbation</DropdownItem>
+                              }} color="#92400e"><Undo2 size={16} /> Annuler l'approbation</DropdownItem>
                               <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger>🗑️ Supprimer définitivement</DropdownItem>
+                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
                             </>
                           )}
                         </div>

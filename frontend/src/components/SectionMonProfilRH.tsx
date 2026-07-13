@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react'
 
 interface Props { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }
 
@@ -156,12 +157,12 @@ export default function SectionMonProfilRH({ onToast }: Props) {
       </div>
 
       {file?.selfServiceCompletedAt ? (
-        <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid var(--green)', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13, color: 'var(--green)' }}>
-          ✅ {t('completedOn', { date: new Date(file.selfServiceCompletedAt).toLocaleDateString() })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(22,163,74,0.1)', border: '1px solid var(--green)', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13, color: 'var(--green)' }}>
+          <CheckCircle2 size={15} strokeWidth={2} /> {t('completedOn', { date: new Date(file.selfServiceCompletedAt).toLocaleDateString() })}
         </div>
       ) : (
-        <div style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13, color: '#92400e' }}>
-          ⚠️ {t('notCompletedYet')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 13, color: '#92400e' }}>
+          <AlertTriangle size={15} strokeWidth={2} /> {t('notCompletedYet')}
         </div>
       )}
 
@@ -232,8 +233,8 @@ export default function SectionMonProfilRH({ onToast }: Props) {
 
         {docFile && docFile.type.startsWith('image/') && (
           <div style={{ marginTop: 10 }}>
-            <button onClick={analyserAvecIA} disabled={analysing} style={{ ...btnSec, borderColor: 'var(--blue)', color: 'var(--blue)' }}>
-              {analysing ? t('analysing') : `✨ ${t('analyseWithAI')}`}
+            <button onClick={analyserAvecIA} disabled={analysing} style={{ ...btnSec, display: 'flex', alignItems: 'center', gap: 6, borderColor: 'var(--blue)', color: 'var(--blue)' }}>
+              {analysing ? t('analysing') : <><Sparkles size={14} strokeWidth={2} /> {t('analyseWithAI')}</>}
             </button>
             <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>{t('analyseHint')}</p>
           </div>
@@ -263,7 +264,7 @@ export default function SectionMonProfilRH({ onToast }: Props) {
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('analyseNoResult')}</p>
             )}
             {analyseWarnings.map((w, i) => (
-              <p key={i} style={{ fontSize: 11, color: '#b45309', marginTop: 6 }}>⚠️ {w}</p>
+              <p key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#b45309', marginTop: 6 }}><AlertTriangle size={11} strokeWidth={2} /> {w}</p>
             ))}
           </div>
         )}

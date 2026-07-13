@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import PasswordStrengthBar, { getPasswordStrength } from '@/components/PasswordStrengthBar'
+import { CheckCircle2, EyeOff, Eye, AlertTriangle, Loader2, KeyRound } from 'lucide-react'
 
 function ResetPasswordForm() {
   const params    = useSearchParams()
@@ -64,7 +65,7 @@ function ResetPasswordForm() {
 
         {success ? (
           <div style={{ textAlign: 'center', padding: '12px 0' }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+            <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 16 }}><CheckCircle2 size={56} strokeWidth={2} /></div>
             <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', marginBottom: 8 }}>Mot de passe réinitialisé !</div>
             <div style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.6 }}>Vous allez être redirigé vers la page de connexion…</div>
           </div>
@@ -85,7 +86,7 @@ function ResetPasswordForm() {
                   autoFocus
                 />
                 <button type="button" onClick={() => setShowNew(s => !s)} style={eyeSt}>
-                  {showNew ? '🙈' : '👁'}
+                  {showNew ? <EyeOff size={17} strokeWidth={2} /> : <Eye size={17} strokeWidth={2} />}
                 </button>
               </div>
               {newPwd && <PasswordStrengthBar password={newPwd} />}
@@ -105,12 +106,12 @@ function ResetPasswordForm() {
                   autoComplete="new-password"
                 />
                 <button type="button" onClick={() => setShowConfirm(s => !s)} style={eyeSt}>
-                  {showConfirm ? '🙈' : '👁'}
+                  {showConfirm ? <EyeOff size={17} strokeWidth={2} /> : <Eye size={17} strokeWidth={2} />}
                 </button>
               </div>
               {mismatch && (
-                <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
-                  ⚠️ Les mots de passe ne correspondent pas.
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
+                  <AlertTriangle size={13} strokeWidth={2} /> Les mots de passe ne correspondent pas.
                 </div>
               )}
             </div>
@@ -124,8 +125,8 @@ function ResetPasswordForm() {
             <button
               type="submit"
               disabled={loading || !token || strength < 5 || mismatch}
-              style={{ width: '100%', padding: '14px', borderRadius: 12, fontSize: 16, fontWeight: 800, background: (loading || !token || strength < 5 || mismatch) ? 'var(--text3)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: (loading || !token || strength < 5 || mismatch) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: 16 }}>
-              {loading ? '⏳ Réinitialisation…' : '🔐 Réinitialiser mon mot de passe'}
+              style={{ width: '100%', padding: '14px', borderRadius: 12, fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: (loading || !token || strength < 5 || mismatch) ? 'var(--text3)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: (loading || !token || strength < 5 || mismatch) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginBottom: 16 }}>
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Réinitialisation…</> : <><KeyRound size={16} strokeWidth={2} /> Réinitialiser mon mot de passe</>}
             </button>
 
             <div style={{ textAlign: 'center' }}>
@@ -155,4 +156,4 @@ export default function ResetPasswordPage() {
 
 const labelSt: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 6, letterSpacing: '0.5px', textTransform: 'uppercase' }
 const inputSt: React.CSSProperties = { width: '100%', padding: '12px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 10, color: 'var(--text)', fontSize: 15, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }
-const eyeSt: React.CSSProperties = { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, color: 'var(--text3)', padding: 0 }
+const eyeSt: React.CSSProperties = { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', padding: 0 }

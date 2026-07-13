@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { AlertTriangle, CheckCircle2, FileText, Check, X } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -152,14 +153,14 @@ export default function SectionGradeValidation({ onToast }: Props) {
 
       {!loading && error && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>⚠️</span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <span style={{ display: 'inline-flex' }}><AlertTriangle size={16} strokeWidth={2} /></span><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
           <button onClick={fetchPending} style={btnRetry}>Réessayer</button>
         </div>
       )}
 
       {!loading && !error && lots.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: 14 }}>✅</div>
+          <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}><CheckCircle2 size={52} strokeWidth={2} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('gradeValidation.allUpToDate')}</div>
           <div style={{ fontSize: 16, color: 'var(--text3)' }}>{t('gradeValidation.noPendingGrades')}</div>
         </div>
@@ -174,7 +175,7 @@ export default function SectionGradeValidation({ onToast }: Props) {
               <div key={lotKey} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
                 {/* Lot header */}
                 <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{ width: 50, height: 50, borderRadius: 12, background: 'var(--blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📝</div>
+                  <div style={{ width: 50, height: 50, borderRadius: 12, background: 'var(--blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}><FileText size={22} strokeWidth={2} /></div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{t('gradeValidation.lotHeader', { className: lot.className, subjectName: lot.subjectName })}</div>
                     <div style={{ display: 'flex', gap: 16, fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 3 }}>
@@ -220,12 +221,12 @@ export default function SectionGradeValidation({ onToast }: Props) {
                               style={{ padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={() => validateGrade(g.id).then(ok => { if (ok) fetchPending() })}
                               disabled={validating.has(g.id)}>
-                              ✓
+                              <Check size={14} strokeWidth={2} />
                             </button>
                             <button
                               style={{ padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
                               onClick={() => openRejectModal(g.id, `${g.student.firstName} ${g.student.lastName}`)}>
-                              ✕
+                              <X size={14} strokeWidth={2} />
                             </button>
                           </div>
                         </td>

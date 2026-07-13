@@ -1,5 +1,10 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
+import {
+  X, EyeOff, Eye, Shield, AlertTriangle, CheckCircle2, XCircle, Ban, Siren,
+  Trash2, Mail, ArrowLeft,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { ModalId, ConfirmActionTarget } from '../_types'
 import { inviteSchool, suspendSchool, rejectSchool, deleteSchool, changeSchoolPlan, approveSchool, fetchMasterMfaStatus, initiatePasswordChange, changePassword } from '../_api'
 
@@ -41,14 +46,16 @@ function ModalWrap({ children, size = 'md' }: { children: React.ReactNode; size?
   )
 }
 
-function ModalHeader({ title, sub, onClose, danger }: { title: string; sub?: string; onClose: () => void; danger?: boolean }) {
+function ModalHeader({ title, sub, onClose, danger, icon: Icon }: { title: string; sub?: string; onClose: () => void; danger?: boolean; icon?: LucideIcon }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
       <div>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: danger ? '#dc2626' : '#1a1209' }}>{title}</div>
+        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: danger ? '#dc2626' : '#1a1209', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {Icon && <Icon size={22} />}{title}
+        </div>
         {sub && <div style={{ fontSize: 17, color: '#6b5c45', marginTop: 4 }}>{sub}</div>}
       </div>
-      <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: '1.5px solid #d4c8b8', background: 'none', cursor: 'pointer', fontSize: 22, color: '#a89478', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+      <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 8, border: '1.5px solid #d4c8b8', background: 'none', cursor: 'pointer', color: '#a89478', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={20} /></button>
     </div>
   )
 }
@@ -61,7 +68,7 @@ function ModalFooter({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <label style={{ fontSize: 14, fontWeight: 800, color: '#6b5c45', marginBottom: 6, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{label}</label>
@@ -80,8 +87,8 @@ function FieldInput({ placeholder, type = 'text', value, onChange, style, autoCo
         <input type={show ? 'text' : 'password'} placeholder={placeholder} value={value} onChange={onChange} autoComplete={autoComplete}
           style={{ ...base, paddingRight: 40 }} />
         <button type="button" onClick={() => setShow(s => !s)}
-          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', fontSize: 17, padding: 4, lineHeight: 1 }}>
-          {show ? '🙈' : '👁'}
+          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#a89478', cursor: 'pointer', padding: 4, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+          {show ? <EyeOff size={17} /> : <Eye size={17} />}
         </button>
       </div>
     )
@@ -102,7 +109,7 @@ function BtnPrimary({ onClick, children, disabled, type = 'button' }: { onClick?
 
 function BtnSecondary({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} style={{ padding: '11px 20px', borderRadius: 10, fontSize: 17, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>
+    <button type="button" onClick={onClick} style={{ padding: '11px 20px', borderRadius: 10, fontSize: 17, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
       {children}
     </button>
   )
@@ -143,7 +150,7 @@ function SensitiveAuthFields({ mfaEnabled, password, onPassword, mfaCode, onMfaC
   return (
     <div style={{ background: '#fef3c7', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '14px 16px', marginTop: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-        🔐 Vérification d&apos;identité requise
+        <Shield size={15} /> Vérification d&apos;identité requise
       </div>
       {/* Honeypot — absorbe l'autofill Chrome/Firefox avant les vrais champs */}
       <input type="text" autoComplete="username" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
@@ -245,7 +252,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
         <Overlay onClose={() => { onClose(); resetAuth() }}>
           <ModalWrap size="lg">
             <ModalHeader title="Confirmer l'approbation" sub="Validation de l'école" onClose={() => { onClose(); resetAuth() }} />
-            <WarningBox>⚠️ Cette action va approuver l'établissement et activer son espace. L'admin recevra un email de bienvenue.</WarningBox>
+            <WarningBox><AlertTriangle size={17} style={{ flexShrink: 0 }} /> Cette action va approuver l'établissement et activer son espace. L'admin recevra un email de bienvenue.</WarningBox>
             <SensitiveAuthFields mfaEnabled={mfaEnabled} password={authPwd} onPassword={setAuthPwd} mfaCode={authMfa} onMfaCode={setAuthMfa} />
             <ModalFooter>
               <BtnSecondary onClick={() => { onClose(); resetAuth() }}>Annuler</BtnSecondary>
@@ -257,7 +264,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                 'École approuvée avec succès ! L\'admin a été notifié par email.',
                 'Erreur lors de l\'approbation'
               )}>
-                {loading ? '...' : '✅ Confirmer l\'approbation'}
+                {loading ? '...' : <><CheckCircle2 size={17} /> Confirmer l'approbation</>}
               </BtnPrimary>
             </ModalFooter>
           </ModalWrap>
@@ -302,7 +309,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                 'Demande rejetée',
                 'Erreur lors du rejet'
               )}>
-                {loading ? '...' : '❌ Confirmer le rejet'}
+                {loading ? '...' : <><XCircle size={17} /> Confirmer le rejet</>}
               </BtnPrimary>
             </ModalFooter>
           </ModalWrap>
@@ -316,7 +323,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
             <SchoolSummary
               initials={suspendTarget.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
               name={suspendTarget.name} meta={`${suspendTarget.subdomain}`} danger />
-            <WarningBox>⚠️ La suspension bloque immédiatement l&apos;accès à tous les utilisateurs. Action réversible via &quot;Réactiver&quot;.</WarningBox>
+            <WarningBox><AlertTriangle size={17} style={{ flexShrink: 0 }} /> La suspension bloque immédiatement l&apos;accès à tous les utilisateurs. Action réversible via &quot;Réactiver&quot;.</WarningBox>
             <Field label="Motif de la suspension" hint="Sera enregistré dans les logs d'audit">
               <textarea value={suspendReason} onChange={e => setSuspendReason(e.target.value)}
                 placeholder="Ex: Non-paiement, Violation des conditions..."
@@ -330,7 +337,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                 `${suspendTarget.name} a été suspendue`,
                 'Erreur lors de la suspension'
               )}>
-                {loading ? '...' : '⛔ Confirmer la suspension'}
+                {loading ? '...' : <><Ban size={17} /> Confirmer la suspension</>}
               </BtnPrimary>
             </ModalFooter>
           </ModalWrap>
@@ -340,15 +347,15 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
       {open === 'delete' && deleteTarget && (
         <Overlay onClose={() => { onClose(); setDeleteInput(''); resetAuth() }}>
           <ModalWrap size="sm">
-            <ModalHeader title="⚠️ Supprimer l'établissement" sub={deleteTarget.name} onClose={() => { onClose(); setDeleteInput(''); resetAuth() }} danger />
+            <ModalHeader title="Supprimer l'établissement" icon={AlertTriangle} sub={deleteTarget.name} onClose={() => { onClose(); setDeleteInput(''); resetAuth() }} danger />
             <div style={{ background: '#1a1a1a', borderRadius: 12, padding: '16px 18px', marginBottom: 18, border: '2px solid #dc2626' }}>
-              <div style={{ color: '#f87171', fontSize: 13, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>🚨 ACTION IRRÉVERSIBLE</div>
+              <div style={{ color: '#f87171', fontSize: 13, fontWeight: 800, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}><Siren size={15} /> ACTION IRRÉVERSIBLE</div>
               <div style={{ color: '#fca5a5', fontSize: 12.5, fontWeight: 600, lineHeight: 1.6 }}>
                 Cette action supprimera <strong style={{ color: 'white' }}>définitivement</strong> l&apos;établissement et toutes ses données.
               </div>
             </div>
             <Field label="Confirmez en tapant le nom de l'école *"
-              hint={deleteInput === deleteTarget.name ? '⚠️ Confirmation valide' : 'Le nom doit correspondre exactement'}>
+              hint={deleteInput === deleteTarget.name ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} /> Confirmation valide</span> : 'Le nom doit correspondre exactement'}>
               {/* Honeypot — absorbe l'autofill Chrome sur les champs texte proches d'un champ password */}
               <input type="text" autoComplete="name" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
               <input type="text" value={deleteInput} onChange={e => setDeleteInput(e.target.value)} autoComplete="off"
@@ -365,8 +372,8 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                   `${deleteTarget.name} a été définitivement supprimée`,
                   'Erreur lors de la suppression'
                 )}
-                style={{ padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800, background: deleteInput === deleteTarget.name && !loading ? '#dc2626' : '#6b7280', color: 'white', border: 'none', cursor: deleteInput === deleteTarget.name && !loading ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
-                🗑️ Supprimer définitivement
+                style={{ padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 800, background: deleteInput === deleteTarget.name && !loading ? '#dc2626' : '#6b7280', color: 'white', border: 'none', cursor: deleteInput === deleteTarget.name && !loading ? 'pointer' : 'not-allowed', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Trash2 size={14} /> Supprimer définitivement
               </button>
             </ModalFooter>
           </ModalWrap>
@@ -377,7 +384,8 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
         <Overlay onClose={() => { onClose(); resetAuth() }}>
           <ModalWrap size="sm">
             <ModalHeader
-              title={`${confirmActionTarget.icon} ${confirmActionTarget.title}`}
+              title={confirmActionTarget.title}
+              icon={confirmActionTarget.icon}
               sub={confirmActionTarget.description}
               onClose={() => { onClose(); resetAuth() }}
               danger={confirmActionTarget.danger}
@@ -390,7 +398,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                 confirmActionTarget.successMsg,
                 'Erreur lors de l\'action'
               )}>
-                {loading ? '...' : `${confirmActionTarget.icon} Confirmer`}
+                {loading ? '...' : <><confirmActionTarget.icon size={17} /> Confirmer</>}
               </BtnPrimary>
             </ModalFooter>
           </ModalWrap>
@@ -454,8 +462,8 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
             {/* ── Étape 2 : code OTP reçu par email + nouveau mot de passe ── */}
             {pwdStep === 2 && (
               <>
-                <div style={{ padding: '11px 14px', background: '#eff6ff', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, marginBottom: 18, fontSize: 14, color: '#1e40af', fontWeight: 600 }}>
-                  📧 Un code de vérification a été envoyé à votre adresse email. Saisissez-le ci-dessous.
+                <div style={{ padding: '11px 14px', background: '#eff6ff', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, marginBottom: 18, fontSize: 14, color: '#1e40af', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Mail size={16} style={{ flexShrink: 0 }} /> Un code de vérification a été envoyé à votre adresse email. Saisissez-le ci-dessous.
                 </div>
                 <Field label="Code de vérification email *" hint="Valable 15 minutes — vérifiez vos spams">
                   <FieldInput
@@ -473,7 +481,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                   <FieldInput type="password" placeholder="Répétez le nouveau mot de passe" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" showToggle />
                 </Field>
                 <ModalFooter>
-                  <BtnSecondary onClick={() => { setPwdStep(1); setEmailOtp('') }}>← Retour</BtnSecondary>
+                  <BtnSecondary onClick={() => { setPwdStep(1); setEmailOtp('') }}><ArrowLeft size={15} /> Retour</BtnSecondary>
                   <BtnPrimary
                     disabled={pwdLoading}
                     onClick={async () => {
@@ -493,7 +501,7 @@ export default function MasterModals({ open, schoolId, suspendTarget, deleteTarg
                       }
                     }}
                   >
-                    {pwdLoading ? '...' : '✅ Confirmer le changement'}
+                    {pwdLoading ? '...' : <><CheckCircle2 size={17} /> Confirmer le changement</>}
                   </BtnPrimary>
                 </ModalFooter>
               </>
@@ -616,9 +624,9 @@ function InviteForm({ selectedPlan, onPlanChange, loading, onCancel, onDone, onE
       )}
 
       <ModalFooter>
-        <button type="button" onClick={() => setStep('details')} style={{ padding: '11px 20px', borderRadius: 10, fontSize: 17, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit' }}>← Retour</button>
-        <button type="submit" disabled={submitting || loading} style={{ padding: '11px 20px', borderRadius: 10, fontSize: 17, fontWeight: 800, background: submitting || loading ? '#6b7280' : 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: submitting || loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', boxShadow: submitting || loading ? 'none' : '0 3px 12px rgba(5,150,105,0.25)' }}>
-          {submitting ? '...' : '📧 Envoyer l\'invitation'}
+        <button type="button" onClick={() => setStep('details')} style={{ padding: '11px 20px', borderRadius: 10, fontSize: 17, fontWeight: 800, background: 'white', color: '#6b5c45', border: '1.5px solid #d4c8b8', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7 }}><ArrowLeft size={15} /> Retour</button>
+        <button type="submit" disabled={submitting || loading} style={{ padding: '11px 20px', borderRadius: 10, fontSize: 17, fontWeight: 800, background: submitting || loading ? '#6b7280' : 'linear-gradient(135deg,#059669,#047857)', color: 'white', border: 'none', cursor: submitting || loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', boxShadow: submitting || loading ? 'none' : '0 3px 12px rgba(5,150,105,0.25)', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          {submitting ? '...' : <><Mail size={16} /> Envoyer l'invitation</>}
         </button>
       </ModalFooter>
     </form>

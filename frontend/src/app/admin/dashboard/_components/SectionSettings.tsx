@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { Smartphone, Mail, School, Search, Save, CheckCircle2, Info } from 'lucide-react'
 
 interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string; minesecSchoolCode?: string | null }
 interface Props {
@@ -26,12 +27,12 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
     t('settings.tabs.6'), t('settings.tabs.7'),
   ]
 
-  const NOTIF_ROWS: Array<{ key: keyof NotifSettings; icon: string; label: string; sub: string }> = [
-    { key: 'smsAbsences',      icon: '📱', label: t('settings.notifications.rows.0.label'), sub: t('settings.notifications.rows.0.sub') },
-    { key: 'smsPayments',      icon: '📱', label: t('settings.notifications.rows.1.label'), sub: t('settings.notifications.rows.1.sub') },
-    { key: 'smsBulletins',     icon: '📱', label: t('settings.notifications.rows.2.label'), sub: t('settings.notifications.rows.2.sub') },
-    { key: 'emailDigestAdmin', icon: '📧', label: t('settings.notifications.rows.3.label'), sub: t('settings.notifications.rows.3.sub') },
-    { key: 'smsLowBalance',    icon: '📱', label: t('settings.notifications.rows.4.label'), sub: t('settings.notifications.rows.4.sub') },
+  const NOTIF_ROWS: Array<{ key: keyof NotifSettings; icon: React.ReactNode; label: string; sub: string }> = [
+    { key: 'smsAbsences',      icon: <Smartphone size={16} strokeWidth={2} />, label: t('settings.notifications.rows.0.label'), sub: t('settings.notifications.rows.0.sub') },
+    { key: 'smsPayments',      icon: <Smartphone size={16} strokeWidth={2} />, label: t('settings.notifications.rows.1.label'), sub: t('settings.notifications.rows.1.sub') },
+    { key: 'smsBulletins',     icon: <Smartphone size={16} strokeWidth={2} />, label: t('settings.notifications.rows.2.label'), sub: t('settings.notifications.rows.2.sub') },
+    { key: 'emailDigestAdmin', icon: <Mail size={16} strokeWidth={2} />, label: t('settings.notifications.rows.3.label'), sub: t('settings.notifications.rows.3.sub') },
+    { key: 'smsLowBalance',    icon: <Smartphone size={16} strokeWidth={2} />, label: t('settings.notifications.rows.4.label'), sub: t('settings.notifications.rows.4.sub') },
   ]
 
   const SESSION_OPTIONS = [
@@ -476,7 +477,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     <div style={{ width: 22, height: 22, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
                   </div>
                 )}
-                {logoPreview ? <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 36 }}>🏫</span>}
+                {logoPreview ? <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <School size={36} strokeWidth={1.5} />}
               </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
@@ -634,7 +635,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                     <div>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{n.icon} {n.label}</div>
+                      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>{n.icon} {n.label}</div>
                       <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{n.sub}</div>
                     </div>
                     <div onClick={() => !saving && handleNotifToggle(n.key)}
@@ -713,7 +714,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     style={{ padding: '8px 10px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 9, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }} />
                   <input type="date" value={auditTo} onChange={e => { setAuditTo(e.target.value); setAuditPage(1) }}
                     style={{ padding: '8px 10px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 9, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }} />
-                  <button style={btnSec} onClick={() => { setAuditAction(auditActInput); setAuditPage(1) }}>🔍</button>
+                  <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setAuditAction(auditActInput); setAuditPage(1) }}><Search size={14} strokeWidth={2} /></button>
                   <button style={{ ...btnSec, marginLeft: 'auto' }} onClick={() => setAuditOpen(false)}>{t('settings.security.btn_close')}</button>
                 </div>
 
@@ -935,7 +936,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
             ))}
           </div>
           <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-            <button style={btnPrim} onClick={() => onToast('Préférences enregistrées', 'success')}>💾 Enregistrer</button>
+            <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onToast('Préférences enregistrées', 'success')}><Save size={15} strokeWidth={2} /> Enregistrer</button>
           </div>
         </div>
       )}
@@ -1183,7 +1184,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {structResult !== null && structResult.length > 0 && (
             <div style={{ background: 'var(--green-light)', border: '1.5px solid var(--green)', borderRadius: 12, padding: '14px 18px' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--green2)', marginBottom: 8 }}>✅ Classes créées :</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--green2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} strokeWidth={2} /> Classes créées :</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {structResult.map(n => (
                   <span key={n} style={{ padding: '4px 12px', borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--green)', fontSize: 14, fontWeight: 700, color: 'var(--green2)' }}>{n}</span>
@@ -1192,8 +1193,8 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
             </div>
           )}
           {structResult !== null && structResult.length === 0 && (
-            <div style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
-              ℹ️ Aucune nouvelle classe à créer — toutes les classes attendues existent déjà.
+            <div style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: 'var(--text2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Info size={15} strokeWidth={2} /> Aucune nouvelle classe à créer — toutes les classes attendues existent déjà.
             </div>
           )}
 

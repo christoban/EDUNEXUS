@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { TrendingUp, BarChart3, PieChart as PieChartIcon, Apple } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -37,7 +38,7 @@ const CHART_TOOLTIP = {
 
 const card: React.CSSProperties = { background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }
 const cardHeader: React.CSSProperties = { padding: '16px 22px', borderBottom: '1px solid var(--border)' }
-const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: 'var(--text)' }
+const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }
 const select: React.CSSProperties = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border2)', fontFamily: 'inherit', fontSize: 14, color: 'var(--text)', background: 'var(--surface)' }
 
 export default function SectionStatistics({ onToast }: Props) {
@@ -152,7 +153,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Évolution des moyennes */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span style={cardTitle}>📈 Évolution des moyennes</span>
+            <span style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes</span>
             <div style={{ display: 'flex', gap: 8 }}>
               <select style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
                 <option value="">Toutes les classes</option>
@@ -186,7 +187,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Comparaison entre classes */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span style={cardTitle}>📊 Comparaison entre classes</span>
+            <span style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> Comparaison entre classes</span>
             <select style={select} value={level} onChange={e => setLevel(e.target.value)}>
               <option value="">Tous les niveaux</option>
               {levels.map(l => <option key={l} value={l}>{l}</option>)}
@@ -214,7 +215,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Répartition des effectifs */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={cardTitle}>🥧 Répartition des effectifs</span>
+            <span style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> Répartition des effectifs</span>
             <select style={select} value={criteria} onChange={e => setCriteria(e.target.value as typeof criteria)}>
               <option value="gender">Par sexe</option>
               <option value="level">Par niveau</option>
@@ -243,7 +244,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Performance enseignant */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={cardTitle}>🍎 Performance enseignant</span>
+            <span style={cardTitle}><Apple size={17} strokeWidth={2} /> Performance enseignant</span>
             <select style={select} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
               <option value="">Sélectionner un enseignant</option>
               {teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}

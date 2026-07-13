@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { BookOpen, AlertTriangle } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -158,7 +159,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
 
   return (
     <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>📖 {t('pebs_exams.title')}</h2>
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}><BookOpen size={22} /> {t('pebs_exams.title')}</h2>
 
       {/* Création */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
@@ -267,7 +268,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
           {/* Aperçu transfert */}
           {transferPreview && (
             <div style={{ marginBottom: 16, padding: 16, background: 'rgba(234,179,8,0.08)', borderRadius: 8, border: '2px solid rgba(234,179,8,0.3)' }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#b45309', marginBottom: 8 }}>⚠️ {t('pebs_exams.confirm_transfer_title')}</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#b45309', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><AlertTriangle size={15} /> {t('pebs_exams.confirm_transfer_title')}</p>
               <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 8 }}>
                 {t('pebs_exams.confirm_transfer_desc').replace('{count}', String(transferPreview.toTransfer.length))}
               </p>

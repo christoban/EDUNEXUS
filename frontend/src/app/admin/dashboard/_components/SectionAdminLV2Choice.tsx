@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { Globe } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 
@@ -155,8 +156,8 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
 
   return (
     <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>
-        🌍 {t('lv2_choice.title')}
+      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Globe size={22} /> {t('lv2_choice.title')}
       </h2>
 
       {/* Formulaire de création */}

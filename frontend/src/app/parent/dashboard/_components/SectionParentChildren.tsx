@@ -1,5 +1,6 @@
 'use client'
 import { useCallback } from 'react'
+import { Users, Package, Trophy, FileText, CheckCircle2, Smartphone } from 'lucide-react'
 import type { ChildWithStats } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
@@ -43,7 +44,7 @@ function CacheBadge({ cachedAt, label }: { cachedAt: number | null; label: strin
   const date = new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
   return (
     <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-      {label.replace('{date}', date)}
+      <Package size={14} strokeWidth={2} /> {label.replace('{date}', date)}
     </div>
   )
 }
@@ -94,7 +95,7 @@ export default function SectionParentChildren({ onNav, onToast, userId }: Props)
         </div>
         {fromCache && <CacheBadge cachedAt={cachedAt} label={t('cacheBadge')} />}
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>👨‍👩‍👧</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Users size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('children.emptyTitle')}</div>
           <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('children.emptyDesc')}</div>
         </div>
@@ -149,8 +150,8 @@ export default function SectionParentChildren({ onNav, onToast, userId }: Props)
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <span style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 600 }}>
-                    {t('children.mention')} <strong style={{ color: 'var(--text)' }}>{child.derniereeMention || '—'}</strong>
+                  <span style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Trophy size={15} strokeWidth={2} /> {t('children.mention')} <strong style={{ color: 'var(--text)' }}>{child.derniereeMention || '—'}</strong>
                   </span>
                   <span style={{ fontSize: 15, color: 'var(--text3)' }}>
                     {t('children.absenceDays').replace('{count}', String(child.joursAbsent))}
@@ -159,15 +160,15 @@ export default function SectionParentChildren({ onNav, onToast, userId }: Props)
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   {[
-                    { label: t('children.actionGrades'),  action: () => onNav('grades'),    prim: true  },
-                    { label: t('children.actionAttendance'),  action: () => onNav('attendance'), prim: false },
-                    { label: t('children.actionPayments'),  action: () => onNav('payments'),  prim: false },
+                    { label: t('children.actionGrades'),  icon: FileText,    action: () => onNav('grades'),    prim: true  },
+                    { label: t('children.actionAttendance'),  icon: CheckCircle2, action: () => onNav('attendance'), prim: false },
+                    { label: t('children.actionPayments'),  icon: Smartphone,  action: () => onNav('payments'),  prim: false },
                   ].map((btn, j) => (
                     <button key={j} onClick={btn.action}
-                      style={{ flex: 1, padding: '9px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: btn.prim ? 'none' : '1.5px solid var(--border2)', background: btn.prim ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'white', color: btn.prim ? 'white' : 'var(--text2)', transition: 'all 0.12s' }}
+                      style={{ flex: 1, padding: '9px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', border: btn.prim ? 'none' : '1.5px solid var(--border2)', background: btn.prim ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'white', color: btn.prim ? 'white' : 'var(--text2)', transition: 'all 0.12s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                       onMouseEnter={e => { if (!btn.prim) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', color: 'var(--green)' }) }}
                       onMouseLeave={e => { if (!btn.prim) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', color: 'var(--text2)' }) }}>
-                      {btn.label}
+                      <btn.icon size={15} strokeWidth={2} /> {btn.label}
                     </button>
                   ))}
                 </div>

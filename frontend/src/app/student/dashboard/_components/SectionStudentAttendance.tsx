@@ -1,5 +1,6 @@
 'use client'
 import { useCallback } from 'react'
+import { CheckCircle2, X, ClipboardList, BarChart3 } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
@@ -116,13 +117,15 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 22 }}>
         {[
-          { icon: '✅', bg: 'var(--green-light)', val: `${rateNum}%`, label: t('attendance.rate_label'), color: 'var(--green)' },
-          { icon: '✗',  bg: 'var(--red-light)', val: String(stats?.absent || 0), label: t('attendance.absences_label'), color: 'var(--red)' },
+          { icon: CheckCircle2, bg: 'var(--green-light)', val: `${rateNum}%`, label: t('attendance.rate_label'), color: 'var(--green)' },
+          { icon: X,  bg: 'var(--red-light)', val: String(stats?.absent || 0), label: t('attendance.absences_label'), color: 'var(--red)' },
           { icon: '~',  bg: 'var(--amber-light)', val: String(stats?.late || 0), label: t('attendance.late_label'), color: 'var(--amber)' },
           { icon: 'E',  bg: 'var(--blue-light)', val: String(stats?.excused || 0), label: t('attendance.excused_label'), color: 'var(--blue)' },
         ].map((s, i) => (
           <div key={i} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '22px 26px' }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: s.color, marginBottom: 12 }}>{s.icon}</div>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: s.color, marginBottom: 12 }}>
+              {typeof s.icon === 'string' ? s.icon : <s.icon size={20} strokeWidth={2.5} />}
+            </div>
             <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{s.val}</div>
             <div style={{ fontSize: 16, color: 'var(--text3)', marginTop: 5, fontWeight: 600 }}>{s.label}</div>
           </div>
@@ -131,7 +134,7 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
 
       {weekly.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '18px 22px' }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', marginBottom: 18 }}>{t('attendance.weekly_evolution')}</div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}><BarChart3 size={17} strokeWidth={2} /> {t('attendance.weekly_evolution')}</div>
           {weekly.map((w, i) => {
             const total = w.present + w.absent + w.late + w.excused
             const pct = total > 0 ? Math.round((w.present + w.late) / total * 100) : 100
@@ -155,7 +158,7 @@ export default function SectionStudentAttendance({ onToast, user }: Props) {
 
       {!stats && weekly.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><ClipboardList size={48} strokeWidth={2} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('attendance.empty_title')}</div>
           <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('attendance.empty_subtitle')}</div>
         </div>
