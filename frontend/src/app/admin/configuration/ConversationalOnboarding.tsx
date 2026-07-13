@@ -235,6 +235,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
   LYCEE_TECHNIQUE_FR: 'Lycée Technique Francophone', CETIC: 'CETIC', SAR_SM: 'SAR/SM', CFM: 'CFM',
   PRIMAIRE_FR: 'École Primaire Francophone', MATERNELLE_FR: 'École Maternelle Francophone',
   GHS_EN: 'Government High School (EN)', GSS_EN: 'Government Secondary School (EN)', PRIVE_EN: 'Private Anglophone School',
+  GTC_GTHS_EN: 'Government Technical College & High School', GTC_EN: 'Government Technical College',
   PRIMARY_EN: 'Anglophone Primary School', NURSERY_EN: 'Anglophone Nursery School',
   LYCEE_BILINGUE: 'Lycée Bilingue', PRIMARY_BILINGUAL: 'École Primaire Bilingue', COMPLEXE_SCOLAIRE: 'Complexe Scolaire',
 }
@@ -252,6 +253,9 @@ function detectTemplate(state: OnboardingState): string {
   const hasSecondary = has('PREMIER_CYCLE') || has('SECOND_CYCLE')
   const hasPrimaryOrNursery = has('PRIMAIRE') || has('MATERNELLE')
 
+  // Anglophone technique (GTC_EN/GTC_GTHS_EN) — même signal has('SECOND_CYCLE') que la
+  // distinction GHS_EN/GSS_EN plus bas, doit être vérifié AVANT le fallback francophone.
+  if (has('TECHNIQUE') && isEN) return has('SECOND_CYCLE') ? 'GTC_GTHS_EN' : 'GTC_EN'
   if (has('TECHNIQUE')) return 'LYCEE_TECHNIQUE_FR'
   if (hasSecondary && hasPrimaryOrNursery) return 'COMPLEXE_SCOLAIRE'
 

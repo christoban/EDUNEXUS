@@ -59,6 +59,10 @@ model School {
   subsystem                  SchoolSubsystem              @default(FRANCOPHONE)
   educationType              EducationType                @default(GENERAL)
   ownership                  SchoolOwnership              @default(PRIVATE_SECULAR)
+  // Restriction d'admission par genre — pertinent surtout pour le technique (GGTC/CETIF
+  // partagent exactement le programme GTC/CETIC, seule l'admission diffère). Proposé dans
+  // l'onboarding uniquement pour educationType=TECHNICAL, jamais imposé ailleurs.
+  admissionType              AdmissionType                @default(MIXTE)
   features                   Json                         @default("{}")
   saturdaySchedule           Boolean                      @default(true)
   contractEnd                DateTime?
@@ -1692,6 +1696,14 @@ enum SchoolSubsystem {
   FRANCOPHONE
   ANGLOPHONE
   BILINGUAL
+}
+
+// Restriction d'admission par genre (GGTC = Girls Technical College, CETIF = CETIC filles) —
+// même programme/curriculum que la variante mixte, seule l'admission diffère.
+enum AdmissionType {
+  MIXTE
+  FILLES
+  GARCONS
 }
 
 enum EducationType {

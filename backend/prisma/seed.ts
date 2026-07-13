@@ -5,22 +5,31 @@ import { premierCycleFR, CYCLE1_FR_TEMPLATES } from '../src/application/school/c
 import { primaireFR, PRIMAIRE_FR_TEMPLATES } from '../src/application/school/curriculum/francophone/primaire';
 import { techniqueFR, TECHNIQUE_FR_TEMPLATES, professionnelFR, PROFESSIONNEL_FR_TEMPLATES } from '../src/application/school/curriculum/francophone/technique';
 import { getAslEntries, ASL_TEMPLATES } from '../src/application/school/curriculum/anglophone/secondary';
+import { getTechniqueAnEntries, TECHNICAL_EN_TEMPLATES } from '../src/application/school/curriculum/anglophone/technical';
 import { primaryEN, PRIMARY_EN_TEMPLATES } from '../src/application/school/curriculum/anglophone/primary';
 
 const prisma = new PrismaClient();
-// ─── LES 17 VRAIS TEMPLATES D'ÉTABLISSEMENTS CAMEROUNAIS ────────────────────
+// ─── LES 19 VRAIS TEMPLATES D'ÉTABLISSEMENTS CAMEROUNAIS ────────────────────
 //
 // Répartition :
 //   Francophone   : LYCEE_FR, CES_FR, PRIVE_FR, LYCEE_TECHNIQUE_FR, CETIC,
 //                   SAR_SM, CFM, PRIMAIRE_FR, MATERNELLE_FR  (9 templates)
-//   Anglophone    : GHS_EN, GSS_EN, PRIVE_EN, PRIMARY_EN, NURSERY_EN         (5 templates)
+//   Anglophone    : GHS_EN, GSS_EN, PRIVE_EN, GTC_GTHS_EN, GTC_EN,
+//                   PRIMARY_EN, NURSERY_EN                                    (7 templates)
 //   Bilingue      : LYCEE_BILINGUE, PRIMARY_BILINGUAL                         (2 templates)
 //   Multi-niveaux : COMPLEXE_SCOLAIRE                                         (1 template)
-//   TOTAL         : 17 templates
+//   TOTAL         : 19 templates
 //
 // NOTE : LYCEE_BILINGUE_FR a été supprimé — c'était une erreur conceptuelle.
 //   Un lycée est soit francophone, soit bilingue. "Bilingue francophone" est
 //   une contradiction dans les termes. La série ABI existe dans LYCEE_BILINGUE.
+//
+// NOTE (13/07/2026) : GTC_EN/GTC_GTHS_EN ajoutés — miroir anglophone de
+//   CETIC/LYCEE_TECHNIQUE_FR (filières STT/IND vs F1/G2 francophone). Aucun
+//   template dédié pour GGTC (Girls Technical College) : géré via
+//   School.admissionType, même curriculum que la variante mixte — voir
+//   commentaire "CETIF" dans francophone/technique.ts pour le précédent
+//   conceptuel (jamais un template séparé côté francophone non plus).
 
 const schoolTemplates = [
 
@@ -457,7 +466,94 @@ const schoolTemplates = [
     },
   },
 
-  // ── 13. Primary School anglophone ──────────────────────────────────────────
+  // ── 13. GTHS — Government Technical College & High School (anglophone) ─────
+  // Miroir anglophone de LYCEE_TECHNIQUE_FR. Form1→Form4 (1er cycle technique,
+  // CAP) puis LowerSixth/UpperSixth (2nd cycle, Probatoire Technique → Bac
+  // Technique). Filières STT (Tertiary Sciences & Technology) & IND (Industrial
+  // Sciences & Technology) — confirmées sur le site officiel MINESEC anglais,
+  // équivalents fonctionnels des filières F1/G2 francophones (voir technical.ts).
+  // roleTitles STAFF_WORKS ("Vice Principal (Technical)") : titre raisonnable
+  // mais NON confirmé par une source officielle indépendante — à vérifier
+  // auprès d'un établissement réel avant de le considérer comme figé.
+  {
+    code: "GTC_GTHS_EN",
+    name: "Government Technical College & High School",
+    subsystem: "ANGLOPHONE" as const,
+    educationType: "TECHNICAL" as const,
+    level: "SECONDARY" as const,
+    ownership: "PUBLIC" as const,
+    config: {
+      classes: [
+        { level: "Form1", serie: null, filiere: "STT" },
+        { level: "Form1", serie: null, filiere: "IND" },
+        { level: "Form2", serie: null, filiere: "STT" },
+        { level: "Form2", serie: null, filiere: "IND" },
+        { level: "Form3", serie: null, filiere: "STT" },
+        { level: "Form3", serie: null, filiere: "IND" },
+        { level: "Form4", serie: null, filiere: "STT" },
+        { level: "Form4", serie: null, filiere: "IND" },
+        { level: "LowerSixth", serie: null, filiere: "STT" },
+        { level: "LowerSixth", serie: null, filiere: "IND" },
+        { level: "UpperSixth", serie: null, filiere: "STT" },
+        { level: "UpperSixth", serie: null, filiere: "IND" },
+      ],
+      officialExams: ["CAP", "PROBATOIRE_TECHNIQUE", "BAC_TECHNIQUE"],
+      subGroupEnabled: true,
+      hasPracticalGrades: true,
+      hasProfessionalAttitude: true,
+      hasInternships: true,
+      gradingSystem: "OUT_OF_100",
+      passmark: 40,
+      roleTitles: {
+        ADMIN:            "Principal",
+        STAFF_DEPUTY:     "Vice-Principal",
+        STAFF_WORKS:      "Vice Principal (Technical)",
+        STAFF_DISCIPLINE: "Discipline Master",
+        STAFF_FINANCE:    "Bursar",
+      },
+    },
+  },
+
+  // ── 14. GTC — Government Technical College (anglophone) ────────────────────
+  // Miroir anglophone de CETIC. Form1→Form4 uniquement (1er cycle technique,
+  // CAP). Pas de 2nd cycle. GGTC (Girls Technical College) = même programme,
+  // admission filles — géré via School.admissionType, pas un template séparé.
+  {
+    code: "GTC_EN",
+    name: "Government Technical College",
+    subsystem: "ANGLOPHONE" as const,
+    educationType: "TECHNICAL" as const,
+    level: "SECONDARY" as const,
+    ownership: "PUBLIC" as const,
+    config: {
+      classes: [
+        { level: "Form1", serie: null, filiere: "STT" },
+        { level: "Form1", serie: null, filiere: "IND" },
+        { level: "Form2", serie: null, filiere: "STT" },
+        { level: "Form2", serie: null, filiere: "IND" },
+        { level: "Form3", serie: null, filiere: "STT" },
+        { level: "Form3", serie: null, filiere: "IND" },
+        { level: "Form4", serie: null, filiere: "STT" },
+        { level: "Form4", serie: null, filiere: "IND" },
+      ],
+      officialExams: ["CAP"],
+      firstCycleOnly: true,
+      subGroupEnabled: true,
+      hasPracticalGrades: true,
+      hasProfessionalAttitude: true,
+      gradingSystem: "OUT_OF_100",
+      passmark: 40,
+      roleTitles: {
+        ADMIN:            "Principal",
+        STAFF_DEPUTY:     "Vice-Principal",
+        STAFF_WORKS:      "Vice Principal (Technical)",
+        STAFF_DISCIPLINE: "Discipline Master",
+        STAFF_FINANCE:    "Bursar",
+      },
+    },
+  },
+
+  // ── 15. Primary School anglophone ──────────────────────────────────────────
   // Class 1 → Class 6. Examen : FSLC (First School Leaving Certificate) en Class 6
   // + Common Entrance pour intégrer Form 1.
   {
@@ -492,7 +588,7 @@ const schoolTemplates = [
     },
   },
 
-  // ── 14. Nursery School anglophone ──────────────────────────────────────────
+  // ── 16. Nursery School anglophone ──────────────────────────────────────────
   // PreNursery, Nursery 1, Nursery 2. Évaluation par compétences.
   {
     code: "NURSERY_EN",
@@ -519,7 +615,7 @@ const schoolTemplates = [
   // BILINGUE (2 templates)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // ── 15. Lycée bilingue secondaire ──────────────────────────────────────────
+  // ── 17. Lycée bilingue secondaire ──────────────────────────────────────────
   // Deux sections coexistant dans le même établissement :
   //   Section FR : 6e→Tle, séries A4/ABI/C/D/TI (ABI spécifique au bilingue)
   //   Section EN : Form 1→UpperSixth
@@ -591,7 +687,7 @@ const schoolTemplates = [
     },
   },
 
-  // ── 16. École primaire bilingue ────────────────────────────────────────────
+  // ── 18. École primaire bilingue ────────────────────────────────────────────
   // Section FR (SIL→CM2) + Section EN (Class 1→Class 6) dans le même bâtiment.
   {
     code: "PRIMARY_BILINGUAL",
@@ -632,7 +728,7 @@ const schoolTemplates = [
   // MULTI-NIVEAUX (1 template)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // ── 17. Complexe scolaire ──────────────────────────────────────────────────
+  // ── 19. Complexe scolaire ──────────────────────────────────────────────────
   // Établissement regroupant plusieurs cycles sous une direction générale.
   // Exemples : Complexe Scolaire Excellence, Institut Polyvalent…
   // Ce template crée la structure de base uniquement.
@@ -1024,7 +1120,10 @@ async function main() {
       }
     }
   }
-  const allAslEntries = [...aslSecondary, ...aslPrimary];
+  // Technique (GTC_GTHS_EN, GTC_EN) — Form1→4 + LowerSixth/UpperSixth, filières STT & IND
+  // Détail des matières APPROXIMATIF — voir avertissement dans anglophone/technical.ts
+  const aslTechnique = getTechniqueAnEntries(TECHNICAL_EN_TEMPLATES);
+  const allAslEntries = [...aslSecondary, ...aslPrimary, ...aslTechnique];
   for (const entry of allAslEntries) {
     await prisma.anglophoneSubjectLoad.upsert({
       where: { templateCode_classLevel_subjectName_filiere: { templateCode: entry.templateCode, classLevel: entry.classLevel, subjectName: entry.subjectName, filiere: entry.filiere } },

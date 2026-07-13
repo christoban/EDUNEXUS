@@ -181,9 +181,11 @@ export class ActiverEtablissementUseCase {
           for (const niveau of config.niveaux1erCycle) {
             if (isTechnique && filieresTech.length > 0) {
               // Lycées techniques / CETIC : une classe par combinaison (niveau × filière)
-              // La filière (ex: 'F1', 'G2') doit correspondre aux CycleCoefficients seedés.
+              // La filière (ex: 'F1', 'G2' FR ou 'STT', 'IND' EN) doit correspondre aux
+              // CycleCoefficients (FR) ou AnglophoneSubjectLoad (EN, ex: "Form 1" → "Form1").
+              const levelNormTech = isAnglophone ? niveau.replace(/\s+/g, '') : niveau;
               for (const fil of filieresTech) {
-                classesACreer.push({ name: `${niveau} ${fil}`, level: niveau, schoolId, filiere: fil });
+                classesACreer.push({ name: `${niveau} ${fil}`, level: levelNormTech, schoolId, filiere: fil });
               }
             } else {
               const count = config.classesParNiveau?.[niveau] ?? 2;
@@ -298,6 +300,19 @@ export class ActiverEtablissementUseCase {
                   classesACreer.push({ name: `${niveau} ${serie}${suffix}`, level: levelNorm2, schoolId, serie });
                 }
               }
+            }
+          }
+        }
+
+        // 4b-bis. GTC_GTHS_EN — 2e cycle technique anglophone (LowerSixth/UpperSixth × STT/IND).
+        // Miroir du 1er cycle technique (4a) mais pour niveaux2eCycle : les coefficients
+        // viennent d'AnglophoneSubjectLoad (filiere STT/IND), jamais de BacCoefficient (francophone).
+        if (templateCode === 'GTC_GTHS_EN' && config.niveaux2eCycle?.length > 0) {
+          const filieresTechGths: string[] = config.filieresTechniques ?? [];
+          for (const niveau of config.niveaux2eCycle as string[]) {
+            const levelNormTech2 = niveau.replace(/\s+/g, '');
+            for (const fil of filieresTechGths) {
+              classesACreer.push({ name: `${niveau} ${fil}`, level: levelNormTech2, schoolId, filiere: fil });
             }
           }
         }

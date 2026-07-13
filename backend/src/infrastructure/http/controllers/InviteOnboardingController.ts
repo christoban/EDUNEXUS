@@ -131,10 +131,18 @@ export class InviteOnboardingController {
       const token = req.params.token as string;
       const {
         nom, subdomain, adresse, ville, region, telephone, email,
-        subsystem, educationType, ownership,
+        subsystem, educationType, ownership, admissionType,
         adminPrenom, adminNom, adminEmail, password, logoBase64,
         onboardingConfig,
       } = req.body;
+
+      // admissionType n'a de sens réel que pour educationType=TECHNICAL (GGTC/CETIF) —
+      // ignoré silencieusement sinon plutôt que rejeté, cohérent avec le fait que ce
+      // n'est jamais un champ obligatoire (défaut MIXTE en base).
+      const validAdmissionTypes = ['MIXTE', 'FILLES', 'GARCONS'];
+      const admissionTypeValue = educationType === 'TECHNICAL' && validAdmissionTypes.includes(admissionType)
+        ? admissionType
+        : undefined;
 
       const required = ['nom', 'subdomain', 'subsystem', 'educationType', 'ownership', 'adminPrenom', 'adminNom', 'adminEmail', 'password'];
       const missing = required.filter(f => !String(req.body[f] ?? '').trim());
@@ -191,6 +199,7 @@ export class InviteOnboardingController {
             subsystem,
             educationType,
             ownership,
+            ...(admissionTypeValue ? { admissionType: admissionTypeValue } : {}),
             status: 'PENDING',
             plan: invite2.plan,
             logoUrl: validLogo,

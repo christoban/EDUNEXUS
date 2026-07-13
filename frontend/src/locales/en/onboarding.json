@@ -258,7 +258,17 @@
         "optionsTerrain": "Confirmed field options",
         "autres": "Other",
         "add": "+ Add",
-        "placeholder": "Type and Enter"
+        "placeholder": "Type and Enter",
+        "admissionType": "Admission:",
+        "admissionMixte": "Mixed",
+        "admissionFilles": "Girls only",
+        "admissionGarcons": "Boys only",
+        "gtcType": "Technical college type:",
+        "industrielEn": "Industrial (IND)",
+        "industrielEnDesc": "Industrial Sciences & Technology",
+        "tertiaireEn": "Tertiary (STT)",
+        "tertiaireEnDesc": "Tertiary Sciences & Technology",
+        "mixteEnDesc": "STT + IND"
       },
       "primary": {
         "sectionTitle": "🏫 Primary & Nursery",

@@ -33,6 +33,8 @@ const TEMPLATE_META: Record<string, DetectedTemplate> = {
   PRIVE_EN:          { code: 'PRIVE_EN', name: 'Private School (Anglophone)', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
   PRIMARY_EN:        { code: 'PRIMARY_EN', name: 'Primary School (Anglophone)', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
   NURSERY_EN:        { code: 'NURSERY_EN', name: 'Nursery School', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
+  GTC_GTHS_EN:       { code: 'GTC_GTHS_EN', name: 'Government Technical College & High School', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false },
+  GTC_EN:            { code: 'GTC_EN', name: 'Government Technical College', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false },
   LYCEE_BILINGUE:    { code: 'LYCEE_BILINGUE', name: 'Lycée Bilingue', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: false, isPrimaire: false },
   PRIMARY_BILINGUAL: { code: 'PRIMARY_BILINGUAL', name: 'Primary School Bilingue', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: false, isPrimaire: true },
   LYCEE_TECHNIQUE_FR: { code: 'LYCEE_TECHNIQUE_FR', name: 'Lycée Technique Francophone', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false },
@@ -60,6 +62,9 @@ interface FormData {
   subsystem: string
   educationType: string
   ownership: string
+  // Uniquement pertinent pour educationType=TECHNICAL (GGTC/CETIF partagent le
+  // même programme que la variante mixte, seule l'admission diffère).
+  admissionType: string
   ville: string
   region: string
   telephone: string
@@ -113,9 +118,9 @@ const OWNERSHIP_KEYS = [
 
 const TCODES_PEBS_FR = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_BILINGUE']
 const TCODES_PEBS_EN = ['GHS_EN','GSS_EN','PRIVE_EN','LYCEE_BILINGUE']
-const TCODES_AVEC_1ER_CYCLE = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_TECHNIQUE_FR','CETIC','LYCEE_BILINGUE','COMPLEXE_SCOLAIRE']
-const TCODES_AVEC_2E_CYCLE = ['LYCEE_FR','PRIVE_FR','LYCEE_BILINGUE','GHS_EN','GSS_EN','PRIVE_EN','COMPLEXE_SCOLAIRE']
-const TCODES_TECHNIQUE = ['LYCEE_TECHNIQUE_FR','CETIC']
+const TCODES_AVEC_1ER_CYCLE = ['LYCEE_FR','CES_FR','PRIVE_FR','LYCEE_TECHNIQUE_FR','CETIC','LYCEE_BILINGUE','COMPLEXE_SCOLAIRE','GTC_GTHS_EN','GTC_EN']
+const TCODES_AVEC_2E_CYCLE = ['LYCEE_FR','PRIVE_FR','LYCEE_BILINGUE','GHS_EN','GSS_EN','PRIVE_EN','COMPLEXE_SCOLAIRE','GTC_GTHS_EN']
+const TCODES_TECHNIQUE = ['LYCEE_TECHNIQUE_FR','CETIC','GTC_GTHS_EN','GTC_EN']
 const TCODES_PRIMAIRE = ['PRIMAIRE_FR','PRIMARY_EN','PRIMARY_BILINGUAL']
 
 const NIVEAUX_1ER_CYCLE_FR = ['6e','5e','4e','3e']
@@ -206,6 +211,16 @@ function detectTemplate(form: FormData): DetectedTemplate | null {
     if (n.includes('cfm') || n.includes('centre de forma'))
       return { code: 'CFM', name: 'Centre de Formation aux Métiers', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
     return { code: 'SAR_SM', name: 'SAR / Section Ménagère', hasPremierCycle: false, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
+  }
+
+  if (subsystem === 'ANGLOPHONE' && educationType === 'TECHNICAL') {
+    // Miroir du branchement francophone ci-dessus (CETIC vs LYCEE_TECHNIQUE_FR) :
+    // nom contenant "gtc" sans "high school"/"gths" → 1er cycle seul (GTC_EN),
+    // sinon cycle complet par défaut (GTC_GTHS_EN). GGTC (filles) partage le même
+    // template — géré par admissionType, jamais par le nom.
+    const isGtcOnly = n.includes('gtc') && !n.includes('high school') && !n.includes('gths')
+    if (isGtcOnly) return { code: 'GTC_EN', name: 'Government Technical College', hasPremierCycle: true, hasDeuxiemeCycle: false, isTechnique: true, isPrimaire: false }
+    return { code: 'GTC_GTHS_EN', name: 'Government Technical College & High School', hasPremierCycle: true, hasDeuxiemeCycle: true, isTechnique: true, isPrimaire: false }
   }
 
   if (subsystem === 'ANGLOPHONE' && educationType === 'GENERAL') {
@@ -433,7 +448,7 @@ export default function OnboardingPage() {
 
   const [form, setForm] = useState<FormData>({
     nom: '', subdomain: '', subsystem: 'FRANCOPHONE', educationType: 'GENERAL',
-    ownership: 'PRIVATE_SECULAR', ville: '', region: '', telephone: '', adresse: '',
+    ownership: 'PRIVATE_SECULAR', admissionType: 'MIXTE', ville: '', region: '', telephone: '', adresse: '',
     logoBase64: '',
     adminPrenom: '', adminNom: '', adminEmail: '', password: '', confirmPassword: '',
     niveaux1erCycle: [],
@@ -677,6 +692,7 @@ export default function OnboardingPage() {
           subsystem: form.subsystem,
           educationType: form.educationType,
           ownership: form.ownership,
+          admissionType: form.admissionType,
           adminPrenom: form.adminPrenom,
           adminNom: form.adminNom,
           adminEmail: form.adminEmail,
@@ -1181,11 +1197,16 @@ export default function OnboardingPage() {
                 <Field label={t('phase1.step3.firstCycle.q5')}>
                   <CheckboxGroup
                     options={
-                      form.educationType === 'TECHNICAL'
-                        ? NIVEAUX_1ER_CYCLE_CAP.map(v => ({ value: v, label: v }))
-                        : form.subsystem === 'ANGLOPHONE'
-                          ? (template?.hasDeuxiemeCycle ? NIVEAUX_1ER_CYCLE_EN_LOWER : NIVEAUX_1ER_CYCLE_EN).map(v => ({ value: v, label: v }))
-                          : NIVEAUX_1ER_CYCLE_FR.map(v => ({ value: v, label: v }))
+                      // GTC_EN/GTC_GTHS_EN (technique anglophone) : Form1→Form4, PAS la
+                      // numérotation CAP1-4 (francophone uniquement) ni le split EN_LOWER/full
+                      // (propre au général anglophone GHS_EN/GSS_EN) — voir Phase 0 de ce chantier.
+                      form.subsystem === 'ANGLOPHONE' && form.educationType === 'TECHNICAL'
+                        ? NIVEAUX_1ER_CYCLE_EN.slice(0, 4).map(v => ({ value: v, label: v }))
+                        : form.educationType === 'TECHNICAL'
+                          ? NIVEAUX_1ER_CYCLE_CAP.map(v => ({ value: v, label: v }))
+                          : form.subsystem === 'ANGLOPHONE'
+                            ? (template?.hasDeuxiemeCycle ? NIVEAUX_1ER_CYCLE_EN_LOWER : NIVEAUX_1ER_CYCLE_EN).map(v => ({ value: v, label: v }))
+                            : NIVEAUX_1ER_CYCLE_FR.map(v => ({ value: v, label: v }))
                     }
                     values={form.niveaux1erCycle}
                     onChange={v => setForm(f => ({
@@ -1325,7 +1346,7 @@ export default function OnboardingPage() {
                 <Alert msg={t('phase1.step3.secondCycle.cesNotice')} type="info" />
               </div>
             )}
-            {template && !template.isComplexe && template.hasDeuxiemeCycle && template.code !== 'CES_FR' && (
+            {template && !template.isComplexe && template.hasDeuxiemeCycle && !['CES_FR', 'GTC_GTHS_EN'].includes(template.code ?? '') && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 800, color: 'var(--text)',
@@ -1652,6 +1673,27 @@ export default function OnboardingPage() {
               </div>
             )}
 
+            {/* ── GROUPE B-bis — 2e cycle GTC_GTHS_EN (Lower/Upper Sixth technique, STT/IND) ──
+                La filière (STT/IND) est choisie une seule fois pour toute l'école dans le
+                GROUPE C ci-dessous ; ce bloc ne demande que les niveaux du 2e cycle. */}
+            {template && template.code === 'GTC_GTHS_EN' && (
+              <div style={{ marginTop: 8, marginBottom: 8 }}>
+                <div style={{
+                  fontSize: 15, fontWeight: 800, color: 'var(--text)',
+                  padding: '8px 0', borderBottom: '2px solid var(--blue)', marginBottom: 14,
+                }}>
+                  {t('phase1.step3.secondCycle.sectionTitleEN')}
+                </div>
+                <Field label={t('phase1.step3.secondCycle.q10EN')}>
+                  <CheckboxGroup
+                    options={NIVEAUX_2E_CYCLE_EN.map(v => ({ value: v, label: v }))}
+                    values={form.niveaux2eCycle}
+                    onChange={v => setForm(f => ({ ...f, niveaux2eCycle: v }))}
+                  />
+                </Field>
+              </div>
+            )}
+
             {/* ── GROUPE C — Technique (caché si COMPLEXE) ── */}
             {template && !template.isComplexe && template.isTechnique && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
@@ -1661,6 +1703,30 @@ export default function OnboardingPage() {
                 }}>
                   {t('phase1.step3.technical.sectionTitle')}
                 </div>
+
+                {/* Admission (Q_ADMISSION) — visible pour TOUT template technique (CETIC,
+                    LYCEE_TECHNIQUE_FR, GTC_EN, GTC_GTHS_EN...) : GGTC/CETIF partagent le même
+                    programme que la variante mixte, seule l'admission diffère. Jamais imposé
+                    ailleurs (voir School.admissionType). */}
+                <Field label={t('phase1.step3.technical.admissionType')}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {([
+                      { value: 'MIXTE',   label: t('phase1.step3.technical.admissionMixte') },
+                      { value: 'FILLES',  label: t('phase1.step3.technical.admissionFilles') },
+                      { value: 'GARCONS', label: t('phase1.step3.technical.admissionGarcons') },
+                    ] as const).map(opt => (
+                      <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, admissionType: opt.value }))}
+                        style={{
+                          flex: 1, padding: '10px 6px', border: `2px solid ${form.admissionType === opt.value ? 'var(--green)' : 'var(--border2)'}`,
+                          borderRadius: 10, background: form.admissionType === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
+                          cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                          color: form.admissionType === opt.value ? 'var(--green2)' : 'var(--text2)',
+                        }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
 
                 {/* SAR_SM — formulaire minimal métiers */}
                 {template.code === 'SAR_SM' && (
@@ -1777,6 +1843,47 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
+                {/* GTC_EN / GTC_GTHS_EN — miroir anglophone du bloc LYCEE_TECHNIQUE_FR
+                    ci-dessus, filières STT (Tertiary) & IND (Industrial) directement (pas de
+                    sous-codes numérotés comme F1/G2 francophone — voir anglophone/technical.ts). */}
+                {(template.code === 'GTC_EN' || template.code === 'GTC_GTHS_EN') && (
+                  <div>
+                    <Field label={t('phase1.step3.technical.gtcType')}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {([
+                          { value: 'IND',   label: t('phase1.step3.technical.industrielEn'),  desc: t('phase1.step3.technical.industrielEnDesc') },
+                          { value: 'STT',   label: t('phase1.step3.technical.tertiaireEn'),   desc: t('phase1.step3.technical.tertiaireEnDesc') },
+                          { value: 'MIXTE', label: t('phase1.step3.technical.mixte'),   desc: t('phase1.step3.technical.mixteEnDesc') },
+                        ] as const).map(opt => (
+                          <button key={opt.value} type="button" onClick={() => setSousTypeTechnique(opt.value)}
+                            style={{
+                              flex: 1, padding: '10px 6px', border: `2px solid ${sousTypeTechnique === opt.value ? 'var(--green)' : 'var(--border2)'}`,
+                              borderRadius: 10, background: sousTypeTechnique === opt.value ? 'rgba(5,150,105,0.07)' : 'white',
+                              cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+                              color: sousTypeTechnique === opt.value ? 'var(--green2)' : 'var(--text2)',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                            }}>
+                            <span>{opt.label}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{opt.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </Field>
+                    {sousTypeTechnique && (
+                      <Field label={t('phase1.step3.technical.q14')}>
+                        <CheckboxGroup
+                          options={(
+                            sousTypeTechnique === 'MIXTE' ? [{ value: 'STT', label: 'STT' }, { value: 'IND', label: 'IND' }]
+                            : [{ value: sousTypeTechnique, label: sousTypeTechnique }]
+                          )}
+                          values={form.filieresTechniques}
+                          onChange={v => setForm(f => ({ ...f, filieresTechniques: v }))}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                )}
+
                 {/* CETIC — toggle CETIF + filières spécifiques */}
                 {template.code === 'CETIC' && (
                   <div>
@@ -1786,7 +1893,14 @@ export default function OnboardingPage() {
                           { val: false, label: t('phase1.step3.technical.ceticGeneral'),            desc: t('phase1.step3.technical.ceticGeneralDesc') },
                           { val: true,  label: t('phase1.step3.technical.ceticCETIF'), desc: t('phase1.step3.technical.ceticCETIFDesc') },
                         ].map((opt, i) => (
-                          <button key={i} type="button" onClick={() => setCetifMode(opt.val)}
+                          <button key={i} type="button" onClick={() => {
+                            setCetifMode(opt.val)
+                            // Pont vers le champ admissionType réel — le toggle CETIF existant
+                            // ne stockait jusqu'ici qu'une liste de filières différente, jamais
+                            // une restriction d'admission structurée. Voir Phase 0 du chantier
+                            // GTC_EN/GTC_GTHS_EN (13/07/2026).
+                            setForm(f => ({ ...f, admissionType: opt.val ? 'FILLES' : 'MIXTE' }))
+                          }}
                             style={{
                               flex: 1, padding: '10px 6px', border: `2px solid ${cetifMode === opt.val ? 'var(--green)' : 'var(--border2)'}`,
                               borderRadius: 10, background: cetifMode === opt.val ? 'rgba(5,150,105,0.07)' : 'white',

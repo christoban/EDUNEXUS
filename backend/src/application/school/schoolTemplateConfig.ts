@@ -11,6 +11,8 @@ const TEMPLATE_CONFIG: Record<string, TemplateMeta> = {
   PRIVE_EN:          { isAnglophone: true,  isPrimaire: false, isTechnique: false, langMode: 'anglophone' },
   PRIMARY_EN:        { isAnglophone: true,  isPrimaire: true,  isTechnique: false, langMode: 'anglophone' },
   NURSERY_EN:        { isAnglophone: true,  isPrimaire: true,  isTechnique: false, langMode: 'anglophone' },
+  GTC_GTHS_EN:       { isAnglophone: true,  isPrimaire: false, isTechnique: true,  langMode: 'anglophone' },
+  GTC_EN:            { isAnglophone: true,  isPrimaire: false, isTechnique: true,  langMode: 'anglophone' },
 
   LYCEE_BILINGUE:    { isAnglophone: false, isPrimaire: false, isTechnique: false, langMode: 'bilingual' },
   PRIMARY_BILINGUAL: { isAnglophone: false, isPrimaire: true,  isTechnique: false, langMode: 'bilingual' },

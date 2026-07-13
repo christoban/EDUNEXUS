@@ -258,7 +258,17 @@
         "optionsTerrain": "Options terrain confirmées",
         "autres": "Autre",
         "add": "+ Ajouter",
-        "placeholder": "Tapez et Entrée"
+        "placeholder": "Tapez et Entrée",
+        "admissionType": "Admission :",
+        "admissionMixte": "Mixte",
+        "admissionFilles": "Filles uniquement",
+        "admissionGarcons": "Garçons uniquement",
+        "gtcType": "Type de collège technique :",
+        "industrielEn": "Industrial (IND)",
+        "industrielEnDesc": "Industrial Sciences & Technology",
+        "tertiaireEn": "Tertiary (STT)",
+        "tertiaireEnDesc": "Tertiary Sciences & Technology",
+        "mixteEnDesc": "STT + IND"
       },
       "primary": {
         "sectionTitle": "🏫 Primaire & Maternelle",
