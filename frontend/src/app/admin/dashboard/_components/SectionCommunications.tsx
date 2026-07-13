@@ -162,7 +162,7 @@ export default function SectionCommunications({ onToast }: Props) {
       const d = await r.json()
       if (d.success) {
         const { sent, failed, total } = d.data
-        onToast(`✅ Envoyé à ${sent}/${total} destinataire(s)${failed > 0 ? ` (${failed} échoué(s))` : ''}.`, failed > 0 ? 'info' : 'success')
+        onToast(`Envoyé à ${sent}/${total} destinataire(s)${failed > 0 ? ` (${failed} échoué(s))` : ''}.`, failed > 0 ? 'info' : 'success')
         setMessage('')
         setPreview(null)
         loadData()

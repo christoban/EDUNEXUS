@@ -31,7 +31,7 @@
     "create_invoice": "Créer une facture",
     "new_plan": "+ Nouveau plan",
     "generate_invoices": "Générer factures",
-    "edit": "✏️",
+    "edit": "",
     "view": "Voir",
     "filter": "Filtrer",
     "retry": "Réessayer",

@@ -4,6 +4,7 @@ import path from 'path';
 import type { PrismaClient } from '@prisma/client';
 import { VerifierCompletudeSupplementUseCase } from '@application/statisticalCampaign/VerifierCompletudeSupplementUseCase';
 import { GenererDeclarationStatistiqueMinesecUseCase } from '@application/statisticalCampaign/GenererDeclarationStatistiqueMinesecUseCase';
+import { LibreOfficeUnavailableError, LibreOfficeConversionError } from '@application/statisticalCampaign/xlsEngine';
 import { SPECIALITES_TECHNIQUES_MINESEC } from '@application/statisticalCampaign/minesecTechnicalCatalog';
 import { getEstpAnneesEtude } from '@application/statisticalCampaign/minesecEstpGridMap';
 import { INFRA_ROWS, COMMODITES_ROWS, SUBSYSTEM_LABELS, getRelevantSubsystems, INFRA_BREAKDOWN_KEYS } from '@application/statisticalCampaign/minesecFixedFieldMap';
@@ -100,7 +101,16 @@ export class StatisticalCampaignController {
       const generatedByUserId = req.user!.userId;
       const result = await this._genererDeclaration.execute({ schoolId, generatedByUserId });
       res.json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      if (err instanceof LibreOfficeUnavailableError || err instanceof LibreOfficeConversionError) {
+        res.status(503).json({
+          success: false,
+          message: 'Le service de génération est temporairement indisponible, réessayez ou contactez le support.',
+        });
+        return;
+      }
+      next(err);
+    }
   };
 
   // GET /api/v2/statistical-campaign/submissions/:id/download

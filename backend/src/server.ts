@@ -31,6 +31,7 @@ import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
 import { relanceProfilRH } from "./inngest/hrSelfServiceJobs.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
+import { checkLibreOfficeAvailable } from '@application/statisticalCampaign/xlsEngine';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -85,10 +86,22 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
 
+// LibreOffice health check — vérifié une fois au démarrage (pas seulement découvert en échec
+// au moment où un admin génère une déclaration statistique MINESEC), puis exposé ci-dessous.
+let libreOfficeHealth: { available: boolean; version?: string; error?: string } | null = null;
+checkLibreOfficeAvailable().then((h) => {
+  libreOfficeHealth = h;
+  if (!h.available) {
+    console.warn(`[LibreOffice] Binaire indisponible au démarrage — la génération de déclarations statistiques MINESEC échouera : ${h.error}`);
+  } else {
+    console.log(`[LibreOffice] Disponible (${h.version})`);
+  }
+});
+
 // health check route
 app.get("/", (req: Request, res: Response) => {
   res.setHeader("ngrok-skip-browser-warning", "true");
-  res.status(200).json({ status: "OK", message: "Server is healthy" });
+  res.status(200).json({ status: "OK", message: "Server is healthy", libreOffice: libreOfficeHealth });
 });
 
 // SPA Fallback: serve index.html for all non-API routes (enables SPA routing on direct links)

@@ -806,8 +806,8 @@ export default function SectionClasses({ onToast }: Props) {
           <input style={sInput} placeholder={t('classes.pp_modal.search_placeholder')} value={ppForm.teacherSearch}
             onChange={e => setPPForm(f => ({ ...f, teacherSearch: e.target.value, selected: null }))} />
           {ppForm.selected && (
-            <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600 }}>
-              {t('classes.pp_modal.selected_prefix')} {ppForm.selected.firstName} {ppForm.selected.lastName}
+            <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Check size={14} /> {ppForm.selected.firstName} {ppForm.selected.lastName}
             </div>
           )}
           {!ppForm.selected && (

@@ -228,6 +228,6 @@
     "networkError": "Erreur réseau. Veuillez réessayer.",
     "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
     "welcome": "Bienvenue sur ZekoulABia",
-    "welcomeActivated": "Votre espace est maintenant actif ! Bienvenue sur ZekoulABia 🎉"
+    "welcomeActivated": "Votre espace est maintenant actif ! Bienvenue sur ZekoulABia"
   }
 }

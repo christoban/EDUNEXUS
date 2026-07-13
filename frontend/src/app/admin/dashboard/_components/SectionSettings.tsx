@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { Smartphone, Mail, School, Search, Save, CheckCircle2, Info } from 'lucide-react'
+import { Smartphone, Mail, School, Search, Save, CheckCircle2, Info, ClipboardList } from 'lucide-react'
 
 interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string; minesecSchoolCode?: string | null }
 interface Props {
@@ -951,11 +951,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               style={{ flex: 1, padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
               onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
-            <button style={btnSec} onClick={() => { setActSearch(actSearchInput); setActPage(1) }}>{t('settings.activities.btn_search')}</button>
+            <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setActSearch(actSearchInput); setActPage(1) }}><Search size={14} strokeWidth={2} /></button>
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={cardHeader}>
-              <span style={cardTitle}>{t('settings.activities.title')}</span>
+              <span style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><ClipboardList size={16} /> {t('settings.activities.title')}</span>
               {actData && <span style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.activities.entries_count').replace('{count}', String(actData.total))}</span>}
             </div>
             {actLoading && (<div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} /></div>)}
@@ -1012,11 +1012,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               <option value="FAILED">Échec</option>
               <option value="PENDING">En attente</option>
             </select>
-            <button style={btnSec} onClick={() => { setEmlSearch(emlSearchInput); setEmlPage(1) }}>{t('settings.emails.btn_search')}</button>
+            <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setEmlSearch(emlSearchInput); setEmlPage(1) }}><Search size={14} strokeWidth={2} /></button>
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={cardHeader}>
-              <span style={cardTitle}>{t('settings.emails.title')}</span>
+              <span style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Mail size={16} /> {t('settings.emails.title')}</span>
               {emlData && <span style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.emails.count').replace('{count}', String(emlData.pagination.total))}</span>}
             </div>
             {emlLoading && (<div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} /></div>)}

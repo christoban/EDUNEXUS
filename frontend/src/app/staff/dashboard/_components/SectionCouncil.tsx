@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { CheckCircle2, RotateCcw, Scale, AlertTriangle, GraduationCap } from 'lucide-react'
+import { CheckCircle2, RotateCcw, Scale, AlertTriangle, GraduationCap, X } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -276,7 +276,7 @@ export default function SectionCouncil({ onToast }: Props) {
                         </>
                       )}
                       <button style={btnSec} onClick={downloadReport}>{t('council.downloadReport')}</button>
-                      <button style={{ ...btnSec, fontSize: 14 }} onClick={() => setSelected(null)}>{t('council.close')}</button>
+                      <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center' }} onClick={() => setSelected(null)}><X size={14} /></button>
                     </div>
                   </div>
 

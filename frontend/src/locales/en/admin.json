@@ -28,7 +28,7 @@
       "minedub-stats": "MINEDUB Statistics"
     },
     "toast": {
-      "welcome_active": "Your space is now active! Welcome to ZekoulABia 🎉",
+      "welcome_active": "Your space is now active! Welcome to ZekoulABia",
       "feature_coming": "Feature coming soon"
     }
   },
@@ -419,7 +419,7 @@
       "search_label": "Search for a teacher",
       "search_placeholder": "Teacher's name…",
       "no_teacher": "No teacher found",
-      "selected_prefix": "✓",
+      "selected_prefix": "",
       "btn_cancel": "Cancel",
       "btn_assign": "Assign",
       "assigning": "Assigning…",
@@ -568,7 +568,7 @@
       "selector_label": "Choose a Class",
       "selector_placeholder": "— Select a class —",
       "no_subjects": "No subjects configured for <strong>{name}</strong>.",
-      "sync_hint": "Click <strong>🔄 Sync Subjects</strong> to automatically create coefficients.",
+      "sync_hint": "Click <strong>Sync Subjects</strong> to automatically create coefficients.",
       "program_label": "Program for <strong>{name}</strong>",
       "count_badge": "{count} subject(s)",
       "btn_add": "+ Add",
@@ -601,7 +601,7 @@
       "title": "Assign a Teacher",
       "search_placeholder": "Teacher's name…",
       "no_teacher": "No teacher found",
-      "selected_prefix": "✓",
+      "selected_prefix": "",
       "btn_assign": "Assign",
       "btn_cancel": "Cancel",
       "assigning": "Assigning…",
@@ -865,8 +865,8 @@
     },
     "activities": {
       "search_placeholder": "Search by action or description…",
-      "btn_search": "🔍",
-      "title": "📋 Activity Log",
+      "btn_search": "",
+      "title": "Activity Log",
       "no_activities": "No activity recorded",
       "table_headers": [
         "Date",
@@ -882,8 +882,8 @@
     "emails": {
       "search_placeholder": "Search by recipient or subject…",
       "status_all": "All statuses",
-      "btn_search": "🔍",
-      "title": "📧 Email Log",
+      "btn_search": "",
+      "title": "Email Log",
       "no_emails": "No emails recorded",
       "table_headers": [
         "Date",

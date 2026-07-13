@@ -6,11 +6,11 @@
 import fs from 'fs';
 import path from 'path';
 import type { PrismaClient } from '@prisma/client';
-import { decryptTemplate, setCellValue, writeWorkbookToFile } from './xlsEngine';
+import { decryptTemplate, setCellValue, writeWorkbookToFile, cleanupSession, type WorkbookSession } from './xlsEngine';
 import { resolveEsgFields, resolveIdentificationAutoFields, resolveFeeAutoFields, type ResolvedCell } from './resolveAutoFields';
 import { resolvePersonnelFields } from './resolvePersonnelFields';
 import { VerifierCompletudeSupplementUseCase } from './VerifierCompletudeSupplementUseCase';
-import { IDENTIFICATION_FIELDS, INFRASTRUCTURE_FIELDS, FINANCEMENT_FIELDS, INFRA_ROWS, SUBSYSTEM_BASE_COL, type SubsystemBlock } from './minesecFixedFieldMap';
+import { IDENTIFICATION_FIELDS, INFRASTRUCTURE_FIELDS, FINANCEMENT_FIELDS } from './minesecFixedFieldMap';
 import { ESTP_GRID_BLOCKS } from './minesecEstpGridMap';
 import type { ChampNonResolu, GenererDeclarationStatistiqueCommande, GenererDeclarationStatistiqueResultat } from './types';
 
@@ -58,14 +58,30 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     const supplement = await (this.prisma as any).schoolStatisticalSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
     const school = await (this.prisma as any).school.findUnique({ where: { id: cmd.schoolId } });
 
-    const wb = await decryptTemplate(template.filePath);
+    const session = await decryptTemplate(template.filePath);
+    try {
+      return await this.remplirEtEcrire(session, cmd, template, supplement, school);
+    } catch (err) {
+      cleanupSession(session);
+      throw err;
+    }
+  }
+
+  private async remplirEtEcrire(
+    session: WorkbookSession,
+    cmd: GenererDeclarationStatistiqueCommande,
+    template: any,
+    supplement: any,
+    school: any,
+  ): Promise<GenererDeclarationStatistiqueResultat> {
+    const wb = session.workbook;
     const champsNonResolus: ChampNonResolu[] = [];
 
     const applyCells = (cells: ResolvedCell[]) => {
       for (const cell of cells) {
-        const ws = wb.Sheets[cell.sheetName];
+        const ws = wb.getWorksheet(cell.sheetName);
         if (!ws) continue;
-        setCellValue(ws, cell.cellReference, cell.value, cell.dataType, cell.isComputedTotal === true);
+        setCellValue(ws, cell.cellReference, cell.value, cell.dataType);
       }
     };
 
@@ -84,7 +100,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
       (f) => f.category === 'C_MANUAL',
     );
     for (const field of fixedManualFields) {
-      const ws = wb.Sheets[field.sheetName];
+      const ws = wb.getWorksheet(field.sheetName);
       if (!ws || !field.supplementKey) continue;
       const value = getByPath(supplement, field.supplementKey);
       if (value === undefined || value === null) {
@@ -112,27 +128,14 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
       }
     }
 
-    // ── Total "Nombre de locaux" par sous-système/type (Infrastructures) ──
-    // Cellule F/N/V/AD = formule SUM(...) dans le template, non préservée à l'écriture BIFF8
-    // (voir minesecEsgFieldMap.ts pour la même situation côté ESG) : calculée et écrite ici
-    // comme valeur statique à partir des 6 valeurs de répartition matériau × état saisies.
-    const wsInfra = wb.Sheets['Infrastructures'];
-    if (wsInfra && supplement?.infrastructuresDetail) {
-      const BREAKDOWN_SUM_KEYS = ['definitifBon', 'definitifAcceptable', 'definitifMauvais', 'provisoireBon', 'provisoireAcceptable', 'provisoireMauvais'];
-      for (const sub of Object.keys(SUBSYSTEM_BASE_COL) as SubsystemBlock[]) {
-        const subDetail = supplement.infrastructuresDetail[sub];
-        if (!subDetail) continue;
-        for (const row of INFRA_ROWS) {
-          const roomDetail = subDetail[row.code];
-          if (!roomDetail) continue;
-          const total = BREAKDOWN_SUM_KEYS.reduce((sum, k) => sum + (Number(roomDetail[k]) || 0), 0);
-          setCellValue(wsInfra, `${SUBSYSTEM_BASE_COL[sub]}${row.row}`, total, 'NUMBER', true);
-        }
-      }
-    }
+    // Total "Nombre de locaux" par sous-système/type (Infrastructures, colonne F/N/V/AD) :
+    // formule SUM(H:M) dans le template sur les 6 valeurs de répartition matériau × état déjà
+    // écrites ci-dessus via INFRASTRUCTURE_FIELDS (C_MANUAL) — préservée et recalculée seule à
+    // l'ouverture depuis la migration LibreOffice+exceljs, plus besoin de la recalculer à la
+    // main (vérifié empiriquement, voir rapport de migration).
 
     // ── Catégorie C_MANUAL — spécialités techniques ESTP (grille dynamique) ──
-    const wsEstp = wb.Sheets['Eleves_ESTP_Fr'];
+    const wsEstp = wb.getWorksheet('Eleves_ESTP_Fr');
     const effectifsTechniques: any[] = Array.isArray(supplement?.effectifsTechniquesDetail) ? supplement.effectifsTechniquesDetail : [];
     const blockByAnnee = new Map<string, typeof ESTP_GRID_BLOCKS>();
     for (const block of ESTP_GRID_BLOCKS) {
@@ -185,7 +188,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     fs.mkdirSync(outDir, { recursive: true });
     const fileName = `declaration-minesec-${school?.subdomain ?? cmd.schoolId}-${Date.now()}.xls`;
     const outputPath = path.join(outDir, fileName);
-    writeWorkbookToFile(wb, outputPath);
+    await writeWorkbookToFile(session, outputPath);
 
     const submission = await (this.prisma as any).statisticalSubmission.create({
       data: {

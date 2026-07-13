@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { AlertTriangle, CheckCircle2, Check, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Check, X, Loader2 } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -214,10 +214,10 @@ export default function SectionDiscipline({ onToast }: Props) {
                     <td style={tdSt}>
                       {r.status === 'ACTIVE' && (
                         <button
-                          style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
+                          style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
                           onClick={() => liftSanction(r.id, `${r.student.firstName} ${r.student.lastName}`)}
                           disabled={liftingId === r.id}>
-                          {liftingId === r.id ? t('actions.lifting') : t('actions.lift')}
+                          {liftingId === r.id ? <Loader2 size={13} className="animate-spin" /> : t('actions.lift')}
                         </button>
                       )}
                     </td>

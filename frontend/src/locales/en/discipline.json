@@ -33,13 +33,13 @@
     "filter": "Filter",
     "retry": "Retry",
     "saving": "Saving…",
-    "lifting": "⏳"
+    "lifting": ""
   },
   "form_fields": {
     "student_label": "Student *",
     "student_placeholder": "Type the student's name…",
-    "student_selected_prefix": "✓",
-    "deselect": "✕",
+    "student_selected_prefix": "",
+    "deselect": "",
     "type_label": "Sanction Type *",
     "reason_label": "Reason *",
     "reason_placeholder": "Describe the reason for the sanction…",
@@ -77,10 +77,10 @@
   "empty_state": {
     "title": "No sanctions recorded",
     "description": "Use \"+ New Sanction\" to create a discipline record.",
-    "icon": "✅"
+    "icon": ""
   },
   "count_summary": "{count} sanction{s} · filtered{byStatus}",
   "loading": "…",
-  "error_icon": "⚠️",
+  "error_icon": "",
   "behavior_reason": "Behavior problem"
 }

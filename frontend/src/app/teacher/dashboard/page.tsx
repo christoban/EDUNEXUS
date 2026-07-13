@@ -1,7 +1,8 @@
 ﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Bell, Search, KeyRound } from 'lucide-react'
+import { Bell, Search, KeyRound, FileText, FolderOpen } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { logoutUser } from '@/lib/userAuth'
 import TeacherSidebar from './_components/TeacherSidebar'
 import TeacherToast from './_components/TeacherToast'
@@ -26,9 +27,9 @@ import { useT } from '@/lib/i18n'
 
 let toastId = 0
 
-const PLACEHOLDERS: Partial<Record<TeacherSection, { icon: string }>> = {
-  bulletins: { icon: '📄' },
-  resources: { icon: '📦' },
+const PLACEHOLDERS: Partial<Record<TeacherSection, { icon: LucideIcon }>> = {
+  bulletins: { icon: FileText },
+  resources: { icon: FolderOpen },
 }
 
 export default function TeacherDashboard() {
@@ -133,7 +134,7 @@ export default function TeacherDashboard() {
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center', maxWidth: 400 }}>
-                  <div style={{ fontSize: 48, marginBottom: 16 }}>{val.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><val.icon size={48} /></div>
                   <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
                     {TITLES[key as TeacherSection]}
                   </div>

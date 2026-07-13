@@ -59,7 +59,7 @@
       "honor_roll": "Honor roll",
       "honor_roll_annual": "Annual",
       "report": "Report",
-      "close": "✕",
+      "close": "",
       "retry": "Retry"
     },
     "tooltips": {

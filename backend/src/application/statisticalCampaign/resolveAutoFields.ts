@@ -13,8 +13,6 @@ export interface ResolvedCell {
   cellReference: string;
   value: number | string;
   dataType: 'NUMBER' | 'TEXT';
-  /** true si cellReference était une formule Excel dans le template — voir xlsEngine.setCellValue. */
-  isComputedTotal?: boolean;
 }
 
 const LV2_KEYWORDS: Record<'ESP' | 'ALL' | 'ARABE' | 'CHINOIS' | 'ITALIEN', RegExp> = {
@@ -153,9 +151,10 @@ export async function resolveEsgFields(
 
     if (entry.fillesCell) cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: entry.fillesCell, value: filles, dataType: 'NUMBER' });
     if (entry.garconsCell) cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: entry.garconsCell, value: garcons, dataType: 'NUMBER' });
-    // La cellule "Total" était une formule (Filles+Garçons) dans le template — non préservée
-    // à l'écriture BIFF8, on écrit donc la somme calculée comme valeur statique.
-    if (entry.totalCell) cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: entry.totalCell, value: filles + garcons, dataType: 'NUMBER', isComputedTotal: true });
+    // La cellule "Total" (Filles+Garçons) reste une formule Excel dans le template : depuis la
+    // migration LibreOffice+exceljs (voir xlsEngine.ts), elle est préservée et se recalcule
+    // seule à l'ouverture — plus besoin de l'écrire en dur (vérifié empiriquement, voir rapport
+    // de migration). L'ancien hack SheetJS/BIFF8 qui recalculait ce total à la main a été retiré.
   }
 
   // Répartition par âge (II.1.1) — toujours calculée par rapport au 1er septembre de l'année scolaire en cours
@@ -163,8 +162,6 @@ export async function resolveEsgFields(
   const refYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
   const referenceDate = new Date(refYear, 8, 1);
   for (const ageRow of AGE_ROWS) {
-    let ensembleFilles = 0;
-    let ensembleGarcons = 0;
     for (const level of AGE_LEVEL_COLUMNS) {
       const inBucket = students.filter((s) => {
         if (s.niveau !== level.niveau) return false;
@@ -178,14 +175,10 @@ export async function resolveEsgFields(
       const garcons = inBucket.filter((s) => s.gender === 'M' || s.gender === 'MALE' || s.gender === 'Garçon').length;
       cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: `${level.fillesCol}${ageRow.row}`, value: filles, dataType: 'NUMBER' });
       cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: `${level.garconsCol}${ageRow.row}`, value: garcons, dataType: 'NUMBER' });
-      ensembleFilles += filles;
-      ensembleGarcons += garcons;
     }
-    // Colonnes "Ensemble" R/S/T — formules dans le template (somme des 7 niveaux), non
-    // préservées à l'écriture BIFF8 : écrites comme valeurs statiques calculées.
-    cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: `R${ageRow.row}`, value: ensembleFilles, dataType: 'NUMBER', isComputedTotal: true });
-    cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: `S${ageRow.row}`, value: ensembleGarcons, dataType: 'NUMBER', isComputedTotal: true });
-    cells.push({ sheetName: 'Eleves_ESG_Fr', cellReference: `T${ageRow.row}`, value: ensembleFilles + ensembleGarcons, dataType: 'NUMBER', isComputedTotal: true });
+    // Colonnes "Ensemble" R/S/T — formules dans le template (somme des 7 niveaux) : préservées
+    // et recalculées seules à l'ouverture depuis la migration LibreOffice+exceljs, plus besoin
+    // de les écrire en dur (voir commentaire équivalent plus haut).
   }
 
   return { cells, nonCouverts };

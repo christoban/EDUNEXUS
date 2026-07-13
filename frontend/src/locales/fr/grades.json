@@ -59,7 +59,7 @@
       "honor_roll": "Tableau d'honneur",
       "honor_roll_annual": "Annuel",
       "report": "Rapport",
-      "close": "✕",
+      "close": "",
       "retry": "Réessayer"
     },
     "tooltips": {

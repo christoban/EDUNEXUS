@@ -28,7 +28,7 @@
       "minedub-stats": "Statistiques MINEDUB"
     },
     "toast": {
-      "welcome_active": "Votre espace est maintenant actif ! Bienvenue sur ZekoulABia 🎉",
+      "welcome_active": "Votre espace est maintenant actif ! Bienvenue sur ZekoulABia",
       "feature_coming": "Fonctionnalité à venir"
     }
   },
@@ -419,7 +419,7 @@
       "search_label": "Rechercher un enseignant",
       "search_placeholder": "Nom de l'enseignant…",
       "no_teacher": "Aucun enseignant trouvé",
-      "selected_prefix": "✓",
+      "selected_prefix": "",
       "btn_cancel": "Annuler",
       "btn_assign": "Assigner",
       "assigning": "Assignation…",
@@ -568,7 +568,7 @@
       "selector_label": "Choisir une classe",
       "selector_placeholder": "— Sélectionner une classe —",
       "no_subjects": "Aucune matière configurée pour <strong>{name}</strong>.",
-      "sync_hint": "Cliquez sur <strong>🔄 Sync Matières</strong> pour créer automatiquement les coefficients.",
+      "sync_hint": "Cliquez sur <strong>Sync Matières</strong> pour créer automatiquement les coefficients.",
       "program_label": "Programme de <strong>{name}</strong>",
       "count_badge": "{count} matière(s)",
       "btn_add": "+ Ajouter",
@@ -601,7 +601,7 @@
       "title": "Assigner un enseignant",
       "search_placeholder": "Nom de l'enseignant…",
       "no_teacher": "Aucun enseignant trouvé",
-      "selected_prefix": "✓",
+      "selected_prefix": "",
       "btn_assign": "Assigner",
       "btn_cancel": "Annuler",
       "assigning": "Assignation…",
@@ -865,8 +865,8 @@
     },
     "activities": {
       "search_placeholder": "Rechercher par action ou description…",
-      "btn_search": "🔍",
-      "title": "📋 Journal d'activités",
+      "btn_search": "",
+      "title": "Journal d'activités",
       "no_activities": "Aucune activité enregistrée",
       "table_headers": [
         "Date",
@@ -882,8 +882,8 @@
     "emails": {
       "search_placeholder": "Rechercher par destinataire ou sujet…",
       "status_all": "Tous les statuts",
-      "btn_search": "🔍",
-      "title": "📧 Journal des emails",
+      "btn_search": "",
+      "title": "Journal des emails",
       "no_emails": "Aucun email enregistré",
       "table_headers": [
         "Date",

@@ -33,13 +33,13 @@
     "filter": "Filtrer",
     "retry": "Réessayer",
     "saving": "Enregistrement…",
-    "lifting": "⏳"
+    "lifting": ""
   },
   "form_fields": {
     "student_label": "Élève *",
     "student_placeholder": "Taper le nom de l'élève…",
-    "student_selected_prefix": "✓",
-    "deselect": "✕",
+    "student_selected_prefix": "",
+    "deselect": "",
     "type_label": "Type de sanction *",
     "reason_label": "Motif *",
     "reason_placeholder": "Décrivez la raison de la sanction…",
@@ -77,10 +77,10 @@
   "empty_state": {
     "title": "Aucune sanction enregistrée",
     "description": "Utilisez « + Nouvelle sanction » pour créer un dossier de discipline.",
-    "icon": "✅"
+    "icon": ""
   },
   "count_summary": "{count} sanction{s} · filtré{byStatus}",
   "loading": "…",
-  "error_icon": "⚠️",
+  "error_icon": "",
   "behavior_reason": "Problème de comportement"
 }

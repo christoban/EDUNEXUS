@@ -153,8 +153,8 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
                 {loadingRecords ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} {t('attendance.filter')}
               </button>
               {records.length > 0 && (
-                <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
-                  {t('attendance.summary', { present: presentCount, absent: absentCount, late: lateCount })}
+                <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <CheckCircle2 size={13} /> {presentCount} · <X size={13} /> {absentCount} · <AlarmClock size={13} /> {lateCount}
                 </span>
               )}
             </div>
