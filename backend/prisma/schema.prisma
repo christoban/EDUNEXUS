@@ -1301,19 +1301,34 @@ model ActivitiesLog {
 }
 
 model EmployeeFile {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  schoolId      String
-  dateNaissance DateTime?
-  diplomes      Json      @default("[]")
-  numeroCNPS    String?
-  typeContrat   String?
-  dateEmbauche  DateTime?
-  echelonActuel String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  user          User      @relation("EmployeeFileUser", fields: [userId], references: [id], onDelete: Cascade)
-  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  schoolId               String
+  dateNaissance          DateTime?
+  // 'F' | 'M' — même convention que StudentProfile.gender. Absent avant ce chantier (gap
+  // structurel confirmé lors des déclarations statistiques MINESEC/MINEDUB : aucun champ
+  // sexe n'existait pour le personnel).
+  gender                 String?
+  diplomes               Json      @default("[]")
+  numeroCNPS             String?
+  typeContrat            String?
+  dateEmbauche           DateTime?
+  echelonActuel          String?
+  // Documents justificatifs (diplôme, pièce d'identité...) uploadés en self-service par
+  // l'employé lui-même. Liste [{ type, label, url, uploadedAt }] — voir hrSelfService.routes.ts.
+  documentsUrls          Json      @default("[]")
+  // Renseigné une fois que l'employé a lui-même complété/confirmé sa fiche via le
+  // self-service — distinct de la simple présence de données (saisissables par l'admin seul).
+  selfServiceCompletedAt DateTime?
+  // Relances self-service RH — même principe que StudentOnboarding (relanceOnboarding),
+  // voir hrSelfServiceJobs.ts.
+  remindersSentCount     Int       @default(0)
+  lastReminderAt         DateTime?
+  escalatedAt            DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation("EmployeeFileUser", fields: [userId], references: [id], onDelete: Cascade)
+  school                 School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
 }

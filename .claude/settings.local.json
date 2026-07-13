@@ -57,7 +57,21 @@
       "Bash(node scripts/browser_test_onboarding.mjs)",
       "Bash(bun ./scratch_minesec/dump_cells.ts Eleves_ESG_Fr 100)",
       "Bash(bun ./scratch_minesec/test_generation.ts)",
-      "Bash(node_modules/.bin/tsx scratch_test/playwright_minesec.ts \"admin-1783889508898@test.cm\" \"TestMinesec123!\" \"test-minesec-ui-1783889508521\")"
+      "Bash(node_modules/.bin/tsx scratch_test/playwright_minesec.ts \"admin-1783889508898@test.cm\" \"TestMinesec123!\" \"test-minesec-ui-1783889508521\")",
+      "Bash(tasklist //FI \"IMAGENAME eq bun.exe\")",
+      "Bash(grep -rn \"staff_mon-profil-rh\\\\|pageTitle\\\\.staff_\\\\|\\\\`pageTitle\" src/app/staff/dashboard/ src/app/staff/dashboard/_components/StaffTopbar.tsx)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/locales/fr/navigation.json','utf8'\\)\\); JSON.parse\\(require\\('fs'\\).readFileSync\\('src/locales/en/navigation.json','utf8'\\)\\); console.log\\('JSON OK'\\)\")",
+      "Bash(node_modules/.bin/tsx scratch_test/playwright_hr_selfservice.ts \"teacher-hrui-1783926432041@test.cm\" \"staff-hrui-1783926432049@test.cm\" \"TestHRUI123!\" \"test-hr-ui-1783926431732\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/locales/fr/admin.json','utf8'\\)\\); JSON.parse\\(require\\('fs'\\).readFileSync\\('src/locales/en/admin.json','utf8'\\)\\); console.log\\('JSON OK'\\)\")",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(taskkill //PID 4176 //F)",
+      "Bash(taskkill //PID 7840 //F)",
+      "Bash(bun scratch_test/test_hr_reminder_job.ts)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('src/locales/fr/hrSelfService.json','utf8'\\)\\); JSON.parse\\(require\\('fs'\\).readFileSync\\('src/locales/en/hrSelfService.json','utf8'\\)\\); console.log\\('JSON OK'\\)\")",
+      "Bash(tail -40 /tmp/backend_ai.log)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"backend:%{http_code}\\\\n\" http://localhost:5000/)",
+      "Bash(node_modules/.bin/tsx scratch_test/playwright_ai_diplome.ts \"teacher-ai-1783933487468@test.cm\" \"TestAI123!\" \"test-ai-diplome-1783933486928\")"
     ]
   }
 }

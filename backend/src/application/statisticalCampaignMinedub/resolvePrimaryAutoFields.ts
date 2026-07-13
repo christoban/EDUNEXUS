@@ -103,6 +103,7 @@ export async function resolveEffectifsParAge(prisma: PrismaClient, schoolId: str
 
 export interface PersonnelPrimaireRow {
   nomComplet: string;
+  genre: string | null;
   fonction: string | null;
   typeContrat: string | null;
   diplome: string | null;
@@ -115,7 +116,7 @@ export async function resolvePersonnelPrimaire(prisma: PrismaClient, schoolId: s
       firstName: true,
       lastName: true,
       staffProfile: { select: { title: true } },
-      employeeFile: { select: { typeContrat: true, diplomes: true } },
+      employeeFile: { select: { typeContrat: true, diplomes: true, gender: true } },
     },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   });
@@ -127,8 +128,13 @@ export async function resolvePersonnelPrimaire(prisma: PrismaClient, schoolId: s
 
   const rows: PersonnelPrimaireRow[] = staff.map((u) => {
     const diplomes = Array.isArray(u.employeeFile?.diplomes) ? u.employeeFile.diplomes : [];
+    const gender = u.employeeFile?.gender;
+    if (gender !== 'F' && gender !== 'M') {
+      champsNonResolus.push(`Sexe non renseigné pour ${u.lastName} ${u.firstName} — profil RH self-service non complété.`);
+    }
     return {
       nomComplet: `${u.lastName} ${u.firstName}`,
+      genre: gender === 'F' ? 'Féminin' : gender === 'M' ? 'Masculin' : null,
       fonction: u.staffProfile?.title ?? null,
       typeContrat: u.employeeFile?.typeContrat ?? null,
       diplome: diplomes[0] ? String(diplomes[0]) : null,

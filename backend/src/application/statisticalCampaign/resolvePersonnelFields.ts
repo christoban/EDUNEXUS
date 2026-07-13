@@ -45,7 +45,7 @@ export async function resolvePersonnelFields(
       lastName: true,
       staffProfile: { select: { title: true } },
       teacherProfile: { select: { specialization: true } },
-      employeeFile: { select: { dateNaissance: true, diplomes: true, numeroCNPS: true, typeContrat: true, echelonActuel: true, dateEmbauche: true } },
+      employeeFile: { select: { dateNaissance: true, gender: true, diplomes: true, numeroCNPS: true, typeContrat: true, echelonActuel: true, dateEmbauche: true } },
     },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   });
@@ -73,9 +73,13 @@ export async function resolvePersonnelFields(
       nonCouverts.push({ fieldCode: 'PERSONNEL_DATE_NAISSANCE', sheetName: 'Personnels', cellReference: `${COLS.dateNaissance}${row}`, fieldLabel: `Date de naissance — ${nomComplet}`, raison: 'Non renseignée dans la fiche employé (EmployeeFile.dateNaissance).' });
     }
 
-    // Sexe : aucun champ dans le modèle RH actuel (StaffProfile/TeacherProfile/EmployeeFile) —
-    // gap structurel, distinct des gaps "donnée non saisie".
-    nonCouverts.push({ fieldCode: 'PERSONNEL_SEXE', sheetName: 'Personnels', cellReference: `${COLS.sexe}${row}`, fieldLabel: `Sexe — ${nomComplet}`, raison: "Aucun champ 'sexe' n'existe pour le personnel dans ZekoulABia (contrairement à StudentProfile.gender) — gap structurel, pas seulement une donnée manquante." });
+    // Sexe : renseigné via le self-service RH (EmployeeFile.gender, ajouté le 13/07/2026 —
+    // gap structurel résolu, voir chantier "Module RH self-service").
+    if (file?.gender === 'F' || file?.gender === 'M') {
+      cells.push({ sheetName: 'Personnels', cellReference: `${COLS.sexe}${row}`, value: file.gender === 'F' ? 'Féminin' : 'Masculin', dataType: 'TEXT' });
+    } else {
+      nonCouverts.push({ fieldCode: 'PERSONNEL_SEXE', sheetName: 'Personnels', cellReference: `${COLS.sexe}${row}`, fieldLabel: `Sexe — ${nomComplet}`, raison: "Non renseigné — l'employé n'a pas encore complété son profil RH self-service." });
+    }
 
     if (file?.typeContrat) {
       cells.push({ sheetName: 'Personnels', cellReference: `${COLS.statut}${row}`, value: file.typeContrat, dataType: 'TEXT' });

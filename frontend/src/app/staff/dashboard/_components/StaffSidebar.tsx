@@ -59,6 +59,7 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
     { items: [{ id: 'dashboard', icon: '⊞', label: tnav('sidebar.dashboard') }] },
     ...(supervisionItems.length > 0 ? [{ label: tnav('group.supervision'), items: supervisionItems }] : []),
     ...(servicesItems.length > 0    ? [{ label: tnav('group.services'),    items: servicesItems    }] : []),
+    { label: tnav('group.moncompte'), items: [{ id: 'mon-profil-rh', icon: '🪪', label: tnav('sidebar.monProfilRH') }] },
   ]
 
   const userFallback = sessionUser?.nomComplet ?? tcommon('user.staffFallback')

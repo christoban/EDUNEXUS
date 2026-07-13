@@ -3,6 +3,7 @@ export type StaffSection =
   | 'grille-horaire' | 'affectations'
   | 'attendance' | 'finance' | 'cautions' | 'discipline'
   | 'library' | 'orientation' | 'departements'
+  | 'mon-profil-rh'
 
 export interface SessionUser {
   userId: string
@@ -36,7 +37,7 @@ export const PERM_TO_SECTION: { perm: string; section: StaffSection }[] = [
 ]
 
 export function getSectionsFromPermissions(permissions: string[]): Set<StaffSection> {
-  const set = new Set<StaffSection>(['dashboard'])
+  const set = new Set<StaffSection>(['dashboard', 'mon-profil-rh'])
   for (const { perm, section } of PERM_TO_SECTION) {
     if (permissions.includes(perm)) set.add(section)
   }

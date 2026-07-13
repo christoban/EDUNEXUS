@@ -21,6 +21,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
+import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import { useT } from '@/lib/i18n'
 
 let toastId = 0
@@ -46,6 +47,7 @@ export default function TeacherDashboard() {
     'pp-appreciations':  tnav('pageTitle.teacher_ppAppreciations'),
     'ap-departement':    tnav('pageTitle.teacher_apDepartement'),
     'cahier-de-texte':   tnav('pageTitle.teacher_cahierDeTexte'),
+    'mon-profil-rh':     tnav('sidebar.monProfilRH'),
   }
   const [section, setSection] = useState<TeacherSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -126,6 +128,7 @@ export default function TeacherDashboard() {
             return dept ? <SectionDepartementAP user={user!} departementId={dept.id} departementNom={dept.name} /> : null
           })()}
           {section === 'cahier-de-texte' && <SectionCahierDeTexte user={user} onToast={showToast} />}
+          {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>

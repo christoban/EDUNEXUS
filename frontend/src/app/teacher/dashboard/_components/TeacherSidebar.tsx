@@ -40,6 +40,10 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
       label: tnav('group.ressources'),
       items: [{ id: 'resources', icon: '📦', label: tnav('sidebar.pedagogicalResources') }],
     },
+    {
+      label: tnav('group.moncompte'),
+      items: [{ id: 'mon-profil-rh', icon: '🪪', label: tnav('sidebar.monProfilRH') }],
+    },
   ]
 
   const ppClasses = user?.classesProfessorPrincipal ?? []

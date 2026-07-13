@@ -12,11 +12,14 @@ type AttendanceStatut = 'PRESENT' | 'ABSENT' | 'RETARD'
 
 interface EmployeeFile {
   dateNaissance?: string | null
+  gender?: string | null
   diplomes?: unknown[]
   numeroCNPS?: string | null
   typeContrat?: string | null
   dateEmbauche?: string | null
   echelonActuel?: string | null
+  documentsUrls?: { type: string; label: string; url: string; uploadedAt: string }[]
+  selfServiceCompletedAt?: string | null
 }
 
 interface EmployeeItem {
@@ -447,6 +450,26 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                   <div>
                     <div style={labelStyle}>{t('rh.echelon')}</div>
                     <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.file?.echelonActuel ?? '—'}</div>
+                  </div>
+                  <div>
+                    <div style={labelStyle}>{t('rh.gender')}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.file?.gender === 'F' ? t('rh.genderF') : selectedDetail.file?.gender === 'M' ? t('rh.genderM') : '—'}</div>
+                  </div>
+                  <div>
+                    <div style={labelStyle}>{t('rh.documentsCount')}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{selectedDetail.file?.documentsUrls?.length ?? 0}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={labelStyle}>{t('rh.selfServiceStatus')}</div>
+                    {selectedDetail.file?.selfServiceCompletedAt ? (
+                      <span style={{ ...chipStyle('rgba(22,163,74,0.12)', 'var(--green)'), fontSize: 13, fontWeight: 700 }}>
+                        ✅ {t('rh.selfServiceCompletedOn', { date: new Date(selectedDetail.file.selfServiceCompletedAt).toLocaleDateString() })}
+                      </span>
+                    ) : (
+                      <span style={{ ...chipStyle('rgba(234,179,8,0.12)', '#b45309'), fontSize: 13, fontWeight: 700 }}>
+                        ⚠️ {t('rh.selfServiceNotCompleted')}
+                      </span>
+                    )}
                   </div>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
                     <button style={{ ...chipStyle('var(--blue-light)', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={() => saveEmployeeFile(selectedDetail.employee.id, (selectedDetail.file ?? {}) as Record<string, unknown>)}>{t('rh.saveFile')}</button>

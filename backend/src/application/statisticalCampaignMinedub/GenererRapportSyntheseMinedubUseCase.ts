@@ -146,7 +146,7 @@ export class GenererRapportSyntheseMinedubUseCase {
       if (personnel.length === 0) {
         this.emptyNote(doc, 'Aucun personnel actif trouvé.');
       } else {
-        this.table(doc, ['Nom', 'Fonction', 'Statut', 'Diplôme'], personnel.map((p) => [p.nomComplet, p.fonction ?? '—', p.typeContrat ?? '—', p.diplome ?? '—']));
+        this.table(doc, ['Nom', 'Sexe', 'Fonction', 'Statut', 'Diplôme'], personnel.map((p) => [p.nomComplet, p.genre ?? '—', p.fonction ?? '—', p.typeContrat ?? '—', p.diplome ?? '—']));
       }
       doc.moveDown(1);
 

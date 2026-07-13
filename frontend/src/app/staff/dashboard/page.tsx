@@ -20,6 +20,7 @@ import SectionDiscipline       from './_components/SectionDiscipline'
 import SectionLibrary          from './_components/SectionLibrary'
 import SectionOrientation      from './_components/SectionOrientation'
 import SectionDepartementsStaff from './_components/SectionDepartementsStaff'
+import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
@@ -30,7 +31,7 @@ export default function StaffDashboard() {
   const [section, setSection]           = useState<StaffSection>('dashboard')
   const [toasts, setToasts]             = useState<Toast[]>([])
   const [sessionUser, setSessionUser]   = useState<SessionUser | null>(null)
-  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard']))
+  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh']))
   const [schoolName, setSchoolName]     = useState<string | undefined>(undefined)
   const [logoUrl,    setLogoUrl]        = useState<string | null>(null)
   const [changePwdOpen, setChangePwdOpen] = useState(false)
@@ -143,6 +144,8 @@ export default function StaffDashboard() {
           {section === 'departements' && can('departements') && (
             <SectionDepartementsStaff onToast={showToast} />
           )}
+
+          {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
 
         </main>
       </div>

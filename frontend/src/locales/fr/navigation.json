@@ -36,6 +36,7 @@
     "eleveOnboarding": "Inscriptions en cours d'année",
     "minesecStats": "Statistiques MINESEC",
     "minedubStats": "Statistiques MINEDUB",
+    "monProfilRH": "Mon profil RH",
     "pebsExams": "Sélection PEBS",
     "matricules": "Matricules",
     "schoolPayments": "Paiements MINESEC",
@@ -55,7 +56,8 @@
     "ap": "Animateur Pédagogique",
     "supervision": "Supervision",
     "results": "Résultats",
-    "schoolAgenda": "Agenda scolaire"
+    "schoolAgenda": "Agenda scolaire",
+    "moncompte": "Mon compte"
   },
   "topbar": {
     "adminTitle": "Administration",
@@ -105,6 +107,7 @@
     "staff_library": "Bibliothèque",
     "staff_orientation": "Orientation",
     "staff_departements": "Départements",
+    "staff_mon-profil-rh": "Mon profil RH",
     "parent_children": "Mes enfants",
     "parent_grades": "Bulletins & Notes",
     "parent_attendance": "Présences",

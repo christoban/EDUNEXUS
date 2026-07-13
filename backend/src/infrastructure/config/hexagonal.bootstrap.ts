@@ -69,6 +69,8 @@ import { PedagogieController } from '@infrastructure/http/controllers/PedagogieC
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { HRController } from '@infrastructure/http/controllers/HRController';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
+import { HRSelfServiceController } from '@infrastructure/http/controllers/HRSelfServiceController';
+import { creerHrSelfServiceRoutes } from '@infrastructure/http/routes/hrSelfService.routes';
 import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
 import { ConfigurerEtablissementUseCase } from '@application/school/ConfigurerEtablissementUseCase';
 import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
@@ -1088,6 +1090,10 @@ export function bootstrapHexagonal(app: Application): void {
   // ── Module RH (C.2) ───────────────────────────────────────────────────────
   const hrController = new HRController(prisma);
   app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
+
+  // ── Module RH — self-service employé (accès ADMIN/STAFF/TEACHER, scopé à soi-même) ──
+  const hrSelfServiceController = new HRSelfServiceController(prisma);
+  app.use('/api/v2/hr-self-service', creerHrSelfServiceRoutes(hrSelfServiceController));
 
   const parentController = new ParentController(
     container.parent.obtenirEnfants,

@@ -4,6 +4,7 @@ export type TeacherSection =
   | 'pp-classe' | 'pp-appreciations'
   | 'ap-departement'
   | 'cahier-de-texte'
+  | 'mon-profil-rh'
 
 export interface Toast {
   id: number
