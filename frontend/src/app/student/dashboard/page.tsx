@@ -1,8 +1,8 @@
 ﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Bell } from 'lucide-react'
 import { logoutUser } from '@/lib/userAuth'
+import NotificationBell from '@/components/NotificationBell'
 import StudentSidebar from './_components/StudentSidebar'
 import StudentToast from './_components/StudentToast'
 import SectionStudentDashboard from './_components/SectionStudentDashboard'
@@ -104,10 +104,7 @@ export default function StudentDashboard() {
             Trimestre 2 · Séquence 3
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-              <Bell size={18} color="var(--text2)" />
-              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%', border: '2px solid white' }} />
-            </div>
+            <NotificationBell />
           </div>
         </header>
 

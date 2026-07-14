@@ -6,6 +6,7 @@ export class NodemailerEmailService implements EmailService {
   async envoyer(options: EnvoiEmailOptions): Promise<void> {
     const result = await sendTransactionalEmail({
       recipientEmail: options.destinataire,
+      recipientUserId: options.recipientUserId,
       subject: options.sujet,
       html: options.contenuHtml,
       text: options.contenuTexte,
@@ -31,6 +32,7 @@ export class NodemailerEmailService implements EmailService {
   ): Promise<void> {
     const result = await sendTransactionalEmail({
       recipientEmail: options.destinataire,
+      recipientUserId: options.recipientUserId,
       subject: options.sujet,
       html: options.contenuHtml,
       text: options.contenuTexte,

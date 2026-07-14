@@ -229,5 +229,16 @@
     "sessionExpired": "Your session has expired. Please log in again.",
     "welcome": "Welcome to ZekoulABia",
     "welcomeActivated": "Your space is now active! Welcome to ZekoulABia"
+  },
+  "pushNotifications": {
+    "title": "Push notifications",
+    "enabled": "Enabled on this device",
+    "disabled": "Disabled",
+    "denied": "Permission denied — enable in browser settings"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "markAllRead": "Mark all as read"
   }
 }

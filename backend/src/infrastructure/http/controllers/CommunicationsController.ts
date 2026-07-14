@@ -18,6 +18,7 @@ interface Recipient {
   name: string;
   phone?: string | null;
   email?: string | null;
+  userId?: string;
   className?: string;
   balance?: number;
 }
@@ -74,7 +75,7 @@ async function resolveRecipients(
         parents: {
           include: {
             parentProfile: {
-              include: { user: { select: { phone: true, email: true } } },
+              include: { user: { select: { id: true, phone: true, email: true } } },
             },
           },
         },
@@ -115,6 +116,7 @@ async function resolveRecipients(
           name: studentName,
           phone: parentUser.phone,
           email: parentUser.email,
+          userId: parentUser.id,
           className,
           balance,
         });
@@ -128,13 +130,14 @@ async function resolveRecipients(
   if (target.role) {
     const users = await prisma.user.findMany({
       where: { schoolId, role: target.role as any, isActive: true },
-      select: { firstName: true, lastName: true, phone: true, email: true },
+      select: { id: true, firstName: true, lastName: true, phone: true, email: true },
     });
     for (const u of users) {
       recipients.push({
         name: `${u.lastName} ${u.firstName}`,
         phone: u.phone,
         email: u.email,
+        userId: u.id,
       });
     }
     return recipients;
@@ -184,11 +187,13 @@ async function dispatchEmailToOne(
   schoolId: string,
   recipientEmail: string,
   message: string,
+  recipientUserId?: string,
 ): Promise<'sent' | 'failed'> {
   try {
     const html = `<div style="font-family:sans-serif;font-size:14px;line-height:1.5">${message.replace(/\n/g, '<br>')}</div>`;
     const result = await sendTransactionalEmail({
       recipientEmail,
+      recipientUserId,
       subject: 'Message de votre établissement',
       html,
       text: message,
@@ -287,7 +292,7 @@ export class CommunicationsController {
           result === 'failed' ? failed++ : sent++;
         }
         if ((channel === 'EMAIL' || channel === 'BOTH') && r.email) {
-          const result = await dispatchEmailToOne(this.prisma, schoolId, r.email, personalizedMsg);
+          const result = await dispatchEmailToOne(this.prisma, schoolId, r.email, personalizedMsg, r.userId);
           result === 'failed' ? failed++ : sent++;
         }
         // Recipient with neither phone nor email

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react'
+import PushNotificationToggle from '@/components/PushNotificationToggle'
 
 interface Props { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }
 
@@ -154,6 +155,10 @@ export default function SectionMonProfilRH({ onToast }: Props) {
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('title')}</h2>
         <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('subtitle')}</p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <PushNotificationToggle />
       </div>
 
       {file?.selfServiceCompletedAt ? (

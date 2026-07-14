@@ -29,6 +29,7 @@
     "@types/nodemailer": "^8.0.0",
     "@types/pdfkit": "^0.17.5",
     "@types/qrcode": "^1.5.6",
+    "@types/web-push": "^3.6.4",
     "inngest-cli": "^1.17.9",
     "nodemon": "^3.1.14",
     "playwright": "^1.61.1",
@@ -68,6 +69,7 @@
     "qrcode": "^1.5.4",
     "resend": "^6.12.2",
     "socket.io": "^4.8.3",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   }

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { Smartphone, Mail, School, Search, Save, CheckCircle2, Info, ClipboardList } from 'lucide-react'
+import PushNotificationToggle from '@/components/PushNotificationToggle'
 
 interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string; minesecSchoolCode?: string | null }
 interface Props {
@@ -626,6 +627,9 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {!notifLoading && notifData && (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ borderBottom: '1px solid var(--bg)' }}>
+                <PushNotificationToggle style={{ border: 'none', borderRadius: 0, padding: '18px 26px' }} />
+              </div>
               {NOTIF_ROWS.map((n, i) => {
                 const on = notifData[n.key]
                 const saving = notifSaving === n.key

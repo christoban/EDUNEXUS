@@ -13,6 +13,8 @@ export interface EnvoiEmailOptions {
   };
   metadata?: Record<string, unknown>;
   eventType?: string;
+  /** Si le destinataire a déjà un compte, permet le push-d'abord (voir PLAN_NOTIFICATIONS_PUSH.md Phase B). */
+  recipientUserId?: string;
 }
 
 export interface EmailService {

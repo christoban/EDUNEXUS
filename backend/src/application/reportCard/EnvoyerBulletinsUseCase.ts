@@ -73,10 +73,17 @@ export class EnvoyerBulletinsUseCase {
         `;
 
         for (const email of destinataires) {
+          // recipientUserId permet le push-d'abord (voir PLAN_NOTIFICATIONS_PUSH.md Phase B) —
+          // sans lui, cet envoi tombait par défaut sur eventType 'school_approved' côté
+          // NodemailerEmailService (aucun eventType explicite fourni ici auparavant), donc
+          // n'était jamais reconnu comme "bulletin disponible" ; corrigé au passage.
+          const destinataireUser = await this.userRepository.findByEmail(email, commande.schoolId);
           await this.emailService.envoyer({
             destinataire: email,
+            recipientUserId: destinataireUser?.id,
             sujet,
             contenuHtml,
+            eventType: 'report_card_available',
           });
         }
 

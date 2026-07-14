@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Bell, Search, KeyRound, FileText, FolderOpen } from 'lucide-react'
+import { Search, KeyRound, FileText, FolderOpen } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { logoutUser } from '@/lib/userAuth'
 import TeacherSidebar from './_components/TeacherSidebar'
@@ -23,6 +23,7 @@ import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
 import SectionMonProfilRH from '@/components/SectionMonProfilRH'
+import NotificationBell from '@/components/NotificationBell'
 import { useT } from '@/lib/i18n'
 
 let toastId = 0
@@ -100,10 +101,7 @@ export default function TeacherDashboard() {
               style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <KeyRound size={18} color="var(--text2)" />
             </button>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-              <Bell size={18} color="var(--text2)" />
-              <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%', border: '2px solid white' }} />
-            </div>
+            <NotificationBell />
           </div>
         </header>
 

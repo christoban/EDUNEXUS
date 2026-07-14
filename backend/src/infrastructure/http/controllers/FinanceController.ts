@@ -142,7 +142,7 @@ async function envoyerRecuParEmail(paymentId: string): Promise<void> {
       include: {
         student: {
           select: {
-            firstName: true, lastName: true, email: true,
+            id: true, firstName: true, lastName: true, email: true,
             studentProfile: {
               select: { matricule: true, class: { select: { name: true } } },
             },
@@ -168,6 +168,7 @@ async function envoyerRecuParEmail(paymentId: string): Promise<void> {
 
     await sendTransactionalEmail({
       recipientEmail: payment.student.email,
+      recipientUserId: payment.student.id,
       subject: `Reçu de paiement ${receiptNum} — ${schoolName}`,
       html: `<p>Bonjour ${payment.student.firstName},</p><p>Veuillez trouver ci-joint votre reçu de paiement de <b>${amountStr} XAF</b>.</p><p>Merci de votre confiance.</p><p><i>${schoolName}</i></p>`,
       text: `Reçu de paiement ${receiptNum} — ${amountStr} XAF`,

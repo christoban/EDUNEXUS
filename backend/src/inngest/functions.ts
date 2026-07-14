@@ -519,9 +519,9 @@ export const generateReportCards = inngest.createFunction(
 
         const studentName = `${student.firstName} ${student.lastName}`.trim();
         const lang = resolveLanguage(school?.subsystem, student.studentProfile?.class?.section?.code ?? null);
-        const parentEmails = student.studentProfile?.parents
-          .map((p) => p.parentProfile?.user?.email)
-          .filter((e): e is string => Boolean(e)) ?? [];
+        const parentRecipients = student.studentProfile?.parents
+          .map((p) => p.parentProfile?.user ? { email: p.parentProfile.user.email, userId: p.parentProfile.user.id } : null)
+          .filter((r): r is { email: string; userId: string } => Boolean(r?.email)) ?? [];
 
         const subject = lang === "fr"
           ? `Bulletin disponible — ${academicPeriod.name}`
@@ -533,11 +533,12 @@ export const generateReportCards = inngest.createFunction(
           ? `Le bulletin de ${studentName} pour ${academicPeriod.name} est disponible.`
           : `${studentName}'s report card for ${academicPeriod.name} is available.`;
 
-        const recipients = [student.email, ...parentEmails];
-        for (const email of recipients) {
+        const recipients = [{ email: student.email, userId: student.id }, ...parentRecipients];
+        for (const recipient of recipients) {
           try {
             await sendTransactionalEmail({
-              recipientEmail: email,
+              recipientEmail: recipient.email,
+              recipientUserId: recipient.userId,
               subject,
               html,
               text,
@@ -700,6 +701,7 @@ export const sendPaymentReminders = inngest.createFunction(
         include: {
           student: {
             select: {
+              id: true,
               firstName: true,
               lastName: true,
               email: true,
@@ -708,7 +710,7 @@ export const sendPaymentReminders = inngest.createFunction(
                   parents: {
                     include: {
                       parentProfile: {
-                        include: { user: { select: { email: true } } },
+                        include: { user: { select: { id: true, email: true } } },
                       },
                     },
                   },
@@ -726,11 +728,11 @@ export const sendPaymentReminders = inngest.createFunction(
       for (const invoice of overdueInvoices) {
         if (!invoice.dueDate) continue;
 
-        const parentEmails = invoice.student?.studentProfile?.parents
-          .map((p) => p.parentProfile?.user?.email)
-          .filter((e): e is string => Boolean(e)) ?? [];
+        const parentRecipients = invoice.student?.studentProfile?.parents
+          .map((p) => p.parentProfile?.user ? { email: p.parentProfile.user.email, userId: p.parentProfile.user.id } : null)
+          .filter((r): r is { email: string; userId: string } => Boolean(r?.email)) ?? [];
 
-        if (!invoice.student?.email && parentEmails.length === 0) continue;
+        if (!invoice.student?.email && parentRecipients.length === 0) continue;
 
         const daysUntilDue = Math.ceil(
           (new Date(invoice.dueDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
@@ -753,15 +755,18 @@ export const sendPaymentReminders = inngest.createFunction(
         const dueDateFormatted = new Date(invoice.dueDate).toLocaleDateString("fr-FR");
         const schoolName = invoice.school?.name ?? "ZekoulABia";
 
-        const allEmails = [
-          ...(invoice.student?.email ? [invoice.student.email] : []),
-          ...parentEmails,
+        const allRecipients = [
+          ...(invoice.student?.email ? [{ email: invoice.student.email, userId: invoice.student.id }] : []),
+          ...parentRecipients,
         ];
+        const seenEmails = new Set<string>();
+        const dedupedRecipients = allRecipients.filter((r) => (seenEmails.has(r.email) ? false : (seenEmails.add(r.email), true)));
 
-        for (const email of [...new Set(allEmails)]) {
+        for (const recipient of dedupedRecipients) {
           try {
             await sendTransactionalEmail({
-              recipientEmail: email,
+              recipientEmail: recipient.email,
+              recipientUserId: recipient.userId,
               subject: `${subject} — ${schoolName}`,
               html: `
                 <p>Bonjour,</p>
@@ -832,7 +837,7 @@ export const checkAbsenceThreshold = inngest.createFunction(
             schoolId: school.id,
             permissions: { some: { permission: "MANAGE_ATTENDANCE" } },
           },
-          include: { user: { select: { email: true, firstName: true } } },
+          include: { user: { select: { id: true, email: true, firstName: true } } },
         });
 
         for (const entry of overThreshold) {
@@ -850,6 +855,7 @@ export const checkAbsenceThreshold = inngest.createFunction(
             try {
               await sendTransactionalEmail({
                 recipientEmail: s.user.email,
+                recipientUserId: s.user.id,
                 subject: `Alerte absences — ${studentName} (${count} absences non justifiées)`,
                 html: `<p>Bonjour ${s.user.firstName},</p><p><b>${studentName}</b> cumule <b>${count} absences non justifiées</b> sur les 30 derniers jours (seuil configuré : ${threshold}).</p><p>Une action est requise.</p>`,
                 text: `${studentName} : ${count} absences non justifiées (seuil ${threshold})`,
@@ -947,6 +953,7 @@ export const handleGradeSubmitted = inngest.createFunction(
         if (!censeur.user.email) continue;
         await sendTransactionalEmail({
           recipientEmail: censeur.user.email,
+          recipientUserId: censeur.user.id,
           subject: `[RELANCE] Notes en attente de validation — ${grade.subject.name} ${grade.class?.name}`,
           html: `<p>Bonjour ${censeur.user.firstName},<br><br>Des notes de <b>${grade.subject.name}</b> — <b>${grade.class?.name}</b> sont en attente de validation depuis 48h.<br><br>Connectez-vous à ZekoulABia pour valider.</p>`,
           text: `Notes en attente depuis 48h : ${grade.subject.name} — ${grade.class?.name}`,
@@ -977,6 +984,7 @@ export const handleGradeSubmitted = inngest.createFunction(
         if (!admin.email) continue;
         await sendTransactionalEmail({
           recipientEmail: admin.email,
+          recipientUserId: admin.id,
           subject: `[URGENT] Notes bloquées depuis 72h — ${grade.subject.name}`,
           html: `<p>Bonjour ${admin.firstName},<br><br>Les notes de <b>${grade.subject.name}</b> — <b>${grade.class?.name}</b> sont en attente de validation depuis <b>72h</b>.<br><br>Action requise immédiatement.</p>`,
           text: `URGENT : Notes bloquées depuis 72h — ${grade.subject.name}`,

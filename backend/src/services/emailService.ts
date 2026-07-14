@@ -2,6 +2,8 @@ import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { prisma } from "../config/prisma.ts";
 import type { EmailEventType } from "../types/email.ts";
+import { PUSH_MIGRATED_EVENT_TYPES } from "../types/email.ts";
+import { notifierUtilisateurPushAvecResultat } from "../infrastructure/services/PushNotificationService";
 
 let cachedTransporter: nodemailer.Transporter | null = null;
 
@@ -140,6 +142,23 @@ export const sendTransactionalEmail = async (
   let usedProvider = "unknown";
 
   try {
+    // Push-d'abord (PLAN_NOTIFICATIONS_PUSH.md Phase B) : uniquement pour les événements où
+    // le destinataire a déjà un compte actif (PUSH_MIGRATED_EVENT_TYPES) ET quand l'appelant
+    // a fourni recipientUserId. Ne bascule sur l'email que si le push n'a atteint AUCUN
+    // appareil (pas de souscription active, préférence désactivée, ou échec d'envoi) — jamais
+    // l'inverse, l'email reste toujours le repli, pas une option concurrente.
+    if (input.recipientUserId && PUSH_MIGRATED_EVENT_TYPES.has(input.eventType)) {
+      const pushResult = await notifierUtilisateurPushAvecResultat({
+        userId: input.recipientUserId,
+        title: input.subject,
+        body: input.text || input.subject,
+        data: { eventType: input.eventType, ...(input.relatedEntityId ? { relatedEntityId: input.relatedEntityId } : {}) },
+      });
+      if (pushResult.delivered) {
+        return { status: "sent", messageId: "push" };
+      }
+    }
+
     // Dev mode — log to console
     if (process.env.EMAIL_DISABLED === "true") {
       const result = await devModeSendEmail(input.recipientEmail, input.subject, input.html);

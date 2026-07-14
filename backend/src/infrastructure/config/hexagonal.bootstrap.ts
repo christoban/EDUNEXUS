@@ -123,6 +123,10 @@ import { EntranceExamController } from '@infrastructure/http/controllers/Entranc
 import { creerEntranceExamRoutes } from '@infrastructure/http/routes/entranceExam.routes';
 import { PebsExamController } from '@infrastructure/http/controllers/PebsExamController';
 import { creerPebsExamRoutes } from '@infrastructure/http/routes/pebsExam.routes';
+import { PushNotificationController } from '@infrastructure/http/controllers/PushNotificationController';
+import { creerPushNotificationRoutes } from '@infrastructure/http/routes/pushNotification.routes';
+import { NotificationController } from '@infrastructure/http/controllers/NotificationController';
+import { creerNotificationRoutes } from '@infrastructure/http/routes/notification.routes';
 
 export function bootstrapHexagonal(app: Application): void {
   const container = creerContainer();
@@ -1252,6 +1256,17 @@ export function bootstrapHexagonal(app: Application): void {
     container.pebsExam.detecterAnomalies,
   );
   app.use('/api/v2/pebs-exams', creerPebsExamRoutes(pebsExamController));
+
+  // ── Push Notifications (Web Push) ────────────────────────────────────────────
+  const pushNotificationController = new PushNotificationController(
+    container.pushNotification.souscrire,
+    container.pushNotification.desinscrire,
+  );
+  app.use('/api/v2/push', creerPushNotificationRoutes(pushNotificationController));
+
+  // ── Notifications IN_APP (cloche) ────────────────────────────────────────────
+  const notificationController = new NotificationController(container.notification.service);
+  app.use('/api/v2/notifications', creerNotificationRoutes(notificationController));
 
   app.use('/api/v2/activities',    creerActivitiesRoutes(activitiesController));
   app.use('/api/v2/dashboard',     creerDashboardRoutes(dashboardController));

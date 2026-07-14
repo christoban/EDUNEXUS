@@ -24,3 +24,21 @@ export type EmailEventType =
   | "absence_alert";
 
 export type EmailStatus = "sent" | "failed";
+
+/**
+ * Types d'événements pour lesquels le destinataire a déjà un compte actif — migrés vers
+ * push-d'abord (avec repli email automatique si aucune souscription active) dans le cadre
+ * de PLAN_NOTIFICATIONS_PUSH.md Phase B. Les types absents de cette liste (invitations,
+ * sécurité OTP/reset, formulaires marketing) restent exclusivement email — voir §13.2 du
+ * plan pour la justification de chaque exclusion, notamment les 3 événements de sécurité
+ * qui ne doivent JAMAIS y être ajoutés même par erreur de copier-coller.
+ */
+export const PUSH_MIGRATED_EVENT_TYPES: ReadonlySet<EmailEventType> = new Set([
+  "report_card_available",
+  "payment_reminder",
+  "payment_receipt",
+  "grade_reminder_48h",
+  "grade_reminder_72h",
+  "absence_alert",
+  "discipline_notification",
+]);

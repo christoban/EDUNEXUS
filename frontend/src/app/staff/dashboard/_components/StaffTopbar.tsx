@@ -1,8 +1,9 @@
 'use client'
-import { Bell, KeyRound } from 'lucide-react'
+import { KeyRound } from 'lucide-react'
 import type { StaffSection } from '../_types'
 import { useT } from '@/lib/i18n'
 import ThemeToggle from '@/components/ThemeToggle'
+import NotificationBell from '@/components/NotificationBell'
 
 const SECTION_KEY: Record<string, string> = {
   'grille-horaire': 'grilleHoraire',
@@ -38,10 +39,7 @@ export default function StaffTopbar({ section, periodLabel, onChangePassword }: 
           </button>
         )}
         <ThemeToggle />
-        <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}>
-          <Bell size={18} color="var(--text2)" />
-          <div style={{ position: 'absolute', top: 8, right: 8, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%', border: '2px solid white' }} />
-        </div>
+        <NotificationBell />
       </div>
     </header>
   )

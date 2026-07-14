@@ -87,6 +87,10 @@ import { ResumeSessionConcoursUseCase } from '@application/entranceExam/ResumeSe
 import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerListeCandidatsUseCase';
 import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
 
+// --- Use Cases : Push Notification ---
+import { SouscrirePushUseCase } from '@application/pushNotification/SouscrirePushUseCase';
+import { DesinscrirePushUseCase } from '@application/pushNotification/DesinscrirePushUseCase';
+
 // --- Use Cases : PEBS Exam ---
 import { CreerSessionPebsUseCase } from '@application/pebsExam/CreerSessionPebsUseCase';
 import { AjouterCandidatsPebsUseCase } from '@application/pebsExam/AjouterCandidatsPebsUseCase';
@@ -562,6 +566,13 @@ export function creerContainer() {
       resumeSession: new ResumeSessionPebsUseCase(prisma),
       scannerListe: new ScannerListeCandidatsPebsUseCase(prisma),
       detecterAnomalies: new DetecterAnomaliesPebsUseCase(prisma),
+    },
+    pushNotification: {
+      souscrire: new SouscrirePushUseCase(prisma),
+      desinscrire: new DesinscrirePushUseCase(prisma),
+    },
+    notification: {
+      service: notificationService,
     },
   };
 }

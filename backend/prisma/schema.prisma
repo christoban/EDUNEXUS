@@ -301,6 +301,7 @@ model User {
   school                          School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   notifications                   Notification[]             @relation("UserNotifications")
   notificationPreference          NotificationPreference?
+  pushSubscriptions               PushSubscription[]
   offlineQueueItems               OfflineQueue[]             @relation("UserOfflineQueue")
   timetableSlots                  TimetableSlot[]            @relation("TeacherSlots")
   promotionsAsStudent             StudentPromotion[]         @relation("PromotedStudent")
@@ -1106,6 +1107,21 @@ model NotificationPreference {
   email    Boolean @default(true)
   aiAlerts Boolean @default(true)
   user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id         String   @id @default(cuid())
+  userId     String
+  endpoint   String
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model DisciplineRecord {
