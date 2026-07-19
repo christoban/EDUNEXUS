@@ -1274,7 +1274,8 @@
     "btn_confirm": "Confirmer",
     "btn_cancel": "Annuler",
     "expired": "Fenêtre d'annulation expirée",
-    "unavailable": "Service indisponible pour le moment"
+    "unavailable": "Service indisponible pour le moment",
+    "idle_nudge": "Besoin d'aide sur cet écran ?"
   },
   "placeholder": {
     "title": "Espace administrateur",

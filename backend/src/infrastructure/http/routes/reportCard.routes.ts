@@ -21,6 +21,9 @@ export function creerReportCardRoutes(controller: ReportCardController): Router 
   // Commentaire du Professeur Principal (écrit APRÈS génération, AVANT envoi aux parents)
   router.patch('/:id/comment', requireAuth, controller.ajouterCommentaire);
 
+  // Suggestion de commentaire par IA (le PP la relit et la modifie via /comment ci-dessus)
+  router.post('/:id/generate-comment', sensitiveWriteLimiter, requireAuth, controller.genererCommentaireIA);
+
   // Vue élève (avant GET / pour éviter que "my" soit traité comme un :id)
   router.get('/my', requireAuth, controller.mesBulletins);
 

@@ -246,9 +246,9 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-            <button onClick={() => handleCompute(summary.session.id)} style={{ ...btnPri, background: 'var(--blue)' }}>{t('pebs_exams.compute')}</button>
+            <button data-help-id="pebs-compute-btn" onClick={() => handleCompute(summary.session.id)} style={{ ...btnPri, background: 'var(--blue)' }}>{t('pebs_exams.compute')}</button>
             {summary.session.status !== 'APPLIED' && summary.selectionnes > 0 && (
-              <button onClick={() => handleApplyTransfer(summary.session.id)} style={{ ...btnPri, background: '#b45309' }}>{t('pebs_exams.apply_transfer')}</button>
+              <button data-help-id="pebs-apply-transfer-btn" onClick={() => handleApplyTransfer(summary.session.id)} style={{ ...btnPri, background: '#b45309' }}>{t('pebs_exams.apply_transfer')}</button>
             )}
             <button onClick={() => handleAnomalies(summary.session.id)} style={btnSec}>{t('entrance_exams.detect_anomalies')}</button>
             <div>

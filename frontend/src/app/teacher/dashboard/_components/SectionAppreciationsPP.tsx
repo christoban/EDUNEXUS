@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { PenLine, Save, Loader2, Lock, ScrollText } from 'lucide-react'
+import { PenLine, Save, Loader2, Lock, ScrollText, Sparkles } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
@@ -54,6 +54,8 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkProgress, setBulkProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [generatingAI, setGeneratingAI] = useState<Record<string, boolean>>({})
+  const [aiError, setAiError] = useState<Record<string, boolean>>({})
   const { isOnline, addToQueue } = useSyncQueue()
 
   // Load periods from current academic year
@@ -150,6 +152,23 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
     }
     setBulkSaving(false)
   }, [comments])
+
+  const handleGenerateAI = useCallback(async (rcId: string) => {
+    if ((comments[rcId] ?? '').trim() && !confirm(t('pp.ai_confirm_overwrite'))) return
+
+    setAiError(e => { const n = { ...e }; delete n[rcId]; return n })
+    setGeneratingAI(g => ({ ...g, [rcId]: true }))
+    try {
+      const res = await fetchApi(`/api/v2/report-cards/${rcId}/generate-comment`, { method: 'POST', credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.message || 'Erreur')
+      setComments(c => ({ ...c, [rcId]: data.comment }))
+    } catch {
+      setAiError(e => ({ ...e, [rcId]: true }))
+    } finally {
+      setGeneratingAI(g => { const n = { ...g }; delete n[rcId]; return n })
+    }
+  }, [comments, t])
 
   const isLocked = (rc: ReportCard) => rc.status === 'LOCKED' || rc.status === 'SENT'
 
@@ -251,6 +270,22 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
                   </div>
                 ) : (
                   <>
+                    {/* Génération IA */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => handleGenerateAI(rc.id)}
+                        disabled={!isOnline || !!generatingAI[rc.id]}
+                        title={!isOnline ? t('pp.ai_offline_disabled') : undefined}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700,
+                          cursor: !isOnline || generatingAI[rc.id] ? 'not-allowed' : 'pointer', border: '1.5px solid var(--purple)',
+                          background: 'var(--purple-light)', color: 'var(--purple)', fontFamily: 'inherit',
+                          opacity: !isOnline ? 0.5 : 1 }}>
+                        {generatingAI[rc.id] ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Sparkles size={13} strokeWidth={2} />}
+                        {generatingAI[rc.id] ? t('pp.generating_ai') : t('pp.generate_ai')}
+                      </button>
+                      {aiError[rc.id] && <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>{t('pp.ai_error')}</span>}
+                    </div>
+
                     {/* Chips */}
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                       {QUICK_CHIPS_KEYS.map(key => {

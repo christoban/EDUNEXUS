@@ -1274,7 +1274,8 @@
     "btn_confirm": "Confirm",
     "btn_cancel": "Cancel",
     "expired": "Cancellation window expired",
-    "unavailable": "Service unavailable at the moment"
+    "unavailable": "Service unavailable at the moment",
+    "idle_nudge": "Need help with this screen?"
   },
   "placeholder": {
     "title": "Admin Space",

@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinUseCase';
 import type { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
+import type { IAService } from '@domain/ports/services/IAService';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import type { BulletinTemplate } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
@@ -14,6 +15,7 @@ export class ReportCardController {
   constructor(
     private readonly generer: GenererBulletinUseCase,
     private readonly envoyer: EnvoyerBulletinsUseCase,
+    private readonly iaService: IAService,
   ) {}
 
   // POST /api/v2/report-cards/generate
@@ -347,6 +349,88 @@ export class ReportCardController {
       res.json({ success: true, message: 'Commentaire enregistré' });
     } catch (error) {
       next(error);
+    }
+  };
+
+  // POST /api/v2/report-cards/:id/generate-comment
+  // Suggère un commentaire de bulletin via IA (stocké dans aiComment) — le Professeur
+  // Principal le relit et le modifie ensuite via PATCH /:id/comment (classMasterComment
+  // reste inchangé ici, jamais écrasé automatiquement).
+  // Réservé au Professeur Principal de la classe ou à un Admin (même règle que /comment).
+  genererCommentaireIA = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const role: string = (user.role as string).toUpperCase();
+
+      const reportCard = await prisma.reportCard.findFirst({
+        where: { id: req.params.id as string, schoolId: user.schoolId },
+        include: {
+          school: { select: { subsystem: true } },
+          subjectLines: { select: { subjectName: true, subjectAverage: true } },
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              studentProfile: {
+                select: { class: { select: { professorPrincipalId: true, section: { select: { code: true } } } } },
+              },
+            },
+          },
+        },
+      }) as any;
+
+      if (!reportCard) {
+        res.status(404).json({ success: false, message: 'Bulletin introuvable' });
+        return;
+      }
+
+      const professorPrincipalId = reportCard.student?.studentProfile?.class?.professorPrincipalId;
+      const isPP = professorPrincipalId === user.userId;
+      if (role !== 'ADMIN' && !isPP) {
+        res.status(403).json({
+          success: false,
+          message: "Seul le Professeur Principal de cette classe ou un Admin peut générer ce commentaire",
+        });
+        return;
+      }
+
+      const previous = await prisma.reportCard.findFirst({
+        where: { studentId: reportCard.studentId, schoolId: user.schoolId, id: { not: reportCard.id } },
+        orderBy: { createdAt: 'desc' },
+        select: { generalAverage: true },
+      });
+
+      let evolution: 'HAUSSE' | 'BAISSE' | 'STABLE' = 'STABLE';
+      if (previous?.generalAverage != null && reportCard.generalAverage != null) {
+        const diff = reportCard.generalAverage - previous.generalAverage;
+        evolution = diff > 0.5 ? 'HAUSSE' : diff < -0.5 ? 'BAISSE' : 'STABLE';
+      }
+
+      const subjectLines: { subjectName: string; subjectAverage: number | null }[] = reportCard.subjectLines ?? [];
+      const pointsForts = subjectLines.filter((s) => (s.subjectAverage ?? 0) >= 14).map((s) => s.subjectName).slice(0, 3);
+      const pointsFaibles = subjectLines.filter((s) => (s.subjectAverage ?? 0) < 10).map((s) => s.subjectName).slice(0, 3);
+
+      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.class?.section?.code ?? null);
+      const nomEleve = `${reportCard.student.firstName ?? ''} ${reportCard.student.lastName ?? ''}`.trim();
+
+      const comment = await this.iaService.genererCommentaireBulletin({
+        nomEleve,
+        moyenneGenerale: reportCard.generalAverage ?? 0,
+        evolution,
+        pointsForts,
+        pointsFaibles,
+        langue: langue.toUpperCase() as 'FR' | 'EN',
+      });
+
+      await prisma.reportCard.update({
+        where: { id: reportCard.id },
+        data: { aiComment: comment },
+      });
+
+      res.json({ success: true, comment });
+    } catch (error) {
+      console.error('[genererCommentaireIA]', error);
+      res.status(502).json({ success: false, message: 'Erreur lors de la génération du commentaire IA — réessayez ou saisissez-le manuellement.' });
     }
   };
 

@@ -136,7 +136,7 @@ export default function SectionGrades({ onToast }: Props) {
             {loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} Charger
           </button>
           {pendingCount > 0 && (
-            <button style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleBulkValidate}>
+            <button data-help-id="grades-bulk-validate" style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleBulkValidate}>
               <CheckCircle2 size={15} strokeWidth={2} /> Valider tout ({pendingCount})
             </button>
           )}

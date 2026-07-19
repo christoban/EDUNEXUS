@@ -243,6 +243,7 @@ export default function SectionBulletins({ onToast }: Props) {
                 </div>
               ))}
               <button
+                data-help-id="bulletins-generate-btn"
                 style={{ ...btnPrim, marginTop: 6, opacity: check.canGenerateReportCard ? 1 : 0.45, cursor: check.canGenerateReportCard ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 8 }}
                 onClick={handleGenerate}
                 disabled={!check.canGenerateReportCard || generating}>

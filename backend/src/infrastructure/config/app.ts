@@ -8,6 +8,7 @@ import { GradeController } from '@infrastructure/http/controllers/GradeControlle
 import { AttendanceController } from '@infrastructure/http/controllers/AttendanceController';
 import { SchoolOnboardingController } from '@infrastructure/http/controllers/SchoolOnboardingController';
 import { ReportCardController } from '@infrastructure/http/controllers/ReportCardController';
+import { GroqIAService } from '@infrastructure/services/GroqIAService';
 import { creerGradeRoutes } from '@infrastructure/http/routes/grade.routes';
 import { creerAttendanceRoutes } from '@infrastructure/http/routes/attendance.routes';
 import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.routes';
@@ -40,6 +41,7 @@ export function creerApp(): Application {
   const reportCardController = new ReportCardController(
     container.reportCard.generer,
     container.reportCard.envoyer,
+    new GroqIAService(),
   );
 
   app.use('/api/v2/grades', creerGradeRoutes(gradeController));

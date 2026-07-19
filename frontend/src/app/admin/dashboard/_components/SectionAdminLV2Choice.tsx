@@ -210,7 +210,7 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => openTracking(w.id)} style={btnSec}>{t('lv2_choice.tracking')}</button>
-                {w.status === 'OPEN' && <button onClick={() => handleApply(w.id)} style={{ ...btnPri, background: 'var(--blue)' }}>{t('lv2_choice.apply')}</button>}
+                {w.status === 'OPEN' && <button data-help-id="lv2-apply-btn" onClick={() => handleApply(w.id)} style={{ ...btnPri, background: 'var(--blue)' }}>{t('lv2_choice.apply')}</button>}
               </div>
             </div>
           ))}
@@ -268,7 +268,7 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
 
               {/* Saisie manuelle de secours */}
               {pendingStudents.length > 0 && (
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                <div data-help-id="lv2-manual-entry" style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginBottom: 8 }}>
                     {t('lv2_choice.manual_help')} ({pendingStudents.length} {t('lv2_choice.students_pending')})
                   </p>

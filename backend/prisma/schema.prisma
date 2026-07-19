@@ -2153,6 +2153,44 @@ model AssistantActionLog {
   @@index([status])
 }
 
+/// Base de connaissances d'aide contextuelle pour le copilot Admin — contenu
+/// plateforme (pas de schoolId : valable pour tous les établissements), indexé
+/// par écran (screenKey, ex. "admin.grades") pour que l'assistant fonde ses
+/// réponses dessus plutôt que d'inventer une explication.
+model HelpArticle {
+  id               String   @id @default(uuid())
+  screenKey        String // ex. "admin.grades", "admin.lv2-choice"
+  title            String
+  content          String // texte explicatif structuré, injecté dans le prompt système
+  relatedSelectors Json? // liste de sélecteurs data-help-id à surligner si mentionnés
+  role             String[] // rôles concernés (ex. ["ADMIN"])
+  locale           String // "fr" | "en"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([screenKey, locale])
+}
+
+/// Journal des questions d'aide posées au copilot — analytique produit (quels
+/// écrans génèrent le plus de confusion), pas de donnée personnelle structurée
+/// stockée (le texte libre de la question peut occasionnellement mentionner un
+/// nom d'élève, accepté pour ce premier jet — voir plan de la fonctionnalité).
+model AssistantHelpQueryLog {
+  id           String   @id @default(uuid())
+  schoolId     String
+  userId       String
+  role         String
+  screenKey    String?
+  question     String
+  responseType String // MESSAGE | ACTION | ESCALATE
+  articleFound Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([screenKey])
+  @@index([createdAt])
+}
+
 // ─── Module Examens & Admissions : Sous-module C — Choix LV2 ──────────────
 
 model Lv2ChoiceWindow {

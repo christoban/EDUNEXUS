@@ -35,6 +35,7 @@ import SectionMinedubStatistics from './_components/SectionMinedubStatistics'
 import SectionAdminPebsExams from './_components/SectionAdminPebsExams'
 import AdminToast from './_components/AdminToast'
 import AssistantWidget from './_components/AssistantWidget'
+import HighlightController from './_components/HighlightController'
 import type { AdminSection, Toast } from './_types'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
@@ -190,7 +191,8 @@ export default function AdminDashboard() {
       </div>
 
       <AdminToast toasts={toasts} onRemove={removeToast} />
-      <AssistantWidget />
+      <AssistantWidget section={section} />
+      <HighlightController />
       <OfflineIndicator />
       {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
     </div>

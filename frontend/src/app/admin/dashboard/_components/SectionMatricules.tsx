@@ -150,7 +150,7 @@ export default function SectionMatricules({ onToast }: Props) {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} />
           <button onClick={() => fileRef.current?.click()} style={btnSec}>{t('matricules.select_file')}</button>
-          <button onClick={handleImport} disabled={importing} style={btnPri}>{importing ? '...' : t('matricules.start_import')}</button>
+          <button data-help-id="matricules-import-btn" onClick={handleImport} disabled={importing} style={btnPri}>{importing ? '...' : t('matricules.start_import')}</button>
         </div>
       </div>
 
@@ -237,7 +237,7 @@ export default function SectionMatricules({ onToast }: Props) {
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => confirmFuzzy(f.ligne)} disabled={processingLigne === f.ligne}
+                      <button data-help-id="matricules-fuzzy-confirm-btn" onClick={() => confirmFuzzy(f.ligne)} disabled={processingLigne === f.ligne}
                         style={{ ...btnPri, fontSize: 12, padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <Check size={13} strokeWidth={2} /> {t('matricules.fuzzy_confirm_btn')}
                       </button>

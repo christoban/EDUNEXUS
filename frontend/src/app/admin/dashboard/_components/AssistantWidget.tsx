@@ -15,11 +15,21 @@
  * navigue vers l'écran concerné via des évènements window (zekoulabia:navigate / :data-changed).
  */
 import { useState, useRef, useEffect } from 'react'
-import { X, Bot, Hand, AlertTriangle, Undo2, Check, Send } from 'lucide-react'
+import { X, Bot, Hand, AlertTriangle, Undo2, Check, Send, LifeBuoy } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useIdleDetection } from '@/hooks/useIdleDetection'
 
 const UNDO_WINDOW_MS = 5 * 60 * 1000
+
+/** Écrans identifiés comme les plus fréquentés/complexes — seuls concernés par la bulle d'aide discrète. */
+const PRIORITY_SCREENS = ['grades', 'lv2-choice', 'pebs-exams', 'matricules', 'bulletins']
+const IDLE_THRESHOLD_MS = 90 * 1000
+
+interface Props {
+  /** Section active du dashboard (ex. 'grades') — sert à dériver le screenKey ('admin.grades') transmis au copilot. */
+  section?: string
+}
 
 type ChatItem =
   | { kind: 'user'; id: number; text: string }
@@ -27,6 +37,7 @@ type ChatItem =
   | { kind: 'error'; id: number; text: string }
   | { kind: 'action'; id: number; actionLogId: string; label: string; section?: string | null; entity?: string | null; undoable: boolean; undone: boolean; executedAt: number }
   | { kind: 'pending'; id: number; pendingActionId: string; summary: string; resolved?: 'confirmed' | 'cancelled' }
+  | { kind: 'escalate'; id: number; text: string; supportContact: string }
 
 const SUGGESTIONS = [
   'Crée une classe de 4e D',
@@ -45,7 +56,13 @@ function notifyInterface(section?: string | null, entity?: string | null) {
   if (entity) window.dispatchEvent(new CustomEvent('zekoulabia:data-changed', { detail: { entity } }))
 }
 
-export default function AssistantWidget() {
+/** Déclenche le surlignage des éléments UI référencés par une fiche d'aide (écouté par HighlightController). */
+function highlightElements(selectors?: string[]) {
+  if (!selectors || selectors.length === 0) return
+  window.dispatchEvent(new CustomEvent('zekoulabia:highlight', { detail: { selectors } }))
+}
+
+export default function AssistantWidget({ section }: Props) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<ChatItem[]>([])
   const [input, setInput] = useState('')
@@ -53,6 +70,8 @@ export default function AssistantWidget() {
   const [, setTick] = useState(0)
   const t = useT('admin')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const isPriorityScreen = !!section && PRIORITY_SCREENS.includes(section)
+  const isIdle = useIdleDetection(IDLE_THRESHOLD_MS, isPriorityScreen && !open)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -77,7 +96,7 @@ export default function AssistantWidget() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: clean }),
+        body: JSON.stringify({ message: clean, screenKey: section ? `admin.${section}` : null }),
       })
       const data = await res.json()
       if (!data.success) {
@@ -85,8 +104,14 @@ export default function AssistantWidget() {
         return
       }
 
+      if (data.type === 'escalate') {
+        push({ kind: 'escalate', text: data.response, supportContact: data.supportContact })
+        return
+      }
+
       if (data.type === 'message') {
         push({ kind: 'assistant', text: data.response || 'Je n’ai pas compris la demande.' })
+        highlightElements(data.highlightSelectors)
         return
       }
 
@@ -167,6 +192,23 @@ export default function AssistantWidget() {
 
   return (
     <>
+      {/* Bulle d'aide discrète — inactivité prolongée sur un écran prioritaire, widget fermé */}
+      {isIdle && !open && (
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            position: 'fixed', bottom: 92, right: 24, zIndex: 1199,
+            background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14,
+            padding: '10px 16px', fontSize: 13.5, fontWeight: 700, color: 'var(--text)', cursor: 'pointer',
+            fontFamily: 'inherit', boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+            display: 'flex', alignItems: 'center', gap: 8, maxWidth: 220,
+            animation: 'edu-nudge-in 0.3s ease both',
+          }}>
+          <style>{`@keyframes edu-nudge-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }`}</style>
+          <Bot size={16} style={{ flexShrink: 0, color: 'var(--green)' }} /> {t('assistant.idle_nudge')}
+        </button>
+      )}
+
       {/* Bouton flottant */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -228,6 +270,17 @@ export default function AssistantWidget() {
                       color: it.kind === 'user' ? 'white' : 'var(--text)',
                       border: it.kind === 'user' ? 'none' : '1.5px solid var(--border)',
                     }}>{it.text}</div>
+                  </div>
+                )
+              }
+
+              if (it.kind === 'escalate') {
+                return (
+                  <div key={it.id} style={{ marginBottom: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
+                    <div style={{ fontSize: 13.5, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 8 }}>{it.text}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                      <LifeBuoy size={15} style={{ flexShrink: 0 }} /> {it.supportContact}
+                    </div>
                   </div>
                 )
               }

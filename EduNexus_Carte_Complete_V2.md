@@ -68,6 +68,8 @@ Cette carte est organisée en 8 grandes sections :
 - **Emploi du temps manuel** — CRUD créneaux + publication ; génération IA existe aussi (via **Groq**, pas Gemini contrairement à ce que dit le stack plus bas). **Détection de conflit enseignant** (double réservation) — confirmée réelle Juillet 2026 après vérification approfondie (voir MODULE 12) : l'audit précédent avait affirmé à tort son absence.
 - **Notifications Push + Cloche IN_APP + Centre de notifications** (Juillet 2026) — Web Push (Service Worker + VAPID) fonctionnel pour tout utilisateur ayant un compte actif, cloche IN_APP avec connexion Socket.io authentifiée, persistance en base (`Notification`), et désormais un centre de notifications dédié (historique paginé, filtres par type et par lu/non-lu) dans les 5 dashboards. Voir MODULE 10 — distinct de la messagerie bidirectionnelle, qui reste reportée.
 - **Conseil de Discipline conforme Art. 30** (Juillet 2026) — les sanctions de base (`DisciplineRecord`, 5 types déjà dans l'enum) avaient déjà un vrai CRUD fonctionnel (routes inline dans `hexagonal.bootstrap.ts`, non trouvées par l'audit initial faute de recherche assez profonde — corrigé). Ajouté : `DisciplineCouncilSession` bloque désormais toute création directe de `COUNCIL_DECISION`/`PERMANENT_EXCLUSION` sans passer par une convocation (délai légal 72h, re-vérifié à la tenue pour empêcher le contournement) + composition légale complète (6 rôles Art. 30) + PV PDF exportable. Voir MODULE 13/17.
+- **Aide contextuelle intelligente du copilot Admin** (Juillet 2026) — extension du copilot exécutant existant (`AssistantController.execute`), pas un second chatbot. Le frontend transmet `screenKey` (dérivé du `section` React actif, ex. `admin.grades` — le dashboard n'a pas de vrai routing Next.js) à chaque appel ; le backend cherche les fiches `HelpArticle` correspondantes (nouveau modèle, contenu plateforme non multi-tenant) et les injecte dans le prompt système pour que l'assistant réponde en connaissance de cause plutôt que d'inventer. 5 fiches initiales seedées (notes, LV2, PEBS, import matricules Excel, bulletins). Si aucune fiche ne couvre l'écran et que le modèle n'est pas sûr, un tool `escalate_to_support` (même mécanisme de function calling que les actions) déclenche une réponse d'escalade vers un contact support (placeholder `ASSISTANT_SUPPORT_CONTACT`, pas de valeur en dur). Surlignage réel des éléments UI référencés par une fiche via le bus d'évènements déjà existant (`zekoulabia:highlight`, nouveau `HighlightController.tsx`) sur des attributs `data-help-id` posés sur les boutons clés des 5 écrans. Bulle discrète "Besoin d'aide ?" après 90s d'inactivité sur un écran prioritaire (`useIdleDetection.ts`, fusionné dans `AssistantWidget.tsx` plutôt qu'un composant séparé — plus simple, pas de canal d'évènement supplémentaire nécessaire). Chaque question posée est journalisée (`AssistantHelpQueryLog`) avec écran/rôle/fiche-trouvée pour analytique produit future.
+- **Commentaires de bulletin générés par IA** (Juillet 2026) — `POST /api/v2/report-cards/:id/generate-comment` (réservé au Professeur Principal de la classe ou à un Admin, même règle que l'écriture manuelle). Réutilise `IAService.genererCommentaireBulletin` (Groq, `llama-3.3-70b-versatile`, déjà écrit mais jamais branché) : construit le prompt à partir des `ReportCardSubjectLine` déjà en base (points forts ≥14, points faibles <10, évolution vs bulletin précédent du même élève). Le résultat est stocké dans `aiComment` (champ dédié, distinct de `classMasterComment`) et affiché dans le textarea existant de `SectionAppreciationsPP.tsx` via un bouton "Générer avec l'IA" — le PP le modifie ensuite normalement (auto-save debounced + file d'attente hors-ligne déjà en place, action de génération elle-même désactivée hors-ligne car appel IA externe).
 
 ### 🟡 Ce qui existe partiellement
 - **Mode hors ligne / PWA** (Juillet 2026) — infrastructure déjà bien plus avancée que supposé à l'audit initial : `manifest.json` réel (icônes, `display: standalone`). **✅ Bloquant Service Worker résolu** : l'apostrophe dans l'ancien chemin absolu du projet ("God's Grace") cassait la génération Workbox — résolu en renommant le dossier. Bug annexe indépendant découvert et corrigé dans la foulée : `next build` bascule par défaut sur Turbopack, incompatible avec `next-pwa` (accroché uniquement au hook `webpack()`) — build « réussi » mais sans aucun Service Worker généré, sans erreur. Corrigé via `next build --webpack` (`frontend/package.json`). Precaching d'app-shell et notifications push buildent désormais correctement pour la production (vérifié via `bun run build` + `bun run start`).
@@ -77,7 +79,6 @@ Cette carte est organisée en 8 grandes sections :
 - **Landing page** — le formulaire de démo existe visuellement (`DemoModal.tsx`), mais son branchement vers un vrai `SchoolInvite`/lead n'a pas été confirmé
 
 ### ⬜ Ce qui n'a pas du tout été commencé
-- **Transparence financière APEE** — aucun modèle, aucun use case, uniquement une valeur d'enum de type de frais
 - **Module Groupe Scolaire** (multi-établissements, `SCHOOL_GROUP_OWNER`)
 - **Accès lecture DDES/DRES** (aucun rôle, aucune route)
 - **API publique & webhooks sortants** (seul webhook = Campay entrant)
@@ -1935,7 +1936,7 @@ domain/reportCards/
 
 ---
 
-## PHASE 4 — IA & PWA [RÉEL: 🟡 PARTIEL, en avance sur son calendrier prévu (Oct-Déc 2026) — indice de santé élève ✅ et génération EDT IA ✅ (via Groq) sont déjà construits alors que cette phase n'est même pas censée avoir commencé. Le reste (PWA installable, commentaires bulletins IA, chatbot d'aide, détection progressions) n'a pas été confirmé.]
+## PHASE 4 — IA & PWA [RÉEL: 🟡 PARTIEL, en avance sur son calendrier prévu (Oct-Déc 2026) — indice de santé élève ✅, génération EDT IA ✅ (via Groq) et commentaires bulletins IA ✅ (Juillet 2026, voir "Ce qui est vraiment fait et solide" plus haut) sont déjà construits alors que cette phase n'est même pas censée avoir commencé. **BLOC 2 (PWA) essentiellement FAIT** (Juillet 2026, voir "Ce qui existe partiellement" plus haut) : Service Worker + manifest + `useSyncQueue`/`useCachedFetch` étendus à la quasi-totalité des écrans. Reste dans ce bloc : mode SMS de secours (parser `PRES#6eA#...`), non commencé. BLOC 1 restant : chatbot d'aide contextuel — non construit.]
 **Durée estimée :** Octobre–Décembre 2026
 
 ---
@@ -1951,7 +1952,7 @@ domain/reportCards/
 | Détection risque d'échec | `DetectAtRiskStudentsUseCase.ts` | |
 | Détection progressions | `DetectProgressionsUseCase.ts` | Hausse ≥ 2 pts → alerte positive |
 | Génération EDT IA | Gemini + Inngest | Contraintes complètes + statut temps réel |
-| Commentaires bulletins IA | `GenerateBulletinCommentUseCase.ts` | Par élève via Gemini |
+| Commentaires bulletins IA ✅ | `ReportCardController.genererCommentaireIA` | Par élève via Groq (pas Gemini) — modifiable ensuite par le PP |
 | Centre d'aide IA | Chatbot contextuel | |
 
 ---
