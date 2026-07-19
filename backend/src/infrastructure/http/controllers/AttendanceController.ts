@@ -3,6 +3,7 @@ import type { EnregistrerPresenceUseCase } from '@application/attendance/Enregis
 import type { AttendancePeriod, AttendanceStatus } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { notifyAbsenceSms } from '@infrastructure/services/SmsNotificationService';
+import { notifierParentsPushDabord } from '@infrastructure/services/PushFirstNotifier';
 
 const startOfDayUtc = (dateString: string) => {
   const [y = 0, m = 1, d = 1] = dateString.split('-').map(Number);
@@ -84,15 +85,23 @@ export class AttendanceController {
             ? (await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }))?.name
             : undefined
           await Promise.all(
-            students.map((s) =>
-              notifyAbsenceSms({
+            students.map(async (s) => {
+              const studentName = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim()
+              const dateStr = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+              const { phonesSansPush } = await notifierParentsPushDabord({
+                schoolId, studentId: s.id, type: 'ABSENCE_ALERT',
+                titre: 'Absence signalée',
+                corps: `${studentName} a été marqué(e) absent(e) le ${dateStr}${subjectName ? ` en ${subjectName}` : ''}.`,
+              })
+              return notifyAbsenceSms({
                 schoolId,
                 studentId: s.id,
-                studentName: `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim(),
+                studentName,
                 date: dateObj,
                 subjectName,
-              }),
-            ),
+                phones: phonesSansPush,
+              })
+            }),
           )
         } catch (err) {
           console.error('[SMS Attendance fire-and-forget]', err)

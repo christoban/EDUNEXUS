@@ -51,7 +51,67 @@
     "type_reason_required": "Type and reason are required",
     "generic_error": "Error",
     "server_error": "Server error",
-    "loading_error": "Loading error"
+    "loading_error": "Loading error",
+    "severe_requires_council": "A council decision or permanent exclusion can only be created by holding a Discipline Council — use the \"Discipline council\" tab."
+  },
+  "tabs": {
+    "sanctions": "Sanctions",
+    "council": "Discipline council"
+  },
+  "council": {
+    "subtitle": "Convocation, legal composition (Art. 30) and minutes of discipline councils",
+    "convoke_modal_title": "Convene a Discipline Council",
+    "convoke_modal_hint": "The council date must be at least 72h after the parents are notified (absolute rule, Art. 30).",
+    "tenir_modal_title": "Hold the council and record the decision",
+    "hint_delay_not_elapsed": "The 72h legal delay since convocation has not yet elapsed",
+    "actions": {
+      "convoke": "Convene a council",
+      "hold": "Hold the council",
+      "download_pv": "Download minutes"
+    },
+    "form_fields": {
+      "motif_label": "Reason for convocation *",
+      "scheduled_label": "Council date and time *",
+      "scheduled_hint": "Must be at least 72h from now",
+      "composition_label": "Council composition (Art. 30) *",
+      "decision_label": "Decision *",
+      "pv_label": "Minutes (report) *",
+      "pv_placeholder": "Summary of deliberations, elements examined, reasoned decision…"
+    },
+    "composition_roles": {
+      "chefEtablissement": "Head of institution (president)",
+      "censeur": "Deputy Head",
+      "sg": "General Supervisor",
+      "pp": "Class Teacher",
+      "representantParents": "Parents' representative",
+      "representantEleves": "Students' representative"
+    },
+    "table_headers": {
+      "motif": "Reason",
+      "scheduled": "Scheduled date",
+      "status": "Status",
+      "decision": "Decision"
+    },
+    "status": {
+      "CONVOQUE": "Convened",
+      "TENU": "Held",
+      "ANNULE": "Cancelled"
+    },
+    "validation": {
+      "motif_date_required": "Reason and council date are required",
+      "composition_required": "Incomplete council composition — all members are required (Art. 30)",
+      "pv_required": "Minutes are required"
+    },
+    "toasts": {
+      "convoked": "Council convened for {student}",
+      "held": "Council held, decision recorded",
+      "load_error": "Error loading councils",
+      "pv_error": "Error downloading minutes"
+    },
+    "empty_state": {
+      "title": "No discipline council convened",
+      "description": "Use \"Convene a council\" for a serious matter requiring a Discipline Council."
+    }
   },
   "filter_labels": {
     "all_types": "All types",
@@ -71,6 +131,7 @@
   },
   "toasts": {
     "sanction_saved": "Sanction recorded for {student}",
+    "sanction_queued": "Sanction for {student} queued — will sync when back online",
     "sanction_lifted": "Sanction lifted",
     "confirm_lift": "Lift sanction for {student}?"
   },
@@ -82,5 +143,6 @@
   "count_summary": "{count} sanction{s} · filtered{byStatus}",
   "loading": "…",
   "error_icon": "",
-  "behavior_reason": "Behavior problem"
+  "behavior_reason": "Behavior problem",
+  "offline_hint": "Offline mode — new sanctions will sync when back online"
 }

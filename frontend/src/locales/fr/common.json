@@ -240,5 +240,26 @@
     "title": "Notifications",
     "empty": "Aucune notification pour le moment",
     "markAllRead": "Tout marquer comme lu"
+  },
+  "notificationCenter": {
+    "title": "Centre de notifications",
+    "subtitle": "Historique complet, filtrable, de toutes vos notifications",
+    "loading": "Chargement...",
+    "pageOf": "Page {page} sur {pages}",
+    "readFilter": {
+      "ALL": "Toutes",
+      "UNREAD": "Non lues",
+      "READ": "Lues"
+    },
+    "types": {
+      "ALL": "Tous types",
+      "ACADEMIC": "Académique",
+      "ATTENDANCE": "Présence",
+      "COMMUNICATION": "Communication",
+      "FINANCIAL": "Finance",
+      "AI_ALERT": "Alerte IA",
+      "POSITIVE": "Positif",
+      "SYSTEM": "Système"
+    }
   }
 }

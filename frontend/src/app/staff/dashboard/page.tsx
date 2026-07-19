@@ -15,12 +15,14 @@ import SectionGrilleHoraire    from './_components/SectionGrilleHoraire'
 import SectionAffectations     from './_components/SectionAffectations'
 import SectionTimetableStaff   from './_components/SectionTimetableStaff'
 import SectionFinanceStaff     from './_components/SectionFinanceStaff'
+import SectionAPEEStaff        from './_components/SectionAPEEStaff'
 import SectionCautions         from './_components/SectionCautions'
 import SectionDiscipline       from './_components/SectionDiscipline'
 import SectionLibrary          from './_components/SectionLibrary'
 import SectionOrientation      from './_components/SectionOrientation'
 import SectionDepartementsStaff from './_components/SectionDepartementsStaff'
 import SectionMonProfilRH from '@/components/SectionMonProfilRH'
+import NotificationCenter from '@/components/NotificationCenter'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
@@ -31,7 +33,7 @@ export default function StaffDashboard() {
   const [section, setSection]           = useState<StaffSection>('dashboard')
   const [toasts, setToasts]             = useState<Toast[]>([])
   const [sessionUser, setSessionUser]   = useState<SessionUser | null>(null)
-  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh']))
+  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh', 'notifications']))
   const [schoolName, setSchoolName]     = useState<string | undefined>(undefined)
   const [logoUrl,    setLogoUrl]        = useState<string | null>(null)
   const [changePwdOpen, setChangePwdOpen] = useState(false)
@@ -125,6 +127,10 @@ export default function StaffDashboard() {
             <SectionFinanceStaff onToast={showToast} sessionUser={sessionUser} />
           )}
 
+          {section === 'apee' && can('apee') && (
+            <SectionAPEEStaff onToast={showToast} />
+          )}
+
           {section === 'cautions' && can('cautions') && (
             <SectionCautions onToast={showToast} />
           )}
@@ -146,6 +152,7 @@ export default function StaffDashboard() {
           )}
 
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
+          {section === 'notifications' && <NotificationCenter />}
 
         </main>
       </div>

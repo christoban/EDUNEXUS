@@ -17,6 +17,16 @@
 /.next/
 /out/
 
+# next-pwa (généré au build — voir customWorkerSrc dans next.config.ts, worker/index.js
+# est la source à versionner, ces fichiers ne le sont pas)
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+/public/worker-*.js
+/public/worker-*.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+
 # production
 /build
 

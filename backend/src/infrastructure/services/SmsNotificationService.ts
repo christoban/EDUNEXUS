@@ -9,7 +9,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
 import { sendSMS, isSmsConfigured } from '../../services/smsService'
 import { resolveLanguage, type Language } from '../../utils/languageHelper'
 
-type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2' | 'ONBOARDING'
+type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2' | 'ONBOARDING' | 'LIBRARY'
 
 const DISCIPLINE_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
   WARNING_ORAL:        { fr: 'Avertissement oral',                 en: 'Verbal warning' },
@@ -37,6 +37,10 @@ const smsTemplates = {
   discipline: {
     fr: (name: string, typeLabel: string, reason: string) => `ZekoulABia: ${name} a fait l'objet d'une sanction (${typeLabel}). Motif : ${reason}. Contactez l'établissement pour plus d'informations.`,
     en: (name: string, typeLabel: string, reason: string) => `ZekoulABia: ${name} received a disciplinary sanction (${typeLabel}). Reason: ${reason}. Please contact the school for more information.`,
+  },
+  libraryOverdue: {
+    fr: (name: string, title: string) => `ZekoulABia: RAPPEL — L'ouvrage "${title}" emprunté par ${name} est en retard. Merci de le retourner à la bibliothèque.`,
+    en: (name: string, title: string) => `ZekoulABia: REMINDER — The book "${title}" borrowed by ${name} is overdue. Please return it to the library.`,
   },
   absenceThreshold: {
     fr: (name: string, count: number, threshold: number) => `ZekoulABia: ALERTE — ${name} cumule ${count} absences non justifiées (seuil : ${threshold}). Merci de contacter l'établissement.`,
@@ -206,12 +210,14 @@ export async function notifyAbsenceSms(opts: {
   studentName: string
   date: Date
   subjectName?: string
+  /** Repli push-d'abord (voir PushFirstNotifier.ts) : si omis, résout tous les parents comme avant. */
+  phones?: string[]
 }): Promise<void> {
   try {
     const settings = await getNotifSettings(opts.schoolId)
     if (!settings.smsAbsences) return
 
-    const phones = await getParentPhones(opts.studentId)
+    const phones = opts.phones ?? await getParentPhones(opts.studentId)
     if (phones.length === 0) return
 
     const lang = await resolveSmsLanguage(opts.schoolId, opts.studentId)
@@ -262,12 +268,14 @@ export async function notifyOverdueInvoiceSms(opts: {
   amount: number
   daysOverdue: number
   invoiceLabel: string
+  /** Repli push-d'abord (voir PushFirstNotifier.ts) : si omis, résout tous les parents comme avant. */
+  phones?: string[]
 }): Promise<void> {
   try {
     const settings = await getNotifSettings(opts.schoolId)
     if (!settings.smsPayments) return
 
-    const phones = await getParentPhones(opts.studentId)
+    const phones = opts.phones ?? await getParentPhones(opts.studentId)
     if (phones.length === 0) return
 
     const lang = await resolveSmsLanguage(opts.schoolId, opts.studentId)
@@ -286,9 +294,11 @@ export async function notifyDisciplineSms(opts: {
   studentName: string
   type: string
   reason: string
+  /** Repli push-d'abord (voir PushFirstNotifier.ts) : si omis, résout tous les parents comme avant. */
+  phones?: string[]
 }): Promise<void> {
   try {
-    const phones = await getParentPhones(opts.studentId)
+    const phones = opts.phones ?? await getParentPhones(opts.studentId)
     if (phones.length === 0) return
 
     const lang = await resolveSmsLanguage(opts.schoolId, opts.studentId)
@@ -298,6 +308,47 @@ export async function notifyDisciplineSms(opts: {
     await Promise.all(phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'DISCIPLINE')))
   } catch (err) {
     console.error('[SMS Discipline] Erreur inattendue:', err)
+  }
+}
+
+/**
+ * Cible une liste explicite de téléphones plutôt que de les résoudre elle-même — l'appelant
+ * (markOverdueLoans) essaie d'abord le push par parent et ne passe ici que les numéros des
+ * parents que le push n'a pas atteints (aucune souscription active), voir getParentContacts.
+ */
+export async function notifyOverdueBookSms(opts: {
+  schoolId: string
+  studentId: string
+  studentName: string
+  bookTitle: string
+  phones: string[]
+}): Promise<void> {
+  try {
+    if (opts.phones.length === 0) return
+
+    const lang = await resolveSmsLanguage(opts.schoolId, opts.studentId)
+    const message = smsTemplates.libraryOverdue[lang](opts.studentName, opts.bookTitle)
+
+    await Promise.all(opts.phones.map((phone) => dispatchSms(opts.schoolId, phone, message, 'LIBRARY')))
+  } catch (err) {
+    console.error('[SMS Library Overdue] Erreur inattendue:', err)
+  }
+}
+
+/** Variante de getParentPhones exposant aussi l'userId, pour tenter le push avant le SMS. */
+export async function getParentContacts(studentId: string): Promise<{ userId: string; phone: string | null }[]> {
+  try {
+    const sp = await prisma.studentProfile.findUnique({ where: { userId: studentId } })
+    if (!sp) return []
+
+    const links = await prisma.parentStudent.findMany({
+      where: { studentProfileId: sp.id },
+      include: { parentProfile: { include: { user: { select: { id: true, phone: true } } } } },
+    })
+
+    return links.map((l) => ({ userId: l.parentProfile.user.id, phone: l.parentProfile.user.phone }))
+  } catch {
+    return []
   }
 }
 

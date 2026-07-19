@@ -5,6 +5,7 @@ export function creerHrRoutes(ctrl: HRController): Router {
   const router = Router();
 
   router.get('/employees', ctrl.listEmployees);
+  router.get('/export/liste-nominale-minesec', ctrl.exportListeNominaleMinesec);
   router.get('/employees/:id', ctrl.getEmployee);
   router.get('/employees/:id/file', ctrl.getEmployeeFile);
   router.post('/employees/:id/file', ctrl.saveEmployeeFile);

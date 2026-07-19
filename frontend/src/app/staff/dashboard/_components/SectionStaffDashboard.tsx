@@ -1,8 +1,9 @@
 ﻿'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { Hand, RefreshCw, FileText, GraduationCap, Smartphone, CheckCircle2, KeyRound, type LucideIcon } from 'lucide-react'
+import { useCallback } from 'react'
+import { Hand, RefreshCw, FileText, GraduationCap, Smartphone, CheckCircle2, KeyRound, BookOpen, Package, type LucideIcon } from 'lucide-react'
 import type { StaffSection, SessionUser } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
 import { useT } from '@/lib/i18n'
 
 interface Props {
@@ -17,35 +18,35 @@ interface KpiData {
   openCouncils: number
   pendingInvoices: number
   attendanceRate: string | null
+  overdueBooks: number
 }
 
 export default function SectionStaffDashboard({ sessionUser, allowedSections, onNav, onToast }: Props) {
   const t = useT('staff')
   const can = (s: StaffSection) => allowedSections.has(s)
-  const [kpi, setKpi] = useState<KpiData>({ pendingGrades: 0, openCouncils: 0, pendingInvoices: 0, attendanceRate: null })
-  const [loading, setLoading] = useState(true)
 
-  const fetchKpis = useCallback(async () => {
-    setLoading(true)
+  const fetchKpis = useCallback(async (): Promise<KpiData> => {
     const results = await Promise.allSettled([
       can('grades')     ? fetchApi('/api/v2/grades/pending',                { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
       can('council')    ? fetchApi('/api/v2/class-councils',                { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
       can('finance')    ? fetchApi('/api/v2/finance/invoices?status=PENDING&limit=1', { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
       can('attendance') ? fetchApi('/api/v2/attendance/stats',              { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
+      can('library')    ? fetchApi('/api/v2/library/loans?status=OVERDUE&limit=1', { credentials: 'include' }).then(r => r.json()) : Promise.resolve(null),
     ])
 
-    const [gradesRes, councilRes, financeRes, attendanceRes] = results
+    const [gradesRes, councilRes, financeRes, attendanceRes, libraryRes] = results
 
-    setKpi({
+    return {
       pendingGrades:   gradesRes.status === 'fulfilled'    && gradesRes.value?.total      != null ? gradesRes.value.total : 0,
       openCouncils:    councilRes.status === 'fulfilled'   && councilRes.value?.sessions  != null ? councilRes.value.sessions.filter((s: any) => s.status !== 'LOCKED').length : 0,
       pendingInvoices: financeRes.status === 'fulfilled'   && financeRes.value?.pagination != null ? financeRes.value.pagination.total : 0,
       attendanceRate:  attendanceRes.status === 'fulfilled' && attendanceRes.value?.stats  != null ? attendanceRes.value.stats.attendanceRate : null,
-    })
-    setLoading(false)
+      overdueBooks:    libraryRes.status === 'fulfilled'   && libraryRes.value?.pagination != null ? libraryRes.value.pagination.total : 0,
+    }
   }, [allowedSections]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { fetchKpis() }, [fetchKpis])
+  const { data, loading, fromCache, cachedAt, refetch } = useCachedFetch<KpiData>('staff-dashboard-kpis', fetchKpis)
+  const kpi: KpiData = data ?? { pendingGrades: 0, openCouncils: 0, pendingInvoices: 0, attendanceRate: null, overdueBooks: 0 }
 
   const nomAffiche = sessionUser?.firstName ?? 'Staff'
 
@@ -54,6 +55,7 @@ export default function SectionStaffDashboard({ sessionUser, allowedSections, on
     can('council')    && { icon: GraduationCap, bg: 'var(--purple-light)', val: String(kpi.openCouncils),   label: t('dashboard.openCouncils'),     trend: t('dashboard.toProcess'),         tBg: 'var(--purple-light)', tC: 'var(--purple)', nav: 'council' as StaffSection },
     can('finance')    && { icon: Smartphone, bg: 'var(--blue-light)', val: String(kpi.pendingInvoices),label: t('dashboard.pendingPayments'), trend: 'Mobile Money',       tBg: 'var(--blue-light)', tC: 'var(--blue)', nav: 'finance' as StaffSection },
     can('attendance') && { icon: CheckCircle2, bg: 'var(--green-light)', val: kpi.attendanceRate ?? '—',  label: t('dashboard.attendanceRate'),     trend: t('dashboard.today'),        tBg: 'var(--green-light)', tC: 'var(--green)', nav: 'attendance' as StaffSection },
+    can('library')    && { icon: BookOpen, bg: 'var(--red-light)', val: String(kpi.overdueBooks),  label: t('dashboard.overdueBooks'),     trend: kpi.overdueBooks > 0 ? t('dashboard.urgent') : t('dashboard.upToDate'), tBg: kpi.overdueBooks > 0 ? 'var(--red-light)' : 'var(--green-light)', tC: kpi.overdueBooks > 0 ? 'var(--red)' : 'var(--green)', nav: 'library' as StaffSection },
   ].filter(Boolean) as { icon: LucideIcon; bg: string; val: string; label: string; trend: string; tBg: string; tC: string; nav: StaffSection }[]
 
   return (
@@ -64,8 +66,13 @@ export default function SectionStaffDashboard({ sessionUser, allowedSections, on
         <div>
           <div style={{ ...sTitle, display: 'flex', alignItems: 'center', gap: 8 }}>{t('dashboard.greeting')}, {nomAffiche} <Hand size={22} strokeWidth={2} /></div>
           <div style={sSub}>{t('dashboard.subtitle')}</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {t('dashboard.cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
-        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { fetchKpis(); onToast(t('dashboard.refreshing'), 'info') }}>
+        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { refetch(); onToast(t('dashboard.refreshing'), 'info') }}>
           <RefreshCw size={15} strokeWidth={2} /> {t('dashboard.refresh')}
         </button>
       </div>
@@ -95,7 +102,7 @@ export default function SectionStaffDashboard({ sessionUser, allowedSections, on
         </div>
       )}
 
-      {!loading && (can('grades') || can('council') || can('finance')) && (
+      {!loading && (can('grades') || can('council') || can('finance') || can('library')) && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', marginBottom: 18 }}>
           <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('dashboard.quickActions')}</span>
@@ -105,6 +112,7 @@ export default function SectionStaffDashboard({ sessionUser, allowedSections, on
               can('grades')  && kpi.pendingGrades > 0  && { icon: FileText, bg: 'var(--amber-light)', color: 'var(--amber)', border: 'rgba(217,119,6,0.2)',  text: t('dashboard.pendingGradesAlert', { count: kpi.pendingGrades, s: kpi.pendingGrades > 1 ? 's' : '' }), action: () => onNav('grades'),  btn: t('dashboard.validateCTA') },
               can('council') && kpi.openCouncils > 0   && { icon: GraduationCap, bg: 'var(--purple-light)', color: 'var(--purple)', border: 'rgba(91,33,182,0.2)',  text: t('dashboard.openCouncilsAlert', { count: kpi.openCouncils, s: kpi.openCouncils > 1 ? 's' : '' }), action: () => onNav('council'), btn: t('dashboard.viewCTA') },
               can('finance') && kpi.pendingInvoices > 0 && { icon: Smartphone, bg: 'var(--red-light)', color: 'var(--red)', border: 'rgba(220,38,38,0.2)', text: t('dashboard.pendingPaymentsAlert', { count: kpi.pendingInvoices, s: kpi.pendingInvoices > 1 ? 's' : '' }), action: () => onNav('finance'), btn: t('dashboard.processCTA') },
+              can('library') && kpi.overdueBooks > 0 && { icon: BookOpen, bg: 'var(--red-light)', color: 'var(--red)', border: 'rgba(220,38,38,0.2)', text: t('dashboard.overdueBooksAlert', { count: kpi.overdueBooks, s: kpi.overdueBooks > 1 ? 's' : '' }), action: () => onNav('library'), btn: t('dashboard.viewCTA') },
             ].filter(Boolean).map((alert, i) => {
               const a = alert as { icon: LucideIcon; bg: string; color: string; border: string; text: string; action: () => void; btn: string }
               return (
@@ -118,7 +126,7 @@ export default function SectionStaffDashboard({ sessionUser, allowedSections, on
                 </div>
               )
             })}
-            {!can('grades') && !can('council') && !can('finance') && (
+            {!can('grades') && !can('council') && !can('finance') && !can('library') && (
               <div style={{ fontSize: 16, color: 'var(--text3)', padding: '8px 0' }}>{t('dashboard.noUrgentActions')}</div>
             )}
           </div>

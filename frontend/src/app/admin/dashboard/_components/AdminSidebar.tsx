@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, School, BookOpen, ClipboardCheck, FileText,
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
-  Globe, Languages, Bot, Megaphone, Settings,
+  Globe, Languages, Bot, Megaphone, Settings, Bell,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -92,6 +92,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'ai',            icon: Bot, label: tnav('sidebar.ai') },
         { id: 'statistics',    icon: BarChart3, label: tnav('sidebar.statistics') },
         { id: 'communications', icon: Megaphone, label: tnav('sidebar.communications') },
+        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
         { id: 'settings',      icon: Settings, label: tnav('sidebar.settings') },
       ]
     }

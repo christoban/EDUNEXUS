@@ -82,6 +82,8 @@ model School {
   classPromotions            ClassPromotion[]
   conversations              Conversation[]
   disciplineRecords          DisciplineRecord[]
+  apeeTransactions           APEETransaction[]
+  disciplineCouncilSessions  DisciplineCouncilSession[]
   emailLogs                  EmailLog[]
   exams                      Exam[]
   expenses                   Expense[]
@@ -323,6 +325,10 @@ model User {
   onboardingsValidated            StudentOnboarding[]
   statisticalSubmissionsGenerated StatisticalSubmission[]
   minedubReportsGenerated         MinedubStatisticalReport[] @relation("MinedubReportGeneratedBy")
+  apeeTransactionsCreated         APEETransaction[]          @relation("APEETransactionCreatedBy")
+  apeeTransactionsValidated       APEETransaction[]          @relation("APEETransactionValidatedBy")
+  disciplineCouncilSessions       DisciplineCouncilSession[] @relation("DisciplineCouncilStudent")
+  disciplineCouncilsPresided      DisciplineCouncilSession[] @relation("DisciplineCouncilPresidedBy")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -1043,6 +1049,40 @@ model Expense {
   school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
+enum APEETransactionType {
+  COLLECTE
+  DEPENSE
+}
+
+/**
+ * Registre de transparence financière APEE (MODULE 7/11, chantier Juillet 2026) — distinct
+ * du modèle Expense générique ci-dessus (dépenses courantes de l'établissement, sans workflow
+ * de justificatif). Une DEPENSE exige un justificatif joint avant d'être marquée validée
+ * (voir ValiderDepenseAPEEUseCase) ; une COLLECTE est considérée valide dès sa saisie par
+ * l'intendant (montant reçu, pas de justificatif à produire).
+ */
+model APEETransaction {
+  id              String              @id @default(cuid())
+  schoolId        String
+  type            APEETransactionType
+  montant         Float
+  categorie       String?
+  description     String?
+  date            DateTime            @default(now())
+  justificatifUrl String?
+  valide          Boolean             @default(false)
+  valideParId     String?
+  valideAt        DateTime?
+  creeParId       String
+  createdAt       DateTime            @default(now())
+  school          School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  creePar         User                @relation("APEETransactionCreatedBy", fields: [creeParId], references: [id])
+  validePar       User?               @relation("APEETransactionValidatedBy", fields: [valideParId], references: [id])
+
+  @@index([schoolId, type])
+  @@index([schoolId, valide])
+}
+
 model Conversation {
   id        String           @id @default(cuid())
   schoolId  String
@@ -1125,19 +1165,59 @@ model PushSubscription {
 }
 
 model DisciplineRecord {
-  id          String           @id @default(cuid())
-  schoolId    String
-  studentId   String
-  type        DisciplineType
-  reason      String
-  decidedById String
-  startDate   DateTime?
-  endDate     DateTime?
-  status      DisciplineStatus @default(ACTIVE)
-  createdAt   DateTime         @default(now())
-  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  decidedBy   User             @relation("DisciplineDecidedBy", fields: [decidedById], references: [id])
-  student     User             @relation("StudentDiscipline", fields: [studentId], references: [id])
+  id             String                     @id @default(cuid())
+  schoolId       String
+  studentId      String
+  type           DisciplineType
+  reason         String
+  decidedById    String
+  startDate      DateTime?
+  endDate        DateTime?
+  status         DisciplineStatus           @default(ACTIVE)
+  createdAt      DateTime                   @default(now())
+  school         School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  decidedBy      User                       @relation("DisciplineDecidedBy", fields: [decidedById], references: [id])
+  student        User                       @relation("StudentDiscipline", fields: [studentId], references: [id])
+  councilSession DisciplineCouncilSession?
+
+  @@index([schoolId, studentId])
+}
+
+enum DisciplineCouncilStatus {
+  CONVOQUE
+  TENU
+  ANNULE
+}
+
+/**
+ * Conseil de Discipline conforme Art. 30 (Loi 9 de la carte) — convocation des parents
+ * obligatoire minimum 72h avant la tenue, composition légale (chef d'établissement, censeur,
+ * SG, PP, représentant parents, représentant élèves). Un DisciplineRecord de type
+ * COUNCIL_DECISION ou PERMANENT_EXCLUSION ne peut être créé QUE via ce workflow (voir la
+ * route POST /api/v2/discipline, qui refuse désormais ces deux types en création directe) —
+ * chantier Juillet 2026.
+ */
+model DisciplineCouncilSession {
+  id                 String                  @id @default(cuid())
+  schoolId           String
+  studentId          String
+  presidedById       String
+  motif              String
+  // { chefEtablissement, censeur, sg, pp, representantParents, representantEleves } : String
+  composition        Json
+  parentNotifiedAt   DateTime                @default(now())
+  scheduledAt        DateTime
+  heldAt             DateTime?
+  decision           DisciplineType?
+  pv                 String?
+  status             DisciplineCouncilStatus @default(CONVOQUE)
+  disciplineRecordId String?                 @unique
+  createdAt          DateTime                @default(now())
+
+  school           School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student          User              @relation("DisciplineCouncilStudent", fields: [studentId], references: [id])
+  presidedBy       User              @relation("DisciplineCouncilPresidedBy", fields: [presidedById], references: [id])
+  disciplineRecord DisciplineRecord? @relation(fields: [disciplineRecordId], references: [id])
 
   @@index([schoolId, studentId])
 }

@@ -1,3 +1,10 @@
+/**
+ * Worker personnalisé fusionné dans le Service Worker généré par next-pwa (voir
+ * customWorkerSrc dans next.config.ts — next-pwa cherche worker/index.js automatiquement,
+ * le compile et l'importe dans le sw.js final via importScripts). Gère la réception des
+ * notifications Web Push (Service Worker + VAPID, voir PLAN_NOTIFICATIONS_PUSH.md) —
+ * distinct du cache/precaching hors-ligne que next-pwa génère lui-même dans le même fichier.
+ */
 self.addEventListener('push', function (event) {
   if (!event.data) return;
 

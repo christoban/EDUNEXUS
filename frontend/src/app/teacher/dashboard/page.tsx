@@ -24,6 +24,7 @@ import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
 import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import NotificationBell from '@/components/NotificationBell'
+import NotificationCenter from '@/components/NotificationCenter'
 import { useT } from '@/lib/i18n'
 
 let toastId = 0
@@ -50,6 +51,7 @@ export default function TeacherDashboard() {
     'ap-departement':    tnav('pageTitle.teacher_apDepartement'),
     'cahier-de-texte':   tnav('pageTitle.teacher_cahierDeTexte'),
     'mon-profil-rh':     tnav('sidebar.monProfilRH'),
+    notifications:       tnav('pageTitle.teacher_notifications'),
   }
   const [section, setSection] = useState<TeacherSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -128,6 +130,7 @@ export default function TeacherDashboard() {
           })()}
           {section === 'cahier-de-texte' && <SectionCahierDeTexte user={user} onToast={showToast} />}
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
+          {section === 'notifications' && <NotificationCenter />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>

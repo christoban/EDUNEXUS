@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { PenLine, Save, Loader2, Lock, ScrollText } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { useT } from '@/lib/i18n'
 
 interface Props {
@@ -53,6 +54,7 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkProgress, setBulkProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const { isOnline, addToQueue } = useSyncQueue()
 
   // Load periods from current academic year
   useEffect(() => {
@@ -103,12 +105,24 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
     for (const [rcId, text] of Object.entries(debouncedComments)) {
       if (prevSavedRef.current[rcId] === text) continue
       prevSavedRef.current[rcId] = text
+
+      const endpoint = `/api/v2/report-cards/${rcId}/comment`
+      const payload = { classMasterComment: text }
+
+      if (!isOnline) {
+        // Hors ligne : mise en file, rejouée automatiquement au retour du réseau (useSyncQueue)
+        addToQueue({ type: 'APPRECIATION_PP', endpoint, method: 'PATCH', payload })
+        setSaved(s => ({ ...s, [rcId]: true }))
+        setTimeout(() => setSaved(s => { const n = { ...s }; delete n[rcId]; return n }), 3000)
+        continue
+      }
+
       setSaving(s => ({ ...s, [rcId]: true }))
-      fetchApi(`/api/v2/report-cards/${rcId}/comment`, {
+      fetchApi(endpoint, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classMasterComment: text }),
+        body: JSON.stringify(payload),
       })
         .then(() => {
           setSaved(s => ({ ...s, [rcId]: true }))
@@ -117,7 +131,7 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
         .catch(() => {})
         .finally(() => setSaving(s => { const n = { ...s }; delete n[rcId]; return n }))
     }
-  }, [debouncedComments])
+  }, [debouncedComments, isOnline, addToQueue])
 
   const handleBulkSave = useCallback(async () => {
     const entries = Object.entries(comments)
@@ -179,6 +193,12 @@ export default function SectionAppreciationsPP({ user: _user, classeId }: Props)
               {p.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {!isOnline && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, fontSize: 14, fontWeight: 700, color: 'var(--amber)' }}>
+          {t('pp.offline_hint')}
         </div>
       )}
 

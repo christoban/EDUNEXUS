@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion'
 import {
   LogOut, LayoutDashboard, School, ClipboardCheck, FileText, Calendar,
-  NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw,
+  NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw, Bell,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -46,7 +46,10 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
     },
     {
       label: tnav('group.moncompte'),
-      items: [{ id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') }],
+      items: [
+        { id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') },
+        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
+      ],
     },
   ]
 

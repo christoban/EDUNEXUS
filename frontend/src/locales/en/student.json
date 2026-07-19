@@ -1,4 +1,5 @@
 {
+  "cacheBadge": "Data from {date} — offline",
   "dashboard": {
     "greeting": "Hello, {name}",
     "matricule_label": "ID:",

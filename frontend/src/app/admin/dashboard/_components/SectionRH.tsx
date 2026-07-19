@@ -373,7 +373,27 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
       {tab === 'personnel' && (
         <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 18 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.staffList')}</div>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.staffList')}</div>
+              <button
+                title={t('rh.exportMinesecHint')}
+                style={{ ...chipStyle('var(--green-light)', 'var(--green)'), border: 'none', cursor: 'pointer' }}
+                onClick={async () => {
+                  try {
+                    const r = await fetchApi('/api/v2/hr/export/liste-nominale-minesec', { credentials: 'include' })
+                    if (!r.ok) throw new Error(t('rh.toast.errPdf'))
+                    const blob = await r.blob()
+                    const link = document.createElement('a')
+                    link.href = URL.createObjectURL(blob)
+                    link.download = 'liste-nominale-minesec.xlsx'
+                    link.click()
+                    URL.revokeObjectURL(link.href)
+                  } catch (error) {
+                    onToast(error instanceof Error ? error.message : t('rh.toast.errPdf'), 'error')
+                  }
+                }}
+              >{t('rh.exportMinesec')}</button>
+            </div>
             {loadingEmployees ? (
               <div style={{ padding: 32, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.loading')}</div>
             ) : (

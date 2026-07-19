@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { AlertTriangle, CheckCircle2, Check, X, Loader2 } from 'lucide-react'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { AlertTriangle, CheckCircle2, Check, X, Loader2, Gavel, Download, WifiOff } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -42,6 +43,47 @@ const EMPTY_FORM: FormState = {
   type: 'WARNING_ORAL', reason: '', startDate: '', endDate: '',
 }
 
+const SEVERE_TYPES = ['COUNCIL_DECISION', 'PERMANENT_EXCLUSION']
+
+interface Composition {
+  chefEtablissement: string; censeur: string; sg: string
+  pp: string; representantParents: string; representantEleves: string
+}
+
+interface CouncilSession {
+  id: string; motif: string; composition: Composition
+  parentNotifiedAt: string; scheduledAt: string; heldAt: string | null
+  decision: string | null; pv: string | null; status: 'CONVOQUE' | 'TENU' | 'ANNULE'
+  student: { id: string; firstName: string; lastName: string }
+  presidedBy: { id: string; firstName: string; lastName: string }
+}
+
+const EMPTY_COMPOSITION: Composition = {
+  chefEtablissement: '', censeur: '', sg: '', pp: '', representantParents: '', representantEleves: '',
+}
+
+interface ConvokeFormState {
+  open: boolean; loading: boolean; error: string
+  studentSearch: string; studentResults: StudentResult[]; selectedStudent: StudentResult | null
+  motif: string; scheduledAt: string; composition: Composition
+}
+
+const EMPTY_CONVOKE_FORM: ConvokeFormState = {
+  open: false, loading: false, error: '',
+  studentSearch: '', studentResults: [], selectedStudent: null,
+  motif: '', scheduledAt: '', composition: EMPTY_COMPOSITION,
+}
+
+interface TenirFormState {
+  open: boolean; loading: boolean; error: string
+  sessionId: string; decision: string; pv: string; startDate: string; endDate: string
+}
+
+const EMPTY_TENIR_FORM: TenirFormState = {
+  open: false, loading: false, error: '',
+  sessionId: '', decision: 'COUNCIL_DECISION', pv: '', startDate: '', endDate: '',
+}
+
 export default function SectionDiscipline({ onToast }: Props) {
   const t = useT('discipline')
   const [records, setRecords]   = useState<DisciplineRecord[]>([])
@@ -51,6 +93,95 @@ export default function SectionDiscipline({ onToast }: Props) {
   const [liftingId, setLiftingId] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('ACTIVE')
+  const [view, setView] = useState<'sanctions' | 'council'>('sanctions')
+  const { isOnline, addToQueue } = useSyncQueue()
+
+  const [councilSessions, setCouncilSessions] = useState<CouncilSession[]>([])
+  const [councilLoading, setCouncilLoading] = useState(true)
+  const [convokeForm, setConvokeForm] = useState<ConvokeFormState>(EMPTY_CONVOKE_FORM)
+  const [tenirForm, setTenirForm] = useState<TenirFormState>(EMPTY_TENIR_FORM)
+
+  const fetchCouncilSessions = useCallback(async () => {
+    setCouncilLoading(true)
+    try {
+      const res = await fetchApi('/api/v2/discipline-council', { credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+      setCouncilSessions(data.data || [])
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : t('council.toasts.load_error'), 'error')
+    } finally {
+      setCouncilLoading(false)
+    }
+  }, [onToast, t])
+
+  useEffect(() => { if (view === 'council') fetchCouncilSessions() }, [view, fetchCouncilSessions])
+
+  const searchConvokeStudents = async (q: string) => {
+    if (q.trim().length < 2) { setConvokeForm(f => ({ ...f, studentResults: [] })); return }
+    try {
+      const res = await fetchApi(`/api/v2/users?role=STUDENT&search=${encodeURIComponent(q)}&limit=8`, { credentials: 'include' })
+      const data = await res.json()
+      setConvokeForm(f => ({ ...f, studentResults: data.data || [] }))
+    } catch { setConvokeForm(f => ({ ...f, studentResults: [] })) }
+  }
+
+  const submitConvoke = async () => {
+    const { selectedStudent, motif, scheduledAt, composition } = convokeForm
+    if (!selectedStudent) { setConvokeForm(f => ({ ...f, error: t('validation.student_required') })); return }
+    if (!motif.trim() || !scheduledAt) { setConvokeForm(f => ({ ...f, error: t('council.validation.motif_date_required') })); return }
+    if (Object.values(composition).some(v => !v.trim())) { setConvokeForm(f => ({ ...f, error: t('council.validation.composition_required') })); return }
+    setConvokeForm(f => ({ ...f, loading: true, error: '' }))
+    try {
+      const res = await fetchApi('/api/v2/discipline-council/convoquer', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: selectedStudent.id, motif: motif.trim(), scheduledAt, composition }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur')
+      onToast(t('council.toasts.convoked', { student: `${selectedStudent.firstName} ${selectedStudent.lastName}` }), 'success')
+      setConvokeForm(EMPTY_CONVOKE_FORM)
+      fetchCouncilSessions()
+    } catch (err) {
+      setConvokeForm(f => ({ ...f, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
+    }
+  }
+
+  const submitTenir = async () => {
+    const { sessionId, decision, pv, startDate, endDate } = tenirForm
+    if (!pv.trim()) { setTenirForm(f => ({ ...f, error: t('council.validation.pv_required') })); return }
+    setTenirForm(f => ({ ...f, loading: true, error: '' }))
+    try {
+      const res = await fetchApi(`/api/v2/discipline-council/${sessionId}/tenir`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, pv: pv.trim(), startDate: startDate || undefined, endDate: endDate || undefined }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur')
+      onToast(t('council.toasts.held'), 'success')
+      setTenirForm(EMPTY_TENIR_FORM)
+      fetchCouncilSessions()
+    } catch (err) {
+      setTenirForm(f => ({ ...f, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
+    }
+  }
+
+  const downloadPV = async (sessionId: string) => {
+    try {
+      const r = await fetchApi(`/api/v2/discipline-council/${sessionId}/pv.pdf`, { credentials: 'include' })
+      if (!r.ok) throw new Error(t('council.toasts.pv_error'))
+      const blob = await r.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = 'pv-conseil-discipline.pdf'
+      link.click()
+      URL.revokeObjectURL(link.href)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : t('council.toasts.pv_error'), 'error')
+    }
+  }
 
   const fetchRecords = useCallback(async () => {
     setLoading(true); setError(null)
@@ -84,16 +215,28 @@ export default function SectionDiscipline({ onToast }: Props) {
     const { selectedStudent, type, reason, startDate, endDate } = form
     if (!selectedStudent) { setForm(f => ({ ...f, error: t('validation.student_required') })); return }
     if (!type || !reason.trim()) { setForm(f => ({ ...f, error: t('validation.type_reason_required') })); return }
+    if (SEVERE_TYPES.includes(type)) { setForm(f => ({ ...f, error: t('validation.severe_requires_council') })); return }
+
+    const payload = { studentId: selectedStudent.id, type, reason: reason.trim(), startDate: startDate || undefined, endDate: endDate || undefined }
+    const studentName = `${selectedStudent.firstName} ${selectedStudent.lastName}`
+
+    if (!isOnline) {
+      await addToQueue({ type: 'DISCIPLINE_SANCTION', endpoint: '/api/v2/discipline', method: 'POST', payload })
+      onToast(t('toasts.sanction_queued', { student: studentName }), 'success')
+      setForm(EMPTY_FORM)
+      return
+    }
+
     setForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi('/api/v2/discipline', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: selectedStudent.id, type, reason: reason.trim(), startDate: startDate || undefined, endDate: endDate || undefined }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
-      onToast(t('toasts.sanction_saved', { student: `${selectedStudent.firstName} ${selectedStudent.lastName}` }), 'success')
+      onToast(t('toasts.sanction_saved', { student: studentName }), 'success')
       setForm(EMPTY_FORM)
       fetchRecords()
     } catch (err) {
@@ -123,14 +266,32 @@ export default function SectionDiscipline({ onToast }: Props) {
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
           <div style={sTitle}>{t('title')}</div>
-          <div style={sSub}>{loading ? t('loading') : t('count_summary', { count: records.length, byStatus: statusFilter ? ` par statut ${statusFilter}` : '' })}</div>
+          <div style={sSub}>{view === 'sanctions' ? (loading ? t('loading') : t('count_summary', { count: records.length, byStatus: statusFilter ? ` par statut ${statusFilter}` : '' })) : t('council.subtitle')}</div>
         </div>
-        <button style={btnPrim} onClick={() => setForm(f => ({ ...f, open: true }))}>{t('actions.new_sanction')}</button>
+        {view === 'sanctions' ? (
+          <button style={btnPrim} onClick={() => setForm(f => ({ ...f, open: true }))}>{t('actions.new_sanction')}</button>
+        ) : (
+          <button style={btnPrim} onClick={() => setConvokeForm(f => ({ ...f, open: true }))}>
+            <Gavel size={15} strokeWidth={2} style={{ marginRight: 6, verticalAlign: -2 }} />{t('council.actions.convoke')}
+          </button>
+        )}
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+        <button style={view === 'sanctions' ? tabActiveSt : tabSt} onClick={() => setView('sanctions')}>{t('tabs.sanctions')}</button>
+        <button style={view === 'council' ? tabActiveSt : tabSt} onClick={() => setView('council')}>{t('tabs.council')}</button>
+      </div>
+
+      {view === 'sanctions' && (<>
+      {!isOnline && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>{t('offline_hint')}</span>
+        </div>
+      )}
       {/* Filtres */}
       <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '12px 18px', display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={filterSt}>
@@ -228,6 +389,68 @@ export default function SectionDiscipline({ onToast }: Props) {
           </table>
         </div>
       )}
+      </>)}
+
+      {view === 'council' && (
+        <div>
+          {councilLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+              <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
+            </div>
+          ) : councilSessions.length === 0 ? (
+            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
+              <div style={{ fontSize: 52, marginBottom: 14, display: 'flex', justifyContent: 'center' }}><Gavel size={52} strokeWidth={2} /></div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('council.empty_state.title')}</div>
+              <div style={{ fontSize: 16, color: 'var(--text3)' }}>{t('council.empty_state.description')}</div>
+            </div>
+          ) : (
+            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>{[
+                    t('table_headers.student'), t('council.table_headers.motif'), t('council.table_headers.scheduled'),
+                    t('council.table_headers.status'), t('council.table_headers.decision'), t('table_headers.actions'),
+                  ].map(h => <th key={h} style={thSt}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {councilSessions.map(s => {
+                    const delayOk = new Date(s.scheduledAt).getTime() - Date.now() <= 0
+                    return (
+                      <tr key={s.id}>
+                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{s.student.firstName} {s.student.lastName}</td>
+                        <td style={{ ...tdSt, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.motif}</td>
+                        <td style={tdSt}>{new Date(s.scheduledAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                        <td style={tdSt}>
+                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, ...(s.status === 'TENU' ? { background: 'var(--green-light)', color: 'var(--green)' } : { background: 'var(--amber-light)', color: 'var(--amber)' }) }}>
+                            {t(`council.status.${s.status}`)}
+                          </span>
+                        </td>
+                        <td style={tdSt}>{s.decision ? t(`sanction_types.${s.decision}`) : '—'}</td>
+                        <td style={tdSt}>
+                          {s.status === 'CONVOQUE' && (
+                            <button
+                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: delayOk ? 'var(--purple-light)' : 'var(--bg2)', color: delayOk ? 'var(--purple)' : 'var(--text3)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                              title={delayOk ? '' : t('council.hint_delay_not_elapsed')}
+                              onClick={() => setTenirForm(f => ({ ...f, open: true, sessionId: s.id }))}>
+                              {t('council.actions.hold')}
+                            </button>
+                          )}
+                          {s.status === 'TENU' && (
+                            <button style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                              onClick={() => downloadPV(s.id)}>
+                              <Download size={13} /> {t('council.actions.download_pv')}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal création sanction */}
       {form.open && (
@@ -277,6 +500,11 @@ export default function SectionDiscipline({ onToast }: Props) {
                 <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={inputSt}>
                   {Object.keys(TYPE_STYLE).map(k => <option key={k} value={k}>{t(`sanction_types.${k}`)}</option>)}
                 </select>
+                {SEVERE_TYPES.includes(form.type) && (
+                  <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--purple-light)', borderRadius: 9, fontSize: 13, fontWeight: 700, color: 'var(--purple)' }}>
+                    {t('validation.severe_requires_council')}
+                  </div>
+                )}
               </div>
 
               {/* Motif */}
@@ -317,6 +545,117 @@ export default function SectionDiscipline({ onToast }: Props) {
           </div>
         </>
       )}
+
+      {/* Modal convoquer conseil */}
+      {convokeForm.open && (
+        <>
+          <div onClick={() => setConvokeForm(EMPTY_CONVOKE_FORM)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{t('council.convoke_modal_title')}</div>
+            <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 22 }}>{t('council.convoke_modal_hint')}</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={labelSt}>{t('form_fields.student_label')}</label>
+                {convokeForm.selectedStudent ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--green-light)', borderRadius: 10, border: '1.5px solid rgba(5,150,105,0.3)' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--green)', flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}><Check size={16} strokeWidth={2} /> {convokeForm.selectedStudent.firstName} {convokeForm.selectedStudent.lastName}</span>
+                    <button onClick={() => setConvokeForm(f => ({ ...f, selectedStudent: null, studentSearch: '', studentResults: [] }))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--green)', display: 'inline-flex' }}><X size={16} strokeWidth={2} /></button>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }}>
+                    <input value={convokeForm.studentSearch}
+                      onChange={e => { setConvokeForm(f => ({ ...f, studentSearch: e.target.value })); searchConvokeStudents(e.target.value) }}
+                      placeholder={t('form_fields.student_placeholder')} style={inputSt} />
+                    {convokeForm.studentResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, boxShadow: '0 8px 20px rgba(0,0,0,0.1)', zIndex: 10, overflow: 'hidden' }}>
+                        {convokeForm.studentResults.map(s => (
+                          <div key={s.id} onClick={() => setConvokeForm(f => ({ ...f, selectedStudent: s, studentSearch: '', studentResults: [] }))}
+                            style={{ padding: '10px 14px', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', borderBottom: '1px solid var(--bg)' }}>
+                            {s.firstName} {s.lastName}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={labelSt}>{t('council.form_fields.motif_label')}</label>
+                <textarea value={convokeForm.motif} onChange={e => setConvokeForm(f => ({ ...f, motif: e.target.value }))}
+                  rows={2} style={{ ...inputSt, resize: 'vertical' }} />
+              </div>
+
+              <div>
+                <label style={labelSt}>{t('council.form_fields.scheduled_label')}</label>
+                <input type="datetime-local" value={convokeForm.scheduledAt} onChange={e => setConvokeForm(f => ({ ...f, scheduledAt: e.target.value }))} style={inputSt} />
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{t('council.form_fields.scheduled_hint')}</div>
+              </div>
+
+              <div>
+                <label style={labelSt}>{t('council.form_fields.composition_label')}</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {(Object.keys(EMPTY_COMPOSITION) as (keyof Composition)[]).map(role => (
+                    <input key={role} value={convokeForm.composition[role]}
+                      onChange={e => setConvokeForm(f => ({ ...f, composition: { ...f.composition, [role]: e.target.value } }))}
+                      placeholder={t(`council.composition_roles.${role}`)} style={inputSt} />
+                  ))}
+                </div>
+              </div>
+
+              {convokeForm.error && (
+                <div style={{ padding: '10px 14px', background: 'var(--red-light)', borderRadius: 9, fontSize: 14, fontWeight: 700, color: 'var(--red)' }}>{convokeForm.error}</div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button style={btnSec} onClick={() => setConvokeForm(EMPTY_CONVOKE_FORM)}>{t('actions.cancel')}</button>
+                <button style={btnPrim} onClick={submitConvoke} disabled={convokeForm.loading}>
+                  {convokeForm.loading ? t('actions.saving') : t('council.actions.convoke')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal tenir conseil */}
+      {tenirForm.open && (
+        <>
+          <div onClick={() => setTenirForm(EMPTY_TENIR_FORM)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('council.tenir_modal_title')}</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={labelSt}>{t('council.form_fields.decision_label')}</label>
+                <select value={tenirForm.decision} onChange={e => setTenirForm(f => ({ ...f, decision: e.target.value }))} style={inputSt}>
+                  <option value="COUNCIL_DECISION">{t('sanction_types.COUNCIL_DECISION')}</option>
+                  <option value="PERMANENT_EXCLUSION">{t('sanction_types.PERMANENT_EXCLUSION')}</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={labelSt}>{t('council.form_fields.pv_label')}</label>
+                <textarea value={tenirForm.pv} onChange={e => setTenirForm(f => ({ ...f, pv: e.target.value }))}
+                  rows={5} placeholder={t('council.form_fields.pv_placeholder')} style={{ ...inputSt, resize: 'vertical' }} />
+              </div>
+
+              {tenirForm.error && (
+                <div style={{ padding: '10px 14px', background: 'var(--red-light)', borderRadius: 9, fontSize: 14, fontWeight: 700, color: 'var(--red)' }}>{tenirForm.error}</div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button style={btnSec} onClick={() => setTenirForm(EMPTY_TENIR_FORM)}>{t('actions.cancel')}</button>
+                <button style={btnPrim} onClick={submitTenir} disabled={tenirForm.loading}>
+                  {tenirForm.loading ? t('actions.saving') : t('council.actions.hold')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -327,6 +666,8 @@ const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, f
 const btnSec: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
 const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', outline: 'none', fontFamily: 'inherit' }
+const tabSt: React.CSSProperties = { padding: '8px 18px', borderRadius: 10, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const tabActiveSt: React.CSSProperties = { ...tabSt, background: 'var(--green)', color: 'white', border: 'none' }
 const inputSt: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 15, fontFamily: 'inherit', color: 'var(--text)', outline: 'none', background: 'var(--bg)', boxSizing: 'border-box' }
 const labelSt: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.5px' }
 const thSt: React.CSSProperties = { padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }

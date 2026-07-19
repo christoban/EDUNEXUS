@@ -240,5 +240,26 @@
     "title": "Notifications",
     "empty": "No notifications yet",
     "markAllRead": "Mark all as read"
+  },
+  "notificationCenter": {
+    "title": "Notification Center",
+    "subtitle": "Full, filterable history of all your notifications",
+    "loading": "Loading...",
+    "pageOf": "Page {page} of {pages}",
+    "readFilter": {
+      "ALL": "All",
+      "UNREAD": "Unread",
+      "READ": "Read"
+    },
+    "types": {
+      "ALL": "All types",
+      "ACADEMIC": "Academic",
+      "ATTENDANCE": "Attendance",
+      "COMMUNICATION": "Communication",
+      "FINANCIAL": "Finance",
+      "AI_ALERT": "AI Alert",
+      "POSITIVE": "Positive",
+      "SYSTEM": "System"
+    }
   }
 }

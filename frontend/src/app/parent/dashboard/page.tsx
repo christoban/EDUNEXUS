@@ -9,6 +9,8 @@ import SectionParentChildren from './_components/SectionParentChildren'
 import SectionParentGrades from './_components/SectionParentGrades'
 import SectionParentAttendance from './_components/SectionParentAttendance'
 import SectionParentPayments from './_components/SectionParentPayments'
+import SectionParentAPEE from './_components/SectionParentAPEE'
+import NotificationCenter from '@/components/NotificationCenter'
 import SectionParentTimetable from './_components/SectionParentTimetable'
 import SectionParentSettings from './_components/SectionParentSettings'
 import SectionParentLibrary from './_components/SectionParentLibrary'
@@ -33,6 +35,8 @@ export default function ParentDashboard() {
     grades:     tnav('pageTitle.parent_grades'),
     attendance: tnav('pageTitle.parent_attendance'),
     payments:   tnav('pageTitle.parent_payments'),
+    apee:       tnav('pageTitle.parent_apee'),
+    notifications: tnav('pageTitle.parent_notifications'),
     timetable:  tnav('pageTitle.parent_timetable'),
     settings:   tnav('pageTitle.parent_settings'),
     library:    tnav('pageTitle.parent_library'),
@@ -96,6 +100,8 @@ export default function ParentDashboard() {
           {section === 'grades'     && <SectionParentGrades {...sProps} userId={user?.id} />}
           {section === 'attendance' && <SectionParentAttendance {...sProps} userId={user?.id} />}
           {section === 'payments'   && <SectionParentPayments {...sProps} />}
+          {section === 'apee'       && <SectionParentAPEE {...sProps} />}
+          {section === 'notifications' && <NotificationCenter />}
           {section === 'timetable'  && <SectionParentTimetable {...sProps} userId={user?.id} />}
           {section === 'settings'   && <SectionParentSettings />}
           {section === 'library'    && <SectionParentLibrary userId={user?.id} />}

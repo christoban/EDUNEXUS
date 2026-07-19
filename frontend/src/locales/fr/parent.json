@@ -1,4 +1,19 @@
 {
+  "apee": {
+    "title": "Transparence APEE",
+    "subtitle": "Registre des collectes et dépenses de l'Association des Parents d'Élèves et Enseignants",
+    "totalCollectes": "Total collectes",
+    "totalDepenses": "Total dépenses",
+    "solde": "Solde APEE",
+    "typeCollecte": "Collecte",
+    "typeDepense": "Dépense",
+    "history": "Historique des transactions",
+    "loading": "Chargement...",
+    "noTransactions": "Aucune transaction pour le moment",
+    "validated": "Validée",
+    "pending": "En attente de validation",
+    "loadError": "Erreur lors du chargement des données APEE"
+  },
   "health": {
     "label": "Indice santé",
     "levels": {

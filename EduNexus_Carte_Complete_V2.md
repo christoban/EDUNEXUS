@@ -18,9 +18,9 @@
 Cette V2 intègre :
 - **Architecture hexagonale complète** (ports & adapters) — appliquée dès le départ, à partir de zéro
 - **Module Transparence Financière APEE** — réponse au scandale national documenté
-- **Journal de présence numérique enseignant** — aligné sur la mission biométrique MINESEC 2026
+- **Journal de présence numérique enseignant** — aligné sur la mission biométrique MINESEC 2026 **[Note Juillet 2026 — recherche externe]** : la mission biométrique réelle 2026 (lancée le 9 mars, prolongée au 15 avril, 16 000+ enseignants concernés) est un **recensement administratif ponctuel** — chaque chef d'établissement soumet une liste nominative signée de son personnel en versions physique et numérique (format Excel, modèle fourni par l'administration centrale), **pas** un système de pointage biométrique continu par cours intégré aux logiciels des écoles. Le vrai "Journal de présence par cours" décrit ici reste une ambition produit valable, mais son urgence de conformité MINESEC est plus faible que supposé — voir en revanche le nouveau chantier "Export Liste nominale conforme MINESEC" (MODULE 19), plus petit et directement branché sur cette actualité.
 - **Détection précoce élèves à risque d'échec** — réponse aux taux BAC 37% (2024)
-- ~~**Messagerie bidirectionnelle parent** — premier acteur camerounais à le proposer de manière intégrée~~ **→ REPORTÉ à une prochaine version** (voir note dans MODULE 10)
+- ~~**Messagerie bidirectionnelle parent** — premier acteur camerounais à le proposer de manière intégrée~~ **→ REPORTÉ à une prochaine version** (voir note dans MODULE 10)     
 - **Module Groupe Scolaire** (multi-établissements, dashboard consolidé) — Phase 5
 - **Accès lecture DDES/DRES** — pilotage du système par les inspections régionales
 - **Matricule unique numérique** — aligné sur la vision MINESEC
@@ -64,14 +64,13 @@ Cette carte est organisée en 8 grandes sections :
 - **Orientation scolaire** — fiches, entretiens, tests d'aptitude, recommandations de série (7 use cases réels)
 - **RH self-service** — profil employé, analyse IA de diplôme (vision Groq), relances congés/documents
 - **IA — Indice de santé scolaire élève** — `CalculerIndiceSanteUseCase` réel, câblé au frontend
-- **Statistiques MINESEC/MINEDUB** — modules de déclaration statistique officielle (remplissage du vrai fichier `.xls` MINESEC, rapport MINEDUB)
-- **Emploi du temps manuel** — CRUD créneaux + publication ; génération IA existe aussi (via **Groq**, pas Gemini contrairement à ce que dit le stack plus bas)
+- **Statistiques MINESEC/MINEDUB** — modules de déclaration statistique officielle (remplissage du vrai fichier `.xls` MINESEC, rapport MINEDUB). Pipeline de génération migré de SheetJS (bug de formules Excel silencieusement cassées) vers LibreOffice headless + exceljs (Juillet 2026) — formules et mise en forme du fichier officiel désormais préservées, voir MODULE 19.
+- **Emploi du temps manuel** — CRUD créneaux + publication ; génération IA existe aussi (via **Groq**, pas Gemini contrairement à ce que dit le stack plus bas). **Détection de conflit enseignant** (double réservation) — confirmée réelle Juillet 2026 après vérification approfondie (voir MODULE 12) : l'audit précédent avait affirmé à tort son absence.
+- **Notifications Push + Cloche IN_APP + Centre de notifications** (Juillet 2026) — Web Push (Service Worker + VAPID) fonctionnel pour tout utilisateur ayant un compte actif, cloche IN_APP avec connexion Socket.io authentifiée, persistance en base (`Notification`), et désormais un centre de notifications dédié (historique paginé, filtres par type et par lu/non-lu) dans les 5 dashboards. Voir MODULE 10 — distinct de la messagerie bidirectionnelle, qui reste reportée.
+- **Conseil de Discipline conforme Art. 30** (Juillet 2026) — les sanctions de base (`DisciplineRecord`, 5 types déjà dans l'enum) avaient déjà un vrai CRUD fonctionnel (routes inline dans `hexagonal.bootstrap.ts`, non trouvées par l'audit initial faute de recherche assez profonde — corrigé). Ajouté : `DisciplineCouncilSession` bloque désormais toute création directe de `COUNCIL_DECISION`/`PERMANENT_EXCLUSION` sans passer par une convocation (délai légal 72h, re-vérifié à la tenue pour empêcher le contournement) + composition légale complète (6 rôles Art. 30) + PV PDF exportable. Voir MODULE 13/17.
 
 ### 🟡 Ce qui existe partiellement
-- **Mode hors ligne / PWA** — l'infrastructure de queue existe (`OfflineQueue`, `useSyncQueue`, indicateurs UI) mais pas de Service Worker / manifeste PWA installable confirmé
-- **Emploi du temps** — pas de détection de conflit (double réservation enseignant) trouvée dans le code
-- **Bibliothèque** — les 3 pages frontend existent (Admin/Student/Parent), mais le modèle `Book`/`BookLoan` n'est relié à aucun use case ni contrôleur backend — c'est une coquille visuelle
-- **Conseil de Discipline** — `DisciplineRecord` n'est qu'un journal plat ; pas de workflow à 5 niveaux ni de règle des 72h de convocation codée
+- **Mode hors ligne / PWA** (Juillet 2026) — infrastructure déjà bien plus avancée que supposé à l'audit initial : `manifest.json` réel (icônes, `display: standalone`), `useCachedFetch` (cache de lecture stale-while-revalidate) déjà câblé sur 12 écrans avant même ce chantier, `useSyncQueue` (file d'écriture différée) déjà câblé sur 3 flux enseignant, `OfflineEmptyState` déjà utilisé sur 10 écrans pour les cas "doit rester en ligne". Étendu cette session : cache de lecture sur Transparence APEE/Bibliothèque (parent+élève) et tableau de bord Staff ; file d'écriture sur les appréciations du Professeur Principal. **✅ Bloquant résolu** (Juillet 2026) : la génération du Service Worker de precaching (`next-pwa`/Workbox) échouait au build de production — l'apostrophe dans l'ancien chemin absolu du projet ("God's Grace") cassait la syntaxe JS générée par Workbox lors de l'inlining des imports de ses propres modules. Résolu en renommant le dossier du projet pour retirer l'apostrophe. Un second bug indépendant a été découvert dans la foulée : `next build` bascule par défaut sur Turbopack, incompatible avec `next-pwa` (qui ne s'accroche qu'au hook `webpack()` de Next.js) — le build « réussissait » mais ne générait plus aucun Service Worker, sans la moindre erreur. Corrigé en forçant webpack pour le build (`next build --webpack`, voir `frontend/package.json`). Les deux bugs annexes trouvés précédemment restent valables et corrigés : conflit entre le SW custom du push et celui que `next-pwa` générait (résolu via `customWorkerSrc`/`frontend/worker/index.js`), et crash du loader de métadonnées sur `app/icon.png` à cause de la même apostrophe (corrigé en passant par une référence statique `/favicon.png`). Precaching d'app-shell et notifications push buildent désormais correctement pour la production (vérifié via `bun run build` + `bun run start`). Écriture différée (`useSyncQueue`) étendue aux trois flux prévus dans la classification mais jamais câblés (le schéma Dexie prévoyait déjà ces types sans qu'aucun composant ne les utilise) : saisie de sanction disciplinaire simple par l'intendant/SG (`SectionDiscipline.tsx`, hors décisions de conseil qui restent en ligne — délai légal 72h), saisie de transaction APEE par le staff (`SectionAPEEStaff.tsx`), ajout d'ouvrage au catalogue bibliothèque (`SectionLibrary.tsx`, l'emprunt reste en ligne — vérification de stock en direct nécessaire).
 - **Journal de présence enseignant** — ce qui existe (`StaffAttendance`) est une présence journalière classique, **pas** le pointage "démarrer/terminer le cours" décrit dans ce document
 - **Landing page** — le formulaire de démo existe visuellement (`DemoModal.tsx`), mais son branchement vers un vrai `SchoolInvite`/lead n'a pas été confirmé
 
@@ -86,6 +85,17 @@ Cette carte est organisée en 8 grandes sections :
 - **Messagerie bidirectionnelle type WhatsApp** (Canal Classe, Canal Parents, Message Privé, justification d'absence en réponse directe, Socket.io temps réel) — décision produit : **mis de côté pour l'instant**. Le code existant est un stub pur (modèles Prisma `Conversation`/`Message` présents dans le schema mais jamais utilisés nulle part dans `backend/src`, aucune UI). Ce qui existe et qui *reste actif* : la diffusion à sens unique (SMS/Email en masse via `CommunicationsController.ts` + `BroadcastLog`) — ça continue d'être développé normalement, ce n'est PAS concerné par le report.
 - **Banque d'anciennes épreuves** (`ExamArchive`) — aucune trace dans le code, décision produit de la reporter à une prochaine version plutôt que de la prioriser maintenant.
 - **Répétiteurs en ligne** — aucune trace dans le code, déjà positionné comme vision long terme dans le document d'origine ; confirmé reporté explicitement.
+
+### 🧭 Contexte marché — concurrents identifiés (recherche Juillet 2026)
+
+La carte d'origine ne cite aucun concurrent nommé, seulement des statistiques macro (taux BAC 37%, scandales APEE). Recherche externe menée en juillet 2026 : des solutions camerounaises de gestion scolaire existent déjà et sont actives commercialement — **Wacni**, **Scola+**, **Zukulu Feg**, **Ascouza**, **SYGEST**, **Galactis**, **Schooler**, **La Gestion Scolaire**. Aucune trace publique trouvée, pour l'instant, d'une fonctionnalité de transparence financière APEE chez l'un de ces concurrents (absence d'évidence dans une recherche, pas preuve d'absence certaine — à vérifier plus finement si besoin). C'est le signal principal qui a motivé le choix de prioriser la Transparence APEE comme prochain chantier de différenciation (voir "🎯 Chantiers actifs" ci-dessous).
+
+### ✅ Chantiers Juillet 2026 — terminés
+
+Deux chantiers engagés suite à la recherche de marché ci-dessus, tous deux implémentés et vérifiés (`tsc` propre + smoke tests) :
+
+1. **Export "Liste nominale conforme MINESEC"** (MODULE 19) — ✅ FAIT. `HRController.exportListeNominaleMinesec` (réutilise les données RH déjà réelles) + bouton "Export MINESEC" dans la section RH du dashboard Admin. Colonnes basées sur les champs disponibles côté EduNexus (nom, prénom, fonction, N° CNPS, date de prise de service, statut) — le modèle exact de l'administration centrale n'a pas été trouvé publiquement, à ajuster une fois confirmé sur le terrain.
+2. **Transparence financière APEE** (MODULE 7 & 11, `PHASE 3 / BLOC 1`) — ✅ FAIT. Modèle `APEETransaction` (collecte/dépense, justificatif obligatoire avant validation d'une dépense), use cases `CreerTransactionAPEEUseCase`/`ValiderDepenseAPEEUseCase`, `APEEController` (`/api/v2/apee`), rapport PDF exportable. Frontend : nouvelle section "Transparence APEE" côté Intendant (saisie, upload justificatif, validation) et côté Parent (lecture seule, anonymisée — jamais l'identité de qui a créé/validé une transaction).
 
 ---
 
@@ -952,7 +962,7 @@ Vue d'ensemble · Élèves · Présence · Notes · Devoirs · Messages
 
 ---
 
-## MODULE 7 — Parent [RÉEL: 🟡 PARTIEL — dashboard, suivi par enfant, paiements tous confirmés (`SectionParent*.tsx`). ⬜ "Transparence APEE" ci-dessous : pas fait. ⏸️ "Communication bidirectionnelle" ci-dessous : reportée, voir MODULE 10.]
+## MODULE 7 — Parent [RÉEL: 🟡 PARTIEL — dashboard, suivi par enfant, paiements tous confirmés (`SectionParent*.tsx`). ✅ "Transparence APEE" ci-dessous : FAIT (Juillet 2026), voir `SectionParentAPEE.tsx`. ⏸️ "Communication bidirectionnelle" ci-dessous : reportée, voir MODULE 10.]
 
 **Tableau de bord**
 - Vue d'ensemble par enfant : moyenne · présences · dernières notes
@@ -1080,7 +1090,7 @@ Vue d'ensemble · Notes · Présence · Comportement · Devoirs
 
 > **Décision :** la partie "messagerie type WhatsApp" de ce module (les 4 couches ci-dessous, temps réel Socket.io, centre de conversation) est **mise de côté volontairement**. Ce n'est pas un abandon — c'est une priorisation : ça reviendra dans une prochaine version. **[RÉEL] État du code à ce jour :** les modèles Prisma `Conversation`/`Message`/`MessageReadStatus` existent dans le schema mais ne sont référencés nulle part dans `backend/src` (0 controller, 0 use case, 0 UI) — c'est un stub de schéma, pas une fonctionnalité entamée. Rien à "finir à moitié" ici, c'est un vrai point de départ à zéro le jour où on le reprend.
 >
-> **Ce qui N'EST PAS concerné par le report** et continue de vivre normalement : les **Notifications multi-canal** (SMS/Email/Push à sens unique) ci-dessous — `CommunicationsController.ts` + `BroadcastLog` sont réels et fonctionnels (diffusion ciblée par rôle/classe/statut de paiement, confirmée en code cette session).
+> **Ce qui N'EST PAS concerné par le report** et continue de vivre normalement : les **Notifications multi-canal** (SMS/Email/Push à sens unique) ci-dessous — `CommunicationsController.ts` + `BroadcastLog` sont réels et fonctionnels (diffusion ciblée par rôle/classe/statut de paiement, confirmée en code cette session). **Mise à jour Juillet 2026 :** Push (Web Push/VAPID) et la cloche IN_APP (centre de notifications, historique, marquer comme lu) sont désormais également réels et fonctionnels — construits cette session, voir détail ci-dessous.
 
 **4 couches de messagerie ⏸️ [REPORTÉ]**
 1. **Canal Classe** → enseignant vers toute la classe (élèves + parents) : annonces, devoirs
@@ -1101,18 +1111,19 @@ Vue d'ensemble · Notes · Présence · Comportement · Devoirs
 - Partage fichiers (PDF, images)
 - Recherche dans les conversations
 
-**Notifications multi-canal [RÉEL: 🟡 PARTIEL — actif et non reporté]**
-- Push (FCM) — non confirmé dans l'audit
+**Notifications multi-canal [RÉEL: 🟡 PARTIEL — actif et non reporté, largement construit]**
+- Push (Web Push/VAPID, pas FCM — décision produit Juillet 2026 pour rester réutilisable tel quel par une future appli desktop Electron/mobile Capacitor sans dépendance Google) — **✅ FAIT**, `PushSubscription` + `SouscrirePushUseCase`/`DesinscrirePushUseCase`, Service Worker + clés VAPID, `PUSH_MIGRATED_EVENT_TYPES` : bulletins disponibles, rappels/reçus de paiement, relances notes 48h/72h, alertes absence, notifications discipline basculent en push en priorité (email en repli si pas de souscription active)
 - SMS (MTN/Orange via gateway Techsoft ou équivalent camerounais) — `SmsNotificationService.ts` confirmé réel
-- Email (Resend) — confirmé réel (`NodemailerEmailService.ts`/Resend)
-- SMS natif pour parents sans smartphone (texte codé ou texte simple)
-- Centre de notifications : historique · tri priorité · marquer comme lu — non confirmé
+- Email (Resend) — confirmé réel (`NodemailerEmailService.ts`/Resend), reste le canal exclusif pour les personnes sans compte encore créé (onboarding)
+- **Repli push-d'abord généralisé aux alertes parent** (Juillet 2026) — `PushFirstNotifier.ts` (`notifierParentsPushDabord`) : cloche systématique + push tenté en premier pour chaque parent individuellement, SMS envoyé uniquement aux parents dont le push n'a atteint aucun appareil — jamais les deux à la fois pour la même personne. Appliqué aux 4 alertes parent existantes : absence (`notifyAbsenceSms`), retard de paiement (`notifyOverdueInvoiceSms`), sanction disciplinaire (`notifyDisciplineSms`), retard de bibliothèque (`notifyOverdueBookSms`). Répond directement au besoin "SMS natif pour parents sans smartphone" — le SMS reste garanti pour ces parents-là (push jamais délivré → repli automatique), tout en évitant son coût pour les parents déjà joignables par push.
+- Cloche IN_APP (aperçu live, dropdown) : historique · marquer comme lu · badge non-lus — **✅ FAIT** (modèle `Notification` persisté, connexion Socket.io authentifiée par rooms `user:{userId}`/`school:{schoolId}:role:{role}`, composant `NotificationBell.tsx` câblé dans les 6 dashboards)
+- Centre de notifications (vue complète dédiée, pas juste le dropdown) : historique paginé + filtres par type et par lu/non-lu — **✅ FAIT** (Juillet 2026) — `NotificationController.list` étendu (page/type/isRead, rétrocompatible avec la cloche), composant partagé `NotificationCenter.tsx`, section "Notifications" dans les 5 dashboards (Admin/Staff/Teacher/Student/Parent). Tri par priorité — non fait.
 - Préférences personnalisables par utilisateur — non confirmé
 - Moteur de règles configurable par Admin — non confirmé
 
 ---
 
-## MODULE 11 — Finance & Mobile Money [RÉEL: ✅ FAIT pour la finance générale — `FeePlan`/`Invoice`/`Payment`, webhook Campay réel (`TraiterWebhookCampayUseCase`), cautions, factures en masse tous confirmés. ⬜ Sauf la sous-section "Transparence APEE" ci-dessous : pas faite (voir aussi MODULE 7).]
+## MODULE 11 — Finance & Mobile Money [RÉEL: ✅ FAIT — `FeePlan`/`Invoice`/`Payment`, webhook Campay réel (`TraiterWebhookCampayUseCase`), cautions, factures en masse, et désormais la sous-section "Transparence APEE" ci-dessous (✅ FAIT, Juillet 2026, voir aussi MODULE 7).]
 
 **Types de frais**
 | Type | Géré par | Mobile Money |
@@ -1137,7 +1148,7 @@ Vue d'ensemble · Notes · Présence · Comportement · Devoirs
 3. Remboursement individuel ou groupé → virement Mobile Money → `CAUTION_REMBOURSEE`
 4. Non-remboursement (dommages) → motif + `CAUTION_RETENUE_DEFINITIF` + notification parent
 
-**Transparence APEE — tableau de bord dédié (nouvelle fonctionnalité V2) [RÉEL: ⬜ PAS FAIT]**
+**Transparence APEE — tableau de bord dédié (nouvelle fonctionnalité V2) [RÉEL: ✅ FAIT — Juillet 2026, voir "✅ Chantiers Juillet 2026" en tête de document. `APEETransaction` (collecte/dépense, justificatif obligatoire avant validation), `APEEController`, dashboard Intendant + vue Parent lecture seule anonymisée, rapport PDF. Priorisé suite à recherche de marché : point de douleur documenté et aucun concurrent camerounais identifié ne semble le proposer publiquement.]**
 - Chaque collecte APEE crée un `APEETransaction` avec montant + date + catégorie
 - Chaque dépense APEE exige un justificatif joint (PDF/image) avant validation
 - Tableau de bord Intendant : solde APEE · collectes · dépenses · justificatifs manquants
@@ -1166,7 +1177,7 @@ Vue d'ensemble · Notes · Présence · Comportement · Devoirs
 
 ## MODULE 12 — Emploi du Temps [RÉEL: 🟡 PARTIEL]
 
-**Mode manuel (Phase 2) [RÉEL: 🟡 PARTIEL — CRUD créneaux + publication confirmés (`CreerEmploiDuTempsUseCase`, `AjouterCreneauUseCase`, `PublierEmploiDuTempsUseCase`) mais la détection de conflit (double réservation enseignant) n'a pas été retrouvée dans le code — à vérifier/construire]**
+**Mode manuel (Phase 2) [RÉEL: ✅ FAIT — CRUD créneaux + publication confirmés (`CreerEmploiDuTempsUseCase`, `AjouterCreneauUseCase`, `PublierEmploiDuTempsUseCase`). **Correction Juillet 2026** : l'audit précédent affirmait à tort que la détection de conflit était absente — en réalité elle existe et fonctionne bout en bout : `CreneauHoraire.verifierConflitEnseignant()` (chevauchement d'intervalles), câblée dans `AjouterCreneauUseCase` ET `ModifierCreneauUseCase` (avec exclusion du créneau édité), `ConflitHoraireError` → HTTP 409 `CONFLIT_HORAIRE` dans `TimetableController`, message affiché côté frontend (`SectionTimetableStaff.tsx`), et couverte par un test unitaire réel (8/8 passent). Rien à construire ici.]**
 - Création par Censeur/VP
 - Détection conflits : même enseignant à la même heure → erreur 409
 - Vérification volume horaire AP ≤ 14h/semaine (verrou)
@@ -1186,7 +1197,7 @@ Vue d'ensemble · Notes · Présence · Comportement · Devoirs
 
 ---
 
-## MODULE 13 — Présences & Discipline [RÉEL: 🟡 PARTIEL]
+## MODULE 13 — Présences & Discipline [RÉEL: 🟡 PARTIEL — présences élèves ✅ FAIT, discipline ✅ FAIT (Juillet 2026, voir ci-dessous), seul le "journal de présence enseignant" par cours (pointage démarrer/terminer) reste ⬜ manquant — voir État réel d'implémentation]
 
 **Prise de présences élèves [RÉEL: ✅ FAIT]**
 - Enseignant : fin de cours · Présent / Absent / Retard
@@ -1213,16 +1224,16 @@ Vue d'ensemble · Notes · Présence · Comportement · Devoirs
 - 3 cours non assurés dans un trimestre → alerte Proviseur
 - Seuil configurable dans `SchoolConfig.teacherAbsenceAlertThreshold`
 
-**Registre de discipline — 5 niveaux [RÉEL: 🟡 PARTIEL — `DisciplineRecord` existe mais comme un journal plat (log d'incidents), pas comme le workflow d'escalade à 5 niveaux avec règle des 72h décrit ci-dessous]**
+**Registre de discipline — 5 niveaux [RÉEL: ✅ FAIT — corrigé Juillet 2026. `DisciplineRecord` a un vrai CRUD (routes `/api/v2/discipline`, notification SMS+email automatique aux parents, levée de sanction) — l'audit initial ne l'avait pas trouvé car les routes sont déclarées inline dans `hexagonal.bootstrap.ts`, pas via un contrôleur dédié. Niveaux 1-3 (avertissements, exclusion temporaire) : libres, au jugement du personnel. **Niveaux 4-5 (Conseil de Discipline / exclusion définitive) : désormais bloqués sans passer par le workflow ci-dessous** — `POST /api/v2/discipline` refuse leur création directe.]**
 1. Avertissement oral (SG) → enregistré + parent notifié
 2. Avertissement écrit → document signé + conservé dans dossier
 3. Exclusion temporaire (1-3 jours) → décision SG + SMS parent
 4. Conseil de Discipline → cas graves ou récidives
 5. Exclusion définitive → uniquement Conseil de Discipline + PV + transmission MINESEC si public
 
-**Composition légale du Conseil de Discipline (Art. 30)**
+**Composition légale du Conseil de Discipline (Art. 30) [RÉEL: ✅ FAIT — Juillet 2026]**
 Chef établissement (président) + Censeur + SG + PP + représentant parents + représentant élèves
-Convocation parents : minimum 72h avant (règle absolue)
+Convocation parents : minimum 72h avant (règle absolue) — `DisciplineCouncilSession` (`ConvoquerConseilDisciplineUseCase`, `TenirConseilDisciplineUseCase`, `/api/v2/discipline-council`), délai revérifié à la tenue (pas seulement à la convocation) pour empêcher le contournement, PV PDF exportable, composition légale complète exigée avant convocation. Frontend : onglet dédié dans `SectionDiscipline.tsx` (staff).
 
 **Note de comportement professionnel (technique)**
 - Champ "Attitude professionnelle en atelier" /20
@@ -1303,7 +1314,7 @@ Niveaux d'alerte : 0-30 Critique · 31-50 Élevé · 51-70 Moyen · 71-85 Stable
 
 ---
 
-## MODULE 16 — Bibliothèque (Optionnel) [RÉEL: 🟡 PARTIEL — 3 pages frontend existent (`SectionLibrary.tsx`, `SectionStudentLibrary.tsx`, `SectionParentLibrary.tsx`) mais c'est une coquille visuelle : les modèles `Book`/`BookLoan` existent en DB mais ne sont reliés à aucun use case ni contrôleur backend trouvé. Le CRUD/emprunts/relances réels restent à construire.]
+## MODULE 16 — Bibliothèque (Optionnel) [RÉEL: ✅ FAIT — corrigé Juillet 2026. Contrairement à l'audit précédent ("coquille visuelle"), le backend était déjà quasi-complet (routes inline dans `hexagonal.bootstrap.ts`, non trouvées faute de recherche assez profonde — même schéma que le conflit d'EDT et la discipline) : CRUD ouvrages, emprunts/retours transactionnels (stock décrémenté/incrémenté), vue élève et vue parent scopées par enfant, job Inngest quotidien `markOverdueLoans` marquant automatiquement les retards. Finalisé Juillet 2026 : bouton "Modifier" un ouvrage (le backend avait déjà `PATCH /books/:id`, l'UI ne l'exposait pas), renouvellement d'emprunt (`PATCH /loans/:id/renew`), KPI "Livres en retard" ajouté au tableau de bord staff (page d'accueil, absente jusque-là de tout indicateur bibliothèque). Notification de retard revue pour utiliser le push en priorité (élève ET parents, cohérent avec le reste de la plateforme) plutôt que le SMS seul : élève → cloche + push best-effort (pas de repli SMS, un élève camerounais a rarement un numéro propre) ; chaque parent → cloche systématique + push d'abord, SMS uniquement si le push n'atteint aucun appareil de ce parent précis (même logique de repli que l'email en Phase B, appliquée ici au SMS).]
 
 **Activation :** Paramètres école → `School.features JSONB`
 
@@ -1316,7 +1327,7 @@ Niveaux d'alerte : 0-30 Critique · 31-50 Élevé · 51-70 Moyen · 71-85 Stable
 
 ---
 
-## MODULE 17 — Conseil de Classe & Réunions [RÉEL: 🟡 PARTIEL — Conseil de Classe ✅ FAIT (`TenirConseilClasseUseCase.ts`, blocage réel sur notes non validées, composition légale respectée). Conseil de Discipline et Réunion parents-profs : voir notes ci-dessous.]
+## MODULE 17 — Conseil de Classe & Réunions [RÉEL: 🟡 PARTIEL — Conseil de Classe ✅ FAIT (`TenirConseilClasseUseCase.ts`, blocage réel sur notes non validées, composition légale respectée). Conseil de Discipline ✅ FAIT (Juillet 2026, voir MODULE 13). Réunion parents-profs : voir note ci-dessous.]
 
 **Pré-requis bloquant**
 Toutes les notes de la classe en `VALIDATED` → sinon session bloquée + liste des manquantes
@@ -1336,7 +1347,7 @@ Toutes les notes de la classe en `VALIDATED` → sinon session bloquée + liste 
 - Performances enseignants : taux couverture · ponctualité · assiduité
 - Analyse croisée : discipline ↔ performance
 
-**Conseil de Discipline [RÉEL: 🟡 PARTIEL — voir MODULE 13, `DisciplineRecord` est un log plat, pas ce workflow]**
+**Conseil de Discipline [RÉEL: ✅ FAIT — voir MODULE 13, Juillet 2026]**
 - Voir Module 13 — workflow complet
 
 **Module Réunion parents-profs [RÉEL: ⬜ non confirmé dans l'audit — probablement pas fait]**
@@ -1366,6 +1377,10 @@ Toutes les notes de la classe en `VALIDATED` → sinon session bloquée + liste 
 ---
 
 ## MODULE 19 — Rapports & Analytics [RÉEL: 🟡 PARTIEL]
+
+**Déclaration statistique MINESEC — pipeline de génération [RÉEL: ✅ FAIT, migré Juillet 2026]** : le remplissage du vrai fichier `.xls` officiel MINESEC utilisait SheetJS en écriture BIFF8 directe, ce qui cassait silencieusement les formules Excel (totaux affichés à 0) et perdait la mise en forme d'origine — migré vers LibreOffice headless (conversion ponctuelle, pas un service permanent) + exceljs pour l'écriture des valeurs. Formules et mise en forme désormais préservées. `CampaignFieldMapping` inchangée, déchiffrement VelvetSweatshop inchangé.
+
+**Export "Liste nominale conforme MINESEC" (nouveau chantier, Juillet 2026) [RÉEL: ✅ FAIT]** — `HRController.exportListeNominaleMinesec` (`GET /api/v2/hr/export/liste-nominale-minesec`), bouton "Export MINESEC" dans la section RH du dashboard Admin. Colonnes livrées : nom, prénom, fonction, N° CNPS, date de prise de service, statut — au format et modèle exact fourni par l'administration centrale (modèle précis non trouvé en recherche publique ; structure du use case volontairement centralisée pour être ajustable rapidement dès confirmation du vrai modèle par un chef d'établissement).
 
 **Rapports périodiques [RÉEL: non confirmé dans l'audit — à vérifier]**
 - Rapport mensuel PDF automatique (plan Premium) → 1er du mois via Inngest
@@ -1629,7 +1644,7 @@ Toutes les notes de la classe en `VALIDATED` → sinon session bloquée + liste 
 
 ---
 
-## PHASE 2 — Cœur Académique [RÉEL: ✅ globalement FAITE — utilisateurs/classes/matières/année scolaire (Bloc 1), présences élèves (Bloc 2, hors "journal enseignant" qui manque), notes (Bloc 3), bulletins (Bloc 4), EDT manuel (Bloc 5, sans détection de conflit confirmée), conseil de classe + fin d'année (Bloc 6) tous confirmés réels par l'audit de code. C'est la phase la plus avancée du projet dans les faits, malgré le marqueur ⬜ d'origine.]
+## PHASE 2 — Cœur Académique [RÉEL: ✅ globalement FAITE — utilisateurs/classes/matières/année scolaire (Bloc 1), présences élèves (Bloc 2, hors "journal enseignant" qui manque), notes (Bloc 3), bulletins (Bloc 4), EDT manuel avec détection de conflit confirmée (Bloc 5), conseil de classe + fin d'année (Bloc 6) tous confirmés réels par l'audit de code. C'est la phase la plus avancée du projet dans les faits, malgré le marqueur ⬜ d'origine.]
 **Durée estimée :** Juin–Juillet 2026
 
 ---
@@ -1836,12 +1851,12 @@ domain/reportCards/
 
 ---
 
-## PHASE 3 — Finance & Communication [RÉEL: 🟡 PARTIEL — Bloc 1 (Finance/Mobile Money) ✅ FAIT, sauf la transparence APEE ⬜ pas faite. Bloc 2 (Messagerie) ⏸️ REPORTÉ à une prochaine version, voir MODULE 10 — ne pas prioriser tant que la décision n'est pas revue.]
+## PHASE 3 — Finance & Communication [RÉEL: 🟡 PARTIEL — Bloc 1 (Finance/Mobile Money + transparence APEE) ✅ FAIT en totalité (Juillet 2026). Bloc 2 : messagerie ⏸️ REPORTÉE à une prochaine version (voir MODULE 10) mais notifications multi-canal (push + cloche IN_APP) ✅ FAIT, construites Juillet 2026 — distinctes de la messagerie, ne pas les confondre.]
 **Durée estimée :** Août–Septembre 2026
 
 ---
 
-### BLOC 1 — Finance, Mobile Money & Transparence APEE ⬜ [RÉEL: 🟡 Finance/Mobile Money ✅ FAIT (webhook Campay réel confirmé) — Transparence APEE ⬜ toujours pas commencée]
+### BLOC 1 — Finance, Mobile Money & Transparence APEE ⬜ [RÉEL: ✅ FAIT en totalité — Finance/Mobile Money (webhook Campay réel confirmé) et Transparence APEE (Juillet 2026, voir MODULE 7/11)]
 
 **Application — Use Cases**
 
@@ -1879,7 +1894,7 @@ domain/reportCards/
 
 ---
 
-### BLOC 2 — Messagerie bidirectionnelle & Notifications ⬜ [RÉEL: ⏸️ MESSAGERIE REPORTÉE — décision produit, voir MODULE 10. Ce bloc entier (conversations, Socket.io, modération, centre de notifications) est mis de côté. Seules les notifications à sens unique (SMS/Email en masse) restent d'actualité et sont déjà en grande partie construites — pas besoin de refaire ce sous-bloc.]
+### BLOC 2 — Messagerie bidirectionnelle & Notifications ⬜ [RÉEL: ⏸️ MESSAGERIE (conversations, modération) REPORTÉE — décision produit, voir MODULE 10. Le centre de notifications ci-dessous N'EST PAS reporté : Push (Web Push/VAPID) et cloche IN_APP avec historique/marquer comme lu sont ✅ FAIT (Juillet 2026), en plus des notifications SMS/Email à sens unique déjà construites — pas besoin de refaire ce sous-bloc "notifications", seule la partie "conversations" reste à zéro.]
 
 **Application — Use Cases**
 
@@ -1888,9 +1903,9 @@ domain/reportCards/
 | Créer conversation | `CreateConversationUseCase.ts` | PRIVATE/CLASS/PARENT |
 | Envoyer message | `SendMessageUseCase.ts` | Avec fichiers joints |
 | Justifier absence depuis notif | `JustifyAbsenceFromNotificationUseCase.ts` | Parent répond à une notif absence |
-| Modération | `ModerateMessageUseCase.ts` | |
-| Push notification | Via FCM | |
-| SMS | Via gateway Techsoft | |
+| Modération | `ModerateMessageUseCase.ts` | ⏸️ reporté avec le reste de la messagerie |
+| Push notification | ✅ FAIT — Web Push/VAPID (pas FCM), `SouscrirePushUseCase`/`DesinscrirePushUseCase` | |
+| SMS | Via gateway Techsoft | ✅ FAIT (`SmsNotificationService.ts`) |
 
 **Socket.io**
 - Connexion authentifiée (token dans le handshake)
@@ -1901,10 +1916,10 @@ domain/reportCards/
 
 | Tâche | Page | Détail |
 |-------|------|--------|
-| Interface messagerie | `pages/messaging/` | 4 couches + indicateur non lus |
-| Réponse justification absence | dans `pages/parent/` | Bouton "Justifier cette absence" depuis notif |
-| Centre de notifications | `components/NotificationCenter.tsx` | Historique + tri + badge |
-| Vue modération | `pages/staff/Moderation.tsx` | File d'attente modérateur |
+| Interface messagerie | `pages/messaging/` | ⏸️ reportée avec le reste de la messagerie |
+| Réponse justification absence | dans `pages/parent/` | ⏸️ reportée (dépend de la messagerie) |
+| Centre de notifications | ✅ FAIT — `components/NotificationBell.tsx` | Historique + badge + marquer comme lu ; tri par priorité non fait |
+| Vue modération | `pages/staff/Moderation.tsx` | ⏸️ reportée avec le reste de la messagerie |
 
 ---
 

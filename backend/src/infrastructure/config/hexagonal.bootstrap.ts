@@ -103,6 +103,7 @@ import { MasterAuthController } from '@infrastructure/http/controllers/MasterAut
 import { creerMasterAuthRoutes } from '@infrastructure/http/routes/masterAuth.routes';
 import { sendTransactionalEmail } from '../../services/emailService';
 import { notifyDisciplineSms } from '../services/SmsNotificationService';
+import { notifierParentsPushDabord } from '../services/PushFirstNotifier';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
 import { MatriculeController } from '@infrastructure/http/controllers/MatriculeController';
@@ -127,6 +128,10 @@ import { PushNotificationController } from '@infrastructure/http/controllers/Pus
 import { creerPushNotificationRoutes } from '@infrastructure/http/routes/pushNotification.routes';
 import { NotificationController } from '@infrastructure/http/controllers/NotificationController';
 import { creerNotificationRoutes } from '@infrastructure/http/routes/notification.routes';
+import { APEEController } from '@infrastructure/http/controllers/APEEController';
+import { creerApeeRoutes } from '@infrastructure/http/routes/apee.routes';
+import { DisciplineCouncilController } from '@infrastructure/http/controllers/DisciplineCouncilController';
+import { creerDisciplineCouncilRoutes } from '@infrastructure/http/routes/disciplineCouncil.routes';
 
 export function bootstrapHexagonal(app: Application): void {
   const container = creerContainer();
@@ -1268,6 +1273,14 @@ export function bootstrapHexagonal(app: Application): void {
   const notificationController = new NotificationController(container.notification.service);
   app.use('/api/v2/notifications', creerNotificationRoutes(notificationController));
 
+  // ── Transparence financière APEE ─────────────────────────────────────────────
+  const apeeController = new APEEController(prisma);
+  app.use('/api/v2/apee', creerApeeRoutes(apeeController));
+
+  // ── Conseil de Discipline (Art. 30) ──────────────────────────────────────────
+  const disciplineCouncilController = new DisciplineCouncilController(prisma);
+  app.use('/api/v2/discipline-council', creerDisciplineCouncilRoutes(disciplineCouncilController));
+
   app.use('/api/v2/activities',    creerActivitiesRoutes(activitiesController));
   app.use('/api/v2/dashboard',     creerDashboardRoutes(dashboardController));
   app.use('/api/v2/email-logs',    creerEmailLogRoutes(emailLogController));
@@ -1703,6 +1716,16 @@ export function bootstrapHexagonal(app: Application): void {
         res.status(400).json({ success: false, message: `type invalide. Valeurs : ${validTypes.join(', ')}` });
         return;
       }
+      // Décision grave : exige un Conseil de Discipline conforme Art. 30 (convocation 72h,
+      // composition légale, PV) — voir /api/v2/discipline-council. Chantier Juillet 2026.
+      if (type === 'COUNCIL_DECISION' || type === 'PERMANENT_EXCLUSION') {
+        res.status(400).json({
+          success: false,
+          code: 'CONSEIL_DISCIPLINE_REQUIS',
+          message: "Une décision de conseil ou une exclusion définitive ne peut être créée qu'en tenant un Conseil de Discipline (convocation 72h + composition légale + PV). Utilisez /api/v2/discipline-council.",
+        });
+        return;
+      }
       const student = await prisma.user.findFirst({ where: { id: studentId, schoolId, role: 'STUDENT' } });
       if (!student) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
       const record = await prisma.disciplineRecord.create({
@@ -1723,12 +1746,18 @@ export function bootstrapHexagonal(app: Application): void {
       void (async () => {
         try {
           const studentName = `${record.student.firstName} ${record.student.lastName}`.trim();
+          const { phonesSansPush } = await notifierParentsPushDabord({
+            schoolId, studentId, type: 'DISCIPLINE_SANCTION',
+            titre: 'Sanction disciplinaire',
+            corps: `${studentName} a fait l'objet d'une sanction disciplinaire. Motif : ${reason}.`,
+          });
           await notifyDisciplineSms({
             schoolId,
             studentId,
             studentName,
             type,
             reason,
+            phones: phonesSansPush,
           });
 
           const parentLinks = await prisma.parentStudent.findMany({
@@ -1921,6 +1950,30 @@ export function bootstrapHexagonal(app: Application): void {
         }),
         prisma.book.update({ where: { id: loan.bookId }, data: { available: { increment: 1 } } }),
       ]);
+      res.json({ success: true, data: updated });
+    } catch (err) { next(err); }
+  });
+
+  // PATCH /api/v2/library/loans/:id/renew — prolonger la date limite d'un emprunt actif
+  app.patch('/api/v2/library/loans/:id/renew', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const { dueDate } = req.body as Record<string, string>;
+      if (!dueDate) { res.status(400).json({ success: false, message: 'dueDate requis' }); return; }
+      const newDueDate = new Date(dueDate);
+      if (Number.isNaN(newDueDate.getTime()) || newDueDate <= new Date()) {
+        res.status(400).json({ success: false, message: 'dueDate doit être une date future valide' }); return;
+      }
+      const loan = await prisma.bookLoan.findFirst({ where: { id: req.params.id as string, schoolId } });
+      if (!loan) { res.status(404).json({ success: false, message: 'Emprunt introuvable' }); return; }
+      if (loan.status === 'RETURNED') { res.status(409).json({ success: false, message: 'Livre déjà retourné — impossible de renouveler' }); return; }
+      const updated = await prisma.bookLoan.update({
+        where: { id: loan.id },
+        // Renouveler un emprunt en retard le remet ACTIVE — sinon le job markOverdueLoans le
+        // re-marquerait OVERDUE dès le lendemain malgré la nouvelle date limite future.
+        data: { dueDate: newDueDate, status: 'ACTIVE' },
+        include: { book: { select: { id: true, title: true } } },
+      });
       res.json({ success: true, data: updated });
     } catch (err) { next(err); }
   });

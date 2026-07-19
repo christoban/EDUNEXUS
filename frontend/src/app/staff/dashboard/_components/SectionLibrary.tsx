@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { BookOpen, CheckCircle2, AlertTriangle, Search, Loader2, Trash2, Check, X } from 'lucide-react'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { BookOpen, CheckCircle2, AlertTriangle, Search, Loader2, Trash2, Check, X, Pencil, RefreshCw, WifiOff } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -52,15 +53,28 @@ export default function SectionLibrary({ onToast }: Props) {
   const [loanStatus, setLoanStatus] = useState('ACTIVE')
   const [returningId, setReturningId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const { isOnline, addToQueue } = useSyncQueue()
 
   // ── Modal ajout livre ──
   const [addBookOpen, setAddBookOpen] = useState(false)
   const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', quantity: '1', category: '' })
   const [savingBook, setSavingBook] = useState(false)
 
+  // ── Modal modification livre ──
+  const [editBookOpen, setEditBookOpen] = useState(false)
+  const [editBookId, setEditBookId] = useState<string | null>(null)
+  const [editBookForm, setEditBookForm] = useState({ title: '', author: '', isbn: '', quantity: '1', category: '' })
+  const [savingEditBook, setSavingEditBook] = useState(false)
+
   // ── Modal emprunt ──
   const [borrowOpen, setBorrowOpen] = useState(false)
   const [borrowForm, setBorrowForm] = useState({ bookId: '', bookTitle: '', studentSearch: '', studentResults: [] as StudentResult[], selectedStudent: null as StudentResult | null, dueDate: '', loading: false, error: '' })
+
+  // ── Modal renouvellement emprunt ──
+  const [renewOpen, setRenewOpen] = useState(false)
+  const [renewLoanId, setRenewLoanId] = useState<string | null>(null)
+  const [renewDueDate, setRenewDueDate] = useState('')
+  const [renewing, setRenewing] = useState(false)
 
   const fetchBooks = useCallback(async (page = 1) => {
     setLoading(true); setError(null)
@@ -98,12 +112,23 @@ export default function SectionLibrary({ onToast }: Props) {
 
   const addBook = async () => {
     if (!bookForm.title.trim()) { onToast(t('library.titleRequired'), 'error'); return }
+
+    const payload = { title: bookForm.title.trim(), author: bookForm.author || undefined, isbn: bookForm.isbn || undefined, quantity: bookForm.quantity, category: bookForm.category || undefined }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'LIBRARY_BOOK_CREATE', endpoint: '/api/v2/library/books', method: 'POST', payload })
+      onToast(t('library.addQueued', { title: bookForm.title }), 'success')
+      setAddBookOpen(false)
+      setBookForm({ title: '', author: '', isbn: '', quantity: '1', category: '' })
+      return
+    }
+
     setSavingBook(true)
     try {
       const res = await fetchApi('/api/v2/library/books', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: bookForm.title.trim(), author: bookForm.author || undefined, isbn: bookForm.isbn || undefined, quantity: bookForm.quantity, category: bookForm.category || undefined }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')
@@ -114,6 +139,66 @@ export default function SectionLibrary({ onToast }: Props) {
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur', 'error')
     } finally { setSavingBook(false) }
+  }
+
+  const openEditBook = (b: Book) => {
+    setEditBookId(b.id)
+    setEditBookForm({ title: b.title, author: b.author ?? '', isbn: b.isbn ?? '', quantity: String(b.quantity), category: b.category ?? '' })
+    setEditBookOpen(true)
+  }
+
+  const submitEditBook = async () => {
+    if (!editBookId || !editBookForm.title.trim()) { onToast(t('library.titleRequired'), 'error'); return }
+    setSavingEditBook(true)
+    try {
+      const res = await fetchApi(`/api/v2/library/books/${editBookId}`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editBookForm.title.trim(),
+          author: editBookForm.author || null,
+          isbn: editBookForm.isbn || null,
+          category: editBookForm.category || null,
+          quantity: Math.max(1, parseInt(editBookForm.quantity) || 1),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur')
+      onToast(t('library.editSuccess', { title: editBookForm.title }), 'success')
+      setEditBookOpen(false)
+      setEditBookId(null)
+      fetchBooks(bookPag.page)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally { setSavingEditBook(false) }
+  }
+
+  const openRenew = (loanId: string, currentDueDate: string | null) => {
+    setRenewLoanId(loanId)
+    const base = currentDueDate && new Date(currentDueDate) > new Date() ? new Date(currentDueDate) : new Date()
+    base.setDate(base.getDate() + 14)
+    setRenewDueDate(base.toISOString().slice(0, 10))
+    setRenewOpen(true)
+  }
+
+  const submitRenew = async () => {
+    if (!renewLoanId || !renewDueDate) return
+    setRenewing(true)
+    try {
+      const res = await fetchApi(`/api/v2/library/loans/${renewLoanId}/renew`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueDate: renewDueDate }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur')
+      onToast(t('library.renewSuccess'), 'success')
+      setRenewOpen(false)
+      setRenewLoanId(null)
+      fetchLoans(loanPag.page)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally { setRenewing(false) }
   }
 
   const searchStudents = async (q: string) => {
@@ -193,6 +278,13 @@ export default function SectionLibrary({ onToast }: Props) {
           <button style={btnPrim} onClick={() => setBorrowOpen(true)}>{t('library.addLoan')}</button>
         </div>
       </div>
+
+      {!isOnline && tab === 'books' && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>{t('library.offlineHint')}</span>
+        </div>
+      )}
 
       {/* KPIs */}
       {tab === 'books' && !loading && (
@@ -289,6 +381,11 @@ export default function SectionLibrary({ onToast }: Props) {
                         {t('library.borrow')}
                       </button>
                       <button
+                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', marginRight: 6 }}
+                        onClick={() => openEditBook(b)}>
+                        <Pencil size={13} strokeWidth={2} />
+                      </button>
+                      <button
                         style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
                         disabled={deletingId === b.id}
                         onClick={() => deleteBook(b.id, b.title)}>
@@ -360,14 +457,21 @@ export default function SectionLibrary({ onToast }: Props) {
                           {isOverdue ? t('library.statusOverdue') : l.status === 'ACTIVE' ? t('library.statusActive') : t('library.statusReturned')}
                         </span>
                       </td>
-                      <td style={tdSt}>
-                        {l.status === 'ACTIVE' && (
-                          <button
-                            style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
-                            onClick={() => returnLoan(l.id, l.book.title)}
-                            disabled={returningId === l.id}>
-                            {returningId === l.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('library.return')}
-                          </button>
+                      <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
+                        {(l.status === 'ACTIVE' || l.status === 'OVERDUE') && (
+                          <>
+                            <button
+                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit', marginRight: 6 }}
+                              onClick={() => returnLoan(l.id, l.book.title)}
+                              disabled={returningId === l.id}>
+                              {returningId === l.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('library.return')}
+                            </button>
+                            <button
+                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              onClick={() => openRenew(l.id, l.dueDate)}>
+                              <RefreshCw size={12} strokeWidth={2} /> {t('library.renew')}
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -419,6 +523,61 @@ export default function SectionLibrary({ onToast }: Props) {
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
               <button style={btnSec} onClick={() => setAddBookOpen(false)}>{t('library.cancel')}</button>
               <button style={btnPrim} onClick={addBook} disabled={savingBook}>{savingBook ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : t('library.add')}</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal modification livre */}
+      {editBookOpen && (
+        <>
+          <div onClick={() => setEditBookOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.editBookModalTitle')}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {([
+                { label: t('library.titleLabel'), key: 'title' },
+                { label: t('library.authorLabel'), key: 'author' },
+                { label: t('library.isbnLabel'), key: 'isbn' },
+              ] as { label: string; key: keyof typeof editBookForm }[]).map(f => (
+                <div key={f.key}>
+                  <label style={labelSt}>{f.label}</label>
+                  <input value={editBookForm[f.key]} onChange={e => setEditBookForm(p => ({ ...p, [f.key]: e.target.value }))} style={inputSt} />
+                </div>
+              ))}
+              <div>
+                <label style={labelSt}>{t('library.categoryLabel')}</label>
+                <select value={editBookForm.category} onChange={e => setEditBookForm(p => ({ ...p, category: e.target.value }))} style={{ ...inputSt, cursor: 'pointer' }}>
+                  <option value="">{t('library.categoryPlaceholder')}</option>
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{t(`library.${c.key}`)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelSt}>{t('library.copiesLabel')}</label>
+                <input type="number" min="1" value={editBookForm.quantity} onChange={e => setEditBookForm(p => ({ ...p, quantity: e.target.value }))} style={inputSt} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button style={btnSec} onClick={() => setEditBookOpen(false)}>{t('library.cancel')}</button>
+              <button style={btnPrim} onClick={submitEditBook} disabled={savingEditBook}>{savingEditBook ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : t('library.save')}</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Modal renouvellement emprunt */}
+      {renewOpen && (
+        <>
+          <div onClick={() => setRenewOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 420, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.renewModalTitle')}</div>
+            <div>
+              <label style={labelSt}>{t('library.newDueDateLabel')}</label>
+              <input type="date" value={renewDueDate} onChange={e => setRenewDueDate(e.target.value)} style={inputSt} />
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+              <button style={btnSec} onClick={() => setRenewOpen(false)}>{t('library.cancel')}</button>
+              <button style={btnPrim} onClick={submitRenew} disabled={renewing}>{renewing ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : t('library.renew')}</button>
             </div>
           </div>
         </>

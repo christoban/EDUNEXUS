@@ -242,6 +242,7 @@
     "subtitle": "Rédigez l'appréciation pour chaque élève",
     "save_all": "Tout sauvegarder",
     "save_progress": "{progress}%",
+    "offline_hint": "Mode hors-ligne — les appréciations saisies seront synchronisées à la reconnexion",
     "loading_bulletins": "Chargement des bulletins...",
     "no_bulletins": "Aucun bulletin généré pour cette période",
     "no_bulletins_hint": "Les bulletins doivent être générés par l'administration avant de pouvoir rédiger des appréciations.",

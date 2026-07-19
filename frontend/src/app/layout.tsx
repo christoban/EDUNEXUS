@@ -24,6 +24,14 @@ export const metadata: Metadata = {
   title: 'ZekoulABia',
   description: 'Plateforme de gestion scolaire multi-établissement',
   manifest: '/manifest.json',
+  // Référence directe vers public/ (fichier statique) plutôt que la convention app/icon.png —
+  // cette dernière fait générer par Next.js une route dynamique dont le loader webpack casse
+  // sur les chemins contenant une apostrophe (ex. "God's Grace" dans le chemin du projet) :
+  // "Module parse failed: Unexpected token" au build production (voir next build --webpack).
+  icons: {
+    icon: '/favicon.png',
+    apple: '/icons/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

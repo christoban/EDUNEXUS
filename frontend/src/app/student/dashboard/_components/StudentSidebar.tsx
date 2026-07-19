@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen } from 'lucide-react'
+import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -53,6 +53,7 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
       label: tnav('group.services'),
       items: [
         { id: 'library', icon: BookOpen, label: tnav('sidebar.myLibrary') },
+        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
       ]
     },
   ]

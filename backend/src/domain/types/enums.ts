@@ -65,6 +65,8 @@ export type NotificationType =
   | 'PAYMENT_CONFIRMED'
   | 'PAYMENT_FAILED'
   | 'COUNCIL_DECISION'
+  | 'LIBRARY_OVERDUE'
+  | 'DISCIPLINE_SANCTION'
   | 'SYSTEM';
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP';

@@ -1,4 +1,19 @@
 {
+  "apee": {
+    "title": "APEE Transparency",
+    "subtitle": "Register of collections and expenses of the Parents and Teachers Association",
+    "totalCollectes": "Total collected",
+    "totalDepenses": "Total spent",
+    "solde": "APEE balance",
+    "typeCollecte": "Collection",
+    "typeDepense": "Expense",
+    "history": "Transaction history",
+    "loading": "Loading...",
+    "noTransactions": "No transaction yet",
+    "validated": "Validated",
+    "pending": "Pending validation",
+    "loadError": "Error loading APEE data"
+  },
   "health": {
     "label": "Health score",
     "levels": {

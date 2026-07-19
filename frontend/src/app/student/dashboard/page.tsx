@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { logoutUser } from '@/lib/userAuth'
 import NotificationBell from '@/components/NotificationBell'
+import NotificationCenter from '@/components/NotificationCenter'
 import StudentSidebar from './_components/StudentSidebar'
 import StudentToast from './_components/StudentToast'
 import SectionStudentDashboard from './_components/SectionStudentDashboard'
@@ -28,6 +29,7 @@ export default function StudentDashboard() {
     timetable:  tnav('pageTitle.student_timetable'),
     attendance: tnav('pageTitle.student_attendance'),
     library:    tnav('pageTitle.student_library'),
+    notifications: tnav('pageTitle.student_notifications'),
   }
   const [section, setSection] = useState<StudentSection>('dashboard')
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -115,6 +117,7 @@ export default function StudentDashboard() {
           {section === 'timetable'  && <SectionStudentTimetable {...sProps} />}
           {section === 'attendance' && <SectionStudentAttendance {...sProps} />}
           {section === 'library'    && <SectionStudentLibrary />}
+          {section === 'notifications' && <NotificationCenter />}
         </main>
       </div>
 

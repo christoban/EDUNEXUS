@@ -4,7 +4,9 @@ import { sendTransactionalEmail } from "../services/emailService.ts";
 import { resolveLanguage } from "../utils/languageHelper.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { createSchoolBackup, purgeSchoolLogsByRetention } from "../utils/schoolBackup.ts";
-import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms } from "../infrastructure/services/SmsNotificationService.ts";
+import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms, notifyOverdueBookSms } from "../infrastructure/services/SmsNotificationService.ts";
+import { SocketNotificationService } from "../infrastructure/services/SocketNotificationService";
+import { notifierParentsPushDabord } from "../infrastructure/services/PushFirstNotifier";
 
 import { NonRetriableError } from "inngest";
 import { createGroq } from "@ai-sdk/groq";
@@ -785,17 +787,28 @@ export const sendPaymentReminders = inngest.createFunction(
           }
         }
 
-        // SMS supplémentaire pour les factures vraiment en retard
+        // SMS supplémentaire pour les factures vraiment en retard — push d'abord, SMS
+        // seulement pour les parents que le push n'atteint pas (voir PushFirstNotifier.ts).
         if (isOverdue && invoice.studentId) {
           const studentName = `${invoice.student?.firstName ?? ''} ${invoice.student?.lastName ?? ''}`.trim();
-          void notifyOverdueInvoiceSms({
+          const daysOverdue = Math.abs(daysUntilDue);
+          void notifierParentsPushDabord({
             schoolId: invoice.schoolId,
             studentId: invoice.studentId,
-            studentName,
-            amount: invoice.amount,
-            daysOverdue: Math.abs(daysUntilDue),
-            invoiceLabel: label,
-          });
+            type: "PAYMENT_REMINDER",
+            titre: "Facture en retard",
+            corps: `Facture "${label}" de ${invoice.amount} XAF pour ${studentName} en retard de ${daysOverdue} jour(s).`,
+          }).then(({ phonesSansPush }) =>
+            notifyOverdueInvoiceSms({
+              schoolId: invoice.schoolId,
+              studentId: invoice.studentId!,
+              studentName,
+              amount: invoice.amount,
+              daysOverdue,
+              invoiceLabel: label,
+              phones: phonesSansPush,
+            }),
+          );
         }
       }
 
@@ -887,13 +900,66 @@ export const checkAbsenceThreshold = inngest.createFunction(
 export const markOverdueLoans = inngest.createFunction(
   { id: "mark-overdue-loans", name: "Marquer emprunts en retard", triggers: [{ cron: "0 1 * * *" }] },
   async ({ step }) => {
-    return await step.run("update-overdue-loans", async () => {
-      const result = await prisma.bookLoan.updateMany({
+    const toMark = await step.run("find-overdue-loans", async () => {
+      return prisma.bookLoan.findMany({
         where: { status: "ACTIVE", dueDate: { lt: new Date() } },
+        select: {
+          id: true, schoolId: true, studentId: true,
+          book: { select: { title: true } },
+          student: { select: { firstName: true, lastName: true } },
+        },
+      });
+    });
+
+    if (toMark.length === 0) return { updated: 0 };
+
+    await step.run("update-overdue-loans", async () => {
+      await prisma.bookLoan.updateMany({
+        where: { id: { in: toMark.map((l) => l.id) } },
         data: { status: "OVERDUE" },
       });
-      return { updated: result.count };
     });
+
+    await step.run("notify-overdue-loans", async () => {
+      const notificationService = new SocketNotificationService();
+
+      for (const loan of toMark) {
+        const studentName = `${loan.student.firstName} ${loan.student.lastName}`.trim();
+        const titre = "Livre en retard";
+        const corps = `Le livre "${loan.book.title}" est en retard de retour à la bibliothèque.`;
+
+        // Élève : a forcément un compte — cloche (toujours visible) + push best-effort (rien
+        // d'autre à tenter côté élève, voir discussion PLAN_NOTIFICATIONS_PUSH.md : les élèves
+        // n'ont généralement pas de numéro/email propre au Cameroun, donc pas de repli SMS ici).
+        await notificationService
+          .envoyer({ schoolId: loan.schoolId, userId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps, canal: "IN_APP" })
+          .catch((err) => console.error('[Library Overdue IN_APP élève]', err?.message));
+        await notificationService
+          .envoyer({ schoolId: loan.schoolId, userId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps, canal: "PUSH" })
+          .catch((err) => console.error('[Library Overdue PUSH élève]', err?.message));
+
+        // Parents : cloche systématique + push d'abord ; le SMS ne part QUE vers les parents
+        // dont le push n'a atteint aucun appareil (pas de souscription active) — jamais les
+        // deux à la fois pour un même parent, cohérent avec le repli déjà en place pour l'email
+        // (sendTransactionalEmail, Phase B) mais appliqué ici au SMS (voir PushFirstNotifier.ts,
+        // partagé avec les alertes absence/paiement/discipline).
+        const { phonesSansPush } = await notifierParentsPushDabord({
+          schoolId: loan.schoolId, studentId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps,
+        });
+
+        if (phonesSansPush.length > 0) {
+          await notifyOverdueBookSms({
+            schoolId: loan.schoolId,
+            studentId: loan.studentId,
+            studentName,
+            bookTitle: loan.book.title,
+            phones: phonesSansPush,
+          }).catch((err) => console.error('[Library Overdue SMS]', err?.message));
+        }
+      }
+    });
+
+    return { updated: toMark.length };
   }
 );
 

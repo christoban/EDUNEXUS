@@ -2,7 +2,7 @@
 import {
   LogOut, LayoutDashboard, GraduationCap, FileText, ClipboardCheck, Clock,
   Link2, Calendar, Landmark, Smartphone, Lock, AlertTriangle, BookOpen,
-  Compass, IdCard,
+  Compass, IdCard, HandCoins, Bell,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -55,6 +55,7 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
 
   const servicesItems: NavItem[] = []
   if (can('finance'))     servicesItems.push({ id: 'finance',     icon: Smartphone, label: tnav('sidebar.finance'),    badge: badges.finance,  badgeColor: 'red' })
+  if (can('apee'))        servicesItems.push({ id: 'apee',        icon: HandCoins, label: tnav('sidebar.apee') })
   if (can('cautions'))    servicesItems.push({ id: 'cautions',    icon: Lock, label: tnav('sidebar.cautionMoney') })
   if (can('discipline'))  servicesItems.push({ id: 'discipline',  icon: AlertTriangle, label: tnav('sidebar.discipline') })
   if (can('library'))     servicesItems.push({ id: 'library',     icon: BookOpen, label: tnav('sidebar.library') })
@@ -64,7 +65,10 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
     { items: [{ id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') }] },
     ...(supervisionItems.length > 0 ? [{ label: tnav('group.supervision'), items: supervisionItems }] : []),
     ...(servicesItems.length > 0    ? [{ label: tnav('group.services'),    items: servicesItems    }] : []),
-    { label: tnav('group.moncompte'), items: [{ id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') }] },
+    { label: tnav('group.moncompte'), items: [
+      { id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') },
+      { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
+    ] },
   ]
 
   const userFallback = sessionUser?.nomComplet ?? tcommon('user.staffFallback')

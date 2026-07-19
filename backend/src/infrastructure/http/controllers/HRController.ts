@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import ExcelJS from 'exceljs';
 import {
   generateAttestationTravailPdf,
   generateCertificatTravailPdf,
@@ -172,6 +173,76 @@ export class HRController {
           file: fileByUserId.get(employee.id) ?? null,
         })),
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/v2/hr/export/liste-nominale-minesec — fichier Excel de liste nominative du
+   * personnel, pour le recensement biométrique MINESEC en cours (mars-avril 2026, prolongé).
+   * Colonnes basées sur les champs disponibles côté EduNexus (nom, prénom, fonction, N° CNPS,
+   * date de prise de service, statut) — le modèle exact fourni par l'administration centrale
+   * MINESEC n'a pas été trouvé publiquement ; à ajuster une fois confirmé par un chef
+   * d'établissement ou une source officielle (voir EduNexus_Carte_Complete_V2.md, MODULE 19).
+   */
+  exportListeNominaleMinesec = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schoolId = this.getSchoolId(req);
+      const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+
+      const users = await this.prisma.user.findMany({
+        where: { schoolId, role: { in: ['TEACHER', 'STAFF'] as EmployeeRole[] }, isActive: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          staffProfile: { select: { title: true } },
+          teacherProfile: { select: { specialization: true } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+
+      const files = await (this.prisma as any).employeeFile.findMany({
+        where: { userId: { in: users.map((u) => u.id) } },
+      });
+      const fileByUserId = new Map<string, any>(files.map((f: any) => [f.userId, f]));
+
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Liste nominale');
+      sheet.columns = [
+        { header: 'N°', key: 'index', width: 5 },
+        { header: 'Nom', key: 'lastName', width: 20 },
+        { header: 'Prénom', key: 'firstName', width: 20 },
+        { header: 'Fonction', key: 'fonction', width: 25 },
+        { header: 'N° CNPS', key: 'numeroCNPS', width: 18 },
+        { header: 'Date de prise de service', key: 'dateEmbauche', width: 22 },
+        { header: 'Statut', key: 'statut', width: 15 },
+      ];
+      sheet.getRow(1).font = { bold: true };
+
+      users.forEach((employee, idx) => {
+        const file = fileByUserId.get(employee.id);
+        sheet.addRow({
+          index: idx + 1,
+          lastName: employee.lastName,
+          firstName: employee.firstName,
+          fonction: employee.staffProfile?.title
+            || (employee.role === 'TEACHER'
+              ? (employee.teacherProfile?.specialization?.length ? employee.teacherProfile.specialization.join(', ') : 'Enseignant')
+              : 'Personnel'),
+          numeroCNPS: file?.numeroCNPS ?? '',
+          dateEmbauche: file?.dateEmbauche ? new Date(file.dateEmbauche).toLocaleDateString('fr-FR') : '',
+          statut: 'En service',
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const filename = `liste-nominale-minesec-${slugify(school?.name ?? schoolId)}.xlsx`;
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(Buffer.from(buffer));
     } catch (error) {
       next(error);
     }

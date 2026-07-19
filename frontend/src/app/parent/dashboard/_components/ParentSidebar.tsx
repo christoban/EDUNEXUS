@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings } from 'lucide-react'
+import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins, Bell } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -49,7 +49,9 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
       label: tnav('group.services'),
       items: [
         { id: 'payments', icon: Smartphone, label: tnav('sidebar.payments') },
+        { id: 'apee',     icon: HandCoins, label: tnav('sidebar.apee') },
         { id: 'library',  icon: BookOpen, label: tnav('sidebar.readings') },
+        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
         { id: 'settings', icon: Settings, label: tnav('sidebar.settings') },
       ]
     },

@@ -15,6 +15,7 @@ import SectionBulletins from './_components/SectionBulletins'
 import SectionTimetable from './_components/SectionTimetable'
 import SectionAcademicYear from './_components/SectionAcademicYear'
 import SectionSettings from './_components/SectionSettings'
+import NotificationCenter from '@/components/NotificationCenter'
 import SectionFinance from './_components/SectionFinance'
 import SectionPlaceholder from './_components/SectionPlaceholder'
 import SectionAdminAttendance from './_components/SectionAdminAttendance'
@@ -172,6 +173,7 @@ export default function AdminDashboard() {
           {section === 'minedub-stats'  && <SectionMinedubStatistics onToast={showToast} />}
           {section === 'pebs-exams'    && <SectionAdminPebsExams    onToast={showToast} />}
           {section === 'lv2-choice'    && <SectionAdminLV2Choice    onToast={showToast} />}
+          {section === 'notifications' && <NotificationCenter />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (

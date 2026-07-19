@@ -1,7 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { BookOpen, AlarmClock, AlertTriangle } from 'lucide-react'
+import { useCallback } from 'react'
+import { BookOpen, AlarmClock, AlertTriangle, Package } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 import { useT } from '@/lib/i18n'
 
 interface BookLoan {
@@ -15,21 +17,18 @@ interface BookLoan {
 
 export default function SectionStudentLibrary() {
   const t = useT('student')
-  const [loans, setLoans]     = useState<BookLoan[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    fetchApi('/api/v2/library/my-loans', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => {
-        if (!d.success) throw new Error(d.message || t('common.error_fallback'))
-        setLoans(d.data || [])
-      })
-      .catch(e => setError(e instanceof Error ? e.message : t('common.error_fallback')))
-      .finally(() => setLoading(false))
-  }, [])
+  const fetchFn = useCallback(async (): Promise<BookLoan[]> => {
+    const r = await fetchApi('/api/v2/library/my-loans', { credentials: 'include' })
+    const d = await r.json()
+    if (!d.success) throw new Error(d.message || t('common.error_fallback'))
+    return d.data || []
+  }, [t])
+
+  const { data, loading, error, fromCache, cachedAt } = useCachedFetch<BookLoan[]>('student-library', fetchFn)
+  const loans = data ?? []
+
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
 
   const active  = loans.filter(l => l.status === 'ACTIVE').length
   const overdue = loans.filter(l => l.status === 'OVERDUE').length
@@ -39,6 +38,11 @@ export default function SectionStudentLibrary() {
       <div style={{ marginBottom: 26 }}>
         <div style={sTitle}>{t('library.title')}</div>
         <div style={sSub}>{t('library.subtitle')}</div>
+        {fromCache && cachedAt && (
+          <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+          </div>
+        )}
       </div>
 
       {!loading && !error && loans.length > 0 && (

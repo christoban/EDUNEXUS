@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { BookOpen, AlarmClock, AlertTriangle } from 'lucide-react'
+import { BookOpen, AlarmClock, AlertTriangle, Package } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 import { useT } from '@/lib/i18n'
 
 interface Child { studentId: string; prenom: string; nom: string }
@@ -30,9 +32,6 @@ export default function SectionParentLibrary({ userId }: Props) {
   const t = useT('parent')
   const [children, setChildren]       = useState<Child[]>([])
   const [selectedChild, setSelected]  = useState<string>('')
-  const [loans, setLoans]             = useState<BookLoan[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState<string | null>(null)
 
   useEffect(() => {
     if (!userId) return
@@ -51,32 +50,33 @@ export default function SectionParentLibrary({ userId }: Props) {
       .catch(() => {})
   }, [userId])
 
-  const fetchLoans = useCallback(async (sid: string) => {
-    if (!sid) return
-    setLoading(true); setError(null)
-    try {
-      const params = new URLSearchParams({ studentId: sid })
-      const res = await fetchApi(`/api/v2/library/my-loans?${params}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!data.success) throw new Error(data.message || t('errorLoad'))
-      setLoans(data.data || [])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('errorLoad'))
-    } finally { setLoading(false) }
-  }, [])
+  const fetchLoansFn = useCallback(async (): Promise<BookLoan[]> => {
+    const params = new URLSearchParams({ studentId: selectedChild })
+    const res = await fetchApi(`/api/v2/library/my-loans?${params}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!data.success) throw new Error(data.message || t('errorLoad'))
+    return data.data || []
+  }, [selectedChild, t])
 
-  useEffect(() => {
-    if (selectedChild) fetchLoans(selectedChild)
-  }, [selectedChild, fetchLoans])
+  const { data: loans, loading, error, fromCache, cachedAt } = useCachedFetch<BookLoan[]>(
+    selectedChild ? `parent-library-${selectedChild}` : '',
+    fetchLoansFn,
+  )
+  const loanList = loans ?? []
 
-  const active  = loans.filter(l => l.status === 'ACTIVE').length
-  const overdue = loans.filter(l => l.status === 'OVERDUE').length
+  const active  = loanList.filter(l => l.status === 'ACTIVE').length
+  const overdue = loanList.filter(l => l.status === 'OVERDUE').length
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
       <div style={{ marginBottom: 26 }}>
         <div style={sTitle}>{t('library.title')}</div>
         <div style={sSub}>{t('library.subtitle')}</div>
+        {fromCache && cachedAt && (
+          <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <Package size={14} strokeWidth={2} /> {t('cacheBadge').replace('{date}', new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }))}
+          </div>
+        )}
       </div>
 
       {children.length > 1 && (
@@ -93,10 +93,10 @@ export default function SectionParentLibrary({ userId }: Props) {
         </div>
       )}
 
-      {!loading && !error && loans.length > 0 && (
+      {!loading && !error && loanList.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
           {[
-            { icon: BookOpen, bg: 'var(--blue-light)', val: loans.length, label: t('library.totalLoans'), color: 'var(--blue)' },
+            { icon: BookOpen, bg: 'var(--blue-light)', val: loanList.length, label: t('library.totalLoans'), color: 'var(--blue)' },
             { icon: BookOpen, bg: 'var(--green-light)', val: active,        label: t('library.active'),    color: 'var(--green)' },
             { icon: AlarmClock, bg: 'var(--red-light)', val: overdue,       label: t('library.overdue'),   color: 'var(--red)' },
           ].map((k, i) => (
@@ -116,11 +116,13 @@ export default function SectionParentLibrary({ userId }: Props) {
         </div>
       )}
 
-      {!loading && error && (
+      {!loading && error === 'OFFLINE_NO_CACHE' && <OfflineEmptyState />}
+
+      {!loading && error && error !== 'OFFLINE_NO_CACHE' && (
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '16px 22px', color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} strokeWidth={2} /> {error}</div>
       )}
 
-      {!loading && !error && loans.length === 0 && (
+      {!loading && !error && loanList.length === 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 20px', textAlign: 'center', color: 'var(--text3)' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><BookOpen size={40} strokeWidth={2} /></div>
           <div style={{ fontSize: 17, fontWeight: 700 }}>{t('library.emptyTitle')}</div>
@@ -128,7 +130,7 @@ export default function SectionParentLibrary({ userId }: Props) {
         </div>
       )}
 
-      {!loading && !error && loans.length > 0 && (
+      {!loading && !error && loanList.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -137,7 +139,7 @@ export default function SectionParentLibrary({ userId }: Props) {
               ))}</tr>
             </thead>
             <tbody>
-              {loans.map(l => {
+              {loanList.map(l => {
                 const LOAN_BADGE = loanBadge(t)
                 const badge = LOAN_BADGE[l.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: l.status }
                 const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()

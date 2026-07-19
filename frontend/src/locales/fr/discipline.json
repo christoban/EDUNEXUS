@@ -51,7 +51,67 @@
     "type_reason_required": "Type et motif obligatoires",
     "generic_error": "Erreur",
     "server_error": "Erreur serveur",
-    "loading_error": "Erreur de chargement"
+    "loading_error": "Erreur de chargement",
+    "severe_requires_council": "Une décision de conseil ou une exclusion définitive ne peut être créée qu'en tenant un Conseil de Discipline — utilisez l'onglet « Conseil de discipline »."
+  },
+  "tabs": {
+    "sanctions": "Sanctions",
+    "council": "Conseil de discipline"
+  },
+  "council": {
+    "subtitle": "Convocation, composition légale (Art. 30) et procès-verbal des conseils de discipline",
+    "convoke_modal_title": "Convoquer un Conseil de Discipline",
+    "convoke_modal_hint": "La date du conseil doit être au moins 72h après la convocation des parents (règle absolue, Art. 30).",
+    "tenir_modal_title": "Tenir le conseil et acter la décision",
+    "hint_delay_not_elapsed": "Le délai légal de 72h depuis la convocation n'est pas encore écoulé",
+    "actions": {
+      "convoke": "Convoquer un conseil",
+      "hold": "Tenir le conseil",
+      "download_pv": "Télécharger le PV"
+    },
+    "form_fields": {
+      "motif_label": "Motif de convocation *",
+      "scheduled_label": "Date et heure du conseil *",
+      "scheduled_hint": "Doit être au moins 72h après maintenant",
+      "composition_label": "Composition du conseil (Art. 30) *",
+      "decision_label": "Décision *",
+      "pv_label": "Procès-verbal (compte-rendu) *",
+      "pv_placeholder": "Résumé des débats, éléments examinés, décision motivée…"
+    },
+    "composition_roles": {
+      "chefEtablissement": "Chef d'établissement (président)",
+      "censeur": "Censeur",
+      "sg": "Surveillant Général",
+      "pp": "Professeur Principal",
+      "representantParents": "Représentant des parents",
+      "representantEleves": "Représentant des élèves"
+    },
+    "table_headers": {
+      "motif": "Motif",
+      "scheduled": "Date prévue",
+      "status": "Statut",
+      "decision": "Décision"
+    },
+    "status": {
+      "CONVOQUE": "Convoqué",
+      "TENU": "Tenu",
+      "ANNULE": "Annulé"
+    },
+    "validation": {
+      "motif_date_required": "Motif et date du conseil obligatoires",
+      "composition_required": "Composition du conseil incomplète — tous les membres sont requis (Art. 30)",
+      "pv_required": "Le procès-verbal est requis"
+    },
+    "toasts": {
+      "convoked": "Conseil convoqué pour {student}",
+      "held": "Conseil tenu, décision actée",
+      "load_error": "Erreur lors du chargement des conseils",
+      "pv_error": "Erreur lors du téléchargement du PV"
+    },
+    "empty_state": {
+      "title": "Aucun conseil de discipline convoqué",
+      "description": "Utilisez « Convoquer un conseil » pour une décision grave nécessitant un Conseil de Discipline."
+    }
   },
   "filter_labels": {
     "all_types": "Tous les types",
@@ -71,6 +131,7 @@
   },
   "toasts": {
     "sanction_saved": "Sanction enregistrée pour {student}",
+    "sanction_queued": "Sanction pour {student} mise en file d'attente — synchronisation à la reconnexion",
     "sanction_lifted": "Sanction levée",
     "confirm_lift": "Lever la sanction de {student} ?"
   },
@@ -82,5 +143,6 @@
   "count_summary": "{count} sanction{s} · filtré{byStatus}",
   "loading": "…",
   "error_icon": "",
-  "behavior_reason": "Problème de comportement"
+  "behavior_reason": "Problème de comportement",
+  "offline_hint": "Mode hors-ligne — les nouvelles sanctions seront synchronisées à la reconnexion"
 }
