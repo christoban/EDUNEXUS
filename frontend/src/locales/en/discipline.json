@@ -133,6 +133,7 @@
     "sanction_saved": "Sanction recorded for {student}",
     "sanction_queued": "Sanction for {student} queued — will sync when back online",
     "sanction_lifted": "Sanction lifted",
+    "sanction_lift_queued": "Sanction lift queued — will sync when back online",
     "confirm_lift": "Lift sanction for {student}?"
   },
   "empty_state": {

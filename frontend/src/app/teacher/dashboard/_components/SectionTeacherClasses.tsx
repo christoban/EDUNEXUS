@@ -1,8 +1,10 @@
 ﻿'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { Package } from 'lucide-react'
 
 interface Props {
   onNav: (s: string) => void
@@ -21,26 +23,17 @@ interface ClassStats {
 export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
   const t = useT('teacher')
   const tcommon = useT('common')
-  const [classes, setClasses] = useState<any[]>([])
   const [stats, setStats]     = useState<Record<string, ClassStats>>({})
   const [gradeStats, setGradeStats] = useState<Record<string, { total: number; submitted: number; draft: number }>>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async () => {
-    setLoading(true); setError(null)
-    try {
-      const res = await fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json())
-      if (res.success) {
-        setClasses(res.data)
-        fetchStats(res.data as any[])
-      } else {
-        setError(t('classes.load_error'))
-      }
-    } catch (err: any) {
-      setError(err.message || t('classes.network_error'))
-    } finally { setLoading(false) }
-  }
+  const fetchClassesFn = useCallback(async (): Promise<any[]> => {
+    const res = await fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json())
+    if (!res.success) throw new Error(t('classes.load_error'))
+    return res.data
+  }, [t])
+
+  const { data: classesData, loading, error, fromCache, cachedAt, refetch: fetchData } = useCachedFetch<any[]>('teacher:classes', fetchClassesFn)
+  const classes = classesData ?? []
 
   const fetchStats = async (classList: any[]) => {
     const statsMap: Record<string, ClassStats> = {}
@@ -71,7 +64,7 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
     setGradeStats(gradeMap)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { if (classes.length > 0 && !fromCache) fetchStats(classes) }, [classes, fromCache]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalStudents = classes.reduce((sum: number, c: any) => sum + (c._count?.students || 0), 0)
 
@@ -83,7 +76,7 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
     )
   }
 
-  if (error) {
+  if (error && error !== 'OFFLINE_NO_CACHE') {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -102,6 +95,11 @@ export default function SectionTeacherClasses({ onNav, onToast, user }: Props) {
       <div style={{ marginBottom: 26 }}>
         <div style={sTitle}>{t('classes.title')}</div>
         <div style={sSub}>{t('classes.subtitle').replace('{count}', String(classes.length)).replace('{students}', String(totalStudents))}</div>
+        {fromCache && cachedAt && (
+          <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <Package size={14} strokeWidth={2} /> {tcommon('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 18 }}>

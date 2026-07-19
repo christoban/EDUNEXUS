@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { AlertTriangle } from 'lucide-react'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { AlertTriangle, WifiOff } from 'lucide-react'
 
 const JOURS = ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI', 'SAMEDI']
 const JOURS_LABELS: Record<string, string> = {
@@ -82,6 +83,7 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
   const [saving, setSaving] = useState(false)
   const [existingTimetables, setExistingTimetables] = useState(0)
   const [isConfigured, setIsConfigured] = useState(false)
+  const { isOnline, addToQueue } = useSyncQueue()
 
   // Charger la config existante
   useEffect(() => {
@@ -119,6 +121,14 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
   const handleSave = async () => {
     if (totalPeriodes < 1) { onToast(t('grilleHoraire.validationMinPeriods'), 'error'); return }
     if (form.joursActifs.length === 0) { onToast(t('grilleHoraire.validationMinDays'), 'error'); return }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'TIMETABLE_GRID_CONFIG', endpoint: '/api/v2/timetable-grid-config', method: 'POST', payload: form })
+      setIsConfigured(true)
+      onToast(t('grilleHoraire.saveQueued'), 'success')
+      return
+    }
+
     setSaving(true)
     try {
       const res = await fetchApi('/api/v2/timetable-grid-config', {
@@ -155,6 +165,13 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
           {t('grilleHoraire.subtitle')}
         </div>
       </div>
+
+      {!isOnline && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>{t('grilleHoraire.offlineHint')}</span>
+        </div>
+      )}
 
       {/* Avertissement EDT existants */}
       {isConfigured && existingTimetables > 0 && (

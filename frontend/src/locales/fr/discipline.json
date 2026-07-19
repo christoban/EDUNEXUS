@@ -133,6 +133,7 @@
     "sanction_saved": "Sanction enregistrée pour {student}",
     "sanction_queued": "Sanction pour {student} mise en file d'attente — synchronisation à la reconnexion",
     "sanction_lifted": "Sanction levée",
+    "sanction_lift_queued": "Levée de sanction mise en file d'attente — synchronisation à la reconnexion",
     "confirm_lift": "Lever la sanction de {student} ?"
   },
   "empty_state": {

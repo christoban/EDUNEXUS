@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, Package } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { useNotificationCenter, type NotificationTypeFilter, type NotificationReadFilter } from '@/hooks/useNotificationCenter'
 
@@ -13,7 +13,7 @@ function chipStyle(bg: string, color: string): React.CSSProperties {
 export default function NotificationCenter() {
   const t = useT('common')
   const {
-    notifications, pagination, loading,
+    notifications, pagination, loading, fromCache, cachedAt,
     typeFilter, setTypeFilter, readFilter, setReadFilter,
     page, setPage,
     markAsRead, markAllAsRead,
@@ -25,6 +25,11 @@ export default function NotificationCenter() {
         <div>
           <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>{t('notificationCenter.title')}</div>
           <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>{t('notificationCenter.subtitle')}</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
         <button onClick={() => markAllAsRead()} style={{ ...chipStyle('var(--bg2)', 'var(--text2)'), border: 'none', cursor: 'pointer' }}>
           {t('notifications.markAllRead')}

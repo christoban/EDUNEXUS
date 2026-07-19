@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { AlertTriangle, Search, X, FolderOpen } from 'lucide-react'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { AlertTriangle, Search, X, FolderOpen, Package } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -31,26 +32,17 @@ const DEPT_COLORS = [
 
 export default function SectionDepartementsStaff({ onToast }: Props) {
   const t = useT('staff')
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
-  const fetchDepartments = useCallback(async () => {
-    try {
-      setLoading(true); setError(null)
-      const res = await fetchApi('/api/v2/departments', { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
-      setDepartments(data.data || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur')
-    } finally {
-      setLoading(false)
-    }
+  const fetchDepartmentsFn = useCallback(async (): Promise<Department[]> => {
+    const res = await fetchApi('/api/v2/departments', { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur')
+    return data.data || []
   }, [])
 
-  useEffect(() => { fetchDepartments() }, [fetchDepartments])
+  const { data: departmentsData, loading, error, fromCache, cachedAt, refetch: fetchDepartments } = useCachedFetch<Department[]>('staff:departments', fetchDepartmentsFn)
+  const departments = departmentsData ?? []
 
   const searchLower = search.toLowerCase()
   const searchMatchCount = search
@@ -61,7 +53,7 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
     return DEPT_COLORS.find(c => c.color === color) ?? { color, name: color }
   }
 
-  if (error) {
+  if (error && error !== 'OFFLINE_NO_CACHE') {
     return (
       <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
         <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -81,6 +73,11 @@ export default function SectionDepartementsStaff({ onToast }: Props) {
         <div>
           <div style={sTitle}>{t('departements.title')}</div>
           <div style={sSub}>{loading ? '…' : t('departements.subtitle', { count: departments.length })}</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {t('dashboard.cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
       </div>
 

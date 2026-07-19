@@ -6,7 +6,8 @@ import {
 } from 'recharts'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { TrendingUp, BarChart3, PieChart as PieChartIcon, Apple } from 'lucide-react'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { TrendingUp, BarChart3, PieChart as PieChartIcon, Apple, Package } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -49,20 +50,12 @@ export default function SectionStatistics({ onToast }: Props) {
 
   const [evoClassId, setEvoClassId] = useState('')
   const [evoSubjectId, setEvoSubjectId] = useState('')
-  const [evolution, setEvolution] = useState<EvolutionPoint[]>([])
-  const [evoLoading, setEvoLoading] = useState(true)
 
   const [level, setLevel] = useState('')
-  const [comparison, setComparison] = useState<ClassComparisonRow[]>([])
-  const [compLoading, setCompLoading] = useState(true)
 
   const [criteria, setCriteria] = useState<'gender' | 'level' | 'paymentStatus'>('gender')
-  const [distribution, setDistribution] = useState<DistributionRow[]>([])
-  const [distLoading, setDistLoading] = useState(true)
 
   const [teacherId, setTeacherId] = useState('')
-  const [teacherPerf, setTeacherPerf] = useState<TeacherPerf | null>(null)
-  const [teacherLoading, setTeacherLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -76,64 +69,50 @@ export default function SectionStatistics({ onToast }: Props) {
     }).catch(() => {})
   }, [])
 
-  const fetchEvolution = useCallback(async () => {
-    try {
-      setEvoLoading(true)
-      const params = new URLSearchParams()
-      if (evoClassId) params.set('classId', evoClassId)
-      if (evoSubjectId) params.set('subjectId', evoSubjectId)
-      const res = await fetchApi(`/api/v2/statistics/grades-evolution?${params}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setEvolution(data.data || [])
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
-    } finally { setEvoLoading(false) }
-  }, [evoClassId, evoSubjectId, onToast])
+  const fetchEvolutionFn = useCallback(async (): Promise<EvolutionPoint[]> => {
+    const params = new URLSearchParams()
+    if (evoClassId) params.set('classId', evoClassId)
+    if (evoSubjectId) params.set('subjectId', evoSubjectId)
+    const res = await fetchApi(`/api/v2/statistics/grades-evolution?${params}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.data || []
+  }, [evoClassId, evoSubjectId])
+  const { data: evolutionData, loading: evoLoading, error: evoError, fromCache: evoFromCache, cachedAt: evoCachedAt } = useCachedFetch<EvolutionPoint[]>(`admin:stats-evolution:${evoClassId}:${evoSubjectId}`, fetchEvolutionFn)
+  const evolution = evolutionData ?? []
 
-  const fetchComparison = useCallback(async () => {
-    try {
-      setCompLoading(true)
-      const params = new URLSearchParams()
-      if (level) params.set('level', level)
-      const res = await fetchApi(`/api/v2/statistics/classes-comparison?${params}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setComparison(data.data || [])
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
-    } finally { setCompLoading(false) }
-  }, [level, onToast])
+  const fetchComparisonFn = useCallback(async (): Promise<ClassComparisonRow[]> => {
+    const params = new URLSearchParams()
+    if (level) params.set('level', level)
+    const res = await fetchApi(`/api/v2/statistics/classes-comparison?${params}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.data || []
+  }, [level])
+  const { data: comparisonData, loading: compLoading, fromCache: compFromCache, cachedAt: compCachedAt } = useCachedFetch<ClassComparisonRow[]>(`admin:stats-comparison:${level}`, fetchComparisonFn)
+  const comparison = comparisonData ?? []
 
-  const fetchDistribution = useCallback(async () => {
-    try {
-      setDistLoading(true)
-      const res = await fetchApi(`/api/v2/statistics/students-distribution?criteria=${criteria}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setDistribution(data.data || [])
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
-    } finally { setDistLoading(false) }
-  }, [criteria, onToast])
+  const fetchDistributionFn = useCallback(async (): Promise<DistributionRow[]> => {
+    const res = await fetchApi(`/api/v2/statistics/students-distribution?criteria=${criteria}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.data || []
+  }, [criteria])
+  const { data: distributionData, loading: distLoading, fromCache: distFromCache, cachedAt: distCachedAt } = useCachedFetch<DistributionRow[]>(`admin:stats-distribution:${criteria}`, fetchDistributionFn)
+  const distribution = distributionData ?? []
 
-  const fetchTeacherPerf = useCallback(async (id: string) => {
-    if (!id) { setTeacherPerf(null); return }
-    try {
-      setTeacherLoading(true)
-      const res = await fetchApi(`/api/v2/statistics/teacher-performance/${id}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setTeacherPerf(data.data)
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : 'Erreur de chargement', 'error')
-    } finally { setTeacherLoading(false) }
-  }, [onToast])
+  const fetchTeacherPerfFn = useCallback(async (): Promise<TeacherPerf | null> => {
+    if (!teacherId) return null
+    const res = await fetchApi(`/api/v2/statistics/teacher-performance/${teacherId}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.data
+  }, [teacherId])
+  const { data: teacherPerf, loading: teacherLoading, fromCache: teacherFromCache, cachedAt: teacherCachedAt } = useCachedFetch<TeacherPerf | null>(`admin:stats-teacher:${teacherId}`, fetchTeacherPerfFn)
 
-  useEffect(() => { fetchEvolution() }, [fetchEvolution])
-  useEffect(() => { fetchComparison() }, [fetchComparison])
-  useEffect(() => { fetchDistribution() }, [fetchDistribution])
-  useEffect(() => { fetchTeacherPerf(teacherId) }, [teacherId, fetchTeacherPerf])
+  useEffect(() => {
+    if (evoError && evoError !== 'OFFLINE_NO_CACHE') onToast(evoError, 'error')
+  }, [evoError, onToast])
 
   const levels = Array.from(new Set(classes.map(c => c.level).filter(Boolean))) as string[]
 
@@ -153,7 +132,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Évolution des moyennes */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes</span>
+            <span style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes <CacheBadge fromCache={evoFromCache} cachedAt={evoCachedAt} t={t} /></span>
             <div style={{ display: 'flex', gap: 8 }}>
               <select style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
                 <option value="">Toutes les classes</option>
@@ -187,7 +166,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Comparaison entre classes */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> Comparaison entre classes</span>
+            <span style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> Comparaison entre classes <CacheBadge fromCache={compFromCache} cachedAt={compCachedAt} t={t} /></span>
             <select style={select} value={level} onChange={e => setLevel(e.target.value)}>
               <option value="">Tous les niveaux</option>
               {levels.map(l => <option key={l} value={l}>{l}</option>)}
@@ -215,7 +194,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Répartition des effectifs */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> Répartition des effectifs</span>
+            <span style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> Répartition des effectifs <CacheBadge fromCache={distFromCache} cachedAt={distCachedAt} t={t} /></span>
             <select style={select} value={criteria} onChange={e => setCriteria(e.target.value as typeof criteria)}>
               <option value="gender">Par sexe</option>
               <option value="level">Par niveau</option>
@@ -244,7 +223,7 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Performance enseignant */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={cardTitle}><Apple size={17} strokeWidth={2} /> Performance enseignant</span>
+            <span style={cardTitle}><Apple size={17} strokeWidth={2} /> Performance enseignant <CacheBadge fromCache={teacherFromCache} cachedAt={teacherCachedAt} t={t} /></span>
             <select style={select} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
               <option value="">Sélectionner un enseignant</option>
               {teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
@@ -294,6 +273,15 @@ function EmptyState({ text }: { text: string }) {
     <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 14, color: 'var(--text3)', textAlign: 'center', padding: '0 20px' }}>
       {text}
     </div>
+  )
+}
+
+function CacheBadge({ fromCache, cachedAt, t }: { fromCache: boolean; cachedAt: number | null; t: (key: string, params?: Record<string, string | number>) => string }) {
+  if (!fromCache || !cachedAt) return null
+  return (
+    <span style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+      <Package size={12} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+    </span>
   )
 }
 

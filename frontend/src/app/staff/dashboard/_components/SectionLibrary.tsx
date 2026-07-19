@@ -149,18 +149,29 @@ export default function SectionLibrary({ onToast }: Props) {
 
   const submitEditBook = async () => {
     if (!editBookId || !editBookForm.title.trim()) { onToast(t('library.titleRequired'), 'error'); return }
+
+    const payload = {
+      title: editBookForm.title.trim(),
+      author: editBookForm.author || null,
+      isbn: editBookForm.isbn || null,
+      category: editBookForm.category || null,
+      quantity: Math.max(1, parseInt(editBookForm.quantity) || 1),
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'LIBRARY_BOOK_UPDATE', endpoint: `/api/v2/library/books/${editBookId}`, method: 'PATCH', payload })
+      onToast(t('library.editQueued', { title: editBookForm.title }), 'success')
+      setEditBookOpen(false)
+      setEditBookId(null)
+      return
+    }
+
     setSavingEditBook(true)
     try {
       const res = await fetchApi(`/api/v2/library/books/${editBookId}`, {
         method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: editBookForm.title.trim(),
-          author: editBookForm.author || null,
-          isbn: editBookForm.isbn || null,
-          category: editBookForm.category || null,
-          quantity: Math.max(1, parseInt(editBookForm.quantity) || 1),
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Erreur')

@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { CheckCircle2, Users, X, AlarmClock, Loader2, Search, AlertTriangle } from 'lucide-react'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { CheckCircle2, Users, X, AlarmClock, Loader2, Search, AlertTriangle, Package } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -32,12 +33,9 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
   const t = useT('staff')
   const [stats, setStats]           = useState<AttendanceStats | null>(null)
   const [classes, setClasses]       = useState<ClassItem[]>([])
-  const [records, setRecords]       = useState<AttendanceRecord[]>([])
   const [classId, setClassId]       = useState('')
   const [date, setDate]             = useState(new Date().toISOString().slice(0, 10))
   const [loading, setLoading]       = useState(true)
-  const [loadingRecords, setLoadingRecords] = useState(false)
-  const [error, setError]           = useState<string | null>(null)
   const [justifyingId, setJustifyingId] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
@@ -60,24 +58,18 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
     Promise.all([fetchStats(), fetchClasses()]).finally(() => setLoading(false))
   }, [fetchStats, fetchClasses])
 
-  const fetchRecords = useCallback(async () => {
-    if (!classId && !date) return
-    setLoadingRecords(true)
-    setError(null)
-    try {
-      const params = new URLSearchParams({ limit: '50' })
-      if (classId) params.set('classId', classId)
-      if (date) params.set('date', date)
-      const res = await fetchApi(`/api/v2/attendance?${params}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setRecords(data.records || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
-    } finally {
-      setLoadingRecords(false)
-    }
+  const fetchRecordsFn = useCallback(async (): Promise<AttendanceRecord[]> => {
+    const params = new URLSearchParams({ limit: '50' })
+    if (classId) params.set('classId', classId)
+    if (date) params.set('date', date)
+    const res = await fetchApi(`/api/v2/attendance?${params}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.records || []
   }, [classId, date])
+
+  const { data: recordsData, loading: loadingRecords, error, fromCache, cachedAt, refetch: fetchRecords } = useCachedFetch<AttendanceRecord[]>(`staff:attendance:${classId}:${date}`, fetchRecordsFn)
+  const records = recordsData ?? []
 
   const justify = async (recordId: string) => {
     setJustifyingId(recordId)
@@ -110,6 +102,11 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
         <div>
           <div style={sTitle}>{t('attendance.title')}</div>
           <div style={sSub}>{t('attendance.subtitle')}</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {t('dashboard.cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
         <button style={btnSec} onClick={() => { fetchStats(); fetchRecords() }}>{t('attendance.refresh')}</button>
       </div>
@@ -165,7 +162,11 @@ export default function SectionAttendanceStaff({ onToast }: Props) {
               </div>
             )}
 
-            {!loadingRecords && error && (
+            {!loadingRecords && error === 'OFFLINE_NO_CACHE' && (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>{t('attendance.noSelection')}</div>
+            )}
+
+            {!loadingRecords && error && error !== 'OFFLINE_NO_CACHE' && (
               <div style={{ padding: '16px 20px', color: 'var(--red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={16} strokeWidth={2} /> {error}</div>
             )}
 

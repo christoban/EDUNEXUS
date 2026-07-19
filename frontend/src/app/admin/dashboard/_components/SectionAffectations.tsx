@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { CheckCircle2, AlertTriangle, ClipboardList, BookOpen, Loader2, Check, GraduationCap } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, ClipboardList, BookOpen, Loader2, Check, GraduationCap, WifiOff } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
 
 interface ClassItem { id: string; name: string; level: string | null }
 interface AssignmentRow {
@@ -29,6 +30,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [loadingRows, setLoadingRows] = useState(false)
   const [saving, setSaving] = useState<string | null>(null) // subjectId en cours de sauvegarde
+  const { isOnline, addToQueue } = useSyncQueue()
 
   useEffect(() => {
     fetchApi('/api/v2/classes')
@@ -57,35 +59,48 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
     loadAssignments(cid)
   }
 
+  const applyAssignmentLocally = (subjectId: string, teacherId: string | null) => {
+    setRows(prev => prev.map(r =>
+      r.subjectId === subjectId
+        ? {
+            ...r,
+            currentTeacherId: teacherId,
+            currentTeacherName: teacherId
+              ? (r.eligibleTeachers.find(t => t.id === teacherId)?.name ?? null)
+              : null,
+          }
+        : r,
+    ))
+    setMeta(prev => {
+      if (!prev) return prev
+      const wasAssigned = rows.find(r => r.subjectId === subjectId)?.currentTeacherId !== null
+      const nowAssigned = teacherId !== null
+      if (wasAssigned === nowAssigned) return prev
+      return { ...prev, assigned: prev.assigned + (nowAssigned ? 1 : -1) }
+    })
+  }
+
   const handleAssign = async (subjectId: string, teacherId: string | null) => {
+    const payload = { classId, subjectId, teacherId }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'TEACHER_ASSIGNMENT', endpoint: '/api/v2/teaching-assignments', method: 'POST', payload })
+      applyAssignmentLocally(subjectId, teacherId)
+      onToast('Affectation mise en file d\'attente — synchronisation à la reconnexion', 'success')
+      return
+    }
+
     setSaving(subjectId)
     try {
       const res = await fetchApi('/api/v2/teaching-assignments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classId, subjectId, teacherId }),
+        body: JSON.stringify(payload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
 
-      setRows(prev => prev.map(r =>
-        r.subjectId === subjectId
-          ? {
-              ...r,
-              currentTeacherId: teacherId,
-              currentTeacherName: teacherId
-                ? (r.eligibleTeachers.find(t => t.id === teacherId)?.name ?? null)
-                : null,
-            }
-          : r,
-      ))
-      setMeta(prev => {
-        if (!prev) return prev
-        const wasAssigned = rows.find(r => r.subjectId === subjectId)?.currentTeacherId !== null
-        const nowAssigned = teacherId !== null
-        if (wasAssigned === nowAssigned) return prev
-        return { ...prev, assigned: prev.assigned + (nowAssigned ? 1 : -1) }
-      })
+      applyAssignmentLocally(subjectId, teacherId)
       onToast(teacherId ? 'Affectation enregistrée' : 'Affectation supprimée', 'success')
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur', 'error')
@@ -107,6 +122,13 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
           Associez chaque matière du programme à un enseignant pour chaque classe.
         </div>
       </div>
+
+      {!isOnline && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>Mode hors-ligne — les nouvelles affectations seront synchronisées à la reconnexion</span>
+        </div>
+      )}
 
       {/* Sélecteur de classe */}
       <div style={{ ...sCard, marginBottom: 24, maxWidth: 480 }}>

@@ -1,9 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Inbox, AlertTriangle, CheckCircle2, BarChart3, Clock, TrendingUp, Circle, Target } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Inbox, AlertTriangle, CheckCircle2, BarChart3, Clock, TrendingUp, Circle, Target, Package } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
 
 interface Props {
   user: UserInfo
@@ -38,63 +39,57 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
   const t = useT('teacher')
   const tcommon = useT('common')
   const [tab, setTab] = useState<Tab>('performances')
-  const [perf, setPerf] = useState<PerfRow[]>([])
-  const [horaires, setHoraires] = useState<HoraireRow[]>([])
-  const [alertes, setAlertes] = useState<ProgAlerte[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
+  const fetchPerfFn = useCallback(async (): Promise<PerfRow[]> => {
+    const res = await fetchApi(`/api/v2/departments/${departementId}/performance`, { credentials: 'include' })
+    const d = await res.json()
+    return Array.isArray(d.data) ? d.data : []
+  }, [departementId])
+  const { data: perfData, loading: perfLoading, error: perfError, fromCache: perfFromCache, cachedAt: perfCachedAt } =
+    useCachedFetch<PerfRow[]>(tab === 'performances' ? `teacher:dept-perf:${departementId}` : '', fetchPerfFn)
+  const perf = perfData ?? []
 
-    if (tab === 'performances') {
-      fetchApi(`/api/v2/departments/${departementId}/performance`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => setPerf(Array.isArray(d.data) ? d.data : []))
-        .catch(() => setError(t('department.error_performance')))
-        .finally(() => setLoading(false))
-    } else if (tab === 'progression') {
-      fetchApi(`/api/v2/pedagogie/alertes-retard`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => {
-          if (d.success) setAlertes(d.data ?? [])
-          else setError(t('department.error_progression'))
-        })
-        .catch(() => setError(t('department.error_network')))
-        .finally(() => setLoading(false))
-    } else {
-      // Volume horaire: fetch timetables and compute per teacher
-      fetchApi(`/api/v2/timetables?departmentId=${departementId}`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => {
-          if (!d.success) { setHoraires([]); return }
-          const map = new Map<string, { teacherName: string; subjectName: string; totalHours: number }>()
-          for (const timetable of d.data ?? []) {
-            for (const slot of timetable.slots ?? []) {
-              const key = `${slot.teacher?.id}__${slot.subject?.id}`
-              const dur = slot.durationMinutes ?? 60
-              const existing = map.get(key)
-              if (existing) {
-                existing.totalHours += dur / 60
-              } else {
-                map.set(key, {
-                  teacherName: slot.teacher ? `${slot.teacher.user?.firstName ?? ''} ${slot.teacher.user?.lastName ?? ''}`.trim() : '—',
-                  subjectName: slot.subject?.name ?? '—',
-                  totalHours: dur / 60,
-                })
-              }
-            }
-          }
-          setHoraires(
-            [...map.values()].map(r => ({ ...r, isOverLimit: r.totalHours > 14 }))
-              .sort((a, b) => b.totalHours - a.totalHours)
-          )
-        })
-        .catch(() => setError(t('department.error_hours')))
-        .finally(() => setLoading(false))
+  const fetchHorairesFn = useCallback(async (): Promise<HoraireRow[]> => {
+    const res = await fetchApi(`/api/v2/timetables?departmentId=${departementId}`, { credentials: 'include' })
+    const d = await res.json()
+    if (!d.success) return []
+    const map = new Map<string, { teacherName: string; subjectName: string; totalHours: number }>()
+    for (const timetable of d.data ?? []) {
+      for (const slot of timetable.slots ?? []) {
+        const key = `${slot.teacher?.id}__${slot.subject?.id}`
+        const dur = slot.durationMinutes ?? 60
+        const existing = map.get(key)
+        if (existing) {
+          existing.totalHours += dur / 60
+        } else {
+          map.set(key, {
+            teacherName: slot.teacher ? `${slot.teacher.user?.firstName ?? ''} ${slot.teacher.user?.lastName ?? ''}`.trim() : '—',
+            subjectName: slot.subject?.name ?? '—',
+            totalHours: dur / 60,
+          })
+        }
+      }
     }
-  }, [tab, departementId])
+    return [...map.values()].map(r => ({ ...r, isOverLimit: r.totalHours > 14 })).sort((a, b) => b.totalHours - a.totalHours)
+  }, [departementId])
+  const { data: horairesData, loading: horairesLoading, fromCache: horFromCache, cachedAt: horCachedAt } =
+    useCachedFetch<HoraireRow[]>(tab === 'horaires' ? `teacher:dept-hours:${departementId}` : '', fetchHorairesFn)
+  const horaires = horairesData ?? []
+
+  const fetchAlertesFn = useCallback(async (): Promise<ProgAlerte[]> => {
+    const res = await fetchApi(`/api/v2/pedagogie/alertes-retard`, { credentials: 'include' })
+    const d = await res.json()
+    if (!d.success) throw new Error(t('department.error_progression'))
+    return d.data ?? []
+  }, [t])
+  const { data: alertesData, loading: alertesLoading, fromCache: alFromCache, cachedAt: alCachedAt } =
+    useCachedFetch<ProgAlerte[]>(tab === 'progression' ? 'teacher:dept-progression' : '', fetchAlertesFn)
+  const alertes = alertesData ?? []
+
+  const loading = tab === 'performances' ? perfLoading : tab === 'horaires' ? horairesLoading : alertesLoading
+  const error = tab === 'performances' && perfError && perfError !== 'OFFLINE_NO_CACHE' ? t('department.error_performance') : null
+  const fromCache = tab === 'performances' ? perfFromCache : tab === 'horaires' ? horFromCache : alFromCache
+  const cachedAt = tab === 'performances' ? perfCachedAt : tab === 'horaires' ? horCachedAt : alCachedAt
 
   const tabBtn = (tabId: Tab, label: string, Icon: typeof BarChart3) => (
     <button onClick={() => setTab(tabId)}
@@ -115,6 +110,11 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
         <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
           {t('department.subtitle')}
         </div>
+        {fromCache && cachedAt && (
+          <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <Package size={14} strokeWidth={2} /> {tcommon('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

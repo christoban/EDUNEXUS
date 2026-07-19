@@ -1,4 +1,5 @@
 {
+  "cacheBadge": "Données du {date} — hors-ligne",
   "theme": {
     "toLight": "Passer en mode clair",
     "toDark": "Passer en mode sombre"

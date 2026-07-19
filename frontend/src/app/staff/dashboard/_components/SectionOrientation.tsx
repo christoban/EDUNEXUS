@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { ClipboardList, Circle, Calendar, GraduationCap, Compass, FlaskConical, BarChart3, Loader2, Check, ArrowRight } from 'lucide-react'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { ClipboardList, Circle, Calendar, GraduationCap, Compass, FlaskConical, BarChart3, Loader2, Check, ArrowRight, WifiOff } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -151,6 +152,7 @@ function fmt(dateStr: string) {
 
 export default function SectionOrientation({ onToast }: Props) {
   const t = useT('staff')
+  const { isOnline, addToQueue } = useSyncQueue()
   type View = 'dashboard' | 'fiche'
   const [view, setView]                     = useState<View>('dashboard')
   const [stats, setStats]                   = useState<OrientationStats | null>(null)
@@ -313,20 +315,31 @@ export default function SectionOrientation({ onToast }: Props) {
     if (!selectedYear) {
       setNewFicheForm(f => ({ ...f, error: t('orientation.noYearError') })); return
     }
+    const ficheStudent = newFicheForm.selectedStudent
+    const payload = {
+      studentId: ficheStudent.id,
+      academicYearId: selectedYear,
+      mainConcern: newFicheForm.mainConcern || undefined,
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'ORIENTATION_RECORD', endpoint: '/api/v2/orientation/fiches', method: 'POST', payload })
+      onToast(`${t('orientation.ficheCreated')} ${ficheStudent.firstName} ${ficheStudent.lastName} (${t('offlineQueued')})`, 'success')
+      setNewFicheOpen(false)
+      setNewFicheForm({ studentSearch: '', studentResults: [], selectedStudent: null, mainConcern: '', loading: false, error: '' })
+      return
+    }
+
     setNewFicheForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi('/api/v2/orientation/fiches', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId: newFicheForm.selectedStudent.id,
-          academicYearId: selectedYear,
-          mainConcern: newFicheForm.mainConcern || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
-      onToast(`${t('orientation.ficheCreated')} ${newFicheForm.selectedStudent.firstName} ${newFicheForm.selectedStudent.lastName}`, 'success')
+      onToast(`${t('orientation.ficheCreated')} ${ficheStudent.firstName} ${ficheStudent.lastName}`, 'success')
       setNewFicheOpen(false)
       setNewFicheForm({ studentSearch: '', studentResults: [], selectedStudent: null, mainConcern: '', loading: false, error: '' })
       fetchFiches(1); fetchStats()
@@ -341,21 +354,32 @@ export default function SectionOrientation({ onToast }: Props) {
       setEntretienForm(f => ({ ...f, error: t('orientation.dateRequired') })); return
     }
     if (!selectedFiche) return
+
+    const entretienPayload = {
+      date: entretienForm.date,
+      type: entretienForm.type,
+      motif: entretienForm.motif,
+      notes: entretienForm.notes || undefined,
+      recommendations: entretienForm.recommendations || undefined,
+      nextActions: entretienForm.nextActions || undefined,
+      parentNotified: entretienForm.parentNotified,
+      followUpDate: entretienForm.followUpDate || undefined,
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'ORIENTATION_RECORD', endpoint: `/api/v2/orientation/fiches/${selectedFiche.id}/entretiens`, method: 'POST', payload: entretienPayload })
+      onToast(`${t('orientation.interviewScheduled')} (${t('offlineQueued')})`, 'success')
+      setEntretienOpen(false)
+      setEntretienForm({ date: '', type: 'INDIVIDUEL', motif: 'ORIENTATION_GENERALE', notes: '', recommendations: '', nextActions: '', parentNotified: false, followUpDate: '', loading: false, error: '' })
+      return
+    }
+
     setEntretienForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/entretiens`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: entretienForm.date,
-          type: entretienForm.type,
-          motif: entretienForm.motif,
-          notes: entretienForm.notes || undefined,
-          recommendations: entretienForm.recommendations || undefined,
-          nextActions: entretienForm.nextActions || undefined,
-          parentNotified: entretienForm.parentNotified,
-          followUpDate: entretienForm.followUpDate || undefined,
-        }),
+        body: JSON.stringify(entretienPayload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
@@ -388,18 +412,29 @@ export default function SectionOrientation({ onToast }: Props) {
       setTestForm(f => ({ ...f, error: t('orientation.dateAndResultsRequired') })); return
     }
     if (!selectedFiche) return
+
+    const testPayload = {
+      type: testForm.type,
+      datePassage: testForm.datePassage,
+      resultats: testForm.resultats,
+      interpretation: testForm.interpretation || undefined,
+      scoreGlobal: testForm.scoreGlobal ? parseInt(testForm.scoreGlobal) : undefined,
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'ORIENTATION_RECORD', endpoint: `/api/v2/orientation/fiches/${selectedFiche.id}/tests`, method: 'POST', payload: testPayload })
+      onToast(`${t('orientation.testAdded')} (${t('offlineQueued')})`, 'success')
+      setTestOpen(false)
+      setTestForm({ type: 'COGNITIF', datePassage: '', resultats: '', interpretation: '', scoreGlobal: '', loading: false, error: '' })
+      return
+    }
+
     setTestForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/tests`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: testForm.type,
-          datePassage: testForm.datePassage,
-          resultats: testForm.resultats,
-          interpretation: testForm.interpretation || undefined,
-          scoreGlobal: testForm.scoreGlobal ? parseInt(testForm.scoreGlobal) : undefined,
-        }),
+        body: JSON.stringify(testPayload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
@@ -415,18 +450,29 @@ export default function SectionOrientation({ onToast }: Props) {
   // ── Ajouter suivi ─────────────────────────────────────────────────────────────
   const submitSuivi = async () => {
     if (!selectedFiche) return
+
+    const suiviPayload = {
+      riskLevel: suiviForm.riskLevel,
+      mainConcern: suiviForm.mainConcern,
+      interventions: suiviForm.interventions || undefined,
+      prochainRdv: suiviForm.prochainRdv || undefined,
+      notes: suiviForm.notes || undefined,
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'ORIENTATION_RECORD', endpoint: `/api/v2/orientation/fiches/${selectedFiche.id}/suivis`, method: 'POST', payload: suiviPayload })
+      onToast(`${t('orientation.followUpSaved')} (${t('offlineQueued')})`, 'success')
+      setSuiviOpen(false)
+      setSuiviForm({ riskLevel: 'MOYEN', mainConcern: 'SCOLAIRE', interventions: '', prochainRdv: '', notes: '', loading: false, error: '' })
+      return
+    }
+
     setSuiviForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/suivis`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          riskLevel: suiviForm.riskLevel,
-          mainConcern: suiviForm.mainConcern,
-          interventions: suiviForm.interventions || undefined,
-          prochainRdv: suiviForm.prochainRdv || undefined,
-          notes: suiviForm.notes || undefined,
-        }),
+        body: JSON.stringify(suiviPayload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
@@ -445,16 +491,27 @@ export default function SectionOrientation({ onToast }: Props) {
       setRecoForm(f => ({ ...f, error: t('orientation.allFieldsRequired') })); return
     }
     if (!selectedFiche) return
+
+    const recoPayload = {
+      serieActuelle: recoForm.serieActuelle,
+      serieRecommandee: recoForm.serieRecommandee,
+      justification: recoForm.justification,
+    }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'ORIENTATION_RECORD', endpoint: `/api/v2/orientation/fiches/${selectedFiche.id}/recommandation-serie`, method: 'POST', payload: recoPayload })
+      onToast(`${t('orientation.recoSaved')} (${t('offlineQueued')})`, 'success')
+      setRecoOpen(false)
+      setRecoForm({ serieActuelle: '', serieRecommandee: '', justification: '', loading: false, error: '' })
+      return
+    }
+
     setRecoForm(f => ({ ...f, loading: true, error: '' }))
     try {
       const res = await fetchApi(`/api/v2/orientation/fiches/${selectedFiche.id}/recommandation-serie`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serieActuelle: recoForm.serieActuelle,
-          serieRecommandee: recoForm.serieRecommandee,
-          justification: recoForm.justification,
-        }),
+        body: JSON.stringify(recoPayload),
       })
       const d = await res.json()
       if (!res.ok) throw new Error(d.message || 'Erreur')
@@ -568,6 +625,13 @@ export default function SectionOrientation({ onToast }: Props) {
           </div>
           <button style={btnPrim} onClick={() => setNewFicheOpen(true)}>{t('orientation.newFiche')}</button>
         </div>
+
+        {!isOnline && (
+          <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>Mode hors-ligne — les nouvelles fiches/entretiens/tests/suivis seront synchronisés à la reconnexion</span>
+          </div>
+        )}
 
         {/* Filtre année + risque */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 22, flexWrap: 'wrap' }}>
@@ -719,6 +783,13 @@ export default function SectionOrientation({ onToast }: Props) {
             </div>
           </div>
         </div>
+
+        {!isOnline && (
+          <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>Mode hors-ligne — les ajouts seront synchronisés à la reconnexion</span>
+          </div>
+        )}
 
         {/* Onglets */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 22, borderBottom: '2px solid var(--border)', paddingBottom: 0 }}>

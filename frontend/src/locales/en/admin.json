@@ -1203,6 +1203,7 @@
       "SAMEDI": "Saturday"
     }
   },
+  "cacheBadge": "Data from {date} — offline",
   "grille_horaire": {
     "title": "Schedule Grid",
     "subtitle": "Define the structure of your school days. This grid will be used for all timetables.",
@@ -1243,11 +1244,13 @@
       "VENDREDI": "Fri",
       "SAMEDI": "Sat"
     },
+    "offlineHint": "Offline mode — configuration will sync when back online",
     "toast": {
       "minPeriod": "Configure at least 1 period",
       "minDay": "Select at least one day",
       "err": "Error",
-      "saved": "Configuration saved"
+      "saved": "Configuration saved",
+      "queued": "Configuration queued — will sync when back online"
     }
   },
   "bulletin": {

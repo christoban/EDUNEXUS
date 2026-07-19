@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { Circle, TrendingUp, BookOpen, CheckCircle2, Inbox, Check } from 'lucide-react'
+import { useSyncQueue } from '@/hooks/useSyncQueue'
+import { Circle, TrendingUp, BookOpen, CheckCircle2, Inbox, Check, WifiOff } from 'lucide-react'
 
 interface OnToast { (msg: string, type?: 'success' | 'error' | 'info' | 'warning'): void }
 
@@ -37,6 +38,7 @@ type Tab = 'programmes' | 'progression' | 'alertes' | 'rapports'
 export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
   const t = useT('admin')
   const [tab, setTab] = useState<Tab>('alertes')
+  const { isOnline, addToQueue } = useSyncQueue()
 
   // Data
   const [programmes, setProgrammes] = useState<Programme[]>([])
@@ -101,12 +103,22 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
 
   const handleCreateProgramme = async () => {
     if (!formTitre.trim() || !formSubjectId) { onToast('Titre et matière requis', 'error'); return }
+
+    const payload = { titre: formTitre.trim(), subjectId: formSubjectId, classId: formClassId || undefined, level: formLevel || undefined }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'PEDAGOGY_PROGRAM', endpoint: '/api/v2/pedagogie/programmes', method: 'POST', payload })
+      onToast('Programme mis en file d\'attente — synchronisation à la reconnexion', 'success')
+      setFormTitre(''); setFormSubjectId(''); setFormClassId(''); setFormLevel('')
+      return
+    }
+
     setSaving(true)
     try {
       const r = await fetchApi('/api/v2/pedagogie/programmes', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ titre: formTitre.trim(), subjectId: formSubjectId, classId: formClassId || undefined, level: formLevel || undefined }),
+        body: JSON.stringify(payload),
       })
       const d = await r.json()
       if (d.success) {
@@ -128,10 +140,20 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
 
   const handleAddChapitre = async (programmeId: string) => {
     if (!chapTitre.trim()) { onToast('Titre du chapitre requis', 'error'); return }
+
+    const payload = { titre: chapTitre.trim(), volumeHeuresPrevu: chapHeures, sequenceCibleFin: chapSeq ? parseInt(chapSeq) : undefined }
+
+    if (!isOnline) {
+      await addToQueue({ type: 'PEDAGOGY_PROGRAM', endpoint: `/api/v2/pedagogie/programmes/${programmeId}/chapitres`, method: 'POST', payload })
+      onToast('Chapitre mis en file d\'attente — synchronisation à la reconnexion', 'success')
+      setChapTitre(''); setChapHeures(2); setChapSeq(''); setAddingChapFor(null)
+      return
+    }
+
     const r = await fetchApi(`/api/v2/pedagogie/programmes/${programmeId}/chapitres`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titre: chapTitre.trim(), volumeHeuresPrevu: chapHeures, sequenceCibleFin: chapSeq ? parseInt(chapSeq) : undefined }),
+      body: JSON.stringify(payload),
     })
     const d = await r.json()
     if (d.success) {
@@ -188,6 +210,13 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
           Programmes, cahiers de texte et suivi des progressions
         </div>
       </div>
+
+      {!isOnline && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '12px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}><WifiOff size={18} strokeWidth={2} /></span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--amber)' }}>Mode hors-ligne — les nouveaux programmes/chapitres seront synchronisés à la reconnexion</span>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
         {tabBtn('alertes', <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Circle size={10} fill="var(--red)" stroke="none" /> Alertes retard</span>)}

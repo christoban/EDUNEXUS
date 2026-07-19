@@ -1,9 +1,10 @@
 ﻿'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { Hand, Trophy, TrendingUp, CheckCircle2, AlertTriangle, Siren, FileText, BookOpen, type LucideIcon } from 'lucide-react'
+import { useCallback } from 'react'
+import { Hand, Trophy, TrendingUp, CheckCircle2, AlertTriangle, Siren, FileText, BookOpen, Package, type LucideIcon } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
 import Lv2ChoiceBanner from './Lv2ChoiceBanner'
 
 interface Props {
@@ -47,97 +48,94 @@ const HEALTH_ICON: Record<string, LucideIcon> = {
   'dashboard.health_low': Siren,
 }
 
+interface StudentDashData {
+  avgGrade: number | null
+  rank: { pos: number; total: number } | null
+  attendanceRate: number
+  subjectCount: number
+  todaySlots: any[]
+}
+
 export default function SectionStudentDashboard({ onNav, onToast, user }: Props) {
   const t = useT('student')
   const tcommon = useT('common')
-  const [avgGrade, setAvgGrade] = useState<number | null>(null)
-  const [rank, setRank] = useState<{ pos: number; total: number } | null>(null)
-  const [attendanceRate, setAttendanceRate] = useState<number>(0)
-  const [subjectCount, setSubjectCount] = useState<number>(0)
-  const [todaySlots, setTodaySlots] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const fetchData = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
-    setError(null)
+  const fetchDataFn = useCallback(async (): Promise<StudentDashData> => {
+    const result: StudentDashData = { avgGrade: null, rank: null, attendanceRate: 0, subjectCount: 0, todaySlots: [] }
+    if (!user) return result
 
     const classId = user.studentProfile?.class?.id
     const userId = user.id
 
-    try {
-      const [statsRes, ayRes, attRes] = await Promise.all([
-        fetchApi('/api/v2/dashboard/stats', { credentials: 'include' }).then(r => r.json()),
-        fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
-        fetchApi('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
+    const [statsRes, ayRes, attRes] = await Promise.all([
+      fetchApi('/api/v2/dashboard/stats', { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()),
+      fetchApi('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
+    ])
+
+    if (statsRes.stats?.avgGrade && statsRes.stats.avgGrade !== 'N/A') {
+      result.avgGrade = Number(statsRes.stats.avgGrade)
+    }
+    if (attRes.stats?.attendanceRate) {
+      result.attendanceRate = Number(attRes.stats.attendanceRate.replace('%', ''))
+    }
+
+    let sequenceId = ''
+    if (ayRes.success) {
+      const curYear = ayRes.data.find((y: any) => y.isCurrent)
+      if (curYear) {
+        const curPeriod = curYear.periods?.find((p: any) => p.isCurrent)
+        if (curPeriod) {
+          const curSeq = curPeriod.sequences?.find((s: any) => s.isCurrent)
+          if (curSeq) sequenceId = curSeq.id
+        }
+      }
+    }
+
+    if (classId && userId && sequenceId) {
+      const [avgRes, ttRes, gradesRes] = await Promise.all([
+        fetchApi(`/api/v2/grades/average/${userId}?classId=${classId}&sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
+        fetchApi(`/api/v2/timetables?classId=${classId}`, { credentials: 'include' }).then(r => r.json()),
+        fetchApi(`/api/v2/grades?sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
       ])
 
-      if (statsRes.stats?.avgGrade && statsRes.stats.avgGrade !== 'N/A') {
-        setAvgGrade(Number(statsRes.stats.avgGrade))
-      }
-      if (attRes.stats?.attendanceRate) {
-        setAttendanceRate(Number(attRes.stats.attendanceRate.replace('%', '')))
-      }
+      if (avgRes.average !== undefined) result.avgGrade = avgRes.average
+      if (avgRes.rank !== undefined) result.rank = { pos: avgRes.rank, total: avgRes.totalStudents || 0 }
 
-      let sequenceId = ''
-      let currentPeriodName = ''
-      if (ayRes.success) {
-        const curYear = ayRes.data.find((y: any) => y.isCurrent)
-        if (curYear) {
-          const curPeriod = curYear.periods?.find((p: any) => p.isCurrent)
-          if (curPeriod) {
-            currentPeriodName = curPeriod.name
-            const curSeq = curPeriod.sequences?.find((s: any) => s.isCurrent)
-            if (curSeq) sequenceId = curSeq.id
-          }
-        }
+      if (ttRes.success) {
+        const todayIdx = new Date().getDay()
+        result.todaySlots = ttRes.data.flatMap((tt: any) =>
+          (tt.slots || []).filter((s: any) => s.dayOfWeek === todayIdx)
+            .sort((a: any, b: any) => (a.startTime || '').localeCompare(b.startTime || ''))
+            .slice(0, 3)
+            .map((s: any) => ({
+              time: s.startTime || '',
+              subject: s.subject?.name || '',
+              teacher: s.teacher ? `${s.teacher.firstName} ${s.teacher.lastName}` : '',
+              salle: s.room || '',
+              color: 'var(--green)',
+            }))
+        )
       }
 
-      if (classId && userId && sequenceId) {
-        const [avgRes, ttRes, gradesRes] = await Promise.all([
-          fetchApi(`/api/v2/grades/average/${userId}?classId=${classId}&sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
-          fetchApi(`/api/v2/timetables?classId=${classId}`, { credentials: 'include' }).then(r => r.json()),
-          fetchApi(`/api/v2/grades?sequenceId=${sequenceId}`, { credentials: 'include' }).then(r => r.json()),
-        ])
-
-        if (avgRes.average !== undefined) setAvgGrade(avgRes.average)
-        if (avgRes.rank !== undefined) setRank({ pos: avgRes.rank, total: avgRes.totalStudents || 0 })
-
-        if (ttRes.success) {
-          const dayNames = [tcommon('status.all'), t('timetable.day_monday'), t('timetable.day_tuesday'), t('timetable.day_wednesday'), t('timetable.day_thursday'), t('timetable.day_friday'), tcommon('status.all')]
-          const todayIdx = new Date().getDay()
-          const slots = ttRes.data.flatMap((t: any) =>
-            (t.slots || []).filter((s: any) => s.dayOfWeek === todayIdx)
-              .sort((a: any, b: any) => (a.startTime || '').localeCompare(b.startTime || ''))
-              .slice(0, 3)
-              .map((s: any) => ({
-                time: s.startTime || '',
-                subject: s.subject?.name || '',
-                teacher: s.teacher ? `${s.teacher.firstName} ${s.teacher.lastName}` : '',
-                salle: s.room || '',
-                color: 'var(--green)',
-              }))
-          )
-          setTodaySlots(slots)
-        }
-
-        if (gradesRes.grades) {
-          const uniqueSubjects = new Set(gradesRes.grades.map((g: any) => g.subjectId))
-          setSubjectCount(uniqueSubjects.size)
-        }
-      } else if (statsRes.stats?.avgGrade && statsRes.stats.avgGrade !== 'N/A') {
-        const gradeFromStats = Number(statsRes.stats.avgGrade)
-        if (!isNaN(gradeFromStats)) setAvgGrade(gradeFromStats)
+      if (gradesRes.grades) {
+        const uniqueSubjects = new Set(gradesRes.grades.map((g: any) => g.subjectId))
+        result.subjectCount = uniqueSubjects.size
       }
-    } catch (err: any) {
-      setError(err.message || tcommon('status.error'))
-    } finally {
-      setLoading(false)
+    } else if (statsRes.stats?.avgGrade && statsRes.stats.avgGrade !== 'N/A') {
+      const gradeFromStats = Number(statsRes.stats.avgGrade)
+      if (!isNaN(gradeFromStats)) result.avgGrade = gradeFromStats
     }
+
+    return result
   }, [user])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const { data, loading, error, fromCache, cachedAt, refetch: fetchData } = useCachedFetch<StudentDashData>(user ? `student:dashboard:${user.id}` : '', fetchDataFn)
+  const avgGrade = data?.avgGrade ?? null
+  const rank = data?.rank ?? null
+  const attendanceRate = data?.attendanceRate ?? 0
+  const subjectCount = data?.subjectCount ?? 0
+  const todaySlots = data?.todaySlots ?? []
 
   const displayAvg = avgGrade ?? 0
   const mention = getMention(displayAvg)
@@ -156,7 +154,7 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
     )
   }
 
-  if (error) {
+  if (error && error !== 'OFFLINE_NO_CACHE') {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -183,6 +181,11 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
           <div style={{ fontSize: 17, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
             {className} · {t('dashboard.matricule_label')} {matricule}
           </div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'rgba(217,119,6,0.25)', border: '1px solid rgba(217,119,6,0.5)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'white', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {tcommon('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
           <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ background: mBg, color: mC, padding: '5px 14px', borderRadius: 22, fontSize: 15, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Trophy size={15} strokeWidth={2} /> {rankDisplay}

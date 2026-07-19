@@ -1,9 +1,10 @@
 ﻿'use client'
-import { useState, useEffect } from 'react'
-import { School, GraduationCap, FileText, CheckCircle2, Award, Target, MapPin, Siren, Hand, RefreshCw, Calendar, Bell, AlertTriangle, PenLine, ClipboardList } from 'lucide-react'
+import { useCallback } from 'react'
+import { School, GraduationCap, FileText, CheckCircle2, Award, Target, MapPin, Siren, Hand, RefreshCw, Calendar, Bell, AlertTriangle, PenLine, ClipboardList, Package } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
 
 interface Props {
   onNav: (s: string) => void
@@ -11,71 +12,72 @@ interface Props {
   user?: UserInfo | null
 }
 
+interface TeacherDashData {
+  classCount: number | null
+  studentCount: number | null
+  pendingGrades: number | null
+  attendanceRate: string | null
+  todaySlots: any[]
+  rejectedGrades: number
+}
+
 export default function SectionTeacherDashboard({ onNav, onToast, user }: Props) {
   const t = useT('teacher')
   const tcommon = useT('common')
-  const [classCount, setClassCount] = useState<number | null>(null)
-  const [studentCount, setStudentCount] = useState<number | null>(null)
-  const [pendingGrades, setPendingGrades] = useState<number | null>(null)
-  const [attendanceRate, setAttendanceRate] = useState<string | null>(null)
-  const [todaySlots, setTodaySlots] = useState<any[]>([])
-  const [rejectedGrades, setRejectedGrades] = useState<number>(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async () => {
-    if (!user) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [classesRes, gradesPendingRes, statsRes, timetableRes, gradesRejectedRes] = await Promise.all([
-        fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
-        fetchApi(`/api/v2/grades?validationStatus=SUBMITTED`, { credentials: 'include' }).then(r => r.json()),
-        fetchApi(`/api/v2/attendance/stats`, { credentials: 'include' }).then(r => r.json()),
-        fetchApi(`/api/v2/timetables`, { credentials: 'include' }).then(r => r.json()),
-        fetchApi(`/api/v2/grades?validationStatus=REJECTED`, { credentials: 'include' }).then(r => r.json()),
-      ])
+  const fetchDataFn = useCallback(async (): Promise<TeacherDashData> => {
+    const [classesRes, gradesPendingRes, statsRes, timetableRes, gradesRejectedRes] = await Promise.all([
+      fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
+      fetchApi(`/api/v2/grades?validationStatus=SUBMITTED`, { credentials: 'include' }).then(r => r.json()),
+      fetchApi(`/api/v2/attendance/stats`, { credentials: 'include' }).then(r => r.json()),
+      fetchApi(`/api/v2/timetables`, { credentials: 'include' }).then(r => r.json()),
+      fetchApi(`/api/v2/grades?validationStatus=REJECTED`, { credentials: 'include' }).then(r => r.json()),
+    ])
 
-      if (classesRes.success) {
-        setClassCount(classesRes.data.length)
-        const total = classesRes.data.reduce((sum: number, c: any) => sum + (c._count?.students || 0), 0)
-        setStudentCount(total)
-      }
-      if (gradesPendingRes.grades) {
-        setPendingGrades(gradesPendingRes.pagination?.total || gradesPendingRes.grades.length)
-      }
-      if (statsRes.stats) {
-        setAttendanceRate(statsRes.stats.attendanceRate)
-      }
-      if (timetableRes.success) {
-        const todayIdx = new Date().getDay() - 1 // 0=Lundi, -1=Dimanche (ignoré)
-        const teacherProfileId = user?.teacherProfile?.id
-        const slots = timetableRes.data.flatMap((t: any) =>
-          (t.slots || [])
-            .filter((s: any) =>
-              s.dayOfWeek === todayIdx && teacherProfileId && s.teacher?.id === teacherProfileId
-            )
-            .map((s: any) => ({
-              time: `${s.startTime}–${s.endTime}`,
-              classe: t.class?.name || '',
-              subject: s.subject?.name || '',
-              salle: s.room || '',
-              eleves: 0,
-            }))
-        )
-        setTodaySlots(slots)
-      }
-      if (gradesRejectedRes.grades) {
-        setRejectedGrades(gradesRejectedRes.grades.length)
-      }
-    } catch (err: any) {
-      setError(err.message || tcommon('messages.networkError'))
-    } finally {
-      setLoading(false)
+    const result: TeacherDashData = {
+      classCount: null, studentCount: null, pendingGrades: null, attendanceRate: null, todaySlots: [], rejectedGrades: 0,
     }
-  }
 
-  useEffect(() => { fetchData() }, [user])
+    if (classesRes.success) {
+      result.classCount = classesRes.data.length
+      result.studentCount = classesRes.data.reduce((sum: number, c: any) => sum + (c._count?.students || 0), 0)
+    }
+    if (gradesPendingRes.grades) {
+      result.pendingGrades = gradesPendingRes.pagination?.total || gradesPendingRes.grades.length
+    }
+    if (statsRes.stats) {
+      result.attendanceRate = statsRes.stats.attendanceRate
+    }
+    if (timetableRes.success) {
+      const todayIdx = new Date().getDay() - 1 // 0=Lundi, -1=Dimanche (ignoré)
+      const teacherProfileId = user?.teacherProfile?.id
+      result.todaySlots = timetableRes.data.flatMap((tt: any) =>
+        (tt.slots || [])
+          .filter((s: any) =>
+            s.dayOfWeek === todayIdx && teacherProfileId && s.teacher?.id === teacherProfileId
+          )
+          .map((s: any) => ({
+            time: `${s.startTime}–${s.endTime}`,
+            classe: tt.class?.name || '',
+            subject: s.subject?.name || '',
+            salle: s.room || '',
+            eleves: 0,
+          }))
+      )
+    }
+    if (gradesRejectedRes.grades) {
+      result.rejectedGrades = gradesRejectedRes.grades.length
+    }
+    return result
+  }, [user])
+
+  const { data, loading, error, fromCache, cachedAt, refetch: fetchData } = useCachedFetch<TeacherDashData>(user ? `teacher:dashboard:${user.id}` : '', fetchDataFn)
+  const classCount = data?.classCount ?? null
+  const studentCount = data?.studentCount ?? null
+  const pendingGrades = data?.pendingGrades ?? null
+  const attendanceRate = data?.attendanceRate ?? null
+  const todaySlots = data?.todaySlots ?? []
+  const rejectedGrades = data?.rejectedGrades ?? 0
 
   const now = new Date()
   const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
@@ -95,7 +97,7 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
     )
   }
 
-  if (error) {
+  if (error && error !== 'OFFLINE_NO_CACHE') {
     return (
       <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
         <div style={{ padding: 24, textAlign: 'center' }}>
@@ -115,6 +117,11 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
         <div>
           <div style={{ ...sTitle, display: 'flex', alignItems: 'center', gap: 10 }}>{t('dashboard.greeting').replace('{name}', user?.firstName || tcommon('user.teacherFallback'))}<Hand size={24} strokeWidth={2} /></div>
           <div style={sSub}>{dateStr}</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {tcommon('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
         <button style={{ ...btnSec, display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => { onToast(t('dashboard.refresh'), 'info'); fetchData() }}><RefreshCw size={14} strokeWidth={2} />{t('dashboard.refresh')}</button>
       </div>

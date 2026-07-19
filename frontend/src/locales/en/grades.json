@@ -1,4 +1,5 @@
 {
+  "cacheBadge": "Data from {date} — offline",
   "title": "Grades",
   "subtitle": "Browse and validate grades",
   "status_labels": {

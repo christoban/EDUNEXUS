@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
-import { AlertTriangle, Loader2, Search, CheckCircle2, Check, X } from 'lucide-react'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { AlertTriangle, Loader2, Search, CheckCircle2, Check, X, Package } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -30,10 +31,7 @@ export default function SectionGrades({ onToast }: Props) {
   }
   const [classes, setClasses]     = useState<ClassItem[]>([])
   const [subjects, setSubjects]   = useState<SubjectItem[]>([])
-  const [grades, setGrades]       = useState<GradeItem[]>([])
-  const [loading, setLoading]     = useState(false)
   const [filtersReady, setFiltersReady] = useState(false)
-  const [error, setError]         = useState<string | null>(null)
   const [classId, setClassId]     = useState('')
   const [subjectId, setSubjectId] = useState('')
   const [status, setStatus]       = useState('SUBMITTED')
@@ -49,24 +47,19 @@ export default function SectionGrades({ onToast }: Props) {
     }).catch(() => {}).finally(() => setFiltersReady(true))
   }, [])
 
-  const fetchGrades = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const params = new URLSearchParams({ limit: '100' })
-      if (classId)   params.set('classId', classId)
-      if (subjectId) params.set('subjectId', subjectId)
-      if (status)    params.set('validationStatus', status)
-      const res = await fetchApi(`/api/v2/grades?${params}`, { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setGrades(data.grades || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
-    } finally {
-      setLoading(false)
-    }
+  const fetchGradesFn = useCallback(async (): Promise<GradeItem[]> => {
+    const params = new URLSearchParams({ limit: '100' })
+    if (classId)   params.set('classId', classId)
+    if (subjectId) params.set('subjectId', subjectId)
+    if (status)    params.set('validationStatus', status)
+    const res = await fetchApi(`/api/v2/grades?${params}`, { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.grades || []
   }, [classId, subjectId, status])
+
+  const { data: gradesData, loading, error, fromCache, cachedAt, refetch: fetchGrades } = useCachedFetch<GradeItem[]>(`admin:grades:${classId}:${subjectId}:${status}`, fetchGradesFn)
+  const grades = gradesData ?? []
 
   const handleValidate = async (gradeId: string) => {
     try {
@@ -107,6 +100,11 @@ export default function SectionGrades({ onToast }: Props) {
         <div>
           <div style={sTitle}>{t('title')}</div>
           <div style={sSub}>Consultation et validation des notes</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
         {pendingCount > 0 && (
           <div style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 700, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -150,7 +148,13 @@ export default function SectionGrades({ onToast }: Props) {
           </div>
         )}
 
-        {!loading && error && (
+        {!loading && error === 'OFFLINE_NO_CACHE' && (
+          <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 17 }}>
+            Aucune donnée en cache pour ces filtres — reconnectez-vous pour charger les notes.
+          </div>
+        )}
+
+        {!loading && error && error !== 'OFFLINE_NO_CACHE' && (
           <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ color: 'var(--red)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}><AlertTriangle size={15} strokeWidth={2} /> {error}</span>
             <button onClick={fetchGrades}
@@ -162,7 +166,7 @@ export default function SectionGrades({ onToast }: Props) {
 
         {!loading && !error && grades.length === 0 && (
           <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 17 }}>
-            Sélectionnez des filtres puis cliquez sur « Charger »
+            Aucune note pour ces filtres
           </div>
         )}
 

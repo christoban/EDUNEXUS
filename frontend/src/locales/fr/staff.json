@@ -1,4 +1,5 @@
 {
+  "offlineQueued": "mis en file d'attente hors-ligne",
   "dashboard": {
     "title": "Espace Staff",
     "greeting": "Bonjour",
@@ -161,6 +162,8 @@
     "save": "Enregistrer la configuration",
     "saving": "Enregistrement…",
     "saveSuccess": "Configuration enregistrée",
+    "saveQueued": "Configuration mise en file d'attente — synchronisation à la reconnexion",
+    "offlineHint": "Mode hors-ligne — la configuration sera synchronisée à la reconnexion",
     "preview": "Aperçu de la grille",
     "previewEmpty": "Configurez au moins une période pour voir l'aperçu.",
     "warningTitle": "<strong>Attention :</strong>",
@@ -279,6 +282,7 @@
     "loanRegistered": "Emprunt enregistré pour {firstName} {lastName}",
     "returnConfirm": "Confirmer le retour de \"{title}\" ?",
     "returnSuccess": "Retour enregistré",
+    "editQueued": "\"{title}\" — modification mise en file d'attente, synchronisation à la reconnexion",
     "editBookModalTitle": "Modifier l'ouvrage",
     "editSuccess": "\"{title}\" mis à jour",
     "renew": "Renouveler",

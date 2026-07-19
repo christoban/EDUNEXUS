@@ -1,9 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Inbox, CheckCircle2, AlertTriangle, Circle, BarChart3, ClipboardList, AlarmClock } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Inbox, CheckCircle2, AlertTriangle, Circle, BarChart3, ClipboardList, AlarmClock, Package } from 'lucide-react'
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
 
 interface Props {
   user: UserInfo
@@ -40,33 +41,36 @@ const BADGE = (moy: number | null) => {
 
 export default function SectionProfesseurPrincipal({ user: _user, classeId, classeNom }: Props) {
   const t = useT('teacher')
+  const tcommon = useT('common')
   const [tab, setTab] = useState<Tab>('eleves')
-  const [students, setStudents] = useState<StudentRow[]>([])
-  const [attendances, setAttendances] = useState<AttendanceRecord[]>([])
   const [dateFilter, setDateFilter] = useState<DateFilter>('semaine')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    if (tab === 'eleves') {
-      fetchApi(`/api/v2/classes/${classeId}/students`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => { if (d.success) setStudents(d.data) })
-        .catch(() => setError(t('pp.load_error_students')))
-        .finally(() => setLoading(false))
-    } else {
-      const since = dateFilter === 'semaine'
-        ? new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)
-        : new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
-      fetchApi(`/api/v2/attendance?classId=${classeId}&from=${since}&limit=200`, { credentials: 'include' })
-        .then(r => r.json())
-        .then(d => { setAttendances(Array.isArray(d.attendances) ? d.attendances : []) })
-        .catch(() => setError(t('pp.load_error_attendance')))
-        .finally(() => setLoading(false))
-    }
-  }, [tab, classeId, dateFilter])
+  const fetchStudentsFn = useCallback(async (): Promise<StudentRow[]> => {
+    const res = await fetchApi(`/api/v2/classes/${classeId}/students`, { credentials: 'include' })
+    const d = await res.json()
+    if (!d.success) throw new Error(t('pp.load_error_students'))
+    return d.data
+  }, [classeId, t])
+  const { data: studentsData, loading: studentsLoading, error: studentsError, fromCache: studFromCache, cachedAt: studCachedAt } =
+    useCachedFetch<StudentRow[]>(tab === 'eleves' ? `teacher:pp-students:${classeId}` : '', fetchStudentsFn)
+  const students = studentsData ?? []
+
+  const fetchAttendancesFn = useCallback(async (): Promise<AttendanceRecord[]> => {
+    const since = dateFilter === 'semaine'
+      ? new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)
+      : new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10)
+    const res = await fetchApi(`/api/v2/attendance?classId=${classeId}&from=${since}&limit=200`, { credentials: 'include' })
+    const d = await res.json()
+    return Array.isArray(d.attendances) ? d.attendances : []
+  }, [classeId, dateFilter])
+  const { data: attendancesData, loading: attLoading, fromCache: attFromCache, cachedAt: attCachedAt } =
+    useCachedFetch<AttendanceRecord[]>(tab === 'presences' ? `teacher:pp-attendance:${classeId}:${dateFilter}` : '', fetchAttendancesFn)
+  const attendances = attendancesData ?? []
+
+  const loading = tab === 'eleves' ? studentsLoading : attLoading
+  const error = tab === 'eleves' && studentsError && studentsError !== 'OFFLINE_NO_CACHE' ? studentsError : null
+  const fromCache = tab === 'eleves' ? studFromCache : attFromCache
+  const cachedAt = tab === 'eleves' ? studCachedAt : attCachedAt
 
   const tabBtn = (tabId: Tab, label: string, Icon: typeof BarChart3) => (
     <button
@@ -93,6 +97,11 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
         <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
           {t('pp.view_title')}
         </div>
+        {fromCache && cachedAt && (
+          <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <Package size={14} strokeWidth={2} /> {tcommon('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

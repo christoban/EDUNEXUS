@@ -246,6 +246,13 @@ export default function SectionDiscipline({ onToast }: Props) {
 
   const liftSanction = async (recordId: string, studentName: string) => {
     if (!confirm(t('toasts.confirm_lift', { student: studentName }))) return
+
+    if (!isOnline) {
+      await addToQueue({ type: 'DISCIPLINE_SANCTION_LIFT', endpoint: `/api/v2/discipline/${recordId}/lift`, method: 'PATCH', payload: {} })
+      onToast(t('toasts.sanction_lift_queued'), 'success')
+      return
+    }
+
     setLiftingId(recordId)
     try {
       const res = await fetchApi(`/api/v2/discipline/${recordId}/lift`, { method: 'PATCH', credentials: 'include' })

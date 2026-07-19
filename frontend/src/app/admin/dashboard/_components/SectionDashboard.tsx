@@ -1,8 +1,9 @@
 ﻿'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { GraduationCap, Presentation, CheckCircle2, FileText, RefreshCw, AlertTriangle, Users, User, ScrollText } from 'lucide-react'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { GraduationCap, Presentation, CheckCircle2, FileText, RefreshCw, AlertTriangle, Users, User, ScrollText, Package } from 'lucide-react'
 
 interface Props {
   onNav: (s: string) => void
@@ -20,26 +21,15 @@ interface DashStats {
 
 export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
   const t = useT('admin')
-  const [stats, setStats] = useState<DashStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const fetchStats = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const res = await fetchApi('/api/v2/dashboard/stats', { credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur serveur')
-      setStats(data.stats)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
-    } finally {
-      setLoading(false)
-    }
+  const fetchStatsFn = useCallback(async (): Promise<DashStats> => {
+    const res = await fetchApi('/api/v2/dashboard/stats', { credentials: 'include' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    return data.stats
   }, [])
 
-  useEffect(() => { fetchStats() }, [fetchStats])
+  const { data: stats, loading, error, fromCache, cachedAt, refetch: fetchStats } = useCachedFetch<DashStats>('admin:dashboard-stats', fetchStatsFn)
 
   const kpi = stats ? [
     { icon: <GraduationCap size={22} strokeWidth={2} />, bg: 'var(--blue-light)', val: String(stats.totalStudents), label: t('dashboard.kpi.students'),  trendBg: 'var(--green-light)', trendColor: 'var(--green)', nav: 'users' },
@@ -59,6 +49,11 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
             {t('dashboard.overview_title')}
           </div>
           <div style={{ fontSize: 17, color: 'var(--text3)', marginTop: 3 }}>{t('dashboard.overview_subtitle')}</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
         <button
           onClick={() => { fetchStats(); onToast(t('dashboard.refreshing'), 'info') }}
@@ -74,7 +69,7 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
       )}
 
       {/* Error */}
-      {!loading && error && (
+      {!loading && error && error !== 'OFFLINE_NO_CACHE' && (
         <div style={{ background: 'var(--red-light)', border: '1.5px solid rgba(220,38,38,0.2)', borderRadius: 14, padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
           <AlertTriangle size={22} strokeWidth={2} />
           <div style={{ flex: 1 }}>
@@ -84,6 +79,12 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
             style={{ padding: '7px 16px', borderRadius: 9, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: 14 }}>
             {t('dashboard.retry')}
           </button>
+        </div>
+      )}
+
+      {!loading && error === 'OFFLINE_NO_CACHE' && (
+        <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 16, padding: '48px 24px', textAlign: 'center', color: 'var(--text3)' }}>
+          Aucune donnée en cache — reconnectez-vous pour charger le tableau de bord.
         </div>
       )}
 

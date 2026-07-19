@@ -4,6 +4,8 @@ import { Siren, AlertTriangle, Eye, CheckCircle2, Star, RefreshCw, X, Bot } from
 import type { LucideIcon } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import OfflineEmptyState from '@/components/OfflineEmptyState'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
@@ -26,15 +28,13 @@ const ALERT_STYLE: Record<string, { bg: string; color: string; label: string; ic
   excellent:      { bg: 'var(--green-light)', color: 'var(--green)', label: 'Excellent',        icon: Star },
 }
 
+interface HealthData { students: StudentHealth[]; summary: HealthSummary | null }
+
 export default function SectionAdminAI({ onToast }: Props) {
   const t = useT('admin')
-  const [students, setStudents]   = useState<StudentHealth[]>([])
-  const [summary, setSummary]     = useState<HealthSummary | null>(null)
   const [classes, setClasses]     = useState<ClassItem[]>([])
   const [classFilter, setClassFilter] = useState('')
   const [alertFilter, setAlertFilter] = useState('')
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
 
   const fetchClasses = useCallback(async () => {
     try {
@@ -44,23 +44,25 @@ export default function SectionAdminAI({ onToast }: Props) {
     } catch { /* silencieux */ }
   }, [])
 
-  const fetchHealth = useCallback(async () => {
-    setLoading(true); setError(null)
-    try {
-      const params = new URLSearchParams()
-      if (classFilter) params.set('classId', classFilter)
-      const res = await fetchApi(`/api/v2/ai/students-health?${params}`, { credentials: 'include' })
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.message || 'Erreur serveur')
-      setStudents(d.students || [])
-      setSummary(d.summary || null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement')
-    } finally { setLoading(false) }
+  const fetchHealthFn = useCallback(async (): Promise<HealthData> => {
+    const params = new URLSearchParams()
+    if (classFilter) params.set('classId', classFilter)
+    const res = await fetchApi(`/api/v2/ai/students-health?${params}`, { credentials: 'include' })
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.message || 'Erreur serveur')
+    return { students: d.students || [], summary: d.summary || null }
   }, [classFilter])
 
+  const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<HealthData>(`admin:ai-health:${classFilter}`, fetchHealthFn)
+  const students = data?.students ?? []
+  const summary = data?.summary ?? null
+
   useEffect(() => { fetchClasses() }, [fetchClasses])
-  useEffect(() => { fetchHealth() }, [fetchHealth])
+  useEffect(() => {
+    if (error && error !== 'OFFLINE_NO_CACHE' && !data) onToast(error, 'error')
+  }, [error, data, onToast])
+
+  if (error === 'OFFLINE_NO_CACHE') return <OfflineEmptyState />
 
   const filtered = alertFilter ? students.filter(s => s.alertLevel === alertFilter) : students
   const atRisk   = students.filter(s => s.alertLevel === 'critical' || s.alertLevel === 'warning').length
@@ -73,8 +75,13 @@ export default function SectionAdminAI({ onToast }: Props) {
         <div>
           <div style={sTitle}>{t('ai.title')}</div>
           <div style={sSub}>Scores de bien-être académique · Alertes automatiques</div>
+          {fromCache && cachedAt && (
+            <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+              {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+            </div>
+          )}
         </div>
-        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={fetchHealth}><RefreshCw size={15} /> Actualiser</button>
+        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={refetch}><RefreshCw size={15} /> Actualiser</button>
       </div>
 
       {/* KPIs */}

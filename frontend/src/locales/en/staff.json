@@ -1,4 +1,5 @@
 {
+  "offlineQueued": "queued offline",
   "dashboard": {
     "title": "Staff Portal",
     "greeting": "Hello",
@@ -161,6 +162,8 @@
     "save": "Save Configuration",
     "saving": "Saving…",
     "saveSuccess": "Configuration saved",
+    "saveQueued": "Configuration queued — will sync when back online",
+    "offlineHint": "Offline mode — configuration will sync when back online",
     "preview": "Grid Preview",
     "previewEmpty": "Configure at least one period to see the preview.",
     "warningTitle": "<strong>Warning:</strong>",
@@ -279,6 +282,7 @@
     "loanRegistered": "Loan recorded for {firstName} {lastName}",
     "returnConfirm": "Confirm return of \"{title}\"?",
     "returnSuccess": "Return recorded",
+    "editQueued": "\"{title}\" — update queued, will sync when back online",
     "editBookModalTitle": "Edit book",
     "editSuccess": "\"{title}\" updated",
     "renew": "Renew",

@@ -1203,6 +1203,7 @@
       "SAMEDI": "Samedi"
     }
   },
+  "cacheBadge": "Données du {date} — hors-ligne",
   "grille_horaire": {
     "title": "Grille horaire",
     "subtitle": "Définissez la structure de vos journées scolaires. Cette grille sera utilisée pour tous les emplois du temps.",
@@ -1243,11 +1244,13 @@
       "VENDREDI": "Ven",
       "SAMEDI": "Sam"
     },
+    "offlineHint": "Mode hors-ligne — la configuration sera synchronisée à la reconnexion",
     "toast": {
       "minPeriod": "Configurez au moins 1 période",
       "minDay": "Sélectionnez au moins un jour",
       "err": "Erreur",
-      "saved": "Configuration enregistrée"
+      "saved": "Configuration enregistrée",
+      "queued": "Configuration mise en file d'attente — synchronisation à la reconnexion"
     }
   },
   "bulletin": {
