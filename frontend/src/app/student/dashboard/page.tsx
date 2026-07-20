@@ -18,6 +18,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { db } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
+import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 
 const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications']
@@ -130,6 +131,7 @@ export default function StudentDashboard() {
             <NotificationBell />
           </div>
         </header>
+        <EventCenterWidget />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
           {section === 'dashboard'  && <SectionStudentDashboard onNav={s => setSection(s as StudentSection)} {...sProps} />}

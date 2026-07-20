@@ -19,6 +19,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { db } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
+import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 
 const PARENT_SECTIONS: ParentSection[] = ['children', 'grades', 'attendance', 'payments', 'timetable', 'settings', 'library', 'apee', 'notifications']
@@ -113,6 +114,7 @@ export default function ParentDashboard() {
             <NotificationBell />
           </div>
         </header>
+        <EventCenterWidget />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
           {section === 'children'   && <SectionParentChildren onNav={s => setSection(s as ParentSection)} {...sProps} userId={user?.id} />}

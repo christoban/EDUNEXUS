@@ -48,6 +48,15 @@ import { DashboardController } from '@infrastructure/http/controllers/DashboardC
 import { EmailLogController } from '@infrastructure/http/controllers/EmailLogController';
 import { SearchController } from '@infrastructure/http/controllers/SearchController';
 import { AIController } from '@infrastructure/http/controllers/AIController';
+import { AcademicEventController } from '@infrastructure/http/controllers/AcademicEventController';
+import { creerAcademicEventRoutes } from '@infrastructure/http/routes/academicEvent.routes';
+import {
+  CreerEvenementAcademiqueUseCase,
+  DeclencherEvenementUseCase,
+  AjusterFenetreEvenementUseCase,
+  ListerEvenementsUseCase,
+  ObtenirEvenementsActifsUseCase,
+} from '@application/academicEvent';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
 import { buildAdminActionCatalog } from '@application/assistant/adminActionCatalog';
 import { buildTeacherActionCatalog } from '@application/assistant/teacherActionCatalog';
@@ -1185,6 +1194,13 @@ export function bootstrapHexagonal(app: Application): void {
   const emailLogController   = new EmailLogController(prisma);
   const searchController     = new SearchController(prisma);
   const aiController         = new AIController(prisma);
+  const academicEventController = new AcademicEventController(
+    new CreerEvenementAcademiqueUseCase(prisma),
+    new DeclencherEvenementUseCase(prisma),
+    new AjusterFenetreEvenementUseCase(prisma),
+    new ListerEvenementsUseCase(prisma),
+    new ObtenirEvenementsActifsUseCase(prisma),
+  );
   const coreDomainController = new CoreDomainController(prisma);
   const publicController     = new PublicController(prisma);
   const smsController        = new SMSController(prisma);
@@ -1321,6 +1337,7 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/email-logs',    creerEmailLogRoutes(emailLogController));
   app.use('/api/v2/search',        creerSearchRoutes(searchController));
   app.use('/api/v2/ai',            creerAIRoutes(aiController));
+  app.use('/api/v2/academic-events', creerAcademicEventRoutes(academicEventController));
   app.post('/api/v2/assistant/chat', requireAuth, aiController.assistantChat);
 
   // ── Assistant IA EXÉCUTANT (copilot) — rôle ADMIN uniquement ────────────────

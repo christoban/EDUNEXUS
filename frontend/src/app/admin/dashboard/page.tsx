@@ -33,6 +33,8 @@ import SectionEleveOnboarding from './_components/SectionEleveOnboarding'
 import SectionMinesecStatistics from './_components/SectionMinesecStatistics'
 import SectionMinedubStatistics from './_components/SectionMinedubStatistics'
 import SectionAdminPebsExams from './_components/SectionAdminPebsExams'
+import SectionAdminAcademicEvents from './_components/SectionAdminAcademicEvents'
+import EventCenterWidget from '@/components/EventCenterWidget'
 import AdminToast from './_components/AdminToast'
 import AssistantWidget from './_components/AssistantWidget'
 import HighlightController from './_components/HighlightController'
@@ -46,7 +48,7 @@ let toastId = 0
 const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
-  'council', 'academic-year', 'finance', 'ai', 'statistics', 'communications', 'settings',
+  'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'settings',
   'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats',
 ]
 
@@ -142,6 +144,7 @@ export default function AdminDashboard() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />
+        <EventCenterWidget onNav={s => setSection(s as AdminSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {section === 'dashboard' && (
@@ -158,6 +161,7 @@ export default function AdminDashboard() {
           {section === 'bulletins' && <SectionBulletins onToast={showToast} />}
           {section === 'timetable'      && <SectionTimetable     onToast={showToast} />}
           {section === 'academic-year' && <SectionAcademicYear  onToast={showToast} />}
+          {section === 'academic-events' && <SectionAdminAcademicEvents onToast={showToast} />}
           {section === 'finance'       && <SectionFinance       onToast={showToast} />}
           {section === 'attendance'    && <SectionAdminAttendance onToast={showToast} />}
           {section === 'council'       && <SectionAdminCouncil  onToast={showToast} />}

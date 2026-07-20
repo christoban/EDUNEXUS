@@ -118,6 +118,8 @@ model School {
   bookLoans                  BookLoan[]
   ficheOrientations          FicheOrientation[]
   studentRecommendations     StudentRecommendation[]
+  academicEvents             AcademicEvent[]
+  calendarExceptions         SchoolCalendarException[]
   verifiableDocuments        VerifiableDocument[]
   broadcastLogs              BroadcastLog[]
   programmes                 Programme[]
@@ -218,6 +220,72 @@ model StudentRecommendation {
 
   @@index([schoolId, studentId])
   @@index([studentId, contextType, createdAt])
+}
+
+// Fonctionnalités événementielles liées au calendrier académique (rentrée 6e/5e, migration
+// post-examen bilingue, choix LV2...) — cycle de vie explicite au lieu d'être visibles en
+// permanence sans raison. Trois catégories, trois mécanismes distincts (voir
+// Plan_Evenements_Calendrier_ZekoulABia.md pour le raisonnement complet) :
+//  - FIXED_DATE : date connue à l'avance, ouverture/fermeture automatiques par le job Inngest.
+//  - MANUAL_TRIGGER : dépend d'un fait externe imprévisible (résultats d'examen) — jamais
+//    automatique, l'admin déclenche lui-même via DeclencherEvenementUseCase.
+//  - SLIDING_WINDOW : fenêtre par défaut automatique, mais date de clôture ajustable par l'admin,
+//    et prolongée automatiquement si elle chevauche une période de vacances.
+enum AcademicEventCategory {
+  FIXED_DATE
+  MANUAL_TRIGGER
+  SLIDING_WINDOW
+}
+
+enum AcademicEventStatus {
+  UPCOMING
+  ACTIVE
+  CLOSED
+}
+
+model AcademicEvent {
+  id             String                @id @default(cuid())
+  schoolId       String
+  type           String                // 'RENTREE_6E_5E' | 'MIGRATION_BILINGUE' | 'CHOIX_LV2' | 'CLOTURE_ANNEE' | 'AUTRE'
+  category       AcademicEventCategory
+  title          String
+  description    String?
+  // Rôles concernés par la notification d'ouverture / le rappel — ex. ['PARENT','STUDENT'].
+  targetRoles    String[]
+  openDate       DateTime?             // null tant qu'un MANUAL_TRIGGER n'a pas été déclenché
+  closeDate      DateTime?
+  status         AcademicEventStatus   @default(UPCOMING)
+  triggeredById  String?
+  triggeredAt    DateTime?
+  // Empêche l'envoi répété du rappel de clôture à chaque passage du job quotidien.
+  reminderSentAt DateTime?
+  createdById    String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  school      School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  triggeredBy User?  @relation("AcademicEventTriggeredBy", fields: [triggeredById], references: [id])
+  createdBy   User   @relation("AcademicEventCreatedBy", fields: [createdById], references: [id])
+
+  @@index([schoolId, status])
+}
+
+// Exceptions locales au calendrier scolaire d'un établissement (fermeture exceptionnelle,
+// journée culturelle/sportive) — s'ajoutent aux périodes académiques déjà définies
+// (AcademicPeriod.startDate/endDate) plutôt que de redéfinir tout un calendrier national :
+// les intervalles ENTRE deux périodes sont déjà, par construction, des vacances scolaires.
+model SchoolCalendarException {
+  id        String   @id @default(cuid())
+  schoolId  String
+  date      DateTime
+  label     String
+  type      String   // 'FERMETURE' | 'JOURNEE_SPECIALE'
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, date])
+  @@index([schoolId])
 }
 
 model SchoolSettings {
@@ -365,6 +433,8 @@ model User {
   disciplineCouncilSessions       DisciplineCouncilSession[] @relation("DisciplineCouncilStudent")
   disciplineCouncilsPresided      DisciplineCouncilSession[] @relation("DisciplineCouncilPresidedBy")
   studentRecommendations          StudentRecommendation[]    @relation("StudentRecommendationTarget")
+  academicEventsCreated           AcademicEvent[]            @relation("AcademicEventCreatedBy")
+  academicEventsTriggered         AcademicEvent[]            @relation("AcademicEventTriggeredBy")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])

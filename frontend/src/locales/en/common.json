@@ -284,5 +284,10 @@
       "POSITIVE": "Positive",
       "SYSTEM": "System"
     }
+  },
+  "academicEvents": {
+    "widgetOpensIn": "\"{title}\" opens in {days} day(s)",
+    "widgetOpenUntil": "\"{title}\" is open until {date}",
+    "widgetSeeMore": "View"
   }
 }

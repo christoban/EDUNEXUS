@@ -12,6 +12,7 @@
       "council": "Class Council",
       "pedagogie": "Pedagogy Management",
       "academic-year": "Academic Year",
+      "academic-events": "Academic Events",
       "finance": "Mobile Money",
       "ai": "AI School Health",
       "statistics": "Statistics",
@@ -1532,5 +1533,62 @@
     "historyTitle": "History of generated reports",
     "historyEmpty": "No report generated yet",
     "errorGeneric": "An error occurred"
+  },
+  "academicEvents": {
+    "title": "Academic events",
+    "subtitle": "Features tied to the school calendar — enrollment, exams, LV2 choice",
+    "newEvent": "New event",
+    "errorLoad": "Loading error",
+    "retry": "Retry",
+    "emptyTitle": "No academic events",
+    "emptySub": "Create your first event to start structuring the school's calendar",
+    "kpiTotal": "Total",
+    "kpiActive": "Active",
+    "kpiUpcoming": "Upcoming",
+    "kpiClosed": "Closed",
+    "category": {
+      "FIXED_DATE": "Fixed date",
+      "MANUAL_TRIGGER": "Manual trigger",
+      "SLIDING_WINDOW": "Sliding window"
+    },
+    "categoryHint": {
+      "FIXED_DATE": "Automatic opening and closing on scheduled dates — for an event whose date is known in advance.",
+      "MANUAL_TRIGGER": "No date set at creation — you trigger the opening yourself the day the real event occurs (e.g. results published).",
+      "SLIDING_WINDOW": "Automatic default window, but the closing date remains adjustable at any time."
+    },
+    "status": {
+      "UPCOMING": "Upcoming",
+      "ACTIVE": "Active",
+      "CLOSED": "Closed"
+    },
+    "type": {
+      "RENTREE_6E_5E": "Grade 6/7 enrollment",
+      "MIGRATION_BILINGUE": "Bilingual program migration",
+      "CHOIX_LV2": "LV2 choice",
+      "CLOTURE_ANNEE": "Year closure",
+      "AUTRE": "Other"
+    },
+    "opensOn": "Opens:",
+    "closesOn": "Closes:",
+    "roles": "Target roles:",
+    "triggerNow": "Trigger now",
+    "adjustWindow": "Adjust closing date",
+    "save": "Save",
+    "cancel": "Cancel",
+    "formTitle": "Title",
+    "formTitlePlaceholder": "E.g.: Grade 6/7 enrollment 2026-2027",
+    "formType": "Event type",
+    "formCategory": "Category",
+    "formDescription": "Description (optional)",
+    "formRoles": "Roles to notify",
+    "formOpenDate": "Opening date",
+    "formCloseDate": "Closing date",
+    "create": "Create event",
+    "toastTitleRequired": "Title is required",
+    "toastDatesRequired": "A fixed-date event requires an opening and a closing date",
+    "toastOpenRequired": "A default opening date is required",
+    "toastCreated": "Event created",
+    "toastTriggered": "Event triggered — target roles have been notified",
+    "toastAdjusted": "Closing date adjusted"
   }
 }

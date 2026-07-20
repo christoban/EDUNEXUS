@@ -1,0 +1,30 @@
+/**
+ * Notification en masse pour un événement académique (ouverture / rappel de clôture) — cible
+ * tous les utilisateurs actifs de l'établissement dont le rôle figure dans `targetRoles`,
+ * contrairement aux alertes de santé scolaire (PushFirstNotifier) qui ciblent la famille d'UN
+ * élève précis. Cloche in-app systématique + push best-effort, pas de SMS ici (événements
+ * informatifs, pas d'urgence justifiant le coût d'un SMS).
+ */
+import type { PrismaClient } from '@prisma/client';
+import { SocketNotificationService } from '../infrastructure/services/SocketNotificationService';
+import { notifierUtilisateurPush } from '../infrastructure/services/PushNotificationService';
+
+export async function notifierEvenementAcademique(
+  prisma: PrismaClient,
+  schoolId: string,
+  targetRoles: string[],
+  titre: string,
+  corps: string,
+): Promise<void> {
+  const destinataires = await prisma.user.findMany({
+    where: { schoolId, role: { in: targetRoles as any }, isActive: true },
+    select: { id: true },
+  });
+  const socketService = new SocketNotificationService();
+  for (const d of destinataires) {
+    await socketService
+      .envoyer({ schoolId, userId: d.id, type: 'ACADEMIC_EVENT', titre, corps, canal: 'IN_APP' })
+      .catch(() => {});
+    await notifierUtilisateurPush({ userId: d.id, title: titre, body: corps }).catch(() => {});
+  }
+}

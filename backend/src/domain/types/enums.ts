@@ -69,6 +69,7 @@ export type NotificationType =
   | 'DISCIPLINE_SANCTION'
   | 'STUDENT_RISK_ALERT'
   | 'FEE_PLAN_CREATED'
+  | 'ACADEMIC_EVENT'
   | 'SYSTEM';
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP';

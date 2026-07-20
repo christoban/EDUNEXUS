@@ -26,6 +26,7 @@ import NotificationCenter from '@/components/NotificationCenter'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
+import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 
 const STAFF_ASSISTANT_SUGGESTIONS = [
@@ -105,6 +106,7 @@ export default function StaffDashboard() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} />
+        <EventCenterWidget />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
 

@@ -28,6 +28,7 @@ import {
   handleGradeValidatedDropDetection,
   markOverdueLoans,
   checkAbsenceThreshold,
+  checkAcademicEvents,
   BackupSchoolDataJob,
 } from "./inngest/functions.ts";
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
@@ -150,6 +151,7 @@ app.use(
       handleGradeValidatedDropDetection,
       markOverdueLoans,
       checkAbsenceThreshold,
+      checkAcademicEvents,
       BackupSchoolDataJob,
       syncCarteScolaire,
       relancePaiements,

@@ -27,6 +27,7 @@ import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import NotificationBell from '@/components/NotificationBell'
 import NotificationCenter from '@/components/NotificationCenter'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+import EventCenterWidget from '@/components/EventCenterWidget'
 import { useT } from '@/lib/i18n'
 
 const TEACHER_SECTIONS: TeacherSection[] = [
@@ -131,6 +132,7 @@ export default function TeacherDashboard() {
             <NotificationBell />
           </div>
         </header>
+        <EventCenterWidget />
 
         {/* Contenu */}
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>

@@ -12,6 +12,7 @@
       "council": "Conseil de classe",
       "pedagogie": "Gestion de la Pédagogie",
       "academic-year": "Année scolaire",
+      "academic-events": "Événements académiques",
       "finance": "Mobile Money",
       "ai": "IA Santé scolaire",
       "statistics": "Statistiques",
@@ -1532,5 +1533,62 @@
     "historyTitle": "Historique des rapports générés",
     "historyEmpty": "Aucun rapport généré pour l'instant",
     "errorGeneric": "Une erreur est survenue"
+  },
+  "academicEvents": {
+    "title": "Événements académiques",
+    "subtitle": "Fonctionnalités liées au calendrier scolaire — rentrée, examens, choix LV2",
+    "newEvent": "Nouvel événement",
+    "errorLoad": "Erreur de chargement",
+    "retry": "Réessayer",
+    "emptyTitle": "Aucun événement académique",
+    "emptySub": "Créez votre premier événement pour commencer à structurer le calendrier de l'établissement",
+    "kpiTotal": "Total",
+    "kpiActive": "Actifs",
+    "kpiUpcoming": "À venir",
+    "kpiClosed": "Clôturés",
+    "category": {
+      "FIXED_DATE": "Date fixe",
+      "MANUAL_TRIGGER": "Déclenchement manuel",
+      "SLIDING_WINDOW": "Fenêtre glissante"
+    },
+    "categoryHint": {
+      "FIXED_DATE": "Ouverture et clôture automatiques aux dates programmées — pour un événement dont la date est connue à l'avance.",
+      "MANUAL_TRIGGER": "Aucune date à la création — vous déclenchez vous-même l'ouverture le jour où l'événement réel se produit (ex. publication de résultats).",
+      "SLIDING_WINDOW": "Fenêtre par défaut automatique, mais la date de clôture reste ajustable à tout moment."
+    },
+    "status": {
+      "UPCOMING": "À venir",
+      "ACTIVE": "Actif",
+      "CLOSED": "Clôturé"
+    },
+    "type": {
+      "RENTREE_6E_5E": "Rentrée 6e/5e",
+      "MIGRATION_BILINGUE": "Migration programme bilingue",
+      "CHOIX_LV2": "Choix LV2",
+      "CLOTURE_ANNEE": "Clôture d'année",
+      "AUTRE": "Autre"
+    },
+    "opensOn": "Ouvre le :",
+    "closesOn": "Clôture le :",
+    "roles": "Rôles concernés :",
+    "triggerNow": "Déclencher maintenant",
+    "adjustWindow": "Ajuster la clôture",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "formTitle": "Titre",
+    "formTitlePlaceholder": "Ex. : Rentrée en 6e/5e 2026-2027",
+    "formType": "Type d'événement",
+    "formCategory": "Catégorie",
+    "formDescription": "Description (optionnelle)",
+    "formRoles": "Rôles à notifier",
+    "formOpenDate": "Date d'ouverture",
+    "formCloseDate": "Date de clôture",
+    "create": "Créer l'événement",
+    "toastTitleRequired": "Le titre est requis",
+    "toastDatesRequired": "Un événement à date fixe requiert une date d'ouverture et de clôture",
+    "toastOpenRequired": "Une date d'ouverture par défaut est requise",
+    "toastCreated": "Événement créé",
+    "toastTriggered": "Événement déclenché — les rôles concernés ont été notifiés",
+    "toastAdjusted": "Date de clôture ajustée"
   }
 }

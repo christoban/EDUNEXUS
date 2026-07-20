@@ -49,7 +49,8 @@
     "myAttendance": "My attendance",
     "myLibrary": "My reading",
     "atRiskStudents": "At-risk students",
-    "myHealthTracking": "My school health tracking"
+    "myHealthTracking": "My school health tracking",
+    "academicEvents": "Academic events"
   },
   "group": {
     "academic": "Academic",

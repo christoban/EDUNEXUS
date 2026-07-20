@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, School, BookOpen, ClipboardCheck, FileText,
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
-  Globe, Languages, Bot, Megaphone, Settings, Bell,
+  Globe, Languages, Bot, Megaphone, Settings, Bell, CalendarClock,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -80,6 +80,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
       label: tnav('group.services'),
       items: [
         { id: 'academic-year', icon: CalendarDays, label: tnav('sidebar.academicYear') },
+        { id: 'academic-events', icon: CalendarClock, label: tnav('sidebar.academicEvents') },
         { id: 'finance',       icon: Smartphone, label: tnav('sidebar.finance'),     badge: badges.finance, badgeColor: 'amber' },
         { id: 'matricules',    icon: IdCard, label: tnav('sidebar.matricules') },
         { id: 'school-payments', icon: Wallet, label: tnav('sidebar.schoolPayments') },

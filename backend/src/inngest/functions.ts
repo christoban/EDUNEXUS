@@ -10,6 +10,8 @@ import { notifierParentsPushDabord } from "../infrastructure/services/PushFirstN
 import { PrismaSanteEleveRepository } from "../infrastructure/persistence/prisma/PrismaSanteEleveRepository";
 import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSanteUseCase";
 import { GroqIAService } from "../infrastructure/services/GroqIAService";
+import { estJourOuvreScolaire, ajouterJoursOuvresScolaires } from "../utils/schoolCalendar";
+import { notifierEvenementAcademique } from "../utils/academicEventNotifier";
 
 const iaService = new GroqIAService();
 const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
@@ -1356,6 +1358,74 @@ export const handleGradeSubmitted = inngest.createFunction(
       }
     });
   }
+);
+
+/**
+ * Moteur du système événementiel lié au calendrier académique — un passage quotidien qui gère
+ * les trois catégories d'événements (voir Plan_Evenements_Calendrier_ZekoulABia.md) :
+ *  - FIXED_DATE : active automatiquement les événements dont l'ouverture programmée est
+ *    arrivée, et notifie les rôles cibles.
+ *  - MANUAL_TRIGGER : jamais touché ici — reste UPCOMING jusqu'à un déclenchement humain
+ *    explicite (DeclencherEvenementUseCase).
+ *  - SLIDING_WINDOW : prolonge automatiquement la clôture d'un jour si elle tombe sur un jour
+ *    de fermeture scolaire, pour ne jamais réduire silencieusement le temps réellement utile
+ *    laissé aux familles.
+ * Tous types confondus : rappel une seule fois (reminderSentAt) à 3 jours ouvrés scolaires de
+ * la clôture, puis clôture automatique une fois la date de fin dépassée.
+ */
+export const checkAcademicEvents = inngest.createFunction(
+  { id: "check-academic-events", name: "Vérification quotidienne des événements académiques", triggers: [{ cron: "0 6 * * *" }] },
+  async ({ step }) => {
+    await step.run("process-academic-events", async () => {
+      const schools = await prisma.school.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
+      const maintenant = new Date();
+
+      for (const school of schools) {
+        const aOuvrir = await (prisma as any).academicEvent.findMany({
+          where: { schoolId: school.id, status: "UPCOMING", category: "FIXED_DATE", openDate: { lte: maintenant } },
+        });
+        for (const ev of aOuvrir) {
+          await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { status: "ACTIVE" } });
+          await notifierEvenementAcademique(
+            prisma, school.id, ev.targetRoles, ev.title,
+            ev.description ?? `« ${ev.title} » est désormais ouvert.`,
+          ).catch((err) => console.error("[AcademicEvent] notification ouverture:", err?.message));
+        }
+
+        const actifsAvecCloture = await (prisma as any).academicEvent.findMany({
+          where: { schoolId: school.id, status: "ACTIVE", closeDate: { not: null }, reminderSentAt: null },
+        });
+        for (const ev of actifsAvecCloture) {
+          if (!ev.closeDate) continue;
+          const seuilRappel = await ajouterJoursOuvresScolaires(prisma, school.id, maintenant, 3);
+          if (seuilRappel >= ev.closeDate) {
+            await notifierEvenementAcademique(
+              prisma, school.id, ev.targetRoles, `Rappel — ${ev.title}`,
+              `« ${ev.title} » se clôture le ${new Date(ev.closeDate).toLocaleDateString("fr-FR")}. Pensez à agir avant cette date.`,
+            ).catch((err) => console.error("[AcademicEvent] notification rappel:", err?.message));
+            await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { reminderSentAt: maintenant } });
+          }
+        }
+
+        const fenetresGlissantes = await (prisma as any).academicEvent.findMany({
+          where: { schoolId: school.id, status: "ACTIVE", category: "SLIDING_WINDOW", closeDate: { not: null } },
+        });
+        for (const ev of fenetresGlissantes) {
+          if (!ev.closeDate) continue;
+          if (!(await estJourOuvreScolaire(prisma, school.id, ev.closeDate))) {
+            const nouvelleCloture = await ajouterJoursOuvresScolaires(prisma, school.id, ev.closeDate, 1);
+            await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { closeDate: nouvelleCloture } });
+          }
+        }
+
+        await (prisma as any).academicEvent.updateMany({
+          where: { schoolId: school.id, status: "ACTIVE", closeDate: { lte: maintenant } },
+          data: { status: "CLOSED" },
+        });
+      }
+    });
+    return { checked: true };
+  },
 );
 
 export const BackupSchoolDataJob = inngest.createFunction(
