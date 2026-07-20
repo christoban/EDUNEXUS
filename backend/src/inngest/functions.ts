@@ -10,7 +10,7 @@ import { notifierParentsPushDabord } from "../infrastructure/services/PushFirstN
 import { PrismaSanteEleveRepository } from "../infrastructure/persistence/prisma/PrismaSanteEleveRepository";
 import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSanteUseCase";
 import { GroqIAService } from "../infrastructure/services/GroqIAService";
-import { estJourOuvreScolaire, ajouterJoursOuvresScolaires } from "../utils/schoolCalendar";
+import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../utils/schoolCalendar";
 import { notifierEvenementAcademique } from "../utils/academicEventNotifier";
 
 const iaService = new GroqIAService();
@@ -1407,13 +1407,18 @@ export const checkAcademicEvents = inngest.createFunction(
           }
         }
 
+        // Prolongation Type 3 : vérifiée chaque jour tant que la fenêtre est ouverte (closeDate
+        // encore dans le futur), pas seulement le jour où closeDate coïncide avec une fermeture
+        // — une coupure de plusieurs semaines en plein milieu de la fenêtre (ex. vacances de
+        // Noël pendant le choix LV2) est ainsi compensée jour après jour, pas seulement le cas
+        // limite où la clôture tombe par hasard un jour fermé.
         const fenetresGlissantes = await (prisma as any).academicEvent.findMany({
-          where: { schoolId: school.id, status: "ACTIVE", category: "SLIDING_WINDOW", closeDate: { not: null } },
+          where: { schoolId: school.id, status: "ACTIVE", category: "SLIDING_WINDOW", closeDate: { not: null, gt: maintenant } },
         });
         for (const ev of fenetresGlissantes) {
           if (!ev.closeDate) continue;
-          if (!(await estJourOuvreScolaire(prisma, school.id, ev.closeDate))) {
-            const nouvelleCloture = await ajouterJoursOuvresScolaires(prisma, school.id, ev.closeDate, 1);
+          const nouvelleCloture = await prolongerSiFermetureAujourdhui(prisma, school.id, ev.closeDate, maintenant);
+          if (nouvelleCloture) {
             await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { closeDate: nouvelleCloture } });
           }
         }
