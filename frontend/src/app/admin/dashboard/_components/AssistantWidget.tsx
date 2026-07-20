@@ -29,6 +29,10 @@ const IDLE_THRESHOLD_MS = 90 * 1000
 interface Props {
   /** Section active du dashboard (ex. 'grades') — sert à dériver le screenKey ('admin.grades') transmis au copilot. */
   section?: string
+  /** Préfixe du screenKey — 'admin' par défaut. Passer 'teacher' pour le dashboard Enseignant, etc. */
+  rolePrefix?: string
+  /** Suggestions affichées au premier ouverture — spécifiques au rôle. */
+  suggestions?: string[]
 }
 
 type ChatItem =
@@ -39,7 +43,7 @@ type ChatItem =
   | { kind: 'pending'; id: number; pendingActionId: string; summary: string; resolved?: 'confirmed' | 'cancelled' }
   | { kind: 'escalate'; id: number; text: string; supportContact: string }
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   'Crée une classe de 4e D',
   'Nomme un professeur principal pour la 3e A',
   'Combien d’élèves ai-je par classe ?',
@@ -62,7 +66,7 @@ function highlightElements(selectors?: string[]) {
   window.dispatchEvent(new CustomEvent('zekoulabia:highlight', { detail: { selectors } }))
 }
 
-export default function AssistantWidget({ section }: Props) {
+export default function AssistantWidget({ section, rolePrefix = 'admin', suggestions = DEFAULT_SUGGESTIONS }: Props) {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<ChatItem[]>([])
   const [input, setInput] = useState('')
@@ -99,7 +103,7 @@ export default function AssistantWidget({ section }: Props) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: clean, screenKey: section ? `admin.${section}` : null, conversationId: conversationIdRef.current }),
+        body: JSON.stringify({ message: clean, screenKey: section ? `${rolePrefix}.${section}` : null, conversationId: conversationIdRef.current }),
       })
       const data = await res.json()
       if (data.conversationId) conversationIdRef.current = data.conversationId
@@ -259,7 +263,7 @@ export default function AssistantWidget({ section }: Props) {
                 <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 14, display: 'flex', gap: 8 }}>
                   <Hand size={16} style={{ flexShrink: 0, marginTop: 2 }} /> <span>Bonjour ! Demandez-moi de créer une classe, une matière, d’assigner un enseignant… ou posez-moi une question sur votre établissement.</span>
                 </div>
-                {SUGGESTIONS.map(s => (
+                {suggestions.map(s => (
                   <button key={s} onClick={() => send(s)} style={{
                     display: 'block', width: '100%', textAlign: 'left', marginBottom: 8,
                     background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10,

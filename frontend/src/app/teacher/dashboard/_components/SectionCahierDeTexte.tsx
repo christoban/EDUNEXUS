@@ -266,6 +266,15 @@ export default function SectionCahierDeTexte({ user, onToast }: Props) {
 
   useEffect(() => { if (tab === 'historique') loadEntries() }, [tab]) // eslint-disable-line
 
+  // Rafraîchissement temps réel quand l'assistant IA ajoute une entrée au cahier de texte.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'cahierDeTexte' && tab === 'historique') loadEntries()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [tab])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Dérivé UX ──────────────────────────────────────────────────────────────
   const isFormValid = !!selectedClass && !!selectedSubject &&
     (hasProgramme === false ? !!contenuLibre.trim() : !!contenu.trim())

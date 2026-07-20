@@ -129,6 +129,7 @@ import { CampayPaiementService } from '@infrastructure/services/CampayPaiementSe
 
 // --- Use Cases : Finance ---
 import { CreerPlanFraisUseCase } from '@application/finance/CreerPlanFraisUseCase';
+import { CopierPlansFraisAnneePrecedenteUseCase } from '@application/finance/CopierPlansFraisAnneePrecedenteUseCase';
 import { GenererFactureUseCase } from '@application/finance/GenererFactureUseCase';
 import { GenererFacturesEnMasseUseCase } from '@application/finance/GenererFacturesEnMasseUseCase';
 import { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
@@ -329,6 +330,7 @@ export function creerContainer() {
   const enregistrerPaiementCashUseCase = new EnregistrerPaiementCashUseCase(
     factureRepository, paiementRepository,
   );
+  const copierPlansFraisAnneePrecedenteUseCase = new CopierPlansFraisAnneePrecedenteUseCase(planFraisRepository);
 
   // 11. Use Cases — Classe + Matière
   const sousGroupeRepository = new PrismaSousGroupeRepository(prisma);
@@ -489,6 +491,7 @@ export function creerContainer() {
       rembourserCaution: rembourserCautionUseCase,
       enregistrerDepense: enregistrerDepenseUseCase,
       enregistrerPaiementCash: enregistrerPaiementCashUseCase,
+      copierPlansFraisAnneePrecedente: copierPlansFraisAnneePrecedenteUseCase,
       factureRepository,
     },
     ai: {

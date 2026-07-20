@@ -80,6 +80,15 @@ export default function SectionParentPayments({ onToast }: Props) {
 
   useEffect(() => { fetchChildren() }, [fetchChildren])
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
+
+  // Rafraîchissement temps réel quand l'assistant IA initie un paiement.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'payment') fetchInvoices()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchInvoices])
   useEffect(() => {
     (async () => {
       try {

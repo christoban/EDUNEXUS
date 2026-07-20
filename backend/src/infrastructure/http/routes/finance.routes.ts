@@ -6,7 +6,8 @@ export function creerFinanceRoutes(controller: FinanceController): Router {
   const router = Router();
 
   // Plans de frais
-  router.post('/fee-plans', requireAuth, requireRole('ADMIN'), controller.creerPlan);
+  router.post('/fee-plans', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerPlan);
+  router.post('/fee-plans/copy-from-previous-year', requireAuth, requireRole('ADMIN', 'STAFF'), controller.copierPlansAnneePrecedente);
 
   // Factures
   router.post('/invoices', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFacture);

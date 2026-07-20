@@ -7,13 +7,17 @@ import type { TraiterWebhookCampayUseCase } from '@application/finance/TraiterWe
 import type { RembourserCautionUseCase } from '@application/finance/RembourserCautionUseCase';
 import type { EnregistrerDepenseUseCase } from '@application/finance/EnregistrerDepenseUseCase';
 import type { EnregistrerPaiementCashUseCase } from '@application/finance/EnregistrerPaiementCashUseCase';
+import type { CopierPlansFraisAnneePrecedenteUseCase } from '@application/finance/CopierPlansFraisAnneePrecedenteUseCase';
 import { SeuilLegalDepasseError } from '@domain/errors/SeuilLegalDepasseError';
 import { SeparationOrdonnateurError } from '@domain/errors/SeparationOrdonnateurError';
 import type { PaymentMethod } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { notifyPaymentSms } from '@infrastructure/services/SmsNotificationService';
+import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
 import PDFDocument from 'pdfkit';
 import { sendTransactionalEmail } from '../../../services/emailService';
+
+const notificationService = new SocketNotificationService();
 
 const METHOD_LABELS: Record<string, string> = {
   CASH: 'Espèces',
@@ -192,7 +196,70 @@ export class FinanceController {
     private readonly rembourserCaution: RembourserCautionUseCase,
     private readonly enregistrerDepense: EnregistrerDepenseUseCase,
     private readonly enregistrerPaiementCash: EnregistrerPaiementCashUseCase,
+    private readonly copierPlansFraisAnneePrecedente: CopierPlansFraisAnneePrecedenteUseCase,
   ) {}
+
+  // Même pattern que OrientationController.checkPermission — ADMIN passe toujours,
+  // STAFF doit avoir MANAGE_FINANCE (ex. Intendant/Économe/Bursar).
+  private checkFinancePermission(user: any, res: Response): boolean {
+    if (user.role === 'ADMIN') return true;
+    const perms: string[] = user.permissions ?? [];
+    if (!perms.includes('MANAGE_FINANCE')) {
+      res.status(403).json({ success: false, message: 'Permission MANAGE_FINANCE requise' });
+      return false;
+    }
+    return true;
+  }
+
+  // Notifie les Admin de l'établissement quand un plan de frais est créé par un non-Admin
+  // (typiquement l'Intendant) — silencieux sinon, jamais bloquant pour la réponse HTTP.
+  private async notifierCreationPlanFrais(
+    schoolId: string,
+    createur: { userId: string; role: string },
+    resume: string,
+  ): Promise<void> {
+    if (createur.role === 'ADMIN') return;
+    try {
+      const auteur = await prisma.user.findUnique({
+        where: { id: createur.userId },
+        select: { firstName: true, lastName: true },
+      });
+      const nomAuteur = auteur ? `${auteur.firstName ?? ''} ${auteur.lastName ?? ''}`.trim() : 'Un membre du personnel';
+      const titre = 'Nouveau plan de frais créé';
+      const corps = `${nomAuteur} a ${resume} le ${new Date().toLocaleDateString('fr-FR')}.`;
+
+      await notificationService.envoyerAuRole({
+        schoolId,
+        role: 'ADMIN',
+        type: 'FEE_PLAN_CREATED',
+        titre,
+        corps,
+        canal: 'IN_APP',
+      });
+
+      const settings = await (prisma as any).schoolNotificationSettings.findUnique({ where: { schoolId } });
+      if (settings?.emailDigestAdmin) {
+        const admins = await prisma.user.findMany({
+          where: { schoolId, role: 'ADMIN', isActive: true, email: { not: null } },
+          select: { email: true },
+        });
+        for (const admin of admins) {
+          if (!admin.email) continue;
+          await sendTransactionalEmail({
+            recipientEmail: admin.email,
+            subject: titre,
+            html: `<p>${corps}</p>`,
+            text: corps,
+            template: 'fee_plan_created',
+            eventType: 'payment_reminder',
+            metadata: { schoolId },
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('[Notification] Échec notification création plan de frais:', err);
+    }
+  }
 
   // GET /api/v2/finance/payments/:paymentId/receipt
   genererRecu = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -247,12 +314,59 @@ export class FinanceController {
   creerPlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as any).user;
+      if (!this.checkFinancePermission(user, res)) return;
       const resultat = await this.creerPlanFrais.execute({
         schoolId: user.schoolId,
         demandeurRole: user.role,
         ...req.body,
       });
       res.status(201).json({ success: true, data: resultat });
+      void this.notifierCreationPlanFrais(
+        user.schoolId,
+        { userId: user.userId, role: user.role },
+        `créé le plan de frais « ${resultat.name} » (${resultat.amount} FCFA)`,
+      );
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/finance/fee-plans/copy-from-previous-year
+  copierPlansAnneePrecedente = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      if (!this.checkFinancePermission(user, res)) return;
+      const { targetAcademicYearId, plans } = req.body as { targetAcademicYearId?: string; plans?: any[] };
+
+      if (!targetAcademicYearId) {
+        res.status(400).json({ success: false, message: 'targetAcademicYearId requis' });
+        return;
+      }
+      if (!Array.isArray(plans) || plans.length === 0) {
+        res.status(400).json({ success: false, message: 'Aucun plan à reconduire — la liste "plans" est vide' });
+        return;
+      }
+
+      const resultat = await this.copierPlansFraisAnneePrecedente.execute({
+        schoolId: user.schoolId,
+        targetAcademicYearId,
+        plans: plans.map((p) => ({
+          name: p.name,
+          amount: p.amount,
+          feeType: p.feeType,
+          level: p.level,
+          sectionId: p.sectionId,
+          isRefundable: p.isRefundable,
+          dueDate: p.dueDate ? new Date(p.dueDate) : undefined,
+          description: p.description,
+        })),
+      });
+      res.status(201).json({ success: true, data: resultat });
+      void this.notifierCreationPlanFrais(
+        user.schoolId,
+        { userId: user.userId, role: user.role },
+        `reconduit ${resultat.crees} plan(s) de frais pour la nouvelle année scolaire`,
+      );
     } catch (error) {
       this.gererErreur(error, res, next);
     }

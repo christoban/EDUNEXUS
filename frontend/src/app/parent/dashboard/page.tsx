@@ -19,6 +19,14 @@ import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { db } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
+import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+
+const PARENT_SECTIONS: ParentSection[] = ['children', 'grades', 'attendance', 'payments', 'timetable', 'settings', 'library', 'apee', 'notifications']
+const PARENT_ASSISTANT_SUGGESTIONS = [
+  'Quelles sont les dernières notes de mon enfant ?',
+  'Mon enfant a-t-il des factures impayées ?',
+  'Quel est le taux de présence de mon enfant ce mois-ci ?',
+]
 
 let toastId = 0
 
@@ -81,6 +89,17 @@ export default function ParentDashboard() {
 
   const sProps = { onToast: showToast }
 
+  // Navigation temps réel déclenchée par l'assistant IA (copilot) : quand il répond à
+  // une question, on bascule vers l'écran concerné pour que l'information soit visible.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const navSection = (e as CustomEvent<{ section?: string }>).detail?.section
+      if (navSection && PARENT_SECTIONS.includes(navSection as ParentSection)) setSection(navSection as ParentSection)
+    }
+    window.addEventListener('zekoulabia:navigate', onNavigate)
+    return () => window.removeEventListener('zekoulabia:navigate', onNavigate)
+  }, [])
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
       <ParentSidebar current={section} onChange={setSection} onLogout={logoutUser} user={user} school={school} />
@@ -110,6 +129,7 @@ export default function ParentDashboard() {
 
       <ParentToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
+      <AssistantWidget section={section} rolePrefix="parent" suggestions={PARENT_ASSISTANT_SUGGESTIONS} />
     </div>
   )
 }

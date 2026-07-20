@@ -18,6 +18,14 @@ import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { db } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
+import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+
+const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications']
+const STUDENT_ASSISTANT_SUGGESTIONS = [
+  'Quelles sont mes dernières notes ?',
+  'Quel est mon taux de présence ce mois-ci ?',
+  'Quels livres ai-je empruntés ?',
+]
 
 let toastId = 0
 
@@ -95,6 +103,17 @@ export default function StudentDashboard() {
 
   const sProps = { onToast: showToast, user }
 
+  // Navigation temps réel déclenchée par l'assistant IA (copilot) : quand il répond à
+  // une question, on bascule vers l'écran concerné pour que l'information soit visible.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const navSection = (e as CustomEvent<{ section?: string }>).detail?.section
+      if (navSection && STUDENT_SECTIONS.includes(navSection as StudentSection)) setSection(navSection as StudentSection)
+    }
+    window.addEventListener('zekoulabia:navigate', onNavigate)
+    return () => window.removeEventListener('zekoulabia:navigate', onNavigate)
+  }, [])
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
       <StudentSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} />
@@ -126,6 +145,7 @@ export default function StudentDashboard() {
 
       <StudentToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
+      <AssistantWidget section={section} rolePrefix="student" suggestions={STUDENT_ASSISTANT_SUGGESTIONS} />
     </div>
   )
 }

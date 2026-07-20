@@ -642,6 +642,7 @@ model AcademicYear {
   classPromotions   ClassPromotion[]
   programmes        Programme[]
   cahierDeTexte     CahierDeTexte[]
+  feePlans          FeePlan[]
 
   @@index([schoolId])
 }
@@ -1006,21 +1007,28 @@ model TimetableSlot {
 }
 
 model FeePlan {
-  id           String    @id @default(cuid())
-  schoolId     String
-  sectionId    String?
-  name         String
-  amount       Float
-  currency     String    @default("XAF")
-  description  String?
-  createdAt    DateTime  @default(now())
-  feeType      FeeType   @default(TUITION)
-  level        String?
-  isRefundable Boolean   @default(false)
-  dueDate      DateTime?
-  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  section      Section?  @relation(fields: [sectionId], references: [id])
-  invoices     Invoice[]
+  id             String        @id @default(cuid())
+  schoolId       String
+  sectionId      String?
+  name           String
+  amount         Float
+  currency       String        @default("XAF")
+  description    String?
+  createdAt      DateTime      @default(now())
+  feeType        FeeType       @default(TUITION)
+  level          String?
+  isRefundable   Boolean       @default(false)
+  dueDate        DateTime?
+  // Nullable : les plans créés avant ce champ (ou via la création manuelle standard) restent
+  // "évergreens", non rattachés à une année précise. Seule la reconduction automatique
+  // (CopierPlansFraisAnneePrecedenteUseCase) rattache les plans copiés à l'année cible.
+  academicYearId String?
+  school         School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  section        Section?      @relation(fields: [sectionId], references: [id])
+  academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id])
+  invoices       Invoice[]
+
+  @@index([schoolId, academicYearId])
 }
 
 model Invoice {

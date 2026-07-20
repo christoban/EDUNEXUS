@@ -21,6 +21,8 @@ export interface PlanFraisProps {
   dueDate?: Date;
   description?: string;
   createdAt: Date;
+  /** Non renseigné pour un plan "évergreen" — voir note du modèle FeePlan. */
+  academicYearId?: string;
 }
 
 export interface CreerPlanFraisProps {
@@ -34,6 +36,7 @@ export interface CreerPlanFraisProps {
   isRefundable?: boolean;
   dueDate?: Date;
   description?: string;
+  academicYearId?: string;
 }
 
 export class PlanFrais {
@@ -66,6 +69,7 @@ export class PlanFrais {
   get level(): string | undefined { return this.props.level; }
   get isRefundable(): boolean { return this.props.isRefundable; }
   get dueDate(): Date | undefined { return this.props.dueDate; }
+  get academicYearId(): string | undefined { return this.props.academicYearId; }
 
   // --- Méthodes métier ---
 

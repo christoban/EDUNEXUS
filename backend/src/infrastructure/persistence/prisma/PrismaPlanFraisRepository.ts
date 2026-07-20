@@ -31,6 +31,13 @@ export class PrismaPlanFraisRepository implements PlanFraisRepository {
     return data.map(d => this.toDomain(d));
   }
 
+  async findByAcademicYear(schoolId: string, academicYearId: string): Promise<PlanFrais[]> {
+    const data = await this.prisma.feePlan.findMany({
+      where: { schoolId, academicYearId },
+    });
+    return data.map(d => this.toDomain(d));
+  }
+
   async getSeuilLegalTuition(
     schoolId: string,
     cycle: 'FIRST' | 'SECOND'
@@ -64,6 +71,7 @@ export class PrismaPlanFraisRepository implements PlanFraisRepository {
         dueDate: data.dueDate,
         description: data.description,
         createdAt: data.createdAt,
+        academicYearId: data.academicYearId,
       },
     });
   }
@@ -100,6 +108,7 @@ export class PrismaPlanFraisRepository implements PlanFraisRepository {
       dueDate: data.dueDate ?? undefined,
       description: data.description ?? undefined,
       createdAt: data.createdAt,
+      academicYearId: data.academicYearId ?? undefined,
     });
   }
 }

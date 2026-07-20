@@ -202,6 +202,15 @@ export default function SectionDiscipline({ onToast }: Props) {
 
   useEffect(() => { fetchRecords() }, [fetchRecords])
 
+  // Rafraîchissement temps réel quand l'assistant IA enregistre/lève une sanction.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'disciplineRecord') fetchRecords()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchRecords])
+
   const searchStudents = async (q: string) => {
     if (q.trim().length < 2) { setForm(f => ({ ...f, studentResults: [] })); return }
     try {

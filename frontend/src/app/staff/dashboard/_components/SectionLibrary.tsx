@@ -110,6 +110,17 @@ export default function SectionLibrary({ onToast }: Props) {
     else fetchLoans(1)
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rafraîchissement temps réel quand l'assistant IA enregistre un emprunt/retour de livre.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'bookLoan') {
+        if (tab === 'books') fetchBooks(1); else fetchLoans(1)
+      }
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [tab, fetchBooks, fetchLoans])
+
   const addBook = async () => {
     if (!bookForm.title.trim()) { onToast(t('library.titleRequired'), 'error'); return }
 

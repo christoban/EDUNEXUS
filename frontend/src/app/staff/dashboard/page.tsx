@@ -26,6 +26,13 @@ import NotificationCenter from '@/components/NotificationCenter'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
+import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+
+const STAFF_ASSISTANT_SUGGESTIONS = [
+  'Enregistre un avertissement écrit à Paul pour bavardage',
+  'Quel est le solde de l’APEE ?',
+  'Quels livres sont disponibles sur la géographie ?',
+]
 
 let toastId = 0
 
@@ -72,6 +79,17 @@ export default function StaffDashboard() {
   }, [allowedSections])
 
   const can = (s: StaffSection) => allowedSections.has(s)
+
+  // Navigation temps réel déclenchée par l'assistant IA (copilot) : quand il exécute
+  // une action, on bascule vers l'écran concerné pour que le changement soit visible.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const navSection = (e as CustomEvent<{ section?: string }>).detail?.section
+      if (navSection) navTo(navSection as StaffSection)
+    }
+    window.addEventListener('zekoulabia:navigate', onNavigate)
+    return () => window.removeEventListener('zekoulabia:navigate', onNavigate)
+  }, [navTo])
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
@@ -160,6 +178,7 @@ export default function StaffDashboard() {
       <StaffToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
       {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
+      <AssistantWidget section={section} rolePrefix="staff" suggestions={STAFF_ASSISTANT_SUGGESTIONS} />
     </div>
   )
 }

@@ -50,6 +50,12 @@ import { SearchController } from '@infrastructure/http/controllers/SearchControl
 import { AIController } from '@infrastructure/http/controllers/AIController';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
 import { buildAdminActionCatalog } from '@application/assistant/adminActionCatalog';
+import { buildTeacherActionCatalog } from '@application/assistant/teacherActionCatalog';
+import { buildStaffActionCatalog } from '@application/assistant/staffActionCatalog';
+import { buildParentActionCatalog } from '@application/assistant/parentActionCatalog';
+import { buildStudentActionCatalog } from '@application/assistant/studentActionCatalog';
+import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
+import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
 import { AffecterLV2EleveUseCase } from '@application/student/AffecterLV2EleveUseCase';
 import { AffecterLV2EnMasseUseCase } from '@application/student/AffecterLV2EnMasseUseCase';
 import { AffecterPEBSEleveUseCase } from '@application/student/AffecterPEBSEleveUseCase';
@@ -890,6 +896,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.finance.rembourserCaution,
     container.finance.enregistrerDepense,
     container.finance.enregistrerPaiementCash,
+    container.finance.copierPlansFraisAnneePrecedente,
   );
 
   app.use('/api/v2/finance', creerFinanceRoutes(financeController));
@@ -1360,10 +1367,64 @@ export function bootstrapHexagonal(app: Application): void {
     alertesRetardProgramme: (schoolId, academicYearId, seuilPct) =>
       calculerAlertesRetardProgramme(prisma, schoolId, academicYearId, seuilPct),
   });
-  const assistantController = new AssistantController(prisma, adminActionCatalog);
-  app.post('/api/v2/assistant/execute', requireAuth, requireRole('ADMIN'), assistantController.execute);
-  app.post('/api/v2/assistant/confirm-action', requireAuth, requireRole('ADMIN'), assistantController.confirmAction);
-  app.post('/api/v2/assistant/undo-action', requireAuth, requireRole('ADMIN'), assistantController.undoAction);
+
+  // ── Assistant IA EXÉCUTANT (copilot) — rôle TEACHER (Section 6.2 du chantier) ──
+  const teacherActionCatalog = buildTeacherActionCatalog({
+    saisirNote: container.grade.saisirNote,
+    soumettreNote: container.grade.soumettreNote,
+    enregistrerPresence: container.attendance.enregistrerPresence,
+    demanderRattrapage: container.timetable.demanderRattrapage,
+  });
+
+  // ── Assistant IA EXÉCUTANT (copilot) — rôle STAFF (Section 6.2 du chantier) ──
+  // Discipline/APEE/Bibliothèque/Orientation uniquement — le reste (Finance, Notes, Conseil
+  // de classe...) est déjà dans adminActionCatalog.ts et devient accessible à STAFF via son
+  // requiredPermission dès que la route l'autorise, sans duplication.
+  const staffActionCatalog = buildStaffActionCatalog({
+    creerTransactionAPEE: new CreerTransactionAPEEUseCase(prisma),
+    validerDepenseAPEE: new ValiderDepenseAPEEUseCase(prisma),
+    ajouterSuiviOrientation: container.orientation.ajouterSuivi,
+    notifierSanctionDisciplinaire: async (schoolId, studentId, studentName, type, reason) => {
+      const { phonesSansPush } = await notifierParentsPushDabord({
+        schoolId, studentId, type: 'DISCIPLINE_SANCTION',
+        titre: 'Sanction disciplinaire',
+        corps: `${studentName} a fait l'objet d'une sanction disciplinaire. Motif : ${reason}.`,
+      });
+      await notifyDisciplineSms({ schoolId, studentId, studentName, type, reason, phones: phonesSansPush });
+      const parentLinks = await prisma.parentStudent.findMany({
+        where: { studentProfile: { userId: studentId } },
+        include: { parentProfile: { include: { user: { select: { email: true } } } } },
+      });
+      const parentEmails = [...new Set(parentLinks.map((l) => l.parentProfile?.user?.email).filter((e): e is string => Boolean(e)))];
+      for (const email of parentEmails) {
+        await sendTransactionalEmail({
+          recipientEmail: email,
+          subject: `Notification disciplinaire — ${studentName}`,
+          html: `<p>Bonjour,</p><p><b>${studentName}</b> a fait l'objet d'une sanction disciplinaire.</p><p><b>Type :</b> ${type}</p><p><b>Motif :</b> ${reason}</p><p>Merci de contacter l'établissement pour plus d'informations.</p>`,
+          text: `Sanction disciplinaire pour ${studentName} : ${type} — ${reason}`,
+          template: 'discipline_notification',
+          eventType: 'discipline_notification',
+          metadata: { schoolId },
+        });
+      }
+    },
+  });
+
+  // ── Assistant IA EXÉCUTANT (copilot) — rôle PARENT (Section 6.2 du chantier) ──
+  const parentActionCatalog = buildParentActionCatalog({
+    initierPaiement: container.finance.initierPaiement,
+  });
+
+  // ── Assistant IA EXÉCUTANT (copilot) — rôle STUDENT (Section 6.2 du chantier) ──
+  // Consultation uniquement, pas d'actions (voir plan) — aucune dépendance à câbler.
+  const studentActionCatalog = buildStudentActionCatalog();
+
+  // Un seul copilot, un seul catalogue combiné (Principe 0.1) — chaque action porte son
+  // propre `allowedRoles`/`requiredPermission`, filtré côté serveur par filterCatalogForUser.
+  const assistantController = new AssistantController(prisma, [...adminActionCatalog, ...teacherActionCatalog, ...staffActionCatalog, ...parentActionCatalog, ...studentActionCatalog]);
+  app.post('/api/v2/assistant/execute', requireAuth, requireRole('ADMIN', 'TEACHER', 'STAFF', 'PARENT', 'STUDENT'), assistantController.execute);
+  app.post('/api/v2/assistant/confirm-action', requireAuth, requireRole('ADMIN', 'TEACHER', 'STAFF', 'PARENT', 'STUDENT'), assistantController.confirmAction);
+  app.post('/api/v2/assistant/undo-action', requireAuth, requireRole('ADMIN', 'TEACHER', 'STAFF', 'PARENT', 'STUDENT'), assistantController.undoAction);
   app.use('/api/v2/core-domain',   creerCoreDomainRoutes(coreDomainController));
   app.use('/api/v2/public',        creerPublicRoutes(publicController));
   app.use('/api/v2/sms',           creerSMSRoutes(smsController));
@@ -1668,12 +1729,13 @@ export function bootstrapHexagonal(app: Application): void {
     } catch (err) { next(err); }
   });
 
-  // GET /api/v2/finance/fee-plans — liste des plans de frais (ADMIN ou STAFF avec MANAGE_FINANCE)
+  // GET /api/v2/finance/fee-plans?academicYearId= — liste des plans de frais (ADMIN ou STAFF avec MANAGE_FINANCE)
   app.get('/api/v2/finance/fee-plans', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
+      const { academicYearId } = req.query as Record<string, string>;
       const plans = await prisma.feePlan.findMany({
-        where: { schoolId },
+        where: { schoolId, ...(academicYearId ? { academicYearId } : {}) },
         orderBy: { createdAt: 'desc' },
       });
       res.json({ success: true, data: plans });

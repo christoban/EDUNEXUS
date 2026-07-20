@@ -55,6 +55,17 @@ function fmtDate(d: string | null): string {
 const EMPTY_YEAR = { name: '', startDate: '', endDate: '', loading: false, error: '' }
 const EMPTY_CAL = { open: false, yearId: '', yearName: '', periodes: [] as CalPeriode[], loading: false, error: '' }
 
+interface FeePlanItem {
+  id: string; name: string; amount: number; feeType: string
+  level: string | null; isRefundable: boolean; dueDate: string | null
+  description: string | null; sectionId: string | null
+}
+interface ReconductionRow extends FeePlanItem { include: boolean; editedAmount: string }
+const EMPTY_RECONDUCTION = {
+  open: false, targetYearId: '', targetYearName: '',
+  rows: [] as ReconductionRow[], loading: false, submitting: false, error: '',
+}
+
 export default function SectionAcademicYear({ onToast }: Props) {
   const t = useT('admin')
   const [years, setYears]         = useState<AcademicYear[]>([])
@@ -67,6 +78,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm]             = useState(EMPTY_YEAR)
   const [calForm, setCalForm]       = useState(EMPTY_CAL)
+  const [reconduction, setReconduction] = useState(EMPTY_RECONDUCTION)
 
   const fetchYears = useCallback(async () => {
     try {
@@ -166,6 +178,9 @@ export default function SectionAcademicYear({ onToast }: Props) {
       setForm(f => ({ ...f, error: t('academic_year.toast.requiredFields') })); return
     }
     setForm(f => ({ ...f, loading: true, error: '' }))
+    // Capturée avant la création : sert de source par défaut pour la proposition de
+    // reconduction des plans de frais juste après (année qui était courante jusqu'ici).
+    const previousCurrentYearId = years.find(y => y.isCurrent)?.id ?? null
     try {
       const res = await fetchApi('/api/v2/academic-years', {
         method: 'POST', credentials: 'include',
@@ -175,9 +190,83 @@ export default function SectionAcademicYear({ onToast }: Props) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || t('academic_year.toast.err'))
       onToast(t('academic_year.toast.yearCreated', { name: form.name }), 'success')
+      const targetYearId: string = data.data?.anneeId
+      const targetYearName: string = form.name.trim()
       setCreateOpen(false); setForm(EMPTY_YEAR); fetchYears()
+      if (targetYearId) openReconductionReview(targetYearId, targetYearName, previousCurrentYearId)
     } catch (err) {
       setForm(f => ({ ...f, error: err instanceof Error ? err.message : t('academic_year.toast.err'), loading: false }))
+    }
+  }
+
+  // ── Reconduction des plans de frais vers la nouvelle année ────────────────
+  const openReconductionReview = async (targetYearId: string, targetYearName: string, sourceYearId: string | null) => {
+    setReconduction({ ...EMPTY_RECONDUCTION, open: true, targetYearId, targetYearName, loading: true })
+    try {
+      // Priorité aux plans déjà rattachés à l'année précédente ; si aucun (premier usage de
+      // la reconduction — aucun plan n'est encore rattaché à une année), on retombe sur
+      // l'ensemble des plans "évergreens" actuels comme base de départ.
+      let plans: FeePlanItem[] = []
+      if (sourceYearId) {
+        const res = await fetchApi(`/api/v2/finance/fee-plans?academicYearId=${sourceYearId}`, { credentials: 'include' })
+        const data = await res.json()
+        if (res.ok) plans = data.data ?? []
+      }
+      if (plans.length === 0) {
+        const res = await fetchApi('/api/v2/finance/fee-plans', { credentials: 'include' })
+        const data = await res.json()
+        if (res.ok) plans = data.data ?? []
+      }
+      const rows: ReconductionRow[] = plans.map(p => ({ ...p, include: true, editedAmount: String(p.amount) }))
+      setReconduction(r => ({ ...r, loading: false, rows }))
+    } catch {
+      setReconduction(r => ({ ...r, loading: false, error: t('academic_year.toast.err') }))
+    }
+  }
+
+  const closeReconduction = () => setReconduction(EMPTY_RECONDUCTION)
+
+  const toggleReconductionRow = (id: string) => {
+    setReconduction(r => ({ ...r, rows: r.rows.map(row => row.id === id ? { ...row, include: !row.include } : row) }))
+  }
+
+  const setReconductionAmount = (id: string, amount: string) => {
+    setReconduction(r => ({ ...r, rows: r.rows.map(row => row.id === id ? { ...row, editedAmount: amount } : row) }))
+  }
+
+  const confirmReconduction = async () => {
+    const included = reconduction.rows.filter(row => row.include)
+    if (included.length === 0) { closeReconduction(); return }
+    setReconduction(r => ({ ...r, submitting: true, error: '' }))
+    try {
+      const res = await fetchApi('/api/v2/finance/fee-plans/copy-from-previous-year', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetAcademicYearId: reconduction.targetYearId,
+          plans: included.map(row => ({
+            name: row.name,
+            amount: parseFloat(row.editedAmount),
+            feeType: row.feeType,
+            level: row.level ?? undefined,
+            sectionId: row.sectionId ?? undefined,
+            isRefundable: row.isRefundable,
+            dueDate: row.dueDate ?? undefined,
+            description: row.description ?? undefined,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || t('academic_year.toast.err'))
+      const { crees, erreurs } = data.data as { crees: number; erreurs: { name: string; message: string }[] }
+      if (erreurs?.length > 0) {
+        onToast(`${crees} plan(s) reconduit(s), ${erreurs.length} échec(s) : ${erreurs.map((e) => e.name).join(', ')}`, crees > 0 ? 'info' : 'error')
+      } else {
+        onToast(`${crees} plan(s) de frais reconduit(s) pour ${reconduction.targetYearName}`, 'success')
+      }
+      closeReconduction()
+    } catch (err) {
+      setReconduction(r => ({ ...r, submitting: false, error: err instanceof Error ? err.message : t('academic_year.toast.err') }))
     }
   }
 
@@ -641,6 +730,58 @@ export default function SectionAcademicYear({ onToast }: Props) {
             </button>
           </div>
         </ModalOverlay>
+      )}
+
+      {/* ── Modal revue de reconduction des plans de frais ── */}
+      {reconduction.open && (
+        <div onClick={closeReconduction} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 640, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+              Reconduire les plans de frais ?
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 18 }}>
+              Vers <strong>{reconduction.targetYearName}</strong> — décochez les plans à ne pas reconduire, ajustez les montants si besoin. Rien n&apos;est créé tant que vous n&apos;avez pas confirmé.
+            </div>
+
+            {reconduction.loading && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 30 }}><Loader2 size={22} className="animate-spin" /></div>
+            )}
+
+            {!reconduction.loading && reconduction.rows.length === 0 && (
+              <div style={{ padding: '20px 0', color: 'var(--text3)', fontSize: 14 }}>Aucun plan de frais existant à reconduire.</div>
+            )}
+
+            {!reconduction.loading && reconduction.rows.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                {reconduction.rows.map(row => (
+                  <div key={row.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: row.include ? 'var(--bg2)' : 'transparent', opacity: row.include ? 1 : 0.5 }}>
+                    <input type="checkbox" checked={row.include} onChange={() => toggleReconductionRow(row.id)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)' }}>{row.feeType}{row.level ? ` — ${row.level}` : ''}</div>
+                    </div>
+                    <input
+                      type="number" value={row.editedAmount} disabled={!row.include}
+                      onChange={e => setReconductionAmount(row.id, e.target.value)}
+                      style={{ width: 110, padding: '7px 10px', borderRadius: 8, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', textAlign: 'right' }} />
+                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>FCFA</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {reconduction.error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{reconduction.error}</div>}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}
+                onClick={closeReconduction}>Ignorer</button>
+              <button style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: reconduction.submitting ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: reconduction.submitting ? 0.7 : 1 }}
+                onClick={confirmReconduction} disabled={reconduction.submitting || reconduction.loading || reconduction.rows.length === 0}>
+                {reconduction.submitting ? 'Reconduction…' : `Reconduire (${reconduction.rows.filter(r => r.include).length})`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

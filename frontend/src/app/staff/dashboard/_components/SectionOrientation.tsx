@@ -283,6 +283,15 @@ export default function SectionOrientation({ onToast }: Props) {
   useEffect(() => { fetchStats() }, [fetchStats])
   useEffect(() => { setPage(1); fetchFiches(1) }, [fetchFiches])
 
+  // Rafraîchissement temps réel quand l'assistant IA ajoute un suivi d'orientation.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'suiviOrientation') { fetchStats(); fetchFiches(page) }
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchStats, fetchFiches, page])
+
   // ── Fetch fiche detail ────────────────────────────────────────────────────────
   const openFiche = async (id: string) => {
     setLoadingFiche(true); setView('fiche'); setFicheTab('entretiens')

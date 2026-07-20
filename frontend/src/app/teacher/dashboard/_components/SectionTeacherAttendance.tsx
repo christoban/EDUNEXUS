@@ -75,6 +75,15 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
     }
   }, [])
 
+  // Rafraîchissement temps réel quand l'assistant IA marque une présence.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'attendance' && selectedClass) loadAttendance()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [selectedClass])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadAttendance = async () => {
     if (!selectedClass) { onToast(t('attendance.toast_select_class'), 'warning'); return }
     setLoading(true)

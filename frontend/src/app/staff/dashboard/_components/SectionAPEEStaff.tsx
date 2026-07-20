@@ -65,6 +65,15 @@ export default function SectionAPEEStaff({ onToast }: Props) {
 
   useEffect(() => { load() }, [load])
 
+  // Rafraîchissement temps réel quand l'assistant IA enregistre/valide une transaction APEE.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'apeeTransaction') load()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [load])
+
   const submitTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
     const montant = parseFloat(form.montant)

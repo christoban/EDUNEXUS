@@ -76,6 +76,15 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     }
   }, [])
 
+  // Rafraîchissement temps réel quand l'assistant IA saisit/soumet une note.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'grade' && selectedClass && selectedSubject && selectedSequence) loadGrades()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [selectedClass, selectedSubject, selectedSequence])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadGrades = async () => {
     if (!selectedClass || !selectedSubject || !selectedSequence) {
       onToast(t('grades_section.toast_select_filters'), 'warning')

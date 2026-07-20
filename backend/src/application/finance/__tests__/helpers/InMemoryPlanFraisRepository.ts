@@ -23,6 +23,9 @@ export class InMemoryPlanFraisRepository implements PlanFraisRepository {
   async findByLevel(schoolId: string, level: string) {
     return [...this.store.values()].filter(p => p.schoolId === schoolId && p.level === level);
   }
+  async findByAcademicYear(schoolId: string, academicYearId: string) {
+    return [...this.store.values()].filter(p => p.schoolId === schoolId && p.academicYearId === academicYearId);
+  }
   async getSeuilLegalTuition(_schoolId: string, cycle: 'FIRST' | 'SECOND') {
     return cycle === 'FIRST' ? this.seuilPremierCycle : this.seuilSecondCycle;
   }

@@ -9,6 +9,7 @@ export interface PlanFraisRepository {
   findBySchool(schoolId: string): Promise<PlanFrais[]>;
   findByType(schoolId: string, feeType: FeeType): Promise<PlanFrais[]>;
   findByLevel(schoolId: string, level: string): Promise<PlanFrais[]>;
+  findByAcademicYear(schoolId: string, academicYearId: string): Promise<PlanFrais[]>;
 
   /**
    * Retourne le seuil légal MINESEC depuis SchoolConfig.

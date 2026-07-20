@@ -26,7 +26,19 @@ import ChangePasswordModal from '@/components/ChangePasswordModal'
 import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import NotificationBell from '@/components/NotificationBell'
 import NotificationCenter from '@/components/NotificationCenter'
+import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 import { useT } from '@/lib/i18n'
+
+const TEACHER_SECTIONS: TeacherSection[] = [
+  'dashboard', 'classes', 'attendance', 'grades', 'bulletins', 'timetable', 'resources', 'sync',
+  'pp-classe', 'pp-appreciations', 'ap-departement', 'cahier-de-texte', 'at-risk',
+  'mon-profil-rh', 'notifications',
+]
+const TEACHER_ASSISTANT_SUGGESTIONS = [
+  'Donne 15 à Jean Dupont en maths pour la 4eA',
+  'Marque Awa absente aujourd’hui en 3eB',
+  'Quelle est la moyenne de ma 4eA en maths ?',
+]
 
 let toastId = 0
 
@@ -82,6 +94,17 @@ export default function TeacherDashboard() {
   }, [])
 
   const sProps = { onToast: showToast, user }
+
+  // Navigation temps réel déclenchée par l'assistant IA (copilot) : quand il exécute
+  // une action, on bascule vers l'écran concerné pour que le changement soit visible.
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const navSection = (e as CustomEvent<{ section?: string }>).detail?.section
+      if (navSection && TEACHER_SECTIONS.includes(navSection as TeacherSection)) setSection(navSection as TeacherSection)
+    }
+    window.addEventListener('zekoulabia:navigate', onNavigate)
+    return () => window.removeEventListener('zekoulabia:navigate', onNavigate)
+  }, [])
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
@@ -155,6 +178,7 @@ export default function TeacherDashboard() {
       <TeacherToast toasts={toasts} onRemove={removeToast} />
       <OfflineIndicator />
       {changePwdOpen && <ChangePasswordModal onClose={() => setChangePwdOpen(false)} onToast={showToast} />}
+      <AssistantWidget section={section} rolePrefix="teacher" suggestions={TEACHER_ASSISTANT_SUGGESTIONS} />
     </div>
   )
 }
