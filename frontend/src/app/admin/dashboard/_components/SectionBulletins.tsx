@@ -61,6 +61,15 @@ export default function SectionBulletins({ onToast }: Props) {
       .finally(() => setLoadingClasses(false))
   }, [])
 
+  // Rafraîchissement temps réel quand l'assistant IA génère/envoie des bulletins.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'reportCard' && classId) loadClass()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [classId])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadClass = async () => {
     if (!classId) { onToast('Sélectionnez une classe', 'info'); return }
     setLoadingCheck(true)

@@ -105,6 +105,17 @@ export default function SectionFinance({ onToast }: Props) {
     else fetchInvoices(1)
   }, [tab])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rafraîchissement temps réel quand l'assistant IA agit sur les plans/factures/paiements.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      const entity = (e as CustomEvent<{ entity?: string }>).detail?.entity
+      if (entity === 'feePlan') fetchPlans()
+      if ((entity === 'invoice' || entity === 'payment') && tab !== 'plans') fetchInvoices(page)
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchPlans, fetchInvoices, tab, page])
+
   const fetchYearsForBulk = async () => {
     try {
       const res = await fetchApi('/api/v2/academic-years', { credentials: 'include' })

@@ -49,6 +49,45 @@ export class AssistantController {
     return (this.prisma as any).assistantHelpQueryLog;
   }
 
+  private get conversationRepo() {
+    return (this.prisma as any).assistantConversationTurn;
+  }
+
+  /**
+   * Charge l'historique persisté d'un fil de conversation et le sérialise en texte,
+   * même principe que le fix déjà validé pour l'onboarding PEBS conversationnel :
+   * pas de résumé, l'historique COMPLET est réinjecté à chaque appel avec instruction
+   * explicite de cumuler l'information de tous les tours précédents.
+   */
+  private async loadHistoryBlock(conversationId: string | null, schoolId: string, userId: string): Promise<string> {
+    if (!conversationId) return '';
+    const turns = await this.conversationRepo.findMany({
+      where: { conversationId, schoolId, userId },
+      orderBy: { createdAt: 'asc' },
+      take: 40, // borne raisonnable — évite un prompt système illimité sur une très longue session
+    });
+    if (turns.length === 0) return '';
+
+    const historyBlock = turns
+      .map((t: any, i: number) => `[${t.role === 'user' ? 'UTILISATEUR' : 'ASSISTANT'}, tour ${i + 1}] : "${t.content}"`)
+      .join('\n');
+
+    return (
+      `\n\n── Historique de cette conversation ──\n` +
+      `Tu reçois ci-dessous l'HISTORIQUE COMPLET des échanges précédents avec cet utilisateur, dans ce fil de conversation.\n` +
+      `Ne te base PAS uniquement sur le dernier message : intègre TOUTE l'information déjà donnée dans les tours précédents.\n` +
+      `Si l'utilisateur répond à une question de clarification que TU as posée, comprends sa réponse à la lumière de CETTE question précise.\n` +
+      `${historyBlock}`
+    );
+  }
+
+  /** Persiste un tour (utilisateur ou assistant) dans l'historique du fil de conversation. */
+  private saveTurn(conversationId: string, schoolId: string, userId: string, role: 'user' | 'assistant', content: string, toolCalls?: unknown) {
+    this.conversationRepo
+      .create({ data: { conversationId, schoolId, userId, role, content, toolCalls: toolCalls ?? undefined } })
+      .catch((e: any) => console.error('[AssistantConversationTurn]', e?.message));
+  }
+
   private ctx(req: Request): ActionContext {
     const user = req.user!;
     return { schoolId: user.schoolId, userId: user.userId, role: user.role, prisma: this.prisma };
@@ -128,6 +167,10 @@ export class AssistantController {
       const user = req.user!;
       const message = (req.body?.message as string | undefined)?.trim();
       const screenKey = (req.body?.screenKey as string | undefined)?.trim() || null;
+      // Un nouveau fil de conversation démarre côté serveur si le frontend n'en a pas encore
+      // un (première question de la session) — réutilisé par le frontend pour tous les
+      // messages suivants du même échange, pour que l'historique soit reconstitué à chaque appel.
+      const conversationId = (req.body?.conversationId as string | undefined)?.trim() || crypto.randomUUID();
       if (!message) {
         res.status(400).json({ success: false, message: 'Message requis' });
         return;
@@ -136,8 +179,11 @@ export class AssistantController {
       // Catalogue filtré selon les permissions réelles — jamais plus que le rôle n'autorise.
       const allowed = filterCatalogForUser(this.catalog, user);
       const tools = buildTools(allowed);
-      const { system, helpArticles } = await this.buildSystemPrompt(user.schoolId, user.role, screenKey);
+      const { system: baseSystem, helpArticles } = await this.buildSystemPrompt(user.schoolId, user.role, screenKey);
+      const historyBlock = await this.loadHistoryBlock(conversationId, user.schoolId, user.userId);
+      const system = baseSystem + historyBlock;
       const ctx = this.ctx(req);
+      this.saveTurn(conversationId, user.schoolId, user.userId, 'user', message);
 
       // Le tool d'escalade n'est proposé au modèle que si aucune fiche d'aide ne couvre
       // déjà l'écran actuel — on privilégie la réponse fondée quand elle existe.
@@ -173,7 +219,7 @@ export class AssistantController {
         result = await generateText({ model: groqModel, system, prompt: message, tools, toolChoice: 'auto' });
       } catch (e: any) {
         console.error('Assistant Groq error:', e?.message);
-        res.json({ success: true, type: 'message', response: "Le service IA est momentanément indisponible. Réessayez dans un instant." });
+        res.json({ success: true, type: 'message', response: "Le service IA est momentanément indisponible. Réessayez dans un instant.", conversationId });
         return;
       }
 
@@ -183,22 +229,28 @@ export class AssistantController {
       const escalateCall = toolCalls.find((tc) => tc.toolName === ESCALATE_TOOL_NAME);
       if (escalateCall) {
         logQuery('ESCALATE');
+        const escalateResponse = "Je ne peux pas répondre avec certitude à cette question sur le fonctionnement de ZekoulABia.";
+        this.saveTurn(conversationId, user.schoolId, user.userId, 'assistant', `${escalateResponse} [Escalade vers ${SUPPORT_CONTACT}]`);
         res.json({
           success: true,
           type: 'escalate',
-          response: "Je ne peux pas répondre avec certitude à cette question sur le fonctionnement de ZekoulABia.",
+          response: escalateResponse,
           supportContact: SUPPORT_CONTACT,
+          conversationId,
         });
         return;
       }
 
       if (toolCalls.length === 0) {
         logQuery('MESSAGE');
+        const messageResponse = result.text || 'Je n\'ai pas compris la demande.';
+        this.saveTurn(conversationId, user.schoolId, user.userId, 'assistant', messageResponse);
         res.json({
           success: true,
           type: 'message',
-          response: result.text || 'Je n\'ai pas compris la demande.',
+          response: messageResponse,
           highlightSelectors: highlightSelectors.length > 0 ? highlightSelectors : undefined,
+          conversationId,
         });
         return;
       }
@@ -267,12 +319,25 @@ export class AssistantController {
         }
       }
 
+      // Résumé des actions dans l'historique — pour qu'un tour suivant ("annule ça",
+      // "fais pareil pour la 4eC") sache ce qui vient réellement de se passer.
+      const actionSummary = [
+        ...executed.map((e) => e.error ? `[Échec : ${e.error}]` : `[Action exécutée : ${e.label}]`),
+        ...pending.map((p) => `[Action en attente de confirmation : ${p.summary}]`),
+      ].join(' ');
+      this.saveTurn(
+        conversationId, user.schoolId, user.userId, 'assistant',
+        [result.text, actionSummary].filter(Boolean).join('\n'),
+        toolCalls.map((tc) => ({ name: tc.toolName, input: tc.input })),
+      );
+
       res.json({
         success: true,
         type: pending.length > 0 ? 'confirm' : 'executed',
         response: result.text || null,
         executed,
         pending,
+        conversationId,
       });
     } catch (error) {
       next(error);

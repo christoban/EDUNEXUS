@@ -46,6 +46,48 @@ function daysBetweenInclusive(startDate: Date, endDate: Date): number {
   return diff + 1;
 }
 
+// ─── Traitement d'une demande de congé (extrait pour être réutilisable hors HTTP —
+// ex. catalogue copilot) ────────────────────────────────────────────────────────
+
+export interface TraiterCongeResultat {
+  id: string;
+  statut: LeaveStatusValue;
+}
+
+export async function traiterDemandeConge(
+  prisma: PrismaClient,
+  schoolId: string,
+  requestId: string,
+  statut: 'APPROVED' | 'REJECTED',
+  validatedById: string | undefined,
+): Promise<TraiterCongeResultat> {
+  const leaveRequest = await (prisma as any).leaveRequest.findFirst({ where: { id: requestId, schoolId } });
+  if (!leaveRequest) throw new Error('Demande de congé introuvable');
+  if (leaveRequest.statut !== 'PENDING') throw new Error('La demande a déjà été traitée');
+
+  const updated = await (prisma as any).leaveRequest.update({
+    where: { id: requestId },
+    data: { statut, validatedBy: validatedById ?? null, validatedAt: new Date() },
+  });
+
+  if (statut === 'APPROVED') {
+    const year = new Date(leaveRequest.dateDebut).getFullYear();
+    const balance = await (prisma as any).leaveBalance.upsert({
+      where: { userId_annee: { userId: leaveRequest.userId, annee: year } },
+      create: { userId: leaveRequest.userId, schoolId, annee: year, soldeInitial: 30, soldeRestant: 30 },
+      update: {},
+    });
+
+    const jours = daysBetweenInclusive(new Date(leaveRequest.dateDebut), new Date(leaveRequest.dateFin));
+    await (prisma as any).leaveBalance.update({
+      where: { id: balance.id },
+      data: { soldeRestant: Math.max(0, Number(balance.soldeRestant) - jours) },
+    });
+  }
+
+  return { id: updated.id, statut: updated.statut };
+}
+
 export class HRController {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -515,39 +557,13 @@ export class HRController {
         return;
       }
 
-      const leaveRequest = await (this.prisma as any).leaveRequest.findFirst({ where: { id, schoolId } });
-      if (!leaveRequest) {
-        res.status(404).json({ success: false, message: 'Demande introuvable' });
+      let updated: TraiterCongeResultat;
+      try {
+        updated = await traiterDemandeConge(this.prisma, schoolId, String(id), body.statut as 'APPROVED' | 'REJECTED', currentUser?.id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur serveur';
+        res.status(message === 'Demande de congé introuvable' ? 404 : 409).json({ success: false, message });
         return;
-      }
-
-      if (leaveRequest.statut !== 'PENDING') {
-        res.status(409).json({ success: false, message: 'La demande a déjà été traitée' });
-        return;
-      }
-
-      const updated = await (this.prisma as any).leaveRequest.update({
-        where: { id },
-        data: {
-          statut: body.statut,
-          validatedBy: currentUser?.id ?? null,
-          validatedAt: new Date(),
-        },
-      });
-
-      if (body.statut === 'APPROVED') {
-        const year = new Date(leaveRequest.dateDebut).getFullYear();
-        const balance = await (this.prisma as any).leaveBalance.upsert({
-          where: { userId_annee: { userId: leaveRequest.userId, annee: year } },
-          create: { userId: leaveRequest.userId, schoolId, annee: year, soldeInitial: 30, soldeRestant: 30 },
-          update: {},
-        });
-
-        const jours = daysBetweenInclusive(new Date(leaveRequest.dateDebut), new Date(leaveRequest.dateFin));
-        await (this.prisma as any).leaveBalance.update({
-          where: { id: balance.id },
-          data: { soldeRestant: Math.max(0, Number(balance.soldeRestant) - jours) },
-        });
       }
 
       res.json({ success: true, data: updated });

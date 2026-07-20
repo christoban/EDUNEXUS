@@ -110,6 +110,15 @@ export default function SectionTimetable({ onToast }: Props) {
     }
   }, [classId])
 
+  // Rafraîchissement temps réel quand l'assistant IA publie/modifie un emploi du temps.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'timetable' && classId) fetchTimetable()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchTimetable, classId])
+
   const handleClassChange = (newId: string) => {
     setClassId(newId); setTimetable(null); setError(null); setAdjustResult(null); setAdjustInstruction('')
     if (newId) fetchTimetable(newId)

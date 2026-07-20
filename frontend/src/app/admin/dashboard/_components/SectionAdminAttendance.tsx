@@ -68,6 +68,15 @@ export default function SectionAdminAttendance({ onToast }: Props) {
   const { data: recordsData, loading: loadingRecords, error, fromCache, cachedAt, refetch: fetchRecords } = useCachedFetch<AttendanceRecord[]>(`admin:attendance:${classId}:${date}`, fetchRecordsFn)
   const records = recordsData ?? []
 
+  // Rafraîchissement temps réel quand l'assistant IA justifie une absence.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'attendance') { fetchRecords(); fetchStats() }
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchRecords, fetchStats])
+
   const justify = async (recordId: string) => {
     setJustifyingId(recordId)
     try {

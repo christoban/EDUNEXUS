@@ -72,6 +72,9 @@ export default function AssistantWidget({ section }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const isPriorityScreen = !!section && PRIORITY_SCREENS.includes(section)
   const isIdle = useIdleDetection(IDLE_THRESHOLD_MS, isPriorityScreen && !open)
+  // Fil de conversation — généré côté serveur au premier message, réutilisé pour tous
+  // les suivants afin que l'historique soit reconstitué à chaque appel (clarifications).
+  const conversationIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -96,9 +99,10 @@ export default function AssistantWidget({ section }: Props) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: clean, screenKey: section ? `admin.${section}` : null }),
+        body: JSON.stringify({ message: clean, screenKey: section ? `admin.${section}` : null, conversationId: conversationIdRef.current }),
       })
       const data = await res.json()
+      if (data.conversationId) conversationIdRef.current = data.conversationId
       if (!data.success) {
         push({ kind: 'error', text: data.message || t('assistant.unavailable') })
         return

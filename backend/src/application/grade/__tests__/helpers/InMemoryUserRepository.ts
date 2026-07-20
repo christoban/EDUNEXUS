@@ -39,6 +39,10 @@ export class InMemoryUserRepository implements UserRepository {
     );
   }
 
+  async findByClass(_schoolId: string, _classId: string): Promise<User[]> {
+    return [];
+  }
+
   async existsByEmail(email: string, schoolId: string): Promise<boolean> {
     return [...this.store.values()].some(
       u => u.email === email && u.schoolId === schoolId

@@ -792,6 +792,15 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
     fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
   }, [activeTab])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Rafraîchissement temps réel quand l'assistant IA agit sur les utilisateurs.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'user') fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchUsers, activeTab])
+
   // ── Générer un document scolaire ────────────────────────────────────────
   const openDocModal = (user: UserItem) => {
     setOpenDD(null)

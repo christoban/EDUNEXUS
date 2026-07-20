@@ -2191,6 +2191,28 @@ model AssistantHelpQueryLog {
   @@index([createdAt])
 }
 
+/// Historique persistant des échanges du copilot, par fil de conversation.
+/// Prérequis découvert en Section 1 du chantier "Copilot Unifié" : sans mémoire
+/// des tours précédents, l'assistant ne peut pas exploiter une réponse de
+/// clarification de l'utilisateur (Principe 4 — jamais d'action sur une
+/// supposition). Même principe que le fix déjà validé pour l'onboarding PEBS
+/// conversationnel (historique sérialisé en texte, cumulé tour par tour), mais
+/// persisté côté serveur par `conversationId` plutôt que gardé en state client
+/// éphémère — permet de résister à une reconnexion réseau ou à une re-render.
+model AssistantConversationTurn {
+  id             String   @id @default(uuid())
+  conversationId String
+  schoolId       String
+  userId         String
+  role           String // "user" | "assistant"
+  content        String // texte du message, ou réponse + résumé des actions exécutées/en attente
+  toolCalls      Json? // appels de fonction éventuels de ce tour (nom + input), pour mémoire
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([schoolId, userId])
+}
+
 // ─── Module Examens & Admissions : Sous-module C — Choix LV2 ──────────────
 
 model Lv2ChoiceWindow {

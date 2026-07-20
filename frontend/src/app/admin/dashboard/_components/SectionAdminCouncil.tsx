@@ -71,6 +71,15 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
   useEffect(() => { fetchSessions() }, [fetchSessions])
 
+  // Rafraîchissement temps réel quand l'assistant IA ouvre/modifie un conseil de classe.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'classCouncilSession') fetchSessions()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchSessions])
+
   const openSession = async (sessionId: string) => {
     setLoadingDetail(true); setSelected(null)
     try {

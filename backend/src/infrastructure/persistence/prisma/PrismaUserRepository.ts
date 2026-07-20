@@ -49,6 +49,14 @@ export class PrismaUserRepository implements UserRepository {
     return data.map((item) => this.toDomain(item));
   }
 
+  async findByClass(schoolId: string, classId: string): Promise<User[]> {
+    const data = await this.prisma.user.findMany({
+      where: { schoolId, role: 'STUDENT', studentProfile: { classId } },
+      include: { staffProfile: { include: { permissions: true } } },
+    });
+    return data.map((item) => this.toDomain(item));
+  }
+
   async existsByEmail(email: string, schoolId: string): Promise<boolean> {
     const count = await this.prisma.user.count({ where: { email, schoolId } });
     return count > 0;

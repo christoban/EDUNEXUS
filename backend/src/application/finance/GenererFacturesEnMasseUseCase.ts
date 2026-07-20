@@ -45,7 +45,7 @@ export class GenererFacturesEnMasseUseCase {
     let studentIds: string[] = commande.studentIds ?? [];
 
     if (studentIds.length === 0 && commande.classId) {
-      const eleves = await this.userRepository.findByRole(commande.schoolId, 'STUDENT');
+      const eleves = await this.userRepository.findByClass(commande.schoolId, commande.classId);
       studentIds = eleves
         .filter(e => e.isActive)
         .map(e => e.id);

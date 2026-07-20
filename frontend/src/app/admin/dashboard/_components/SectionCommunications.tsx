@@ -115,6 +115,15 @@ export default function SectionCommunications({ onToast }: Props) {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // Rafraîchissement temps réel quand l'assistant IA diffuse un message.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'broadcastLog') loadData()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [loadData])
+
   const buildTarget = (): BroadcastTarget => ({
     ...(role          ? { role }          : {}),
     ...(classId       ? { classId }       : {}),

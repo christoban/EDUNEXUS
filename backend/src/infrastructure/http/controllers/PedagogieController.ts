@@ -1,6 +1,103 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 
+// ─── Alertes de retard programme (extrait pour être réutilisable hors HTTP —
+// ex. catalogue copilot) ────────────────────────────────────────────────────
+
+export interface AlerteRetardProgramme {
+  programmeId: string;
+  programmeTitre: string;
+  subjectName: string;
+  className: string;
+  classId: string;
+  chapitresTotal: number;
+  chapitresRealises: number;
+  progressionPct: number;
+  attenduPct: number;
+  retardPct: number;
+  niveau: 'CRITIQUE' | 'MODERE';
+}
+
+export async function calculerAlertesRetardProgramme(
+  prisma: PrismaClient,
+  schoolId: string,
+  academicYearId?: string,
+  seuilPct = 15,
+): Promise<AlerteRetardProgramme[]> {
+  const anneeId = academicYearId ?? (
+    await (prisma as any).academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } })
+  )?.id;
+  if (!anneeId) return [];
+
+  const annee = await prisma.academicYear.findUnique({
+    where: { id: anneeId },
+    select: { startDate: true, endDate: true },
+  });
+
+  const today = new Date();
+  let attenduPct = 0;
+  if (annee) {
+    const totalJours = (annee.endDate.getTime() - annee.startDate.getTime()) / 86400000;
+    const ecoulees = (today.getTime() - annee.startDate.getTime()) / 86400000;
+    attenduPct = totalJours > 0 ? Math.min(100, Math.round((ecoulees / totalJours) * 100)) : 0;
+  }
+
+  const programmes = await (prisma as any).programme.findMany({
+    where: { schoolId, academicYearId: anneeId },
+    include: {
+      subject: { select: { id: true, name: true } },
+      class: { select: { id: true, name: true } },
+      chapitres: true,
+    },
+  });
+
+  const alertes: AlerteRetardProgramme[] = [];
+
+  for (const prog of programmes) {
+    const chapitresTotal = prog.chapitres.length;
+    if (chapitresTotal === 0) continue;
+
+    const classIds: string[] = prog.classId ? [prog.classId] : (
+      await prisma.class.findMany({
+        where: { schoolId, level: prog.level ?? undefined },
+        select: { id: true, name: true },
+      })
+    ).map((c: any) => c.id);
+
+    for (const cid of classIds) {
+      const entries = await (prisma as any).cahierDeTexte.findMany({
+        where: { schoolId, classId: cid, subjectId: prog.subjectId, academicYearId: anneeId },
+        select: { chapitreId: true },
+      });
+
+      const chapitresAbordees = new Set(entries.map((e: any) => e.chapitreId).filter(Boolean));
+      const chapitresRealises = prog.chapitres.filter((c: any) => chapitresAbordees.has(c.id)).length;
+      const progressionPct = Math.round((chapitresRealises / chapitresTotal) * 100);
+      const retardPct = attenduPct - progressionPct;
+
+      if (retardPct > seuilPct) {
+        const classe = prog.class ?? await prisma.class.findFirst({ where: { id: cid }, select: { id: true, name: true } });
+        alertes.push({
+          programmeId: prog.id,
+          programmeTitre: prog.titre,
+          subjectName: prog.subject.name,
+          className: classe?.name ?? cid,
+          classId: cid,
+          chapitresTotal,
+          chapitresRealises,
+          progressionPct,
+          attenduPct,
+          retardPct,
+          niveau: retardPct > 30 ? 'CRITIQUE' : 'MODERE',
+        });
+      }
+    }
+  }
+
+  alertes.sort((a, b) => b.retardPct - a.retardPct);
+  return alertes;
+}
+
 export class PedagogieController {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -372,80 +469,7 @@ export class PedagogieController {
       const user = (req as any).user;
       const { academicYearId, seuilPct } = req.query as Record<string, string>;
       const seuil = seuilPct ? parseInt(seuilPct, 10) : 15;
-
-      const anneeId = academicYearId ?? (
-        await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
-      )?.id;
-
-      if (!anneeId) { res.json({ success: true, data: [] }); return; }
-
-      const annee = await this.prisma.academicYear.findUnique({
-        where: { id: anneeId },
-        select: { startDate: true, endDate: true },
-      });
-
-      const today = new Date();
-      let attenduPct = 0;
-      if (annee) {
-        const totalJours = (annee.endDate.getTime() - annee.startDate.getTime()) / 86400000;
-        const ecoulees = (today.getTime() - annee.startDate.getTime()) / 86400000;
-        attenduPct = totalJours > 0 ? Math.min(100, Math.round((ecoulees / totalJours) * 100)) : 0;
-      }
-
-      const programmes = await (this.prisma as any).programme.findMany({
-        where: { schoolId: user.schoolId, academicYearId: anneeId },
-        include: {
-          subject: { select: { id: true, name: true } },
-          class: { select: { id: true, name: true } },
-          chapitres: true,
-        },
-      });
-
-      const alertes = [];
-
-      for (const prog of programmes) {
-        const chapitresTotal = prog.chapitres.length;
-        if (chapitresTotal === 0) continue;
-
-        // Récupérer toutes les classes concernées par ce programme
-        const classIds: string[] = prog.classId ? [prog.classId] : (
-          await this.prisma.class.findMany({
-            where: { schoolId: user.schoolId, level: prog.level ?? undefined },
-            select: { id: true, name: true },
-          })
-        ).map((c: any) => c.id);
-
-        for (const cid of classIds) {
-          const entries = await (this.prisma as any).cahierDeTexte.findMany({
-            where: { schoolId: user.schoolId, classId: cid, subjectId: prog.subjectId, academicYearId: anneeId },
-            select: { chapitreId: true },
-          });
-
-          const chapitresAbordees = new Set(entries.map((e: any) => e.chapitreId).filter(Boolean));
-          const chapitresRealises = prog.chapitres.filter((c: any) => chapitresAbordees.has(c.id)).length;
-          const progressionPct = Math.round((chapitresRealises / chapitresTotal) * 100);
-          const retardPct = attenduPct - progressionPct;
-
-          if (retardPct > seuil) {
-            const classe = prog.class ?? await this.prisma.class.findFirst({ where: { id: cid }, select: { id: true, name: true } });
-            alertes.push({
-              programmeId: prog.id,
-              programmeTitre: prog.titre,
-              subjectName: prog.subject.name,
-              className: classe?.name ?? cid,
-              classId: cid,
-              chapitresTotal,
-              chapitresRealises,
-              progressionPct,
-              attenduPct,
-              retardPct,
-              niveau: retardPct > 30 ? 'CRITIQUE' : 'MODERE',
-            });
-          }
-        }
-      }
-
-      alertes.sort((a, b) => b.retardPct - a.retardPct);
+      const alertes = await calculerAlertesRetardProgramme(this.prisma, user.schoolId, academicYearId, seuil);
       res.json({ success: true, data: alertes });
     } catch (e) { next(e); }
   };

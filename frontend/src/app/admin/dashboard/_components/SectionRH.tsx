@@ -201,6 +201,15 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
     if (tab === 'conges' && leaveRequests.length === 0 && !loadingLeaves) loadLeaves()
   }, [tab])
 
+  // Rafraîchissement temps réel quand l'assistant IA traite une demande de congé.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'leaveRequest') loadLeaves()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (tab !== 'pointage' || employees.length > 0 || loadingEmployees) return
     loadEmployees()

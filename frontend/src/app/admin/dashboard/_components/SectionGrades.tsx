@@ -61,6 +61,15 @@ export default function SectionGrades({ onToast }: Props) {
   const { data: gradesData, loading, error, fromCache, cachedAt, refetch: fetchGrades } = useCachedFetch<GradeItem[]>(`admin:grades:${classId}:${subjectId}:${status}`, fetchGradesFn)
   const grades = gradesData ?? []
 
+  // Rafraîchissement temps réel quand l'assistant IA valide des notes en masse.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'grade') fetchGrades()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchGrades])
+
   const handleValidate = async (gradeId: string) => {
     try {
       const res = await fetchApi(`/api/v2/grades/${gradeId}/validate`, {

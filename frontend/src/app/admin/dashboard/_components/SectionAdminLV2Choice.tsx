@@ -63,6 +63,17 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
 
   useEffect(() => { loadWindows() }, [loadWindows])
 
+  // Rafraîchissement temps réel quand l'assistant IA agit sur les fenêtres/affectations LV2.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      const entity = (e as CustomEvent<{ entity?: string }>).detail?.entity
+      if (entity === 'lv2ChoiceWindow') loadWindows()
+      if (entity === 'studentProfile' && tracking) openTracking(tracking.window.id)
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [loadWindows, tracking])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // Charger les données de référence
   useEffect(() => {
     fetchApi('/api/v2/subjects', { credentials: 'include' }).then(r => r.json()).then(d => setSubjects(d.data ?? [])).catch(() => {})

@@ -50,6 +50,10 @@ import { SearchController } from '@infrastructure/http/controllers/SearchControl
 import { AIController } from '@infrastructure/http/controllers/AIController';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
 import { buildAdminActionCatalog } from '@application/assistant/adminActionCatalog';
+import { AffecterLV2EleveUseCase } from '@application/student/AffecterLV2EleveUseCase';
+import { AffecterLV2EnMasseUseCase } from '@application/student/AffecterLV2EnMasseUseCase';
+import { AffecterPEBSEleveUseCase } from '@application/student/AffecterPEBSEleveUseCase';
+import { AffecterPEBSEnMasseUseCase } from '@application/student/AffecterPEBSEnMasseUseCase';
 import { CoreDomainController } from '@infrastructure/http/controllers/CoreDomainController';
 import { PublicController } from '@infrastructure/http/controllers/PublicController';
 import { SMSController } from '@infrastructure/http/controllers/SMSController';
@@ -63,12 +67,12 @@ import { DepartmentController } from '@infrastructure/http/controllers/Departmen
 import { creerDepartmentRoutes } from '@infrastructure/http/routes/department.routes';
 import { StatisticsController } from '@infrastructure/http/controllers/StatisticsController';
 import { creerStatisticsRoutes } from '@infrastructure/http/routes/statistics.routes';
-import { CommunicationsController } from '@infrastructure/http/controllers/CommunicationsController';
+import { CommunicationsController, executerBroadcast } from '@infrastructure/http/controllers/CommunicationsController';
 import { creerCommunicationsRoutes } from '@infrastructure/http/routes/communications.routes';
 import { TimetableAutoController } from '@infrastructure/http/controllers/TimetableAutoController';
-import { PedagogieController } from '@infrastructure/http/controllers/PedagogieController';
+import { PedagogieController, calculerAlertesRetardProgramme } from '@infrastructure/http/controllers/PedagogieController';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
-import { HRController } from '@infrastructure/http/controllers/HRController';
+import { HRController, traiterDemandeConge } from '@infrastructure/http/controllers/HRController';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
 import { HRSelfServiceController } from '@infrastructure/http/controllers/HRSelfServiceController';
 import { creerHrSelfServiceRoutes } from '@infrastructure/http/routes/hrSelfService.routes';
@@ -1302,6 +1306,37 @@ export function bootstrapHexagonal(app: Application): void {
     creerSessionConcours: container.entranceExam.creerSession,
     creerSessionPebs: container.pebsExam.creerSession,
     ouvrirFenetreLV2: container.lv2Choice.ouvrirFenetre,
+    inscrireEleve: container.user.inscrire,
+    modifierUtilisateur: container.user.modifier,
+    supprimerUtilisateur: container.user.supprimer,
+    transfererEleve: container.user.transferer,
+    modifierMatiere: container.subject.modifier,
+    // Constructeurs légers (prisma uniquement) — pas encore exposés dans le container.
+    affecterLV2Eleve: new AffecterLV2EleveUseCase(prisma),
+    affecterLV2Masse: new AffecterLV2EnMasseUseCase(prisma),
+    affecterPEBSEleve: new AffecterPEBSEleveUseCase(prisma),
+    affecterPEBSMasse: new AffecterPEBSEnMasseUseCase(prisma),
+    genererBulletins: container.reportCard.generer,
+    envoyerBulletins: container.reportCard.envoyer,
+    validerNotesEnBloc: container.grade.validerEnBloc,
+    publierEDT: container.timetable.publier,
+    ouvrirConseilClasse: container.classCouncil.tenir,
+    definirPeriodeCourante: container.academicYear.definirPeriode,
+    verifierPrerequisCloture: container.academicYear.verifierPrerequis,
+    creerPlanFrais: container.finance.creerPlanFrais,
+    genererFacturesMasse: container.finance.genererFacturesEnMasse,
+    enregistrerPaiementCash: container.finance.enregistrerPaiementCash,
+    resumeSessionConcours: container.entranceExam.resumeSession,
+    calculerAdmissionConcours: container.entranceExam.calculerAdmission,
+    resumeSessionPebs: container.pebsExam.resumeSession,
+    calculerSelectionPebs: container.pebsExam.calculerSelection,
+    verifierMatricule: container.matricule.verifierMatricule,
+    traiterDemandeConge: (schoolId, requestId, statut, validatedById) =>
+      traiterDemandeConge(prisma, schoolId, requestId, statut, validatedById),
+    diffuserMessage: (schoolId, createdById, target, channel, message) =>
+      executerBroadcast(prisma, schoolId, createdById, target as Parameters<typeof executerBroadcast>[3], channel, message),
+    alertesRetardProgramme: (schoolId, academicYearId, seuilPct) =>
+      calculerAlertesRetardProgramme(prisma, schoolId, academicYearId, seuilPct),
   });
   const assistantController = new AssistantController(prisma, adminActionCatalog);
   app.post('/api/v2/assistant/execute', requireAuth, requireRole('ADMIN'), assistantController.execute);

@@ -59,6 +59,18 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
   }, [])
 
   useEffect(() => { loadSessions() }, [loadSessions])
+
+  // Rafraîchissement temps réel quand l'assistant IA agit sur les sessions/candidats de concours.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      const entity = (e as CustomEvent<{ entity?: string }>).detail?.entity
+      if (entity === 'entranceExamSession') loadSessions()
+      if (entity === 'entranceExamCandidate' && summary) openSummary(summary.session.id)
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [loadSessions, summary])  // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     fetchApi('/api/v2/academic-years', { credentials: 'include' }).then(r => r.json()).then(d => {
       const list = d.data ?? []

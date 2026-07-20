@@ -91,6 +91,15 @@ export default function SectionAcademicYear({ onToast }: Props) {
 
   useEffect(() => { fetchYears() }, [fetchYears])
 
+  // Rafraîchissement temps réel quand l'assistant IA change la période académique courante.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      if ((e as CustomEvent<{ entity?: string }>).detail?.entity === 'academicPeriod') fetchYears()
+    }
+    window.addEventListener('zekoulabia:data-changed', onChanged)
+    return () => window.removeEventListener('zekoulabia:data-changed', onChanged)
+  }, [fetchYears])
+
   const togglePeriod = (id: string) => {
     setOpenPeriods(prev => {
       const next = new Set(prev)

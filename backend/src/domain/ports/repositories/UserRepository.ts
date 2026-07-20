@@ -12,6 +12,8 @@ export interface UserRepository {
   findByPhone(phone: string, schoolId: string): Promise<User | null>;
   findBySchool(schoolId: string): Promise<User[]>;
   findByRole(schoolId: string, role: UserRole): Promise<User[]>;
+  /** Élèves (role STUDENT) inscrits dans une classe donnée, via StudentProfile.classId. */
+  findByClass(schoolId: string, classId: string): Promise<User[]>;
   existsByEmail(email: string, schoolId: string): Promise<boolean>;
 
   // Écriture

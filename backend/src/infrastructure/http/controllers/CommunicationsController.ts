@@ -216,6 +216,66 @@ async function dispatchEmailToOne(
   }
 }
 
+// ─── Diffusion (extrait pour être réutilisable hors HTTP — ex. catalogue copilot) ─
+
+export interface BroadcastResultat {
+  total: number;
+  sent: number;
+  failed: number;
+}
+
+export async function executerBroadcast(
+  prisma: PrismaClient,
+  schoolId: string,
+  createdById: string | undefined,
+  target: BroadcastTarget,
+  channel: BroadcastChannel,
+  message: string,
+): Promise<BroadcastResultat> {
+  const recipients = await resolveRecipients(prisma, schoolId, target);
+  if (recipients.length === 0) {
+    return { total: 0, sent: 0, failed: 0 };
+  }
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const r of recipients) {
+    const vars = {
+      nom_eleve: r.name,
+      classe: r.className,
+      solde: r.balance != null ? new Intl.NumberFormat('fr-FR').format(r.balance) + ' XAF' : undefined,
+    };
+    const personalizedMsg = interpolate(message, vars);
+
+    if ((channel === 'SMS' || channel === 'BOTH') && r.phone) {
+      const result = await dispatchSmsToOne(prisma, schoolId, r.phone, personalizedMsg);
+      result === 'failed' ? failed++ : sent++;
+    }
+    if ((channel === 'EMAIL' || channel === 'BOTH') && r.email) {
+      const result = await dispatchEmailToOne(prisma, schoolId, r.email, personalizedMsg, r.userId);
+      result === 'failed' ? failed++ : sent++;
+    }
+    if (!r.phone && !r.email) failed++;
+  }
+
+  await (prisma as any).broadcastLog.create({
+    data: {
+      schoolId,
+      channel,
+      target,
+      message,
+      recipientCount: recipients.length,
+      sentCount: sent,
+      failedCount: failed,
+      status: failed === 0 ? 'completed' : sent === 0 ? 'failed' : 'partial',
+      createdById,
+    },
+  });
+
+  return { total: recipients.length, sent, failed };
+}
+
 // ─── Controller ───────────────────────────────────────────────────────────────
 
 export class CommunicationsController {
@@ -270,51 +330,13 @@ export class CommunicationsController {
         return;
       }
 
-      const recipients = await resolveRecipients(this.prisma, schoolId, target);
-      if (recipients.length === 0) {
-        res.json({ success: true, data: { sent: 0, failed: 0, total: 0, message: 'Aucun destinataire trouvé.' } });
+      const resultat = await executerBroadcast(this.prisma, schoolId, createdById, target, channel, message);
+      if (resultat.total === 0) {
+        res.json({ success: true, data: { ...resultat, message: 'Aucun destinataire trouvé.' } });
         return;
       }
 
-      let sent    = 0;
-      let failed  = 0;
-
-      for (const r of recipients) {
-        const vars = {
-          nom_eleve: r.name,
-          classe:    r.className,
-          solde:     r.balance != null ? new Intl.NumberFormat('fr-FR').format(r.balance) + ' XAF' : undefined,
-        };
-        const personalizedMsg = interpolate(message, vars);
-
-        if ((channel === 'SMS' || channel === 'BOTH') && r.phone) {
-          const result = await dispatchSmsToOne(this.prisma, schoolId, r.phone, personalizedMsg);
-          result === 'failed' ? failed++ : sent++;
-        }
-        if ((channel === 'EMAIL' || channel === 'BOTH') && r.email) {
-          const result = await dispatchEmailToOne(this.prisma, schoolId, r.email, personalizedMsg, r.userId);
-          result === 'failed' ? failed++ : sent++;
-        }
-        // Recipient with neither phone nor email
-        if (!r.phone && !r.email) failed++;
-      }
-
-      // Persist campaign log
-      await (this.prisma as any).broadcastLog.create({
-        data: {
-          schoolId,
-          channel,
-          target,
-          message,
-          recipientCount: recipients.length,
-          sentCount:      sent,
-          failedCount:    failed,
-          status:         failed === 0 ? 'completed' : sent === 0 ? 'failed' : 'partial',
-          createdById,
-        },
-      });
-
-      res.json({ success: true, data: { total: recipients.length, sent, failed } });
+      res.json({ success: true, data: resultat });
     } catch (err) {
       next(err);
     }
