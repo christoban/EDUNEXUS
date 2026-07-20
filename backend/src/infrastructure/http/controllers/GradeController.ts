@@ -12,6 +12,7 @@ import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import type { GradeValidationStatus } from '@domain/types/enums';
 import { resolveLanguage } from '../../../utils/languageHelper';
+import { inngest } from '../../../inngest/index.ts';
 import * as XLSX from 'xlsx';
 
 export class GradeController {
@@ -64,6 +65,20 @@ export class GradeController {
         noteId: req.params.id as string,
         validateurId: user.userId,
       });
+
+      // Déclenche la détection de chute par matière (Phase 3) — fire-and-forget, ne bloque
+      // jamais la réponse de validation même si l'envoi de l'événement échoue.
+      const grade = await prisma.grade.findUnique({
+        where: { id: req.params.id as string },
+        select: { studentId: true, subjectId: true, schoolId: true, sequenceId: true },
+      }).catch(() => null);
+      if (grade) {
+        void inngest.send({
+          name: 'grade/validated',
+          data: { gradeId: req.params.id as string, ...grade },
+        }).catch((err) => console.error('[GradeController] Échec envoi grade/validated:', err?.message));
+      }
+
       res.json({ success: true, data: resultat });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -107,6 +122,17 @@ export class GradeController {
         sequenceId,
         validateurId: user.userId,
       });
+
+      // Déclenche la détection de chute par matière (Phase 3) pour chaque note réellement
+      // validée par CET appel — jamais pour des notes déjà validées avant (voir
+      // ValiderEnBlocUseCase.gradesValidees).
+      for (const g of resultat.gradesValidees) {
+        void inngest.send({
+          name: 'grade/validated',
+          data: { gradeId: g.id, studentId: g.studentId, subjectId: g.subjectId, schoolId: g.schoolId, sequenceId: g.sequenceId },
+        }).catch((err) => console.error('[GradeController] Échec envoi grade/validated (bloc):', err?.message));
+      }
+
       res.json({ success: true, data: resultat });
     } catch (error) {
       this.gererErreur(error, res, next);

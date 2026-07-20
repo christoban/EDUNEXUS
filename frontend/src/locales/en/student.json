@@ -101,6 +101,21 @@
     "toast_download_error": "Download error",
     "toast_download_success": "Report card downloaded"
   },
+  "health_tracking": {
+    "title": "My school health tracking",
+    "subtitle": "School health score calculated from your grades, attendance and discipline record",
+    "score_label": "School health score",
+    "level_critical": "Critical",
+    "level_warning": "To monitor",
+    "level_good": "Satisfactory",
+    "advice_title": "Personalized advice",
+    "no_advice": "No advice generated yet. Check back after the next calculation.",
+    "loading": "Loading...",
+    "load_error": "Loading error",
+    "retry": "Retry",
+    "empty_title": "No data available",
+    "empty_sub": "Your school health score will be calculated once your first grades and attendance records are in."
+  },
   "common": {
     "retry": "Retry",
     "error_fallback": "Error",

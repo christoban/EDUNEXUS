@@ -47,7 +47,9 @@
     "readings": "Lectures",
     "myGrades": "Mes notes",
     "myAttendance": "Mes présences",
-    "myLibrary": "Mes lectures"
+    "myLibrary": "Mes lectures",
+    "atRiskStudents": "Élèves à risque",
+    "myHealthTracking": "Mon suivi scolaire"
   },
   "group": {
     "academic": "Académique",
@@ -96,6 +98,7 @@
     "teacher_ppAppreciations": "Appréciations",
     "teacher_apDepartement": "Mon département",
     "teacher_cahierDeTexte": "Cahier de texte",
+    "teacher_atRisk": "Élèves à risque",
     "staff_dashboard": "Tableau de bord",
     "staff_council": "Conseil de classe",
     "staff_grades": "Validation des notes",
@@ -128,7 +131,8 @@
     "student_bulletins": "Mes bulletins",
     "student_timetable": "Mon emploi du temps",
     "student_attendance": "Mes présences",
-    "student_library": "Mes lectures"
+    "student_library": "Mes lectures",
+    "student_healthTracking": "Mon suivi scolaire"
   },
   "breadcrumbs": {
     "home": "Accueil"

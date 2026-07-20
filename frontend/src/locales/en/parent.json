@@ -43,6 +43,7 @@
     "actionGrades": "Report Cards",
     "actionAttendance": "Attendance",
     "actionPayments": "Payments",
+    "aiAdviceTitle": "Personalized advice",
     "errorLoadChildren": "Error loading children"
   },
   "grades": {

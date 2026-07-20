@@ -83,7 +83,10 @@
       "Bash(rmdir scratch_test)",
       "Bash(node -e \"const m = require\\('lucide-react'\\); console.log\\(typeof m.LucideIcon, typeof m.Icon\\);\")",
       "Bash(node -e \"console.log\\(typeof require\\('lucide-react'\\).KeyRound\\)\")",
-      "Bash(rm scratch_test/screenshot_icons.ts)"
+      "Bash(rm scratch_test/screenshot_icons.ts)",
+      "Bash(bun _smoke_risk.ts)",
+      "Bash(npx prisma *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)"
     ]
   }
 }

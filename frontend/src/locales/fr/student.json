@@ -101,6 +101,21 @@
     "toast_download_error": "Erreur de téléchargement",
     "toast_download_success": "Bulletin téléchargé"
   },
+  "health_tracking": {
+    "title": "Mon suivi scolaire",
+    "subtitle": "Indice de santé scolaire calculé à partir de vos notes, présences et discipline",
+    "score_label": "Indice de santé scolaire",
+    "level_critical": "Critique",
+    "level_warning": "À surveiller",
+    "level_good": "Satisfaisant",
+    "advice_title": "Conseil personnalisé",
+    "no_advice": "Aucun conseil généré pour le moment. Revenez après le prochain calcul.",
+    "loading": "Chargement...",
+    "load_error": "Erreur de chargement",
+    "retry": "Réessayer",
+    "empty_title": "Aucune donnée disponible",
+    "empty_sub": "Votre indice de santé scolaire sera calculé dès que vos premières notes et présences seront enregistrées."
+  },
   "common": {
     "retry": "Réessayer",
     "error_fallback": "Erreur",

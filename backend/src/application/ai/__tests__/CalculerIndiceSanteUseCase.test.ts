@@ -127,4 +127,34 @@ describe('CalculerIndiceSanteUseCase', () => {
     expect(iaService.appelCalculer[0]!.moyenneGenerale).toBe(18);
     expect(iaService.appelCalculer[0]!.tauxPresence).toBe(100);
   });
+
+  describe('calculerScoreSeulement (job nocturne, sans appel IA)', () => {
+    it('calcule et sauvegarde le score sans appeler IAService', async () => {
+      santeRepo.definir('eleve-1', donneesParfaites);
+
+      const resultat = await useCase.calculerScoreSeulement('eleve-1', 'school-1', 'annee-1');
+
+      expect(resultat.score).toBeGreaterThan(85);
+      expect(resultat.niveau).toBe('PROGRESSION');
+      expect(iaService.appelCalculer).toHaveLength(0);
+      expect(santeRepo.scoresEnregistres.get('eleve-1')).toBe(resultat.score);
+    });
+
+    it('signale tendancePositive pour une hausse nette et non compensée', async () => {
+      santeRepo.definir('eleve-3', { ...donneesParfaites, studentId: 'eleve-3', moyennesPrecedentes: [10, 13, 16] });
+
+      const resultat = await useCase.calculerScoreSeulement('eleve-3', 'school-1', 'annee-1');
+
+      expect(resultat.tendancePositive).toBe(true);
+    });
+
+    it('ne signale pas tendancePositive pour un élève en difficulté', async () => {
+      santeRepo.definir('eleve-2', donneesEleveEnDifficulte);
+
+      const resultat = await useCase.calculerScoreSeulement('eleve-2', 'school-1', 'annee-1');
+
+      expect(resultat.niveau).toBe('CRITIQUE');
+      expect(resultat.tendancePositive).toBe(false);
+    });
+  });
 });

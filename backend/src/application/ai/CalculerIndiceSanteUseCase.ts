@@ -39,7 +39,68 @@ export class CalculerIndiceSanteUseCase {
       throw new Error(`Données de santé introuvables pour l'élève : ${commande.studentId}`);
     }
 
-    // 2. Calculer chaque composante (0-100)
+    // 2. Composantes + score pondéré (partagé avec calculerScoreSeulement, source unique)
+    const composantes = this.calculerComposantes(donnees);
+
+    // 3. Déléguer l'analyse narrative et les recommandations à l'IA
+    const resultat = await this.iaService.calculerIndiceSante({
+      moyenneGenerale: donnees.moyenneGenerale,
+      tauxPresence: composantes.tauxPresence,
+      tendanceMoyennes: donnees.moyennesPrecedentes,
+      nombreSanctions: donnees.nombreSanctions,
+      tauxPaiement: composantes.scorePaiements,
+      langue: commande.langue,
+    });
+
+    // 4. Sauvegarder si demandé
+    if (commande.sauvegarderScore) {
+      await this.santeRepository.sauvegarderScore(commande.studentId, composantes.score);
+    }
+
+    return {
+      score: composantes.score,
+      niveau: resultat.niveau,
+      recommandations: resultat.recommandations,
+    };
+  }
+
+  /**
+   * Calcule et persiste le score numérique SEUL, sans appel IA — pour le job nocturne qui
+   * recalcule des centaines d'élèves : un appel Groq par élève chaque nuit serait coûteux et
+   * inutile (la narration n'a de valeur que pour un élève qu'un humain regarde réellement,
+   * via execute() ci-dessus, ex. detectRisk). Seule source de vérité du calcul numérique —
+   * remplace l'ancienne logique dupliquée dans inngest/functions.ts.
+   */
+  async calculerScoreSeulement(
+    studentId: string,
+    schoolId: string,
+    academicYearId: string,
+  ): Promise<{ score: number; niveau: string; tendancePositive: boolean }> {
+    const donnees = await this.santeRepository.getDonneesSante(studentId, schoolId, academicYearId);
+    if (!donnees) {
+      throw new Error(`Données de santé introuvables pour l'élève : ${studentId}`);
+    }
+
+    const composantes = this.calculerComposantes(donnees);
+    await this.santeRepository.sauvegarderScore(studentId, composantes.score);
+
+    // Hausse significative et non compensée par une baisse ailleurs dans la fenêtre — cf.
+    // calculerTendance (75 = au moins un +25 net, sans redescendre sous la neutralité 50).
+    const tendancePositive = composantes.scoreTendance >= 75;
+
+    return { score: composantes.score, niveau: this.niveauDepuisScore(composantes.score), tendancePositive };
+  }
+
+  private calculerComposantes(donnees: {
+    moyenneGenerale: number;
+    joursPresent: number;
+    joursTotaux: number;
+    moyennesPrecedentes: number[];
+    nombreSanctions: number;
+    nombrePeriodes: number;
+    fraisRegles: number;
+    fraisTotaux: number;
+  }) {
     const scoreNotes = Math.min(100, (donnees.moyenneGenerale / 20) * 100);
 
     const tauxPresence = donnees.joursTotaux > 0
@@ -56,8 +117,7 @@ export class CalculerIndiceSanteUseCase {
       ? (donnees.fraisRegles / donnees.fraisTotaux) * 100
       : 100;
 
-    // 3. Score pondéré global
-    const score = Math.round(
+    const scoreBrut = Math.round(
       scoreNotes * 0.35 +
       tauxPresence * 0.25 +
       scoreTendance * 0.20 +
@@ -65,26 +125,18 @@ export class CalculerIndiceSanteUseCase {
       scorePaiements * 0.10
     );
 
-    // 4. Déléguer l'analyse narrative et les recommandations à l'IA
-    const resultat = await this.iaService.calculerIndiceSante({
-      moyenneGenerale: donnees.moyenneGenerale,
-      tauxPresence,
-      tendanceMoyennes: donnees.moyennesPrecedentes,
-      nombreSanctions: donnees.nombreSanctions,
-      tauxPaiement: scorePaiements,
-      langue: commande.langue,
-    });
-
-    // 5. Sauvegarder si demandé
-    if (commande.sauvegarderScore) {
-      await this.santeRepository.sauvegarderScore(commande.studentId, score);
-    }
-
     return {
-      score: Math.max(0, Math.min(100, score)),
-      niveau: resultat.niveau,
-      recommandations: resultat.recommandations,
+      scoreNotes, tauxPresence, scoreTendance, scoreComportement, scorePaiements,
+      score: Math.max(0, Math.min(100, scoreBrut)),
     };
+  }
+
+  private niveauDepuisScore(score: number): string {
+    if (score <= 30) return 'CRITIQUE';
+    if (score <= 50) return 'ELEVE';
+    if (score <= 70) return 'MOYEN';
+    if (score <= 85) return 'STABLE';
+    return 'PROGRESSION';
   }
 
   /**

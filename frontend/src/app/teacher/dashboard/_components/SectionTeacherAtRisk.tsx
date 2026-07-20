@@ -1,0 +1,133 @@
+'use client'
+import { useCallback } from 'react'
+import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
+import { useCachedFetch } from '@/hooks/useCachedFetch'
+import { AlertTriangle, Package } from 'lucide-react'
+
+interface AtRiskStudent {
+  studentId: string
+  name: string
+  classId: string | null
+  className: string
+  healthScore: number
+  alertLevel: 'critical' | 'warning'
+  conseil: string | null
+  conseilDate: string | null
+}
+
+interface AtRiskResponse {
+  students: AtRiskStudent[]
+  summary: { critical: number; warning: number }
+}
+
+export default function SectionTeacherAtRisk() {
+  const t = useT('teacher')
+  const tcommon = useT('common')
+
+  const fetchAtRiskFn = useCallback(async (): Promise<AtRiskResponse> => {
+    const res = await fetchApi('/api/v2/ai/at-risk-students', { credentials: 'include' }).then(r => r.json())
+    return res
+  }, [])
+
+  const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<AtRiskResponse>('teacher:at-risk-students', fetchAtRiskFn)
+  const students = data?.students ?? []
+  const summary = data?.summary ?? { critical: 0, warning: 0 }
+
+  if (loading) {
+    return (
+      <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>{t('at_risk.loading')}</div>
+      </div>
+    )
+  }
+
+  if (error && error !== 'OFFLINE_NO_CACHE') {
+    return (
+      <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+        <div style={{ padding: 24, textAlign: 'center' }}>
+          <div style={{ color: 'var(--red)', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{t('at_risk.load_error')}</div>
+          <button onClick={refetch}
+            style={{ padding: '7px 16px', borderRadius: 8, fontSize: 12, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            {t('at_risk.retry')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+      <div style={{ marginBottom: 26 }}>
+        <div style={sTitle}>{t('at_risk.title')}</div>
+        <div style={sSub}>{t('at_risk.subtitle')}</div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          {summary.critical > 0 && (
+            <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '5px 14px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+              {t('at_risk.summary_critical').replace('{count}', String(summary.critical))}
+            </span>
+          )}
+          {summary.warning > 0 && (
+            <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '5px 14px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+              {t('at_risk.summary_warning').replace('{count}', String(summary.warning))}
+            </span>
+          )}
+        </div>
+        {fromCache && cachedAt && (
+          <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+            <Package size={14} strokeWidth={2} /> {tcommon('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
+          </div>
+        )}
+      </div>
+
+      {students.length === 0 ? (
+        <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: 48, textAlign: 'center', maxWidth: 460 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><AlertTriangle size={40} color="var(--green)" /></div>
+          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+            {t('at_risk.empty_title')}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500 }}>{t('at_risk.empty_sub')}</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {students.map((s) => {
+            const isCritical = s.alertLevel === 'critical'
+            const color = isCritical ? 'var(--red)' : 'var(--amber)'
+            const bg = isCritical ? 'var(--red-light)' : 'var(--amber-light)'
+            return (
+              <div key={s.studentId}
+                style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${isCritical ? 'var(--red)' : 'var(--border)'}`, padding: 22 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{s.name}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{s.className}</div>
+                  </div>
+                  <span style={{ background: bg, color, padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                    {isCritical ? t('at_risk.level_critical') : t('at_risk.level_warning')}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: s.conseil ? 14 : 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)' }}>{t('at_risk.score_label')}</span>
+                  <span style={{ fontSize: 20, fontWeight: 900, color }}>{s.healthScore}<span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text3)' }}>/100</span></span>
+                </div>
+
+                {s.conseil && (
+                  <div style={{ background: 'var(--bg2)', borderRadius: 10, padding: '12px 16px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                      {t('at_risk.advice_title')}
+                    </div>
+                    <div style={{ fontSize: 15, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>{s.conseil}</div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }

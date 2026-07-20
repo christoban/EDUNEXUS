@@ -334,6 +334,23 @@
     "type_grade": "Grades",
     "action_count": "{count} action(s) pending"
   },
+  "at_risk": {
+    "title": "At-risk students",
+    "subtitle": "Automatic detection in your classes and subjects",
+    "loading": "Loading...",
+    "load_error": "Loading error",
+    "retry": "Retry",
+    "empty_title": "No at-risk student detected",
+    "empty_sub": "All students in your classes have a satisfactory school health score.",
+    "summary_critical": "{count} critical",
+    "summary_warning": "{count} to monitor",
+    "level_critical": "Critical",
+    "level_warning": "To monitor",
+    "score_label": "School health score",
+    "advice_title": "AI-generated advice",
+    "no_advice": "No advice generated yet.",
+    "network_error": "Network error"
+  },
   "placeholder": {
     "dev_message": "This section is under development.\nCheck back soon.",
     "access": "Access {title} →",

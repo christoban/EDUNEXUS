@@ -7,6 +7,15 @@ import { createSchoolBackup, purgeSchoolLogsByRetention } from "../utils/schoolB
 import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms, notifyOverdueBookSms } from "../infrastructure/services/SmsNotificationService.ts";
 import { SocketNotificationService } from "../infrastructure/services/SocketNotificationService";
 import { notifierParentsPushDabord } from "../infrastructure/services/PushFirstNotifier";
+import { PrismaSanteEleveRepository } from "../infrastructure/persistence/prisma/PrismaSanteEleveRepository";
+import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSanteUseCase";
+import { GroqIAService } from "../infrastructure/services/GroqIAService";
+
+const iaService = new GroqIAService();
+const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
+  new PrismaSanteEleveRepository(prisma),
+  iaService,
+);
 
 import { NonRetriableError } from "inngest";
 import { createGroq } from "@ai-sdk/groq";
@@ -570,110 +579,57 @@ export const computeStudentHealthScores = inngest.createFunction(
       });
 
       for (const school of schools) {
+        const config = await (prisma as any).schoolConfig
+          .findFirst({
+            where: { schoolId: school.id },
+            select: { aiAlertsEnabled: true, aiRiskThreshold: true, aiRiskThresholdCritical: true },
+          })
+          .catch(() => null);
+        const alertsEnabled = config?.aiAlertsEnabled ?? true;
+        const warningThreshold = config?.aiRiskThreshold ?? 50;
+        const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+
+        // Sans année courante configurée, le calcul (qui filtre par academicYearId) n'a pas de sens.
+        const currentYear = await prisma.academicYear.findFirst({
+          where: { schoolId: school.id, isCurrent: true },
+          select: { id: true },
+        });
+        if (!currentYear) continue;
+
         const students = await prisma.studentProfile.findMany({
           where: { user: { schoolId: school.id } },
-          select: { id: true, userId: true },
+          select: { userId: true },
         });
 
         for (const student of students) {
           try {
-            // 1. Moyenne générale (40%)
-            const grades = await prisma.grade.findMany({
-              where: {
-                schoolId: school.id,
-                studentId: student.userId,
-                validationStatus: { in: ["VALIDATED", "LOCKED"] },
-              },
-              select: { sequenceAverage: true, coefficient: true },
-            });
-            let avgScore = 0;
-            if (grades.length > 0) {
-              const weighted = grades.reduce((s, g) => s + (g.sequenceAverage ?? 0) * (g.coefficient ?? 1), 0);
-              const totalCoeff = grades.reduce((s, g) => s + (g.coefficient ?? 1), 0);
-              const avg = totalCoeff > 0 ? weighted / totalCoeff : 0;
-              avgScore = Math.min(100, (avg / 20) * 100);
-            }
-
-            // 2. Taux de présence (25%)
-            const totalAttendance = await prisma.attendance.count({
-              where: { schoolId: school.id, studentId: student.userId },
-            });
-            const presentAttendance = await prisma.attendance.count({
-              where: { schoolId: school.id, studentId: student.userId, status: { in: ["PRESENT", "LATE"] } },
-            });
-            const attendanceScore = totalAttendance > 0 ? (presentAttendance / totalAttendance) * 100 : 100;
-
-            // 3. Tendance (15%) — comparaison avec 30 jours avant
-            const recentGrades = await prisma.grade.findMany({
-              where: {
-                schoolId: school.id, studentId: student.userId,
-                createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-                validationStatus: { in: ["VALIDATED", "LOCKED"] },
-              },
-              select: { sequenceAverage: true },
-            });
-            const olderGrades = await prisma.grade.findMany({
-              where: {
-                schoolId: school.id, studentId: student.userId,
-                createdAt: {
-                  gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-                  lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-                },
-                validationStatus: { in: ["VALIDATED", "LOCKED"] },
-              },
-              select: { sequenceAverage: true },
-            });
-            const recentAvg = recentGrades.length > 0
-              ? recentGrades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / recentGrades.length
-              : 0;
-            const olderAvg = olderGrades.length > 0
-              ? olderGrades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / olderGrades.length
-              : recentAvg;
-            const trend = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
-            const trendScore = Math.min(100, Math.max(0, 50 + trend * 2.5));
-
-            // 4. Comportement (10%) — 100 par défaut (pas encore de table incidents)
-            const behaviorScore = 100;
-
-            // 5. Paiements (10%)
-            const overdueInvoices = await prisma.invoice.count({
-              where: {
-                schoolId: school.id, studentId: student.userId,
-                status: { in: ["PENDING", "PARTIAL"] },
-                dueDate: { lt: new Date() },
-              },
-            }).catch(() => 0);
-            const paymentScore = overdueInvoices === 0 ? 100 : Math.max(0, 100 - overdueInvoices * 20);
-
-            const healthScore = Math.round(
-              avgScore * 0.40 +
-              attendanceScore * 0.25 +
-              trendScore * 0.15 +
-              behaviorScore * 0.10 +
-              paymentScore * 0.10
+            // Source de calcul unique (CalculerIndiceSanteUseCase) — remplace l'ancienne
+            // logique dupliquée ici, qui divergeait de celle utilisée par l'endpoint à la
+            // demande (poids différents, comportement toujours à 100).
+            const { score, tendancePositive } = await calculerIndiceSanteUseCase.calculerScoreSeulement(
+              student.userId,
+              school.id,
+              currentYear.id,
             );
 
-            await prisma.studentProfile.update({
-              where: { id: student.id },
-              data: { healthScore },
-            });
+            if (!alertsEnabled) continue;
 
-            if (healthScore <= 30) {
+            if (score <= criticalThreshold) {
               await inngest.send({
                 name: "ai/alert.critical",
-                data: { studentId: student.userId, schoolId: school.id, healthScore, type: "SMS" },
+                data: { studentId: student.userId, schoolId: school.id, healthScore: score },
               });
-            } else if (healthScore <= 50) {
+            } else if (score <= warningThreshold) {
               await inngest.send({
                 name: "ai/alert.warning",
-                data: { studentId: student.userId, schoolId: school.id, healthScore, type: "APP" },
+                data: { studentId: student.userId, schoolId: school.id, healthScore: score },
               });
             }
 
-            if (trend >= 2) {
+            if (tendancePositive) {
               await inngest.send({
                 name: "ai/alert.positive",
-                data: { studentId: student.userId, schoolId: school.id, healthScore, trend },
+                data: { studentId: student.userId, schoolId: school.id, healthScore: score },
               });
             }
           } catch (err) {
@@ -685,6 +641,346 @@ export const computeStudentHealthScores = inngest.createFunction(
 
     return { computed: true };
   }
+);
+
+/**
+ * Routage par rôle des 3 signaux ci-dessus — jusqu'ici ces événements étaient envoyés sans
+ * aucun gestionnaire à l'écoute (vérifié : 0 occurrence ailleurs dans le code avant ce chantier),
+ * donc jamais aucune notification n'était réellement délivrée à qui que ce soit.
+ *
+ * Principe de routage :
+ * - Parent : toujours notifié (push d'abord, repli SMS — notifierParentsPushDabord, même
+ *   mécanisme déjà utilisé pour absence/paiement/discipline/bibliothèque).
+ * - Professeur Principal de la classe : notifié pour critique/avertissement (vue d'ensemble de
+ *   l'élève), in-app + push, jamais de SMS (comme les autres membres du personnel).
+ * - Staff avec la permission VALIDATE_GRADES (Censeur/équivalent) : notifié uniquement pour le
+ *   niveau critique, pour éviter le bruit sur chaque avertissement.
+ * - Élève : pas de canal fiable aujourd'hui (aucune section réglages/push élève n'existe encore,
+ *   voir PLAN_NOTIFICATIONS_PUSH.md) — non ciblé directement pour l'instant.
+ */
+async function resolveStudentContext(studentId: string, schoolId: string) {
+  const profile = await prisma.studentProfile.findFirst({
+    where: { userId: studentId, user: { schoolId } },
+    select: {
+      classId: true,
+      user: { select: { firstName: true, lastName: true } },
+      class: { select: { name: true, professorPrincipalId: true } },
+    },
+  });
+  return {
+    nomComplet: profile ? `${profile.user.firstName} ${profile.user.lastName}` : "Élève",
+    classId: profile?.classId ?? null,
+    className: profile?.class?.name ?? null,
+    professorPrincipalId: profile?.class?.professorPrincipalId ?? null,
+  };
+}
+
+async function notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
+  const socketService = new SocketNotificationService();
+  await socketService
+    .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
+    .catch((err) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
+  const { notifierUtilisateurPush } = await import("../infrastructure/services/PushNotificationService");
+  await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
+}
+
+/**
+ * Phase 4 — conseil IA personnalisé par destinataire, en plus du message d'alerte générique
+ * ci-dessus. Persisté dans StudentRecommendation pour alimenter les vues par rôle (Phase 5) et
+ * la détection de risque persistant côté Orientation (Phase 7). En cas d'échec Groq, retourne
+ * null sans lever — l'appelant garde alors le message générique déjà calculé (dégradation
+ * gracieuse, même principe que le reste de ce fichier : jamais bloquer une notification pour
+ * une panne IA).
+ */
+async function genererEtPersisterConseil(params: {
+  schoolId: string;
+  studentId: string;
+  subjectId?: string | null;
+  nomEleve: string;
+  contexte: string;
+  recipientRole: "STUDENT" | "PARENT" | "TEACHER";
+  contextType: "HEALTH_CRITICAL" | "HEALTH_WARNING" | "HEALTH_POSITIVE" | "SUBJECT_DROP";
+  destinataire: "ELEVE" | "PARENT" | "ENSEIGNANT";
+}): Promise<string | null> {
+  try {
+    const content = await iaService.genererConseilPersonnalise({
+      nomEleve: params.nomEleve,
+      contexte: params.contexte,
+      destinataire: params.destinataire,
+    });
+    await prisma.studentRecommendation.create({
+      data: {
+        schoolId: params.schoolId,
+        studentId: params.studentId,
+        subjectId: params.subjectId ?? null,
+        recipientRole: params.recipientRole,
+        contextType: params.contextType,
+        content,
+      },
+    });
+    return content;
+  } catch (err: any) {
+    console.error("[Conseil IA]", err?.message);
+    return null;
+  }
+}
+
+/**
+ * Phase 7b — si un élève enchaîne plusieurs épisodes CRITIQUE récents, suggère un suivi
+ * Orientation en NOTIFIANT le(s) Conseiller(s) d'Orientation (permission MANAGE_ORIENTATION) —
+ * on n'ouvre JAMAIS de FicheOrientation automatiquement : CreerFicheOrientationUseCase exige un
+ * conseillerId humain, et la convention du projet est « jamais d'action sur une supposition ».
+ * Si une fiche existe déjà pour l'élève sur l'année courante, on ne notifie pas à nouveau — le
+ * suivi est déjà engagé.
+ */
+async function suggererOrientationSiRisquePersistant(
+  studentId: string, schoolId: string, nomComplet: string, className: string | null,
+): Promise<void> {
+  try {
+    const seuilDate = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    const occurrences = await prisma.studentRecommendation.count({
+      where: { studentId, schoolId, recipientRole: "STUDENT", contextType: "HEALTH_CRITICAL", createdAt: { gte: seuilDate } },
+    });
+    if (occurrences < 2) return;
+
+    const anneeCourante = await prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+    if (!anneeCourante) return;
+
+    const ficheExistante = await prisma.ficheOrientation.findFirst({
+      where: { studentId, academicYearId: anneeCourante.id },
+      select: { id: true },
+    });
+    if (ficheExistante) return;
+
+    const conseillers = await prisma.staffProfile.findMany({
+      where: { schoolId, permissions: { some: { permission: "MANAGE_ORIENTATION" } } },
+      select: { userId: true },
+    }).catch(() => []);
+    for (const c of conseillers) {
+      await notifierPersonnelDirect(
+        c.userId, schoolId,
+        "Suivi Orientation suggéré",
+        `${nomComplet} (${className ?? "N/A"}) est en risque critique de façon répétée (${occurrences} alerte(s) récente(s)). Une fiche d'orientation pourrait être ouverte.`,
+      );
+    }
+  } catch (err: any) {
+    console.error("[Orientation] suggestion:", err?.message);
+  }
+}
+
+export const handleCriticalHealthAlert = inngest.createFunction(
+  { id: "handle-critical-health-alert", name: "Alerte élève — risque critique", triggers: [{ event: "ai/alert.critical" }] },
+  async ({ event }) => {
+    const { studentId, schoolId, healthScore } = event.data as { studentId: string; schoolId: string; healthScore: number };
+    const { nomComplet, className, professorPrincipalId } = await resolveStudentContext(studentId, schoolId);
+    const contexte = `Indice de santé scolaire au niveau critique (${healthScore}/100), dans la classe ${className ?? "N/A"}. Une période difficile qui nécessite un accompagnement rapproché.`;
+
+    const conseilParent = await genererEtPersisterConseil({
+      schoolId, studentId, nomEleve: nomComplet, contexte,
+      recipientRole: "PARENT", contextType: "HEALTH_CRITICAL", destinataire: "PARENT",
+    });
+    await notifierParentsPushDabord({
+      schoolId,
+      studentId,
+      type: "STUDENT_RISK_ALERT",
+      titre: "Alerte — suivi urgent recommandé",
+      corps: conseilParent ?? `${nomComplet} (${className ?? "sa classe"}) traverse une période difficile (indice de santé scolaire : ${healthScore}/100). Un échange avec l'établissement est recommandé.`,
+    }).catch((err) => console.error("[HealthAlert] parent critique:", err?.message));
+
+    // Persisté pour la vue élève (Phase 5c) — pas de notification directe, aucun canal fiable
+    // vers l'élève aujourd'hui (voir note en tête de section).
+    void genererEtPersisterConseil({
+      schoolId, studentId, nomEleve: nomComplet, contexte,
+      recipientRole: "STUDENT", contextType: "HEALTH_CRITICAL", destinataire: "ELEVE",
+    });
+
+    if (professorPrincipalId) {
+      const conseilEnseignant = await genererEtPersisterConseil({
+        schoolId, studentId, nomEleve: nomComplet, contexte,
+        recipientRole: "TEACHER", contextType: "HEALTH_CRITICAL", destinataire: "ENSEIGNANT",
+      });
+      await notifierPersonnelDirect(
+        professorPrincipalId, schoolId,
+        "Élève en risque critique",
+        conseilEnseignant ?? `${nomComplet} (${className ?? "votre classe"}) — indice de santé scolaire : ${healthScore}/100. Suivi rapproché recommandé.`,
+      );
+    }
+
+    const censeurs = await prisma.staffProfile.findMany({
+      where: { schoolId, permissions: { some: { permission: "VALIDATE_GRADES" } } },
+      select: { userId: true },
+    }).catch(() => []);
+    for (const c of censeurs) {
+      await notifierPersonnelDirect(
+        c.userId, schoolId,
+        "Élève en risque critique",
+        `${nomComplet} (${className ?? "N/A"}) — indice de santé scolaire : ${healthScore}/100.`,
+      );
+    }
+
+    void suggererOrientationSiRisquePersistant(studentId, schoolId, nomComplet, className);
+
+    return { notified: true };
+  },
+);
+
+export const handleWarningHealthAlert = inngest.createFunction(
+  { id: "handle-warning-health-alert", name: "Alerte élève — vigilance", triggers: [{ event: "ai/alert.warning" }] },
+  async ({ event }) => {
+    const { studentId, schoolId, healthScore } = event.data as { studentId: string; schoolId: string; healthScore: number };
+    const { nomComplet, className, professorPrincipalId } = await resolveStudentContext(studentId, schoolId);
+    const contexte = `Indice de santé scolaire à surveiller (${healthScore}/100), dans la classe ${className ?? "N/A"}. Des signes méritent une attention particulière avant que la situation ne se dégrade.`;
+
+    const conseilParent = await genererEtPersisterConseil({
+      schoolId, studentId, nomEleve: nomComplet, contexte,
+      recipientRole: "PARENT", contextType: "HEALTH_WARNING", destinataire: "PARENT",
+    });
+    await notifierParentsPushDabord({
+      schoolId,
+      studentId,
+      type: "STUDENT_RISK_ALERT",
+      titre: "Vigilance recommandée",
+      corps: conseilParent ?? `${nomComplet} (${className ?? "sa classe"}) montre des signes à surveiller (indice de santé scolaire : ${healthScore}/100).`,
+    }).catch((err) => console.error("[HealthAlert] parent avertissement:", err?.message));
+
+    void genererEtPersisterConseil({
+      schoolId, studentId, nomEleve: nomComplet, contexte,
+      recipientRole: "STUDENT", contextType: "HEALTH_WARNING", destinataire: "ELEVE",
+    });
+
+    if (professorPrincipalId) {
+      const conseilEnseignant = await genererEtPersisterConseil({
+        schoolId, studentId, nomEleve: nomComplet, contexte,
+        recipientRole: "TEACHER", contextType: "HEALTH_WARNING", destinataire: "ENSEIGNANT",
+      });
+      await notifierPersonnelDirect(
+        professorPrincipalId, schoolId,
+        "Élève à surveiller",
+        conseilEnseignant ?? `${nomComplet} (${className ?? "votre classe"}) — indice de santé scolaire : ${healthScore}/100.`,
+      );
+    }
+
+    return { notified: true };
+  },
+);
+
+export const handlePositiveHealthAlert = inngest.createFunction(
+  { id: "handle-positive-health-alert", name: "Alerte élève — progression positive", triggers: [{ event: "ai/alert.positive" }] },
+  async ({ event }) => {
+    const { studentId, schoolId, healthScore } = event.data as { studentId: string; schoolId: string; healthScore: number };
+    const { nomComplet, className } = await resolveStudentContext(studentId, schoolId);
+    const contexte = `Nette amélioration récente de l'indice de santé scolaire (désormais ${healthScore}/100), dans la classe ${className ?? "N/A"}. Un progrès à valoriser et à encourager.`;
+
+    // Pas de canal fiable vers l'élève lui-même aujourd'hui (voir note ci-dessus) — le parent
+    // reste le destinataire pertinent pour valoriser une progression, pas seulement les alertes.
+    const conseilParent = await genererEtPersisterConseil({
+      schoolId, studentId, nomEleve: nomComplet, contexte,
+      recipientRole: "PARENT", contextType: "HEALTH_POSITIVE", destinataire: "PARENT",
+    });
+    await notifierParentsPushDabord({
+      schoolId,
+      studentId,
+      type: "STUDENT_RISK_ALERT",
+      titre: "Belle progression 🎉",
+      corps: conseilParent ?? `${nomComplet} (${className ?? "sa classe"}) montre une nette amélioration récente (indice de santé scolaire : ${healthScore}/100). Continuez à l'encourager !`,
+    }).catch((err) => console.error("[HealthAlert] parent positif:", err?.message));
+
+    void genererEtPersisterConseil({
+      schoolId, studentId, nomEleve: nomComplet, contexte,
+      recipientRole: "STUDENT", contextType: "HEALTH_POSITIVE", destinataire: "ELEVE",
+    });
+
+    return { notified: true };
+  },
+);
+
+/**
+ * Phase 3 — détection de chute par matière, déclenchée en temps réel à la validation d'une
+ * séquence (pas seulement au calcul nocturne global) : compare la moyenne de la séquence qui
+ * vient d'être validée à la moyenne de la séquence précédente, POUR LA MÊME MATIÈRE — le job
+ * nocturne (Phase 1) ne regarde que la moyenne générale, jamais matière par matière.
+ */
+export async function trouverSequencePrecedente(sequenceId: string, schoolId: string) {
+  const courante = await prisma.academicSequence.findUnique({
+    where: { id: sequenceId },
+    select: { orderIndex: true, academicPeriod: { select: { orderIndex: true, academicYearId: true } } },
+  });
+  if (!courante) return null;
+
+  const toutes = await prisma.academicSequence.findMany({
+    where: { schoolId, academicPeriod: { academicYearId: courante.academicPeriod.academicYearId } },
+    select: { id: true, orderIndex: true, academicPeriod: { select: { orderIndex: true } } },
+  });
+  const triees = toutes.sort((a, b) =>
+    a.academicPeriod.orderIndex - b.academicPeriod.orderIndex || a.orderIndex - b.orderIndex
+  );
+  const idx = triees.findIndex((s) => s.id === sequenceId);
+  return idx > 0 ? triees[idx - 1]! : null;
+}
+
+export const handleGradeValidatedDropDetection = inngest.createFunction(
+  { id: "handle-grade-validated-drop-detection", name: "Détection chute par matière", triggers: [{ event: "grade/validated" }] },
+  async ({ event }) => {
+    const { studentId, subjectId, schoolId, sequenceId } = event.data as {
+      gradeId: string; studentId: string; subjectId: string; schoolId: string; sequenceId: string;
+    };
+
+    const noteActuelle = await prisma.grade.findFirst({
+      where: { studentId, subjectId, sequenceId, schoolId, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
+      select: { sequenceAverage: true },
+    });
+    if (noteActuelle?.sequenceAverage == null) return { skipped: "no-average" };
+
+    const precedente = await trouverSequencePrecedente(sequenceId, schoolId);
+    if (!precedente) return { skipped: "no-previous-sequence" };
+
+    const noteAvant = await prisma.grade.findFirst({
+      where: { studentId, subjectId, schoolId, sequenceId: precedente.id, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
+      select: { sequenceAverage: true },
+    });
+    if (noteAvant?.sequenceAverage == null) return { skipped: "no-previous-grade" };
+
+    const config = await (prisma as any).schoolConfig
+      .findFirst({ where: { schoolId }, select: { subjectDropThreshold: true, aiAlertsEnabled: true } })
+      .catch(() => null);
+    if (config?.aiAlertsEnabled === false) return { skipped: "alerts-disabled" };
+    const seuil = config?.subjectDropThreshold ?? 3;
+
+    const chute = noteAvant.sequenceAverage - noteActuelle.sequenceAverage;
+    if (chute < seuil) return { skipped: "no-significant-drop" };
+
+    const [contexte, subject] = await Promise.all([
+      resolveStudentContext(studentId, schoolId),
+      prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
+    ]);
+    const matiere = subject?.name ?? "une matière";
+    const corpsGenerique = `${contexte.nomComplet} (${contexte.className ?? "N/A"}) a chuté de ${chute.toFixed(1)} points en ${matiere} (${noteAvant.sequenceAverage.toFixed(1)} → ${noteActuelle.sequenceAverage.toFixed(1)}/20) entre les deux dernières séquences.`;
+    const conseilEnseignant = await genererEtPersisterConseil({
+      schoolId, studentId, subjectId, nomEleve: contexte.nomComplet,
+      contexte: corpsGenerique,
+      recipientRole: "TEACHER", contextType: "SUBJECT_DROP", destinataire: "ENSEIGNANT",
+    });
+    const corps = conseilEnseignant ?? corpsGenerique;
+
+    // Enseignant de la matière POUR CETTE CLASSE précisément (un même enseignant peut avoir
+    // plusieurs classes, une même matière peut avoir plusieurs enseignants selon la classe).
+    if (contexte.classId) {
+      const assignment = await prisma.teachingAssignment.findUnique({
+        where: { classId_subjectId: { classId: contexte.classId, subjectId } },
+        select: { teacherId: true },
+      }).catch(() => null);
+      if (assignment?.teacherId) {
+        await notifierPersonnelDirect(assignment.teacherId, schoolId, `Chute en ${matiere}`, corps);
+      }
+    }
+
+    // Professeur Principal — vue d'ensemble de l'élève, pas seulement de la matière concernée.
+    if (contexte.professorPrincipalId) {
+      await notifierPersonnelDirect(contexte.professorPrincipalId, schoolId, `Chute en ${matiere}`, corps);
+    }
+
+    return { notified: true, chute };
+  },
 );
 
 export const sendPaymentReminders = inngest.createFunction(

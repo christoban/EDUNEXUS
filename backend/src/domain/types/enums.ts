@@ -67,6 +67,7 @@ export type NotificationType =
   | 'COUNCIL_DECISION'
   | 'LIBRARY_OVERDUE'
   | 'DISCIPLINE_SANCTION'
+  | 'STUDENT_RISK_ALERT'
   | 'SYSTEM';
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP';

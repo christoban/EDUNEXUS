@@ -1,6 +1,6 @@
 'use client'
 import { useCallback } from 'react'
-import { Users, Package, Trophy, FileText, CheckCircle2, Smartphone } from 'lucide-react'
+import { Users, Package, Trophy, FileText, CheckCircle2, Smartphone, Sparkles } from 'lucide-react'
 import type { ChildWithStats } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
@@ -12,6 +12,8 @@ interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
   userId?: string
 }
+
+interface HealthTrackingChild { studentId: string; conseil: string | null; alertLevel: 'critical' | 'warning' | 'good' }
 
 function HealthBadge({ score }: { score: number }) {
   const t = useT('parent')
@@ -59,6 +61,14 @@ export default function SectionParentChildren({ onNav, onToast, userId }: Props)
   }, [userId, t])
 
   const { data: children, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<ChildWithStats[]>(cacheKey, fetchFn)
+
+  const conseilCacheKey = userId ? `parent:health-tracking:${userId}` : ''
+  const fetchConseilsFn = useCallback(async (): Promise<HealthTrackingChild[]> => {
+    const res = await fetchApi('/api/v2/ai/health-tracking', { credentials: 'include' }).then(r => r.json())
+    return res.children ?? []
+  }, [userId])
+  const { data: conseilsData } = useCachedFetch<HealthTrackingChild[]>(conseilCacheKey, fetchConseilsFn)
+  const conseilParEnfant = new Map((conseilsData ?? []).map(c => [c.studentId, c]))
 
   if (loading) {
     return (
@@ -157,6 +167,20 @@ export default function SectionParentChildren({ onNav, onToast, userId }: Props)
                     {t('children.absenceDays').replace('{count}', String(child.joursAbsent))}
                   </span>
                 </div>
+
+                {(() => {
+                  const conseil = conseilParEnfant.get(child.studentId)
+                  if (!conseil?.conseil) return null
+                  const color = conseil.alertLevel === 'critical' ? 'var(--red)' : conseil.alertLevel === 'warning' ? 'var(--amber)' : 'var(--green)'
+                  return (
+                    <div style={{ background: 'var(--bg2)', borderRadius: 12, padding: '14px 16px', marginBottom: 16, borderLeft: `3px solid ${color}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                        <Sparkles size={13} strokeWidth={2} /> {t('children.aiAdviceTitle')}
+                      </div>
+                      <div style={{ fontSize: 15, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>{conseil.conseil}</div>
+                    </div>
+                  )
+                })()}
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   {[

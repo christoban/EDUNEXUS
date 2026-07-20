@@ -12,6 +12,7 @@ import SectionStudentBulletins from './_components/SectionStudentBulletins'
 import SectionStudentTimetable from './_components/SectionStudentTimetable'
 import SectionStudentAttendance from './_components/SectionStudentAttendance'
 import SectionStudentLibrary from './_components/SectionStudentLibrary'
+import SectionStudentHealthTracking from './_components/SectionStudentHealthTracking'
 import type { StudentSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
@@ -29,6 +30,7 @@ export default function StudentDashboard() {
     timetable:  tnav('pageTitle.student_timetable'),
     attendance: tnav('pageTitle.student_attendance'),
     library:    tnav('pageTitle.student_library'),
+    'health-tracking': tnav('pageTitle.student_healthTracking'),
     notifications: tnav('pageTitle.student_notifications'),
   }
   const [section, setSection] = useState<StudentSection>('dashboard')
@@ -117,6 +119,7 @@ export default function StudentDashboard() {
           {section === 'timetable'  && <SectionStudentTimetable {...sProps} />}
           {section === 'attendance' && <SectionStudentAttendance {...sProps} />}
           {section === 'library'    && <SectionStudentLibrary />}
+          {section === 'health-tracking' && <SectionStudentHealthTracking user={user} />}
           {section === 'notifications' && <NotificationCenter />}
         </main>
       </div>

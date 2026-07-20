@@ -334,6 +334,23 @@
     "type_grade": "Notes",
     "action_count": "{count} action(s) en attente"
   },
+  "at_risk": {
+    "title": "Élèves à risque",
+    "subtitle": "Détection automatique dans vos classes et matières",
+    "loading": "Chargement...",
+    "load_error": "Erreur de chargement",
+    "retry": "Réessayer",
+    "empty_title": "Aucun élève à risque détecté",
+    "empty_sub": "Tous les élèves de vos classes ont un indice de santé scolaire satisfaisant.",
+    "summary_critical": "{count} critique(s)",
+    "summary_warning": "{count} à surveiller",
+    "level_critical": "Critique",
+    "level_warning": "À surveiller",
+    "score_label": "Indice de santé scolaire",
+    "advice_title": "Conseil généré par l'IA",
+    "no_advice": "Aucun conseil généré pour le moment.",
+    "network_error": "Erreur réseau"
+  },
   "placeholder": {
     "dev_message": "Cette section est en cours de développement.\nRevenez bientôt.",
     "access": "Accéder à {title} →",

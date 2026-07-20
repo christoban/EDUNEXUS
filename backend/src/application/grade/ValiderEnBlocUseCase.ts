@@ -16,6 +16,10 @@ export interface ValiderEnBlocResultat {
   notesValidees: number;
   notesIgnorees: number; // Déjà validées ou pas en SUBMITTED
   message: string;
+  // Notes réellement validées PAR CET APPEL (pas l'état global classe/séquence) — permet à
+  // l'appelant (controller) de déclencher des effets de bord uniquement pour ce qui vient de
+  // changer, sans re-notifier des notes déjà validées lors d'un appel précédent.
+  gradesValidees: Array<{ id: string; studentId: string; subjectId: string; schoolId: string; sequenceId: string }>;
 }
 
 export class ValiderEnBlocUseCase {
@@ -43,21 +47,28 @@ export class ValiderEnBlocUseCase {
         notesValidees: 0,
         notesIgnorees: 0,
         message: 'Aucune note en attente de validation pour cette classe',
+        gradesValidees: [],
       };
     }
 
     // 3. Valider chaque note
     let validees = 0;
+    const gradesValidees: ValiderEnBlocResultat['gradesValidees'] = [];
     for (const note of notesAValider) {
       note.valider(commande.validateurId);
       await this.noteRepository.update(note);
       validees++;
+      gradesValidees.push({
+        id: note.id, studentId: note.studentId, subjectId: note.subjectId,
+        schoolId: note.schoolId, sequenceId: note.sequenceId,
+      });
     }
 
     return {
       notesValidees: validees,
       notesIgnorees: 0,
       message: `${validees} note(s) validée(s) avec succès`,
+      gradesValidees,
     };
   }
 }

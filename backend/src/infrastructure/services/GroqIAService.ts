@@ -113,4 +113,27 @@ Retourne un JSON structuré avec les créneaux.
       return { raw: resultat };
     }
   }
+
+  async genererConseilPersonnalise(params: {
+    nomEleve: string;
+    contexte: string;
+    destinataire: 'ELEVE' | 'PARENT' | 'ENSEIGNANT';
+    langue?: 'fr' | 'en';
+  }): Promise<string> {
+    const lang: Language = params.langue ?? 'fr';
+
+    const consignesParDestinataire: Record<typeof params.destinataire, string> = {
+      ELEVE: `Adresse-toi directement à ${params.nomEleve} en le/la tutoyant. Ton encourageant, jamais culpabilisant. Propose 2-3 actions concrètes et réalisables que l'élève peut faire lui-même dès cette semaine.`,
+      PARENT: `Adresse-toi au parent de ${params.nomEleve}, ton factuel et respectueux. Explique la situation simplement puis propose 2-3 actions concrètes que le parent peut faire à la maison (suivi des devoirs, dialogue, appui d'un répétiteur, prise de contact avec l'enseignant, etc.).`,
+      ENSEIGNANT: `Adresse-toi à l'enseignant de ${params.nomEleve}, ton pédagogique entre collègues. Propose 2-3 pistes pédagogiques concrètes en classe ou en suivi individuel pour cet élève.`,
+    };
+
+    const prompt = `
+Situation de l'élève ${params.nomEleve} : ${params.contexte}
+${consignesParDestinataire[params.destinataire]}
+Réponds en 3-4 phrases maximum, sans formule de politesse d'ouverture ni de signature.
+    `.trim();
+
+    return genererAvecGroq(prompt, lang);
+  }
 }

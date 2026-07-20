@@ -39,4 +39,8 @@ export class FakeIAService implements IAService {
   async genererEmploiDuTemps(_contraintes: any): Promise<Record<string, unknown>> {
     return { generated: true };
   }
+
+  async genererConseilPersonnalise(_params: any): Promise<string> {
+    return 'Conseil personnalisé généré par FakeIA';
+  }
 }

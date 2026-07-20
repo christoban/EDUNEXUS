@@ -28,4 +28,10 @@ export interface IAService {
     langue: 'FR' | 'EN';
   }): Promise<string>;
   genererEmploiDuTemps(contraintes: Record<string, unknown>): Promise<Record<string, unknown>>;
+  genererConseilPersonnalise(params: {
+    nomEleve: string;
+    contexte: string;
+    destinataire: 'ELEVE' | 'PARENT' | 'ENSEIGNANT';
+    langue?: 'fr' | 'en';
+  }): Promise<string>;
 }

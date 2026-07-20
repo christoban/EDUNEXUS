@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   ClipboardList, Loader2, Lock, Upload, AlertTriangle, GraduationCap, BookOpen,
-  Vote, FileText, X, Trophy, CheckCircle2,
+  Vote, FileText, X, Trophy, CheckCircle2, HeartPulse,
 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { fetchApi } from '@/lib/fetchApi'
@@ -27,6 +27,8 @@ interface Decision {
   decision: string
   observations: string | null
   student: { id: string; firstName: string; lastName: string }
+  healthScore?: number
+  alertLevel?: 'critical' | 'warning' | null
 }
 
 interface SessionDetail {
@@ -268,7 +270,13 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                   {selected.decisions.length === 0 ? (
                     <div style={{ padding: '40px 22px', textAlign: 'center', color: 'var(--text3)' }}>Aucun élève dans cette session.</div>
                   ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <>
+                      {selected.decisions.some(d => d.alertLevel) && (
+                        <div style={{ background: 'var(--red-light)', borderBottom: '1px solid var(--border)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <HeartPulse size={14} /> {selected.decisions.filter(d => d.alertLevel).length} élève(s) à risque dans cette classe — voir l'indicateur ci-dessous
+                        </div>
+                      )}
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>{['Élève', 'Décision', 'Observation'].map(h => (
                           <th key={h} style={thSt}>{h}</th>
@@ -281,7 +289,17 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                             <tr key={d.studentId}
                               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                              <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{d.student.firstName} {d.student.lastName}</td>
+                              <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                  {d.student.firstName} {d.student.lastName}
+                                  {d.alertLevel && (
+                                    <span title={`Indice de santé scolaire : ${d.healthScore}/100`}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800, background: d.alertLevel === 'critical' ? 'var(--red-light)' : 'var(--amber-light)', color: d.alertLevel === 'critical' ? 'var(--red)' : 'var(--amber)' }}>
+                                      <HeartPulse size={11} /> {d.healthScore}
+                                    </span>
+                                  )}
+                                </span>
+                              </td>
                               <td style={tdSt}>
                                 <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc?.bg, color: dc?.color }}>
                                   {DEC_LABEL[d.decision] ?? d.decision}
@@ -293,6 +311,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                         })}
                       </tbody>
                     </table>
+                    </>
                   )}
                 </>
               )}

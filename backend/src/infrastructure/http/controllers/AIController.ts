@@ -88,6 +88,152 @@ export class AIController {
     }
   };
 
+  // GET /api/v2/ai/at-risk-students — vue enseignant : élèves à risque dans SES classes/matières
+  // uniquement (TeachingAssignment + classe(s) dont il est professeur principal), avec le conseil
+  // IA déjà généré et persisté pour lui (StudentRecommendation, recipientRole=TEACHER) — jamais
+  // de nouvel appel Groq ici, uniquement de la lecture.
+  getAtRiskStudentsForTeacher = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const teacherId = req.user!.userId;
+
+      const [assignments, ppClasses] = await Promise.all([
+        this.prisma.teachingAssignment.findMany({ where: { teacherId, schoolId }, select: { classId: true } }),
+        this.prisma.class.findMany({ where: { schoolId, professorPrincipalId: teacherId }, select: { id: true } }),
+      ]);
+      const classIds = Array.from(new Set([...assignments.map((a) => a.classId), ...ppClasses.map((c) => c.id)]));
+      if (classIds.length === 0) { res.json({ students: [], summary: { critical: 0, warning: 0 } }); return; }
+
+      const config = await this.prisma.schoolConfig
+        .findUnique({ where: { schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
+        .catch(() => null) as { aiRiskThreshold: number; aiRiskThresholdCritical: number } | null;
+      const warningThreshold = config?.aiRiskThreshold ?? 50;
+      const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+
+      const students = await this.prisma.studentProfile.findMany({
+        where: { classId: { in: classIds }, healthScore: { lte: warningThreshold } },
+        include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
+        orderBy: { healthScore: 'asc' },
+      }) as any[];
+
+      const studentIds = students.map((s) => s.user.id);
+      const recommendations = studentIds.length
+        ? await this.prisma.studentRecommendation.findMany({
+            where: { studentId: { in: studentIds }, recipientRole: 'TEACHER' },
+            orderBy: { createdAt: 'desc' },
+          })
+        : [];
+      const dernierConseilParEleve = new Map<string, (typeof recommendations)[number]>();
+      for (const r of recommendations) if (!dernierConseilParEleve.has(r.studentId)) dernierConseilParEleve.set(r.studentId, r);
+
+      const result = students.map((s) => {
+        const score: number = s.healthScore ?? 75;
+        const alertLevel = score <= criticalThreshold ? 'critical' : 'warning';
+        const conseil = dernierConseilParEleve.get(s.user.id);
+        return {
+          studentId: s.user.id,
+          name: `${s.user.firstName} ${s.user.lastName}`,
+          classId: s.class?.id ?? null,
+          className: s.class?.name ?? '—',
+          healthScore: score,
+          alertLevel,
+          conseil: conseil?.content ?? null,
+          conseilDate: conseil?.createdAt ?? null,
+        };
+      });
+
+      res.json({
+        students: result,
+        summary: {
+          critical: result.filter((r) => r.alertLevel === 'critical').length,
+          warning: result.filter((r) => r.alertLevel === 'warning').length,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/v2/ai/health-tracking — vue Parent (tous ses enfants) ou Élève (lui-même) du suivi
+  // de santé scolaire : indice + dernier conseil IA persisté qui LEUR est destiné (recipientRole
+  // PARENT ou STUDENT selon l'appelant — jamais le conseil destiné à l'enseignant). Même principe
+  // de lecture seule que getAtRiskStudentsForTeacher : aucun appel Groq ici.
+  getHealthTracking = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user!;
+      const schoolId = user.schoolId;
+      const role = user.role.toUpperCase();
+
+      let cibles: { studentId: string; name: string; className: string }[] = [];
+
+      if (role === 'STUDENT') {
+        const profile = await this.prisma.studentProfile.findFirst({
+          where: { userId: user.userId, user: { schoolId } },
+          include: { user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } },
+        });
+        if (!profile) { res.json({ children: [] }); return; }
+        cibles = [{ studentId: user.userId, name: `${profile.user.firstName} ${profile.user.lastName}`, className: profile.class?.name ?? '—' }];
+      } else if (role === 'PARENT') {
+        const parentProfile = await this.prisma.parentProfile.findUnique({
+          where: { userId: user.userId },
+          include: { children: { include: { studentProfile: { include: { user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } } } } } },
+        });
+        cibles = (parentProfile?.children ?? [])
+          .filter((c) => c.studentProfile)
+          .map((c) => ({
+            studentId: c.studentProfile!.userId,
+            name: `${c.studentProfile!.user.firstName} ${c.studentProfile!.user.lastName}`,
+            className: c.studentProfile!.class?.name ?? '—',
+          }));
+      } else {
+        res.status(403).json({ success: false, message: 'Accès réservé aux parents et élèves' });
+        return;
+      }
+
+      if (cibles.length === 0) { res.json({ children: [] }); return; }
+
+      const config = await this.prisma.schoolConfig
+        .findUnique({ where: { schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
+        .catch(() => null) as { aiRiskThreshold: number; aiRiskThresholdCritical: number } | null;
+      const warningThreshold = config?.aiRiskThreshold ?? 50;
+      const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+
+      const studentIds = cibles.map((c) => c.studentId);
+      const [scores, recommendations] = await Promise.all([
+        this.prisma.studentProfile.findMany({
+          where: { userId: { in: studentIds } },
+          select: { userId: true, healthScore: true },
+        }),
+        this.prisma.studentRecommendation.findMany({
+          where: { studentId: { in: studentIds }, recipientRole: role === 'STUDENT' ? 'STUDENT' : 'PARENT' },
+          orderBy: { createdAt: 'desc' },
+        }),
+      ]);
+      const scoreParEleve = new Map(scores.map((s) => [s.userId, s.healthScore ?? 75]));
+      const dernierConseilParEleve = new Map<string, (typeof recommendations)[number]>();
+      for (const r of recommendations) if (!dernierConseilParEleve.has(r.studentId)) dernierConseilParEleve.set(r.studentId, r);
+
+      const enfants = cibles.map((c) => {
+        const score = scoreParEleve.get(c.studentId) ?? 75;
+        const alertLevel = score <= criticalThreshold ? 'critical' : score <= warningThreshold ? 'warning' : 'good';
+        const conseil = dernierConseilParEleve.get(c.studentId);
+        return {
+          studentId: c.studentId,
+          name: c.name,
+          className: c.className,
+          healthScore: score,
+          alertLevel,
+          conseil: conseil?.content ?? null,
+          conseilDate: conseil?.createdAt ?? null,
+        };
+      });
+
+      res.json({ children: enfants });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   generateBulletinComment = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { studentName, average, mention, subjectLines, className } = req.body;

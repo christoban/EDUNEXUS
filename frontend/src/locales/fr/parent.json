@@ -43,6 +43,7 @@
     "actionGrades": "Bulletins",
     "actionAttendance": "Présences",
     "actionPayments": "Paiements",
+    "aiAdviceTitle": "Conseil personnalisé",
     "errorLoadChildren": "Erreur de chargement des enfants"
   },
   "grades": {

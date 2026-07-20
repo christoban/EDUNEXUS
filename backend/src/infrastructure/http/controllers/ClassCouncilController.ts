@@ -143,7 +143,11 @@ export class ClassCouncilController {
           academicPeriod: { select: { id: true, name: true } },
           presidedBy: { select: { id: true, firstName: true, lastName: true } },
           decisions: {
-            include: { student: { select: { id: true, firstName: true, lastName: true } } },
+            include: {
+              student: {
+                select: { id: true, firstName: true, lastName: true, studentProfile: { select: { healthScore: true } } },
+              },
+            },
           },
         },
       }) as any;
@@ -151,6 +155,26 @@ export class ClassCouncilController {
         res.status(404).json({ message: 'Session introuvable' });
         return;
       }
+
+      // Surface les élèves à risque directement dans le détail du conseil — utile au président
+      // de séance pour repérer d'un coup d'œil qui mérite une attention particulière pendant la
+      // délibération, sans dupliquer la logique de seuils (mêmes SchoolConfig que le reste de
+      // l'Early Warning System).
+      const config = await (prisma as any).schoolConfig
+        .findUnique({ where: { schoolId: user.schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
+        .catch(() => null);
+      const warningThreshold = config?.aiRiskThreshold ?? 50;
+      const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+      session.decisions = session.decisions.map((d: any) => {
+        const score = d.student?.studentProfile?.healthScore ?? 75;
+        const { studentProfile, ...studentSansProfile } = d.student ?? {};
+        return {
+          ...d,
+          student: studentSansProfile,
+          healthScore: score,
+          alertLevel: score <= criticalThreshold ? 'critical' : score <= warningThreshold ? 'warning' : null,
+        };
+      });
 
       if (role === 'STUDENT') {
         const myDecision = session.decisions.find((d) => d.studentId === user.userId);

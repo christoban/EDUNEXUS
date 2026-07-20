@@ -2079,6 +2079,102 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         throw new Error('Une diffusion de message ne peut pas être annulée depuis le copilot — les messages sont déjà partis.');
       },
     },
+
+    // ═══ Section 4.12 (Détection élèves à risque) — chantier Early Warning System ═══
+    // Lecture seule sur des données déjà calculées (job nocturne + détection de chute par
+    // matière) — le copilot ne déclenche jamais de nouveau calcul ni de nouvel appel Groq ici.
+
+    // 53. Lister les élèves à risque — LECTURE SEULE
+    {
+      name: 'lister_eleves_a_risque',
+      description:
+        "Liste les élèves dont l'indice de santé scolaire est en zone critique ou d'avertissement, " +
+        "sur tout l'établissement ou une classe précise si indiquée.",
+      destructive: false,
+      requiredPermission: null,
+      inputSchema: z.object({
+        className: z.string().optional().describe('Limiter à une classe précise — omettre pour tout l\'établissement'),
+      }),
+      async execute(input, ctx) {
+        const classe = input.className ? await resolveClass(ctx, input.className) : null;
+        const config = await (ctx.prisma as any).schoolConfig
+          .findUnique({ where: { schoolId: ctx.schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
+          .catch(() => null);
+        const warningThreshold = config?.aiRiskThreshold ?? 50;
+        const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+
+        const eleves = await ctx.prisma.studentProfile.findMany({
+          where: {
+            user: { schoolId: ctx.schoolId },
+            ...(classe ? { classId: classe.id } : {}),
+            healthScore: { lte: warningThreshold },
+          },
+          select: {
+            healthScore: true,
+            user: { select: { firstName: true, lastName: true } },
+            class: { select: { name: true } },
+          },
+          orderBy: { healthScore: 'asc' },
+        });
+
+        if (eleves.length === 0) {
+          return {
+            resultLabel: classe ? `Aucun élève à risque dans ${classe.name}.` : "Aucun élève à risque dans l'établissement actuellement.",
+            section: 'ai',
+            entity: 'studentProfile',
+          };
+        }
+        const resultLabel = `${eleves.length} élève(s) à risque${classe ? ` dans ${classe.name}` : ''} : ` +
+          eleves.map((e) => {
+            const score = e.healthScore ?? 75;
+            const niveau = score <= criticalThreshold ? 'CRITIQUE' : 'à surveiller';
+            return `${e.user.firstName ?? ''} ${e.user.lastName ?? ''}`.trim() + ` (${e.class?.name ?? 'N/A'}, ${score}/100, ${niveau})`;
+          }).join(', ');
+        return { resultLabel, section: 'ai', entity: 'studentProfile' };
+      },
+      async undo() {
+        throw new Error('Cette action est une simple consultation, il n\'y a rien à annuler.');
+      },
+    },
+
+    // 54. Résumé du risque d'un élève précis — LECTURE SEULE
+    {
+      name: 'resume_risque_eleve',
+      description:
+        "Donne l'indice de santé scolaire d'un élève précis et le dernier conseil personnalisé " +
+        "déjà généré par l'IA à son sujet, si disponible.",
+      destructive: false,
+      requiredPermission: null,
+      inputSchema: z.object({
+        studentName: z.string().min(1).describe("Nom complet de l'élève"),
+        className: z.string().optional().describe('Précisez si plusieurs élèves portent ce nom'),
+      }),
+      async execute(input, ctx) {
+        const student = await resolveStudent(ctx, input.studentName, input.className);
+        const profile = await ctx.prisma.studentProfile.findFirst({
+          where: { userId: student.id },
+          select: { healthScore: true },
+        });
+        const score = profile?.healthScore ?? 75;
+
+        const conseil = await (ctx.prisma as any).studentRecommendation.findFirst({
+          where: { studentId: student.id, recipientRole: 'TEACHER' },
+          orderBy: { createdAt: 'desc' },
+          select: { content: true, contextType: true, createdAt: true },
+        });
+
+        let resultLabel = `${student.name} (${student.className ?? 'N/A'}) : indice de santé scolaire ${score}/100.`;
+        if (conseil) {
+          resultLabel += ` Dernier conseil IA (${new Date(conseil.createdAt).toLocaleDateString('fr-FR')}) : ${conseil.content}`;
+        } else {
+          resultLabel += ' Aucun conseil IA généré pour le moment.';
+        }
+        return { resultLabel, section: 'ai', entity: 'studentProfile' };
+      },
+      async undo() {
+        throw new Error('Cette action est une simple consultation, il n\'y a rien à annuler.');
+      },
+    },
   ];
 }
 
