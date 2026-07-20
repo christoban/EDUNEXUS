@@ -15,7 +15,7 @@
  * navigue vers l'écran concerné via des évènements window (zekoulabia:navigate / :data-changed).
  */
 import { useState, useRef, useEffect } from 'react'
-import { X, Bot, Hand, AlertTriangle, Undo2, Check, Send, LifeBuoy } from 'lucide-react'
+import { X, Bot, Hand, AlertTriangle, Undo2, Check, Send, LifeBuoy, Lock } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useIdleDetection } from '@/hooks/useIdleDetection'
@@ -245,6 +245,11 @@ export default function AssistantWidget({ section }: Props) {
               <div style={{ fontWeight: 800, fontSize: 15.5 }}>{t('assistant.title')}</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Décrivez une action, je l’exécute</div>
             </div>
+          </div>
+
+          {/* Bandeau de confiance — gouvernance RBAC de l'assistant, visible en permanence */}
+          <div style={{ padding: '7px 18px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--text3)', fontWeight: 600 }}>
+            <Lock size={12} style={{ flexShrink: 0 }} /> Encadré par vos permissions · confirmation requise pour toute action sensible
           </div>
 
           {/* Messages */}

@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useMotionValue, animate as motionAnimate, useI
 import {
   CheckCircle2, XCircle, Lock, Smartphone, WifiOff, School, GraduationCap, Presentation,
   FileText, Calendar, Bot, Mail, Rocket, Users, Search, Check, Star, ArrowRight, Play,
-  ChevronDown, Wallet, AlertTriangle,
+  ChevronDown, Wallet, AlertTriangle, ShieldCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import DemoModal from './DemoModal'
@@ -20,6 +20,7 @@ const FEATURES_ICONS: LucideIcon[] = [FileText, CheckCircle2, Smartphone, Calend
 const HOWITWORKS_ICONS: LucideIcon[] = [Mail, School, Rocket]
 const ROLES_ICONS: LucideIcon[] = [School, Presentation, Users, GraduationCap, Search]
 const TRUST_ICONS: LucideIcon[] = [CheckCircle2, Lock, Smartphone, WifiOff]
+const SECURITY_ICONS: LucideIcon[] = [ShieldCheck, Lock, Users, Bot, FileText]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRANSLATIONS
@@ -62,6 +63,18 @@ const textsFR = {
       { title: 'IA Santé Scolaire', desc: 'Score 0-100 par élève : notes, présences, paiements, comportement. Alertes préventives Groq AI.' },
       { title: 'Mode hors-ligne', desc: 'Fonctionne sans internet (IndexedDB + service worker). Synchronisation automatique au retour du réseau.' },
     ],
+  },
+  security: {
+    title: 'Sécurité et protection des données',
+    subtitle: "Pensé dès la conception pour des données d'élèves mineurs",
+    items: [
+      { title: 'Double authentification obligatoire', desc: "Mot de passe, code email et application d'authentification (TOTP) à chaque connexion pour les comptes Administrateur, Staff et Enseignant — configuration forcée dès la première connexion, jamais désactivable." },
+      { title: 'Isolation stricte par établissement', desc: "Chaque école est cloisonnée : aucune donnée n'est jamais accessible à un autre établissement, à aucun niveau du système." },
+      { title: "Contrôle d'accès granulaire", desc: "Chaque rôle (Censeur, Intendant, Surveillant Général...) n'accède qu'aux fonctions qui lui sont explicitement autorisées." },
+      { title: 'IA gouvernée, jamais autonome', desc: "L'assistant intelligent ne peut jamais exécuter une action au-delà des permissions réelles de l'utilisateur, et demande toujours confirmation avant une action sensible." },
+      { title: 'Traçabilité complète', desc: 'Chaque action sensible est journalisée et consultable, pour un audit transparent à tout moment.' },
+    ],
+    note: "ZekoulABia est conçu dans l'esprit de la Loi n°2010/012 relative à la cybersécurité et à la cybercriminalité, et de la Loi n°2024/017 relative à la protection des données à caractère personnel au Cameroun.",
   },
   howItWorks: {
     title: 'Opérationnel en 72 heures',
@@ -121,7 +134,7 @@ const textsFR = {
       { q: 'Faut-il internet en permanence ?', a: 'Non. Mode hors-ligne complet (IndexedDB + PWA). Synchronisation automatique dès le retour du réseau.' },
       { q: 'Comment fonctionne le Mobile Money ?', a: "Via Campay (MTN MoMo & Orange Money). Paiement depuis le téléphone, confirmation en temps réel pour l'intendant." },
       { q: 'Combien de temps pour mettre en place ZekoulABia ?', a: '72 heures en moyenne avec l\'accompagnement de notre équipe.' },
-      { q: 'Les données des élèves sont-elles sécurisées ?', a: 'Hébergement en Afrique, chiffrement TLS, MFA obligatoire pour les administrateurs.' },
+      { q: 'Les données des élèves sont-elles sécurisées ?', a: 'Isolation stricte par établissement, hébergement en Afrique, chiffrement TLS, double authentification obligatoire pour les comptes Admin/Staff/Enseignant. Voir notre section Sécurité.' },
     ],
   },
   cta: {
@@ -179,6 +192,18 @@ const textsEN = {
       { title: 'Offline Mode', desc: 'Works without internet (IndexedDB + service worker). Auto-sync when network returns.' },
     ],
   },
+  security: {
+    title: 'Security & data protection',
+    subtitle: 'Built from day one for the data of minor students',
+    items: [
+      { title: 'Mandatory two-factor authentication', desc: 'Password, email code, and authenticator app (TOTP) on every login for Admin, Staff, and Teacher accounts — setup enforced from the very first login, never optional to disable.' },
+      { title: 'Strict per-school isolation', desc: 'Each school is fully siloed: no data is ever accessible to another establishment, at any level of the system.' },
+      { title: 'Granular access control', desc: 'Each role (Vice-Principal, Bursar, Discipline Master...) only accesses the functions explicitly authorized for it.' },
+      { title: 'Governed AI, never autonomous', desc: 'The AI assistant can never execute an action beyond the real permissions of the requesting user, and always asks for confirmation before a sensitive action.' },
+      { title: 'Full traceability', desc: 'Every sensitive action is logged and auditable at any time.' },
+    ],
+    note: "ZekoulABia is designed in the spirit of Cameroon's Law No. 2010/012 on cybersecurity and cybercrime, and Law No. 2024/017 on the protection of personal data.",
+  },
   howItWorks: {
     title: 'Operational in 72 hours',
     steps: [
@@ -222,7 +247,7 @@ const textsEN = {
       { q: 'Do you need internet all the time?', a: 'No. Full offline mode (IndexedDB + PWA). Automatic sync when the network returns.' },
       { q: 'How does Mobile Money work?', a: 'Via Campay (MTN MoMo & Orange Money). Payment from the phone, real-time confirmation for the bursar.' },
       { q: 'How long does it take to set up ZekoulABia?', a: 'On average 72 hours with our team guidance.' },
-      { q: 'Is student data secure?', a: 'Hosted in Africa, TLS encryption, mandatory MFA for administrators.' },
+      { q: 'Is student data secure?', a: 'Strict per-school isolation, hosted in Africa, TLS encryption, mandatory two-factor authentication for Admin/Staff/Teacher accounts. See our Security section.' },
     ],
   },
   cta: {
@@ -595,6 +620,40 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════
+          SÉCURITÉ — grille 2×2, note légale en bas
+      ══════════════════════════════════════════════════ */}
+      <section id="securite" style={{ background: 'var(--surface)', padding: '112px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 68 }}>
+            <h2 style={SH}>{tx.security.title}</h2>
+            <p style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, marginTop: 10 }}>{tx.security.subtitle}</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 28, marginBottom: 40 }}>
+            {tx.security.items.map((s, i) => {
+              const Icon = SECURITY_ICONS[i]
+              return (
+                <motion.div key={s.title}
+                  style={{ ...CARD, padding: 32, cursor: 'default' }}
+                  initial={{ opacity: 0, y: 28 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.15 }}
+                  transition={{ duration: 0.5, delay: i * 0.08, ease: 'easeOut' }}
+                  whileHover={{ y: -5, boxShadow: '0 8px 28px rgba(0,0,0,0.09)', transition: { duration: 0.2 } }}
+                >
+                  <div style={{ color: 'var(--green)', marginBottom: 16 }}><Icon size={32} strokeWidth={2} /></div>
+                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{s.title}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7 }}>{s.desc}</div>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          <p style={{ fontSize: 12.5, color: 'var(--text3)', textAlign: 'center', maxWidth: 720, margin: '0 auto', lineHeight: 1.7 }}>{tx.security.note}</p>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
           HOW IT WORKS — cercles 58px, icônes 44px
       ══════════════════════════════════════════════════ */}
       <section id="comment" style={{ background: 'var(--surface)', padding: '112px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
@@ -869,7 +928,7 @@ export default function LandingPage() {
             <div>
               <div style={{ fontSize: 11, fontWeight: 900, color: 'rgba(255,255,255,0.32)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 16 }}>{tx.footer.cols.product.title}</div>
               {tx.footer.cols.product.links.map(l => (
-                <a key={l} href="#" style={{ display: 'block', fontSize: 14, color: 'rgba(255,255,255,0.48)', textDecoration: 'none', marginBottom: 10, transition: 'color 150ms' }}
+                <a key={l} href={l === tx.footer.cols.product.links[2] ? '#securite' : '#'} style={{ display: 'block', fontSize: 14, color: 'rgba(255,255,255,0.48)', textDecoration: 'none', marginBottom: 10, transition: 'color 150ms' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = '#4ade80' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.48)' }}
                 >{l}</a>

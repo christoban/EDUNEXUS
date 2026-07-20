@@ -1,8 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import { generateSecret, generateURI, verifySync } from 'otplib';
+import QRCode from 'qrcode';
 import { passwordError } from '../../../utils/passwordValidator';
 import { parseDateFR } from '../../../utils/dateParsing';
 import { sendTransactionalEmail } from '../../../services/emailService';
+import { genererCodesRecuperation } from '../../../utils/mfaRecoveryCodes';
 import { createHash, randomBytes } from 'crypto';
 import type { ConnecterUtilisateurUseCase } from '@application/user/ConnecterUtilisateurUseCase';
 import type { InscrireUtilisateurUseCase } from '@application/user/InscrireUtilisateurUseCase';
@@ -13,6 +17,8 @@ import type { SupprimerUtilisateurUseCase } from '@application/user/SupprimerUti
 import type { TransfererEleveUseCase } from '@application/user/TransfererEleveUseCase';
 import type { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import type { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisateursUseCase';
+import type { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
+import type { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
 import type { TokenService } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import * as XLSX from 'xlsx';
@@ -23,6 +29,21 @@ const COOKIE_OPTIONS = {
   sameSite: 'lax' as const,
   path: '/',
 };
+
+// Rôles dont la connexion exige une double authentification (MFA/TOTP) en plus du code email.
+// Parent/Élève n'en font pas partie — mot de passe + code email seulement.
+const MFA_REQUIRED_ROLES = ['ADMIN', 'STAFF', 'TEACHER'];
+
+interface PendingLoginPayload {
+  userId: string;
+  schoolId: string;
+  role: string;
+  permissions: string[];
+  nomComplet: string;
+  roleMismatch: boolean;
+  redirectTo?: string | null;
+  tokenType: 'pending_login' | 'pending_mfa' | 'pending_mfa_setup';
+}
 
 export class UserController {
   constructor(
@@ -37,8 +58,56 @@ export class UserController {
     private readonly schoolRepository: SchoolRepository,
     private readonly designerAP: DesignerAPUseCase,
     private readonly importer: ImporterUtilisateursUseCase,
+    private readonly loginEmailOtp: LoginEmailOtpUseCase,
+    private readonly verifierMfaConnexion: VerifierMfaConnexionUseCase,
     private readonly prisma: PrismaClient,
   ) {}
+
+  // ── Pending login token (cookie temporaire entre les étapes de connexion) ──
+
+  private signPendingToken(payload: Omit<PendingLoginPayload, 'tokenType'>, tokenType: PendingLoginPayload['tokenType'], expiresIn: string): string {
+    return jwt.sign({ ...payload, tokenType }, process.env.JWT_SECRET!, { expiresIn } as any);
+  }
+
+  private setPendingCookie(res: Response, token: string, maxAgeMs: number): void {
+    res.cookie('pending_login_token', token, { ...COOKIE_OPTIONS, maxAge: maxAgeMs });
+  }
+
+  private readPendingToken(req: Request, expectedType: PendingLoginPayload['tokenType']): PendingLoginPayload {
+    const raw = req.cookies?.pending_login_token;
+    if (!raw) throw new Error('Session de connexion expirée. Veuillez recommencer.');
+    let decoded: PendingLoginPayload;
+    try {
+      decoded = jwt.verify(raw, process.env.JWT_SECRET!) as PendingLoginPayload;
+    } catch {
+      throw new Error('Session de connexion expirée. Veuillez recommencer.');
+    }
+    if (decoded.tokenType !== expectedType) {
+      throw new Error('Session de connexion invalide. Veuillez recommencer.');
+    }
+    return decoded;
+  }
+
+  private issueFinalSession(res: Response, payload: Omit<PendingLoginPayload, 'tokenType'>) {
+    const tokens = this.tokenService.genererTokens({
+      userId: payload.userId,
+      schoolId: payload.schoolId,
+      role: payload.role as any,
+      permissions: payload.permissions as any,
+      tokenType: 'access',
+    });
+    res.cookie('access_token', tokens.accessToken, { ...COOKIE_OPTIONS, maxAge: 8 * 60 * 60 * 1000 });
+    res.cookie('refresh_token', tokens.refreshToken, { ...COOKIE_OPTIONS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.clearCookie('pending_login_token', { path: '/' });
+    return {
+      userId: payload.userId,
+      role: payload.role,
+      permissions: payload.permissions,
+      nomComplet: payload.nomComplet,
+      roleMismatch: payload.roleMismatch,
+      redirectTo: payload.redirectTo ?? null,
+    };
+  }
 
   // POST /api/v2/auth/login
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -62,26 +131,23 @@ export class UserController {
         role: role || undefined,
       });
 
-      res.cookie('access_token', resultat.accessToken, {
-        ...COOKIE_OPTIONS,
-        maxAge: 8 * 60 * 60 * 1000,
-      });
-      res.cookie('refresh_token', resultat.refreshToken, {
-        ...COOKIE_OPTIONS,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
+      // Identifiants valides — jamais de session immédiate : toute connexion (tous rôles)
+      // passe désormais par un code de vérification envoyé par email avant l'accès complet.
+      await this.loginEmailOtp.envoyer(resultat.userId);
 
-      res.json({
-        success: true,
-        data: {
-          userId: resultat.userId,
-          role: resultat.role,
-          permissions: resultat.permissions,
-          nomComplet: resultat.nomComplet,
-          roleMismatch: resultat.roleMismatch ?? false,
-          redirectTo: resultat.redirectTo ?? null,
-        },
-      });
+      const pendingPayload: Omit<PendingLoginPayload, 'tokenType'> = {
+        userId: resultat.userId,
+        schoolId: resultat.schoolId,
+        role: resultat.role,
+        permissions: resultat.permissions as any,
+        nomComplet: resultat.nomComplet,
+        roleMismatch: resultat.roleMismatch ?? false,
+        redirectTo: resultat.redirectTo ?? null,
+      };
+      const token = this.signPendingToken(pendingPayload, 'pending_login', '10m');
+      this.setPendingCookie(res, token, 10 * 60 * 1000);
+
+      res.json({ success: true, step: 'email_otp', message: 'Code de vérification envoyé par email' });
     } catch (error) {
       // École suspendue — credentials valides mais accès bloqué
       if (error instanceof Error && (error as any).code === 'SCHOOL_SUSPENDED') {
@@ -103,6 +169,236 @@ export class UserController {
         return;
       }
       this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/users/auth/verify-login-otp
+  verifyLoginOtp = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const decoded = this.readPendingToken(req, 'pending_login');
+      const { otp } = req.body;
+      if (!otp) {
+        res.status(400).json({ success: false, message: 'Code OTP requis' });
+        return;
+      }
+
+      await this.loginEmailOtp.verifier(decoded.userId, otp);
+
+      const base = { ...decoded };
+
+      if (MFA_REQUIRED_ROLES.includes(decoded.role)) {
+        const user = await this.prisma.user.findUnique({ where: { id: decoded.userId }, select: { mfaEnabled: true } });
+
+        if (user?.mfaEnabled) {
+          const token = this.signPendingToken(base, 'pending_mfa', '10m');
+          this.setPendingCookie(res, token, 10 * 60 * 1000);
+          res.json({ success: true, step: 'totp_required' });
+          return;
+        }
+
+        // MFA jamais configuré (1re connexion, ou compte existant pas encore migré) — accès
+        // bloqué tant que la configuration obligatoire n'est pas terminée (voir mfa/first-setup).
+        const token = this.signPendingToken(base, 'pending_mfa_setup', '20m');
+        this.setPendingCookie(res, token, 20 * 60 * 1000);
+        res.json({ success: true, step: 'mfa_setup_required' });
+        return;
+      }
+
+      // PARENT / STUDENT (et tout rôle hors liste MFA) — session complète immédiate
+      const data = this.issueFinalSession(res, base);
+      res.json({ success: true, step: 'done', data });
+    } catch (error: any) {
+      res.status(401).json({ success: false, message: error.message || 'Code invalide' });
+    }
+  };
+
+  // POST /api/v2/users/auth/resend-login-otp
+  resendLoginOtp = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const decoded = this.readPendingToken(req, 'pending_login');
+      await this.loginEmailOtp.envoyer(decoded.userId);
+      const token = this.signPendingToken(decoded, 'pending_login', '10m');
+      this.setPendingCookie(res, token, 10 * 60 * 1000);
+      res.json({ success: true, message: 'Nouveau code de vérification envoyé' });
+    } catch (error: any) {
+      res.status(400).json({ success: false, message: error.message || 'Erreur lors du renvoi' });
+    }
+  };
+
+  // POST /api/v2/users/auth/verify-login-mfa
+  verifyLoginMfa = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const decoded = this.readPendingToken(req, 'pending_mfa');
+      const { code } = req.body;
+      if (!code) {
+        res.status(400).json({ success: false, message: 'Code MFA requis' });
+        return;
+      }
+
+      await this.verifierMfaConnexion.execute(decoded.userId, code);
+
+      const data = this.issueFinalSession(res, decoded);
+      res.json({ success: true, step: 'done', data });
+    } catch (error: any) {
+      res.status(401).json({ success: false, message: error.message || 'Code MFA invalide' });
+    }
+  };
+
+  // POST /api/v2/users/auth/mfa/first-setup — configuration MFA obligatoire (1re connexion Admin/Staff/Teacher)
+  firstMfaSetup = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const decoded = this.readPendingToken(req, 'pending_mfa_setup');
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, email: true, mfaEnabled: true },
+      });
+      if (!user) { res.status(404).json({ success: false, message: 'Compte introuvable' }); return; }
+      if (user.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA déjà activé sur ce compte.' }); return; }
+
+      const secret: string = generateSecret();
+      await this.prisma.user.update({ where: { id: user.id }, data: { mfaTempSecret: secret } });
+
+      const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia', label: user.email || decoded.userId, secret });
+      const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
+
+      res.json({ success: true, data: { qrDataUri, manualKey: secret } });
+    } catch (error: any) {
+      res.status(error.message?.includes('expirée') || error.message?.includes('invalide') ? 401 : 500)
+        .json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
+  // POST /api/v2/users/auth/mfa/first-enable — vérifie le TOTP, active le MFA, termine la connexion
+  firstMfaEnable = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const decoded = this.readPendingToken(req, 'pending_mfa_setup');
+      const { totpCode } = req.body;
+      if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: { id: true, mfaTempSecret: true, mfaEnabled: true },
+      });
+      if (!user?.mfaTempSecret) {
+        res.status(400).json({ success: false, message: "Aucune configuration MFA en cours. Recommencez depuis l'étape 1." });
+        return;
+      }
+      if (user.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA déjà activé.' }); return; }
+
+      const valid: boolean = verifySync({ token: String(totpCode).trim(), secret: user.mfaTempSecret }).valid;
+      if (!valid) {
+        res.status(401).json({ success: false, message: 'Code TOTP invalide. Vérifiez que votre application est synchronisée.' });
+        return;
+      }
+
+      const { formatted, hashed } = await genererCodesRecuperation();
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          mfaEnabled: true,
+          mfaSecret: user.mfaTempSecret,
+          mfaTempSecret: null,
+          mfaRecoveryCodeHashes: hashed,
+          mfaRecoveryCodeGeneratedAt: new Date(),
+        },
+      });
+
+      const data = this.issueFinalSession(res, decoded);
+      res.json({ success: true, data: { ...data, recoveryCodes: formatted } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
+  // GET /api/v2/users/mfa/status — statut MFA du compte authentifié (Admin/Staff/Teacher)
+  mfaStatus = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { mfaEnabled: true } });
+      res.json({ success: true, data: { mfaEnabled: user?.mfaEnabled ?? false } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  // POST /api/v2/users/mfa/reconfigure/start — génère un NOUVEAU secret (gardé par requireUserSensitiveAuth)
+  mfaReconfigureStart = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, mfaEnabled: true } });
+      if (!user?.mfaEnabled) {
+        res.status(400).json({ success: false, message: 'Configurez d\'abord le MFA depuis la connexion.' });
+        return;
+      }
+
+      const secret: string = generateSecret();
+      await this.prisma.user.update({ where: { id: user.id }, data: { mfaTempSecret: secret } });
+
+      const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia', label: user.email || userId, secret });
+      const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
+
+      res.json({ success: true, data: { qrDataUri, manualKey: secret } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
+  // POST /api/v2/users/mfa/reconfigure/confirm — confirme le nouveau secret + régénère les codes
+  mfaReconfigureConfirm = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      const { totpCode } = req.body;
+      if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
+
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, mfaTempSecret: true } });
+      if (!user?.mfaTempSecret) {
+        res.status(400).json({ success: false, message: "Aucune reconfiguration en cours. Recommencez depuis l'étape 1." });
+        return;
+      }
+
+      const valid: boolean = verifySync({ token: String(totpCode).trim(), secret: user.mfaTempSecret }).valid;
+      if (!valid) {
+        res.status(401).json({ success: false, message: 'Code TOTP invalide.' });
+        return;
+      }
+
+      const { formatted, hashed } = await genererCodesRecuperation();
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          mfaSecret: user.mfaTempSecret,
+          mfaTempSecret: null,
+          mfaRecoveryCodeHashes: hashed,
+          mfaRecoveryCodeGeneratedAt: new Date(),
+        },
+      });
+
+      res.json({ success: true, data: { recoveryCodes: formatted } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
+  // POST /api/v2/users/mfa/regen-codes — régénère uniquement les codes de récupération (gardé)
+  mfaRegenCodes = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, mfaEnabled: true } });
+      if (!user?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif.' }); return; }
+
+      const { formatted, hashed } = await genererCodesRecuperation();
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { mfaRecoveryCodeHashes: hashed, mfaRecoveryCodeGeneratedAt: new Date() },
+      });
+
+      res.json({ success: true, data: { recoveryCodes: formatted } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur' });
     }
   };
 

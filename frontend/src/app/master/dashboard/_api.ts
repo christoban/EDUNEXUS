@@ -157,6 +157,15 @@ export async function mfaRegenCodes(password: string, totpCode: string): Promise
   return res.data
 }
 
+// Débloque un compte Admin/Staff/Teacher ayant perdu l'accès à son authenticator ET à ses
+// codes de récupération — le compte devra reconfigurer le MFA depuis zéro à sa prochaine connexion.
+export async function resetUserMfa(subdomain: string, email: string, password: string, totpCode: string): Promise<void> {
+  await apiFetch('/api/v2/master/users/mfa-reset', {
+    method: 'POST',
+    body: JSON.stringify({ subdomain, email, sensitiveAuth: { password, code: totpCode } }),
+  })
+}
+
 export async function suspendSchool(id: string, reason?: string, sensitiveAuth?: { password: string; code?: string }): Promise<void> {
   await apiFetch(`/api/v2/master/schools/${id}/suspend`, {
     method: 'POST',

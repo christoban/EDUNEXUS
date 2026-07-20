@@ -529,6 +529,56 @@ export class MasterAdminHexController {
     }
   };
 
+  // POST /api/v2/master/users/mfa-reset — débloque un compte Admin/Staff/Teacher ayant perdu
+  // l'accès à son authenticator ET à ses codes de récupération. Le compte devra reconfigurer
+  // le MFA depuis zéro (nouveau QR) à sa prochaine connexion — geste sensible, jamais silencieux.
+  reinitialiserMfaUtilisateur = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const master = (req as any).masterUser;
+      const { subdomain, email } = req.body as { subdomain?: string; email?: string };
+      if (!subdomain || !email) {
+        res.status(400).json({ success: false, message: 'subdomain et email requis' });
+        return;
+      }
+
+      const school = await this.prisma.school.findUnique({ where: { subdomain: subdomain.toLowerCase().trim() }, select: { id: true, name: true } });
+      if (!school) {
+        res.status(404).json({ success: false, message: 'Établissement introuvable' });
+        return;
+      }
+
+      const user = await this.prisma.user.findFirst({
+        where: { schoolId: school.id, email: email.toLowerCase().trim() },
+        select: { id: true, role: true, mfaEnabled: true },
+      });
+      if (!user) {
+        res.status(404).json({ success: false, message: 'Compte introuvable dans cet établissement' });
+        return;
+      }
+      if (!user.mfaEnabled) {
+        res.status(400).json({ success: false, message: 'Le MFA de ce compte n\'est pas actif — rien à réinitialiser.' });
+        return;
+      }
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [], mfaRecoveryCodeGeneratedAt: null },
+      });
+
+      void logMasterAction({
+        req,
+        masterUserId: master?.id,
+        action: 'user_mfa_reset',
+        targetId: user.id,
+        description: `MFA réinitialisé pour ${email} (${user.role}) — ${school.name}. Reconfiguration obligatoire à la prochaine connexion.`,
+      });
+
+      res.json({ success: true, message: 'MFA réinitialisé — ce compte devra le reconfigurer à sa prochaine connexion.' });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
   // GET /api/v2/master/backup/list
   listerSauvegardes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

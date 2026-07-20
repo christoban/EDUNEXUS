@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Loader2, ChevronDown, ChevronRight, Search, School, Presentation, Users, GraduationCap, User, Ban, Hand, AlertTriangle, Check, Mail } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ChevronDown, ChevronRight, Search, School, Presentation, Users, GraduationCap, User, Ban, Hand, AlertTriangle, Check, Mail, Clock, ArrowLeft, KeyRound, Shield, Copy } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import AnimatedBackground from '@/components/AnimatedBackground'
@@ -45,9 +45,21 @@ const ROLES = [
   { icon: Search,       nameKey:'login.role_staff',  descKey:'login.role_staff_desc' },
 ]
 
+type LoginStep = 'credentials' | 'email_otp' | 'totp' | 'mfa_setup'
+
+type LoginData = { role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; redirectTo?: string | null }
+
+function maskEmail(email: string) {
+  const [local, domain] = email.split('@')
+  return (local?.[0] ?? '') + '***@' + (domain ?? '')
+}
+
 export default function LoginPage() {
   const t = useT('common')
   const router = useRouter()
+
+  const [step, setStep] = useState<LoginStep>('credentials')
+
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
   const [showPwd, setShowPwd]       = useState(false)
@@ -67,6 +79,32 @@ export default function LoginPage() {
   const [progress, setProgress]     = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
 
+  // ── Étape code email ──
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otpTimerSecs, setOtpTimerSecs] = useState(600)
+  const [otpResendEnabled, setOtpResendEnabled] = useState(false)
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpAlert, setOtpAlert] = useState<string | null>(null)
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+  const otpTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // ── Étape TOTP (Admin/Staff/Teacher, MFA déjà configuré) ──
+  const [totpCode, setTotpCode] = useState('')
+  const [isRecovery, setIsRecovery] = useState(false)
+  const [recoveryCode, setRecoveryCode] = useState('')
+  const [totpLoading, setTotpLoading] = useState(false)
+  const [totpAlert, setTotpAlert] = useState<string | null>(null)
+
+  // ── Étape configuration MFA obligatoire (1re connexion Admin/Staff/Teacher) ──
+  const [qrDataUri, setQrDataUri] = useState('')
+  const [manualKey, setManualKey] = useState('')
+  const [setupTotpCode, setSetupTotpCode] = useState('')
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [setupAlert, setSetupAlert] = useState<string | null>(null)
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
+  const [recoveryAck, setRecoveryAck] = useState(false)
+  const [pendingLoginData, setPendingLoginData] = useState<LoginData | null>(null)
+
   // Forgot password modal
   const [forgotOpen,    setForgotOpen]    = useState(false)
   const [forgotEmail,   setForgotEmail]   = useState('')
@@ -78,8 +116,8 @@ export default function LoginPage() {
 
   // Empêcher le remplissage automatique du navigateur (sécurité)
   useEffect(() => {
-    const t = setTimeout(() => { setEmail(''); setPassword('') }, 50)
-    return () => clearTimeout(t)
+    const tmr = setTimeout(() => { setEmail(''); setPassword('') }, 50)
+    return () => clearTimeout(tmr)
   }, [])
 
   // Charge la liste des écoles publiques au montage
@@ -104,11 +142,28 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (success) {
-      const t = setTimeout(() => setProgress(true), 100)
+      const tm = setTimeout(() => setProgress(true), 100)
       const r = setTimeout(() => router.push(success.dest), 2200)
-      return () => { clearTimeout(t); clearTimeout(r) }
+      return () => { clearTimeout(tm); clearTimeout(r) }
     }
   }, [success, router])
+
+  const startOtpTimer = () => {
+    if (otpTimerRef.current) clearInterval(otpTimerRef.current)
+    setOtpTimerSecs(600)
+    setOtpResendEnabled(false)
+    otpTimerRef.current = setInterval(() => {
+      setOtpTimerSecs(s => {
+        const next = s - 1
+        if (next === 120) setOtpResendEnabled(true)
+        if (next <= 0) {
+          if (otpTimerRef.current) clearInterval(otpTimerRef.current)
+          setOtpAlert(t('login.otp_expired'))
+        }
+        return next
+      })
+    }, 1000)
+  }
 
   const handleForgotSubmit = async () => {
     setForgotError('')
@@ -133,7 +188,29 @@ export default function LoginPage() {
     }
   }
 
-  const submit = async () => {
+  // ── Finalise la connexion (appelé après OTP seul, ou après TOTP, ou après activation MFA) ──
+  const completeLogin = (data: LoginData) => {
+    const { role, nomComplet, userId, permissions, roleMismatch, redirectTo } = data
+    const config = ROLE_CONFIG[role] ?? { icon: User, badge: role, color: 'var(--text3)', bg: 'var(--bg2)', dest: '/' }
+    const dest = redirectTo ?? config.dest
+    const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
+
+    localStorage.setItem('zekoulabia_user', JSON.stringify({
+      userId, role, nomComplet, firstName,
+      permissions: permissions ?? [],
+    }))
+
+    if (roleMismatch && selectedRole) {
+      const selectedLabel = ROLE_SELECTOR.find(s => s.role === selectedRole)?.label ?? selectedRole
+      const actualLabel   = ROLE_SELECTOR.find(s => s.role === role)?.label ?? role
+      setRoleMismatchWarning(t('login.role_mismatch_warning', { selected: t(selectedLabel), actual: t(actualLabel) }))
+    }
+
+    setSuccess({ ...config, dest, firstName })
+  }
+
+  // ── Étape 1 : identifiants ──
+  const submitCredentials = async () => {
     setAlert(null)
     setSuspended(null)
     if (!selectedRole) {
@@ -162,55 +239,166 @@ export default function LoginPage() {
 
       const data = await res.json()
 
-      // École suspendue — credentials valides mais accès bloqué
       if (res.status === 403 && data.error === 'SCHOOL_SUSPENDED') {
         setSuspended({ schoolName: selectedSchool.name })
         return
       }
 
-      // Cas multi-rôles
       if (res.status === 422 && data.code === 'ROLE_MISMATCH_MULTIPLE') {
         const labels = (data.availableRoles as string[])
           .map(r => ROLE_SELECTOR.find(s => s.role === r)?.label ?? r)
+          .map(l => (l.startsWith('login.') ? t(l) : l))
           .join(' et ')
-        setAlert({
-          msg: t('login.role_mismatch_multiple', { roles: labels }),
-          type: 'error',
-        })
+        setAlert({ msg: t('login.role_mismatch_multiple', { roles: labels }), type: 'error' })
         return
       }
 
       if (!data.success) {
-        const msg: string = data.message ?? 'Email ou mot de passe incorrect'
-        setAlert({ msg, type: 'error' })
+        setAlert({ msg: data.message ?? 'Email ou mot de passe incorrect', type: 'error' })
         return
       }
 
-      const { role, nomComplet, userId, permissions, roleMismatch, redirectTo } = data.data as {
-        role: string; nomComplet: string; userId: string; permissions: string[]; roleMismatch: boolean; redirectTo?: string | null
-      }
-      const config = ROLE_CONFIG[role] ?? { icon: User, badge: role, color: 'var(--text3)', bg: 'var(--bg2)', dest: '/' }
-      const dest = redirectTo ?? config.dest
-      const firstName = nomComplet?.split(' ')[0] ?? 'Bienvenue'
-
-      localStorage.setItem('zekoulabia_user', JSON.stringify({
-        userId, role, nomComplet, firstName,
-        permissions: permissions ?? [],
-      }))
-
-      if (roleMismatch) {
-        const selectedLabel = ROLE_SELECTOR.find(s => s.role === selectedRole)?.label ?? selectedRole
-        const actualLabel   = ROLE_SELECTOR.find(s => s.role === role)?.label ?? role
-        setRoleMismatchWarning(t('login.role_mismatch_warning', { selected: selectedLabel, actual: actualLabel }))
-      }
-
-      setSuccess({ ...config, dest, firstName })
+      setOtp(['', '', '', '', '', ''])
+      setOtpAlert(null)
+      setStep('email_otp')
+      startOtpTimer()
+      setTimeout(() => otpRefs.current[0]?.focus(), 100)
     } catch {
       setAlert({ msg: t('messages.networkError'), type: 'error' })
     } finally {
       setLoading(false)
     }
   }
+
+  // ── Étape 2 : code email ──
+  const handleOtpInput = (idx: number, val: string) => {
+    const digit = val.replace(/\D/g, '').slice(-1)
+    const next = [...otp]; next[idx] = digit; setOtp(next)
+    if (digit && idx < 5) setTimeout(() => otpRefs.current[idx + 1]?.focus(), 0)
+    if (digit && idx === 5 && next.join('').length === 6) setTimeout(() => submitOtp(next.join('')), 50)
+  }
+
+  const handleOtpKey = (idx: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[idx] && idx > 0) {
+      const next = [...otp]; next[idx - 1] = ''; setOtp(next)
+      otpRefs.current[idx - 1]?.focus()
+    }
+  }
+
+  const submitOtp = async (codeOverride?: string) => {
+    const code = codeOverride ?? otp.join('')
+    setOtpAlert(null)
+    if (code.length !== 6) { setOtpAlert(t('login.otp_expired')); return }
+    setOtpLoading(true)
+    try {
+      const res = await fetch('/api/v2/users/auth/verify-login-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ otp: code }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      if (otpTimerRef.current) clearInterval(otpTimerRef.current)
+
+      if (data.step === 'totp_required') {
+        setTotpAlert(null); setTotpCode(''); setIsRecovery(false); setRecoveryCode('')
+        setStep('totp')
+      } else if (data.step === 'mfa_setup_required') {
+        setStep('mfa_setup')
+        void startMfaSetup()
+      } else {
+        completeLogin(data.data)
+      }
+    } catch (err: any) {
+      setOtpAlert(err.message)
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  const resendOtp = async () => {
+    setOtp(['', '', '', '', '', '']); setOtpAlert(null)
+    try {
+      const res = await fetch('/api/v2/users/auth/resend-login-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      startOtpTimer()
+      setTimeout(() => otpRefs.current[0]?.focus(), 50)
+    } catch (err: any) {
+      setOtpAlert(err.message)
+    }
+  }
+
+  // ── Étape 3 : TOTP (MFA déjà configuré) ──
+  const submitTotp = async () => {
+    setTotpAlert(null)
+    const code = isRecovery ? recoveryCode.trim() : totpCode.trim()
+    if (!code) { setTotpAlert(t('fields.password')); return }
+    setTotpLoading(true)
+    try {
+      const res = await fetch('/api/v2/users/auth/verify-login-mfa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      completeLogin(data.data)
+    } catch (err: any) {
+      setTotpAlert(err.message)
+    } finally {
+      setTotpLoading(false)
+    }
+  }
+
+  // ── Étape 4 : configuration MFA obligatoire (1re connexion) ──
+  const startMfaSetup = async () => {
+    setSetupAlert(null)
+    try {
+      const res = await fetch('/api/v2/users/auth/mfa/first-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      setQrDataUri(data.data.qrDataUri)
+      setManualKey(data.data.manualKey)
+    } catch (err: any) {
+      setSetupAlert(err.message)
+    }
+  }
+
+  const submitMfaSetup = async () => {
+    setSetupAlert(null)
+    if (setupTotpCode.trim().length !== 6) { setSetupAlert(t('login.mfa_setup_code_label')); return }
+    setSetupLoading(true)
+    try {
+      const res = await fetch('/api/v2/users/auth/mfa/first-enable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ totpCode: setupTotpCode.trim() }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      setRecoveryCodes(data.data.recoveryCodes)
+      setPendingLoginData(data.data)
+    } catch (err: any) {
+      setSetupAlert(err.message)
+    } finally {
+      setSetupLoading(false)
+    }
+  }
+
+  const timerMin = Math.floor(Math.max(otpTimerSecs, 0) / 60)
+  const timerSecDisp = Math.max(otpTimerSecs, 0) % 60
 
   return (
     <div style={{
@@ -225,22 +413,18 @@ export default function LoginPage() {
         display: 'flex', flexDirection: 'column',
         position: 'relative', overflow: 'hidden', flexShrink: 0
       }}>
-        {/* Ciel étoilé — teinte FIXE, indépendante du thème */}
         <AnimatedBackground variant="stars" style={{ zIndex: 0 }} />
 
-        {/* Bande déco */}
         <div style={{
           height: 6, flexShrink: 0, position: 'relative', zIndex: 1,
           background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 16px,var(--green) 16px,var(--green) 32px,var(--red) 32px,var(--red) 48px,#60a5fa 48px,#60a5fa 64px,#d4a843 64px,#d4a843 80px)'
         }} />
 
-        {/* Cercle déco 1 */}
         <div style={{
           position: 'absolute', bottom: -80, right: -80,
           width: 300, height: 300, borderRadius: '50%', pointerEvents: 'none',
           background: 'radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%)'
         }} />
-        {/* Cercle déco 2 */}
         <div style={{
           position: 'absolute', top: 100, left: -60,
           width: 200, height: 200, borderRadius: '50%', pointerEvents: 'none',
@@ -251,7 +435,6 @@ export default function LoginPage() {
           padding: '44px', display: 'flex', flexDirection: 'column',
           flex: 1, position: 'relative', zIndex: 1
         }}>
-          {/* Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 60 }}>
             <div style={{ width: 64, height: 64, borderRadius: 14, background: "linear-gradient(135deg,var(--amber),var(--green))", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(34,197,94,0.25)", overflow: "hidden" }}><img src="/logo.svg" alt="ZekoulABia" style={{ width: "65%", height: "65%", objectFit: "contain" }} /></div>
             <div style={{ flex: 1 }}>
@@ -261,7 +444,6 @@ export default function LoginPage() {
             <LanguageSwitch style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }} />
           </div>
 
-          {/* Titre */}
           <div style={{
             fontFamily: 'var(--font-spectral),Spectral,serif',
             fontSize: 48, fontWeight: 700, lineHeight: 1.2,
@@ -279,7 +461,6 @@ export default function LoginPage() {
             {t('login.left_subtitle')}
           </p>
 
-          {/* Rôle cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {ROLES.map((role, i) => (
               <div key={i} style={{
@@ -307,7 +488,6 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* Footer */}
           <div style={{ marginTop: 'auto', fontSize: 16, color: 'rgba(255,255,255,0.2)', fontWeight: 500, paddingTop: 16 }}>
             {t('login.copyright')}
           </div>
@@ -317,14 +497,13 @@ export default function LoginPage() {
       {/* ══ PANNEAU DROIT ══ */}
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 40, background: 'var(--bg)', position: 'relative'
+        padding: 40, background: 'var(--bg)', position: 'relative', overflowY: 'auto',
       }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
           style={{ width: '100%', maxWidth: 530, position: 'relative', zIndex: 1 }}>
 
-          {/* ══ BLOC SUSPENSION — remplace le formulaire ══ */}
           {suspended ? (
             <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
               <style>{`@keyframes edu-fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }`}</style>
@@ -347,7 +526,7 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : step === 'credentials' ? (
 
           <>{/* Welcome */}
           <div style={{ marginBottom: 32 }}>
@@ -363,7 +542,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Alert */}
           {alert && (
             <div style={{
               padding: '12px 14px', borderRadius: 10, fontSize: 17, fontWeight: 700,
@@ -382,7 +560,6 @@ export default function LoginPage() {
               {t('login.school_label')}
             </label>
 
-            {/* Bouton déclencheur */}
             <button
               type="button"
               onClick={() => { setDropdownOpen(o => !o); setSchoolSearch('') }}
@@ -414,7 +591,6 @@ export default function LoginPage() {
               <ChevronDown size={16} style={{ flexShrink: 0, color: 'var(--text3)', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }} />
             </button>
 
-            {/* Sous-domaine affiché sous le bouton quand sélectionné */}
             {selectedSchool && (
               <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 500, marginTop: 5 }}>
                 {t('login.school_subdomain')} : <span style={{ fontFamily: 'monospace', color: 'var(--text2)' }}>{selectedSchool.subdomain}</span>
@@ -422,14 +598,12 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Dropdown */}
             {dropdownOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50,
                 background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.12)', overflow: 'hidden',
               }}>
-                {/* Barre de recherche */}
                 <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg2)', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Search size={15} style={{ color: 'var(--text3)', flexShrink: 0 }} />
                   <input
@@ -442,7 +616,6 @@ export default function LoginPage() {
                   />
                 </div>
 
-                {/* Liste */}
                 <div style={{ maxHeight: 260, overflowY: 'auto' }}>
                   {schools.length === 0 ? (
                     <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
@@ -530,6 +703,11 @@ export default function LoginPage() {
                 )
               })}
             </div>
+            {selectedRole && ['ADMIN', 'STAFF', 'TEACHER'].includes(selectedRole) && (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, color: 'var(--text3)', fontWeight: 600 }}>
+                <Shield size={13} style={{ flexShrink: 0 }} /> Double authentification obligatoire pour ce rôle
+              </div>
+            )}
           </div>
 
           {/* Email */}
@@ -540,7 +718,7 @@ export default function LoginPage() {
             <input
               ref={emailRef} type="email" value={email}
               onChange={e => { setEmail(e.target.value); setAlert(null) }}
-              onKeyDown={e => e.key === 'Enter' && submit()}
+              onKeyDown={e => e.key === 'Enter' && submitCredentials()}
               placeholder={t('login.email_placeholder')}
               autoComplete="off"
               style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
@@ -556,7 +734,7 @@ export default function LoginPage() {
               <input
                 type={showPwd ? 'text' : 'password'} value={password}
                 onChange={e => { setPassword(e.target.value); setAlert(null) }}
-                onKeyDown={e => e.key === 'Enter' && submit()}
+                onKeyDown={e => e.key === 'Enter' && submitCredentials()}
                 placeholder={t('login.password_placeholder')} autoComplete="new-password"
                 style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
               />
@@ -567,7 +745,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Mot de passe oublié */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -10, marginBottom: 18 }}>
             <button
               type="button"
@@ -577,8 +754,7 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Bouton submit */}
-          <button onClick={submit} disabled={loading}
+          <button onClick={submitCredentials} disabled={loading}
             style={{
               width: '100%', padding: 14,
               background: 'linear-gradient(135deg,var(--green),var(--green2))',
@@ -594,6 +770,166 @@ export default function LoginPage() {
           </button>
 
         </>
+        ) : step === 'email_otp' ? (
+
+          <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
+            <style>{`@keyframes edu-fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
+            <button onClick={() => { setStep('credentials'); if (otpTimerRef.current) clearInterval(otpTimerRef.current) }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 20 }}>
+              <ArrowLeft size={16} /> {t('login.back')}
+            </button>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('login.otp_title')}</div>
+              <div style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
+                {t('login.otp_subtitle', { email: maskEmail(email) })}
+              </div>
+            </div>
+            {otpAlert && (
+              <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
+                <AlertTriangle size={16} strokeWidth={2} /><span>{otpAlert}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+              {otp.map((v, i) => (
+                <input key={i}
+                  ref={el => { otpRefs.current[i] = el }}
+                  type="tel" maxLength={1} value={v}
+                  onChange={e => handleOtpInput(i, e.target.value)}
+                  onKeyDown={e => handleOtpKey(i, e)}
+                  style={{ flex: 1, height: 68, textAlign: 'center', fontSize: 24, fontWeight: 900, background: v ? 'var(--green-light)' : 'var(--surface)', border: `1.5px solid ${v ? 'var(--green)' : 'var(--border)'}`, borderRadius: 10, outline: 'none', color: v ? 'var(--green)' : 'var(--text)', fontFamily: 'inherit', transition: 'all 0.2s', minWidth: 0, maxWidth: 100 }}
+                />
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: otpTimerSecs <= 60 ? 'var(--red)' : 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Clock size={15} /> {timerMin}:{String(timerSecDisp).padStart(2, '0')}
+              </div>
+              <button onClick={resendOtp} disabled={!otpResendEnabled}
+                style={{ fontSize: 14.5, fontWeight: 700, color: otpResendEnabled ? 'var(--green)' : 'var(--text3)', cursor: otpResendEnabled ? 'pointer' : 'default', background: 'none', border: 'none', fontFamily: 'inherit' }}>
+                {t('login.otp_resend')}
+              </button>
+            </div>
+            <button onClick={() => submitOtp()} disabled={otpLoading}
+              style={{ width: '100%', marginTop: 20, padding: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: otpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: otpLoading ? 0.8 : 1 }}>
+              {otpLoading ? <Loader2 size={18} className="animate-spin" /> : null}
+              {t('login.otp_verify')}
+            </button>
+          </div>
+
+        ) : step === 'totp' ? (
+
+          <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
+            <button onClick={() => setStep('email_otp')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 20 }}>
+              <ArrowLeft size={16} /> {t('login.back')}
+            </button>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('login.totp_title')}</div>
+              <div style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
+                {isRecovery ? t('login.totp_subtitle_recovery') : t('login.totp_subtitle')}
+              </div>
+            </div>
+            {totpAlert && (
+              <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
+                <AlertTriangle size={16} strokeWidth={2} /><span>{totpAlert}</span>
+              </div>
+            )}
+            {!isRecovery ? (
+              <input type="tel" maxLength={6} value={totpCode} placeholder="123456" autoComplete="one-time-code"
+                onChange={e => { setTotpCode(e.target.value.replace(/\D/g, '')); setTotpAlert(null) }}
+                onKeyDown={e => e.key === 'Enter' && submitTotp()}
+                style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 28, fontFamily: 'inherit', fontWeight: 900, letterSpacing: 8, textAlign: 'center', outline: 'none' }} />
+            ) : (
+              <input type="text" value={recoveryCode} placeholder="ABCD-1234-EFGH-5678" autoComplete="off"
+                onChange={e => { setRecoveryCode(e.target.value); setTotpAlert(null) }}
+                onKeyDown={e => e.key === 'Enter' && submitTotp()}
+                style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 20, fontFamily: 'inherit', fontWeight: 700, letterSpacing: 2, textAlign: 'center', outline: 'none' }} />
+            )}
+            <div style={{ textAlign: 'center', margin: '14px 0' }}>
+              <button onClick={() => { setIsRecovery(r => !r); setTotpAlert(null) }}
+                style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--green)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {isRecovery ? <><ArrowLeft size={14} /> {t('login.totp_use_app')}</> : <><KeyRound size={14} /> {t('login.totp_use_recovery')}</>}
+              </button>
+            </div>
+            <button onClick={submitTotp} disabled={totpLoading}
+              style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: totpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: totpLoading ? 0.8 : 1 }}>
+              {totpLoading ? <Loader2 size={18} className="animate-spin" /> : null}
+              {t('login.totp_verify')}
+            </button>
+          </div>
+
+        ) : (
+
+          /* ── step === 'mfa_setup' — configuration obligatoire (1re connexion) ── */
+          <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
+            {!recoveryCodes ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 18, fontSize: 14, fontWeight: 700, color: 'var(--amber)' }}>
+                  <Shield size={16} /> {t('login.mfa_setup_subtitle')}
+                </div>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>
+                  {t('login.mfa_setup_title')}
+                </div>
+                {setupAlert && (
+                  <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
+                    <AlertTriangle size={16} strokeWidth={2} /><span>{setupAlert}</span>
+                  </div>
+                )}
+                <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>{t('login.mfa_setup_step1')}</div>
+                {qrDataUri ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+                    <img src={qrDataUri} alt="QR MFA" style={{ width: 180, height: 180, borderRadius: 12, border: '1.5px solid var(--border)', padding: 8, background: 'white' }} />
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Loader2 size={24} className="animate-spin" /></div>
+                )}
+                {manualKey && (
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--text3)', fontWeight: 700, marginBottom: 5 }}>{t('login.mfa_setup_manual_label')}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: 'var(--text)', background: 'var(--bg2)', padding: '10px 14px', borderRadius: 8, textAlign: 'center', letterSpacing: 1, wordBreak: 'break-all' }}>{manualKey}</div>
+                  </div>
+                )}
+                <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>{t('login.mfa_setup_code_label')}</div>
+                <input type="tel" maxLength={6} value={setupTotpCode} placeholder="123456" autoComplete="one-time-code"
+                  onChange={e => { setSetupTotpCode(e.target.value.replace(/\D/g, '')); setSetupAlert(null) }}
+                  onKeyDown={e => e.key === 'Enter' && submitMfaSetup()}
+                  style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 28, fontFamily: 'inherit', fontWeight: 900, letterSpacing: 8, textAlign: 'center', outline: 'none', marginBottom: 18 }} />
+                <button onClick={submitMfaSetup} disabled={setupLoading || !qrDataUri}
+                  style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: setupLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: setupLoading ? 0.8 : 1 }}>
+                  {setupLoading ? <Loader2 size={18} className="animate-spin" /> : null}
+                  {t('login.mfa_setup_confirm')}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 14 }}><Shield size={40} strokeWidth={2} /></div>
+                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
+                  {t('login.mfa_setup_recovery_title')}
+                </div>
+                <div style={{ fontSize: 14.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 18, textAlign: 'center' }}>
+                  {t('login.mfa_setup_recovery_subtitle')}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18, background: 'var(--bg2)', borderRadius: 12, padding: 16 }}>
+                  {recoveryCodes.map(code => (
+                    <div key={code} style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>{code}</div>
+                  ))}
+                </div>
+                <button onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))}
+                  style={{ width: '100%', marginBottom: 18, padding: 10, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                  <Copy size={14} /> Copier les codes
+                </button>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 18, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={recoveryAck} onChange={e => setRecoveryAck(e.target.checked)} style={{ marginTop: 3, flexShrink: 0, width: 18, height: 18 }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{t('login.mfa_setup_recovery_confirm')}</span>
+                </label>
+                <button onClick={() => pendingLoginData && completeLogin(pendingLoginData)} disabled={!recoveryAck}
+                  style={{ width: '100%', padding: 14, background: recoveryAck ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'var(--text3)', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: recoveryAck ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                  {t('login.mfa_setup_continue')}
+                </button>
+              </>
+            )}
+          </div>
+
         )}
 
         </motion.div>
@@ -635,7 +971,6 @@ export default function LoginPage() {
               <success.icon size={14} strokeWidth={2} /> {success.badge}
             </div>
 
-            {/* Barre de progression 2s */}
             <div style={{ background: 'var(--bg2)', borderRadius: 8, overflow: 'hidden', height: 6, marginBottom: 16 }}>
               <div style={{
                 height: '100%', background: 'var(--green)',

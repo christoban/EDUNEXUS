@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react'
 import Badge from './Badge'
 import type { AuditLogDto } from '../_types'
 import type { EmailLogDto } from '../_api'
-import { fetchLogs, fetchEmailLogs, mfaSetup, mfaEnable, mfaDisable, mfaRegenCodes } from '../_api'
+import { fetchLogs, fetchEmailLogs, mfaSetup, mfaEnable, mfaDisable, mfaRegenCodes, resetUserMfa } from '../_api'
 
 interface Props {
   logs: AuditLogDto[]
@@ -481,6 +481,81 @@ function SecurityTab({ mfaEnabled, onChangePwd, onMfaChange }: {
   )
 }
 
+// ── Débloque un compte Admin/Staff/Teacher ayant perdu son authenticator ET ses codes de
+// récupération — geste sensible, gardé par mot de passe + MFA Master (requireMasterSensitiveAuth).
+function AccountMfaResetPanel() {
+  const [subdomain, setSubdomain] = useState('')
+  const [targetEmail, setTargetEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [totpCode, setTotpCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '11px 14px', background: '#f0ebe3', border: '1.5px solid #d4c8b8',
+    borderRadius: 10, color: '#1a1209', fontSize: 15, fontFamily: 'inherit', fontWeight: 600,
+    outline: 'none', boxSizing: 'border-box',
+  }
+  const btnRed: React.CSSProperties = {
+    padding: '11px 22px', background: '#dc2626', color: 'white', border: 'none', borderRadius: 10,
+    fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit',
+  }
+
+  const submit = async () => {
+    setError(''); setDone(false)
+    if (!subdomain.trim() || !targetEmail.trim() || !password.trim()) {
+      setError('Sous-domaine, email du compte et votre mot de passe sont requis'); return
+    }
+    setLoading(true)
+    try {
+      await resetUserMfa(subdomain.trim().toLowerCase(), targetEmail.trim().toLowerCase(), password, totpCode)
+      setDone(true)
+      setPassword(''); setTotpCode('')
+    } catch (e: any) {
+      setError(e.message || 'Erreur lors de la réinitialisation')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ background: 'white', borderRadius: 16, border: '1.5px solid #d4c8b8', overflow: 'hidden', marginTop: 24 }}>
+      <div style={{ padding: '16px 22px', borderBottom: '1.5px solid #e8e0d4', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <KeyRound size={20} color="#dc2626" />
+        <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209' }}>Débloquer le MFA d&apos;un compte</span>
+      </div>
+      <div style={{ padding: '20px 22px' }}>
+        <p style={{ fontSize: 14, color: '#6b5c45', marginTop: 0, marginBottom: 16, lineHeight: 1.6 }}>
+          À utiliser uniquement si un Admin/Staff/Enseignant a perdu l&apos;accès à son application d&apos;authentification
+          ET à ses codes de récupération. Le compte devra reconfigurer entièrement son MFA (nouveau QR) à sa prochaine connexion.
+        </p>
+        {error && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, fontSize: 14, color: '#dc2626', fontWeight: 600, marginBottom: 14 }}>
+            <AlertTriangle size={15} /> {error}
+          </div>
+        )}
+        {done && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f0fdf4', border: '1px solid rgba(5,150,105,0.2)', borderRadius: 8, fontSize: 14, color: '#059669', fontWeight: 600, marginBottom: 14 }}>
+            <CheckCircle2 size={15} /> MFA réinitialisé — le compte devra le reconfigurer à sa prochaine connexion.
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <input placeholder="Sous-domaine de l'école" value={subdomain} onChange={e => setSubdomain(e.target.value)} style={inp} />
+          <input placeholder="Email du compte bloqué" value={targetEmail} onChange={e => setTargetEmail(e.target.value)} style={inp} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <input type="password" placeholder="Votre mot de passe Master" value={password} onChange={e => setPassword(e.target.value)} style={inp} />
+          <input placeholder="Votre code MFA (si activé)" value={totpCode} onChange={e => setTotpCode(e.target.value)} style={inp} />
+        </div>
+        <button onClick={submit} disabled={loading} style={{ ...btnRed, opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'Réinitialisation…' : 'Réinitialiser le MFA de ce compte'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function EmptyRow({ cols, msg }: { cols: number; msg: string }) {
   return (
     <tr>
@@ -705,14 +780,17 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
       )}
       {/* ── ONGLET SÉCURITÉ DU COMPTE ───────────────────────────────────────── */}
       {tab === 'security' && (
-        <SecurityTab
-          mfaEnabled={mfaEnabled}
-          onChangePwd={onChangePwd}
-          onMfaChange={() => {
-            // Rafraîchit le statut MFA dans le parent via re-fetch
-            window.location.reload()
-          }}
-        />
+        <>
+          <SecurityTab
+            mfaEnabled={mfaEnabled}
+            onChangePwd={onChangePwd}
+            onMfaChange={() => {
+              // Rafraîchit le statut MFA dans le parent via re-fetch
+              window.location.reload()
+            }}
+          />
+          <AccountMfaResetPanel />
+        </>
       )}
 
     </div>

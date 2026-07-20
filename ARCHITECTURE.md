@@ -113,11 +113,11 @@ frontend/src/
 | Rôle | Portée | Auth |
 |---|---|---|
 | **MASTER** | Plateforme (super-admin ZEKOULABIA) : invite/approuve/suspend les écoles | JWT master + **MFA (otplib)**, audit |
-| **ADMIN** | Une école : configuration + toutes les capacités admin | JWT cookie `access_token`, `schoolId` |
-| **STAFF** | Une école, permissions granulaires via `StaffPermissionType` (Censeur, Intendant, Surveillant Général, HOD…) | idem + `permissions[]` |
-| **TEACHER / PARENT / STUDENT** | Une école, périmètre restreint | idem |
+| **ADMIN / STAFF / TEACHER** | Une école ; STAFF a des permissions granulaires via `StaffPermissionType` (Censeur, Intendant, Surveillant Général, HOD…) | Connexion à 3 facteurs **obligatoire** : mot de passe → code email → TOTP (`otplib`). Configuration MFA forcée dès la 1ère connexion (aucun accès dashboard tant qu'elle n'est pas activée), jamais désactivable ensuite (reconfiguration guardée uniquement). JWT cookie `access_token`, `schoolId` (+ `permissions[]` pour STAFF) |
+| **PARENT / STUDENT** | Une école, périmètre restreint | Mot de passe + code email (pas de MFA). JWT cookie `access_token`, `schoolId` |
 
 - **Isolation** : chaque requête est bornée par `req.user.schoolId` ; toutes les requêtes Prisma filtrent par `schoolId`.
+- **Connexion multi-étapes (juillet 2026)** : `POST /api/v2/users/auth/login` n'émet plus de session directement — un cookie temporaire (`pending_login_token`) porte l'utilisateur à travers les étapes (code email, puis TOTP ou configuration MFA obligatoire selon le rôle) jusqu'à l'émission des cookies `access_token`/`refresh_token` finaux. Voir `UserController.ts` (`verifyLoginOtp`, `verifyLoginMfa`, `firstMfaSetup`, `firstMfaEnable`), `LoginEmailOtpUseCase`, `VerifierMfaConnexionUseCase`. Réinitialisation MFA d'un compte bloqué : capacité Master dédiée (`MasterAdminHexController.reinitialiserMfaUtilisateur`).
 - **RBAC** : `requireAuth` (vérifie le JWT) + `requireRole(...)` (middleware). Les titres staff → permissions via `domain/rules/StaffPermissionRules`.
 
 ---

@@ -70,6 +70,7 @@ Cette carte est organisée en 8 grandes sections :
 - **Conseil de Discipline conforme Art. 30** (Juillet 2026) — les sanctions de base (`DisciplineRecord`, 5 types déjà dans l'enum) avaient déjà un vrai CRUD fonctionnel (routes inline dans `hexagonal.bootstrap.ts`, non trouvées par l'audit initial faute de recherche assez profonde — corrigé). Ajouté : `DisciplineCouncilSession` bloque désormais toute création directe de `COUNCIL_DECISION`/`PERMANENT_EXCLUSION` sans passer par une convocation (délai légal 72h, re-vérifié à la tenue pour empêcher le contournement) + composition légale complète (6 rôles Art. 30) + PV PDF exportable. Voir MODULE 13/17.
 - **Aide contextuelle intelligente du copilot Admin** (Juillet 2026) — extension du copilot exécutant existant (`AssistantController.execute`), pas un second chatbot. Le frontend transmet `screenKey` (dérivé du `section` React actif, ex. `admin.grades` — le dashboard n'a pas de vrai routing Next.js) à chaque appel ; le backend cherche les fiches `HelpArticle` correspondantes (nouveau modèle, contenu plateforme non multi-tenant) et les injecte dans le prompt système pour que l'assistant réponde en connaissance de cause plutôt que d'inventer. 5 fiches initiales seedées (notes, LV2, PEBS, import matricules Excel, bulletins). Si aucune fiche ne couvre l'écran et que le modèle n'est pas sûr, un tool `escalate_to_support` (même mécanisme de function calling que les actions) déclenche une réponse d'escalade vers un contact support (placeholder `ASSISTANT_SUPPORT_CONTACT`, pas de valeur en dur). Surlignage réel des éléments UI référencés par une fiche via le bus d'évènements déjà existant (`zekoulabia:highlight`, nouveau `HighlightController.tsx`) sur des attributs `data-help-id` posés sur les boutons clés des 5 écrans. Bulle discrète "Besoin d'aide ?" après 90s d'inactivité sur un écran prioritaire (`useIdleDetection.ts`, fusionné dans `AssistantWidget.tsx` plutôt qu'un composant séparé — plus simple, pas de canal d'évènement supplémentaire nécessaire). Chaque question posée est journalisée (`AssistantHelpQueryLog`) avec écran/rôle/fiche-trouvée pour analytique produit future.
 - **Commentaires de bulletin générés par IA** (Juillet 2026) — `POST /api/v2/report-cards/:id/generate-comment` (réservé au Professeur Principal de la classe ou à un Admin, même règle que l'écriture manuelle). Réutilise `IAService.genererCommentaireBulletin` (Groq, `llama-3.3-70b-versatile`, déjà écrit mais jamais branché) : construit le prompt à partir des `ReportCardSubjectLine` déjà en base (points forts ≥14, points faibles <10, évolution vs bulletin précédent du même élève). Le résultat est stocké dans `aiComment` (champ dédié, distinct de `classMasterComment`) et affiché dans le textarea existant de `SectionAppreciationsPP.tsx` via un bouton "Générer avec l'IA" — le PP le modifie ensuite normalement (auto-save debounced + file d'attente hors-ligne déjà en place, action de génération elle-même désactivée hors-ligne car appel IA externe).
+- **Authentification renforcée obligatoire Admin/Staff/Enseignant** (Juillet 2026) — connexion refondue en plusieurs étapes : mot de passe → code envoyé par email → TOTP obligatoire (application d'authentification), miroir du mécanisme déjà réel côté Master (`otplib`) mais étendu aux comptes d'établissement avec une exigence plus stricte : configuration MFA forcée dès la 1ère connexion (aucun accès dashboard sans elle), jamais désactivable ensuite (reconfiguration guardée uniquement, mot de passe + code actuel). Parent/Élève : code email seul, pas de MFA. Nouveaux champs `User.mfa*`/`loginEmailOtp*` (miroir `MasterUser`), `LoginEmailOtpUseCase`, `VerifierMfaConnexionUseCase`, stepper `frontend/src/app/login/page.tsx`, composant partagé `MfaSettings.tsx` (dashboards Admin + Staff/Enseignant). Déblocage de compte (perte authenticator + codes de récupération) : capacité Master dédiée et journalisée. Testé en conditions réelles par l'utilisateur.
 
 ### 🟡 Ce qui existe partiellement
 - **Mode hors ligne / PWA** (Juillet 2026) — infrastructure déjà bien plus avancée que supposé à l'audit initial : `manifest.json` réel (icônes, `display: standalone`). **✅ Bloquant Service Worker résolu** : l'apostrophe dans l'ancien chemin absolu du projet ("God's Grace") cassait la génération Workbox — résolu en renommant le dossier. Bug annexe indépendant découvert et corrigé dans la foulée : `next build` bascule par défaut sur Turbopack, incompatible avec `next-pwa` (accroché uniquement au hook `webpack()`) — build « réussi » mais sans aucun Service Worker généré, sans erreur. Corrigé via `next build --webpack` (`frontend/package.json`). Precaching d'app-shell et notifications push buildent désormais correctement pour la production (vérifié via `bun run build` + `bun run start`).
@@ -774,7 +775,7 @@ const user = await userRepository.findByEmailAndSchool(email, schoolId);
 
 ---
 
-## MODULE 3 — Authentification & Accès 🟡 EN COURS [RÉEL: ✅ FAIT — utilisé sans interruption tout au long du développement (login, refresh rotation, logout) : ce module fonctionne réellement en pratique, pas seulement en théorie]
+## MODULE 3 — Authentification & Accès ✅ FAIT [RÉEL: ✅ FAIT — utilisé sans interruption tout au long du développement (login, refresh rotation, logout). **Mise à jour juillet 2026** : connexion refondue en plusieurs étapes obligatoires — email OTP pour tous les rôles, puis MFA TOTP obligatoire pour ADMIN/STAFF/TEACHER (configuration forcée dès la 1ère connexion, jamais désactivable, reconfiguration guardée depuis le dashboard). Testé en conditions réelles par l'utilisateur.]
 
 **Connexion utilisateur école**
 - Formulaire : email + mot de passe + subdomain de l'établissement
@@ -805,10 +806,13 @@ const user = await userRepository.findByEmailAndSchool(email, schoolId);
 - Formulaire nouveau mot de passe + confirmation
 - Invalidation du token après usage
 
-**2FA optionnel pour Admin**
-- Setup TOTP via QR code
-- Cookie dédié `mfa_challenge` si 2FA activé
-- Verification TOTP lors de la connexion
+**MFA obligatoire pour Admin/Staff/Enseignant [RÉEL: ✅ FAIT, juillet 2026 — remplace l'ancienne ambition "2FA optionnel"]**
+- Connexion à 3 facteurs : mot de passe → code envoyé par email → code TOTP (application d'authentification)
+- 1ère connexion sans MFA configuré : accès dashboard bloqué tant que la configuration (QR + confirmation + codes de récupération) n'est pas terminée — jamais de contournement
+- MFA non désactivable ensuite : seule une reconfiguration guardée (mot de passe + code actuel) est proposée depuis les paramètres du dashboard
+- Codes de récupération à usage unique (8, format `ABCD-1234-EFGH-5678`) en cas de perte de l'authenticator
+- Déblocage d'un compte ayant perdu authenticator ET codes de récupération : action dédiée côté Master (`/api/v2/master/users/mfa-reset`), journalisée dans l'audit
+- Parent/Élève : email seul, pas de MFA (moindre sensibilité du compte)
 
 ---
 

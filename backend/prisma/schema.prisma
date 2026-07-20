@@ -267,6 +267,17 @@ model User {
   passwordHash                    String?
   resetPasswordToken              String?                    @unique
   resetPasswordTokenExpiry        DateTime?
+  // Authentification renforcée (ADMIN/STAFF/TEACHER : MFA obligatoire · PARENT/STUDENT : email seul).
+  // Miroir exact des champs équivalents sur MasterUser (voir modèle ci-dessus) — même mécanique otplib.
+  mfaEnabled                      Boolean                    @default(false)
+  mfaSecret                       String?
+  mfaTempSecret                   String?
+  mfaRecoveryCodeHashes           String[]                   @default([])
+  mfaRecoveryCodeGeneratedAt      DateTime?
+  loginEmailOtpHash               String?
+  loginEmailOtpExpiresAt          DateTime?
+  loginEmailOtpAttempts           Int                        @default(0)
+  loginEmailOtpSentAt             DateTime?
   firstName                       String
   lastName                        String
   avatarUrl                       String?
@@ -333,6 +344,7 @@ model User {
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
   @@index([schoolId, role])
+  @@index([loginEmailOtpExpiresAt])
 }
 
 model StudentProfile {

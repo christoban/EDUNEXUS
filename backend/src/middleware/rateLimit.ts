@@ -50,6 +50,26 @@ export const masterEmailOtpLimiter = rateLimit({
   },
 });
 
+export const userEmailOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many email verification attempts. Please try again later.",
+  },
+});
+
+export const userMfaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many MFA attempts. Please try again later.",
+  },
+});
+
 export const sensitiveWriteLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 30,

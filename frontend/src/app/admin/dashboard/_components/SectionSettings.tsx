@@ -4,6 +4,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { Smartphone, Mail, School, Search, Save, CheckCircle2, Info, ClipboardList } from 'lucide-react'
 import PushNotificationToggle from '@/components/PushNotificationToggle'
+import MfaSettings from '@/components/MfaSettings'
 
 interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string; minesecSchoolCode?: string | null }
 interface Props {
@@ -657,6 +658,9 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* ── TAB 2: SÉCURITÉ ── */}
       {activeTab === 2 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+          {/* Double authentification (compte personnel) */}
+          <MfaSettings />
 
           {/* Politique de mot de passe */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>

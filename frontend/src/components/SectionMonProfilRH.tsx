@@ -4,6 +4,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react'
 import PushNotificationToggle from '@/components/PushNotificationToggle'
+import MfaSettings from '@/components/MfaSettings'
 
 interface Props { onToast: (msg: string, type?: 'success' | 'error' | 'info') => void }
 
@@ -159,6 +160,10 @@ export default function SectionMonProfilRH({ onToast }: Props) {
 
       <div style={{ marginBottom: 20 }}>
         <PushNotificationToggle />
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <MfaSettings />
       </div>
 
       {file?.selfServiceCompletedAt ? (

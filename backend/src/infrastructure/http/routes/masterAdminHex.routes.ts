@@ -26,6 +26,7 @@ export function creerMasterAdminHexRoutes(controller: MasterAdminHexController):
   router.post('/schools/:id/sync-subjects',   controller.syncSubjects);
   router.post('/schools/:id/resend-invite', requireMasterSensitiveAuth, controller.renvoyerInvitation);
   router.post('/backup/trigger', requireMasterSensitiveAuth, controller.declencherSauvegarde);
+  router.post('/users/mfa-reset', requireMasterSensitiveAuth, controller.reinitialiserMfaUtilisateur);
   router.delete('/schools/:id',             requireMasterSensitiveAuth, controller.supprimerEcole);
 
   return router;

@@ -106,6 +106,8 @@ import { LoginMasterUseCase } from '@application/masterAdmin/LoginMasterUseCase'
 import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
 import { MasterAuthController } from '@infrastructure/http/controllers/MasterAuthController';
 import { creerMasterAuthRoutes } from '@infrastructure/http/routes/masterAuth.routes';
+import { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
+import { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
 import { sendTransactionalEmail } from '../../services/emailService';
 import { notifyDisciplineSms } from '../services/SmsNotificationService';
 import { notifierParentsPushDabord } from '../services/PushFirstNotifier';
@@ -811,6 +813,24 @@ export function bootstrapHexagonal(app: Application): void {
 
   const designerAPUseCase = new DesignerAPUseCase(prisma);
 
+  // ── Connexion renforcée (email OTP pour tous les rôles + MFA obligatoire ADMIN/STAFF/TEACHER) ──
+  const loginEmailOtpUseCase = new LoginEmailOtpUseCase(
+    prisma,
+    async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
+      const result = await sendTransactionalEmail({
+        recipientEmail,
+        subject: 'ZekoulABia — Code de vérification connexion',
+        html: `<p>Votre code de vérification est : <strong>${otp}</strong></p><p>Ce code expire dans 10 minutes.</p>`,
+        template: 'user-login-otp',
+        eventType: 'user_login_otp',
+      });
+      if (result.status === 'failed') {
+        throw new Error(result.error || "Échec d'envoi de l'email");
+      }
+    },
+  );
+  const verifierMfaConnexionUseCase = new VerifierMfaConnexionUseCase(prisma);
+
   const userController = new UserController(
     container.user.connecter,
     container.user.inscrire,
@@ -823,6 +843,8 @@ export function bootstrapHexagonal(app: Application): void {
     container.user.schoolRepository,
     designerAPUseCase,
     container.user.importer,
+    loginEmailOtpUseCase,
+    verifierMfaConnexionUseCase,
     prisma,
   );
 

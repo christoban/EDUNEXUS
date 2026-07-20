@@ -2,6 +2,8 @@ import { Router } from 'express';
 import multer from 'multer';
 import type { UserController } from '@infrastructure/http/controllers/UserController';
 import { requireAuth, requireRole } from '../../../middleware/auth';
+import { authLimiter, userEmailOtpLimiter, userMfaLimiter } from '../../../middleware/rateLimit';
+import { requireUserSensitiveAuth } from '../../../middleware/requireUserSensitiveAuth';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,10 +22,21 @@ const upload = multer({
 export function creerUserRoutes(controller: UserController): Router {
   const router = Router();
 
-  // Auth — pas de middleware (routes publiques)
-  router.post('/auth/login', controller.login);
+  // Auth — pas de middleware (routes publiques), rate-limitées
+  router.post('/auth/login',             authLimiter,          controller.login);
+  router.post('/auth/verify-login-otp',  userEmailOtpLimiter,  controller.verifyLoginOtp);
+  router.post('/auth/resend-login-otp',  userEmailOtpLimiter,  controller.resendLoginOtp);
+  router.post('/auth/verify-login-mfa',  userMfaLimiter,       controller.verifyLoginMfa);
+  router.post('/auth/mfa/first-setup',   userMfaLimiter,       controller.firstMfaSetup);
+  router.post('/auth/mfa/first-enable',  userMfaLimiter,       controller.firstMfaEnable);
   router.post('/auth/logout', controller.logout);
   router.post('/auth/refresh', controller.refresh);
+
+  // MFA — gestion depuis le dashboard (authentifié)
+  router.get('/mfa/status',              requireAuth,                                controller.mfaStatus);
+  router.post('/mfa/reconfigure/start',  requireAuth, requireUserSensitiveAuth,       controller.mfaReconfigureStart);
+  router.post('/mfa/reconfigure/confirm',requireAuth,                                controller.mfaReconfigureConfirm);
+  router.post('/mfa/regen-codes',        requireAuth, requireUserSensitiveAuth,       controller.mfaRegenCodes);
 
   // Récupération de mot de passe — publique
   router.post('/auth/forgot-password', controller.forgotPassword);
