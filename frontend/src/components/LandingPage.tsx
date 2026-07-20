@@ -15,7 +15,7 @@ import LanguageSwitch from '@/components/LanguageSwitch'
 import { useLanguage } from '@/lib/i18n'
 
 // Lookup tables for data-driven emoji-as-icon fields (same order FR/EN — see textsFR/textsEN below)
-const STATS_ICONS: LucideIcon[] = [School, GraduationCap, Presentation, Smartphone]
+const STATS_ICONS: LucideIcon[] = [School, FileText, Lock, WifiOff]
 const FEATURES_ICONS: LucideIcon[] = [FileText, CheckCircle2, Smartphone, Calendar, Bot, WifiOff]
 const HOWITWORKS_ICONS: LucideIcon[] = [Mail, School, Rocket]
 const ROLES_ICONS: LucideIcon[] = [School, Presentation, Users, GraduationCap, Search]
@@ -46,10 +46,10 @@ const textsFR = {
   },
   stats: {
     items: [
-      { value: '24+', label: 'Écoles actives' },
-      { value: '6 000+', label: 'Élèves gérés' },
-      { value: '342', label: 'Enseignants inscrits' },
-      { value: '89%', label: 'Recouvrement Mobile Money' },
+      { value: '19', label: "Types d'établissements couverts" },
+      { value: '6', label: 'Modèles de bulletins conformes MINESEC' },
+      { value: '3', label: "Facteurs d'authentification (MFA)" },
+      { value: '100%', label: 'Fonctionnel hors ligne' },
     ],
   },
   features: {
@@ -119,14 +119,6 @@ const textsFR = {
       { name: 'Premium', price: 'Sur devis', recommended: false, features: ['Élèves illimités', 'IA Santé Scolaire', 'Multi-établissements', 'Support dédié + formation'], cta: "Contacter l'équipe" },
     ],
   },
-  testimonials: {
-    title: 'Ils font confiance à ZekoulABia',
-    items: [
-      { quote: 'Depuis ZekoulABia, les bulletins sont prêts le jour même du conseil de classe. Le recouvrement des frais a augmenté de 40% grâce aux rappels Mobile Money automatiques.', author: 'Mme Ekambi', role: 'Proviseure · Lycée de la Réussite, Yaoundé', initials: 'ME' },
-      { quote: 'La saisie des notes prend 10 minutes au lieu de 2 heures. Les coefficients BAC MINESEC sont automatiques — fini les erreurs de calcul.', author: 'M. Ateba', role: 'Directeur · Collège Sainte-Marie, Douala', initials: 'MA' },
-      { quote: "Le mode hors-ligne est essentiel pour nous. La connexion est instable, mais ZekoulABia fonctionne quand même et synchronise dès que le réseau revient.", author: 'M. Fouda', role: 'Censeur · Institut Technique de Bafoussam', initials: 'MF' },
-    ],
-  },
   faq: {
     title: 'Questions fréquentes',
     items: [
@@ -174,10 +166,10 @@ const textsEN = {
   },
   stats: {
     items: [
-      { value: '24+', label: 'Active schools' },
-      { value: '6,000+', label: 'Students managed' },
-      { value: '342', label: 'Teachers registered' },
-      { value: '89%', label: 'Mobile Money recovery' },
+      { value: '19', label: 'School types covered' },
+      { value: '6', label: 'MINESEC-compliant report card templates' },
+      { value: '3', label: 'Authentication factors (MFA)' },
+      { value: '100%', label: 'Offline-capable' },
     ],
   },
   features: {
@@ -230,14 +222,6 @@ const textsEN = {
       { name: 'Discovery', price: 'Free', recommended: false, features: ['50 students max', '2 classes', 'Grades & Attendance', 'Community support'], cta: 'Start for free' },
       { name: 'Standard', price: 'On request', recommended: true, features: ['300 students', 'Unlimited classes', 'All features', 'Mobile Money', 'Priority support'], cta: 'Request a quote' },
       { name: 'Premium', price: 'On request', recommended: false, features: ['Unlimited students', 'AI School Health', 'Multi-school', 'Dedicated support + training'], cta: 'Contact the team' },
-    ],
-  },
-  testimonials: {
-    title: 'Schools that trust ZekoulABia',
-    items: [
-      { quote: 'Since ZekoulABia, report cards are ready on the day of the class council. Fee collection increased by 40% thanks to automatic Mobile Money reminders.', author: 'Mme Ekambi', role: 'Principal · Lycée de la Réussite, Yaoundé', initials: 'ME' },
-      { quote: 'Entering grades takes 10 minutes instead of 2 hours. MINESEC BAC coefficients are automatic — no more calculation errors.', author: 'M. Ateba', role: 'Director · Collège Sainte-Marie, Douala', initials: 'MA' },
-      { quote: "Offline mode is essential for us. The connection is unstable, but ZekoulABia still works and syncs as soon as the network comes back.", author: 'M. Fouda', role: 'Vice-Principal · Institut Technique de Bafoussam', initials: 'MF' },
     ],
   },
   faq: {
@@ -788,36 +772,6 @@ export default function LandingPage() {
                     : { ...btnSecondary, display: 'block', width: '100%', textAlign: 'center', fontSize: 14, padding: '13px 24px' }
                   }>{plan.cta}</button>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════
-          TESTIMONIALS — cards padding 32px, quote 52px
-      ══════════════════════════════════════════════════ */}
-      <section style={{ background: 'var(--bg)', padding: '112px 64px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <h2 style={{ ...SH, marginBottom: 68 }}>{tx.testimonials.title}</h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
-            {tx.testimonials.items.map((item, i) => (
-              <motion.div key={item.author} style={{ ...CARD, padding: 32 }}
-                initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.5, delay: i * 0.1, ease: 'easeOut' }}>
-                <div style={{ fontSize: 52, color: 'var(--green)', fontWeight: 900, fontFamily: 'Georgia,serif', lineHeight: 1, marginBottom: 14 }}>&ldquo;</div>
-                <p style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.75, marginBottom: 24, fontStyle: 'italic' }}>{item.quote}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 13, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {item.initials}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{item.author}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{item.role}</div>
-                  </div>
-                </div>
-              </motion.div>
             ))}
           </div>
         </div>
