@@ -83,6 +83,9 @@
 **Objectif** : messagerie in-app, annonces, notifications temps réel, publipostage.
 - **Fichiers** : `app/messaging`, `CommunicationsController`, `SocketNotificationService`, `EmailLogController`, `SMSController`, `fe/.../SectionCommunications.tsx`.
 - **Interactions** : Socket.io (in-app), Email (Resend/Nodemailer), SMS (bilingues), modèles `Notification`/`Announcement`/`Message`/`BroadcastLog`.
+- **Son des notifications** (juillet 2026) :
+  - **In-app** (app ouverte, Socket.io) : **fait**. `fe/lib/notificationSound.ts` (carillon synthétisé en Web Audio API, aucun fichier audio) déclenché depuis `fe/hooks/NotificationContext.tsx` (`onNotification`) — un seul point de branchement, couvre tous les rôles/dashboards puisque `NotificationBell`/`NotificationCenter` partagent ce contexte.
+  - **Push** (app fermée/tél. verrouillé, `fe/worker/index.js`) : son **système par défaut uniquement** (`silent: false`, explicite dans le code) — un son **personnalisé** n'est PAS atteignable en Web Push standard (limite navigateur, surtout iOS), quel que soit le code écrit ici. **Reste à faire, uniquement au moment de l'empaquetage Capacitor** (voir ARCHITECTURE.md §8 ADR-10) : basculer sur `@capacitor/push-notifications` (APNs/FCM) et fournir un fichier son (`.caf`/`.wav` iOS, `.mp3`/`.wav` Android) dans le payload de notification. Rien à préparer avant cette bascule.
 
 ## 13. Assistant IA / Copilot admin
 
@@ -136,6 +139,7 @@
 
 **Objectif** : continuer à travailler sans connexion (ex. saisie enseignant) et synchroniser ensuite.
 - **Fichiers** : `fe/lib/offline/` (Dexie), `@ducanh2912/next-pwa`, `components/OfflineIndicator`, modèle `OfflineQueue`, `fe/.../SectionOfflineStatus.tsx`.
+- **Stratégie multi-plateforme** (Desktop/Android/iPhone, empaquetage mobile futur via Capacitor) : voir ARCHITECTURE.md §8 ADR-10.
 
 ---
 

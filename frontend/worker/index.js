@@ -16,6 +16,11 @@ self.addEventListener('push', function (event) {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       data: data.data || {},
+      // Explicite plutôt qu'implicite : demande le son système par défaut. C'est la SEULE
+      // chose possible en Web Push standard — pas de son personnalisé fiable, surtout pas sur
+      // iOS (limite du navigateur, pas du code). Un son personnalisé n'est atteignable qu'après
+      // empaquetage natif (Capacitor + APNs/FCM) — voir ARCHITECTURE.md §8 ADR-10.
+      silent: false,
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
