@@ -282,6 +282,7 @@
       "role_label": "Role",
       "subjects_label": "Subjects",
       "class_label": "Class",
+      "maternellePrimaireNote": "Preschool/primary student: no personal login credentials (email/phone). Create a separate PARENT account for login access.",
       "dob_label": "Date of Birth",
       "gender_label": "Gender",
       "staff_title_label": "Position",

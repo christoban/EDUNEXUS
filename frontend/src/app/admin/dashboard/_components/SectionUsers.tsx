@@ -688,7 +688,7 @@ const inputSt: React.CSSProperties = {
 
 
 // ── Composant principal ──
-interface ClassItem { id: string; name: string }
+interface ClassItem { id: string; name: string; cycle?: string | null }
 
 const EMPTY_MOD_USER = { open: false, userId: '', role: '', firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', loading: false, error: '' }
 const EMPTY_TRANSFER = { open: false, userId: '', userName: '', classId: '', classes: [] as ClassItem[], loading: false, error: '' }
@@ -922,8 +922,13 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         role: createForm.role,
         password: 'ZekoulABia2025!',
       }
-      if (createForm.email.trim()) body.email = createForm.email.trim()
-      if (createForm.phone.trim()) body.phone = createForm.phone.trim()
+      // Maternelle/primaire : jamais d'identifiants propres pour l'élève, même si un email/
+      // téléphone était resté saisi avant de changer de rôle ou de classe (défense en profondeur —
+      // les champs sont déjà masqués dans l'UI, voir isEleveMaternellePrimaire plus bas).
+      if (!isEleveMaternellePrimaire) {
+        if (createForm.email.trim()) body.email = createForm.email.trim()
+        if (createForm.phone.trim()) body.phone = createForm.phone.trim()
+      }
 
       if (createForm.role === 'TEACHER') {
         if (createForm.subjectIds.length > 0) body.subjectIds = createForm.subjectIds
@@ -976,6 +981,11 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   }
 
   const totalAll = Object.values(counts).reduce((s, n) => s + n, 0)
+
+  // Maternelle/primaire : jamais d'identifiants de connexion propres pour l'élève, même via
+  // la création directe (même règle que le module eleveOnboarding — determinerRecipientType).
+  const selectedClassCycle = availClasses.find(c => c.id === createForm.classeId)?.cycle ?? null
+  const isEleveMaternellePrimaire = createForm.role === 'STUDENT' && (selectedClassCycle === 'maternelle' || selectedClassCycle === 'primaire')
 
   return (
     <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
@@ -1262,13 +1272,17 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               </Field>
             </div>
 
-            <Field label={t('users.create_modal.email_label')}>
-              <input type="email" value={createForm.email} onChange={e => setCreate('email', e.target.value)} placeholder="marie@lycee.cm" style={sIn} />
-            </Field>
+            {!isEleveMaternellePrimaire && (
+              <>
+                <Field label={t('users.create_modal.email_label')}>
+                  <input type="email" value={createForm.email} onChange={e => setCreate('email', e.target.value)} placeholder="marie@lycee.cm" style={sIn} />
+                </Field>
 
-            <Field label={t('users.create_modal.phone_label')}>
-              <input type="tel" value={createForm.phone} onChange={e => setCreate('phone', e.target.value)} placeholder="691234567" style={sIn} />
-            </Field>
+                <Field label={t('users.create_modal.phone_label')}>
+                  <input type="tel" value={createForm.phone} onChange={e => setCreate('phone', e.target.value)} placeholder="691234567" style={sIn} />
+                </Field>
+              </>
+            )}
 
             <Field label={t('users.create_modal.role_label')}>
               <select value={createForm.role} onChange={e => setCreate('role', e.target.value)} style={sIn}>
@@ -1307,6 +1321,11 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                     {availClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </Field>
+                {isEleveMaternellePrimaire && (
+                  <div style={{ padding: '10px 14px', background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, color: 'var(--amber)', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>
+                    {t('users.create_modal.maternellePrimaireNote')}
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <Field label={t('users.create_modal.dob_label')}>
                     <input type="date" value={createForm.dateOfBirth} onChange={e => setCreate('dateOfBirth', e.target.value)} style={sIn} />

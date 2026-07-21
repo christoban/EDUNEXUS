@@ -1565,6 +1565,13 @@ export function bootstrapHexagonal(app: Application): void {
         orderBy: { name: 'asc' },
       });
 
+      // Aucun champ "cycle" par classe/section dans le schéma — le seul signal fiable est le
+      // template de l'école (School.templateCode → isPrimaire), appliqué uniformément à toutes
+      // les classes de cette école. Limite connue : ne distingue pas primaire/secondaire au sein
+      // d'un établissement COMPLEXE_SCOLAIRE (primaire + secondaire mélangés dans la même école).
+      const ecole = await prisma.school.findUnique({ where: { id: schoolId }, select: { templateCode: true } });
+      const cycle: 'primaire' | 'secondaire' = getTemplateMeta(ecole?.templateCode).isPrimaire ? 'primaire' : 'secondaire';
+
       // Nombre d'élèves PEBS par classe (une seule requête groupée)
       const classIds = classes.map(c => c.id);
       const pebsCounts = classIds.length > 0
@@ -1589,7 +1596,7 @@ export function bootstrapHexagonal(app: Application): void {
             ? (pebsMixte ? 'MIXTE' : 'GENERAL')
             : (pebsN === 0 ? 'GENERAL' : pebsN === total ? 'PEBS' : 'MIXTE');
         }
-        return { ...cls, pebsBadge };
+        return { ...cls, pebsBadge, cycle };
       });
 
       res.json({ success: true, data });

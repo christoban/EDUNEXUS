@@ -11,6 +11,7 @@ import type { PrismaClient } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { logActivity } from '../../utils/activitieslog';
 import { determinerRecipientType } from './rules';
+import { getTemplateMeta } from '../school/schoolTemplateConfig';
 import type { CreerSqueletteOnboardingCommande, CreerSqueletteOnboardingResultat } from './types';
 
 export class CreerSqueletteOnboardingUseCase {
@@ -43,22 +44,29 @@ export class CreerSqueletteOnboardingUseCase {
       throw new Error('Le contact élève et le contact parent doivent utiliser des numéros de téléphone différents');
     }
 
-    // Signal structurel prioritaire (maternelle/primaire) : dérivé de la classe suggérée si connue,
-    // même mécanisme que la vérification de cycle utilisée ailleurs dans coreDomainDefaults.
-    let sectionCycle: string | null = null;
+    // Signal structurel prioritaire (maternelle/primaire) : il n'existe aucun champ "cycle" par
+    // classe ou par section dans le schéma (Section n'a que code/gradingSystem) — le seul signal
+    // fiable actuellement disponible est le template de l'ÉCOLE (School.templateCode →
+    // getTemplateMeta().isPrimaire, déjà utilisé ailleurs pour StaffPermissionRules). Limite
+    // connue : pour un établissement COMPLEXE_SCOLAIRE (primaire + secondaire mélangés dans la
+    // même école), ce signal école-entière ne distingue pas les classes primaire des classes
+    // secondaire en son sein — seul un vrai champ par classe résoudrait ça correctement.
+    let sectionCycle: 'primaire' | 'secondaire' | null = null;
     if (cmd.classId) {
-      const classe = await (this.prisma as any).class.findUnique({
+      const classe = await this.prisma.class.findUnique({
         where: { id: cmd.classId },
-        select: { section: { select: { cycle: true } } },
+        select: { school: { select: { templateCode: true } } },
       });
-      sectionCycle = classe?.section?.cycle ?? null;
+      if (classe?.school) {
+        sectionCycle = getTemplateMeta(classe.school.templateCode).isPrimaire ? 'primaire' : 'secondaire';
+      }
     }
 
     const recipientType = determinerRecipientType({
       sourceType,
       recipientTypeExplicite: cmd.recipientType,
       defaultRecipient: settings?.defaultRecipient,
-      sectionCycle: sectionCycle as any,
+      sectionCycle,
       eleveADispositif: cmd.eleveADispositif,
       parentADispositif: cmd.parentADispositif,
       ageThresholdForParent: settings?.ageThresholdForParent,

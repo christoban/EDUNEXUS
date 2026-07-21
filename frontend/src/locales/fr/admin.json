@@ -282,6 +282,7 @@
       "role_label": "Rôle",
       "subjects_label": "Matières",
       "class_label": "Classe",
+      "maternellePrimaireNote": "Élève de maternelle/primaire : aucun identifiant de connexion propre (email/téléphone). Créez un compte PARENT séparé pour la connexion.",
       "dob_label": "Date de naissance",
       "gender_label": "Sexe",
       "staff_title_label": "Poste",
