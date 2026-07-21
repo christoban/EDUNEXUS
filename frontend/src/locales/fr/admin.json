@@ -1579,6 +1579,9 @@
     "formTitlePlaceholder": "Ex. : Rentrée en 6e/5e 2026-2027",
     "formType": "Type d'événement",
     "formCategory": "Catégorie",
+    "formLevel": "Niveau concerné",
+    "formLevelPlaceholder": "— Choisir un niveau —",
+    "formLevelHint": "Ouvre réellement la fenêtre de choix LV2 pour ce niveau — pas seulement une notification.",
     "formDescription": "Description (optionnelle)",
     "formRoles": "Rôles à notifier",
     "formOpenDate": "Date d'ouverture",
@@ -1587,6 +1590,7 @@
     "toastTitleRequired": "Le titre est requis",
     "toastDatesRequired": "Un événement à date fixe requiert une date d'ouverture et de clôture",
     "toastOpenRequired": "Une date d'ouverture par défaut est requise",
+    "toastLevelRequired": "Un niveau est requis pour un événement Choix LV2",
     "toastCreated": "Événement créé",
     "toastTriggered": "Événement déclenché — les rôles concernés ont été notifiés",
     "toastAdjusted": "Date de clôture ajustée"

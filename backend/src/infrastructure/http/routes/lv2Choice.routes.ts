@@ -7,6 +7,7 @@ export function creerLv2ChoiceRoutes(controller: Lv2ChoiceController): Router {
 
   // Admin routes
   router.post('/', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFenetre);
+  router.get('/', requireAuth, requireRole('ADMIN', 'STAFF'), controller.lister);
   router.get('/:id/tracking', requireAuth, requireRole('ADMIN', 'STAFF'), controller.suivi);
   router.post('/:id/manual-submission', requireAuth, requireRole('ADMIN', 'STAFF'), controller.saisieManuelle);
   router.post('/:id/apply', requireAuth, requireRole('ADMIN'), controller.appliquer);

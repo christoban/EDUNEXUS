@@ -68,6 +68,10 @@ export default function AdminDashboard() {
   const [changePwdOpen, setChangePwdOpen] = useState(false)
   const [badges, setBadges] = useState<AdminBadges>({})
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
+  // Types d'événements académiques actuellement actifs — gate l'affichage des menus de
+  // fonctionnalités événementielles (ex. 'lv2-choice') dans la sidebar : jamais visibles pour
+  // rien toute l'année, seulement quand la fonctionnalité réelle qu'ils représentent est ouverte.
+  const [activeEventTypes, setActiveEventTypes] = useState<string[]>([])
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -117,6 +121,11 @@ export default function AdminDashboard() {
         })
       })
       .catch(() => { /* badges not critical */ })
+
+    fetchApi('/api/v2/academic-events/active')
+      .then(r => r.json())
+      .then(d => { if (d.success) setActiveEventTypes((d.data || []).map((e: { type: string }) => e.type)) })
+      .catch(() => { /* gating non critique — le menu reste masqué par défaut si l'appel échoue */ })
   }, [router, showToast])
 
   useEffect(() => {
@@ -140,7 +149,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: 'var(--bg)' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />

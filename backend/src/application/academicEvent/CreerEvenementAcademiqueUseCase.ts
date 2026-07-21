@@ -8,6 +8,7 @@
  *    (ajustable ensuite via AjusterFenetreEvenementUseCase).
  */
 import type { PrismaClient } from '@prisma/client';
+import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
 export interface CreerEvenementCommande {
   schoolId: string;
@@ -17,6 +18,7 @@ export interface CreerEvenementCommande {
   title: string;
   description?: string;
   targetRoles: string[];
+  level?: string;
   openDate?: Date;
   closeDate?: Date;
 }
@@ -34,10 +36,24 @@ export class CreerEvenementAcademiqueUseCase {
     if (cmd.targetRoles.length === 0) {
       throw new Error('Au moins un rôle cible est requis.');
     }
+    if (cmd.type === 'CHOIX_LV2' && !cmd.level) {
+      throw new Error('Un événement de type CHOIX_LV2 requiert un niveau (level).');
+    }
 
     // FIXED_DATE et SLIDING_WINDOW s'ouvrent tous deux automatiquement à leur openDate — seul
     // MANUAL_TRIGGER n'a jamais d'ouverture automatique (voir DeclencherEvenementUseCase).
     const status = cmd.category !== 'MANUAL_TRIGGER' && cmd.openDate && cmd.openDate <= new Date() ? 'ACTIVE' : 'UPCOMING';
+
+    // Ouvre la ressource réelle AVANT de persister l'événement — si ça échoue (ex. fenêtre déjà
+    // ouverte pour ce niveau), aucun AcademicEvent orphelin n'est créé : jamais un événement
+    // "actif" sans que la fonctionnalité qu'il représente ne le soit vraiment.
+    let linkedResourceId: string | null = null;
+    if (status === 'ACTIVE') {
+      linkedResourceId = await activerRessourceLieeSiApplicable(this.prisma, {
+        id: '', schoolId: cmd.schoolId, type: cmd.type,
+        level: cmd.level ?? null, openDate: cmd.openDate ?? null, closeDate: cmd.closeDate ?? null,
+      });
+    }
 
     const evenement = await (this.prisma as any).academicEvent.create({
       data: {
@@ -48,9 +64,11 @@ export class CreerEvenementAcademiqueUseCase {
         title: cmd.title,
         description: cmd.description ?? null,
         targetRoles: cmd.targetRoles,
+        level: cmd.level ?? null,
         openDate: cmd.category === 'MANUAL_TRIGGER' ? null : cmd.openDate,
         closeDate: cmd.closeDate ?? null,
         status,
+        linkedResourceId,
       },
     });
     return { id: evenement.id };

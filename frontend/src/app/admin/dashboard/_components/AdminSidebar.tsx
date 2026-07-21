@@ -44,9 +44,12 @@ interface Props {
   badges?: Partial<Record<AdminSection, string>>
   sessionUser?: SessionUser | null
   onLogout?: () => void
+  /** Types d'AcademicEvent actuellement actifs — masque les menus de fonctionnalités
+   * événementielles (ex. 'lv2-choice') tant que la fonctionnalité réelle n'est pas ouverte. */
+  activeEventTypes?: string[]
 }
 
-export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout }: Props) {
+export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [] }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   const displayName = schoolName || tcommon('brand.fallbackSchool')
@@ -89,7 +92,9 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'minesec-stats', icon: BarChart3, label: tnav('sidebar.minesecStats') },
         { id: 'minedub-stats', icon: ClipboardList, label: tnav('sidebar.minedubStats') },
         { id: 'pebs-exams',    icon: Globe, label: tnav('sidebar.pebsExams') },
-        { id: 'lv2-choice',    icon: Languages, label: tnav('sidebar.lv2Choice') },
+        // Masqué tant qu'aucune fenêtre de choix LV2 n'est réellement ouverte (AcademicEvent
+        // CHOIX_LV2 actif) — jamais affiché à vide toute l'année pour rien.
+        ...(activeEventTypes.includes('CHOIX_LV2') ? [{ id: 'lv2-choice' as const, icon: Languages, label: tnav('sidebar.lv2Choice') }] : []),
         { id: 'ai',            icon: Bot, label: tnav('sidebar.ai') },
         { id: 'statistics',    icon: BarChart3, label: tnav('sidebar.statistics') },
         { id: 'communications', icon: Megaphone, label: tnav('sidebar.communications') },

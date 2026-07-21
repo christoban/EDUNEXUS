@@ -18,7 +18,7 @@ export class AcademicEventController {
   creer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user!;
-      const { type, category, title, description, targetRoles, openDate, closeDate } = req.body;
+      const { type, category, title, description, targetRoles, level, openDate, closeDate } = req.body;
       if (!type || !category || !title || !Array.isArray(targetRoles)) {
         res.status(400).json({ success: false, message: 'type, category, title et targetRoles sont requis' });
         return;
@@ -29,6 +29,7 @@ export class AcademicEventController {
         type, category, title,
         description,
         targetRoles,
+        level,
         openDate: openDate ? new Date(openDate) : undefined,
         closeDate: closeDate ? new Date(closeDate) : undefined,
       });
@@ -64,10 +65,12 @@ export class AcademicEventController {
   declencher = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user!;
+      const { closeDate } = req.body as { closeDate?: string };
       const r = await this.declencherEvenement.execute({
         eventId: req.params.id as string,
         schoolId: user.schoolId,
         declencheParId: user.userId,
+        closeDate: closeDate ? new Date(closeDate) : undefined,
       });
       res.json({ success: true, data: r });
     } catch (error: any) {

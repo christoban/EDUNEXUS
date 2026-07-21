@@ -1,0 +1,92 @@
+/**
+ * Un AcademicEvent de type CHOIX_LV2 ne se contente pas de notifier/tracer : son activation
+ * ouvre RÉELLEMENT la fenêtre de choix LV2 (Lv2ChoiceWindow, mécanisme métier préexistant à ce
+ * chantier). Un seul geste admin, un seul système — jamais un événement académique "actif" sans
+ * que la fonctionnalité réelle qu'il représente ne le soit aussi.
+ *
+ * Si l'activation de la ressource liée échoue (ex. une fenêtre LV2 est déjà ouverte pour ce
+ * niveau), l'appelant ne doit PAS faire passer l'AcademicEvent à ACTIVE — un événement "actif"
+ * sans ressource réelle derrière serait un mensonge d'interface (c'est exactement le défaut
+ * signalé en revue : le menu ne doit jamais s'afficher pour une fonctionnalité qui n'est pas
+ * réellement ouverte).
+ */
+import type { PrismaClient } from '@prisma/client';
+import { OuvrirFenetreChoixLV2UseCase } from '../lv2Choice/OuvrirFenetreChoixLV2UseCase';
+
+export interface EvenementPourActivation {
+  id: string;
+  schoolId: string;
+  type: string;
+  level: string | null;
+  openDate: Date | null;
+  closeDate: Date | null;
+}
+
+/**
+ * Ouvre la ressource métier liée au type d'événement, si applicable, et retourne son id à
+ * persister dans AcademicEvent.linkedResourceId. Retourne `null` si ce type d'événement n'a pas
+ * de ressource liée (RENTREE_6E_5E, MIGRATION_BILINGUE, CLOTURE_ANNEE, AUTRE — simples
+ * rappels/notifications, rien à ouvrir automatiquement pour eux aujourd'hui).
+ */
+export async function activerRessourceLieeSiApplicable(
+  prisma: PrismaClient,
+  event: EvenementPourActivation,
+): Promise<string | null> {
+  if (event.type !== 'CHOIX_LV2') return null;
+
+  if (!event.level) {
+    throw new Error('Un événement CHOIX_LV2 requiert un niveau (level) pour ouvrir la fenêtre de choix LV2 réelle.');
+  }
+  if (!event.openDate || !event.closeDate) {
+    throw new Error('Un événement CHOIX_LV2 requiert une date d\'ouverture et de clôture pour ouvrir la fenêtre réelle.');
+  }
+
+  const anneeCourante = await prisma.academicYear.findFirst({
+    where: { schoolId: event.schoolId, isCurrent: true },
+    select: { id: true },
+  });
+  if (!anneeCourante) {
+    throw new Error('Aucune année scolaire courante configurée — impossible d\'ouvrir la fenêtre de choix LV2.');
+  }
+
+  const resultat = await new OuvrirFenetreChoixLV2UseCase(prisma).execute({
+    schoolId: event.schoolId,
+    level: event.level,
+    academicYearId: anneeCourante.id,
+    openDate: event.openDate,
+    closeDate: event.closeDate,
+  });
+
+  return resultat.windowId;
+}
+
+/**
+ * Répercute un changement de closeDate sur la ressource liée (ajustement manuel d'une fenêtre
+ * glissante, ou prolongation automatique par le job quotidien) — sans ça, l'AcademicEvent et la
+ * vraie fenêtre LV2 divergeraient silencieusement l'un de l'autre.
+ */
+export async function synchroniserClotureRessourceLiee(
+  prisma: PrismaClient,
+  type: string,
+  linkedResourceId: string | null,
+  nouvelleCloture: Date,
+): Promise<void> {
+  if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
+  await (prisma as any).lv2ChoiceWindow.update({
+    where: { id: linkedResourceId },
+    data: { closeDate: nouvelleCloture },
+  }).catch((err: any) => console.error('[AcademicEvent] sync clôture Lv2ChoiceWindow:', err?.message));
+}
+
+/** Clôture la ressource liée quand l'AcademicEvent lui-même passe CLOSED. */
+export async function cloturerRessourceLiee(
+  prisma: PrismaClient,
+  type: string,
+  linkedResourceId: string | null,
+): Promise<void> {
+  if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
+  await (prisma as any).lv2ChoiceWindow.update({
+    where: { id: linkedResourceId },
+    data: { status: 'CLOSED' },
+  }).catch((err: any) => console.error('[AcademicEvent] clôture Lv2ChoiceWindow:', err?.message));
+}

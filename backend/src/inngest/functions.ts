@@ -12,6 +12,7 @@ import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSant
 import { GroqIAService } from "../infrastructure/services/GroqIAService";
 import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../utils/schoolCalendar";
 import { notifierEvenementAcademique } from "../utils/academicEventNotifier";
+import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "../application/academicEvent";
 
 const iaService = new GroqIAService();
 const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
@@ -1385,7 +1386,17 @@ export const checkAcademicEvents = inngest.createFunction(
           where: { schoolId: school.id, status: "UPCOMING", category: "FIXED_DATE", openDate: { lte: maintenant } },
         });
         for (const ev of aOuvrir) {
-          await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { status: "ACTIVE" } });
+          // La ressource réelle doit s'ouvrir AVANT que l'événement ne passe ACTIVE — si ça
+          // échoue, l'événement reste UPCOMING (retenté au prochain passage) plutôt que
+          // d'afficher un menu pour une fonctionnalité qui n'est pas vraiment ouverte.
+          let linkedResourceId: string | null = null;
+          try {
+            linkedResourceId = await activerRessourceLieeSiApplicable(prisma, ev);
+          } catch (err: any) {
+            console.error(`[AcademicEvent] activation ressource liée (${ev.id}):`, err?.message);
+            continue;
+          }
+          await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { status: "ACTIVE", linkedResourceId } });
           await notifierEvenementAcademique(
             prisma, school.id, ev.targetRoles, ev.title,
             ev.description ?? `« ${ev.title} » est désormais ouvert.`,
@@ -1420,11 +1431,22 @@ export const checkAcademicEvents = inngest.createFunction(
           const nouvelleCloture = await prolongerSiFermetureAujourdhui(prisma, school.id, ev.closeDate, maintenant);
           if (nouvelleCloture) {
             await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { closeDate: nouvelleCloture } });
+            await synchroniserClotureRessourceLiee(prisma, ev.type, ev.linkedResourceId, nouvelleCloture);
           }
         }
 
-        await (prisma as any).academicEvent.updateMany({
+        // Clôture — on récupère les événements concernés AVANT le updateMany pour pouvoir
+        // clôturer leur ressource liée individuellement (ex. Lv2ChoiceWindow), ce
+        // qu'un updateMany en masse ne permet pas de faire ligne par ligne.
+        const aCloturer = await (prisma as any).academicEvent.findMany({
           where: { schoolId: school.id, status: "ACTIVE", closeDate: { lte: maintenant } },
+          select: { id: true, type: true, linkedResourceId: true },
+        });
+        for (const ev of aCloturer) {
+          await cloturerRessourceLiee(prisma, ev.type, ev.linkedResourceId);
+        }
+        await (prisma as any).academicEvent.updateMany({
+          where: { id: { in: aCloturer.map((e: any) => e.id) } },
           data: { status: "CLOSED" },
         });
       }

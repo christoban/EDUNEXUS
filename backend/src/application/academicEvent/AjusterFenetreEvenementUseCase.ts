@@ -4,6 +4,7 @@
  * calendrier programmé, un MANUAL_TRIGGER se clôture par le même mécanisme que son ouverture.
  */
 import type { PrismaClient } from '@prisma/client';
+import { synchroniserClotureRessourceLiee } from './activerRessourceLiee';
 
 export interface AjusterFenetreCommande {
   eventId: string;
@@ -33,6 +34,7 @@ export class AjusterFenetreEvenementUseCase {
       where: { id: cmd.eventId },
       data: { closeDate: cmd.nouvelleCloture, reminderSentAt: null },
     });
+    await synchroniserClotureRessourceLiee(this.prisma, evenement.type, evenement.linkedResourceId, cmd.nouvelleCloture);
     return { id: cmd.eventId };
   }
 }

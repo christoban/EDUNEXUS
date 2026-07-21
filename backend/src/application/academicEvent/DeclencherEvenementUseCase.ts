@@ -6,11 +6,16 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
+import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
 export interface DeclencherEvenementCommande {
   eventId: string;
   schoolId: string;
   declencheParId: string;
+  // Date de clôture au moment du déclenchement — la date d'ouverture d'un MANUAL_TRIGGER n'est
+  // jamais connue à l'avance (voir Type 2), donc la clôture ne peut être fixée qu'ici, pas à la
+  // création. Requis si le type d'événement ouvre une ressource liée (ex. CHOIX_LV2).
+  closeDate?: Date;
 }
 
 export class DeclencherEvenementUseCase {
@@ -29,13 +34,24 @@ export class DeclencherEvenementUseCase {
     }
 
     const maintenant = new Date();
+    const closeDate = cmd.closeDate ?? evenement.closeDate ?? null;
+
+    // Ouvre la ressource réelle AVANT de faire passer l'événement à ACTIVE — si ça échoue,
+    // l'événement reste UPCOMING plutôt que de mentir sur son propre statut.
+    const linkedResourceId = await activerRessourceLieeSiApplicable(this.prisma, {
+      id: evenement.id, schoolId: cmd.schoolId, type: evenement.type,
+      level: evenement.level, openDate: maintenant, closeDate,
+    });
+
     await (this.prisma as any).academicEvent.update({
       where: { id: cmd.eventId },
       data: {
         status: 'ACTIVE',
         openDate: maintenant,
+        closeDate,
         triggeredById: cmd.declencheParId,
         triggeredAt: maintenant,
+        linkedResourceId,
       },
     });
 

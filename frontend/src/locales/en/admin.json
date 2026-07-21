@@ -1579,6 +1579,9 @@
     "formTitlePlaceholder": "E.g.: Grade 6/7 enrollment 2026-2027",
     "formType": "Event type",
     "formCategory": "Category",
+    "formLevel": "Grade level",
+    "formLevelPlaceholder": "— Choose a level —",
+    "formLevelHint": "Actually opens the LV2 choice window for this level — not just a notification.",
     "formDescription": "Description (optional)",
     "formRoles": "Roles to notify",
     "formOpenDate": "Opening date",
@@ -1587,6 +1590,7 @@
     "toastTitleRequired": "Title is required",
     "toastDatesRequired": "A fixed-date event requires an opening and a closing date",
     "toastOpenRequired": "A default opening date is required",
+    "toastLevelRequired": "A grade level is required for an LV2 Choice event",
     "toastCreated": "Event created",
     "toastTriggered": "Event triggered — target roles have been notified",
     "toastAdjusted": "Closing date adjusted"

@@ -69,6 +69,18 @@ export class Lv2ChoiceController {
     } catch (err) { next(err); }
   };
 
+  // GET /api/v2/lv2-choice-windows — liste des fenêtres de l'établissement, toutes années/niveaux
+  lister = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const windows = await (this.prisma as any).lv2ChoiceWindow.findMany({
+        where: { schoolId },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: windows });
+    } catch (err) { next(err); }
+  };
+
   // POST /api/v2/lv2-choice-windows/:id/apply
   appliquer = async (req: Request, res: Response, next: NextFunction) => {
     try {

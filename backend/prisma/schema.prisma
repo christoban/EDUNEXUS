@@ -252,9 +252,16 @@ model AcademicEvent {
   description    String?
   // Rôles concernés par la notification d'ouverture / le rappel — ex. ['PARENT','STUDENT'].
   targetRoles    String[]
+  // Niveau concerné — utilisé uniquement quand type = 'CHOIX_LV2' (Lv2ChoiceWindow est scopée
+  // par niveau, pas seulement par école). Null pour tous les autres types d'événement.
+  level          String?
   openDate       DateTime?             // null tant qu'un MANUAL_TRIGGER n'a pas été déclenché
   closeDate      DateTime?
   status         AcademicEventStatus   @default(UPCOMING)
+  // Id de la ressource métier réelle ouverte par cet événement (ex. Lv2ChoiceWindow.id pour
+  // CHOIX_LV2) — l'événement académique déclenche la fonctionnalité réelle, il n'est jamais un
+  // simple rappel décoratif à côté d'elle. Null pour les types d'événement sans ressource liée.
+  linkedResourceId String?
   triggeredById  String?
   triggeredAt    DateTime?
   // Empêche l'envoi répété du rappel de clôture à chaque passage du job quotidien.

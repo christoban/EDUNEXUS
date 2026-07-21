@@ -48,8 +48,19 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
   const [form, setForm] = useState({
     type: 'RENTREE_6E_5E', category: 'FIXED_DATE' as AcademicEvent['category'],
     title: '', description: '', targetRoles: ['ADMIN'] as string[],
-    openDate: '', closeDate: '',
+    level: '', openDate: '', closeDate: '',
   })
+  const [niveaux, setNiveaux] = useState<string[]>([])
+
+  // Chargée seulement au besoin (type CHOIX_LV2) — mêmes niveaux que ceux utilisés par l'écran
+  // de suivi LV2 existant (dérivés des classes réelles de l'établissement).
+  useEffect(() => {
+    if (form.type !== 'CHOIX_LV2' || niveaux.length > 0) return
+    fetchApi('/api/v2/classes', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setNiveaux([...new Set((d.data || []).map((c: any) => c.level).filter(Boolean))] as string[]) })
+      .catch(() => {})
+  }, [form.type, niveaux.length])
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -73,6 +84,7 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
     if (!form.title.trim()) { onToast(t('academicEvents.toastTitleRequired'), 'warning'); return }
     if (form.category === 'FIXED_DATE' && (!form.openDate || !form.closeDate)) { onToast(t('academicEvents.toastDatesRequired'), 'warning'); return }
     if (form.category === 'SLIDING_WINDOW' && !form.openDate) { onToast(t('academicEvents.toastOpenRequired'), 'warning'); return }
+    if (form.type === 'CHOIX_LV2' && !form.level) { onToast(t('academicEvents.toastLevelRequired'), 'warning'); return }
 
     setSubmitting(true)
     try {
@@ -80,6 +92,7 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          level: form.type === 'CHOIX_LV2' ? form.level : undefined,
           openDate: form.openDate || undefined,
           closeDate: form.closeDate || undefined,
         }),
@@ -88,7 +101,7 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
       if (!data.success) throw new Error(data.message)
       onToast(t('academicEvents.toastCreated'), 'success')
       setFormOpen(false)
-      setForm({ type: 'RENTREE_6E_5E', category: 'FIXED_DATE', title: '', description: '', targetRoles: ['ADMIN'], openDate: '', closeDate: '' })
+      setForm({ type: 'RENTREE_6E_5E', category: 'FIXED_DATE', title: '', description: '', targetRoles: ['ADMIN'], level: '', openDate: '', closeDate: '' })
       fetchEvents()
     } catch (err) {
       onToast(err instanceof Error ? err.message : t('academicEvents.errorLoad'), 'error')
@@ -246,6 +259,16 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
                   {EVENT_TYPES.map(ty => <option key={ty} value={ty}>{t(`academicEvents.type.${ty}`)}</option>)}
                 </select>
               </div>
+              {form.type === 'CHOIX_LV2' && (
+                <div>
+                  <label style={labelSt}>{t('academicEvents.formLevel')}</label>
+                  <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={inputFullSt}>
+                    <option value="">{t('academicEvents.formLevelPlaceholder')}</option>
+                    {niveaux.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{t('academicEvents.formLevelHint')}</div>
+                </div>
+              )}
               <div>
                 <label style={labelSt}>{t('academicEvents.formCategory')}</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as AcademicEvent['category'] }))} style={inputFullSt}>
