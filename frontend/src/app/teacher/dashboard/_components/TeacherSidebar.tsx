@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion'
 import {
   LogOut, LayoutDashboard, School, ClipboardCheck, FileText, Calendar,
-  NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw, Bell,
+  NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw,
   AlertTriangle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -48,11 +48,12 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
       label: tnav('group.ressources'),
       items: [{ id: 'resources', icon: FolderOpen, label: tnav('sidebar.pedagogicalResources') }],
     },
+    // notifications retiré de la sidebar — redondant avec la cloche (permanente sur tous les
+    // écrans), qui offre désormais un lien « Voir tout » vers cette même page.
     {
       label: tnav('group.moncompte'),
       items: [
         { id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') },
-        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
       ],
     },
   ]

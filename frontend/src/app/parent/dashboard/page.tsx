@@ -111,7 +111,7 @@ export default function ParentDashboard() {
             {TITLES[section]}
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <NotificationBell />
+            <NotificationBell onNav={s => setSection(s as ParentSection)} />
           </div>
         </header>
         <EventCenterWidget />

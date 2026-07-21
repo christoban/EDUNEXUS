@@ -30,15 +30,18 @@ const DOMAIN_TO_PRISMA_NOTIFICATION_TYPE: Record<DomainNotificationType, string>
 
 export class SocketNotificationService implements NotificationService {
   async envoyer(options: EnvoiNotificationOptions): Promise<void> {
-    if (options.canal === 'PUSH') {
-      await notifierUtilisateurPush({ userId: options.userId, title: options.titre, body: options.corps, data: options.metadata });
-      return;
-    }
-
-    if (options.canal !== 'IN_APP') {
+    if (options.canal !== 'IN_APP' && options.canal !== 'PUSH') {
       // EMAIL/SMS gérés séparément via EmailService ou SmsService
       console.log(`[Notification] ${options.canal} → ${options.userId} : ${options.titre}`);
       return;
+    }
+
+    // canal='PUSH' persiste et émet EXACTEMENT comme canal='IN_APP', puis envoie en plus le
+    // push — jamais l'inverse. Un push sans trace in-app est un message perdu dès que
+    // l'utilisateur le rate ou l'ignore (voir NotificationBell.tsx, l'animation de la cloche
+    // n'a de sens que si toute notification poussée est aussi retrouvable ici).
+    if (options.canal === 'PUSH') {
+      void notifierUtilisateurPush({ userId: options.userId, title: options.titre, body: options.corps, data: options.metadata });
     }
 
     // Persisté (table Notification) avant l'émission live — sans ça, la cloche est vide à

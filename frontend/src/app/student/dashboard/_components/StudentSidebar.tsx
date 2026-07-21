@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, Bell, HeartPulse } from 'lucide-react'
+import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, HeartPulse } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -50,11 +50,12 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
         { id: 'attendance', icon: ClipboardCheck, label: tnav('sidebar.myAttendance') },
       ]
     },
+    // notifications retiré — redondant avec la cloche (permanente sur tous les écrans), qui
+    // offre désormais un lien « Voir tout » vers cette même page.
     {
       label: tnav('group.services'),
       items: [
         { id: 'library', icon: BookOpen, label: tnav('sidebar.myLibrary') },
-        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
       ]
     },
   ]

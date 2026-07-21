@@ -128,7 +128,7 @@ export default function StudentDashboard() {
             Trimestre 2 · Séquence 3
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <NotificationBell />
+            <NotificationBell onNav={s => setSection(s as StudentSection)} />
           </div>
         </header>
         <EventCenterWidget />

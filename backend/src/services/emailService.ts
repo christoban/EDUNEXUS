@@ -4,6 +4,27 @@ import { prisma } from "../config/prisma.ts";
 import type { EmailEventType } from "../types/email.ts";
 import { PUSH_MIGRATED_EVENT_TYPES } from "../types/email.ts";
 import { notifierUtilisateurPushAvecResultat } from "../infrastructure/services/PushNotificationService";
+import { SocketNotificationService } from "../infrastructure/services/SocketNotificationService";
+import type { NotificationType as DomainNotificationType } from "@domain/types/enums";
+
+const notificationService = new SocketNotificationService();
+
+/**
+ * Un push envoyé ici (PUSH_MIGRATED_EVENT_TYPES) doit TOUJOURS avoir une trace in-app —
+ * sinon un utilisateur qui rate ou ignore la notification système n'a plus aucun moyen de la
+ * retrouver. Cette table ne couvre que les types réellement poussés en push (voir
+ * PUSH_MIGRATED_EVENT_TYPES) ; les autres (invitations, OTP sécurité, formulaires marketing)
+ * restent exclusivement email et n'ont pas besoin d'entrée ici.
+ */
+const EMAIL_EVENT_TO_DOMAIN_NOTIFICATION_TYPE: Partial<Record<EmailEventType, DomainNotificationType>> = {
+  report_card_available: 'BULLETIN_AVAILABLE',
+  payment_reminder: 'PAYMENT_REMINDER',
+  payment_receipt: 'PAYMENT_CONFIRMED',
+  grade_reminder_48h: 'GRADE_AVAILABLE',
+  grade_reminder_72h: 'GRADE_AVAILABLE',
+  absence_alert: 'ABSENCE_ALERT',
+  discipline_notification: 'DISCIPLINE_SANCTION',
+};
 
 let cachedTransporter: nodemailer.Transporter | null = null;
 
@@ -148,6 +169,23 @@ export const sendTransactionalEmail = async (
     // appareil (pas de souscription active, préférence désactivée, ou échec d'envoi) — jamais
     // l'inverse, l'email reste toujours le repli, pas une option concurrente.
     if (input.recipientUserId && PUSH_MIGRATED_EVENT_TYPES.has(input.eventType)) {
+      // Entrée in-app créée AVANT la tentative de push, inconditionnellement — que le push
+      // aboutisse, échoue, ou bascule sur l'email juste après, la notification reste toujours
+      // retrouvable dans la cloche/le centre de notifications. Un push qu'on ne peut jamais
+      // retrouver après coup n'est plus un canal fiable, c'est un message perdu.
+      const domainType = EMAIL_EVENT_TO_DOMAIN_NOTIFICATION_TYPE[input.eventType];
+      const schoolId = resolveSchoolId(input.metadata);
+      if (domainType && schoolId) {
+        await notificationService
+          .envoyer({
+            schoolId, userId: input.recipientUserId, type: domainType,
+            titre: input.subject, corps: input.text || input.subject,
+            metadata: input.relatedEntityId ? { relatedEntityId: input.relatedEntityId } : undefined,
+            canal: 'IN_APP',
+          })
+          .catch((err) => console.error('[sendTransactionalEmail] persistance in-app:', err?.message));
+      }
+
       const pushResult = await notifierUtilisateurPushAvecResultat({
         userId: input.recipientUserId,
         title: input.subject,

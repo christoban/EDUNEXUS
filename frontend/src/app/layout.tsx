@@ -3,6 +3,7 @@ import { Nunito, Spectral } from 'next/font/google'
 import './globals.css'
 import { SmoothScrollProvider } from '@/components/SmoothScrollProvider'
 import { LanguageProvider } from '@/lib/i18n'
+import { NotificationProvider } from '@/hooks/NotificationContext'
 import { Providers } from './providers'
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
 
@@ -47,7 +48,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${nunito.variable} ${spectral.variable}`} suppressHydrationWarning>
       <body className="font-nunito antialiased">
-        <Providers><LanguageProvider><SmoothScrollProvider>{children}</SmoothScrollProvider></LanguageProvider></Providers>
+        <Providers><LanguageProvider><NotificationProvider><SmoothScrollProvider>{children}</SmoothScrollProvider></NotificationProvider></LanguageProvider></Providers>
         <ServiceWorkerRegistration />
       </body>
     </html>

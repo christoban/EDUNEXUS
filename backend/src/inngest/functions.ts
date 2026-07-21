@@ -1230,12 +1230,10 @@ export const markOverdueLoans = inngest.createFunction(
         // Élève : a forcément un compte — cloche (toujours visible) + push best-effort (rien
         // d'autre à tenter côté élève, voir discussion PLAN_NOTIFICATIONS_PUSH.md : les élèves
         // n'ont généralement pas de numéro/email propre au Cameroun, donc pas de repli SMS ici).
-        await notificationService
-          .envoyer({ schoolId: loan.schoolId, userId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps, canal: "IN_APP" })
-          .catch((err) => console.error('[Library Overdue IN_APP élève]', err?.message));
+        // Un seul appel canal='PUSH' suffit désormais : il persiste la cloche ET tente le push.
         await notificationService
           .envoyer({ schoolId: loan.schoolId, userId: loan.studentId, type: "LIBRARY_OVERDUE", titre, corps, canal: "PUSH" })
-          .catch((err) => console.error('[Library Overdue PUSH élève]', err?.message));
+          .catch((err) => console.error('[Library Overdue élève]', err?.message));
 
         // Parents : cloche systématique + push d'abord ; le SMS ne part QUE vers les parents
         // dont le push n'a atteint aucun appareil (pas de souscription active) — jamais les

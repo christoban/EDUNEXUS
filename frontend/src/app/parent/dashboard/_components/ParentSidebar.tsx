@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins, Bell } from 'lucide-react'
+import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -51,7 +51,8 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
         { id: 'payments', icon: Smartphone, label: tnav('sidebar.payments') },
         { id: 'apee',     icon: HandCoins, label: tnav('sidebar.apee') },
         { id: 'library',  icon: BookOpen, label: tnav('sidebar.readings') },
-        { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
+        // notifications retiré — redondant avec la cloche (permanente sur tous les écrans),
+        // qui offre désormais un lien « Voir tout » vers cette même page.
         { id: 'settings', icon: Settings, label: tnav('sidebar.settings') },
       ]
     },

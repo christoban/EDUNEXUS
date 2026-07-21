@@ -105,7 +105,7 @@ export default function StaffDashboard() {
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} />
+        <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} onNav={s => navTo(s as StaffSection)} />
         <EventCenterWidget />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>

@@ -2,7 +2,7 @@
 import {
   LogOut, LayoutDashboard, GraduationCap, FileText, ClipboardCheck, Clock,
   Link2, Calendar, Landmark, Smartphone, Lock, AlertTriangle, BookOpen,
-  Compass, IdCard, HandCoins, Bell,
+  Compass, IdCard, HandCoins,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -65,9 +65,10 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
     { items: [{ id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') }] },
     ...(supervisionItems.length > 0 ? [{ label: tnav('group.supervision'), items: supervisionItems }] : []),
     ...(servicesItems.length > 0    ? [{ label: tnav('group.services'),    items: servicesItems    }] : []),
+    // notifications retiré de la sidebar — redondant avec la cloche (permanente sur tous les
+    // écrans), qui offre désormais un lien « Voir tout » vers cette même page.
     { label: tnav('group.moncompte'), items: [
       { id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') },
-      { id: 'notifications', icon: Bell, label: tnav('sidebar.notifications') },
     ] },
   ]
 

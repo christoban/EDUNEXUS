@@ -262,7 +262,8 @@
   "notifications": {
     "title": "Notifications",
     "empty": "No notifications yet",
-    "markAllRead": "Mark all as read"
+    "markAllRead": "Mark all as read",
+    "viewAll": "View all"
   },
   "notificationCenter": {
     "title": "Notification Center",

@@ -129,7 +129,7 @@ export default function TeacherDashboard() {
               style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <KeyRound size={18} color="var(--text2)" />
             </button>
-            <NotificationBell />
+            <NotificationBell onNav={s => setSection(s as TeacherSection)} />
           </div>
         </header>
         <EventCenterWidget />

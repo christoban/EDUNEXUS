@@ -13,9 +13,10 @@ interface Props {
   section: StaffSection
   periodLabel?: string
   onChangePassword?: () => void
+  onNav?: (section: string) => void
 }
 
-export default function StaffTopbar({ section, periodLabel, onChangePassword }: Props) {
+export default function StaffTopbar({ section, periodLabel, onChangePassword, onNav }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   return (
@@ -39,7 +40,7 @@ export default function StaffTopbar({ section, periodLabel, onChangePassword }: 
           </button>
         )}
         <ThemeToggle />
-        <NotificationBell />
+        <NotificationBell onNav={onNav} />
       </div>
     </header>
   )

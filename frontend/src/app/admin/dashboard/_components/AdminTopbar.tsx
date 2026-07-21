@@ -152,7 +152,7 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
           )}
         </div>
         <ThemeToggle />
-        <NotificationBell />
+        <NotificationBell onNav={onNavigate} />
         {onChangePassword && (
           <button onClick={onChangePassword} title={t('topbar.change_password')}
             style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--bg2)', border: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
