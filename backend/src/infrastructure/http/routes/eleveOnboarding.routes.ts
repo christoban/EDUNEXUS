@@ -14,6 +14,7 @@ export function creerEleveOnboardingRoutes(controller: EleveOnboardingController
   router.post('/:id/validate', requireAuth, requireRole('ADMIN', 'STAFF'), controller.valider);
   router.post('/:id/reject', requireAuth, requireRole('ADMIN', 'STAFF'), controller.rejeter);
   router.post('/:id/resend-link', requireAuth, requireRole('ADMIN', 'STAFF'), controller.renvoyerLien);
+  router.get('/:id/pdf', requireAuth, requireRole('ADMIN', 'STAFF'), controller.exporterPdf);
 
   // Formulaire élève/parent — public, protégé par le token lui-même (rate-limité contre le brute-force)
   router.get('/token/:token', authLimiter, controller.getByToken);

@@ -28,14 +28,40 @@ export class CreerSqueletteOnboardingUseCase {
       throw new Error("L'auto-service des inscriptions n'est pas activé pour cet établissement");
     }
 
-    if (!cmd.contactEmail && !cmd.contactTelephone) {
-      throw new Error('Un email ou un numéro de téléphone de contact est requis pour envoyer le lien');
+    const aucunContact = !cmd.contactEmail && !cmd.contactTelephone && !cmd.parentContactEmail && !cmd.parentContactTelephone;
+    if (aucunContact && !cmd.aucunContactDisponible) {
+      throw new Error('Un email ou un numéro de téléphone de contact est requis pour envoyer le lien (ou confirmer explicitement qu\'aucun contact n\'est disponible)');
+    }
+
+    // Deux comptes distincts (LES_DEUX) exigent des contacts distincts — sinon @@unique
+    // ([schoolId, email/phone]) sur User ferait échouer la création du second compte, au
+    // moment de la validation seulement. On le vérifie ici, tout de suite, avec un message clair.
+    if (cmd.contactEmail && cmd.parentContactEmail && cmd.contactEmail === cmd.parentContactEmail) {
+      throw new Error('Le contact élève et le contact parent doivent utiliser des emails différents');
+    }
+    if (cmd.contactTelephone && cmd.parentContactTelephone && cmd.contactTelephone === cmd.parentContactTelephone) {
+      throw new Error('Le contact élève et le contact parent doivent utiliser des numéros de téléphone différents');
+    }
+
+    // Signal structurel prioritaire (maternelle/primaire) : dérivé de la classe suggérée si connue,
+    // même mécanisme que la vérification de cycle utilisée ailleurs dans coreDomainDefaults.
+    let sectionCycle: string | null = null;
+    if (cmd.classId) {
+      const classe = await (this.prisma as any).class.findUnique({
+        where: { id: cmd.classId },
+        select: { section: { select: { cycle: true } } },
+      });
+      sectionCycle = classe?.section?.cycle ?? null;
     }
 
     const recipientType = determinerRecipientType({
       sourceType,
       recipientTypeExplicite: cmd.recipientType,
       defaultRecipient: settings?.defaultRecipient,
+      sectionCycle: sectionCycle as any,
+      eleveADispositif: cmd.eleveADispositif,
+      parentADispositif: cmd.parentADispositif,
+      ageThresholdForParent: settings?.ageThresholdForParent,
     });
 
     const token = randomBytes(32).toString('hex');
@@ -49,9 +75,15 @@ export class CreerSqueletteOnboardingUseCase {
         classId: cmd.classId ?? null,
         contactEmail: cmd.contactEmail ?? null,
         contactTelephone: cmd.contactTelephone ?? null,
+        parentContactEmail: cmd.parentContactEmail ?? null,
+        parentContactTelephone: cmd.parentContactTelephone ?? null,
         recipientType,
         sourceType,
         examCandidateId: cmd.examCandidateId ?? null,
+        eleveADispositif: cmd.eleveADispositif ?? null,
+        eleveDispositifOS: cmd.eleveDispositifOS ?? null,
+        parentADispositif: cmd.parentADispositif ?? null,
+        parentDispositifOS: cmd.parentDispositifOS ?? null,
         token,
         tokenExpiresAt,
         status: 'LINK_SENT',

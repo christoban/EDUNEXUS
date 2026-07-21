@@ -63,11 +63,13 @@ export class EnregistrerResultatCepUseCase {
       }
 
       // L'admission est déjà confirmée ci-dessus — la création du squelette d'onboarding est
-      // volontairement best-effort : si elle échoue (ex. aucun téléphone parent renseigné),
-      // l'admission ne doit pas rester bloquée ni le candidat coincé en CONFIRME sans dossier
-      // (la garde ADMIS_PROVISOIRE plus haut empêcherait alors tout nouvel essai). L'admin est
-      // notifié via onboardingCreated=false et peut créer le squelette manuellement une fois
-      // les coordonnées du parent corrigées.
+      // volontairement best-effort : si elle échoue malgré tout, l'admission ne doit pas rester
+      // bloquée ni le candidat coincé en CONFIRME sans dossier (la garde ADMIS_PROVISOIRE plus
+      // haut empêcherait alors tout nouvel essai). L'admin est notifié via onboardingCreated=false
+      // et peut créer le squelette manuellement. Un candidat sans aucun téléphone parent renseigné
+      // (famille sans dispositif du tout — Axe 2, Plan Diversité Numérique) n'est PAS un échec :
+      // aucunContactDisponible=true crée quand même le dossier, sans lien envoyé — le staff le
+      // complètera en présentiel (formulaire PDF exportable) quand la famille se présentera.
       let onboarding: { id: string; token: string; tokenExpiresAt: Date; contactEmail: string | null; contactTelephone: string | null } | undefined;
       try {
         onboarding = await this.creerSqueletteOnboarding.execute({
@@ -79,6 +81,7 @@ export class EnregistrerResultatCepUseCase {
           recipientType: 'PARENT',
           sourceType: 'CONCOURS',
           examCandidateId: candidate.id,
+          aucunContactDisponible: !parentPhone,
         });
       } catch (err: any) {
         console.error('[EnregistrerResultatCepUseCase] Échec création squelette onboarding:', err?.message);

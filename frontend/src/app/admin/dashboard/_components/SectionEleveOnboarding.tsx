@@ -26,6 +26,8 @@ interface Dossier {
   createdAt: string
 }
 
+type DispositifReponse = '' | 'true' | 'false'
+
 const STATUT_COLORS: Record<string, { bg: string; color: string }> = {
   DRAFT: { bg: 'var(--bg2)', color: 'var(--text2)' },
   LINK_SENT: { bg: 'var(--blue-light)', color: 'var(--blue)' },
@@ -52,7 +54,13 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
   const [loading, setLoading] = useState(true)
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [createForm, setCreateForm] = useState({ nomProvisoire: '', classId: '', contactEmail: '', contactTelephone: '', recipientType: 'ELEVE' as 'ELEVE' | 'PARENT' | 'LES_DEUX' })
+  const [createForm, setCreateForm] = useState({
+    nomProvisoire: '', classId: '', contactEmail: '', contactTelephone: '',
+    parentContactEmail: '', parentContactTelephone: '',
+    recipientType: 'ELEVE' as 'ELEVE' | 'PARENT' | 'LES_DEUX',
+    eleveADispositif: '' as DispositifReponse, parentADispositif: '' as DispositifReponse,
+    aucunContactDisponible: false,
+  })
   const [createError, setCreateError] = useState('')
   const [creating, setCreating] = useState(false)
 
@@ -112,7 +120,9 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
 
   const submitCreate = async () => {
     if (!createForm.nomProvisoire.trim()) { setCreateError(t('eleveOnboarding.createErrorNom')); return }
-    if (!createForm.contactEmail.trim() && !createForm.contactTelephone.trim()) { setCreateError(t('eleveOnboarding.createErrorContact')); return }
+    const aucunContact = !createForm.contactEmail.trim() && !createForm.contactTelephone.trim()
+      && !createForm.parentContactEmail.trim() && !createForm.parentContactTelephone.trim()
+    if (aucunContact && !createForm.aucunContactDisponible) { setCreateError(t('eleveOnboarding.createErrorContact')); return }
     setCreating(true); setCreateError('')
     try {
       const res = await fetchApi('/api/v2/eleve-onboarding', {
@@ -122,18 +132,41 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
           classId: createForm.classId || undefined,
           contactEmail: createForm.contactEmail || undefined,
           contactTelephone: createForm.contactTelephone || undefined,
+          parentContactEmail: createForm.parentContactEmail || undefined,
+          parentContactTelephone: createForm.parentContactTelephone || undefined,
           recipientType: createForm.recipientType,
           sourceType: 'AUTOSERVICE',
+          eleveADispositif: createForm.eleveADispositif ? createForm.eleveADispositif === 'true' : undefined,
+          parentADispositif: createForm.parentADispositif ? createForm.parentADispositif === 'true' : undefined,
+          aucunContactDisponible: createForm.aucunContactDisponible || undefined,
         }),
       })
       const data = await res.json()
       if (data.success) {
         onToast(t('eleveOnboarding.createSuccess'), 'success')
         setCreateOpen(false)
-        setCreateForm({ nomProvisoire: '', classId: '', contactEmail: '', contactTelephone: '', recipientType: 'ELEVE' })
+        setCreateForm({
+          nomProvisoire: '', classId: '', contactEmail: '', contactTelephone: '',
+          parentContactEmail: '', parentContactTelephone: '', recipientType: 'ELEVE',
+          eleveADispositif: '', parentADispositif: '', aucunContactDisponible: false,
+        })
         fetchAll()
       } else setCreateError(data.message || t('eleveOnboarding.errorGeneric'))
     } catch { setCreateError(t('eleveOnboarding.errorGeneric')) } finally { setCreating(false) }
+  }
+
+  const exportPdf = async (d: Dossier) => {
+    try {
+      const res = await fetchApi(`/api/v2/eleve-onboarding/${d.id}/pdf`, { credentials: 'include' })
+      if (!res.ok) { onToast(t('eleveOnboarding.pdfError'), 'error'); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `onboarding-${d.id}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch { onToast(t('eleveOnboarding.pdfError'), 'error') }
   }
 
   const openValidate = (d: Dossier) => { setValidateTarget(d); setValidateClassId(d.classId ?? ''); setValidateError('') }
@@ -262,6 +295,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
                     {(d.status === 'LINK_SENT' || d.status === 'EXPIRED') && (
                       <button onClick={() => resendLink(d)} style={btnSec}>{t('eleveOnboarding.resendBtn')}</button>
                     )}
+                    <button onClick={() => exportPdf(d)} style={btnSec}>{t('eleveOnboarding.pdfBtn')}</button>
                   </td>
                 </tr>
               ))}
@@ -286,16 +320,49 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
             </select>
 
             <FieldLabel>{t('eleveOnboarding.fieldContactEmail')}</FieldLabel>
-            <input style={inputStyle} type="email" value={createForm.contactEmail} onChange={e => setCreateForm(f => ({ ...f, contactEmail: e.target.value }))} />
+            <input style={inputStyle} type="email" value={createForm.contactEmail} onChange={e => setCreateForm(f => ({ ...f, contactEmail: e.target.value }))} disabled={createForm.aucunContactDisponible} />
 
             <FieldLabel>{t('eleveOnboarding.fieldContactTelephone')}</FieldLabel>
-            <input style={inputStyle} value={createForm.contactTelephone} onChange={e => setCreateForm(f => ({ ...f, contactTelephone: e.target.value }))} />
+            <input style={inputStyle} value={createForm.contactTelephone} onChange={e => setCreateForm(f => ({ ...f, contactTelephone: e.target.value }))} disabled={createForm.aucunContactDisponible} />
 
             <FieldLabel>{t('eleveOnboarding.fieldRecipient')}</FieldLabel>
             <select style={inputStyle} value={createForm.recipientType} onChange={e => setCreateForm(f => ({ ...f, recipientType: e.target.value as any }))}>
               <option value="ELEVE">{t('eleveOnboarding.recipientEleve')}</option>
               <option value="PARENT">{t('eleveOnboarding.recipientParent')}</option>
               <option value="LES_DEUX">{t('eleveOnboarding.recipientBoth')}</option>
+            </select>
+
+            {createForm.recipientType === 'LES_DEUX' && (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--text3)', margin: '10px 0 0' }}>{t('eleveOnboarding.parentContactHint')}</div>
+                <FieldLabel>{t('eleveOnboarding.fieldParentContactEmail')}</FieldLabel>
+                <input style={inputStyle} type="email" value={createForm.parentContactEmail} onChange={e => setCreateForm(f => ({ ...f, parentContactEmail: e.target.value }))} disabled={createForm.aucunContactDisponible} />
+
+                <FieldLabel>{t('eleveOnboarding.fieldParentContactTelephone')}</FieldLabel>
+                <input style={inputStyle} value={createForm.parentContactTelephone} onChange={e => setCreateForm(f => ({ ...f, parentContactTelephone: e.target.value }))} disabled={createForm.aucunContactDisponible} />
+              </>
+            )}
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text2)', margin: '14px 0 0', cursor: 'pointer' }}>
+              <input type="checkbox" checked={createForm.aucunContactDisponible} onChange={e => setCreateForm(f => ({ ...f, aucunContactDisponible: e.target.checked }))} />
+              {t('eleveOnboarding.aucunContactDisponibleLabel')}
+            </label>
+
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)', margin: '18px 0 2px' }}>{t('eleveOnboarding.digitalCapacityTitle')}</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>{t('eleveOnboarding.digitalCapacityHint')}</div>
+
+            <FieldLabel>{t('eleveOnboarding.fieldEleveADispositif')}</FieldLabel>
+            <select style={inputStyle} value={createForm.eleveADispositif} onChange={e => setCreateForm(f => ({ ...f, eleveADispositif: e.target.value as DispositifReponse }))}>
+              <option value="">{t('eleveOnboarding.deviceUnknown')}</option>
+              <option value="true">{t('eleveOnboarding.deviceYes')}</option>
+              <option value="false">{t('eleveOnboarding.deviceNo')}</option>
+            </select>
+
+            <FieldLabel>{t('eleveOnboarding.fieldParentADispositif')}</FieldLabel>
+            <select style={inputStyle} value={createForm.parentADispositif} onChange={e => setCreateForm(f => ({ ...f, parentADispositif: e.target.value as DispositifReponse }))}>
+              <option value="">{t('eleveOnboarding.deviceUnknown')}</option>
+              <option value="true">{t('eleveOnboarding.deviceYes')}</option>
+              <option value="false">{t('eleveOnboarding.deviceNo')}</option>
             </select>
 
             {createError && <div style={{ background: 'var(--red-light,#fef2f2)', color: 'var(--red)', borderRadius: 8, padding: '8px 12px', fontSize: 13, marginTop: 14 }}>{createError}</div>}

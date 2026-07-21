@@ -79,16 +79,26 @@ const smsTemplates = {
     en: (name: string, amount: string, types: string) => `ZekoulABia: REMINDER — MINESEC fees (${types}) of ${amount} XAF overdue for ${name}. This payment is made exclusively on cartescolaire.cm.`,
   },
   onboardingLink: {
-    fr: (nomProvisoire: string, schoolName: string, expiryDays: number) => `ZekoulABia: ${schoolName} vous invite à compléter le dossier d'inscription de ${nomProvisoire}. Consultez votre email pour le lien (valable ${expiryDays} jours).`,
-    en: (nomProvisoire: string, schoolName: string, expiryDays: number) => `ZekoulABia: ${schoolName} invites you to complete ${nomProvisoire}'s enrollment file. Check your email for the link (valid ${expiryDays} days).`,
+    // Le lien est inclus directement dans le SMS (pas seulement "consultez votre email") : le
+    // contact peut n'avoir aucune adresse email du tout (Axe 2, Plan_Diversite_Numerique) — le
+    // SMS doit rester exploitable seul, sans dépendre du canal email.
+    fr: (nomProvisoire: string, schoolName: string, expiryDays: number, formUrl: string) => `ZekoulABia: ${schoolName} vous invite à compléter le dossier d'inscription de ${nomProvisoire} (valable ${expiryDays} jours) : ${formUrl}`,
+    en: (nomProvisoire: string, schoolName: string, expiryDays: number, formUrl: string) => `ZekoulABia: ${schoolName} invites you to complete ${nomProvisoire}'s enrollment file (valid ${expiryDays} days): ${formUrl}`,
   },
   onboardingReminder: {
-    fr: (nomProvisoire: string, schoolName: string) => `ZekoulABia: RAPPEL — Le dossier d'inscription de ${nomProvisoire} pour ${schoolName} n'est pas encore complété. Consultez votre email pour le lien.`,
-    en: (nomProvisoire: string, schoolName: string) => `ZekoulABia: REMINDER — ${nomProvisoire}'s enrollment file for ${schoolName} is not yet completed. Check your email for the link.`,
+    fr: (nomProvisoire: string, schoolName: string, formUrl: string) => `ZekoulABia: RAPPEL — Le dossier d'inscription de ${nomProvisoire} pour ${schoolName} n'est pas encore complété : ${formUrl}`,
+    en: (nomProvisoire: string, schoolName: string, formUrl: string) => `ZekoulABia: REMINDER — ${nomProvisoire}'s enrollment file for ${schoolName} is not yet completed: ${formUrl}`,
   },
   onboardingActivated: {
-    fr: (schoolName: string) => `ZekoulABia: Le dossier d'inscription a été validé par ${schoolName}. Consultez votre email pour configurer votre mot de passe.`,
-    en: (schoolName: string) => `ZekoulABia: The enrollment file has been validated by ${schoolName}. Check your email to set up your password.`,
+    fr: (schoolName: string, setupUrl: string) => `ZekoulABia: Le dossier d'inscription a été validé par ${schoolName}. Configurez votre mot de passe : ${setupUrl}`,
+    en: (schoolName: string, setupUrl: string) => `ZekoulABia: The enrollment file has been validated by ${schoolName}. Set up your password: ${setupUrl}`,
+  },
+  // accessMode=SMS_ONLY : aucun lien d'activation n'est jamais envoyé (le contact n'a aucun
+  // dispositif capable de l'ouvrir) — le compte existe, mais sa configuration se fait en
+  // présentiel à l'établissement.
+  onboardingActivatedSmsOnly: {
+    fr: (schoolName: string) => `ZekoulABia: Le dossier d'inscription a été validé par ${schoolName}. Présentez-vous à l'établissement pour finaliser l'accès au compte.`,
+    en: (schoolName: string) => `ZekoulABia: The enrollment file has been validated by ${schoolName}. Please visit the school in person to finalize account access.`,
   },
 }
 
@@ -524,11 +534,12 @@ export async function notifyOnboardingLinkSms(opts: {
   schoolName: string
   phone: string | null
   expiryDays: number
+  formUrl: string
 }): Promise<void> {
   try {
     if (!opts.phone) return
     const lang = await resolveSchoolBaseLanguage(opts.schoolId)
-    const message = smsTemplates.onboardingLink[lang](opts.nomProvisoire, opts.schoolName, opts.expiryDays)
+    const message = smsTemplates.onboardingLink[lang](opts.nomProvisoire, opts.schoolName, opts.expiryDays, opts.formUrl)
     await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
   } catch (err) {
     console.error('[SMS Onboarding Lien] Erreur inattendue:', err)
@@ -540,11 +551,12 @@ export async function notifyOnboardingReminderSms(opts: {
   nomProvisoire: string
   schoolName: string
   phone: string | null
+  formUrl: string
 }): Promise<void> {
   try {
     if (!opts.phone) return
     const lang = await resolveSchoolBaseLanguage(opts.schoolId)
-    const message = smsTemplates.onboardingReminder[lang](opts.nomProvisoire, opts.schoolName)
+    const message = smsTemplates.onboardingReminder[lang](opts.nomProvisoire, opts.schoolName, opts.formUrl)
     await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
   } catch (err) {
     console.error('[SMS Onboarding Relance] Erreur inattendue:', err)
@@ -555,13 +567,30 @@ export async function notifyOnboardingActivatedSms(opts: {
   schoolId: string
   schoolName: string
   phone: string | null
+  setupUrl: string
 }): Promise<void> {
   try {
     if (!opts.phone) return
     const lang = await resolveSchoolBaseLanguage(opts.schoolId)
-    const message = smsTemplates.onboardingActivated[lang](opts.schoolName)
+    const message = smsTemplates.onboardingActivated[lang](opts.schoolName, opts.setupUrl)
     await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
   } catch (err) {
     console.error('[SMS Onboarding Activé] Erreur inattendue:', err)
+  }
+}
+
+/** accessMode=SMS_ONLY : jamais de lien (le contact n'a aucun dispositif capable de l'ouvrir). */
+export async function notifyOnboardingActivatedSmsOnly(opts: {
+  schoolId: string
+  schoolName: string
+  phone: string | null
+}): Promise<void> {
+  try {
+    if (!opts.phone) return
+    const lang = await resolveSchoolBaseLanguage(opts.schoolId)
+    const message = smsTemplates.onboardingActivatedSmsOnly[lang](opts.schoolName)
+    await dispatchSms(opts.schoolId, opts.phone, message, 'ONBOARDING')
+  } catch (err) {
+    console.error('[SMS Onboarding Activé (SMS_ONLY)] Erreur inattendue:', err)
   }
 }

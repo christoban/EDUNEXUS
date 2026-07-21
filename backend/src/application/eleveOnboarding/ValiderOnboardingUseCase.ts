@@ -17,9 +17,14 @@
  *   - PARENT    : le compte élève n'a pas de coordonnées propres (email/phone null) ;
  *                 un compte PARENT (User + ParentProfile + ParentStudent) est créé et
  *                 reçoit les coordonnées + le lien de configuration.
- *   - LES_DEUX  : les deux comptes reçoivent les coordonnées (mêmes contactEmail/
- *                 contactTelephone — le modèle StudentOnboarding n'a qu'un seul couple
- *                 de coordonnées, pas un par destinataire) et un lien chacun.
+ *   - LES_DEUX  : si le dossier porte deux coordonnées distinctes (parentContactEmail/
+ *                 parentContactTelephone renseignées — Axe 2, Plan_Diversite_Numerique),
+ *                 le compte élève reçoit contactEmail/contactTelephone et le compte parent
+ *                 reçoit les coordonnées parent séparées, chacun avec son propre lien.
+ *                 Sinon (dossier créé avant cet ajout, ou seul un contact partagé a été
+ *                 saisi), retombe sur l'ancien comportement : seul le compte PARENT reçoit
+ *                 le contact partagé (contrainte @@unique([schoolId, email/phone]) sur User
+ *                 oblige — deux comptes de rôles différents ne peuvent pas partager un contact).
  * Le lien parent↔élève (ParentStudent) est indispensable au-delà du simple accès :
  * tout le système de notifications (SMS absences, paiements, bulletins...) résout le
  * téléphone à contacter via ParentStudent → ParentProfile → User.phone, JAMAIS via le
@@ -31,6 +36,12 @@
  * Si un compte PARENT existe déjà pour ce contact dans l'école (cas fréquent : un autre
  * enfant déjà scolarisé), il est réutilisé — pas de doublon, pas de nouveau mot de passe
  * à configurer (contrainte @@unique([schoolId, email/phone]) sur User de toute façon).
+ *
+ * accessMode=SMS_ONLY (Axe 2) : si le destinataire a explicitement déclaré n'avoir aucun
+ * dispositif capable d'ouvrir un lien (eleveADispositif/parentADispositif = false) mais
+ * possède un numéro de téléphone, aucun resetToken n'est généré — le compte existe et reste
+ * pleinement fonctionnel pour tout le reste du système (notes, présence...), mais son
+ * activation se fait en présentiel à l'établissement plutôt que via un lien envoyé par SMS.
  */
 import type { PrismaClient } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
@@ -76,19 +87,32 @@ export class ValiderOnboardingUseCase {
     const gender = typeof submitted.gender === 'string' ? submitted.gender : null;
 
     const recipientType = onboarding.recipientType as 'ELEVE' | 'PARENT' | 'LES_DEUX';
-    // StudentOnboarding n'a qu'UN SEUL couple contactEmail/contactTelephone (pas un par
-    // destinataire), et User a une contrainte @@unique([schoolId, email/phone]) — deux
-    // comptes de rôles différents ne peuvent donc JAMAIS partager le même contact dans
-    // la même école (l'un des deux create() violerait la contrainte). Pour LES_DEUX, le
-    // compte PARENT reçoit le contact (priorité aux notifications, voir le commentaire
-    // de tête) et le compte élève n'a pas de coordonnées propres, comme pour PARENT seul.
-    // Distinction PARENT vs LES_DEUX à affiner si le formulaire collecte un jour deux
-    // contacts séparés (un pour l'élève, un pour le parent).
-    const eleveRecoitContact = recipientType === 'ELEVE';
+    // Un dossier LES_DEUX peut désormais porter deux coordonnées distinctes
+    // (parentContactEmail/parentContactTelephone) — dans ce cas, le compte élève reçoit
+    // contactEmail/contactTelephone (les siens) et le compte parent reçoit les coordonnées
+    // parent séparées. Sans ces champs (PARENT seul, ou dossier LES_DEUX créé avant leur
+    // ajout), on retombe sur l'ancien comportement : seul le compte PARENT reçoit le contact
+    // partagé — nécessaire car @@unique([schoolId, email/phone]) sur User empêcherait deux
+    // comptes de rôles différents de partager le même contact dans la même école.
+    const hasDistinctParentContact = !!(onboarding.parentContactEmail || onboarding.parentContactTelephone);
+    const eleveRecoitContact = recipientType === 'ELEVE' || (recipientType === 'LES_DEUX' && hasDistinctParentContact);
     const parentRecoitContact = recipientType === 'PARENT' || recipientType === 'LES_DEUX';
 
+    const eleveContactEmail = eleveRecoitContact ? onboarding.contactEmail : null;
+    const eleveContactTelephone = eleveRecoitContact ? onboarding.contactTelephone : null;
+    const parentContactEmailUtilise = hasDistinctParentContact ? onboarding.parentContactEmail : onboarding.contactEmail;
+    const parentContactTelephoneUtilise = hasDistinctParentContact ? onboarding.parentContactTelephone : onboarding.contactTelephone;
+
+    // accessMode=SMS_ONLY seulement si le dispositif a été explicitement déclaré absent
+    // (jamais si l'info est inconnue/null — Principe : ne jamais restreindre faute d'avoir
+    // posé la question) ET qu'un numéro existe pour recevoir au moins une notification.
+    const eleveAccessMode: 'FULL_ACCESS' | 'SMS_ONLY' =
+      onboarding.eleveADispositif === false && !!eleveContactTelephone ? 'SMS_ONLY' : 'FULL_ACCESS';
+    const parentAccessMode: 'FULL_ACCESS' | 'SMS_ONLY' =
+      onboarding.parentADispositif === false && !!parentContactTelephoneUtilise ? 'SMS_ONLY' : 'FULL_ACCESS';
+
     const studentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
-    const studentReset = eleveRecoitContact ? genererIdentifiants() : null;
+    const studentReset = eleveRecoitContact && eleveAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
 
     const { studentProfile, comptesCrees } = await this.prisma.$transaction(async (tx) => {
       const studentUser = await (tx as any).user.create({
@@ -97,11 +121,12 @@ export class ValiderOnboardingUseCase {
           role: 'STUDENT',
           firstName: prenom,
           lastName: nom,
-          email: eleveRecoitContact ? onboarding.contactEmail : null,
-          phone: eleveRecoitContact ? onboarding.contactTelephone : null,
+          email: eleveContactEmail,
+          phone: eleveContactTelephone,
           passwordHash: studentPassword,
           resetPasswordToken: studentReset?.resetTokenHash ?? null,
           resetPasswordTokenExpiry: studentReset?.resetTokenExpiry ?? null,
+          accessMode: eleveAccessMode,
           isActive: true,
         },
       });
@@ -120,15 +145,16 @@ export class ValiderOnboardingUseCase {
         role: 'STUDENT',
         userId: studentUser.id,
         resetToken: studentReset?.resetToken ?? null,
-        contactEmail: eleveRecoitContact ? onboarding.contactEmail : null,
-        contactTelephone: eleveRecoitContact ? onboarding.contactTelephone : null,
+        contactEmail: eleveContactEmail,
+        contactTelephone: eleveContactTelephone,
         compteExistant: false,
+        accessMode: eleveAccessMode,
       }];
 
       if (parentRecoitContact) {
         const contactFilters = [
-          onboarding.contactEmail ? { email: onboarding.contactEmail } : null,
-          onboarding.contactTelephone ? { phone: onboarding.contactTelephone } : null,
+          parentContactEmailUtilise ? { email: parentContactEmailUtilise } : null,
+          parentContactTelephoneUtilise ? { phone: parentContactTelephoneUtilise } : null,
         ].filter(Boolean) as Record<string, string>[];
 
         const existingParentUser = contactFilters.length > 0
@@ -147,7 +173,7 @@ export class ValiderOnboardingUseCase {
           parentReset = null;
           compteExistant = true;
         } else {
-          parentReset = genererIdentifiants();
+          parentReset = parentAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
           const parentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
           const parentUser = await (tx as any).user.create({
             data: {
@@ -155,11 +181,12 @@ export class ValiderOnboardingUseCase {
               role: 'PARENT',
               firstName: 'Parent de',
               lastName: nom,
-              email: onboarding.contactEmail,
-              phone: onboarding.contactTelephone,
+              email: parentContactEmailUtilise,
+              phone: parentContactTelephoneUtilise,
               passwordHash: parentPassword,
-              resetPasswordToken: parentReset.resetTokenHash,
-              resetPasswordTokenExpiry: parentReset.resetTokenExpiry,
+              resetPasswordToken: parentReset?.resetTokenHash ?? null,
+              resetPasswordTokenExpiry: parentReset?.resetTokenExpiry ?? null,
+              accessMode: parentAccessMode,
               isActive: true,
             },
           });
@@ -177,9 +204,10 @@ export class ValiderOnboardingUseCase {
           role: 'PARENT',
           userId: parentUserId,
           resetToken: parentReset?.resetToken ?? null,
-          contactEmail: onboarding.contactEmail,
-          contactTelephone: onboarding.contactTelephone,
+          contactEmail: parentContactEmailUtilise,
+          contactTelephone: parentContactTelephoneUtilise,
           compteExistant,
+          accessMode: parentAccessMode,
         });
       }
 

@@ -7,6 +7,7 @@
  * (pattern déjà en place dans ce projet pour matricule/paiementMinesec/entranceExam).
  */
 import type { OnboardingRecipient, OnboardingSource, OnboardingStatus } from './types';
+import type { SectionCycle } from '../../utils/coreDomainDefaults';
 
 /**
  * Détermine le destinataire du lien d'onboarding.
@@ -14,15 +15,38 @@ import type { OnboardingRecipient, OnboardingSource, OnboardingStatus } from './
  * Règle métier n°3 de la spec : un candidat CONCOURS est quasi systématiquement mineur
  * (admission en 6e) — recipientType=PARENT est donc forcé STRUCTURELLEMENT, indépendamment
  * de tout réglage (ageThresholdForParent, defaultRecipient, ou même une valeur explicite
- * passée par l'appelant). C'est le seul cas où l'appelant ne peut PAS override.
+ * passée par l'appelant). Même chose pour une classe de maternelle/primaire (Axe 3, Plan
+ * Diversité Numérique) : l'élève n'a jamais de compte propre, seul le parent en a un — ce
+ * sont les DEUX SEULS cas où l'appelant ne peut PAS override.
+ *
+ * La capacité numérique déclarée (eleveADispositif/parentADispositif) et ageThresholdForParent
+ * ne sont que des signaux de repli, appliqués seulement si aucun recipientType explicite n'a
+ * été fourni — jamais forcés, car contrairement à CONCOURS/maternelle-primaire ils ne sont pas
+ * des faits structurels mais des informations pouvant être erronées ou changer.
  */
 export function determinerRecipientType(params: {
   sourceType: OnboardingSource;
   recipientTypeExplicite?: OnboardingRecipient;
   defaultRecipient?: OnboardingRecipient;
+  sectionCycle?: SectionCycle | null;
+  eleveADispositif?: boolean | null;
+  parentADispositif?: boolean | null;
+  studentAge?: number | null;
+  ageThresholdForParent?: number;
 }): OnboardingRecipient {
   if (params.sourceType === 'CONCOURS') return 'PARENT';
-  return params.recipientTypeExplicite ?? params.defaultRecipient ?? 'ELEVE';
+  if (params.sectionCycle === 'maternelle' || params.sectionCycle === 'primaire') return 'PARENT';
+  if (params.recipientTypeExplicite) return params.recipientTypeExplicite;
+  // Élève sans dispositif mais parent équipé → seul le parent peut recevoir/compléter le lien.
+  if (params.eleveADispositif === false && params.parentADispositif === true) return 'PARENT';
+  if (
+    params.studentAge != null &&
+    params.ageThresholdForParent != null &&
+    params.studentAge < params.ageThresholdForParent
+  ) {
+    return 'PARENT';
+  }
+  return params.defaultRecipient ?? 'ELEVE';
 }
 
 /**

@@ -5,6 +5,7 @@ import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboardi
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
 import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
 import { notifierOnboardingLienCree, notifierOnboardingValidation } from '../../../utils/onboardingNotifications';
+import { generateOnboardingFormPdf } from '../../../utils/onboardingDocuments';
 
 /**
  * Préfixe /api/v2/eleve-onboarding — distinct de /api/v2/onboarding (déjà pris par
@@ -34,14 +35,37 @@ export class EleveOnboardingController {
     private readonly prisma: PrismaClient,
   ) {}
 
+  // ADMIN a toujours accès ; STAFF doit détenir MANAGE_ENROLLMENT (typiquement Intendant/
+  // Économe/Bursar — celui qui encaisse déjà l'inscription). Ne gate pas les deux routes
+  // publiques token, qui n'ont pas de req.user.
+  private checkEnrollmentPermission(req: Request, res: Response): boolean {
+    const user = req.user!;
+    if (user.role === 'ADMIN') return true;
+    const perms = user.permissions ?? [];
+    if (!perms.includes('MANAGE_ENROLLMENT')) {
+      res.status(403).json({ success: false, message: 'Permission MANAGE_ENROLLMENT requise' });
+      return false;
+    }
+    return true;
+  }
+
   // POST /api/v2/eleve-onboarding
   creer = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const createdById = req.user!.userId;
-      const { nomProvisoire, classId, contactEmail, contactTelephone, recipientType, sourceType, examCandidateId } = req.body as {
+      const {
+        nomProvisoire, classId, contactEmail, contactTelephone, parentContactEmail, parentContactTelephone,
+        recipientType, sourceType, examCandidateId,
+        eleveADispositif, eleveDispositifOS, parentADispositif, parentDispositifOS, aucunContactDisponible,
+      } = req.body as {
         nomProvisoire?: string; classId?: string; contactEmail?: string; contactTelephone?: string;
+        parentContactEmail?: string; parentContactTelephone?: string;
         recipientType?: 'ELEVE' | 'PARENT' | 'LES_DEUX'; sourceType?: 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS'; examCandidateId?: string;
+        eleveADispositif?: boolean; eleveDispositifOS?: 'ANDROID' | 'IOS' | 'AUTRE';
+        parentADispositif?: boolean; parentDispositifOS?: 'ANDROID' | 'IOS' | 'AUTRE';
+        aucunContactDisponible?: boolean;
       };
       if (!nomProvisoire?.trim()) {
         res.status(400).json({ success: false, message: 'nomProvisoire requis' });
@@ -49,7 +73,9 @@ export class EleveOnboardingController {
       }
 
       const result = await this._creerSquelette.execute({
-        schoolId, createdById, nomProvisoire, classId, contactEmail, contactTelephone, recipientType, sourceType, examCandidateId,
+        schoolId, createdById, nomProvisoire, classId, contactEmail, contactTelephone,
+        parentContactEmail, parentContactTelephone, recipientType, sourceType, examCandidateId,
+        eleveADispositif, eleveDispositifOS, parentADispositif, parentDispositifOS, aucunContactDisponible,
       });
       res.json({ success: true, data: result });
       void notifierOnboardingLienCree(this.prisma, schoolId, nomProvisoire, result);
@@ -92,6 +118,8 @@ export class EleveOnboardingController {
           classeSuggeree: onboarding.classe ? { name: onboarding.classe.name, level: onboarding.classe.level } : null,
           recipientType: onboarding.recipientType,
           sourceType: onboarding.sourceType,
+          eleveADispositif: onboarding.eleveADispositif,
+          parentADispositif: onboarding.parentADispositif,
         },
       });
     } catch (err: any) {
@@ -103,15 +131,18 @@ export class EleveOnboardingController {
   soumettre = async (req: Request, res: Response, _next: NextFunction) => {
     try {
       const token = String(req.params['token']);
-      const { nom, prenom, dateNaissance, ...donneesComplementaires } = req.body as {
-        nom?: string; prenom?: string; dateNaissance?: string; [key: string]: unknown;
+      const { nom, prenom, dateNaissance, eleveADispositif, parentADispositif, ...donneesComplementaires } = req.body as {
+        nom?: string; prenom?: string; dateNaissance?: string;
+        eleveADispositif?: boolean; parentADispositif?: boolean; [key: string]: unknown;
       };
       if (!nom?.trim() || !prenom?.trim()) {
         res.status(400).json({ success: false, message: 'nom et prénom requis' });
         return;
       }
 
-      const result = await this._soumettreFormulaire.execute({ token, nom, prenom, dateNaissance, donneesComplementaires });
+      const result = await this._soumettreFormulaire.execute({
+        token, nom, prenom, dateNaissance, donneesComplementaires, eleveADispositif, parentADispositif,
+      });
       res.json({ success: true, data: result });
     } catch (err: any) {
       res.status(400).json({ success: false, message: err.message || 'Soumission impossible' });
@@ -121,6 +152,7 @@ export class EleveOnboardingController {
   // GET /api/v2/eleve-onboarding?status=PENDING_VALIDATION
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const status = req.query['status'] as string | undefined;
       const dossiers = await (this.prisma as any).studentOnboarding.findMany({
@@ -136,6 +168,7 @@ export class EleveOnboardingController {
   // POST /api/v2/eleve-onboarding/:id/validate
   valider = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const validatedById = req.user!.userId;
       const validatorRole = req.user!.role;
@@ -151,6 +184,7 @@ export class EleveOnboardingController {
   // POST /api/v2/eleve-onboarding/:id/reject
   rejeter = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const rejectedById = req.user!.userId;
       const validatorRole = req.user!.role;
@@ -169,6 +203,7 @@ export class EleveOnboardingController {
   // GET /api/v2/eleve-onboarding/settings
   getSettings = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const settings = await (this.prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId } });
       res.json({
@@ -212,6 +247,7 @@ export class EleveOnboardingController {
   // POST /api/v2/eleve-onboarding/:id/resend-link
   renvoyerLien = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const createdById = req.user!.userId;
       const onboardingId = String(req.params['id']);
@@ -235,12 +271,52 @@ export class EleveOnboardingController {
         classId: existing.classId,
         contactEmail: existing.contactEmail,
         contactTelephone: existing.contactTelephone,
+        parentContactEmail: existing.parentContactEmail,
+        parentContactTelephone: existing.parentContactTelephone,
         recipientType: existing.recipientType,
         sourceType: existing.sourceType,
         examCandidateId: existing.examCandidateId,
+        eleveADispositif: existing.eleveADispositif,
+        eleveDispositifOS: existing.eleveDispositifOS,
+        parentADispositif: existing.parentADispositif,
+        parentDispositifOS: existing.parentDispositifOS,
+        aucunContactDisponible: !existing.contactEmail && !existing.contactTelephone && !existing.parentContactEmail && !existing.parentContactTelephone,
       });
       res.json({ success: true, data: result });
       void notifierOnboardingLienCree(this.prisma, schoolId, existing.nomProvisoire, result);
+    } catch (err) { next(err); }
+  };
+
+  // GET /api/v2/eleve-onboarding/:id/pdf — version imprimable du formulaire, pour les familles
+  // sans aucun accès numérique (Axe 2, Plan Diversité Numérique) : même contenu que le
+  // formulaire en ligne, à remplir à la main puis ressaisir sur place par le staff.
+  exporterPdf = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!this.checkEnrollmentPermission(req, res)) return;
+      const schoolId = req.user!.schoolId;
+      const onboardingId = String(req.params['id']);
+
+      const onboarding = await (this.prisma as any).studentOnboarding.findFirst({
+        where: { id: onboardingId, schoolId },
+        include: { classe: { select: { name: true } }, school: { select: { name: true } } },
+      });
+      if (!onboarding) {
+        res.status(404).json({ success: false, message: 'Dossier introuvable' });
+        return;
+      }
+
+      const formUrl = `${process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000'}/eleve-onboarding/${onboarding.token}`;
+      const pdf = await generateOnboardingFormPdf({
+        schoolName: onboarding.school?.name ?? 'Établissement',
+        nomProvisoire: onboarding.nomProvisoire,
+        classeSuggeree: onboarding.classe?.name ?? null,
+        recipientType: onboarding.recipientType,
+        formUrl,
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="onboarding-${onboarding.id}.pdf"`);
+      res.send(pdf);
     } catch (err) { next(err); }
   };
 }

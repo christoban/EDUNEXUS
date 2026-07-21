@@ -47,9 +47,9 @@ export const relanceOnboarding = inngest.createFunction(
       // ── Relance : un des jours configurés depuis la création ──
       if (reminderDelayDays.includes(daysSinceCreated)) {
         await step.run(`relance-${dossier.id}-j${daysSinceCreated}`, async () => {
+          const formUrl = `${frontendUrl}/eleve-onboarding/${dossier.token}`;
           if (dossier.contactEmail) {
             const expiryDaysLeft = Math.max(1, Math.round((dossier.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
-            const formUrl = `${frontendUrl}/eleve-onboarding/${dossier.token}`;
             const tpl = buildOnboardingLinkTemplate({ nomProvisoire: dossier.nomProvisoire, schoolName, formUrl, expiryDays: expiryDaysLeft });
             await sendTransactionalEmail({
               recipientEmail: dossier.contactEmail,
@@ -62,7 +62,25 @@ export const relanceOnboarding = inngest.createFunction(
             }).catch(err => console.error('[Email] Échec relance onboarding:', err?.message));
           }
           if (dossier.contactTelephone) {
-            await notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.contactTelephone });
+            await notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.contactTelephone, formUrl });
+          }
+          // Contact parent distinct (LES_DEUX avec deux coordonnées séparées) — relancé en plus,
+          // pas à la place, du contact élève.
+          if (dossier.parentContactEmail) {
+            const expiryDaysLeft = Math.max(1, Math.round((dossier.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+            const tpl = buildOnboardingLinkTemplate({ nomProvisoire: dossier.nomProvisoire, schoolName, formUrl, expiryDays: expiryDaysLeft });
+            await sendTransactionalEmail({
+              recipientEmail: dossier.parentContactEmail,
+              subject: `RAPPEL — ${tpl.subject}`,
+              template: 'user_invite',
+              eventType: 'user_invite',
+              html: tpl.html,
+              text: tpl.text,
+              metadata: { schoolId: dossier.schoolId },
+            }).catch(err => console.error('[Email] Échec relance onboarding (parent):', err?.message));
+          }
+          if (dossier.parentContactTelephone) {
+            await notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.parentContactTelephone, formUrl });
           }
           await (prisma as any).studentOnboarding.update({
             where: { id: dossier.id },

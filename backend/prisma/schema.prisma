@@ -210,8 +210,8 @@ model StudentRecommendation {
   schoolId      String
   studentId     String
   subjectId     String?
-  recipientRole String   // 'STUDENT' | 'PARENT' | 'TEACHER'
-  contextType   String   // 'HEALTH_CRITICAL' | 'HEALTH_WARNING' | 'HEALTH_POSITIVE' | 'SUBJECT_DROP'
+  recipientRole String // 'STUDENT' | 'PARENT' | 'TEACHER'
+  contextType   String // 'HEALTH_CRITICAL' | 'HEALTH_WARNING' | 'HEALTH_POSITIVE' | 'SUBJECT_DROP'
   content       String   @db.Text
   createdAt     DateTime @default(now())
 
@@ -244,31 +244,31 @@ enum AcademicEventStatus {
 }
 
 model AcademicEvent {
-  id             String                @id @default(cuid())
-  schoolId       String
-  type           String                // 'RENTREE_6E_5E' | 'MIGRATION_BILINGUE' | 'CHOIX_LV2' | 'CLOTURE_ANNEE' | 'AUTRE'
-  category       AcademicEventCategory
-  title          String
-  description    String?
+  id               String                @id @default(cuid())
+  schoolId         String
+  type             String // 'RENTREE_6E_5E' | 'MIGRATION_BILINGUE' | 'CHOIX_LV2' | 'CLOTURE_ANNEE' | 'AUTRE'
+  category         AcademicEventCategory
+  title            String
+  description      String?
   // Rôles concernés par la notification d'ouverture / le rappel — ex. ['PARENT','STUDENT'].
-  targetRoles    String[]
+  targetRoles      String[]
   // Niveau concerné — utilisé uniquement quand type = 'CHOIX_LV2' (Lv2ChoiceWindow est scopée
   // par niveau, pas seulement par école). Null pour tous les autres types d'événement.
-  level          String?
-  openDate       DateTime?             // null tant qu'un MANUAL_TRIGGER n'a pas été déclenché
-  closeDate      DateTime?
-  status         AcademicEventStatus   @default(UPCOMING)
+  level            String?
+  openDate         DateTime? // null tant qu'un MANUAL_TRIGGER n'a pas été déclenché
+  closeDate        DateTime?
+  status           AcademicEventStatus   @default(UPCOMING)
   // Id de la ressource métier réelle ouverte par cet événement (ex. Lv2ChoiceWindow.id pour
   // CHOIX_LV2) — l'événement académique déclenche la fonctionnalité réelle, il n'est jamais un
   // simple rappel décoratif à côté d'elle. Null pour les types d'événement sans ressource liée.
   linkedResourceId String?
-  triggeredById  String?
-  triggeredAt    DateTime?
+  triggeredById    String?
+  triggeredAt      DateTime?
   // Empêche l'envoi répété du rappel de clôture à chaque passage du job quotidien.
-  reminderSentAt DateTime?
-  createdById    String
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  reminderSentAt   DateTime?
+  createdById      String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   school      School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   triggeredBy User?  @relation("AcademicEventTriggeredBy", fields: [triggeredById], references: [id])
@@ -286,7 +286,7 @@ model SchoolCalendarException {
   schoolId  String
   date      DateTime
   label     String
-  type      String   // 'FERMETURE' | 'JOURNEE_SPECIALE'
+  type      String // 'FERMETURE' | 'JOURNEE_SPECIALE'
   createdAt DateTime @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -381,6 +381,11 @@ model User {
   lastName                        String
   avatarUrl                       String?
   isActive                        Boolean                    @default(true)
+  // Défaut FULL_ACCESS. SMS_ONLY : compte créé (grades/présence/etc. fonctionnent normalement)
+  // mais aucun lien d'activation/notification n'est jamais envoyé — la seule famille n'a pas de
+  // smartphone du tout (Axe 2, Plan_Diversite_Numerique). Orthogonal à recipientType, qui
+  // détermine QUI reçoit le lien, pas COMMENT on le contacte ensuite.
+  accessMode                      UserAccessMode             @default(FULL_ACCESS)
   refreshTokenVersion             Int                        @default(0)
   lastLogin                       DateTime?
   createdAt                       DateTime                   @default(now())
@@ -1272,13 +1277,13 @@ model NotificationPreference {
 }
 
 model PushSubscription {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   endpoint   String
   p256dh     String
   auth       String
   userAgent  String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1287,7 +1292,7 @@ model PushSubscription {
 }
 
 model DisciplineRecord {
-  id             String                     @id @default(cuid())
+  id             String                    @id @default(cuid())
   schoolId       String
   studentId      String
   type           DisciplineType
@@ -1295,11 +1300,11 @@ model DisciplineRecord {
   decidedById    String
   startDate      DateTime?
   endDate        DateTime?
-  status         DisciplineStatus           @default(ACTIVE)
-  createdAt      DateTime                   @default(now())
-  school         School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  decidedBy      User                       @relation("DisciplineDecidedBy", fields: [decidedById], references: [id])
-  student        User                       @relation("StudentDiscipline", fields: [studentId], references: [id])
+  status         DisciplineStatus          @default(ACTIVE)
+  createdAt      DateTime                  @default(now())
+  school         School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  decidedBy      User                      @relation("DisciplineDecidedBy", fields: [decidedById], references: [id])
+  student        User                      @relation("StudentDiscipline", fields: [studentId], references: [id])
   councilSession DisciplineCouncilSession?
 
   @@index([schoolId, studentId])
@@ -1689,6 +1694,11 @@ enum UserRole {
   STUDENT
 }
 
+enum UserAccessMode {
+  FULL_ACCESS // défaut : lien d'activation, notifications push/email envoyés normalement
+  SMS_ONLY // dossier + contact existent mais aucun lien d'activation n'est jamais envoyé
+}
+
 enum SectionLanguage {
   FR
   EN
@@ -1725,6 +1735,7 @@ enum StaffPermissionType {
   MANAGE_DEGRADATIONS
   MANAGE_LIBRARY
   MANAGE_ORIENTATION
+  MANAGE_ENROLLMENT
 }
 
 enum AcademicYearStatus {
@@ -2737,12 +2748,27 @@ model StudentOnboarding {
   school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   // Squelette initial (rempli par l'établissement, ou généré depuis le concours)
-  nomProvisoire    String
-  classId          String? // suggestion, éditable jusqu'à validation — nullable comme StudentProfile.classId
-  classe           Class?              @relation(fields: [classId], references: [id])
-  contactEmail     String?
-  contactTelephone String?
-  recipientType    OnboardingRecipient @default(ELEVE)
+  nomProvisoire          String
+  classId                String? // suggestion, éditable jusqu'à validation — nullable comme StudentProfile.classId
+  classe                 Class?              @relation(fields: [classId], references: [id])
+  contactEmail           String? // contact élève — implicite "contact élève" quand recipientType = LES_DEUX
+  contactTelephone       String?
+  // Contact parent distinct, utilisé uniquement quand recipientType = LES_DEUX (deux comptes,
+  // deux moyens de contact indépendants). Si absents sur un dossier LES_DEUX, on retombe sur
+  // contactEmail/contactTelephone pour les deux comptes (dossiers créés avant cet ajout).
+  parentContactEmail     String?
+  parentContactTelephone String?
+  recipientType          OnboardingRecipient @default(ELEVE)
+
+  // Capacité d'accès numérique déclarée au moment du remplissage (staff en face-à-face pour
+  // AUTOSERVICE, famille elle-même sur le formulaire public pour CONCOURS) — null = non
+  // renseigné (ex. IMPORT_MASSE en masse). Sert à déterminer accessMode à la validation :
+  // aucun smartphone mais un numéro de téléphone existe → compte SMS_ONLY (jamais de lien
+  // d'activation envoyé). Ne jamais bloquer la création du dossier sur cette info (Principe 1).
+  eleveADispositif   Boolean?
+  eleveDispositifOS  String? // 'ANDROID' | 'IOS' | 'AUTRE' — informatif seulement
+  parentADispositif  Boolean?
+  parentDispositifOS String? // 'ANDROID' | 'IOS' | 'AUTRE' — informatif seulement
 
   // Traçabilité de la source
   sourceType      OnboardingSource       @default(AUTOSERVICE)

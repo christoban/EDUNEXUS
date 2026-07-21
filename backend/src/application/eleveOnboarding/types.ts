@@ -4,6 +4,8 @@ export type OnboardingStatus =
   | 'DRAFT' | 'LINK_SENT' | 'SUBMITTED' | 'PENDING_VALIDATION'
   | 'VALIDATED' | 'ACTIVATED' | 'REJECTED' | 'EXPIRED';
 
+export type DispositifOS = 'ANDROID' | 'IOS' | 'AUTRE';
+
 export interface CreerSqueletteOnboardingCommande {
   schoolId: string;
   createdById: string;
@@ -11,9 +13,22 @@ export interface CreerSqueletteOnboardingCommande {
   classId?: string | null;
   contactEmail?: string | null;
   contactTelephone?: string | null;
+  parentContactEmail?: string | null;
+  parentContactTelephone?: string | null;
   recipientType?: OnboardingRecipient;
   sourceType?: OnboardingSource;
   examCandidateId?: string | null;
+  /** Capacité numérique déclarée au moment du remplissage (staff face-à-face ou famille elle-même). */
+  eleveADispositif?: boolean | null;
+  eleveDispositifOS?: DispositifOS | null;
+  parentADispositif?: boolean | null;
+  parentDispositifOS?: DispositifOS | null;
+  /**
+   * Confirme explicitement que la famille n'a absolument aucun moyen de contact (ni email, ni
+   * téléphone, élève et parent). Seul ce flag permet de créer le dossier sans email/téléphone —
+   * jamais un simple oubli des deux champs (Principe 1 : le dossier doit toujours exister).
+   */
+  aucunContactDisponible?: boolean;
 }
 
 export interface CreerSqueletteOnboardingResultat {
@@ -34,6 +49,13 @@ export interface SoumettreFormulaireOnboardingCommande {
   dateNaissance?: string;
   /** Reste du formulaire (genre, école d'origine...), stocké tel quel dans submittedData. */
   donneesComplementaires?: Record<string, unknown>;
+  /**
+   * Capacité numérique déclarée par la famille elle-même — seul point de capture possible
+   * pour un dossier CONCOURS (créé sans contact humain, voir EnregistrerResultatCepUseCase).
+   * N'écrase la valeur existante que si explicitement fournie.
+   */
+  eleveADispositif?: boolean;
+  parentADispositif?: boolean;
 }
 
 export interface SoumettreFormulaireOnboardingResultat {
@@ -57,12 +79,17 @@ export interface ValiderOnboardingCommande {
 export interface ValiderOnboardingCompteResultat {
   role: 'STUDENT' | 'PARENT';
   userId: string;
-  /** Token EN CLAIR pour le lien "configurez votre mot de passe" — null si compte existant réutilisé (rien à configurer). */
+  /**
+   * Token EN CLAIR pour le lien "configurez votre mot de passe" — null si compte existant
+   * réutilisé (rien à configurer), OU si accessMode=SMS_ONLY (aucun lien n'est jamais généré).
+   */
   resetToken: string | null;
   contactEmail: string | null;
   contactTelephone: string | null;
   /** true si un compte PARENT existant a été réutilisé (autre enfant déjà scolarisé) plutôt que recréé. */
   compteExistant: boolean;
+  /** FULL_ACCESS par défaut ; SMS_ONLY si ce destinataire n'a déclaré aucun dispositif capable d'ouvrir un lien. */
+  accessMode: 'FULL_ACCESS' | 'SMS_ONLY';
 }
 
 export interface ValiderOnboardingResultat {

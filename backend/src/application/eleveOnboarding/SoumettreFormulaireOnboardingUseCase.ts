@@ -75,6 +75,8 @@ export class SoumettreFormulaireOnboardingUseCase {
         status: 'PENDING_VALIDATION',
         matchScore,
         matchedStudentId,
+        ...(cmd.eleveADispositif !== undefined && { eleveADispositif: cmd.eleveADispositif }),
+        ...(cmd.parentADispositif !== undefined && { parentADispositif: cmd.parentADispositif }),
       },
     });
 

@@ -34,6 +34,32 @@ describe('determinerRecipientType', () => {
     expect(determinerRecipientType({ sourceType: 'IMPORT_MASSE', recipientTypeExplicite: 'PARENT' })).toBe('PARENT');
     expect(determinerRecipientType({ sourceType: 'IMPORT_MASSE' })).toBe('ELEVE');
   });
+
+  it('force PARENT pour une classe de maternelle, même sans rien d\'autre renseigné', () => {
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', sectionCycle: 'maternelle' })).toBe('PARENT');
+  });
+
+  it('force PARENT pour une classe de primaire même si un recipientType explicite ELEVE est passé (aucun override possible)', () => {
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', sectionCycle: 'primaire', recipientTypeExplicite: 'ELEVE' })).toBe('PARENT');
+  });
+
+  it('ne force rien pour secondaire/technique (seuls maternelle/primaire sont forcés)', () => {
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', sectionCycle: 'secondaire' })).toBe('ELEVE');
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', sectionCycle: 'technique', defaultRecipient: 'ELEVE' })).toBe('ELEVE');
+  });
+
+  it('bascule sur PARENT quand l\'élève n\'a pas de dispositif mais le parent oui (signal de repli, pas de forçage)', () => {
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', eleveADispositif: false, parentADispositif: true })).toBe('PARENT');
+  });
+
+  it('un recipientType explicite prévaut sur le signal de capacité numérique', () => {
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', eleveADispositif: false, parentADispositif: true, recipientTypeExplicite: 'ELEVE' })).toBe('ELEVE');
+  });
+
+  it('utilise ageThresholdForParent comme repli secondaire quand l\'âge est connu et aucun recipientType explicite', () => {
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', studentAge: 12, ageThresholdForParent: 15 })).toBe('PARENT');
+    expect(determinerRecipientType({ sourceType: 'AUTOSERVICE', studentAge: 17, ageThresholdForParent: 15 })).toBe('ELEVE');
+  });
 });
 
 describe('peutTransitionnerDepuisPendingValidation (règle métier n°1 : PENDING_VALIDATION obligatoire)', () => {

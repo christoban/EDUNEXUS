@@ -13,6 +13,8 @@ interface DossierInfo {
   classeSuggeree: { name: string; level: string | null } | null
   recipientType: 'ELEVE' | 'PARENT' | 'LES_DEUX'
   sourceType: 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS'
+  eleveADispositif: boolean | null
+  parentADispositif: boolean | null
 }
 
 export default function EleveOnboardingPage() {
@@ -31,6 +33,8 @@ export default function EleveOnboardingPage() {
   const [dateNaissance, setDateNaissance] = useState('')
   const [gender, setGender] = useState<'M' | 'F' | ''>('')
   const [originSchool, setOriginSchool] = useState('')
+  const [eleveADispositif, setEleveADispositif] = useState<'' | 'true' | 'false'>('')
+  const [parentADispositif, setParentADispositif] = useState<'' | 'true' | 'false'>('')
 
   useEffect(() => {
     if (!token) return
@@ -68,7 +72,11 @@ export default function EleveOnboardingPage() {
       const res = await fetchApi(`/api/v2/eleve-onboarding/token/${token}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nom, prenom, dateNaissance: dateNaissance || undefined, gender: gender || undefined, originSchool: originSchool || undefined }),
+        body: JSON.stringify({
+          nom, prenom, dateNaissance: dateNaissance || undefined, gender: gender || undefined, originSchool: originSchool || undefined,
+          eleveADispositif: eleveADispositif ? eleveADispositif === 'true' : undefined,
+          parentADispositif: parentADispositif ? parentADispositif === 'true' : undefined,
+        }),
       })
       const data = await res.json()
       if (data.success) setState('submitted')
@@ -147,6 +155,17 @@ export default function EleveOnboardingPage() {
                 <input style={inputStyle} value={originSchool} onChange={e => setOriginSchool(e.target.value)} />
               </Field>
 
+              {(dossier.recipientType === 'ELEVE' || dossier.recipientType === 'LES_DEUX') && dossier.eleveADispositif == null && (
+                <Field label={t('eleveAutoservice.eleveADispositifLabel')}>
+                  <DeviceToggle value={eleveADispositif} onChange={setEleveADispositif} yesLabel={t('eleveAutoservice.deviceYes')} noLabel={t('eleveAutoservice.deviceNo')} />
+                </Field>
+              )}
+              {(dossier.recipientType === 'PARENT' || dossier.recipientType === 'LES_DEUX') && dossier.parentADispositif == null && (
+                <Field label={t('eleveAutoservice.parentADispositifLabel')}>
+                  <DeviceToggle value={parentADispositif} onChange={setParentADispositif} yesLabel={t('eleveAutoservice.deviceYes')} noLabel={t('eleveAutoservice.deviceNo')} />
+                </Field>
+              )}
+
               {submitError && (
                 <div style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>{submitError}</div>
               )}
@@ -168,6 +187,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 6 }}>{label}</div>
       {children}
+    </div>
+  )
+}
+
+function DeviceToggle({ value, onChange, yesLabel, noLabel }: { value: '' | 'true' | 'false'; onChange: (v: '' | 'true' | 'false') => void; yesLabel: string; noLabel: string }) {
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {([['true', yesLabel], ['false', noLabel]] as const).map(([v, label]) => (
+        <button key={v} type="button" onClick={() => onChange(v)}
+          style={{ flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', borderColor: value === v ? '#0f766e' : '#e5e7eb', background: value === v ? '#f0fdfa' : '#fff', color: value === v ? '#0f766e' : '#6b7280' }}>
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
