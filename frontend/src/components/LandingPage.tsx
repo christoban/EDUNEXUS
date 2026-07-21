@@ -438,9 +438,9 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           NAVBAR — hauteur 72px, padding horizontal 56px
       ══════════════════════════════════════════════════ */}
-      <nav className="px-4 md:px-14 gap-2 md:gap-10" style={{
+      <nav className="px-4 md:px-8 lg:px-14 gap-2 md:gap-4 lg:gap-10" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        height: 72, background: 'var(--surface)',
+        minHeight: 72, background: 'var(--surface)',
         borderBottom: '1.5px solid var(--border)',
         display: 'flex', alignItems: 'center',
         transition: 'box-shadow 200ms',
@@ -450,21 +450,22 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, minWidth: 0 }}>
           <img src="/logo.svg" alt="ZekoulABia" style={{ width: 32, height: 32, flexShrink: 0 }} />
           <span className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>ZekoulABia</span>
-          <span className="hidden lg:inline-block" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: 14, fontWeight: 700, borderRadius: 20, padding: '2px 11px', marginLeft: 4, whiteSpace: 'nowrap' }}>
+          <span className="hidden xl:inline-block" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: 14, fontWeight: 700, borderRadius: 20, padding: '2px 11px', marginLeft: 4, whiteSpace: 'nowrap' }}>
             {tx.nav.badge}
           </span>
         </div>
 
-        {/* Links — cachés sous md, la nav mobile se limite à connexion/démo */}
-        <div className="hidden md:flex" style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 36 }}>
+        {/* Links — cachés avant lg (1024px) : en dessous, pas assez de place pour tenir sur une
+            ligne sans retour à la ligne (testé et cassé à 1024px avant l'ajout de ce seuil). */}
+        <div className="hidden lg:flex gap-4 xl:gap-9" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           {[
             { label: tx.nav.features, href: '#fonctionnalites' },
             { label: tx.nav.howItWorks, href: '#comment' },
             { label: tx.nav.plans, href: '#plans' },
             { label: tx.nav.contact, href: '#contact' },
           ].map(link => (
-            <a key={link.href} href={link.href}
-              style={{ fontSize: 17, fontWeight: 600, color: 'var(--text2)', textDecoration: 'none', transition: 'color 150ms' }}
+            <a key={link.href} href={link.href} className="text-[15px] xl:text-[17px]"
+              style={{ fontWeight: 600, color: 'var(--text2)', textDecoration: 'none', transition: 'color 150ms', whiteSpace: 'nowrap' }}
               onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--green)' }}
               onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--text2)' }}
             >{link.label}</a>
@@ -474,8 +475,8 @@ export default function LandingPage() {
         {/* Right actions */}
         <div className="gap-2 md:gap-3" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
           <span className="hidden sm:inline-flex"><LanguageSwitch /></span>
-          <a href="/login" className="py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px]" style={{ ...btnSecondary, padding: undefined, fontSize: undefined }}>{tx.nav.login}</a>
-          <button onClick={openDemo} className="hidden sm:inline-flex py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px]" style={{ ...btnPrimary, padding: undefined, fontSize: undefined, display: undefined }}>{tx.nav.demo}</button>
+          <a href="/login" className="py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px] whitespace-nowrap" style={{ ...btnSecondary, padding: undefined, fontSize: undefined }}>{tx.nav.login}</a>
+          <button onClick={openDemo} className="hidden sm:inline-flex py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px] whitespace-nowrap" style={{ ...btnPrimary, padding: undefined, fontSize: undefined, display: undefined }}>{tx.nav.demo}</button>
         </div>
       </nav>
 
@@ -484,7 +485,7 @@ export default function LandingPage() {
       ══════════════════════════════════════════════════ */}
       <section style={{ background: 'var(--bg)', paddingTop: 72 }}>
         <div style={DECO_BAND} />
-        <div className="flex-col md:flex-row px-5 md:px-16 py-16 md:py-28 gap-10 md:gap-20" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center' }}>
+        <div className="flex-col lg:flex-row px-5 md:px-16 py-16 md:py-28 gap-10 lg:gap-20" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center' }}>
           {/* Left */}
           <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
             <motion.div
@@ -536,7 +537,7 @@ export default function LandingPage() {
           </div>
 
           {/* Right — mockup flottant */}
-          <motion.div className="w-full md:w-auto" style={{ flexShrink: 0 }}
+          <motion.div className="w-full lg:w-auto" style={{ flexShrink: 0 }}
             initial={{ opacity: 0, x: 36 }} animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}>
             <motion.div

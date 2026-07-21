@@ -117,11 +117,19 @@
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.55);
 }
 
-/* ── BASE STYLES ── */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* -- BASE STYLES --
+   Enveloppe dans @layer base (obligatoire en Tailwind v4) : sinon cette regle est du CSS
+   non-layered, toujours prioritaire sur les classes utilitaires Tailwind, situees en
+   @layer utilities, quelle que soit la specificite -- les cascade layers priment sur la
+   specificite classique. Consequence concrete observee : les classes de padding et de
+   marge Tailwind devenaient sans effet des qu-un element navait plus son padding directement
+   en style inline. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 html, body {
