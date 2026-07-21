@@ -24,6 +24,18 @@ export class EntranceExamController {
     private readonly prisma: PrismaClient,
   ) {}
 
+  // GET /api/v2/entrance-exams — liste des sessions de l'établissement, toutes années/statuts
+  lister = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const sessions = await (this.prisma as any).entranceExamSession.findMany({
+        where: { schoolId },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: sessions });
+    } catch (err) { next(err); }
+  };
+
   // POST /api/v2/entrance-exams
   creer = async (req: Request, res: Response, next: NextFunction) => {
     try {

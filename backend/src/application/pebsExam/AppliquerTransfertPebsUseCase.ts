@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AppliquerTransfertPebsCommande } from './types';
+import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
 
 interface NotifieCandidat { studentUserId: string; studentName: string }
 
@@ -63,6 +64,11 @@ export class AppliquerTransfertPebsUseCase {
       where: { id: cmd.sessionId },
       data: { status: 'APPLIED' },
     });
+    void notifierEvenementAcademique(
+      this.prisma, cmd.schoolId, ['ADMIN', 'STAFF'],
+      'Sélection PEBS clôturée',
+      'Le transfert a été appliqué — la session est clôturée et le menu Sélection PEBS n\'est plus mis en avant.',
+    ).catch((err) => console.error('[PebsExam] notification clôture:', err?.message));
 
     return { transferred, confirmed: true, selectionnes, nonSelectionnes };
   }

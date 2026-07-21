@@ -12,6 +12,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { OuvrirFenetreChoixLV2UseCase } from '../lv2Choice/OuvrirFenetreChoixLV2UseCase';
+import { notifyLv2WindowOpenSms } from '../../infrastructure/services/SmsNotificationService';
 
 export interface EvenementPourActivation {
   id: string;
@@ -56,6 +57,20 @@ export async function activerRessourceLieeSiApplicable(
     openDate: event.openDate,
     closeDate: event.closeDate,
   });
+
+  // Ce chemin passe par le use case directement (pas par Lv2ChoiceController.creerFenetre),
+  // donc le SMS aux parents que le contrôleur envoyait normalement à l'ouverture doit être
+  // rappelé ici explicitement — sinon un parent sans push activé ne serait jamais informé
+  // qu'une fenêtre de choix LV2 vient de s'ouvrir pour son enfant.
+  for (const eleve of resultat.eleves) {
+    void notifyLv2WindowOpenSms({
+      schoolId: event.schoolId,
+      studentUserId: eleve.studentUserId,
+      studentName: eleve.studentName,
+      level: resultat.level,
+      closeDate: resultat.closeDate,
+    }).catch((err) => console.error('[AcademicEvent] SMS ouverture LV2:', err?.message));
+  }
 
   return resultat.windowId;
 }

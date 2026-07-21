@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { CreerSessionPebsCommande } from './types';
+import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
 
 export class CreerSessionPebsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
@@ -24,6 +25,13 @@ export class CreerSessionPebsUseCase {
         status: 'DRAFT',
       },
     });
+
+    void notifierEvenementAcademique(
+      this.prisma, cmd.schoolId, ['ADMIN', 'STAFF'],
+      'Sélection PEBS ouverte',
+      `La session « ${cmd.name} » (niveau ${cmd.level}) est créée — le menu Sélection PEBS est maintenant accessible.`,
+    ).catch((err) => console.error('[PebsExam] notification ouverture:', err?.message));
+
     return { sessionId: session.id };
   }
 }

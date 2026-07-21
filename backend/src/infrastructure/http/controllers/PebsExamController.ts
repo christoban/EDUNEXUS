@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { PrismaClient } from '@prisma/client';
 import { CreerSessionPebsUseCase } from '@application/pebsExam/CreerSessionPebsUseCase';
 import { AjouterCandidatsPebsUseCase } from '@application/pebsExam/AjouterCandidatsPebsUseCase';
 import { CalculerSelectionPebsUseCase } from '@application/pebsExam/CalculerSelectionPebsUseCase';
@@ -18,7 +19,20 @@ export class PebsExamController {
     private readonly _resumeSession: ResumeSessionPebsUseCase,
     private readonly _scannerListe: ScannerListeCandidatsPebsUseCase,
     private readonly _detecterAnomalies: DetecterAnomaliesPebsUseCase,
+    private readonly prisma: PrismaClient,
   ) {}
+
+  // GET /api/v2/pebs-exams — liste des sessions de l'établissement, toutes années/niveaux/statuts
+  lister = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const sessions = await (this.prisma as any).pebsExamSession.findMany({
+        where: { schoolId },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: sessions });
+    } catch (err) { next(err); }
+  };
 
   creer = async (req: Request, res: Response, next: NextFunction) => {
     try {

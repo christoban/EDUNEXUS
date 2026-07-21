@@ -72,6 +72,10 @@ export default function AdminDashboard() {
   // fonctionnalités événementielles (ex. 'lv2-choice') dans la sidebar : jamais visibles pour
   // rien toute l'année, seulement quand la fonctionnalité réelle qu'ils représentent est ouverte.
   const [activeEventTypes, setActiveEventTypes] = useState<string[]>([])
+  // Concours 6e / PEBS : pas de AcademicEvent dédié — le statut réel de la session (déjà sa
+  // propre machine à états) pilote directement la visibilité, sans dupliquer l'information.
+  const [hasActiveEntranceExam, setHasActiveEntranceExam] = useState(false)
+  const [hasActivePebs, setHasActivePebs] = useState(false)
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -126,6 +130,16 @@ export default function AdminDashboard() {
       .then(r => r.json())
       .then(d => { if (d.success) setActiveEventTypes((d.data || []).map((e: { type: string }) => e.type)) })
       .catch(() => { /* gating non critique — le menu reste masqué par défaut si l'appel échoue */ })
+
+    fetchApi('/api/v2/entrance-exams')
+      .then(r => r.json())
+      .then(d => { if (d.success) setHasActiveEntranceExam((d.data || []).some((s: { status: string }) => s.status !== 'CLOSED')) })
+      .catch(() => {})
+
+    fetchApi('/api/v2/pebs-exams')
+      .then(r => r.json())
+      .then(d => { if (d.success) setHasActivePebs((d.data || []).some((s: { status: string }) => s.status !== 'APPLIED')) })
+      .catch(() => {})
   }, [router, showToast])
 
   useEffect(() => {
@@ -149,7 +163,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: 'var(--bg)' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />

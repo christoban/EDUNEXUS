@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { EnregistrerResultatCepCommande } from './types';
 import { CreerSqueletteOnboardingUseCase } from '../eleveOnboarding/CreerSqueletteOnboardingUseCase';
+import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
 
 /**
  * Phase 5 de la spec onboarding auto-service élève (spec-onboarding-eleve-autoservice.md
@@ -83,6 +84,7 @@ export class EnregistrerResultatCepUseCase {
         console.error('[EnregistrerResultatCepUseCase] Échec création squelette onboarding:', err?.message);
       }
 
+      await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session.schoolId);
       return { status: 'CONFIRME', onboardingCreated: Boolean(onboarding), candidateName, parentPhone, onboarding };
     } else {
       await (this.prisma as any).entranceExamCandidate.update({
@@ -93,7 +95,32 @@ export class EnregistrerResultatCepUseCase {
           admissionStatus: 'ANNULE',
         },
       });
+      await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session.schoolId);
       return { status: 'ANNULE', onboardingCreated: false, candidateName, parentPhone };
+    }
+  }
+
+  /**
+   * Clôture automatique de la session dès que plus aucun candidat n'est en attente de
+   * traitement (PENDING = admission pas encore calculée, ADMIS_PROVISOIRE = résultat CEP pas
+   * encore saisi) — pas de date de clôture arbitraire pour ce type de fonctionnalité : le
+   * processus se termine réellement quand le dernier résultat CEP est saisi, jamais avant. Sert
+   * de source de vérité pour la visibilité du menu « Concours d'entrée » côté Admin.
+   */
+  private async cloturerSessionSiTousTraites(sessionId: string, schoolId: string): Promise<void> {
+    const enAttente = await (this.prisma as any).entranceExamCandidate.count({
+      where: { sessionId, admissionStatus: { in: ['PENDING', 'ADMIS_PROVISOIRE'] } },
+    });
+    if (enAttente === 0) {
+      await (this.prisma as any).entranceExamSession.update({
+        where: { id: sessionId },
+        data: { status: 'CLOSED' },
+      });
+      void notifierEvenementAcademique(
+        this.prisma, schoolId, ['ADMIN', 'STAFF'],
+        'Concours d\'entrée clôturé',
+        'Tous les candidats ont été traités — la session de concours est clôturée et le menu Concours d\'entrée n\'est plus mis en avant.',
+      ).catch((err) => console.error('[EntranceExam] notification clôture:', err?.message));
     }
   }
 }

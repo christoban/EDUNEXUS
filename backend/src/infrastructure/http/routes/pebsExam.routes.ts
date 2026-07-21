@@ -17,6 +17,7 @@ const upload = multer({
 export function creerPebsExamRoutes(controller: PebsExamController): Router {
   const router = Router();
 
+  router.get('/', requireAuth, requireRole('ADMIN', 'STAFF'), controller.lister);
   router.post('/', requireAuth, requireRole('ADMIN'), controller.creer);
   router.post('/:id/candidates', requireAuth, requireRole('ADMIN'), controller.ajouterCandidats);
   router.post('/:id/candidates/import', requireAuth, requireRole('ADMIN'), upload.single('file'), controller.importCandidats);

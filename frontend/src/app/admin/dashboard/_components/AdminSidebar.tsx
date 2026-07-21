@@ -47,9 +47,13 @@ interface Props {
   /** Types d'AcademicEvent actuellement actifs — masque les menus de fonctionnalités
    * événementielles (ex. 'lv2-choice') tant que la fonctionnalité réelle n'est pas ouverte. */
   activeEventTypes?: string[]
+  /** Concours 6e / PEBS : pas de AcademicEvent dédié, gaté directement sur le statut réel de la
+   * session (EntranceExamSession/PebsExamSession != CLOSED|APPLIED). */
+  hasActiveEntranceExam?: boolean
+  hasActivePebs?: boolean
 }
 
-export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [] }: Props) {
+export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [], hasActiveEntranceExam = false, hasActivePebs = false }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   const displayName = schoolName || tcommon('brand.fallbackSchool')
@@ -87,11 +91,15 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'finance',       icon: Smartphone, label: tnav('sidebar.finance'),     badge: badges.finance, badgeColor: 'amber' },
         { id: 'matricules',    icon: IdCard, label: tnav('sidebar.matricules') },
         { id: 'school-payments', icon: Wallet, label: tnav('sidebar.schoolPayments') },
-        { id: 'entrance-exams', icon: ClipboardEdit, label: tnav('sidebar.entranceExams') },
+        // Masqué tant qu'aucune session de concours n'est en cours (statut réel de
+        // EntranceExamSession != CLOSED) — pas de AcademicEvent dédié, la session est déjà sa
+        // propre source de vérité.
+        ...(hasActiveEntranceExam ? [{ id: 'entrance-exams' as const, icon: ClipboardEdit, label: tnav('sidebar.entranceExams') }] : []),
         { id: 'eleve-onboarding', icon: UserPlus, label: tnav('sidebar.eleveOnboarding') },
         { id: 'minesec-stats', icon: BarChart3, label: tnav('sidebar.minesecStats') },
         { id: 'minedub-stats', icon: ClipboardList, label: tnav('sidebar.minedubStats') },
-        { id: 'pebs-exams',    icon: Globe, label: tnav('sidebar.pebsExams') },
+        // Même principe — masqué tant qu'aucune session PEBS n'est en cours (!= APPLIED).
+        ...(hasActivePebs ? [{ id: 'pebs-exams' as const, icon: Globe, label: tnav('sidebar.pebsExams') }] : []),
         // Masqué tant qu'aucune fenêtre de choix LV2 n'est réellement ouverte (AcademicEvent
         // CHOIX_LV2 actif) — jamais affiché à vide toute l'année pour rien.
         ...(activeEventTypes.includes('CHOIX_LV2') ? [{ id: 'lv2-choice' as const, icon: Languages, label: tnav('sidebar.lv2Choice') }] : []),

@@ -1310,6 +1310,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.pebsExam.resumeSession,
     container.pebsExam.scannerListe,
     container.pebsExam.detecterAnomalies,
+    prisma,
   );
   app.use('/api/v2/pebs-exams', creerPebsExamRoutes(pebsExamController));
 
