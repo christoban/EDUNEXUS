@@ -144,35 +144,37 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
               <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 6 }}>{t('department.performance_empty_hint')}</div>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg)' }}>
-                  {[t('department.perf_table_teacher'), t('department.perf_table_subject'), t('department.perf_table_class'), t('department.perf_table_average'), t('department.perf_table_students')].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {perf.map((row, i) => {
-                  const moy = row.moyenne
-                  const moyBg = moy === null ? 'var(--bg2)' : moy >= 12 ? 'var(--green-light)' : moy >= 8 ? 'var(--amber-light)' : 'var(--red-light)'
-                  const moyColor = moy === null ? 'var(--text3)' : moy >= 12 ? 'var(--green)' : moy >= 8 ? 'var(--amber)' : 'var(--red)'
-                  return (
-                    <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{row.teacherName}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.className}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: moyBg, color: moyColor, padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
-                          {moy !== null ? moy.toFixed(2) : '—'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.nbEleves}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg)' }}>
+                    {[t('department.perf_table_teacher'), t('department.perf_table_subject'), t('department.perf_table_class'), t('department.perf_table_average'), t('department.perf_table_students')].map(h => (
+                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {perf.map((row, i) => {
+                    const moy = row.moyenne
+                    const moyBg = moy === null ? 'var(--bg2)' : moy >= 12 ? 'var(--green-light)' : moy >= 8 ? 'var(--amber-light)' : 'var(--red-light)'
+                    const moyColor = moy === null ? 'var(--text3)' : moy >= 12 ? 'var(--green)' : moy >= 8 ? 'var(--amber)' : 'var(--red)'
+                    return (
+                      <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{row.teacherName}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.className}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ background: moyBg, color: moyColor, padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+                            {moy !== null ? moy.toFixed(2) : '—'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.nbEleves}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -201,39 +203,41 @@ export default function SectionDepartementAP({ user: _user, departementId, depar
                 <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>{t('department.hours_empty')}</div>
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--bg)' }}>
-                    {[t('department.hours_table_teacher'), t('department.hours_table_subject'), t('department.hours_table_hours'), t('department.hours_table_status')].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {horaires.map((row, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: row.isOverLimit ? 'var(--red-light)' : i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>{row.teacherName}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 16, fontWeight: 900, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>
-                            {row.totalHours.toFixed(1)}h
-                          </span>
-                          <div style={{ flex: 1, background: 'var(--bg2)', borderRadius: 4, height: 6, maxWidth: 100, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', borderRadius: 4, width: `${Math.min((row.totalHours / 20) * 100, 100)}%`, background: row.isOverLimit ? 'var(--red)' : 'var(--green)' }} />
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        {row.isOverLimit
-                          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-light)', color: 'var(--red)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}><Circle size={8} fill="var(--red)" stroke="none" />{t('department.hours_over')}</span>
-                          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--green-light)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}><CheckCircle2 size={12} strokeWidth={2} />{t('department.hours_ok')}</span>
-                        }
-                      </td>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg)' }}>
+                      {[t('department.hours_table_teacher'), t('department.hours_table_subject'), t('department.hours_table_hours'), t('department.hours_table_status')].map(h => (
+                        <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {horaires.map((row, i) => (
+                      <tr key={i} style={{ borderTop: '1px solid var(--bg2)', background: row.isOverLimit ? 'var(--red-light)' : i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>{row.teacherName}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{row.subjectName}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 16, fontWeight: 900, color: row.isOverLimit ? 'var(--red)' : 'var(--text)' }}>
+                              {row.totalHours.toFixed(1)}h
+                            </span>
+                            <div style={{ flex: 1, background: 'var(--bg2)', borderRadius: 4, height: 6, maxWidth: 100, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', borderRadius: 4, width: `${Math.min((row.totalHours / 20) * 100, 100)}%`, background: row.isOverLimit ? 'var(--red)' : 'var(--green)' }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          {row.isOverLimit
+                            ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-light)', color: 'var(--red)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}><Circle size={8} fill="var(--red)" stroke="none" />{t('department.hours_over')}</span>
+                            : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--green-light)', color: 'var(--green)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}><CheckCircle2 size={12} strokeWidth={2} />{t('department.hours_ok')}</span>
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { logoutUser } from '@/lib/userAuth'
 import NotificationBell from '@/components/NotificationBell'
+import MobileMenuButton from '@/components/MobileMenuButton'
 import ParentSidebar from './_components/ParentSidebar'
 import ParentToast from './_components/ParentToast'
 import SectionParentChildren from './_components/SectionParentChildren'
@@ -51,6 +52,7 @@ export default function ParentDashboard() {
     library:    tnav('pageTitle.parent_library'),
   }
   const [section, setSection] = useState<ParentSection>('children')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [user, setUser] = useState<UserInfo | null>(null)
   const [school, setSchool] = useState<SchoolInfo | null>(null)
@@ -103,11 +105,12 @@ export default function ParentDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
-      <ParentSidebar current={section} onChange={setSection} onLogout={logoutUser} user={user} school={school} />
+      <ParentSidebar current={section} onChange={setSection} onLogout={logoutUser} user={user} school={school} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <header style={{ height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+          <MobileMenuButton onClick={() => setMobileNavOpen(true)} />
+          <div className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {TITLES[section]}
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>

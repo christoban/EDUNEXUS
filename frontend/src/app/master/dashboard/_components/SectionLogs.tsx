@@ -641,34 +641,36 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 14, color: '#a89478', fontWeight: 600 }}>
             Connexions, OTP, MFA — toutes les tentatives d&apos;authentification du compte master
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                {['Date / Heure', 'Événement', 'Compte', 'IP'].map(h => (
-                  <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {initialLoading
-                ? <EmptyRow cols={4} msg="Chargement..." />
-                : authLogs.length === 0
-                  ? <EmptyRow cols={4} msg="Aucun log d'authentification" />
-                  : authLogs.map((log, i) => (
-                    <tr key={log.id} style={{ borderBottom: i < authLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
-                      <td style={tdStyle}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
-                      <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                        <Badge type={AUTH_BADGE[log.action] ?? 'event-info'}>
-                          {AUTH_LABELS[log.action] ?? log.action}
-                        </Badge>
-                      </td>
-                      <td style={tdStyle}>{log.masterUser?.email ?? log.description ?? '—'}</td>
-                      <td style={tdStyle}>{log.ipAddress ?? '—'}</td>
-                    </tr>
-                  ))
-              }
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <thead>
+                <tr>
+                  {['Date / Heure', 'Événement', 'Compte', 'IP'].map(h => (
+                    <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {initialLoading
+                  ? <EmptyRow cols={4} msg="Chargement..." />
+                  : authLogs.length === 0
+                    ? <EmptyRow cols={4} msg="Aucun log d'authentification" />
+                    : authLogs.map((log, i) => (
+                      <tr key={log.id} style={{ borderBottom: i < authLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
+                        <td style={tdStyle}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <Badge type={AUTH_BADGE[log.action] ?? 'event-info'}>
+                            {AUTH_LABELS[log.action] ?? log.action}
+                          </Badge>
+                        </td>
+                        <td style={tdStyle}>{log.masterUser?.email ?? log.description ?? '—'}</td>
+                        <td style={tdStyle}>{log.ipAddress ?? '—'}</td>
+                      </tr>
+                    ))
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -678,37 +680,39 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 14, color: '#a89478', fontWeight: 600 }}>
             Approbations, rejets, suspensions, invitations — toutes les actions décisives sur les écoles
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                {['Date / Heure', 'Action', 'Détail', 'IP'].map(h => (
-                  <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {actionLoading
-                ? <EmptyRow cols={4} msg="Chargement..." />
-                : actionLogs.length === 0
-                  ? <EmptyRow cols={4} msg="Aucune action enregistrée" />
-                  : actionLogs.map((log, i) => (
-                    <tr key={log.id} style={{ borderBottom: i < actionLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
-                      <td style={tdStyle}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
-                      <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                        <Badge type={ACTION_BADGE[log.action] ?? 'event-info'}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            {ACTION_ICONS[log.action] && (() => { const Icon = ACTION_ICONS[log.action]; return <Icon size={13} /> })()}
-                            {ACTION_LABELS[log.action] ?? log.action.replace('action:', '')}
-                          </span>
-                        </Badge>
-                      </td>
-                      <td style={{ ...tdStyle, maxWidth: 320, wordBreak: 'break-word' }}>{log.description ?? '—'}</td>
-                      <td style={tdStyle}>{log.ipAddress ?? '—'}</td>
-                    </tr>
-                  ))
-              }
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <thead>
+                <tr>
+                  {['Date / Heure', 'Action', 'Détail', 'IP'].map(h => (
+                    <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {actionLoading
+                  ? <EmptyRow cols={4} msg="Chargement..." />
+                  : actionLogs.length === 0
+                    ? <EmptyRow cols={4} msg="Aucune action enregistrée" />
+                    : actionLogs.map((log, i) => (
+                      <tr key={log.id} style={{ borderBottom: i < actionLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
+                        <td style={tdStyle}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <Badge type={ACTION_BADGE[log.action] ?? 'event-info'}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              {ACTION_ICONS[log.action] && (() => { const Icon = ACTION_ICONS[log.action]; return <Icon size={13} /> })()}
+                              {ACTION_LABELS[log.action] ?? log.action.replace('action:', '')}
+                            </span>
+                          </Badge>
+                        </td>
+                        <td style={{ ...tdStyle, maxWidth: 320, wordBreak: 'break-word' }}>{log.description ?? '—'}</td>
+                        <td style={tdStyle}>{log.ipAddress ?? '—'}</td>
+                      </tr>
+                    ))
+                }
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -738,38 +742,40 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
             <div style={{ padding: '14px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 14, color: '#a89478', fontWeight: 600 }}>
               Emails envoyés à travers toutes les écoles (OTP, bulletins, paiements, etc.)
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Date', 'Destinataire', 'Sujet', 'École', 'Statut', 'Provider'].map(h => (
-                    <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {emailLoading
-                  ? <EmptyRow cols={6} msg="Chargement..." />
-                  : emailLogs.length === 0
-                    ? <EmptyRow cols={6} msg="Aucun email enregistré. Les emails des écoles actives apparaissent ici." />
-                    : emailLogs.map((log, i) => (
-                      <tr key={log.id} style={{ borderBottom: i < emailLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
-                        <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
-                        <td style={tdStyle}>{log.to}</td>
-                        <td style={{ ...tdStyle, maxWidth: 240, wordBreak: 'break-word' }}>{log.subject}</td>
-                        <td style={tdStyle}>{log.school?.name ?? '—'}</td>
-                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                          <Badge type={log.status === 'sent' ? 'event-success' : 'event-error'}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                              {log.status === 'sent' ? <><CheckCircle2 size={13} /> Envoyé</> : <><XCircle size={13} /> Échoué</>}
-                            </span>
-                          </Badge>
-                        </td>
-                        <td style={{ ...tdStyle, color: '#a89478', fontSize: 13 }}>{log.provider ?? '—'}</td>
-                      </tr>
-                    ))
-                }
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                <thead>
+                  <tr>
+                    {['Date', 'Destinataire', 'Sujet', 'École', 'Statut', 'Provider'].map(h => (
+                      <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailLoading
+                    ? <EmptyRow cols={6} msg="Chargement..." />
+                    : emailLogs.length === 0
+                      ? <EmptyRow cols={6} msg="Aucun email enregistré. Les emails des écoles actives apparaissent ici." />
+                      : emailLogs.map((log, i) => (
+                        <tr key={log.id} style={{ borderBottom: i < emailLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
+                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{new Date(log.createdAt).toLocaleString('fr-CM')}</td>
+                          <td style={tdStyle}>{log.to}</td>
+                          <td style={{ ...tdStyle, maxWidth: 240, wordBreak: 'break-word' }}>{log.subject}</td>
+                          <td style={tdStyle}>{log.school?.name ?? '—'}</td>
+                          <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                            <Badge type={log.status === 'sent' ? 'event-success' : 'event-error'}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                {log.status === 'sent' ? <><CheckCircle2 size={13} /> Envoyé</> : <><XCircle size={13} /> Échoué</>}
+                              </span>
+                            </Badge>
+                          </td>
+                          <td style={{ ...tdStyle, color: '#a89478', fontSize: 13 }}>{log.provider ?? '—'}</td>
+                        </tr>
+                      ))
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Note : master admin emails (invitations, approbations) loggés dans Actions admin */}

@@ -395,50 +395,52 @@ export default function SectionFinance({ onToast }: Props) {
                 {invStatus ? t('empty_states.no_invoices_with_status').replace('{status}', getInvStatus(invStatus).label) : t('empty_states.no_invoices')}
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>{[t('table_headers.student'), t('table_headers.plan'), t('table_headers.amount'), t('table_headers.status'), t('table_headers.paid'), t('table_headers.date'), t('table_headers.actions')].map(h => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}</tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => {
-                    const st = getInvStatus(inv.status)
-                    const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
-                    return (
-                      <tr key={inv.id}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                        <td style={tdStyle}>
-                          <div style={{ fontWeight: 700, color: 'var(--text)' }}>
-                            {inv.student.firstName} {inv.student.lastName}
-                          </div>
-                        </td>
-                        <td style={tdStyle}>{inv.feePlan?.name ?? '—'}</td>
-                        <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text)' }}>{fmtCFA(inv.amount)}</td>
-                        <td style={tdStyle}>
-                          <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>
-                            {st.label}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>
-                          <span style={{ fontSize: 15, fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
-                            {paid > 0 ? fmtCFA(paid) : '—'}
-                          </span>
-                        </td>
-                        <td style={tdStyle}>
-                          {new Date(inv.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                        </td>
-                        <td style={tdStyle}>
-                          <button style={btnSecSm} onClick={() => onToast(`Facture ${inv.id.slice(0,8)} — ${inv.status}`, 'info')}>
-                            {t('actions.view')}
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+                  <thead>
+                    <tr>{[t('table_headers.student'), t('table_headers.plan'), t('table_headers.amount'), t('table_headers.status'), t('table_headers.paid'), t('table_headers.date'), t('table_headers.actions')].map(h => (
+                      <th key={h} style={thStyle}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv) => {
+                      const st = getInvStatus(inv.status)
+                      const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
+                      return (
+                        <tr key={inv.id}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                          <td style={tdStyle}>
+                            <div style={{ fontWeight: 700, color: 'var(--text)' }}>
+                              {inv.student.firstName} {inv.student.lastName}
+                            </div>
+                          </td>
+                          <td style={tdStyle}>{inv.feePlan?.name ?? '—'}</td>
+                          <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text)' }}>{fmtCFA(inv.amount)}</td>
+                          <td style={tdStyle}>
+                            <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>
+                              {st.label}
+                            </span>
+                          </td>
+                          <td style={tdStyle}>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
+                              {paid > 0 ? fmtCFA(paid) : '—'}
+                            </span>
+                          </td>
+                          <td style={tdStyle}>
+                            {new Date(inv.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          </td>
+                          <td style={tdStyle}>
+                            <button style={btnSecSm} onClick={() => onToast(`Facture ${inv.id.slice(0,8)} — ${inv.status}`, 'info')}>
+                              {t('actions.view')}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {pag.pages > 1 && (
@@ -607,7 +609,7 @@ const tdStyle: React.CSSProperties = { padding: '14px 16px', fontSize: 16, color
 function ModalOverlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+      <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
         {children}
       </div>
     </div>

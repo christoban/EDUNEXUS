@@ -401,16 +401,16 @@ export default function LoginPage() {
   const timerSecDisp = Math.max(otpTimerSecs, 0) % 60
 
   return (
-    <div style={{
-      display: 'flex', height: '100vh', overflow: 'hidden',
+    <div className="overflow-y-auto md:overflow-hidden" style={{
+      display: 'flex', minHeight: '100vh',
       background: 'var(--bg)',
       fontFamily: 'var(--font-nunito), Nunito, sans-serif'
     }}>
 
-      {/* ══ PANNEAU GAUCHE ══ */}
-      <div style={{
-        width: '48%', background: 'var(--sidebar)',
-        display: 'flex', flexDirection: 'column',
+      {/* ══ PANNEAU GAUCHE — vitrine, cachée sous md : la priorité mobile est le formulaire ══ */}
+      <div className="hidden md:flex md:w-[48%]" style={{
+        background: 'var(--sidebar)',
+        flexDirection: 'column',
         position: 'relative', overflow: 'hidden', flexShrink: 0
       }}>
         <AnimatedBackground variant="stars" style={{ zIndex: 0 }} />
@@ -495,9 +495,9 @@ export default function LoginPage() {
       </div>
 
       {/* ══ PANNEAU DROIT ══ */}
-      <div style={{
+      <div className="px-5 py-8 md:p-10" style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 40, background: 'var(--bg)', position: 'relative', overflowY: 'auto',
+        background: 'var(--bg)', position: 'relative', overflowY: 'auto',
       }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -942,8 +942,8 @@ export default function LoginPage() {
           background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
           zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-          <div style={{
-            background: 'var(--surface)', borderRadius: 20, padding: 40,
+          <div className="px-7 py-7 md:px-10 md:py-10" style={{
+            background: 'var(--surface)', borderRadius: 20,
             textAlign: 'center', maxWidth: 360, width: '90%',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
             animation: 'popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both'
@@ -995,8 +995,8 @@ export default function LoginPage() {
         <div
           onClick={() => !forgotLoading && setForgotOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', animation: 'popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+          <div onClick={e => e.stopPropagation()} className="px-7 py-7 md:px-10 md:py-9"
+            style={{ background: 'var(--surface)', borderRadius: 20, width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', animation: 'popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both' }}>
 
             {forgotDone ? (
               <div style={{ textAlign: 'center', padding: '8px 0' }}>

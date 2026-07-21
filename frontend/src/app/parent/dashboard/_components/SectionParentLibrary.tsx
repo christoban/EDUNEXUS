@@ -132,44 +132,46 @@ export default function SectionParentLibrary({ userId }: Props) {
 
       {!loading && !error && loanList.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[t('library.titleCol'), t('library.category'), t('library.borrowedOn'), t('library.dueDate'), t('library.status')].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {loanList.map(l => {
-                const LOAN_BADGE = loanBadge(t)
-                const badge = LOAN_BADGE[l.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: l.status }
-                const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
-                return (
-                  <tr key={l.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 240 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.book.title}</div>
-                      {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{l.book.author}</div>}
-                    </td>
-                    <td style={tdSt}>{l.book.category ?? '—'}</td>
-                    <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
-                    <td style={tdSt}>
-                      {l.dueDate ? (
-                        <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          {isOverdue && <AlertTriangle size={14} strokeWidth={2} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+              <thead>
+                <tr>{[t('library.titleCol'), t('library.category'), t('library.borrowedOn'), t('library.dueDate'), t('library.status')].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {loanList.map(l => {
+                  const LOAN_BADGE = loanBadge(t)
+                  const badge = LOAN_BADGE[l.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: l.status }
+                  const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
+                  return (
+                    <tr key={l.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 240 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.book.title}</div>
+                        {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{l.book.author}</div>}
+                      </td>
+                      <td style={tdSt}>{l.book.category ?? '—'}</td>
+                      <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                      <td style={tdSt}>
+                        {l.dueDate ? (
+                          <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {isOverdue && <AlertTriangle size={14} strokeWidth={2} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          {isOverdue ? <><AlarmClock size={13} strokeWidth={2} /> {t('library.overdueBadge')}</> : badge.label}
                         </span>
-                      ) : '—'}
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        {isOverdue ? <><AlarmClock size={13} strokeWidth={2} /> {t('library.overdueBadge')}</> : badge.label}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

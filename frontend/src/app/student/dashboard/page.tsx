@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { logoutUser } from '@/lib/userAuth'
 import NotificationBell from '@/components/NotificationBell'
 import NotificationCenter from '@/components/NotificationCenter'
+import MobileMenuButton from '@/components/MobileMenuButton'
 import StudentSidebar from './_components/StudentSidebar'
 import StudentToast from './_components/StudentToast'
 import SectionStudentDashboard from './_components/SectionStudentDashboard'
@@ -43,6 +44,7 @@ export default function StudentDashboard() {
     notifications: tnav('pageTitle.student_notifications'),
   }
   const [section, setSection] = useState<StudentSection>('dashboard')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
@@ -117,14 +119,15 @@ export default function StudentDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
-      <StudentSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} />
+      <StudentSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <header style={{ height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+          <MobileMenuButton onClick={() => setMobileNavOpen(true)} />
+          <div className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {TITLES[section]}
           </div>
-          <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
+          <span className="hidden sm:inline" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
             Trimestre 2 · Séquence 3
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>

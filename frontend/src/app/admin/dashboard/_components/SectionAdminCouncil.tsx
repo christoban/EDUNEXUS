@@ -276,41 +276,43 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                           <HeartPulse size={14} /> {selected.decisions.filter(d => d.alertLevel).length} élève(s) à risque dans cette classe — voir l'indicateur ci-dessous
                         </div>
                       )}
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr>{['Élève', 'Décision', 'Observation'].map(h => (
-                          <th key={h} style={thSt}>{h}</th>
-                        ))}</tr>
-                      </thead>
-                      <tbody>
-                        {selected.decisions.map(d => {
-                          const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS!
-                          return (
-                            <tr key={d.studentId}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                              <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                  {d.student.firstName} {d.student.lastName}
-                                  {d.alertLevel && (
-                                    <span title={`Indice de santé scolaire : ${d.healthScore}/100`}
-                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800, background: d.alertLevel === 'critical' ? 'var(--red-light)' : 'var(--amber-light)', color: d.alertLevel === 'critical' ? 'var(--red)' : 'var(--amber)' }}>
-                                      <HeartPulse size={11} /> {d.healthScore}
-                                    </span>
-                                  )}
-                                </span>
-                              </td>
-                              <td style={tdSt}>
-                                <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc?.bg, color: dc?.color }}>
-                                  {DEC_LABEL[d.decision] ?? d.decision}
-                                </span>
-                              </td>
-                              <td style={tdSt}><span style={{ fontSize: 15, color: 'var(--text3)' }}>{d.observations || '—'}</span></td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                        <thead>
+                          <tr>{['Élève', 'Décision', 'Observation'].map(h => (
+                            <th key={h} style={thSt}>{h}</th>
+                          ))}</tr>
+                        </thead>
+                        <tbody>
+                          {selected.decisions.map(d => {
+                            const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS!
+                            return (
+                              <tr key={d.studentId}
+                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                                <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                    {d.student.firstName} {d.student.lastName}
+                                    {d.alertLevel && (
+                                      <span title={`Indice de santé scolaire : ${d.healthScore}/100`}
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800, background: d.alertLevel === 'critical' ? 'var(--red-light)' : 'var(--amber-light)', color: d.alertLevel === 'critical' ? 'var(--red)' : 'var(--amber)' }}>
+                                        <HeartPulse size={11} /> {d.healthScore}
+                                      </span>
+                                    )}
+                                  </span>
+                                </td>
+                                <td style={tdSt}>
+                                  <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: dc?.bg, color: dc?.color }}>
+                                    {DEC_LABEL[d.decision] ?? d.decision}
+                                  </span>
+                                </td>
+                                <td style={tdSt}><span style={{ fontSize: 15, color: 'var(--text3)' }}>{d.observations || '—'}</span></td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                      </div>
                     </>
                   )}
                 </>

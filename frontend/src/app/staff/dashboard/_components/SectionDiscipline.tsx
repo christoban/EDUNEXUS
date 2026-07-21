@@ -346,63 +346,65 @@ export default function SectionDiscipline({ onToast }: Props) {
 
       {!loading && !error && records.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[
-                t('table_headers.student'),
-                t('table_headers.type'),
-                t('table_headers.reason'),
-                t('table_headers.date'),
-                t('table_headers.status'),
-                t('table_headers.decided_by'),
-                t('table_headers.actions'),
-              ].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {records.map((r) => {
-                const tl = TYPE_STYLE[r.type] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
-                const sb = STATUS_BADGE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
-                return (
-                  <tr key={r.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                      {r.student.firstName} {r.student.lastName}
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: tl.bg, color: tl.color }}>
-                        {t(`sanction_types.${r.type}`)}
-                      </span>
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ fontSize: 14, color: 'var(--text2)', maxWidth: 200, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {r.reason}
-                      </span>
-                    </td>
-                    <td style={tdSt}>{new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: sb.bg, color: sb.color }}>
-                        {t(`status_badges.${r.status}`)}
-                      </span>
-                    </td>
-                    <td style={tdSt}>{r.decidedBy.firstName} {r.decidedBy.lastName}</td>
-                    <td style={tdSt}>
-                      {r.status === 'ACTIVE' && (
-                        <button
-                          style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                          onClick={() => liftSanction(r.id, `${r.student.firstName} ${r.student.lastName}`)}
-                          disabled={liftingId === r.id}>
-                          {liftingId === r.id ? <Loader2 size={13} className="animate-spin" /> : t('actions.lift')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+              <thead>
+                <tr>{[
+                  t('table_headers.student'),
+                  t('table_headers.type'),
+                  t('table_headers.reason'),
+                  t('table_headers.date'),
+                  t('table_headers.status'),
+                  t('table_headers.decided_by'),
+                  t('table_headers.actions'),
+                ].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {records.map((r) => {
+                  const tl = TYPE_STYLE[r.type] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                  const sb = STATUS_BADGE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                  return (
+                    <tr key={r.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                        {r.student.firstName} {r.student.lastName}
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: tl.bg, color: tl.color }}>
+                          {t(`sanction_types.${r.type}`)}
+                        </span>
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ fontSize: 14, color: 'var(--text2)', maxWidth: 200, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.reason}
+                        </span>
+                      </td>
+                      <td style={tdSt}>{new Date(r.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: sb.bg, color: sb.color }}>
+                          {t(`status_badges.${r.status}`)}
+                        </span>
+                      </td>
+                      <td style={tdSt}>{r.decidedBy.firstName} {r.decidedBy.lastName}</td>
+                      <td style={tdSt}>
+                        {r.status === 'ACTIVE' && (
+                          <button
+                            style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            onClick={() => liftSanction(r.id, `${r.student.firstName} ${r.student.lastName}`)}
+                            disabled={liftingId === r.id}>
+                            {liftingId === r.id ? <Loader2 size={13} className="animate-spin" /> : t('actions.lift')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       </>)}
@@ -421,48 +423,50 @@ export default function SectionDiscipline({ onToast }: Props) {
             </div>
           ) : (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>{[
-                    t('table_headers.student'), t('council.table_headers.motif'), t('council.table_headers.scheduled'),
-                    t('council.table_headers.status'), t('council.table_headers.decision'), t('table_headers.actions'),
-                  ].map(h => <th key={h} style={thSt}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {councilSessions.map(s => {
-                    const delayOk = new Date(s.scheduledAt).getTime() - Date.now() <= 0
-                    return (
-                      <tr key={s.id}>
-                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{s.student.firstName} {s.student.lastName}</td>
-                        <td style={{ ...tdSt, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.motif}</td>
-                        <td style={tdSt}>{new Date(s.scheduledAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                        <td style={tdSt}>
-                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, ...(s.status === 'TENU' ? { background: 'var(--green-light)', color: 'var(--green)' } : { background: 'var(--amber-light)', color: 'var(--amber)' }) }}>
-                            {t(`council.status.${s.status}`)}
-                          </span>
-                        </td>
-                        <td style={tdSt}>{s.decision ? t(`sanction_types.${s.decision}`) : '—'}</td>
-                        <td style={tdSt}>
-                          {s.status === 'CONVOQUE' && (
-                            <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: delayOk ? 'var(--purple-light)' : 'var(--bg2)', color: delayOk ? 'var(--purple)' : 'var(--text3)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                              title={delayOk ? '' : t('council.hint_delay_not_elapsed')}
-                              onClick={() => setTenirForm(f => ({ ...f, open: true, sessionId: s.id }))}>
-                              {t('council.actions.hold')}
-                            </button>
-                          )}
-                          {s.status === 'TENU' && (
-                            <button style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                              onClick={() => downloadPV(s.id)}>
-                              <Download size={13} /> {t('council.actions.download_pv')}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                  <thead>
+                    <tr>{[
+                      t('table_headers.student'), t('council.table_headers.motif'), t('council.table_headers.scheduled'),
+                      t('council.table_headers.status'), t('council.table_headers.decision'), t('table_headers.actions'),
+                    ].map(h => <th key={h} style={thSt}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {councilSessions.map(s => {
+                      const delayOk = new Date(s.scheduledAt).getTime() - Date.now() <= 0
+                      return (
+                        <tr key={s.id}>
+                          <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{s.student.firstName} {s.student.lastName}</td>
+                          <td style={{ ...tdSt, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.motif}</td>
+                          <td style={tdSt}>{new Date(s.scheduledAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                          <td style={tdSt}>
+                            <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, ...(s.status === 'TENU' ? { background: 'var(--green-light)', color: 'var(--green)' } : { background: 'var(--amber-light)', color: 'var(--amber)' }) }}>
+                              {t(`council.status.${s.status}`)}
+                            </span>
+                          </td>
+                          <td style={tdSt}>{s.decision ? t(`sanction_types.${s.decision}`) : '—'}</td>
+                          <td style={tdSt}>
+                            {s.status === 'CONVOQUE' && (
+                              <button
+                                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: delayOk ? 'var(--purple-light)' : 'var(--bg2)', color: delayOk ? 'var(--purple)' : 'var(--text3)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                                title={delayOk ? '' : t('council.hint_delay_not_elapsed')}
+                                onClick={() => setTenirForm(f => ({ ...f, open: true, sessionId: s.id }))}>
+                                {t('council.actions.hold')}
+                              </button>
+                            )}
+                            {s.status === 'TENU' && (
+                              <button style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                                onClick={() => downloadPV(s.id)}>
+                                <Download size={13} /> {t('council.actions.download_pv')}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -472,7 +476,7 @@ export default function SectionDiscipline({ onToast }: Props) {
       {form.open && (
         <>
           <div onClick={() => setForm(EMPTY_FORM)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 520, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modal_title')}</div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -566,7 +570,7 @@ export default function SectionDiscipline({ onToast }: Props) {
       {convokeForm.open && (
         <>
           <div onClick={() => setConvokeForm(EMPTY_CONVOKE_FORM)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 560, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{t('council.convoke_modal_title')}</div>
             <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 22 }}>{t('council.convoke_modal_hint')}</div>
 
@@ -640,7 +644,7 @@ export default function SectionDiscipline({ onToast }: Props) {
       {tenirForm.open && (
         <>
           <div onClick={() => setTenirForm(EMPTY_TENIR_FORM)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('council.tenir_modal_title')}</div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

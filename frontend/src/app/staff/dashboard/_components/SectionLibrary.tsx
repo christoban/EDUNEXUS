@@ -372,52 +372,54 @@ export default function SectionLibrary({ onToast }: Props) {
               {bookSearch ? t('library.noResults') : t('library.emptyCatalog')}
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>{[t('library.tableHeaderTitle'), t('library.tableHeaderAuthor'), t('library.tableHeaderIsbn'), t('library.tableHeaderCategory'), t('library.tableHeaderStock'), t('library.tableHeaderAvailable'), t('library.tableHeaderActions')].map(h => (
-                  <th key={h} style={thSt}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {books.map(b => (
-                  <tr key={b.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 220 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
-                    </td>
-                    <td style={tdSt}>{b.author ?? '—'}</td>
-                    <td style={tdSt}>{b.isbn ? <code style={{ background: 'var(--bg2)', padding: '2px 6px', borderRadius: 5, fontSize: 13 }}>{b.isbn}</code> : '—'}</td>
-                    <td style={tdSt}>{b.category ?? '—'}</td>
-                    <td style={tdSt}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{b.quantity}</span></td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: b.available === 0 ? 'var(--red-light)' : 'var(--green-light)', color: b.available === 0 ? 'var(--red)' : 'var(--green)' }}>
-                        {b.available === 0 ? t('library.outOfStock') : t('library.availableCount', { count: b.available })}
-                      </span>
-                    </td>
-                    <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
-                      <button
-                        style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: b.available === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: b.available === 0 ? 0.5 : 1, marginRight: 6 }}
-                        disabled={b.available === 0}
-                        onClick={() => { setBorrowForm(f => ({ ...f, bookId: b.id, bookTitle: b.title })); setBorrowOpen(true) }}>
-                        {t('library.borrow')}
-                      </button>
-                      <button
-                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', marginRight: 6 }}
-                        onClick={() => openEditBook(b)}>
-                        <Pencil size={13} strokeWidth={2} />
-                      </button>
-                      <button
-                        style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
-                        disabled={deletingId === b.id}
-                        onClick={() => deleteBook(b.id, b.title)}>
-                        {deletingId === b.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Trash2 size={13} strokeWidth={2} />}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+                <thead>
+                  <tr>{[t('library.tableHeaderTitle'), t('library.tableHeaderAuthor'), t('library.tableHeaderIsbn'), t('library.tableHeaderCategory'), t('library.tableHeaderStock'), t('library.tableHeaderAvailable'), t('library.tableHeaderActions')].map(h => (
+                    <th key={h} style={thSt}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {books.map(b => (
+                    <tr key={b.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 220 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
+                      </td>
+                      <td style={tdSt}>{b.author ?? '—'}</td>
+                      <td style={tdSt}>{b.isbn ? <code style={{ background: 'var(--bg2)', padding: '2px 6px', borderRadius: 5, fontSize: 13 }}>{b.isbn}</code> : '—'}</td>
+                      <td style={tdSt}>{b.category ?? '—'}</td>
+                      <td style={tdSt}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{b.quantity}</span></td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: b.available === 0 ? 'var(--red-light)' : 'var(--green-light)', color: b.available === 0 ? 'var(--red)' : 'var(--green)' }}>
+                          {b.available === 0 ? t('library.outOfStock') : t('library.availableCount', { count: b.available })}
+                        </span>
+                      </td>
+                      <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
+                        <button
+                          style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: b.available === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: b.available === 0 ? 0.5 : 1, marginRight: 6 }}
+                          disabled={b.available === 0}
+                          onClick={() => { setBorrowForm(f => ({ ...f, bookId: b.id, bookTitle: b.title })); setBorrowOpen(true) }}>
+                          {t('library.borrow')}
+                        </button>
+                        <button
+                          style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', marginRight: 6 }}
+                          onClick={() => openEditBook(b)}>
+                          <Pencil size={13} strokeWidth={2} />
+                        </button>
+                        <button
+                          style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(153,27,27,0.2)', cursor: deletingId === b.id ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: deletingId === b.id ? 0.5 : 1 }}
+                          disabled={deletingId === b.id}
+                          onClick={() => deleteBook(b.id, b.title)}>
+                          {deletingId === b.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Trash2 size={13} strokeWidth={2} />}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
           {bookPag.pages > 1 && (
             <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 8 }}>
@@ -447,60 +449,62 @@ export default function SectionLibrary({ onToast }: Props) {
               {loanStatus === 'ACTIVE' ? t('library.noLoansActive') : loanStatus === 'RETURNED' ? t('library.noLoansReturned') : t('library.noLoansOverdue')}
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>{[t('library.tableLoanHeaderStudent'), t('library.tableLoanHeaderBook'), t('library.tableLoanHeaderDate'), t('library.tableLoanHeaderDue'), t('library.tableLoanHeaderStatus'), t('library.tableLoanHeaderActions')].map(h => (
-                  <th key={h} style={thSt}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {loans.map(l => {
-                  const st = LOAN_STATUS[l.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
-                  const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
-                  return (
-                    <tr key={l.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{l.student.firstName} {l.student.lastName}</td>
-                      <td style={tdSt}>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 15 }}>{l.book.title}</div>
-                        {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)' }}>{l.book.author}</div>}
-                      </td>
-                      <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td>
-                      <td style={tdSt}>
-                        {l.dueDate ? (
-                          <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>
-                            {isOverdue && <AlertTriangle size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                <thead>
+                  <tr>{[t('library.tableLoanHeaderStudent'), t('library.tableLoanHeaderBook'), t('library.tableLoanHeaderDate'), t('library.tableLoanHeaderDue'), t('library.tableLoanHeaderStatus'), t('library.tableLoanHeaderActions')].map(h => (
+                    <th key={h} style={thSt}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {loans.map(l => {
+                    const st = LOAN_STATUS[l.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                    const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
+                    return (
+                      <tr key={l.id}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{l.student.firstName} {l.student.lastName}</td>
+                        <td style={tdSt}>
+                          <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 15 }}>{l.book.title}</div>
+                          {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)' }}>{l.book.author}</div>}
+                        </td>
+                        <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td>
+                        <td style={tdSt}>
+                          {l.dueDate ? (
+                            <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)' }}>
+                              {isOverdue && <AlertTriangle size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td style={tdSt}>
+                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : st.bg, color: isOverdue ? 'var(--red)' : st.color }}>
+                            {isOverdue ? t('library.statusOverdue') : l.status === 'ACTIVE' ? t('library.statusActive') : t('library.statusReturned')}
                           </span>
-                        ) : '—'}
-                      </td>
-                      <td style={tdSt}>
-                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : st.bg, color: isOverdue ? 'var(--red)' : st.color }}>
-                          {isOverdue ? t('library.statusOverdue') : l.status === 'ACTIVE' ? t('library.statusActive') : t('library.statusReturned')}
-                        </span>
-                      </td>
-                      <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
-                        {(l.status === 'ACTIVE' || l.status === 'OVERDUE') && (
-                          <>
-                            <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit', marginRight: 6 }}
-                              onClick={() => returnLoan(l.id, l.book.title)}
-                              disabled={returningId === l.id}>
-                              {returningId === l.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('library.return')}
-                            </button>
-                            <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              onClick={() => openRenew(l.id, l.dueDate)}>
-                              <RefreshCw size={12} strokeWidth={2} /> {t('library.renew')}
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td style={{ ...tdSt, whiteSpace: 'nowrap' }}>
+                          {(l.status === 'ACTIVE' || l.status === 'OVERDUE') && (
+                            <>
+                              <button
+                                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit', marginRight: 6 }}
+                                onClick={() => returnLoan(l.id, l.book.title)}
+                                disabled={returningId === l.id}>
+                                {returningId === l.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('library.return')}
+                              </button>
+                              <button
+                                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                onClick={() => openRenew(l.id, l.dueDate)}>
+                                <RefreshCw size={12} strokeWidth={2} /> {t('library.renew')}
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
           {loanPag.pages > 1 && (
             <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 8 }}>
@@ -516,7 +520,7 @@ export default function SectionLibrary({ onToast }: Props) {
       {addBookOpen && (
         <>
           <div onClick={() => setAddBookOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 480, maxWidth: '94vw', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.addBookModalTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {([
@@ -554,7 +558,7 @@ export default function SectionLibrary({ onToast }: Props) {
       {editBookOpen && (
         <>
           <div onClick={() => setEditBookOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 480, maxWidth: '94vw', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.editBookModalTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {([
@@ -591,7 +595,7 @@ export default function SectionLibrary({ onToast }: Props) {
       {renewOpen && (
         <>
           <div onClick={() => setRenewOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 420, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 420, maxWidth: '94vw', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.renewModalTitle')}</div>
             <div>
               <label style={labelSt}>{t('library.newDueDateLabel')}</label>
@@ -609,7 +613,7 @@ export default function SectionLibrary({ onToast }: Props) {
       {borrowOpen && (
         <>
           <div onClick={() => setBorrowOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, padding: '36px 40px', width: 480, boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 20, width: 480, maxWidth: '94vw', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('library.addLoanModalTitle')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Livre */}

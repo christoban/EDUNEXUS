@@ -298,30 +298,32 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
 
           {/* Tableau */}
           <div style={{ maxHeight: 350, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_name')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('pebs_exams.col_current_class')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_score')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_status')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.candidates.map(c => (
-                  <tr key={c.id}>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{c.lastName} {c.firstName}</td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center', color: 'var(--text2)' }}>{c.currentClassName}</td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{c.examScore ?? '—'}</td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
-                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.selectionResult === 'SELECTIONNE' ? 'rgba(22,163,74,0.12)' : c.selectionResult === 'NON_SELECTIONNE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.selectionResult === 'SELECTIONNE' ? 'var(--green)' : c.selectionResult === 'NON_SELECTIONNE' ? 'var(--red)' : 'var(--text2)' }}>
-                        {c.selectionResult}
-                      </span>
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_name')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('pebs_exams.col_current_class')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_score')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_status')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {summary.candidates.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{c.lastName} {c.firstName}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center', color: 'var(--text2)' }}>{c.currentClassName}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{c.examScore ?? '—'}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.selectionResult === 'SELECTIONNE' ? 'rgba(22,163,74,0.12)' : c.selectionResult === 'NON_SELECTIONNE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.selectionResult === 'SELECTIONNE' ? 'var(--green)' : c.selectionResult === 'NON_SELECTIONNE' ? 'var(--red)' : 'var(--text2)' }}>
+                          {c.selectionResult}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

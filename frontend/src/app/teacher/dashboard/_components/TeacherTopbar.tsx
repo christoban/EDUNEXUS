@@ -4,15 +4,17 @@ import { Search } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import ThemeToggle from '@/components/ThemeToggle'
 import NotificationBell from '@/components/NotificationBell'
+import MobileMenuButton from '@/components/MobileMenuButton'
 
 interface UserInfo { firstName: string; lastName: string }
 
 interface Props {
   title: string
   user?: UserInfo | null
+  onMenuClick?: () => void
 }
 
-export default function TeacherTopbar({ title, user }: Props) {
+export default function TeacherTopbar({ title, user, onMenuClick }: Props) {
   const tcommon = useT('common')
   const initials = user ? `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase() : '??'
   const [todayLabel, setTodayLabel] = useState('')
@@ -28,16 +30,17 @@ export default function TeacherTopbar({ title, user }: Props) {
       display: 'flex', alignItems: 'center', padding: '0 28px',
       gap: 14, flexShrink: 0
     }}>
-      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+      {onMenuClick && <MobileMenuButton onClick={onMenuClick} />}
+      <div className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
         {title}
       </div>
       {todayLabel && (
-        <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text3)' }}>
+        <span className="hidden lg:inline" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text3)' }}>
           📅 {todayLabel}
         </span>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ position: 'relative' }}>
+        <div className="hidden sm:block" style={{ position: 'relative' }}>
           <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
           <input type="text" placeholder={tcommon('actions.search')}
             style={{ background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px 8px 34px', fontSize: 15, fontWeight: 600, color: 'var(--text)', outline: 'none', width: 240, fontFamily: 'inherit' }} />

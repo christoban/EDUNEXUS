@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, School, BookOpen, ClipboardCheck, FileText,
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
-  Globe, Languages, Bot, Megaphone, Settings, CalendarClock,
+  Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -51,9 +51,12 @@ interface Props {
    * session (EntranceExamSession/PebsExamSession != CLOSED|APPLIED). */
   hasActiveEntranceExam?: boolean
   hasActivePebs?: boolean
+  /** Tiroir mobile (< 768px) — sidebar fixe cachée, remplacée par cet overlay contrôlé depuis page.tsx. */
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
-export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [], hasActiveEntranceExam = false, hasActivePebs = false }: Props) {
+export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [], hasActiveEntranceExam = false, hasActivePebs = false, mobileOpen = false, onMobileClose }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   const displayName = schoolName || tcommon('brand.fallbackSchool')
@@ -113,8 +116,10 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
     }
   ]
 
-  return (
-    <aside className="w-[320px] min-w-[320px] flex-shrink-0 relative" style={{ background: 'var(--sidebar)', display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+  const handleChange = (id: AdminSection) => { onChange(id); onMobileClose?.() }
+
+  const sidebarBody = (
+    <>
       {/* Bande déco */}
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
         style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }}
@@ -154,7 +159,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
                 </div>
               )}
               {section.items.map(item => (
-                <button key={item.id} onClick={() => onChange(item.id)}
+                <button key={item.id} onClick={() => handleChange(item.id)}
                   className={cn(
                     'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
                     'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
@@ -204,6 +209,29 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
           )}
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop — sidebar statique, fait partie du flux flex normal */}
+      <aside className="hidden md:flex w-[320px] min-w-[320px] flex-shrink-0 relative" style={{ background: 'var(--sidebar)', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        {sidebarBody}
+      </aside>
+
+      {/* Mobile — tiroir en overlay, ouvert/fermé depuis page.tsx */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onMobileClose} />
+          <aside className="absolute left-0 top-0 h-full w-[85vw] max-w-[320px] flex flex-col relative" style={{ background: 'var(--sidebar)', overflow: 'hidden' }}>
+            <button onClick={onMobileClose} aria-label="Fermer"
+              className="absolute z-20" style={{ top: 14, right: 14, width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <X size={18} color="white" />
+            </button>
+            {sidebarBody}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }

@@ -173,40 +173,42 @@ export default function SectionStudentGrades({ onToast, user }: Props) {
         {subjectRows.length === 0 ? (
           <div style={{ padding: 48, textAlign: 'center', color: 'var(--text3)', fontSize: 15, fontWeight: 600 }}>{t('grades.empty')}</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[
-                t('grades.table_header_subject'),
-                t('grades.table_header_coeff'),
-                t('grades.table_header_grade'),
-                t('grades.table_header_mention'),
-              ].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {subjectRows.map((sub) => {
-                const subMention = getMention(sub.note)
-                const [smBg, smC] = MENTION_COLOR(subMention)
-                return (
-                  <tr key={sub.subjectId}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{sub.name}</td>
-                    <td style={tdSt}>
-                      <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 10px', borderRadius: 22, fontSize: 14, fontWeight: 900 }}>×{sub.coeff}</span>
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ fontSize: 22, fontWeight: 900, color: NOTE_COLOR(sub.note) }}>{sub.note.toFixed(1)}</span>
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: smBg, color: smC }}>{subMention}</span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <thead>
+                <tr>{[
+                  t('grades.table_header_subject'),
+                  t('grades.table_header_coeff'),
+                  t('grades.table_header_grade'),
+                  t('grades.table_header_mention'),
+                ].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {subjectRows.map((sub) => {
+                  const subMention = getMention(sub.note)
+                  const [smBg, smC] = MENTION_COLOR(subMention)
+                  return (
+                    <tr key={sub.subjectId}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{sub.name}</td>
+                      <td style={tdSt}>
+                        <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 10px', borderRadius: 22, fontSize: 14, fontWeight: 900 }}>×{sub.coeff}</span>
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ fontSize: 22, fontWeight: 900, color: NOTE_COLOR(sub.note) }}>{sub.note.toFixed(1)}</span>
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: smBg, color: smC }}>{subMention}</span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

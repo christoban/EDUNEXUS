@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useT, useLanguage } from '@/lib/i18n'
 import ThemeToggle from '@/components/ThemeToggle'
 import NotificationBell from '@/components/NotificationBell'
+import MobileMenuButton from '@/components/MobileMenuButton'
 
 interface SearchResult {
   id: string
@@ -19,9 +20,10 @@ interface Props {
   onInvite: () => void
   onNavigate?: (section: string) => void
   onChangePassword?: () => void
+  onMenuClick?: () => void
 }
 
-export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassword }: Props) {
+export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassword, onMenuClick }: Props) {
   const t = useT('admin')
 
   const TYPE_CONFIG: Record<string, { label: string; section: string | null; icon: LucideIcon }> = {
@@ -101,16 +103,18 @@ export default function AdminTopbar({ title, onInvite, onNavigate, onChangePassw
     } as React.CSSProperties & { '--keyframes-edu-spin': string }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+      {onMenuClick && <MobileMenuButton onClick={onMenuClick} />}
+
+      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }} className="truncate">
         {title}
       </div>
       {todayLabel && (
-        <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text3)' }}>
+        <span className="hidden lg:inline" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text3)' }}>
           📅 {todayLabel}
         </span>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div ref={searchRef} style={{ position: 'relative' }}>
+        <div ref={searchRef} className="hidden sm:block" style={{ position: 'relative' }}>
           {loading ? (
             <Loader2 size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--green)', animation: 'edu-spin 0.7s linear infinite' }} />
           ) : (

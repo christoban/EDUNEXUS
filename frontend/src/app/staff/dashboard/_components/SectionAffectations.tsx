@@ -181,65 +181,67 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
               </div>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                  <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Matière</th>
-                  <th style={{ textAlign: 'center', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.04em', width: 80 }}>Coeff.</th>
-                  <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enseignant affecté</th>
-                  <th style={{ width: 36 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(row => {
-                  const isSaving = saving === row.subjectId
-                  const unassigned = row.currentTeacherId === null
-                  return (
-                    <tr key={row.subjectId} style={{ borderBottom: '1px solid var(--bg2)', background: unassigned ? 'var(--amber-light)' : 'white' }}>
-                      <td style={{ padding: '12px 14px', fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
-                        {unassigned && <span style={{ marginRight: 6, fontSize: 14, display: 'inline-flex' }}><AlertTriangle size={14} strokeWidth={2} /></span>}
-                        {row.subjectName}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 15, color: 'var(--text2)', fontWeight: 700 }}>
-                        {row.coefficient}
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <select
-                          style={{
-                            ...sSelect,
-                            maxWidth: 340,
-                            opacity: isSaving ? 0.6 : 1,
-                            borderColor: unassigned ? 'var(--amber-light)' : 'var(--border)',
-                            background: unassigned ? 'var(--amber-light)' : 'white',
-                          }}
-                          value={row.currentTeacherId ?? ''}
-                          disabled={isSaving}
-                          onChange={e => handleAssign(row.subjectId, e.target.value || null)}
-                        >
-                          <option value="">— Non assigné —</option>
-                          {row.eligibleTeachers.map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
-                          {/* Enseignant actuellement affecté mais pas éligible (sécurité) */}
-                          {row.currentTeacherId && !row.eligibleTeachers.find(t => t.id === row.currentTeacherId) && (
-                            <option value={row.currentTeacherId}>{row.currentTeacherName ?? row.currentTeacherId}</option>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Matière</th>
+                    <th style={{ textAlign: 'center', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.04em', width: 80 }}>Coeff.</th>
+                    <th style={{ textAlign: 'left', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enseignant affecté</th>
+                    <th style={{ width: 36 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(row => {
+                    const isSaving = saving === row.subjectId
+                    const unassigned = row.currentTeacherId === null
+                    return (
+                      <tr key={row.subjectId} style={{ borderBottom: '1px solid var(--bg2)', background: unassigned ? 'var(--amber-light)' : 'white' }}>
+                        <td style={{ padding: '12px 14px', fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
+                          {unassigned && <span style={{ marginRight: 6, fontSize: 14, display: 'inline-flex' }}><AlertTriangle size={14} strokeWidth={2} /></span>}
+                          {row.subjectName}
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'center', fontSize: 15, color: 'var(--text2)', fontWeight: 700 }}>
+                          {row.coefficient}
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <select
+                            style={{
+                              ...sSelect,
+                              maxWidth: 340,
+                              opacity: isSaving ? 0.6 : 1,
+                              borderColor: unassigned ? 'var(--amber-light)' : 'var(--border)',
+                              background: unassigned ? 'var(--amber-light)' : 'white',
+                            }}
+                            value={row.currentTeacherId ?? ''}
+                            disabled={isSaving}
+                            onChange={e => handleAssign(row.subjectId, e.target.value || null)}
+                          >
+                            <option value="">— Non assigné —</option>
+                            {row.eligibleTeachers.map(t => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                            {/* Enseignant actuellement affecté mais pas éligible (sécurité) */}
+                            {row.currentTeacherId && !row.eligibleTeachers.find(t => t.id === row.currentTeacherId) && (
+                              <option value={row.currentTeacherId}>{row.currentTeacherName ?? row.currentTeacherId}</option>
+                            )}
+                          </select>
+                          {row.eligibleTeachers.length === 0 && (
+                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+                              Aucun enseignant n'a déclaré cette matière.
+                            </div>
                           )}
-                        </select>
-                        {row.eligibleTeachers.length === 0 && (
-                          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
-                            Aucun enseignant n'a déclaré cette matière.
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                        {isSaving && <span style={{ fontSize: 16, display: 'inline-flex' }}><Loader2 size={16} strokeWidth={2} className="animate-spin" /></span>}
-                        {!isSaving && !unassigned && <span style={{ fontSize: 16, color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={2} /></span>}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          {isSaving && <span style={{ fontSize: 16, display: 'inline-flex' }}><Loader2 size={16} strokeWidth={2} className="animate-spin" /></span>}
+                          {!isSaving && !unassigned && <span style={{ fontSize: 16, color: 'var(--green)', display: 'inline-flex' }}><Check size={16} strokeWidth={2} /></span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

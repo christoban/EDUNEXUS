@@ -551,31 +551,33 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                     {t('users.import_modal.preview').replace('{shown}', String(Math.min(5, totalRows))).replace('{total}', String(totalRows))}
                   </div>
                   <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead>
-                        <tr style={{ background: 'var(--bg2)' }}>
-                          {importType === 'STUDENT'
-                            ? (t('users.import_modal.preview_headers_student') as unknown as string[]).map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text2)' }}>{h}</th>)
-                            : (t('users.import_modal.preview_headers_teacher') as unknown as string[]).map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text2)' }}>{h}</th>)
-                          }
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preview.map((row, i) => (
-                          <tr key={i} style={{ borderTop: '1px solid var(--bg2)' }}>
-                            <td style={{ padding: '7px 10px', fontWeight: 600, color: 'var(--text)' }}>{row.nom}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.prenom}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.email || '—'}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.telephone || '—'}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.classe || row.matieres || '—'}</td>
-                            {importType === 'TEACHER' && <>
-                              <td style={{ padding: '7px 10px', color: row.classePrincipale ? 'var(--green)' : 'var(--text3)', fontWeight: row.classePrincipale ? 700 : 400 }}>{row.classePrincipale || '—'}</td>
-                              <td style={{ padding: '7px 10px', color: row.departementAp ? 'var(--blue)' : 'var(--text3)', fontWeight: row.departementAp ? 700 : 400 }}>{row.departementAp || '—'}</td>
-                            </>}
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
+                        <thead>
+                          <tr style={{ background: 'var(--bg2)' }}>
+                            {importType === 'STUDENT'
+                              ? (t('users.import_modal.preview_headers_student') as unknown as string[]).map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text2)' }}>{h}</th>)
+                              : (t('users.import_modal.preview_headers_teacher') as unknown as string[]).map(h => <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text2)' }}>{h}</th>)
+                            }
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {preview.map((row, i) => (
+                            <tr key={i} style={{ borderTop: '1px solid var(--bg2)' }}>
+                              <td style={{ padding: '7px 10px', fontWeight: 600, color: 'var(--text)' }}>{row.nom}</td>
+                              <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.prenom}</td>
+                              <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.email || '—'}</td>
+                              <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.telephone || '—'}</td>
+                              <td style={{ padding: '7px 10px', color: 'var(--text2)' }}>{row.classe || row.matieres || '—'}</td>
+                              {importType === 'TEACHER' && <>
+                                <td style={{ padding: '7px 10px', color: row.classePrincipale ? 'var(--green)' : 'var(--text3)', fontWeight: row.classePrincipale ? 700 : 400 }}>{row.classePrincipale || '—'}</td>
+                                <td style={{ padding: '7px 10px', color: row.departementAp ? 'var(--blue)' : 'var(--text3)', fontWeight: row.departementAp ? 700 : 400 }}>{row.departementAp || '—'}</td>
+                              </>}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1055,86 +1057,88 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         )}
 
         {!loading && !error && users.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[t('users.i18n_ext.table.user'), t('users.i18n_ext.table.role'), t('users.i18n_ext.table.status'), t('users.i18n_ext.table.lastLogin'), t('users.i18n_ext.table.classTitle'), t('users.i18n_ext.table.actions')].map(h => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {users.map((user) => {
-                const rl = ROLE_LABEL[user.role] ?? { label: user.role, bg: 'var(--bg2)', color: 'var(--text2)' }
-                const className = user.studentProfile?.class?.name ?? null
-                const staffTitle = user.staffProfile?.title ?? null
-                const ppClasses = user.classesProfessorPrincipal?.map((c: { name: string }) => c.name) ?? []
-                return (
-                  <tr key={user.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={tdStyle}>
-                      <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 17 }}>{user.firstName} {user.lastName}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 2 }}>{user.email ?? '—'}</div>
-                    </td>
-                    <td style={tdStyle}><span style={badge(rl.bg, rl.color)}>{rl.label}</span></td>
-                    <td style={tdStyle}>
-                      <span style={badge(user.isActive ? 'var(--green-light)' : 'var(--bg2)', user.isActive ? 'var(--green)' : 'var(--text2)')}>
-                        {user.isActive ? t('users.i18n_ext.status.active') : t('users.i18n_ext.status.inactive')}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>{formatLastLogin(user.lastLogin)}</td>
-                    <td style={tdStyle}>
-                      {className ? <span style={badge('var(--bg2)', 'var(--text2)')}>{className}</span>
-                        : ppClasses.length > 0
-                          ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                              <span style={{ ...badge('var(--blue-light)', 'var(--blue)'), gap: 4 }}><School size={12} strokeWidth={2} /> PP {ppClasses[0]}</span>
-                              {staffTitle && (
-                                <span style={{ ...badge(staffTitle === 'Animateur Pédagogique' ? 'var(--green-light)' : 'var(--orange-light)', staffTitle === 'Animateur Pédagogique' ? 'var(--green)' : 'var(--orange)'), gap: 4 }}>
-                                  {staffTitle === 'Animateur Pédagogique' ? <><Star size={12} strokeWidth={2} /> AP</> : staffTitle}
-                                </span>
-                              )}
-                            </div>
-                        : (user.role === 'TEACHER' && staffTitle === 'Animateur Pédagogique')
-                          ? <span style={{ ...badge('var(--green-light)', 'var(--green)'), gap: 4 }}><Star size={12} strokeWidth={2} /> AP</span>
-                        : staffTitle ? <span style={badge('var(--orange-light)', 'var(--orange)')}>{staffTitle}</span>
-                        : <span style={{ color: 'var(--text3)' }}>—</span>}
-                    </td>
-                    <td style={tdStyle}>
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <button onClick={() => setOpenDD(openDD === user.id ? null : user.id)}
-                          style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)', transition: 'all 0.12s' }}
-                          onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', color: 'var(--green)', background: 'var(--green-light)' })}
-                          onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', color: 'var(--text3)', background: 'none' })}>
-                          <MoreHorizontal size={16} strokeWidth={2} />
-                        </button>
-                        {openDD === user.id && (
-                          <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 200, zIndex: 100, overflow: 'hidden' }}>
-                            {[
-                              { icon: Pencil, label: t('users.action_menu.edit'), danger: false, onClick: () => openModUser(user) },
-                              ...(user.role === 'STUDENT' ? [
-                                { icon: RefreshCw, label: t('users.action_menu.change_class'), danger: false, onClick: () => openTransfer(user) },
-                                { icon: FileText, label: t('users.action_menu.generate_doc'), danger: false, onClick: () => openDocModal(user) },
-                              ] : []),
-                              { icon: Trash2, label: t('users.action_menu.delete'), danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
-                            ].map((item, j) => {
-                              const ItemIcon: LucideIcon = item.icon
-                              return (
-                              <div key={j} onClick={item.onClick}
-                                style={{ padding: '11px 16px', fontSize: 16, fontWeight: 600, color: item.danger ? 'var(--red)' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}
-                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = item.danger ? 'var(--red-light)' : 'var(--bg2)'}
-                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                                <ItemIcon size={15} strokeWidth={2} /> {item.label}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+              <thead>
+                <tr>{[t('users.i18n_ext.table.user'), t('users.i18n_ext.table.role'), t('users.i18n_ext.table.status'), t('users.i18n_ext.table.lastLogin'), t('users.i18n_ext.table.classTitle'), t('users.i18n_ext.table.actions')].map(h => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {users.map((user) => {
+                  const rl = ROLE_LABEL[user.role] ?? { label: user.role, bg: 'var(--bg2)', color: 'var(--text2)' }
+                  const className = user.studentProfile?.class?.name ?? null
+                  const staffTitle = user.staffProfile?.title ?? null
+                  const ppClasses = user.classesProfessorPrincipal?.map((c: { name: string }) => c.name) ?? []
+                  return (
+                    <tr key={user.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={tdStyle}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 17 }}>{user.firstName} {user.lastName}</div>
+                        <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 2 }}>{user.email ?? '—'}</div>
+                      </td>
+                      <td style={tdStyle}><span style={badge(rl.bg, rl.color)}>{rl.label}</span></td>
+                      <td style={tdStyle}>
+                        <span style={badge(user.isActive ? 'var(--green-light)' : 'var(--bg2)', user.isActive ? 'var(--green)' : 'var(--text2)')}>
+                          {user.isActive ? t('users.i18n_ext.status.active') : t('users.i18n_ext.status.inactive')}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>{formatLastLogin(user.lastLogin)}</td>
+                      <td style={tdStyle}>
+                        {className ? <span style={badge('var(--bg2)', 'var(--text2)')}>{className}</span>
+                          : ppClasses.length > 0
+                            ? <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <span style={{ ...badge('var(--blue-light)', 'var(--blue)'), gap: 4 }}><School size={12} strokeWidth={2} /> PP {ppClasses[0]}</span>
+                                {staffTitle && (
+                                  <span style={{ ...badge(staffTitle === 'Animateur Pédagogique' ? 'var(--green-light)' : 'var(--orange-light)', staffTitle === 'Animateur Pédagogique' ? 'var(--green)' : 'var(--orange)'), gap: 4 }}>
+                                    {staffTitle === 'Animateur Pédagogique' ? <><Star size={12} strokeWidth={2} /> AP</> : staffTitle}
+                                  </span>
+                                )}
                               </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                          : (user.role === 'TEACHER' && staffTitle === 'Animateur Pédagogique')
+                            ? <span style={{ ...badge('var(--green-light)', 'var(--green)'), gap: 4 }}><Star size={12} strokeWidth={2} /> AP</span>
+                          : staffTitle ? <span style={badge('var(--orange-light)', 'var(--orange)')}>{staffTitle}</span>
+                          : <span style={{ color: 'var(--text3)' }}>—</span>}
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button onClick={() => setOpenDD(openDD === user.id ? null : user.id)}
+                            style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)', transition: 'all 0.12s' }}
+                            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', color: 'var(--green)', background: 'var(--green-light)' })}
+                            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', color: 'var(--text3)', background: 'none' })}>
+                            <MoreHorizontal size={16} strokeWidth={2} />
+                          </button>
+                          {openDD === user.id && (
+                            <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 200, zIndex: 100, overflow: 'hidden' }}>
+                              {[
+                                { icon: Pencil, label: t('users.action_menu.edit'), danger: false, onClick: () => openModUser(user) },
+                                ...(user.role === 'STUDENT' ? [
+                                  { icon: RefreshCw, label: t('users.action_menu.change_class'), danger: false, onClick: () => openTransfer(user) },
+                                  { icon: FileText, label: t('users.action_menu.generate_doc'), danger: false, onClick: () => openDocModal(user) },
+                                ] : []),
+                                { icon: Trash2, label: t('users.action_menu.delete'), danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
+                              ].map((item, j) => {
+                                const ItemIcon: LucideIcon = item.icon
+                                return (
+                                <div key={j} onClick={item.onClick}
+                                  style={{ padding: '11px 16px', fontSize: 16, fontWeight: 600, color: item.danger ? 'var(--red)' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = item.danger ? 'var(--red-light)' : 'var(--bg2)'}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                                  <ItemIcon size={15} strokeWidth={2} /> {item.label}
+                                </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -1150,7 +1154,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       {/* ── Modal modifier utilisateur ── */}
       {modUser.open && (
         <div onClick={() => setModUser(EMPTY_MOD_USER)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('users.edit_modal.title')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
@@ -1194,7 +1198,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       {/* ── Modal changer de classe ── */}
       {transfer.open && (
         <div onClick={() => setTransfer(EMPTY_TRANSFER)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 420, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 420, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{t('users.transfer_modal.title')}</div>
             <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 22 }}>{t('users.transfer_modal.subtitle').replace('{name}', transfer.userName)}</div>
             <div style={sLb}>{t('users.transfer_modal.select_label')}</div>
@@ -1216,7 +1220,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       {/* ── Modal Générer document scolaire ── */}
       {docModal.open && (
         <div onClick={() => setDocModal(EMPTY_DOC_MODAL)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('users.doc_modal.title')}</div>
             <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{docModal.userName}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1260,7 +1264,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       {/* ── Modal créer un utilisateur ── */}
       {createOpen && (
         <div onClick={() => { setCreateOpen(false); setCreateForm(EMPTY_CREATE_USER) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 540, maxWidth: '94vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 540, maxWidth: '94vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('users.create_modal.title')}</div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>

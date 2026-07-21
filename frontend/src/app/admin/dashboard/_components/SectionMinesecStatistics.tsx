@@ -494,24 +494,26 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                     {t('minesecStats.champsNonResolusTitle', { count: String(champsNonResolus.length) })}
                   </p>
                   <div style={{ maxHeight: 240, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                      <thead>
-                        <tr>
-                          {[t('minesecStats.colChamp'), t('minesecStats.colFeuille'), t('minesecStats.colRaison')].map((h) => (
-                            <th key={h} style={{ padding: '8px 12px', textAlign: 'left', background: 'var(--bg2)', color: 'var(--text3)', fontWeight: 700 }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {champsNonResolus.map((c, i) => (
-                          <tr key={i} style={{ borderTop: '1px solid var(--bg)' }}>
-                            <td style={{ padding: '6px 12px', color: 'var(--text)' }}>{c.fieldLabel}</td>
-                            <td style={{ padding: '6px 12px', color: 'var(--text2)' }}>{c.sheetName}</td>
-                            <td style={{ padding: '6px 12px', color: 'var(--text3)' }}>{c.raison}</td>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 500 }}>
+                        <thead>
+                          <tr>
+                            {[t('minesecStats.colChamp'), t('minesecStats.colFeuille'), t('minesecStats.colRaison')].map((h) => (
+                              <th key={h} style={{ padding: '8px 12px', textAlign: 'left', background: 'var(--bg2)', color: 'var(--text3)', fontWeight: 700 }}>{h}</th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {champsNonResolus.map((c, i) => (
+                            <tr key={i} style={{ borderTop: '1px solid var(--bg)' }}>
+                              <td style={{ padding: '6px 12px', color: 'var(--text)' }}>{c.fieldLabel}</td>
+                              <td style={{ padding: '6px 12px', color: 'var(--text2)' }}>{c.sheetName}</td>
+                              <td style={{ padding: '6px 12px', color: 'var(--text3)' }}>{c.raison}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -523,19 +525,21 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
             {submissions.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('minesecStats.historyEmpty')}</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <tbody>
-                  {submissions.map((s) => (
-                    <tr key={s.id} style={{ borderTop: '1px solid var(--bg)' }}>
-                      <td style={{ padding: '8px 12px', color: 'var(--text2)' }}>{new Date(s.generatedAt).toLocaleString()}</td>
-                      <td style={{ padding: '8px 12px', color: 'var(--text2)' }}>{s.status}</td>
-                      <td style={{ padding: '8px 12px' }}>
-                        {s.filePath && <button onClick={() => downloadSubmission(s.id)} style={{ ...btnSec, padding: '4px 10px', fontSize: 12 }}>{t('minesecStats.downloadBtn')}</button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
+                  <tbody>
+                    {submissions.map((s) => (
+                      <tr key={s.id} style={{ borderTop: '1px solid var(--bg)' }}>
+                        <td style={{ padding: '8px 12px', color: 'var(--text2)' }}>{new Date(s.generatedAt).toLocaleString()}</td>
+                        <td style={{ padding: '8px 12px', color: 'var(--text2)' }}>{s.status}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {s.filePath && <button onClick={() => downloadSubmission(s.id)} style={{ ...btnSec, padding: '4px 10px', fontSize: 12 }}>{t('minesecStats.downloadBtn')}</button>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

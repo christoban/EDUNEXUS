@@ -1219,8 +1219,8 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {secModal && (
         <div onClick={() => !secSaving && setSecModal(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8"
+            style={{ background: 'var(--surface)', borderRadius: 18, width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>
               {t('settings.security.modal.title')}
             </div>

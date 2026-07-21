@@ -450,24 +450,26 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
             </div>
             {importResult.errors.length > 0 && (
               <div style={{ background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {[t('grades_section.import_table_line'), t('grades_section.import_table_matricule'), t('grades_section.import_table_error')].map(h => (
-                        <th key={h} style={{ ...thSt, background: 'var(--red-light)', color: 'var(--red)', padding: '8px 14px' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {importResult.errors.map((e, i) => (
-                      <tr key={i} style={{ borderTop: '1px solid rgba(220,38,38,0.1)' }}>
-                        <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700, width: 60 }}>{e.line}</td>
-                        <td style={{ ...tdSt, fontWeight: 700 }}>{e.matricule || '—'}</td>
-                        <td style={{ ...tdSt, color: 'var(--red)' }}>{e.error}</td>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                    <thead>
+                      <tr>
+                        {[t('grades_section.import_table_line'), t('grades_section.import_table_matricule'), t('grades_section.import_table_error')].map(h => (
+                          <th key={h} style={{ ...thSt, background: 'var(--red-light)', color: 'var(--red)', padding: '8px 14px' }}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {importResult.errors.map((e, i) => (
+                        <tr key={i} style={{ borderTop: '1px solid rgba(220,38,38,0.1)' }}>
+                          <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700, width: 60 }}>{e.line}</td>
+                          <td style={{ ...tdSt, fontWeight: 700 }}>{e.matricule || '—'}</td>
+                          <td style={{ ...tdSt, color: 'var(--red)' }}>{e.error}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -475,67 +477,69 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
 
         {grades.length > 0 && (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>{[t('grades_section.table_num'), t('grades_section.table_student'), t('grades_section.table_grade'), t('grades_section.table_observation'), t('grades_section.table_status')].map(h => (
-                  <th key={h} style={thSt}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {grades.map((g: any, i: number) => {
-                  const sid = g.studentId || g.student?.id
-                  const name = g.student ? `${g.student.firstName} ${g.student.lastName}` : t('grades_section.unknown_student')
-                  const status = g.validationStatus || 'DRAFT'
-                  const sColors: Record<string, { bg: string; color: string }> = {
-                    DRAFT: { bg: 'var(--bg2)', color: 'var(--text2)' },
-                    SUBMITTED: { bg: 'var(--amber-light)', color: 'var(--amber)' },
-                    VALIDATED: { bg: 'var(--green-light)', color: 'var(--green)' },
-                    REJECTED: { bg: 'var(--red-light)', color: 'var(--red)' },
-                    LOCKED: { bg: 'var(--blue-light)', color: 'var(--blue)' },
-                  }
-                  const sc = sColors[status] || sColors.DRAFT
-                  return (
-                    <tr key={sid}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <td style={{ ...tdSt, color: 'var(--text3)', width: 44 }}>{i + 1}</td>
-                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                        {name}
-                        {rosterLabel && g.student?.className && <span style={{ fontWeight: 600, color: 'var(--text3)', fontSize: 14 }}> ({g.student.className})</span>}
-                      </td>
-                      <td style={tdSt}>
-                        <input type="number" min={0} max={20} step={0.25}
-                          value={notes[sid] ?? 0}
-                          onChange={e => {
-                            const a = { ...notes }
-                            a[sid] = Number(e.target.value)
-                            setNotes(a)
-                          }}
-                          disabled={status !== 'DRAFT' && status !== 'REJECTED'}
-                          style={{ width: 80, padding: '7px 10px', border: '1.5px solid var(--border2)', borderRadius: 9, fontSize: 17, fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? 'var(--bg2)' : 'white', color: (notes[sid] ?? 0) < 10 ? 'var(--red)' : (notes[sid] ?? 0) >= 16 ? 'var(--green)' : 'var(--text)' }}
-                        />
-                      </td>
-                      <td style={tdSt}>
-                        <input type="text" value={observations[sid] || ''} placeholder={t('grades_section.observation_placeholder')}
-                          onChange={e => {
-                            const a = { ...observations }
-                            a[sid] = e.target.value
-                            setObservations(a)
-                          }}
-                          disabled={status !== 'DRAFT' && status !== 'REJECTED'}
-                          style={{ width: 240, padding: '7px 12px', border: '1.5px solid var(--border2)', borderRadius: 9, fontSize: 16, fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? 'var(--bg2)' : 'white', color: 'var(--text)' }}
-                        />
-                      </td>
-                      <td style={tdSt}>
-                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: sc.bg, color: sc.color }}>
-                          {status === 'DRAFT' ? t('grades_section.status_draft') : status === 'SUBMITTED' ? t('grades_section.status_submitted') : status === 'VALIDATED' ? t('grades_section.status_validated') : status === 'REJECTED' ? t('grades_section.status_rejected') : status === 'LOCKED' ? t('grades_section.status_locked') : status}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <thead>
+                  <tr>{[t('grades_section.table_num'), t('grades_section.table_student'), t('grades_section.table_grade'), t('grades_section.table_observation'), t('grades_section.table_status')].map(h => (
+                    <th key={h} style={thSt}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {grades.map((g: any, i: number) => {
+                    const sid = g.studentId || g.student?.id
+                    const name = g.student ? `${g.student.firstName} ${g.student.lastName}` : t('grades_section.unknown_student')
+                    const status = g.validationStatus || 'DRAFT'
+                    const sColors: Record<string, { bg: string; color: string }> = {
+                      DRAFT: { bg: 'var(--bg2)', color: 'var(--text2)' },
+                      SUBMITTED: { bg: 'var(--amber-light)', color: 'var(--amber)' },
+                      VALIDATED: { bg: 'var(--green-light)', color: 'var(--green)' },
+                      REJECTED: { bg: 'var(--red-light)', color: 'var(--red)' },
+                      LOCKED: { bg: 'var(--blue-light)', color: 'var(--blue)' },
+                    }
+                    const sc = sColors[status] || sColors.DRAFT
+                    return (
+                      <tr key={sid}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                        <td style={{ ...tdSt, color: 'var(--text3)', width: 44 }}>{i + 1}</td>
+                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                          {name}
+                          {rosterLabel && g.student?.className && <span style={{ fontWeight: 600, color: 'var(--text3)', fontSize: 14 }}> ({g.student.className})</span>}
+                        </td>
+                        <td style={tdSt}>
+                          <input type="number" min={0} max={20} step={0.25}
+                            value={notes[sid] ?? 0}
+                            onChange={e => {
+                              const a = { ...notes }
+                              a[sid] = Number(e.target.value)
+                              setNotes(a)
+                            }}
+                            disabled={status !== 'DRAFT' && status !== 'REJECTED'}
+                            style={{ width: 80, padding: '7px 10px', border: '1.5px solid var(--border2)', borderRadius: 9, fontSize: 17, fontWeight: 800, textAlign: 'center', fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? 'var(--bg2)' : 'white', color: (notes[sid] ?? 0) < 10 ? 'var(--red)' : (notes[sid] ?? 0) >= 16 ? 'var(--green)' : 'var(--text)' }}
+                          />
+                        </td>
+                        <td style={tdSt}>
+                          <input type="text" value={observations[sid] || ''} placeholder={t('grades_section.observation_placeholder')}
+                            onChange={e => {
+                              const a = { ...observations }
+                              a[sid] = e.target.value
+                              setObservations(a)
+                            }}
+                            disabled={status !== 'DRAFT' && status !== 'REJECTED'}
+                            style={{ width: 240, padding: '7px 12px', border: '1.5px solid var(--border2)', borderRadius: 9, fontSize: 16, fontFamily: 'inherit', outline: 'none', background: status !== 'DRAFT' && status !== 'REJECTED' ? 'var(--bg2)' : 'white', color: 'var(--text)' }}
+                          />
+                        </td>
+                        <td style={tdSt}>
+                          <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: sc.bg, color: sc.color }}>
+                            {status === 'DRAFT' ? t('grades_section.status_draft') : status === 'SUBMITTED' ? t('grades_section.status_submitted') : status === 'VALIDATED' ? t('grades_section.status_validated') : status === 'REJECTED' ? t('grades_section.status_rejected') : status === 'LOCKED' ? t('grades_section.status_locked') : status}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>
@@ -572,30 +576,32 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
             <X size={16} strokeWidth={2} color="var(--red)" />
             <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--red)' }}>{t('grades_section.rejected_title').replace('{count}', String(rejectedGrades.length))}</span>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{[t('grades_section.rejected_table_student'), t('grades_section.rejected_table_grade'), t('grades_section.rejected_table_reason'), t('grades_section.rejected_table_actions')].map(h => <th key={h} style={thSt}>{h}</th>)}</tr></thead>
-            <tbody>
-              {rejectedGrades.map((g: any) => (
-                <tr key={g.id}>
-                  <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{g.student?.firstName} {g.student?.lastName}</td>
-                  <td style={{ ...tdSt, fontWeight: 800, color: 'var(--red)' }}>{g.sequenceScore ?? '?'}/20</td>
-                  <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700 }}>{g.rejectionReason || t('grades_section.rejected_no_reason')}</td>
-                  <td style={tdSt}>
-                    <button
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
-                      onClick={() => {
-                        setSelectedClass(g.classId || '')
-                        setSelectedSubject(g.subjectId || '')
-                        setSelectedSequence(g.sequenceId || '')
-                        loadGrades()
-                      }}>
-                      <Pencil size={14} strokeWidth={2} />{t('grades_section.rejected_correct')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <thead><tr>{[t('grades_section.rejected_table_student'), t('grades_section.rejected_table_grade'), t('grades_section.rejected_table_reason'), t('grades_section.rejected_table_actions')].map(h => <th key={h} style={thSt}>{h}</th>)}</tr></thead>
+              <tbody>
+                {rejectedGrades.map((g: any) => (
+                  <tr key={g.id}>
+                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{g.student?.firstName} {g.student?.lastName}</td>
+                    <td style={{ ...tdSt, fontWeight: 800, color: 'var(--red)' }}>{g.sequenceScore ?? '?'}/20</td>
+                    <td style={{ ...tdSt, color: 'var(--red)', fontWeight: 700 }}>{g.rejectionReason || t('grades_section.rejected_no_reason')}</td>
+                    <td style={tdSt}>
+                      <button
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.3)', cursor: 'pointer', fontFamily: 'inherit' }}
+                        onClick={() => {
+                          setSelectedClass(g.classId || '')
+                          setSelectedSubject(g.subjectId || '')
+                          setSelectedSequence(g.sequenceId || '')
+                          loadGrades()
+                        }}>
+                        <Pencil size={14} strokeWidth={2} />{t('grades_section.rejected_correct')}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

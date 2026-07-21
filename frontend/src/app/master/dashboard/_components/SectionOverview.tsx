@@ -38,29 +38,31 @@ export default function SectionOverview({ kpi, activity, onInvite, onGoToSchools
           <span style={{ fontSize: 18, fontWeight: 800, color: '#1a1209', display: 'flex', alignItems: 'center', gap: 8 }}><Clock size={18} /> Activité récente</span>
           <button onClick={onGoToLogs} style={btnSecondarySmall}>Voir tous les logs →</button>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {['Date / Heure', 'Action', 'École concernée', 'Opérateur'].map(h => (
-                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 15, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {activity.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding: '20px 16px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Aucune activité récente</td></tr>
-            ) : activity.map((row, i) => (
-              <tr key={i} style={{ borderBottom: i < activity.length - 1 ? '1px solid #faf7f2' : 'none' }}>
-                <td style={tdStyle}>{row.date}</td>
-                <td style={tdStyle}><Badge type={row.badge}>{row.action}</Badge></td>
-                <td style={tdStyle}><span style={{ fontWeight: 700, color: '#1a1209' }}>{row.school}</span></td>
-                <td style={tdStyle}>{row.operator}</td>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+            <thead>
+              <tr>
+                {['Date / Heure', 'Action', 'École concernée', 'Opérateur'].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 15, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {activity.length === 0 ? (
+                <tr><td colSpan={4} style={{ padding: '20px 16px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Aucune activité récente</td></tr>
+              ) : activity.map((row, i) => (
+                <tr key={i} style={{ borderBottom: i < activity.length - 1 ? '1px solid #faf7f2' : 'none' }}>
+                  <td style={tdStyle}>{row.date}</td>
+                  <td style={tdStyle}><Badge type={row.badge}>{row.action}</Badge></td>
+                  <td style={tdStyle}><span style={{ fontWeight: 700, color: '#1a1209' }}>{row.school}</span></td>
+                  <td style={tdStyle}>{row.operator}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

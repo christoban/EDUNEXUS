@@ -101,187 +101,189 @@ export default function SectionSchools({ schools, loading, activeTab, onTabChang
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {['École', 'Type', 'Plan', 'Statut', 'Admin', 'Invitation', 'Créée le', 'Actions'].map(h => (
-                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 15, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Chargement...</td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Aucune école trouvée</td></tr>
-            ) : filtered.map((school) => (
-              <tr key={school.id} style={{ borderBottom: '1px solid #faf7f2' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
-                <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                  <div style={{ fontWeight: 700, color: '#1a1209', fontSize: 17 }}>{school.name}</div>
-                  <div style={{ fontSize: 15, color: '#a89478', marginTop: 1, fontWeight: 500 }}>{school.subdomain}</div>
-                </td>
-                <td style={tdStyle}>{school.type}</td>
-                <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                  <Badge type={`plan-${school.plan}` as any}>{PLAN_LABELS[school.plan] ?? school.plan}</Badge>
-                </td>
-                <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                  <Badge type={school.status}>{STATUS_LABELS[school.status] ?? school.status.toUpperCase()}</Badge>
-                </td>
-                <td style={tdStyle}>{school.adminEmail || <span style={{ color: '#c8bfb2' }}>—</span>}</td>
-                <td style={{ padding: '17px 16px', verticalAlign: 'middle' }}>
-                  {school.status === 'draft' ? (
-                    <>
-                      <Badge type="pending">En attente</Badge>
-                      {school.inviteExpiry && <div style={{ fontSize: 13, color: '#a89478', marginTop: 1, fontWeight: 500 }}>Expire {school.inviteExpiry}</div>}
-                    </>
-                  ) : (
-                    <span style={{ color: '#c8bfb2', fontSize: 14 }}>—</span>
-                  )}
-                </td>
-                <td style={tdStyle}>{school.createdAt}</td>
-                <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', position: 'relative' }}>
-                    {school.status === 'pending' && (
-                      <>
-                        <button onClick={() => onApprove(school.id)} style={{ ...btnPrimary, padding: '7px 14px', fontSize: 15 }}><Check size={16} /></button>
-                        <button onClick={() => onReject(school.id)} style={{ padding: '6px 12px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fee2e2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }}><X size={16} /></button>
-                      </>
-                    )}
-                    <div style={{ position: 'relative' }}>
-                      <button onClick={() => setOpenDropdown(openDropdown === school.id ? null : school.id)}
-                        style={{ background: 'none', border: '1.5px solid #d4c8b8', borderRadius: 8, padding: '5px 14px', cursor: 'pointer', fontSize: 16, color: '#6b5c45', transition: 'all 0.15s', display: 'flex', alignItems: 'center' }}>
-                        <MoreHorizontal size={16} />
-                      </button>
-                      {openDropdown === school.id && (
-                        <div style={{
-                          position: 'absolute', right: 0, top: 'calc(100% + 4px)',
-                          background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 12,
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 230, zIndex: 100, overflow: 'hidden'
-                        }}>
-                          <DropdownItem onClick={() => { onViewDetails(school.id); setOpenDropdown(null) }}><Eye size={16} /> Voir les détails</DropdownItem>
-
-                          {/* ── Écoles ACTIVES ────────────────────────────── */}
-                          {school.status === 'active' && (
-                            <>
-                              <DropdownItem onClick={() => { onToast('Fonctionnalité à venir', 'info'); setOpenDropdown(null) }}><Pencil size={16} /> Modifier les infos</DropdownItem>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onSuspend(school.id, school.name, school.subdomain); setOpenDropdown(null) }} danger><Ban size={16} /> Suspendre</DropdownItem>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
-                            </>
-                          )}
-
-                          {/* ── Écoles SUSPENDUES ─────────────────────────── */}
-                          {school.status === 'suspended' && (
-                            <>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => {
-                                setOpenDropdown(null)
-                                onConfirmAction({
-                                  title: 'Réactiver l\'établissement',
-                                  description: `Réactiver «${school.name}» — tous les utilisateurs retrouveront l'accès.`,
-                                  icon: CheckCircle2,
-                                  successMsg: `${school.name} a été réactivée`,
-                                  execute: async (auth) => {
-                                    const { reactivateSchool } = await import('../_api')
-                                    await reactivateSchool(school.id, auth)
-                                    onRefresh()
-                                  },
-                                })
-                              }} color="#059669"><CheckCircle2 size={16} /> Réactiver</DropdownItem>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
-                            </>
-                          )}
-
-                          {/* ── Écoles REJETÉES ───────────────────────────── */}
-                          {school.status === 'rejected' && (
-                            <>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => {
-                                setOpenDropdown(null)
-                                onConfirmAction({
-                                  title: 'Réexaminer la demande',
-                                  description: `Remettre «${school.name}» en file d'attente pour approbation.`,
-                                  icon: RotateCw,
-                                  successMsg: `La demande de ${school.name} est remise en examen`,
-                                  execute: async (auth) => {
-                                    const { reexamineSchool } = await import('../_api')
-                                    await reexamineSchool(school.id, auth)
-                                    onRefresh()
-                                  },
-                                })
-                              }} color="#1d4ed8"><RotateCw size={16} /> Réexaminer la demande</DropdownItem>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
-                            </>
-                          )}
-
-                          {/* ── Écoles en INVITATION (draft) ─────────────── */}
-                          {school.status === 'draft' && (
-                            <>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => {
-                                setOpenDropdown(null)
-                                onConfirmAction({
-                                  title: 'Renvoyer l\'invitation',
-                                  description: `Envoyer un nouveau lien d'invitation à «${school.name}».`,
-                                  icon: Mail,
-                                  successMsg: 'Invitation renvoyée avec succès',
-                                  execute: async (auth) => {
-                                    const { resendInvite } = await import('../_api')
-                                    await resendInvite(school.id, auth)
-                                  },
-                                })
-                              }} color="#059669"><Mail size={16} /> Renvoyer l'invitation</DropdownItem>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
-                            </>
-                          )}
-
-                          {/* ── Écoles À APPROUVER (pending) ─────────────── */}
-                          {school.status === 'pending' && (
-                            <>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
-                            </>
-                          )}
-
-                          {/* ── Écoles APPROUVÉES (approved) ─────────────── */}
-                          {school.status === 'approved' && (
-                            <>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => {
-                                setOpenDropdown(null)
-                                onConfirmAction({
-                                  title: "Annuler l'approbation",
-                                  description: `Remettre «${school.name}» en attente d'approbation. L'admin ne pourra plus se connecter tant que l'école n'est pas ré-approuvée.`,
-                                  icon: Undo2,
-                                  successMsg: `L'approbation de ${school.name} a été annulée`,
-                                  execute: async (auth) => {
-                                    const { cancelApproval } = await import('../_api')
-                                    await cancelApproval(school.id, auth)
-                                    onRefresh()
-                                  },
-                                })
-                              }} color="#92400e"><Undo2 size={16} /> Annuler l'approbation</DropdownItem>
-                              <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
-                              <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </td>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 850 }}>
+            <thead>
+              <tr>
+                {['École', 'Type', 'Plan', 'Statut', 'Admin', 'Invitation', 'Créée le', 'Actions'].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 15, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Chargement...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#a89478', fontSize: 16 }}>Aucune école trouvée</td></tr>
+              ) : filtered.map((school) => (
+                <tr key={school.id} style={{ borderBottom: '1px solid #faf7f2' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fdfaf6'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ fontWeight: 700, color: '#1a1209', fontSize: 17 }}>{school.name}</div>
+                    <div style={{ fontSize: 15, color: '#a89478', marginTop: 1, fontWeight: 500 }}>{school.subdomain}</div>
+                  </td>
+                  <td style={tdStyle}>{school.type}</td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <Badge type={`plan-${school.plan}` as any}>{PLAN_LABELS[school.plan] ?? school.plan}</Badge>
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <Badge type={school.status}>{STATUS_LABELS[school.status] ?? school.status.toUpperCase()}</Badge>
+                  </td>
+                  <td style={tdStyle}>{school.adminEmail || <span style={{ color: '#c8bfb2' }}>—</span>}</td>
+                  <td style={{ padding: '17px 16px', verticalAlign: 'middle' }}>
+                    {school.status === 'draft' ? (
+                      <>
+                        <Badge type="pending">En attente</Badge>
+                        {school.inviteExpiry && <div style={{ fontSize: 13, color: '#a89478', marginTop: 1, fontWeight: 500 }}>Expire {school.inviteExpiry}</div>}
+                      </>
+                    ) : (
+                      <span style={{ color: '#c8bfb2', fontSize: 14 }}>—</span>
+                    )}
+                  </td>
+                  <td style={tdStyle}>{school.createdAt}</td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', position: 'relative' }}>
+                      {school.status === 'pending' && (
+                        <>
+                          <button onClick={() => onApprove(school.id)} style={{ ...btnPrimary, padding: '7px 14px', fontSize: 15 }}><Check size={16} /></button>
+                          <button onClick={() => onReject(school.id)} style={{ padding: '6px 12px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: '#fee2e2', color: '#dc2626', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }}><X size={16} /></button>
+                        </>
+                      )}
+                      <div style={{ position: 'relative' }}>
+                        <button onClick={() => setOpenDropdown(openDropdown === school.id ? null : school.id)}
+                          style={{ background: 'none', border: '1.5px solid #d4c8b8', borderRadius: 8, padding: '5px 14px', cursor: 'pointer', fontSize: 16, color: '#6b5c45', transition: 'all 0.15s', display: 'flex', alignItems: 'center' }}>
+                          <MoreHorizontal size={16} />
+                        </button>
+                        {openDropdown === school.id && (
+                          <div style={{
+                            position: 'absolute', right: 0, top: 'calc(100% + 4px)',
+                            background: 'white', border: '1.5px solid #d4c8b8', borderRadius: 12,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 230, zIndex: 100, overflow: 'hidden'
+                          }}>
+                            <DropdownItem onClick={() => { onViewDetails(school.id); setOpenDropdown(null) }}><Eye size={16} /> Voir les détails</DropdownItem>
+
+                            {/* ── Écoles ACTIVES ────────────────────────────── */}
+                            {school.status === 'active' && (
+                              <>
+                                <DropdownItem onClick={() => { onToast('Fonctionnalité à venir', 'info'); setOpenDropdown(null) }}><Pencil size={16} /> Modifier les infos</DropdownItem>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onSuspend(school.id, school.name, school.subdomain); setOpenDropdown(null) }} danger><Ban size={16} /> Suspendre</DropdownItem>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
+                              </>
+                            )}
+
+                            {/* ── Écoles SUSPENDUES ─────────────────────────── */}
+                            {school.status === 'suspended' && (
+                              <>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => {
+                                  setOpenDropdown(null)
+                                  onConfirmAction({
+                                    title: 'Réactiver l\'établissement',
+                                    description: `Réactiver «${school.name}» — tous les utilisateurs retrouveront l'accès.`,
+                                    icon: CheckCircle2,
+                                    successMsg: `${school.name} a été réactivée`,
+                                    execute: async (auth) => {
+                                      const { reactivateSchool } = await import('../_api')
+                                      await reactivateSchool(school.id, auth)
+                                      onRefresh()
+                                    },
+                                  })
+                                }} color="#059669"><CheckCircle2 size={16} /> Réactiver</DropdownItem>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
+                              </>
+                            )}
+
+                            {/* ── Écoles REJETÉES ───────────────────────────── */}
+                            {school.status === 'rejected' && (
+                              <>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => {
+                                  setOpenDropdown(null)
+                                  onConfirmAction({
+                                    title: 'Réexaminer la demande',
+                                    description: `Remettre «${school.name}» en file d'attente pour approbation.`,
+                                    icon: RotateCw,
+                                    successMsg: `La demande de ${school.name} est remise en examen`,
+                                    execute: async (auth) => {
+                                      const { reexamineSchool } = await import('../_api')
+                                      await reexamineSchool(school.id, auth)
+                                      onRefresh()
+                                    },
+                                  })
+                                }} color="#1d4ed8"><RotateCw size={16} /> Réexaminer la demande</DropdownItem>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
+                              </>
+                            )}
+
+                            {/* ── Écoles en INVITATION (draft) ─────────────── */}
+                            {school.status === 'draft' && (
+                              <>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => {
+                                  setOpenDropdown(null)
+                                  onConfirmAction({
+                                    title: 'Renvoyer l\'invitation',
+                                    description: `Envoyer un nouveau lien d'invitation à «${school.name}».`,
+                                    icon: Mail,
+                                    successMsg: 'Invitation renvoyée avec succès',
+                                    execute: async (auth) => {
+                                      const { resendInvite } = await import('../_api')
+                                      await resendInvite(school.id, auth)
+                                    },
+                                  })
+                                }} color="#059669"><Mail size={16} /> Renvoyer l'invitation</DropdownItem>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
+                              </>
+                            )}
+
+                            {/* ── Écoles À APPROUVER (pending) ─────────────── */}
+                            {school.status === 'pending' && (
+                              <>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
+                              </>
+                            )}
+
+                            {/* ── Écoles APPROUVÉES (approved) ─────────────── */}
+                            {school.status === 'approved' && (
+                              <>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => {
+                                  setOpenDropdown(null)
+                                  onConfirmAction({
+                                    title: "Annuler l'approbation",
+                                    description: `Remettre «${school.name}» en attente d'approbation. L'admin ne pourra plus se connecter tant que l'école n'est pas ré-approuvée.`,
+                                    icon: Undo2,
+                                    successMsg: `L'approbation de ${school.name} a été annulée`,
+                                    execute: async (auth) => {
+                                      const { cancelApproval } = await import('../_api')
+                                      await cancelApproval(school.id, auth)
+                                      onRefresh()
+                                    },
+                                  })
+                                }} color="#92400e"><Undo2 size={16} /> Annuler l'approbation</DropdownItem>
+                                <div style={{ height: 1, background: '#e8e0d4', margin: '4px 0' }} />
+                                <DropdownItem onClick={() => { onDelete(school.id, school.name); setOpenDropdown(null) }} danger><Trash2 size={16} /> Supprimer définitivement</DropdownItem>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

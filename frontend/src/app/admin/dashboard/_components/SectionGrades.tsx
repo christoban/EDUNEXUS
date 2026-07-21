@@ -181,58 +181,60 @@ export default function SectionGrades({ onToast }: Props) {
 
         {!loading && !error && grades.length > 0 && (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>{['Élève', 'Matière', 'Note /20', 'Statut', 'Actions'].map(h => (
-                  <th key={h} style={thStyle}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {grades.map((grade) => {
-                  const st = STATUS_STYLE[grade.validationStatus] ?? STATUS_STYLE.DRAFT
-                  return (
-                    <tr key={grade.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text)' }}>
-                        {grade.student.firstName} {grade.student.lastName}
-                      </td>
-                      <td style={tdStyle}>{grade.subject.name}</td>
-                      <td style={tdStyle}>
-                        <span style={{
-                          fontSize: 20, fontWeight: 900,
-                          color: (grade.sequenceAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)',
-                        }}>
-                          {grade.sequenceAverage != null ? grade.sequenceAverage.toFixed(1) : '—'}
-                        </span>
-                        <span style={{ fontSize: 14, color: 'var(--text3)', marginLeft: 4 }}>/20</span>
-                      </td>
-                      <td style={tdStyle}>
-                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>
-                          {st.label}
-                        </span>
-                      </td>
-                      <td style={tdStyle}>
-                        {grade.validationStatus === 'SUBMITTED' && (
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              onClick={() => handleValidate(grade.id)}>
-                              <Check size={14} strokeWidth={2} /> Valider
-                            </button>
-                            <button
-                              style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)', display: 'inline-flex', alignItems: 'center' }}
-                              onClick={() => onToast('Saisissez un motif de rejet dans le module notes', 'info')}>
-                              <X size={14} strokeWidth={2} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <thead>
+                  <tr>{['Élève', 'Matière', 'Note /20', 'Statut', 'Actions'].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {grades.map((grade) => {
+                    const st = STATUS_STYLE[grade.validationStatus] ?? STATUS_STYLE.DRAFT
+                    return (
+                      <tr key={grade.id}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                        <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text)' }}>
+                          {grade.student.firstName} {grade.student.lastName}
+                        </td>
+                        <td style={tdStyle}>{grade.subject.name}</td>
+                        <td style={tdStyle}>
+                          <span style={{
+                            fontSize: 20, fontWeight: 900,
+                            color: (grade.sequenceAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)',
+                          }}>
+                            {grade.sequenceAverage != null ? grade.sequenceAverage.toFixed(1) : '—'}
+                          </span>
+                          <span style={{ fontSize: 14, color: 'var(--text3)', marginLeft: 4 }}>/20</span>
+                        </td>
+                        <td style={tdStyle}>
+                          <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>
+                            {st.label}
+                          </span>
+                        </td>
+                        <td style={tdStyle}>
+                          {grade.validationStatus === 'SUBMITTED' && (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                onClick={() => handleValidate(grade.id)}>
+                                <Check size={14} strokeWidth={2} /> Valider
+                              </button>
+                              <button
+                                style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)', display: 'inline-flex', alignItems: 'center' }}
+                                onClick={() => onToast('Saisissez un motif de rejet dans le module notes', 'info')}>
+                                <X size={14} strokeWidth={2} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)' }}>
               <span style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
                 {grades.length} note{grades.length > 1 ? 's' : ''} — dont {pendingCount} en attente

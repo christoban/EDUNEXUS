@@ -170,41 +170,43 @@ export default function SectionAdminAttendance({ onToast }: Props) {
               </div>
             )}
             {!loadingRecords && !error && records.length > 0 && (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>{['Élève', 'Classe', 'Date', 'Période', 'Statut', 'Saisi par', 'Actions'].map(h => (
-                    <th key={h} style={thSt}>{h}</th>
-                  ))}</tr>
-                </thead>
-                <tbody>
-                  {records.map(r => {
-                    const st = STATUS_STYLE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: r.status, icon: Check }
-                    return (
-                      <tr key={r.id}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{r.student ? `${r.student.firstName} ${r.student.lastName}` : '—'}</td>
-                        <td style={tdSt}>{r.class?.name ?? '—'}</td>
-                        <td style={tdSt}>{new Date(r.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td>
-                        <td style={tdSt}>{r.period}</td>
-                        <td style={tdSt}>
-                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}><st.icon size={13} /> {st.label}</span>
-                        </td>
-                        <td style={tdSt}>{r.markedBy ? `${r.markedBy.firstName} ${r.markedBy.lastName}` : '—'}</td>
-                        <td style={tdSt}>
-                          {r.status === 'ABSENT' && (
-                            <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                              onClick={() => justify(r.id)} disabled={justifyingId === r.id}>
-                              {justifyingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <><ClipboardList size={13} /> Justifier</>}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                  <thead>
+                    <tr>{['Élève', 'Classe', 'Date', 'Période', 'Statut', 'Saisi par', 'Actions'].map(h => (
+                      <th key={h} style={thSt}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {records.map(r => {
+                      const st = STATUS_STYLE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: r.status, icon: Check }
+                      return (
+                        <tr key={r.id}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                          <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{r.student ? `${r.student.firstName} ${r.student.lastName}` : '—'}</td>
+                          <td style={tdSt}>{r.class?.name ?? '—'}</td>
+                          <td style={tdSt}>{new Date(r.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td>
+                          <td style={tdSt}>{r.period}</td>
+                          <td style={tdSt}>
+                            <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}><st.icon size={13} /> {st.label}</span>
+                          </td>
+                          <td style={tdSt}>{r.markedBy ? `${r.markedBy.firstName} ${r.markedBy.lastName}` : '—'}</td>
+                          <td style={tdSt}>
+                            {r.status === 'ABSENT' && (
+                              <button
+                                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                                onClick={() => justify(r.id)} disabled={justifyingId === r.id}>
+                                {justifyingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <><ClipboardList size={13} /> Justifier</>}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </>

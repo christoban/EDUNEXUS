@@ -241,8 +241,8 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
       {formOpen && (
         <div onClick={() => setFormOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--surface)', borderRadius: 16, padding: 28, width: 480, maxHeight: '85vh', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} className="p-5 md:p-7"
+            style={{ background: 'var(--surface)', borderRadius: 16, width: 480, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{t('academicEvents.newEvent')}</div>
               <button onClick={() => setFormOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}><X size={20} /></button>

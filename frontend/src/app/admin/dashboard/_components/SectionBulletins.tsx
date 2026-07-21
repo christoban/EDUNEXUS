@@ -284,45 +284,47 @@ export default function SectionBulletins({ onToast }: Props) {
                 Aucun bulletin généré pour cette classe
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>{['Élève', 'Moy. gén.', 'Rang', 'PDF'].map(h => (
-                    <th key={h} style={thSt}>{h}</th>
-                  ))}</tr>
-                </thead>
-                <tbody>
-                  {reportCards.slice(0, 15).map((b) => (
-                    <tr key={b.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <td style={tdSt}>
-                        <strong style={{ color: 'var(--text)' }}>
-                          {b.student ? `${b.student.firstName} ${b.student.lastName}` : 'Élève'}
-                        </strong>
-                      </td>
-                      <td style={tdSt}>
-                        <strong style={{ color: (b.generalAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)', fontSize: 18 }}>
-                          {b.generalAverage != null ? b.generalAverage.toFixed(2) : '—'}
-                        </strong>
-                      </td>
-                      <td style={tdSt}>{b.rank != null ? `${b.rank}e` : '—'}</td>
-                      <td style={tdSt}>
-                        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                          onClick={() => window.open(`/api/v2/report-cards/${b.id}/pdf`, '_blank')}>
-                          <Eye size={14} /> PDF
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {reportCards.length > 15 && (
-                    <tr>
-                      <td colSpan={4} style={{ ...tdSt, textAlign: 'center', color: 'var(--text3)', fontStyle: 'italic' }}>
-                        + {reportCards.length - 15} autres bulletins
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                  <thead>
+                    <tr>{['Élève', 'Moy. gén.', 'Rang', 'PDF'].map(h => (
+                      <th key={h} style={thSt}>{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {reportCards.slice(0, 15).map((b) => (
+                      <tr key={b.id}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                        <td style={tdSt}>
+                          <strong style={{ color: 'var(--text)' }}>
+                            {b.student ? `${b.student.firstName} ${b.student.lastName}` : 'Élève'}
+                          </strong>
+                        </td>
+                        <td style={tdSt}>
+                          <strong style={{ color: (b.generalAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)', fontSize: 18 }}>
+                            {b.generalAverage != null ? b.generalAverage.toFixed(2) : '—'}
+                          </strong>
+                        </td>
+                        <td style={tdSt}>{b.rank != null ? `${b.rank}e` : '—'}</td>
+                        <td style={tdSt}>
+                          <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            onClick={() => window.open(`/api/v2/report-cards/${b.id}/pdf`, '_blank')}>
+                            <Eye size={14} /> PDF
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {reportCards.length > 15 && (
+                      <tr>
+                        <td colSpan={4} style={{ ...tdSt, textAlign: 'center', color: 'var(--text3)', fontStyle: 'italic' }}>
+                          + {reportCards.length - 15} autres bulletins
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

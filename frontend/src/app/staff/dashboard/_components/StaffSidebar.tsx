@@ -2,7 +2,7 @@
 import {
   LogOut, LayoutDashboard, GraduationCap, FileText, ClipboardCheck, Clock,
   Link2, Calendar, Landmark, Smartphone, Lock, AlertTriangle, BookOpen,
-  Compass, IdCard, HandCoins,
+  Compass, IdCard, HandCoins, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -31,6 +31,8 @@ interface Props {
   schoolName?: string
   logoUrl?: string | null
   badges?: Partial<Record<StaffSection, string>>
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }
 
 const BADGE_STYLES = {
@@ -39,7 +41,7 @@ const BADGE_STYLES = {
   amber: 'bg-amber-500/20 text-amber-300',
 }
 
-export default function StaffSidebar({ current, onChange, allowedSections, sessionUser, schoolName, logoUrl, badges = {} }: Props) {
+export default function StaffSidebar({ current, onChange, allowedSections, sessionUser, schoolName, logoUrl, badges = {}, mobileOpen = false, onMobileClose }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   const can = (s: StaffSection) => allowedSections.has(s)
@@ -77,8 +79,10 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
     ? (sessionUser.nomComplet ?? '').split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2)
     : 'ST'
 
-  return (
-    <aside className="w-[280px] min-w-[280px] flex flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+  const handleChange = (id: StaffSection) => { onChange(id); onMobileClose?.() }
+
+  const sidebarBody = (
+    <>
       {/* Bande déco camerounaise */}
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
         style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }} />
@@ -120,7 +124,7 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
               </div>
             )}
             {group.items.map(item => (
-              <button key={item.id} onClick={() => onChange(item.id)}
+              <button key={item.id} onClick={() => handleChange(item.id)}
                 className={cn(
                   'w-full flex items-center gap-[14px] rounded-lg mb-[1px]',
                   'text-[15px] font-semibold transition-all duration-[120ms] text-left border-none cursor-pointer font-nunito',
@@ -162,6 +166,27 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      <aside className="hidden md:flex w-[280px] min-w-[280px] flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+        {sidebarBody}
+      </aside>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onMobileClose} />
+          <aside className="absolute left-0 top-0 h-full w-[85vw] max-w-[280px] flex flex-col relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+            <button onClick={onMobileClose} aria-label="Fermer"
+              className="absolute z-20" style={{ top: 14, right: 14, width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <X size={18} color="white" />
+            </button>
+            {sidebarBody}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }

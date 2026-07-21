@@ -286,35 +286,37 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
               {t('grilleHoraire.previewEmpty')}
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', width: 60 }}>{t('grilleHoraire.tableHeaderNum')}</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grilleHoraire.tableHeaderStart')}</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grilleHoraire.tableHeaderEnd')}</th>
-                  <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', width: 70 }}>{t('grilleHoraire.tableHeaderDuration')}</th>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grilleHoraire.tableHeaderType')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {squelette.map((p, i) => {
-                  const isPause = p.type !== 'COURS'
-                  const bg = p.type === 'GRANDE_PAUSE' ? 'var(--amber-light)' : p.type === 'PETITE_PAUSE' ? 'var(--green-light)' : 'white'
-                  const label = p.type === 'COURS' ? t('grilleHoraire.periodLabel', { ordre: p.ordre }) : p.type === 'PETITE_PAUSE' ? t('grilleHoraire.petitePauseLabel') : t('grilleHoraire.grandePauseLabel')
-                  return (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--bg2)', background: bg }}>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 15, fontWeight: 800, color: isPause ? 'var(--text3)' : 'var(--text)' }}>
-                        {isPause ? '—' : p.ordre}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{p.debut}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{p.fin}</td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{p.duree} min</td>
-                      <td style={{ padding: '10px 12px', fontSize: 14, color: isPause ? 'var(--green)' : 'var(--text2)' }}>{label}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', width: 60 }}>{t('grilleHoraire.tableHeaderNum')}</th>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grilleHoraire.tableHeaderStart')}</th>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grilleHoraire.tableHeaderEnd')}</th>
+                    <th style={{ textAlign: 'center', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', width: 70 }}>{t('grilleHoraire.tableHeaderDuration')}</th>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase' }}>{t('grilleHoraire.tableHeaderType')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {squelette.map((p, i) => {
+                    const isPause = p.type !== 'COURS'
+                    const bg = p.type === 'GRANDE_PAUSE' ? 'var(--amber-light)' : p.type === 'PETITE_PAUSE' ? 'var(--green-light)' : 'white'
+                    const label = p.type === 'COURS' ? t('grilleHoraire.periodLabel', { ordre: p.ordre }) : p.type === 'PETITE_PAUSE' ? t('grilleHoraire.petitePauseLabel') : t('grilleHoraire.grandePauseLabel')
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--bg2)', background: bg }}>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 15, fontWeight: 800, color: isPause ? 'var(--text3)' : 'var(--text)' }}>
+                          {isPause ? '—' : p.ordre}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{p.debut}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 15, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>{p.fin}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>{p.duree} min</td>
+                        <td style={{ padding: '10px 12px', fontSize: 14, color: isPause ? 'var(--green)' : 'var(--text2)' }}>{label}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins } from 'lucide-react'
+import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
@@ -21,12 +21,14 @@ interface NavGroup {
 interface UserInfo { id: string; firstName: string; lastName: string; role: string }
 interface SchoolInfo { name: string; logoUrl: string | null }
 
-export default function ParentSidebar({ current, onChange, onLogout, user, school }: {
+export default function ParentSidebar({ current, onChange, onLogout, user, school, mobileOpen = false, onMobileClose }: {
   current: ParentSection
   onChange: (s: ParentSection) => void
   onLogout?: () => void
   user?: UserInfo | null
   school?: SchoolInfo | null
+  mobileOpen?: boolean
+  onMobileClose?: () => void
 }) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
@@ -61,8 +63,10 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
   const userDisplayName = user ? `${user.firstName} ${user.lastName}` : tcommon('user.loading')
   const userInitials = user ? (user.firstName[0] ?? '') + (user.lastName[0] ?? '') : tcommon('brand.fallbackInitials')
 
-  return (
-    <aside className="w-[320px] min-w-[320px] flex flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+  const handleChange = (id: ParentSection) => { onChange(id); onMobileClose?.() }
+
+  const sidebarBody = (
+    <>
       <div className="absolute top-0 left-0 right-0 h-[5px] z-10"
         style={{ background: 'repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 13px,var(--green) 13px,var(--green) 25px,var(--red) 25px,var(--red) 37px,#60a5fa 37px,#60a5fa 49px)' }} />
 
@@ -99,7 +103,7 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
                 </div>
               )}
               {group.items.map(item => (
-                <button key={item.id} onClick={() => onChange(item.id)}
+                <button key={item.id} onClick={() => handleChange(item.id)}
                   className={cn(
                     'relative w-full flex items-center gap-[20px] rounded-lg mb-[1px]',
                     'text-[16px] font-semibold text-left border-none cursor-pointer font-nunito',
@@ -144,6 +148,27 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
           )}
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      <aside className="hidden md:flex w-[320px] min-w-[320px] flex-col h-screen flex-shrink-0 relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+        {sidebarBody}
+      </aside>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onMobileClose} />
+          <aside className="absolute left-0 top-0 h-full w-[85vw] max-w-[320px] flex flex-col relative overflow-hidden" style={{ background: 'var(--sidebar)' }}>
+            <button onClick={onMobileClose} aria-label="Fermer"
+              className="absolute z-20" style={{ top: 14, right: 14, width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <X size={18} color="white" />
+            </button>
+            {sidebarBody}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }

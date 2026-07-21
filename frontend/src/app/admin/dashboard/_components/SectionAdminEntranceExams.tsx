@@ -318,43 +318,45 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
 
           {/* Tableau candidats */}
           <div style={{ maxHeight: 350, overflowY: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_name')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_score')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_status')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_cep')}</th>
-                  <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.candidates.map(c => (
-                  <tr key={c.id}>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{c.lastName} {c.firstName}</td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{c.examScore ?? '—'}</td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
-                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.admissionStatus === 'CONFIRME' ? 'rgba(22,163,74,0.12)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? 'rgba(234,179,8,0.12)' : c.admissionStatus === 'ANNULE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.admissionStatus === 'CONFIRME' ? 'var(--green)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? '#b45309' : c.admissionStatus === 'ANNULE' ? 'var(--red)' : 'var(--text2)' }}>
-                        {c.admissionStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
-                      {c.admissionStatus === 'ADMIS_PROVISOIRE' && c.cepResult !== 'REUSSI' && c.cepResult !== 'ECHOUE' ? (
-                        <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                          <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Réussi</button>
-                          <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> Échoué</button>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--text2)' }}>{c.cepResult ?? '—'}</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center', fontSize: 11, color: 'var(--text3)' }}>
-                      {c.studentProfileId ? `Profil: ${c.studentProfileId.slice(0, 8)}...` : '—'}
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 600 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_name')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_score')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_status')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_cep')}</th>
+                    <th style={{ textAlign: 'center', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('entrance_exams.col_actions')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {summary.candidates.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{c.lastName} {c.firstName}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{c.examScore ?? '—'}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.admissionStatus === 'CONFIRME' ? 'rgba(22,163,74,0.12)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? 'rgba(234,179,8,0.12)' : c.admissionStatus === 'ANNULE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.admissionStatus === 'CONFIRME' ? 'var(--green)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? '#b45309' : c.admissionStatus === 'ANNULE' ? 'var(--red)' : 'var(--text2)' }}>
+                          {c.admissionStatus}
+                        </span>
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
+                        {c.admissionStatus === 'ADMIS_PROVISOIRE' && c.cepResult !== 'REUSSI' && c.cepResult !== 'ECHOUE' ? (
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                            <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Réussi</button>
+                            <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> Échoué</button>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text2)' }}>{c.cepResult ?? '—'}</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center', fontSize: 11, color: 'var(--text3)' }}>
+                        {c.studentProfileId ? `Profil: ${c.studentProfileId.slice(0, 8)}...` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

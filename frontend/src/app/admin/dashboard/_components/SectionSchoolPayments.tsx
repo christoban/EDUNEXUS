@@ -129,31 +129,33 @@ export default function SectionSchoolPayments({ onToast }: Props) {
           {/* Détail par statut */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Frais MINESEC — Par statut</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Statut</th>
-                  <th style={{ textAlign: 'center', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Nb paiements</th>
-                  <th style={{ textAlign: 'right', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Attendu</th>
-                  <th style={{ textAlign: 'right', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Payé</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.minesec.map((s, i) => {
-                  const sc = STATUS_COLORS[s.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
-                  return (
-                    <tr key={i}>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color }}>{s.status}</span>
-                      </td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{s._count._all}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)', textAlign: 'right' }}>{(s._sum.montantAttendu ?? 0).toLocaleString()} FCFA</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)', textAlign: 'right' }}>{(s._sum.montantPaye ?? 0).toLocaleString()} FCFA</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Statut</th>
+                    <th style={{ textAlign: 'center', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Nb paiements</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Attendu</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>Payé</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overview.minesec.map((s, i) => {
+                    const sc = STATUS_COLORS[s.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                    return (
+                      <tr key={i}>
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)' }}>
+                          <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color }}>{s.status}</span>
+                        </td>
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{s._count._all}</td>
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)', textAlign: 'right' }}>{(s._sum.montantAttendu ?? 0).toLocaleString()} FCFA</td>
+                        <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg2)', textAlign: 'right' }}>{(s._sum.montantPaye ?? 0).toLocaleString()} FCFA</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Actions */}

@@ -547,37 +547,39 @@ export default function SectionAcademicYear({ onToast }: Props) {
           <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('academic_year.historyTitle')}</span>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[t('academic_year.thYear'), t('academic_year.thFrom'), t('academic_year.thTo'), t('academic_year.thStatus'), t('academic_year.thActions')].map(h => (
-                <th key={h} style={thStyle}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {historyYears.map((y) => (
-                <tr key={y.id}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                  <td style={tdStyle}>
-                    <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 800, color: 'var(--text)' }}>{y.name}</div>
-                  </td>
-                  <td style={tdStyle}>{fmtDate(y.startDate)}</td>
-                  <td style={tdStyle}>{fmtDate(y.endDate)}</td>
-                  <td style={tdStyle}>
-                    <span style={{ background: y.status === 'CLOSED' ? 'var(--bg2)' : 'var(--green-light)', color: y.status === 'CLOSED' ? 'var(--text2)' : 'var(--green)', padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800 }}>
-                      {y.status === 'CLOSED' ? t('academic_year.archived') : y.status}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button style={btnSecSm} onClick={() => onToast(t('academic_year.archivesToast', { name: y.name }), 'info')}>{t('academic_year.view')}</button>
-                      <button style={btnSecSm} onClick={() => openCalendar(y)}>{t('academic_year.calendar')}</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+              <thead>
+                <tr>{[t('academic_year.thYear'), t('academic_year.thFrom'), t('academic_year.thTo'), t('academic_year.thStatus'), t('academic_year.thActions')].map(h => (
+                  <th key={h} style={thStyle}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {historyYears.map((y) => (
+                  <tr key={y.id}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                    <td style={tdStyle}>
+                      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 19, fontWeight: 800, color: 'var(--text)' }}>{y.name}</div>
+                    </td>
+                    <td style={tdStyle}>{fmtDate(y.startDate)}</td>
+                    <td style={tdStyle}>{fmtDate(y.endDate)}</td>
+                    <td style={tdStyle}>
+                      <span style={{ background: y.status === 'CLOSED' ? 'var(--bg2)' : 'var(--green-light)', color: y.status === 'CLOSED' ? 'var(--text2)' : 'var(--green)', padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800 }}>
+                        {y.status === 'CLOSED' ? t('academic_year.archived') : y.status}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={btnSecSm} onClick={() => onToast(t('academic_year.archivesToast', { name: y.name }), 'info')}>{t('academic_year.view')}</button>
+                        <button style={btnSecSm} onClick={() => openCalendar(y)}>{t('academic_year.calendar')}</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -605,7 +607,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {/* ── Modal calendrier scolaire ── */}
       {calForm.open && (
         <div onClick={() => setCalForm(EMPTY_CAL)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 720, maxWidth: '96vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 720, maxWidth: '96vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('academic_year.calModalTitle')}</div>
             <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{calForm.yearName}</div>
 
@@ -735,7 +737,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {/* ── Modal revue de reconduction des plans de frais ── */}
       {reconduction.open && (
         <div onClick={closeReconduction} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 640, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 640, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
               Reconduire les plans de frais ?
             </div>
@@ -806,7 +808,7 @@ function toDateInput(d: string | null): string {
 function ModalOverlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+      <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
         {children}
       </div>
     </div>

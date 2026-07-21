@@ -96,44 +96,46 @@ export default function SectionOfflineStatus({ onToast }: Props) {
               {t('sync.action_count').replace('{count}', String(actions.length))}
             </span>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                {[t('sync.table_type'), t('sync.table_endpoint'), t('sync.table_date'), t('sync.table_status'), t('sync.table_action')].map(h => (
-                  <th key={h} style={thSt}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {actions.map(action => {
-                const meta = typeLabel(action.type)
-                const sc = STATUS_COLORS[action.status] || STATUS_COLORS.PENDING
-                const date = new Date(action.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-                return (
-                  <tr key={action.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <meta.Icon size={16} strokeWidth={2} />{meta.label}
-                    </td>
-                    <td style={{ ...tdSt, fontFamily: 'monospace', fontSize: 14, color: 'var(--text2)' }}>{action.endpoint}</td>
-                    <td style={{ ...tdSt, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{date}</td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: sc.bg, color: sc.color }}>
-                        {statusLabel(action.status)}
-                      </span>
-                    </td>
-                    <td style={tdSt}>
-                      <button onClick={() => handleDelete(action.id!)}
-                        style={{ padding: '6px 12px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        {t('sync.btn_delete')}
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+              <thead>
+                <tr>
+                  {[t('sync.table_type'), t('sync.table_endpoint'), t('sync.table_date'), t('sync.table_status'), t('sync.table_action')].map(h => (
+                    <th key={h} style={thSt}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {actions.map(action => {
+                  const meta = typeLabel(action.type)
+                  const sc = STATUS_COLORS[action.status] || STATUS_COLORS.PENDING
+                  const date = new Date(action.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                  return (
+                    <tr key={action.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <meta.Icon size={16} strokeWidth={2} />{meta.label}
+                      </td>
+                      <td style={{ ...tdSt, fontFamily: 'monospace', fontSize: 14, color: 'var(--text2)' }}>{action.endpoint}</td>
+                      <td style={{ ...tdSt, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{date}</td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: sc.bg, color: sc.color }}>
+                          {statusLabel(action.status)}
+                        </span>
+                      </td>
+                      <td style={tdSt}>
+                        <button onClick={() => handleDelete(action.id!)}
+                          style={{ padding: '6px 12px', borderRadius: 8, fontSize: 14, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          {t('sync.btn_delete')}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

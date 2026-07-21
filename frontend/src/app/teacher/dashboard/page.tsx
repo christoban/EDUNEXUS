@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Search, KeyRound, FileText, FolderOpen } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { logoutUser } from '@/lib/userAuth'
+import MobileMenuButton from '@/components/MobileMenuButton'
 import TeacherSidebar from './_components/TeacherSidebar'
 import TeacherToast from './_components/TeacherToast'
 import SectionTeacherDashboard from './_components/SectionTeacherDashboard'
@@ -69,6 +70,7 @@ export default function TeacherDashboard() {
     notifications:       tnav('pageTitle.teacher_notifications'),
   }
   const [section, setSection] = useState<TeacherSection>('dashboard')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
@@ -109,19 +111,20 @@ export default function TeacherDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
-      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} pendingGrades={pendingGrades} pendingCount={pendingCount} />
+      <TeacherSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} user={user} pendingGrades={pendingGrades} pendingCount={pendingCount} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {/* Topbar */}
         <header style={{ height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+          <MobileMenuButton onClick={() => setMobileNavOpen(true)} />
+          <div className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {TITLES[section]}
           </div>
-          <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
+          <span className="hidden lg:inline" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
             Trimestre 2 · Séquence 3
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ position: 'relative' }}>
+            <div className="hidden sm:block" style={{ position: 'relative' }}>
               <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
               <input placeholder={tcommon('actions.search') + '...'} style={{ background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px 8px 34px', fontSize: 15, fontWeight: 600, color: 'var(--text)', outline: 'none', width: 260, fontFamily: 'inherit' }} />
             </div>

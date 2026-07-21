@@ -126,44 +126,46 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
               <div style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>Aucune note saisie pour cette classe</div>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg)' }}>
-                  {['Rang', 'Élève', 'Moyenne /20', 'Présence', 'Niveau'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((s, i) => {
-                  const badge = BADGE(s.moyenne)
-                  return (
-                    <tr key={s.id} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 800, color: 'var(--text3)' }}>#{s.rang}</td>
-                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{s.lastName} {s.firstName}</td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ background: badge.bg, color: badge.color, padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
-                        {s.tauxPresence !== null ? `${s.tauxPresence}%` : '—'}
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        {s.moyenne !== null && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-                            background: s.moyenne >= 12 ? 'var(--green-light)' : s.moyenne >= 8 ? 'var(--amber-light)' : 'var(--red-light)',
-                            color: s.moyenne >= 12 ? 'var(--green)' : s.moyenne >= 8 ? 'var(--amber)' : 'var(--red)' }}>
-                            {s.moyenne >= 12 ? <CheckCircle2 size={12} strokeWidth={2} /> : s.moyenne >= 8 ? <AlertTriangle size={12} strokeWidth={2} /> : <Circle size={8} fill="var(--red)" stroke="none" />}
-                            {s.moyenne >= 12 ? 'Admis' : s.moyenne >= 8 ? 'Passable' : 'En difficulté'}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg)' }}>
+                    {['Rang', 'Élève', 'Moyenne /20', 'Présence', 'Niveau'].map(h => (
+                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((s, i) => {
+                    const badge = BADGE(s.moyenne)
+                    return (
+                      <tr key={s.id} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 800, color: 'var(--text3)' }}>#{s.rang}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{s.lastName} {s.firstName}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ background: badge.bg, color: badge.color, padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+                            {badge.label}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
+                          {s.tauxPresence !== null ? `${s.tauxPresence}%` : '—'}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          {s.moyenne !== null && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+                              background: s.moyenne >= 12 ? 'var(--green-light)' : s.moyenne >= 8 ? 'var(--amber-light)' : 'var(--red-light)',
+                              color: s.moyenne >= 12 ? 'var(--green)' : s.moyenne >= 8 ? 'var(--amber)' : 'var(--red)' }}>
+                              {s.moyenne >= 12 ? <CheckCircle2 size={12} strokeWidth={2} /> : s.moyenne >= 8 ? <AlertTriangle size={12} strokeWidth={2} /> : <Circle size={8} fill="var(--red)" stroke="none" />}
+                              {s.moyenne >= 12 ? 'Admis' : s.moyenne >= 8 ? 'Passable' : 'En difficulté'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -185,42 +187,44 @@ export default function SectionProfesseurPrincipal({ user: _user, classeId, clas
           ) : attendances.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>Aucune présence enregistrée sur cette période</div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg)' }}>
-                  {['Date', 'Élève', 'Statut'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {attendances.map((a, i) => {
-                  const statusStyle: Record<string, { bg: string; color: string; label: string; Icon?: typeof CheckCircle2; dot?: boolean }> = {
-                    PRESENT:          { bg: 'var(--green-light)', color: 'var(--green)', label: 'Présent', Icon: CheckCircle2 },
-                    ABSENT:           { bg: 'var(--red-light)', color: 'var(--red)', label: 'Absent', dot: true },
-                    ABSENT_JUSTIFIED: { bg: 'var(--amber-light)', color: 'var(--amber)', label: 'Justifié', Icon: ClipboardList },
-                    LATE:             { bg: 'var(--blue-light)', color: 'var(--blue)', label: 'Retard', Icon: AlarmClock },
-                  }
-                  const s = statusStyle[a.status] ?? { bg: 'var(--bg2)', color: 'var(--text3)', label: a.status }
-                  return (
-                    <tr key={a.id} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
-                        {new Date(a.date).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
-                        {a.studentName ?? a.studentId}
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
-                          {s.dot ? <Circle size={8} fill="var(--red)" stroke="none" /> : s.Icon ? <s.Icon size={13} strokeWidth={2} /> : null}
-                          {s.label}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg)' }}>
+                    {['Date', 'Élève', 'Statut'].map(h => (
+                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendances.map((a, i) => {
+                    const statusStyle: Record<string, { bg: string; color: string; label: string; Icon?: typeof CheckCircle2; dot?: boolean }> = {
+                      PRESENT:          { bg: 'var(--green-light)', color: 'var(--green)', label: 'Présent', Icon: CheckCircle2 },
+                      ABSENT:           { bg: 'var(--red-light)', color: 'var(--red)', label: 'Absent', dot: true },
+                      ABSENT_JUSTIFIED: { bg: 'var(--amber-light)', color: 'var(--amber)', label: 'Justifié', Icon: ClipboardList },
+                      LATE:             { bg: 'var(--blue-light)', color: 'var(--blue)', label: 'Retard', Icon: AlarmClock },
+                    }
+                    const s = statusStyle[a.status] ?? { bg: 'var(--bg2)', color: 'var(--text3)', label: a.status }
+                    return (
+                      <tr key={a.id} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
+                          {new Date(a.date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+                          {a.studentName ?? a.studentId}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+                            {s.dot ? <Circle size={8} fill="var(--red)" stroke="none" /> : s.Icon ? <s.Icon size={13} strokeWidth={2} /> : null}
+                            {s.label}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

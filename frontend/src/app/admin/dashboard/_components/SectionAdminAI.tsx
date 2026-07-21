@@ -137,40 +137,42 @@ export default function SectionAdminAI({ onToast }: Props) {
             <div style={{ fontSize: 17 }}>Aucun élève pour ce filtre</div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{['Élève', 'Classe', 'Score santé', 'Niveau d\'alerte'].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {filtered.map(s => {
-                const al = ALERT_STYLE[s.alertLevel] ?? ALERT_STYLE.good
-                const barColor = s.alertLevel === 'critical' ? 'var(--red)' : s.alertLevel === 'warning' ? 'var(--orange)' : s.alertLevel === 'recommendation' ? 'var(--amber)' : s.alertLevel === 'good' ? 'var(--blue)' : 'var(--green)'
-                return (
-                  <tr key={s.studentId}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{s.name}</td>
-                    <td style={tdSt}>{s.className}</td>
-                    <td style={tdSt}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 120, height: 8, background: 'var(--bg2)', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ width: `${s.healthScore}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width 0.5s' }} />
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+              <thead>
+                <tr>{['Élève', 'Classe', 'Score santé', 'Niveau d\'alerte'].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {filtered.map(s => {
+                  const al = ALERT_STYLE[s.alertLevel] ?? ALERT_STYLE.good
+                  const barColor = s.alertLevel === 'critical' ? 'var(--red)' : s.alertLevel === 'warning' ? 'var(--orange)' : s.alertLevel === 'recommendation' ? 'var(--amber)' : s.alertLevel === 'good' ? 'var(--blue)' : 'var(--green)'
+                  return (
+                    <tr key={s.studentId}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{s.name}</td>
+                      <td style={tdSt}>{s.className}</td>
+                      <td style={tdSt}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 120, height: 8, background: 'var(--bg2)', borderRadius: 4, overflow: 'hidden' }}>
+                            <div style={{ width: `${s.healthScore}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width 0.5s' }} />
+                          </div>
+                          <span style={{ fontWeight: 900, color: barColor, fontSize: 16 }}>{s.healthScore}</span>
                         </div>
-                        <span style={{ fontWeight: 900, color: barColor, fontSize: 16 }}>{s.healthScore}</span>
-                      </div>
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, background: al.bg, color: al.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <al.icon size={13} /> {al.label}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, background: al.bg, color: al.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <al.icon size={13} /> {al.label}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

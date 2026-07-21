@@ -130,42 +130,44 @@ export default function SectionParentGrades({ onToast, userId }: Props) {
         </div>
       ) : (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[t('grades.period'), t('grades.average'), t('grades.rank'), t('grades.mention'), t('grades.actions')].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {filteredBulletins.map((b) => {
-                const [mBg, mC] = MENTION_COLOR(b.mention)
-                const avg = b.generalAverage
-                return (
-                  <tr key={b.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{b.academicPeriod?.name || 'Période'}</td>
-                    <td style={{ ...tdSt, fontWeight: 900, fontSize: 20, color: avg !== null ? (avg >= 14 ? 'var(--green)' : avg >= 10 ? 'var(--blue)' : 'var(--red)') : 'var(--text3)' }}>{avg !== null ? `${avg}/20` : '—'}</td>
-                    <td style={tdSt}>{b.rank !== null ? `${b.rank}e` : '—'} {b.totalStudents ? `/ ${b.totalStudents}` : ''}</td>
-                    <td style={tdSt}>
-                      {b.mention && (
-                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: mBg, color: mC }}>{b.mention}</span>
-                      )}
-                    </td>
-                    <td style={tdSt}>
-                      <button
-                        title={!isOnline ? t('grades.downloadUnavailable') : undefined}
-                        style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : 'var(--bg2)', color: isOnline ? 'var(--green)' : 'var(--text3)', border: `1.5px solid ${isOnline ? 'var(--green)' : 'var(--border2)'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                        onClick={() => downloadPdf(b.id, b.academicPeriod?.name || 'bulletin')}
-                        disabled={downloading === b.id || !isOnline}>
-                        {downloading === b.id ? <><Loader2 size={14} strokeWidth={2} className="animate-spin" /> {t('grades.downloading')}</> : isOnline ? <><Download size={14} strokeWidth={2} /> {t('grades.downloadPdf')}</> : <WifiOff size={14} strokeWidth={2} />}
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+              <thead>
+                <tr>{[t('grades.period'), t('grades.average'), t('grades.rank'), t('grades.mention'), t('grades.actions')].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {filteredBulletins.map((b) => {
+                  const [mBg, mC] = MENTION_COLOR(b.mention)
+                  const avg = b.generalAverage
+                  return (
+                    <tr key={b.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{b.academicPeriod?.name || 'Période'}</td>
+                      <td style={{ ...tdSt, fontWeight: 900, fontSize: 20, color: avg !== null ? (avg >= 14 ? 'var(--green)' : avg >= 10 ? 'var(--blue)' : 'var(--red)') : 'var(--text3)' }}>{avg !== null ? `${avg}/20` : '—'}</td>
+                      <td style={tdSt}>{b.rank !== null ? `${b.rank}e` : '—'} {b.totalStudents ? `/ ${b.totalStudents}` : ''}</td>
+                      <td style={tdSt}>
+                        {b.mention && (
+                          <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: mBg, color: mC }}>{b.mention}</span>
+                        )}
+                      </td>
+                      <td style={tdSt}>
+                        <button
+                          title={!isOnline ? t('grades.downloadUnavailable') : undefined}
+                          style={{ padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: isOnline ? 'white' : 'var(--bg2)', color: isOnline ? 'var(--green)' : 'var(--text3)', border: `1.5px solid ${isOnline ? 'var(--green)' : 'var(--border2)'}`, cursor: isOnline ? 'pointer' : 'not-allowed', fontFamily: 'inherit', opacity: downloading === b.id ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          onClick={() => downloadPdf(b.id, b.academicPeriod?.name || 'bulletin')}
+                          disabled={downloading === b.id || !isOnline}>
+                          {downloading === b.id ? <><Loader2 size={14} strokeWidth={2} className="animate-spin" /> {t('grades.downloading')}</> : isOnline ? <><Download size={14} strokeWidth={2} /> {t('grades.downloadPdf')}</> : <WifiOff size={14} strokeWidth={2} />}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

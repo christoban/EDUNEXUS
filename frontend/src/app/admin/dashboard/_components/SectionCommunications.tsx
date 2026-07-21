@@ -398,57 +398,59 @@ export default function SectionCommunications({ onToast }: Props) {
               <div style={{ fontSize: 13, marginTop: 6 }}>Les campagnes envoyées apparaîtront ici.</div>
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: 'var(--bg2)' }}>
-                  {['Date', 'Canal', 'Ciblage', 'Message', 'Résultat', 'Statut'].map((h) => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log, i) => {
-                  const s = STATUS_STYLE[log.status] ?? STATUS_STYLE['partial']
-                  return (
-                    <tr key={log.id} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
-                        {new Date(log.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        <br />
-                        <span style={{ fontSize: 11, color: 'var(--text3)' }}>
-                          {new Date(log.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)' }}>{CANAL_LABEL[log.channel] ?? log.channel}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)' }}>
-                        {targetSummary(log.target)}
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text2)', maxWidth: 260 }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.message}>
-                          {log.message}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontSize: 12 }}>
-                        <span style={{ color: 'var(--green)', fontWeight: 700 }}>{log.sentCount} envoyés</span>
-                        {log.failedCount > 0 && (
-                          <span style={{ color: 'var(--red)', marginLeft: 6 }}>· {log.failedCount} échoués</span>
-                        )}
-                        <br />
-                        <span style={{ color: 'var(--text3)' }}>{log.recipientCount} destinataire(s)</span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 6, background: s.bg, color: s.color, fontSize: 11, fontWeight: 700 }}>
-                          {s.label}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg2)' }}>
+                    {['Date', 'Canal', 'Ciblage', 'Message', 'Résultat', 'Statut'].map((h) => (
+                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map((log, i) => {
+                    const s = STATUS_STYLE[log.status] ?? STATUS_STYLE['partial']
+                    return (
+                      <tr key={log.id} style={{ borderTop: '1px solid var(--bg2)', background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                        <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+                          {new Date(log.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          <br />
+                          <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                            {new Date(log.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)' }}>{CANAL_LABEL[log.channel] ?? log.channel}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text3)' }}>
+                          {targetSummary(log.target)}
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text2)', maxWidth: 260 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.message}>
+                            {log.message}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 12 }}>
+                          <span style={{ color: 'var(--green)', fontWeight: 700 }}>{log.sentCount} envoyés</span>
+                          {log.failedCount > 0 && (
+                            <span style={{ color: 'var(--red)', marginLeft: 6 }}>· {log.failedCount} échoués</span>
+                          )}
+                          <br />
+                          <span style={{ color: 'var(--text3)' }}>{log.recipientCount} destinataire(s)</span>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ padding: '3px 10px', borderRadius: 6, background: s.bg, color: s.color, fontSize: 11, fontWeight: 700 }}>
+                            {s.label}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

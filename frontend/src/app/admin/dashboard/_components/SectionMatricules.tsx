@@ -254,24 +254,26 @@ export default function SectionMatricules({ onToast }: Props) {
 
           {unmatchedDetails.length > 0 && (
             <div style={{ maxHeight: 250, overflowY: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('matricules.col_ligne')}</th>
-                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('matricules.col_nom')}</th>
-                    <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('matricules.col_raison')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unmatchedDetails.map((d, i) => (
-                    <tr key={i}>
-                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{d.ligne}</td>
-                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{d.nom} {d.prenom}</td>
-                      <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', color: d.raison.includes('Conflit') ? '#b45309' : 'var(--text2)' }}>{d.raison}</td>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('matricules.col_ligne')}</th>
+                      <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('matricules.col_nom')}</th>
+                      <th style={{ textAlign: 'left', padding: '6px 10px', borderBottom: '2px solid var(--border)', color: 'var(--text2)' }}>{t('matricules.col_raison')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {unmatchedDetails.map((d, i) => (
+                      <tr key={i}>
+                        <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{d.ligne}</td>
+                        <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)' }}>{d.nom} {d.prenom}</td>
+                        <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', color: d.raison.includes('Conflit') ? '#b45309' : 'var(--text2)' }}>{d.raison}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

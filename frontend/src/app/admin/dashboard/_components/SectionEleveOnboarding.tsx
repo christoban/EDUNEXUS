@@ -262,52 +262,54 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
         ) : dossiers.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('eleveOnboarding.listEmpty')}</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[t('eleveOnboarding.colName'), t('eleveOnboarding.colStatus'), t('eleveOnboarding.colSource'), t('eleveOnboarding.colClasse'), t('eleveOnboarding.colCreated'), t('eleveOnboarding.colActions')].map(h => (
-                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', textTransform: 'uppercase' }}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {dossiers.map(d => (
-                <tr key={d.id} style={{ borderBottom: '1px solid var(--bg)' }}>
-                  <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text)' }}>
-                    {d.nomProvisoire}
-                    {d.matchScore !== null && (
-                      <div style={{ fontSize: 11, color: '#b45309', marginTop: 3 }}>{t('eleveOnboarding.matchWarning', { score: String(d.matchScore) })}</div>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ padding: '3px 10px', borderRadius: 16, fontSize: 12, fontWeight: 700, ...(STATUT_COLORS[d.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }) }}>
-                      {t(`eleveOnboarding.status_${d.status}`)}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)' }}>{t(`eleveOnboarding.source_${d.sourceType}`)}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)' }}>{d.classe?.name ?? '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)' }}>{new Date(d.createdAt).toLocaleDateString()}</td>
-                  <td style={{ padding: '12px 16px', display: 'flex', gap: 8 }}>
-                    {d.status === 'PENDING_VALIDATION' && (
-                      <>
-                        <button onClick={() => openValidate(d)} style={btnSmall}>{t('eleveOnboarding.validateBtn')}</button>
-                        <button onClick={() => setRejectTarget(d)} style={btnDanger}>{t('eleveOnboarding.rejectBtn')}</button>
-                      </>
-                    )}
-                    {(d.status === 'LINK_SENT' || d.status === 'EXPIRED') && (
-                      <button onClick={() => resendLink(d)} style={btnSec}>{t('eleveOnboarding.resendBtn')}</button>
-                    )}
-                    <button onClick={() => exportPdf(d)} style={btnSec}>{t('eleveOnboarding.pdfBtn')}</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+              <thead>
+                <tr>{[t('eleveOnboarding.colName'), t('eleveOnboarding.colStatus'), t('eleveOnboarding.colSource'), t('eleveOnboarding.colClasse'), t('eleveOnboarding.colCreated'), t('eleveOnboarding.colActions')].map(h => (
+                  <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', textTransform: 'uppercase' }}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {dossiers.map(d => (
+                  <tr key={d.id} style={{ borderBottom: '1px solid var(--bg)' }}>
+                    <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text)' }}>
+                      {d.nomProvisoire}
+                      {d.matchScore !== null && (
+                        <div style={{ fontSize: 11, color: '#b45309', marginTop: 3 }}>{t('eleveOnboarding.matchWarning', { score: String(d.matchScore) })}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 16, fontSize: 12, fontWeight: 700, ...(STATUT_COLORS[d.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }) }}>
+                        {t(`eleveOnboarding.status_${d.status}`)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)' }}>{t(`eleveOnboarding.source_${d.sourceType}`)}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text2)' }}>{d.classe?.name ?? '—'}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)' }}>{new Date(d.createdAt).toLocaleDateString()}</td>
+                    <td style={{ padding: '12px 16px', display: 'flex', gap: 8 }}>
+                      {d.status === 'PENDING_VALIDATION' && (
+                        <>
+                          <button onClick={() => openValidate(d)} style={btnSmall}>{t('eleveOnboarding.validateBtn')}</button>
+                          <button onClick={() => setRejectTarget(d)} style={btnDanger}>{t('eleveOnboarding.rejectBtn')}</button>
+                        </>
+                      )}
+                      {(d.status === 'LINK_SENT' || d.status === 'EXPIRED') && (
+                        <button onClick={() => resendLink(d)} style={btnSec}>{t('eleveOnboarding.resendBtn')}</button>
+                      )}
+                      <button onClick={() => exportPdf(d)} style={btnSec}>{t('eleveOnboarding.pdfBtn')}</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* Modal création */}
       {createOpen && (
         <div onClick={() => !creating && setCreateOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 16, padding: 28, width: 460, maxWidth: '92vw' }}>
+          <div onClick={e => e.stopPropagation()} className="p-5 md:p-7" style={{ background: 'var(--surface)', borderRadius: 16, width: 460, maxWidth: '92vw' }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 18 }}>{t('eleveOnboarding.createModalTitle')}</h3>
 
             <FieldLabel>{t('eleveOnboarding.fieldNomProvisoire')}</FieldLabel>
@@ -378,7 +380,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       {/* Modal validation */}
       {validateTarget && (
         <div onClick={() => !validating && setValidateTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 16, padding: 28, width: 420, maxWidth: '92vw' }}>
+          <div onClick={e => e.stopPropagation()} className="p-5 md:p-7" style={{ background: 'var(--surface)', borderRadius: 16, width: 420, maxWidth: '92vw' }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('eleveOnboarding.validateModalTitle')}</h3>
             <p style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 16 }}>{validateTarget.nomProvisoire}</p>
 
@@ -401,7 +403,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       {/* Modal rejet */}
       {rejectTarget && (
         <div onClick={() => !rejecting && setRejectTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 16, padding: 28, width: 420, maxWidth: '92vw' }}>
+          <div onClick={e => e.stopPropagation()} className="p-5 md:p-7" style={{ background: 'var(--surface)', borderRadius: 16, width: 420, maxWidth: '92vw' }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('eleveOnboarding.rejectModalTitle')}</h3>
             <p style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 16 }}>{rejectTarget.nomProvisoire}</p>
 

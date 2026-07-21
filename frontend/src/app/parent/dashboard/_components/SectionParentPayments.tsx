@@ -227,47 +227,49 @@ export default function SectionParentPayments({ onToast }: Props) {
             <div style={{ fontSize: 17 }}>{t('payments.noInvoices')}</div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[tf('table_headers.student'), t('payments.libelle'), tf('table_headers.amount'), tf('table_headers.paid'), t('payments.remaining'), tf('table_headers.status'), tf('table_headers.actions')].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {invoices.map(inv => {
-                const INV_STATUS = invStatus(tf)
-                const st = INV_STATUS[inv.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: inv.status }
-                const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
-                const remaining = Math.max(0, inv.amount - paid)
-                const canPay = (inv.status === 'PENDING' || inv.status === 'OVERDUE' || inv.status === 'PARTIAL') && remaining > 0
-                return (
-                  <tr key={inv.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                      {inv.student.firstName} {inv.student.lastName}
-                    </td>
-                    <td style={tdSt}>{inv.feePlan?.name ?? inv.description ?? '—'}</td>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{fmtCFA(inv.amount)}</td>
-                    <td style={{ ...tdSt, fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
-                      {paid > 0 ? fmtCFA(paid) : '—'}
-                    </td>
-                    <td style={{ ...tdSt, fontWeight: 700, color: remaining > 0 ? 'var(--red)' : 'var(--green)' }}>
-                      {remaining > 0 ? fmtCFA(remaining) : <Check size={16} strokeWidth={2.5} />}
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>{st.label}</span>
-                    </td>
-                    <td style={tdSt}>
-                      {canPay && (
-                        <button style={{ ...btnPay, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => openModal(inv)}><Smartphone size={14} strokeWidth={2} /> {t('payments.payButton')}</button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+              <thead>
+                <tr>{[tf('table_headers.student'), t('payments.libelle'), tf('table_headers.amount'), tf('table_headers.paid'), t('payments.remaining'), tf('table_headers.status'), tf('table_headers.actions')].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {invoices.map(inv => {
+                  const INV_STATUS = invStatus(tf)
+                  const st = INV_STATUS[inv.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: inv.status }
+                  const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
+                  const remaining = Math.max(0, inv.amount - paid)
+                  const canPay = (inv.status === 'PENDING' || inv.status === 'OVERDUE' || inv.status === 'PARTIAL') && remaining > 0
+                  return (
+                    <tr key={inv.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                        {inv.student.firstName} {inv.student.lastName}
+                      </td>
+                      <td style={tdSt}>{inv.feePlan?.name ?? inv.description ?? '—'}</td>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{fmtCFA(inv.amount)}</td>
+                      <td style={{ ...tdSt, fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
+                        {paid > 0 ? fmtCFA(paid) : '—'}
+                      </td>
+                      <td style={{ ...tdSt, fontWeight: 700, color: remaining > 0 ? 'var(--red)' : 'var(--green)' }}>
+                        {remaining > 0 ? fmtCFA(remaining) : <Check size={16} strokeWidth={2.5} />}
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800, background: st.bg, color: st.color }}>{st.label}</span>
+                      </td>
+                      <td style={tdSt}>
+                        {canPay && (
+                          <button style={{ ...btnPay, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => openModal(inv)}><Smartphone size={14} strokeWidth={2} /> {t('payments.payButton')}</button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -275,8 +277,8 @@ export default function SectionParentPayments({ onToast }: Props) {
       {modal.open && (
         <div onClick={() => !modal.loading && setModal(m => ({ ...m, open: false }))}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8"
+            style={{ background: 'var(--surface)', borderRadius: 18, width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
               {t('payments.modalTitle')}
             </div>

@@ -82,57 +82,59 @@ export default function SectionStudentLibrary() {
 
       {!loading && !error && loans.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[
-                t('library.table_header_title'),
-                t('library.table_header_category'),
-                t('library.table_header_borrowed'),
-                t('library.table_header_due'),
-                t('library.table_header_status'),
-              ].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {loans.map(l => {
-                const getBadge = (status: string): { bg: string; color: string; label: string } => {
-                  const map: Record<string, { bg: string; color: string; label: string }> = {
-                    ACTIVE:   { bg: 'var(--green-light)', color: 'var(--green)', label: t('library.active_label') },
-                    RETURNED: { bg: 'var(--bg2)', color: 'var(--text2)', label: t('library.returned_label') },
-                    OVERDUE:  { bg: 'var(--red-light)', color: 'var(--red)', label: t('library.overdue_label') },
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+              <thead>
+                <tr>{[
+                  t('library.table_header_title'),
+                  t('library.table_header_category'),
+                  t('library.table_header_borrowed'),
+                  t('library.table_header_due'),
+                  t('library.table_header_status'),
+                ].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {loans.map(l => {
+                  const getBadge = (status: string): { bg: string; color: string; label: string } => {
+                    const map: Record<string, { bg: string; color: string; label: string }> = {
+                      ACTIVE:   { bg: 'var(--green-light)', color: 'var(--green)', label: t('library.active_label') },
+                      RETURNED: { bg: 'var(--bg2)', color: 'var(--text2)', label: t('library.returned_label') },
+                      OVERDUE:  { bg: 'var(--red-light)', color: 'var(--red)', label: t('library.overdue_label') },
+                    }
+                    return map[status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: status }
                   }
-                  return map[status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: status }
-                }
-                const badge = getBadge(l.status)
-                const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
-                return (
-                  <tr key={l.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 260 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.book.title}</div>
-                      {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{l.book.author}</div>}
-                    </td>
-                    <td style={tdSt}>{l.book.category ?? '—'}</td>
-                    <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
-                    <td style={tdSt}>
-                      {l.dueDate ? (
-                        <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                          {isOverdue && <AlertTriangle size={14} strokeWidth={2} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  const badge = getBadge(l.status)
+                  const isOverdue = l.status === 'ACTIVE' && l.dueDate && new Date(l.dueDate) < new Date()
+                  return (
+                    <tr key={l.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)', maxWidth: 260 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.book.title}</div>
+                        {l.book.author && <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{l.book.author}</div>}
+                      </td>
+                      <td style={tdSt}>{l.book.category ?? '—'}</td>
+                      <td style={tdSt}>{new Date(l.borrowedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                      <td style={tdSt}>
+                        {l.dueDate ? (
+                          <span style={{ fontWeight: 600, color: isOverdue ? 'var(--red)' : 'var(--text2)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            {isOverdue && <AlertTriangle size={14} strokeWidth={2} />}{new Date(l.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          {isOverdue ? <><AlarmClock size={13} strokeWidth={2} /> {t('library.overdue_label')}</> : badge.label}
                         </span>
-                      ) : '—'}
-                    </td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: isOverdue ? 'var(--red-light)' : badge.bg, color: isOverdue ? 'var(--red)' : badge.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        {isOverdue ? <><AlarmClock size={13} strokeWidth={2} /> {t('library.overdue_label')}</> : badge.label}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

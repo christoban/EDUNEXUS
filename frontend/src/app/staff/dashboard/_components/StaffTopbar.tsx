@@ -4,6 +4,7 @@ import type { StaffSection } from '../_types'
 import { useT } from '@/lib/i18n'
 import ThemeToggle from '@/components/ThemeToggle'
 import NotificationBell from '@/components/NotificationBell'
+import MobileMenuButton from '@/components/MobileMenuButton'
 
 const SECTION_KEY: Record<string, string> = {
   'grille-horaire': 'grilleHoraire',
@@ -14,9 +15,10 @@ interface Props {
   periodLabel?: string
   onChangePassword?: () => void
   onNav?: (section: string) => void
+  onMenuClick?: () => void
 }
 
-export default function StaffTopbar({ section, periodLabel, onChangePassword, onNav }: Props) {
+export default function StaffTopbar({ section, periodLabel, onChangePassword, onNav, onMenuClick }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   return (
@@ -24,11 +26,12 @@ export default function StaffTopbar({ section, periodLabel, onChangePassword, on
       height: 68, background: 'var(--surface)', borderBottom: '1.5px solid var(--border)',
       display: 'flex', alignItems: 'center', padding: '0 32px', gap: 14, flexShrink: 0,
     }}>
-      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+      {onMenuClick && <MobileMenuButton onClick={onMenuClick} />}
+      <div className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
         {tnav(`pageTitle.staff_${SECTION_KEY[section] ?? section}`)}
       </div>
       {periodLabel && (
-        <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
+        <span className="hidden sm:inline" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, color: 'var(--text3)' }}>
           {periodLabel}
         </span>
       )}

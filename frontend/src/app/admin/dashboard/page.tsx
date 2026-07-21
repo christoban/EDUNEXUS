@@ -62,6 +62,7 @@ export default function AdminDashboard() {
   const t = useT('admin')
   const router = useRouter()
   const [section, setSection] = useState<AdminSection>('dashboard')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -163,10 +164,10 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: 'var(--bg)' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} onMenuClick={() => setMobileNavOpen(true)} />
         <EventCenterWidget onNav={s => setSection(s as AdminSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>

@@ -152,67 +152,69 @@ export default function SectionCautions({ onToast }: Props) {
 
       {!loading && !error && cautions.length > 0 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{[
-                t('cautions.tableHeaderStudent'),
-                t('cautions.tableHeaderAmount'),
-                t('cautions.tableHeaderPlan'),
-                t('cautions.tableHeaderDate'),
-                t('cautions.tableHeaderStatus'),
-                t('cautions.tableHeaderActions'),
-              ].map(h => (
-                <th key={h} style={thSt}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {cautions.map((c) => {
-                const st = STATUS_LABEL[c.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
-                const statusLabelKey = c.status === 'PENDING' ? 'statusHeldf' : c.status === 'PAID' ? 'statusRefunded' : c.status === 'CANCELLED' ? 'statusRetained' : 'statusPartial'
-                const isHeld = c.status === 'PENDING' || c.status === 'PARTIAL'
-                return (
-                  <tr key={c.id}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                    <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                      {c.student.firstName} {c.student.lastName}
-                    </td>
-                    <td style={{ ...tdSt, fontWeight: 700 }}>{fmtCFA(c.amount)}</td>
-                    <td style={tdSt}>{c.feePlan?.name ?? 'Caution'}</td>
-                    <td style={tdSt}>{new Date(c.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
-                    <td style={tdSt}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>
-                        {t(`cautions.${statusLabelKey}`)}
-                      </span>
-                    </td>
-                    <td style={tdSt}>
-                      {isHeld && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
-                            onClick={() => handleRemboursement(c)}
-                            disabled={actionId === c.id}>
-                            {actionId === c.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('cautions.refund')}
-                          </button>
-                          <button
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
-                            onClick={() => handleRetention(c)}
-                            disabled={actionId === c.id}>
-                            {t('cautions.retain')}
-                          </button>
-                        </div>
-                      )}
-                      {!isHeld && (
-                        <span style={{ fontSize: 14, color: 'var(--text3)', fontStyle: 'italic' }}>
-                          {c.status === 'PAID' ? t('cautions.refunded') : t('cautions.processed')}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
+              <thead>
+                <tr>{[
+                  t('cautions.tableHeaderStudent'),
+                  t('cautions.tableHeaderAmount'),
+                  t('cautions.tableHeaderPlan'),
+                  t('cautions.tableHeaderDate'),
+                  t('cautions.tableHeaderStatus'),
+                  t('cautions.tableHeaderActions'),
+                ].map(h => (
+                  <th key={h} style={thSt}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {cautions.map((c) => {
+                  const st = STATUS_LABEL[c.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                  const statusLabelKey = c.status === 'PENDING' ? 'statusHeldf' : c.status === 'PAID' ? 'statusRefunded' : c.status === 'CANCELLED' ? 'statusRetained' : 'statusPartial'
+                  const isHeld = c.status === 'PENDING' || c.status === 'PARTIAL'
+                  return (
+                    <tr key={c.id}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                        {c.student.firstName} {c.student.lastName}
+                      </td>
+                      <td style={{ ...tdSt, fontWeight: 700 }}>{fmtCFA(c.amount)}</td>
+                      <td style={tdSt}>{c.feePlan?.name ?? 'Caution'}</td>
+                      <td style={tdSt}>{new Date(c.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                      <td style={tdSt}>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>
+                          {t(`cautions.${statusLabelKey}`)}
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td style={tdSt}>
+                        {isHeld && (
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              style={{ padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.25)', cursor: 'pointer', fontFamily: 'inherit' }}
+                              onClick={() => handleRemboursement(c)}
+                              disabled={actionId === c.id}>
+                              {actionId === c.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('cautions.refund')}
+                            </button>
+                            <button
+                              style={{ padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                              onClick={() => handleRetention(c)}
+                              disabled={actionId === c.id}>
+                              {t('cautions.retain')}
+                            </button>
+                          </div>
+                        )}
+                        {!isHeld && (
+                          <span style={{ fontSize: 14, color: 'var(--text3)', fontStyle: 'italic' }}>
+                            {c.status === 'PAID' ? t('cautions.refunded') : t('cautions.processed')}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

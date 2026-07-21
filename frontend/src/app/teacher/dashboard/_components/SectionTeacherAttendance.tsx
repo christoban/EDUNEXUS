@@ -283,58 +283,60 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
                 <Check size={16} strokeWidth={2.5} /> Tous présents
               </button>
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={thSt}>N°</th>
-                  <th style={thSt}>Élève</th>
-                  {(['P', 'A', 'R', 'E'] as const).map(s => (
-                    <th key={s} style={{ ...thSt, textAlign: 'center' }}>{attTitle(s)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student, i) => {
-                  const shortStatus = ATT_SHORT[statuses[student.id] || ''] || null
-                  return (
-                    <tr key={student.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <td style={{ ...tdSt, color: 'var(--text3)', width: 44 }}>{i + 1}</td>
-                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                        {student.name}
-                        {rosterLabel && student.className && <span style={{ fontWeight: 600, color: 'var(--text3)', fontSize: 14 }}> ({student.className})</span>}
-                      </td>
-                      {(['P', 'A', 'R', 'E'] as const).map(s => {
-                        const sel = shortStatus === s
-                        const st = ATT_STYLE[s]
-                        return (
-                          <td key={s} style={{ ...tdSt, textAlign: 'center' }}>
-                            <button
-                              onClick={() => {
-                                const mapping: Record<string, AttStatus> = { P: 'PRESENT', A: 'ABSENT', R: 'LATE', E: 'EXCUSED' }
-                                toggle(student.id, sel ? null : (mapping[s] as AttStatus))
-                              }}
-                              title={attTitle(s)}
-                              style={{
-                                width: 36, height: 36, borderRadius: 9, fontSize: 17,
-                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800,
-                                border: `1.5px solid ${sel ? st.selBorder : 'var(--border2)'}`,
-                                background: sel ? st.selBg : 'white',
-                                color: sel ? st.selColor : 'var(--text3)',
-                                transition: 'all 0.1s'
-                              }}>
-                              {st.Icon ? <st.Icon size={18} strokeWidth={2.5} /> : st.label}
-                            </button>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
+                <thead>
+                  <tr>
+                    <th style={thSt}>N°</th>
+                    <th style={thSt}>Élève</th>
+                    {(['P', 'A', 'R', 'E'] as const).map(s => (
+                      <th key={s} style={{ ...thSt, textAlign: 'center' }}>{attTitle(s)}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((student, i) => {
+                    const shortStatus = ATT_SHORT[statuses[student.id] || ''] || null
+                    return (
+                      <tr key={student.id}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                        <td style={{ ...tdSt, color: 'var(--text3)', width: 44 }}>{i + 1}</td>
+                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                          {student.name}
+                          {rosterLabel && student.className && <span style={{ fontWeight: 600, color: 'var(--text3)', fontSize: 14 }}> ({student.className})</span>}
+                        </td>
+                        {(['P', 'A', 'R', 'E'] as const).map(s => {
+                          const sel = shortStatus === s
+                          const st = ATT_STYLE[s]
+                          return (
+                            <td key={s} style={{ ...tdSt, textAlign: 'center' }}>
+                              <button
+                                onClick={() => {
+                                  const mapping: Record<string, AttStatus> = { P: 'PRESENT', A: 'ABSENT', R: 'LATE', E: 'EXCUSED' }
+                                  toggle(student.id, sel ? null : (mapping[s] as AttStatus))
+                                }}
+                                title={attTitle(s)}
+                                style={{
+                                  width: 36, height: 36, borderRadius: 9, fontSize: 17,
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                  cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800,
+                                  border: `1.5px solid ${sel ? st.selBorder : 'var(--border2)'}`,
+                                  background: sel ? st.selBg : 'white',
+                                  color: sel ? st.selColor : 'var(--text3)',
+                                  transition: 'all 0.1s'
+                                }}>
+                                {st.Icon ? <st.Icon size={18} strokeWidth={2.5} /> : st.label}
+                              </button>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
             <div style={{ padding: '14px 22px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={saveAttendance} disabled={loading}>
                 {loading ? <Save size={16} strokeWidth={2} /> : isOnline ? <CheckCircle2 size={16} strokeWidth={2} /> : <WifiOff size={16} strokeWidth={2} />}

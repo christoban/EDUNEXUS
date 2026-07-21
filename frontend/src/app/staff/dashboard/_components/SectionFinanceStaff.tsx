@@ -202,66 +202,68 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
 
         {!loading && !error && invoices.length > 0 && (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>{[
-                  t('finance.tableHeaderStudent'),
-                  t('finance.tableHeaderPlan'),
-                  t('finance.tableHeaderAmount'),
-                  t('finance.tableHeaderPaid'),
-                  t('finance.tableHeaderStatus'),
-                  t('finance.tableHeaderActions'),
-                ].map(h => (
-                  <th key={h} style={thSt}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {invoices.map((inv) => {
-                  const st = INV_STATUS[inv.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
-                  const invStatusKey = inv.status === 'PENDING' ? 'statusUnpaid' : inv.status === 'PARTIAL' ? 'statusPartial' : inv.status === 'PAID' ? 'statusPaid' : inv.status === 'OVERDUE' ? 'statusOverdue' : 'statusCancelled'
-                  const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
-                  return (
-                    <tr key={inv.id}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                      <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
-                        {inv.student.firstName} {inv.student.lastName}
-                      </td>
-                      <td style={tdSt}>{inv.feePlan?.name ?? '—'}</td>
-                      <td style={{ ...tdSt, fontWeight: 700 }}>{fmtCFA(inv.amount)}</td>
-                      <td style={tdSt}>
-                        <span style={{ fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
-                          {paid > 0 ? fmtCFA(paid) : '—'}
-                        </span>
-                      </td>
-                      <td style={tdSt}>
-                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>
-                          {t(`finance.${invStatusKey}`)}
-                        </span>
-                      </td>
-                      <td style={tdSt}>
-                        {(inv.status === 'PENDING' || inv.status === 'PARTIAL') && (
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
-                              onClick={() => initiateMobileMoney(inv)}
-                              disabled={payingId === inv.id}>
-                              {payingId === inv.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Smartphone size={13} strokeWidth={2} />}
-                            </button>
-                            <button
-                              style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                              onClick={() => sendReminder(inv)}
-                              disabled={sendingId === inv.id}>
-                              {sendingId === inv.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <><Smartphone size={13} strokeWidth={2} /> SMS</>}
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
+                <thead>
+                  <tr>{[
+                    t('finance.tableHeaderStudent'),
+                    t('finance.tableHeaderPlan'),
+                    t('finance.tableHeaderAmount'),
+                    t('finance.tableHeaderPaid'),
+                    t('finance.tableHeaderStatus'),
+                    t('finance.tableHeaderActions'),
+                  ].map(h => (
+                    <th key={h} style={thSt}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {invoices.map((inv) => {
+                    const st = INV_STATUS[inv.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                    const invStatusKey = inv.status === 'PENDING' ? 'statusUnpaid' : inv.status === 'PARTIAL' ? 'statusPartial' : inv.status === 'PAID' ? 'statusPaid' : inv.status === 'OVERDUE' ? 'statusOverdue' : 'statusCancelled'
+                    const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
+                    return (
+                      <tr key={inv.id}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>
+                          {inv.student.firstName} {inv.student.lastName}
+                        </td>
+                        <td style={tdSt}>{inv.feePlan?.name ?? '—'}</td>
+                        <td style={{ ...tdSt, fontWeight: 700 }}>{fmtCFA(inv.amount)}</td>
+                        <td style={tdSt}>
+                          <span style={{ fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
+                            {paid > 0 ? fmtCFA(paid) : '—'}
+                          </span>
+                        </td>
+                        <td style={tdSt}>
+                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>
+                            {t(`finance.${invStatusKey}`)}
+                          </span>
+                        </td>
+                        <td style={tdSt}>
+                          {(inv.status === 'PENDING' || inv.status === 'PARTIAL') && (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--blue-light)', color: 'var(--blue)', border: '1px solid rgba(29,78,216,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                                onClick={() => initiateMobileMoney(inv)}
+                                disabled={payingId === inv.id}>
+                                {payingId === inv.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <Smartphone size={13} strokeWidth={2} />}
+                              </button>
+                              <button
+                                style={{ padding: '5px 10px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text2)', border: '1px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                                onClick={() => sendReminder(inv)}
+                                disabled={sendingId === inv.id}>
+                                {sendingId === inv.id ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : <><Smartphone size={13} strokeWidth={2} /> SMS</>}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             {pag.pages > 1 && (
               <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center', gap: 8 }}>
@@ -280,13 +282,13 @@ export default function SectionFinanceStaff({ onToast, sessionUser }: Props) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget && !depenseSending) { setDepenseOpen(false) } }}>
           <div style={{ background: 'var(--surface)', borderRadius: 20, border: '1.5px solid var(--border)', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
-            <div style={{ padding: '22px 28px', borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="px-5 py-4 md:px-7 md:py-[22px]" style={{ borderBottom: '1.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 21, fontWeight: 700, color: 'var(--text)' }}>{t('finance.depenseModalTitle')}</div>
               <button onClick={() => !depenseSending && setDepenseOpen(false)}
                 style={{ background: 'none', border: 'none', fontSize: 22, color: 'var(--text3)', cursor: 'pointer', lineHeight: 1, padding: 4 }}>×</button>
             </div>
 
-            <form onSubmit={submitDepense} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <form onSubmit={submitDepense} className="px-5 py-4 md:px-7 md:py-6" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Libellé */}
               <div>
                 <label style={fLb}>{t('finance.depenseLabelLabel')} <span style={{ color: 'var(--red)' }}>*</span></label>

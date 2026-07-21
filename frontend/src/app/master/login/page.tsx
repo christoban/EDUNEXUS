@@ -349,10 +349,10 @@ export default function SuperAdminLogin() {
         @keyframes edu-fadeDown { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
-      <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
+      <div className="overflow-y-auto md:overflow-hidden" style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-nunito),Nunito,sans-serif' }}>
 
-        {/* ══ LEFT PANEL ══ */}
-        <div style={{ width: '50vw', minWidth: 0, maxWidth: '50vw', background: '#1a2e1e', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        {/* ══ LEFT PANEL — vitrine, cachée sous md : la priorité mobile est le formulaire ══ */}
+        <div className="hidden md:flex md:w-[50vw]" style={{ minWidth: 0, background: '#1a2e1e', flexDirection: 'column', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
           {/* Bande africaine */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, zIndex: 2, background: 'repeating-linear-gradient(90deg,#f59e0b 0,#f59e0b 16px,#22c55e 16px,#22c55e 32px,#ef4444 32px,#ef4444 48px,#60a5fa 48px,#60a5fa 64px,#d4a843 64px,#d4a843 80px)' }} />
           {/* Cercle déco */}
@@ -403,10 +403,10 @@ export default function SuperAdminLogin() {
         </div>
 
         {/* ══ RIGHT PANEL ══ */}
-        <div style={{ width: '50vw', maxWidth: '50vw', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f3ee', position: 'relative', overflow: 'hidden' }}>
+        <div className="w-full md:w-[50vw] px-5 md:px-0 py-10 md:py-0" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f3ee', position: 'relative' }}>
           <div style={{ position: 'absolute', top: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.05) 0%,transparent 70%)', pointerEvents: 'none' }} />
 
-          <div style={{ width: 500, maxWidth: 500, margin: '0 auto', position: 'relative', zIndex: 1, animation: 'edu-fadeUp 0.5s ease both' }}>
+          <div className="w-full md:w-[500px]" style={{ maxWidth: 500, margin: '0 auto', position: 'relative', zIndex: 1, animation: 'edu-fadeUp 0.5s ease both' }}>
 
             {/* STEPPER */}
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>

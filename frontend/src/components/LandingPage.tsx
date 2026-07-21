@@ -438,25 +438,25 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           NAVBAR — hauteur 72px, padding horizontal 56px
       ══════════════════════════════════════════════════ */}
-      <nav style={{
+      <nav className="px-4 md:px-14 gap-2 md:gap-10" style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         height: 72, background: 'var(--surface)',
         borderBottom: '1.5px solid var(--border)',
-        display: 'flex', alignItems: 'center', padding: '0 56px', gap: 40,
+        display: 'flex', alignItems: 'center',
         transition: 'box-shadow 200ms',
         boxShadow: navScrolled ? '0 2px 16px rgba(0,0,0,0.07)' : 'none',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
-          <img src="/logo.svg" alt="ZekoulABia" style={{ width: 32, height: 32 }} />
-          <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>ZekoulABia</span>
-          <span style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: 14, fontWeight: 700, borderRadius: 20, padding: '2px 11px', marginLeft: 4, whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, minWidth: 0 }}>
+          <img src="/logo.svg" alt="ZekoulABia" style={{ width: 32, height: 32, flexShrink: 0 }} />
+          <span className="truncate" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>ZekoulABia</span>
+          <span className="hidden lg:inline-block" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text3)', fontSize: 14, fontWeight: 700, borderRadius: 20, padding: '2px 11px', marginLeft: 4, whiteSpace: 'nowrap' }}>
             {tx.nav.badge}
           </span>
         </div>
 
-        {/* Links */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 36 }}>
+        {/* Links — cachés sous md, la nav mobile se limite à connexion/démo */}
+        <div className="hidden md:flex" style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 36 }}>
           {[
             { label: tx.nav.features, href: '#fonctionnalites' },
             { label: tx.nav.howItWorks, href: '#comment' },
@@ -472,10 +472,10 @@ export default function LandingPage() {
         </div>
 
         {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <LanguageSwitch />
-          <a href="/login" style={{ ...btnSecondary, fontSize: 17, padding: '9px 18px' }}>{tx.nav.login}</a>
-          <button onClick={openDemo} style={{ ...btnPrimary, fontSize: 17, padding: '9px 18px' }}>{tx.nav.demo}</button>
+        <div className="gap-2 md:gap-3" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: 'auto' }}>
+          <span className="hidden sm:inline-flex"><LanguageSwitch /></span>
+          <a href="/login" className="py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px]" style={{ ...btnSecondary, padding: undefined, fontSize: undefined }}>{tx.nav.login}</a>
+          <button onClick={openDemo} className="hidden sm:inline-flex py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px]" style={{ ...btnPrimary, padding: undefined, fontSize: undefined, display: undefined }}>{tx.nav.demo}</button>
         </div>
       </nav>
 
@@ -484,9 +484,9 @@ export default function LandingPage() {
       ══════════════════════════════════════════════════ */}
       <section style={{ background: 'var(--bg)', paddingTop: 72 }}>
         <div style={DECO_BAND} />
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '100px 64px 112px', display: 'flex', alignItems: 'center', gap: 80 }}>
+        <div className="flex-col md:flex-row px-5 md:px-16 py-16 md:py-28 gap-10 md:gap-20" style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', alignItems: 'center' }}>
           {/* Left */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
             <motion.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -496,7 +496,8 @@ export default function LandingPage() {
             <motion.h1
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.1, ease: 'easeOut' }}
-              style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 66, fontWeight: 700, color: 'var(--text)', lineHeight: 1.08, maxWidth: 660, marginBottom: 26 }}>
+              className="text-[38px] md:text-[66px]"
+              style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', lineHeight: 1.1, maxWidth: 660, marginBottom: 26 }}>
               {tx.hero.title}
             </motion.h1>
             <motion.p
@@ -535,7 +536,7 @@ export default function LandingPage() {
           </div>
 
           {/* Right — mockup flottant */}
-          <motion.div style={{ flexShrink: 0 }}
+          <motion.div className="w-full md:w-auto" style={{ flexShrink: 0 }}
             initial={{ opacity: 0, x: 36 }} animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7, delay: 0.15, ease: 'easeOut' }}>
             <motion.div
@@ -550,8 +551,8 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           STATS — chiffres 52px, padding 72px
       ══════════════════════════════════════════════════ */}
-      <section style={{ background: 'var(--surface)', padding: '72px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 32 }}>
+      <section className="px-5 md:px-16 py-12 md:py-[72px]" style={{ background: 'var(--surface)', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+        <div className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8" style={{ maxWidth: 1000, margin: '0 auto', display: 'grid' }}>
           {tx.stats.items.map((s, i) => {
             const { num, suffix } = parseStatVal(s.value)
             const Icon = STATS_ICONS[i]
@@ -561,7 +562,7 @@ export default function LandingPage() {
                 viewport={{ once: true, amount: 0.4 }}
                 transition={{ duration: 0.55, delay: i * 0.1, ease: 'easeOut' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 8 }}><Icon size={36} strokeWidth={2} /></div>
-                <div style={{ fontFamily: 'var(--font-nunito),Nunito,sans-serif', fontSize: 52, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>
+                <div className="text-[36px] md:text-[52px]" style={{ fontFamily: 'var(--font-nunito),Nunito,sans-serif', fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>
                   <CompteurAnime valeur={num} suffix={suffix} />
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 8 }}>{s.label}</div>
@@ -574,14 +575,14 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           FEATURES — grille 3×2, cards padding 32px
       ══════════════════════════════════════════════════ */}
-      <section id="fonctionnalites" style={{ background: 'var(--bg)', padding: '112px 64px' }}>
+      <section id="fonctionnalites" className="px-5 md:px-16 py-16 md:py-28" style={{ background: 'var(--bg)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 68 }}>
-            <h2 style={SH}>{tx.features.title}</h2>
+            <h2 className="text-[28px] md:text-[40px]" style={{ ...SH, fontSize: undefined }}>{tx.features.title}</h2>
             <p style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, marginTop: 10 }}>{tx.features.subtitle}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
+          <div className="grid-cols-1 md:grid-cols-3 gap-5 md:gap-7" style={{ display: 'grid' }}>
             {tx.features.items.map((f, i) => {
               const Icon = FEATURES_ICONS[i]
               return (
@@ -606,14 +607,14 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           SÉCURITÉ — grille 2×2, note légale en bas
       ══════════════════════════════════════════════════ */}
-      <section id="securite" style={{ background: 'var(--surface)', padding: '112px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+      <section id="securite" className="px-5 md:px-16 py-16 md:py-28" style={{ background: 'var(--surface)', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 68 }}>
-            <h2 style={SH}>{tx.security.title}</h2>
+            <h2 className="text-[28px] md:text-[40px]" style={{ ...SH, fontSize: undefined }}>{tx.security.title}</h2>
             <p style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, marginTop: 10 }}>{tx.security.subtitle}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 28, marginBottom: 40 }}>
+          <div className="grid-cols-1 md:grid-cols-2 gap-5 md:gap-7" style={{ display: 'grid', marginBottom: 40 }}>
             {tx.security.items.map((s, i) => {
               const Icon = SECURITY_ICONS[i]
               return (
@@ -640,16 +641,16 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           HOW IT WORKS — cercles 58px, icônes 44px
       ══════════════════════════════════════════════════ */}
-      <section id="comment" style={{ background: 'var(--surface)', padding: '112px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+      <section id="comment" className="px-5 md:px-16 py-16 md:py-28" style={{ background: 'var(--surface)', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <h2 style={{ ...SH, marginBottom: 72 }}>{tx.howItWorks.title}</h2>
+          <h2 className="text-[28px] md:text-[40px] mb-10 md:mb-[72px]" style={{ ...SH, fontSize: undefined, marginBottom: undefined }}>{tx.howItWorks.title}</h2>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          <div className="flex-col md:flex-row gap-8 md:gap-0" style={{ display: 'flex', alignItems: 'flex-start' }}>
             {tx.howItWorks.steps.map((step, i) => {
               const Icon = HOWITWORKS_ICONS[i]
               return (
                 <Fragment key={i}>
-                  <div style={{ flex: 1, textAlign: 'center', padding: '0 32px' }}>
+                  <div className="px-3 md:px-8" style={{ flex: 1, textAlign: 'center' }}>
                     <div style={{ width: 58, height: 58, borderRadius: '50%', background: 'var(--green-light)', color: 'var(--green)', fontSize: 22, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                       {i + 1}
                     </div>
@@ -660,7 +661,7 @@ export default function LandingPage() {
                     <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7, maxWidth: 260, margin: '0 auto' }}>{step.desc}</div>
                   </div>
                   {i < tx.howItWorks.steps.length - 1 && (
-                    <div style={{ paddingTop: 22, color: 'var(--border2)', flexShrink: 0, alignSelf: 'flex-start' }}><ArrowRight size={28} strokeWidth={2} /></div>
+                    <div className="hidden md:block" style={{ paddingTop: 22, color: 'var(--border2)', flexShrink: 0, alignSelf: 'flex-start' }}><ArrowRight size={28} strokeWidth={2} /></div>
                   )}
                 </Fragment>
               )
@@ -672,9 +673,9 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           ROLES — tabs + card, padding 40px
       ══════════════════════════════════════════════════ */}
-      <section style={{ background: 'var(--bg)', padding: '112px 64px' }}>
+      <section className="px-5 md:px-16 py-16 md:py-28" style={{ background: 'var(--bg)' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <h2 style={{ ...SH, marginBottom: 40 }}>{tx.roles.title}</h2>
+          <h2 className="text-[28px] md:text-[40px] mb-6 md:mb-10" style={{ ...SH, fontSize: undefined, marginBottom: undefined }}>{tx.roles.title}</h2>
 
           {/* Role tabs */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 40 }}>
@@ -702,14 +703,15 @@ export default function LandingPage() {
             <motion.div key={tabRole}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.22 }}
-              style={{ ...CARD, padding: 40 }}>
+              className="px-6 md:px-10 py-7 md:py-10"
+              style={{ ...CARD, padding: undefined }}>
               {(() => { const Icon = ROLES_ICONS[tabRole]; return (
                 <div style={{ display: 'flex', color: 'var(--green)', marginBottom: 14 }}><Icon size={52} strokeWidth={2} /></div>
               ) })()}
               <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 24 }}>
                 Espace {tx.roles.items[tabRole].label}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="grid-cols-1 md:grid-cols-2 gap-4" style={{ display: 'grid' }}>
                 {tx.roles.items[tabRole].benefits.map((b, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--green-light)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}><Check size={13} strokeWidth={2.5} /></div>
@@ -725,17 +727,17 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           PRICING — cards padding 32px, price 38px
       ══════════════════════════════════════════════════ */}
-      <section id="plans" style={{ background: 'var(--surface)', padding: '112px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+      <section id="plans" className="px-5 md:px-16 py-16 md:py-28" style={{ background: 'var(--surface)', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 68 }}>
-            <h2 style={SH}>{tx.pricing.title}</h2>
+            <h2 className="text-[28px] md:text-[40px]" style={{ ...SH, fontSize: undefined }}>{tx.pricing.title}</h2>
             <p style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, marginTop: 10 }}>{tx.pricing.subtitle}</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 28 }}>
+          <div className="grid-cols-1 md:grid-cols-3 gap-5 md:gap-7" style={{ display: 'grid' }}>
             {tx.pricing.plans.map(plan => (
-              <div key={plan.name} style={{
-                background: 'var(--surface)', borderRadius: 18, padding: 32,
+              <div key={plan.name} className="px-6 md:px-8 py-7 md:py-8" style={{
+                background: 'var(--surface)', borderRadius: 18,
                 border: plan.recommended ? '2px solid var(--green)' : '1.5px solid var(--border)',
                 boxShadow: plan.recommended ? '0 10px 32px rgba(5,150,105,0.14)' : '0 2px 8px rgba(0,0,0,0.06)',
                 position: 'relative',
@@ -758,7 +760,7 @@ export default function LandingPage() {
                   </div>
                 )}
                 <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{plan.name}</div>
-                <div style={{ fontSize: 38, fontWeight: 900, color: plan.recommended ? 'var(--green)' : 'var(--text)', marginBottom: 22, lineHeight: 1 }}>{plan.price}</div>
+                <div className="text-[30px] md:text-[38px]" style={{ fontWeight: 900, color: plan.recommended ? 'var(--green)' : 'var(--text)', marginBottom: 22, lineHeight: 1 }}>{plan.price}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
                   {plan.features.map(f => (
                     <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 14, color: 'var(--text2)' }}>
@@ -780,9 +782,9 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           FAQ — accordéon, border-radius 12px
       ══════════════════════════════════════════════════ */}
-      <section style={{ background: 'var(--surface)', padding: '112px 64px', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
+      <section className="px-5 md:px-16 py-16 md:py-28" style={{ background: 'var(--surface)', borderTop: '1.5px solid var(--border)', borderBottom: '1.5px solid var(--border)' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <h2 style={{ ...SH, marginBottom: 64 }}>{tx.faq.title}</h2>
+          <h2 className="text-[28px] md:text-[40px] mb-9 md:mb-16" style={{ ...SH, fontSize: undefined, marginBottom: undefined }}>{tx.faq.title}</h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tx.faq.items.map((faq, i) => (
@@ -793,12 +795,13 @@ export default function LandingPage() {
                 background: faqOpen === i ? 'var(--bg2)' : 'white',
               }}>
                 <button onClick={() => setFaqOpen(faqOpen === i ? null : i)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                  className="px-4 md:px-6 py-4 md:py-5"
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
                   <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{faq.q}</span>
                   <span style={{ display: 'flex', color: 'var(--green)', transition: 'transform 150ms', transform: faqOpen === i ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0, marginLeft: 16 }}><ChevronDown size={20} strokeWidth={2.5} /></span>
                 </button>
                 {faqOpen === i && (
-                  <div style={{ padding: '0 24px 20px', fontSize: 15, color: 'var(--text2)', lineHeight: 1.75, animation: 'fadeIn 0.15s ease' }}>
+                  <div className="px-4 md:px-6 pb-4 md:pb-5" style={{ fontSize: 15, color: 'var(--text2)', lineHeight: 1.75, animation: 'fadeIn 0.15s ease' }}>
                     {faq.a}
                   </div>
                 )}
@@ -824,22 +827,23 @@ export default function LandingPage() {
         {/* Deco band */}
         <div style={{ ...DECO_BAND, position: 'relative', zIndex: 1 }} />
         {/* Content */}
-        <div style={{ position: 'relative', zIndex: 1, padding: '120px 64px', textAlign: 'center', overflow: 'hidden' }}>
+        <div className="px-5 md:px-16 py-16 md:py-[120px]" style={{ position: 'relative', zIndex: 1, textAlign: 'center', overflow: 'hidden' }}>
           {/* Decorative circles */}
           <div style={{ position: 'absolute', top: 48, left: '7%', width: 240, height: 240, borderRadius: '50%', background: 'rgba(5,150,105,0.1)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', bottom: 48, right: '6%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(5,150,105,0.07)', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', top: '35%', right: '18%', width: 140, height: 140, borderRadius: '50%', background: 'rgba(74,222,128,0.06)', pointerEvents: 'none' }} />
 
-          <h2 style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 52, fontWeight: 700, color: 'white', maxWidth: 720, margin: '0 auto 24px', lineHeight: 1.15 }}>
+          <h2 className="text-[30px] md:text-[52px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'white', maxWidth: 720, margin: '0 auto 24px', lineHeight: 1.15 }}>
             {tx.cta.title}
           </h2>
           <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', marginBottom: 44 }}>
             {tx.cta.subtitle}
           </p>
           <button onClick={openDemo}
+            className="px-6 md:px-[52px] py-4 md:py-5 text-[15px] md:text-[18px]"
             style={{
               background: '#4ade80', color: 'var(--sidebar)',
-              fontWeight: 900, fontSize: 18, padding: '20px 52px', borderRadius: 12,
+              fontWeight: 900, borderRadius: 12,
               border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               transition: 'all 150ms', display: 'inline-flex', alignItems: 'center', gap: 10,
               boxShadow: '0 6px 24px rgba(74,222,128,0.32)',
@@ -866,9 +870,9 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           FOOTER — padding 72px/44px, maxWidth 1200
       ══════════════════════════════════════════════════ */}
-      <footer style={{ background: 'var(--sidebar2)', padding: '72px 64px 44px', color: 'white' }}>
+      <footer className="px-5 md:px-16 pt-12 md:pt-[72px] pb-8 md:pb-11" style={{ background: 'var(--sidebar2)', color: 'white' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 56, marginBottom: 56 }}>
+          <div className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-8 md:gap-14" style={{ display: 'grid', marginBottom: 56 }}>
             {/* Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>

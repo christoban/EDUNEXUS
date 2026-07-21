@@ -194,46 +194,48 @@ export default function SectionGradeValidation({ onToast }: Props) {
                 </div>
 
                 {/* Grades table */}
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>{[t('gradeValidation.studentHeader'), t('gradeValidation.gradeHeader'), t('gradeValidation.statusHeader'), t('gradeValidation.actionsHeader')].map(h => <th key={h} style={thSt}>{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {lot.grades.map((g) => (
-                      <tr key={g.id}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
-                        <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{g.student.firstName} {g.student.lastName}</td>
-                        <td style={tdSt}>
-                          <span style={{ fontSize: 18, fontWeight: 900, color: (g.sequenceAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)' }}>
-                            {g.sequenceAverage?.toFixed(1) ?? '—'}
-                          </span>
-                          <span style={{ fontSize: 13, color: 'var(--text3)', marginLeft: 3 }}>/20</span>
-                        </td>
-                        <td style={tdSt}>
-                          <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)' }}>
-                            {t('gradeValidation.pending')}
-                          </span>
-                        </td>
-                        <td style={tdSt}>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
-                              onClick={() => validateGrade(g.id).then(ok => { if (ok) fetchPending() })}
-                              disabled={validating.has(g.id)}>
-                              <Check size={14} strokeWidth={2} />
-                            </button>
-                            <button
-                              style={{ padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
-                              onClick={() => openRejectModal(g.id, `${g.student.firstName} ${g.student.lastName}`)}>
-                              <X size={14} strokeWidth={2} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                    <thead>
+                      <tr>{[t('gradeValidation.studentHeader'), t('gradeValidation.gradeHeader'), t('gradeValidation.statusHeader'), t('gradeValidation.actionsHeader')].map(h => <th key={h} style={thSt}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {lot.grades.map((g) => (
+                        <tr key={g.id}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
+                          <td style={{ ...tdSt, fontWeight: 700, color: 'var(--text)' }}>{g.student.firstName} {g.student.lastName}</td>
+                          <td style={tdSt}>
+                            <span style={{ fontSize: 18, fontWeight: 900, color: (g.sequenceAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)' }}>
+                              {g.sequenceAverage?.toFixed(1) ?? '—'}
+                            </span>
+                            <span style={{ fontSize: 13, color: 'var(--text3)', marginLeft: 3 }}>/20</span>
+                          </td>
+                          <td style={tdSt}>
+                            <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)' }}>
+                              {t('gradeValidation.pending')}
+                            </span>
+                          </td>
+                          <td style={tdSt}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--green-light)', color: 'var(--green)', border: '1px solid rgba(5,150,105,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                                onClick={() => validateGrade(g.id).then(ok => { if (ok) fetchPending() })}
+                                disabled={validating.has(g.id)}>
+                                <Check size={14} strokeWidth={2} />
+                              </button>
+                              <button
+                                style={{ padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1px solid rgba(220,38,38,0.2)', cursor: 'pointer', fontFamily: 'inherit' }}
+                                onClick={() => openRejectModal(g.id, `${g.student.firstName} ${g.student.lastName}`)}>
+                                <X size={14} strokeWidth={2} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )
           })}
@@ -245,7 +247,7 @@ export default function SectionGradeValidation({ onToast }: Props) {
         <>
           <div onClick={() => setRejectModal(m => ({ ...m, open: false }))}
             style={{ position: 'fixed', inset: 0, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)', zIndex: 200 }} />
-          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 18, padding: '36px 40px', width: 460, boxShadow: '0 24px 60px rgba(0,0,0,0.18)' }}>
+          <div className="px-6 py-6 md:px-10 md:py-9" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, background: 'var(--surface)', borderRadius: 18, width: 460, maxWidth: '94vw', boxShadow: '0 24px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
               {t('gradeValidation.rejectTitle')}
             </div>

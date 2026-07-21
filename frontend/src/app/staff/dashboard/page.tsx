@@ -39,6 +39,7 @@ let toastId = 0
 
 export default function StaffDashboard() {
   const [section, setSection]           = useState<StaffSection>('dashboard')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts]             = useState<Toast[]>([])
   const [sessionUser, setSessionUser]   = useState<SessionUser | null>(null)
   const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh', 'notifications']))
@@ -102,10 +103,12 @@ export default function StaffDashboard() {
         sessionUser={sessionUser}
         schoolName={schoolName}
         logoUrl={logoUrl}
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} onNav={s => navTo(s as StaffSection)} />
+        <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} onNav={s => navTo(s as StaffSection)} onMenuClick={() => setMobileNavOpen(true)} />
         <EventCenterWidget />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>

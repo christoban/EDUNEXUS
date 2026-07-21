@@ -168,7 +168,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
       {/* ── Modal demande de rattrapage ── */}
       {catchup.open && (
         <div onClick={() => setCatchup(EMPTY_CATCHUP)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', borderRadius: 18, padding: '32px 36px', width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 480, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('timetable.catchup_title')}</div>
             <div style={catchSLb}>{t('timetable.catchup_class_label')}</div>
             <select style={catchSIn} value={catchup.classId} onChange={e => setCatchup(f => ({ ...f, classId: e.target.value }))}>

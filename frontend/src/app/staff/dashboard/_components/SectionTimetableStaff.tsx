@@ -452,7 +452,7 @@ export default function SectionTimetable({ onToast }: Props) {
       {modalSlot && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}
           onClick={e => { if (e.target === e.currentTarget) setModalSlot(null) }}>
-          <div style={{ background: 'var(--surface)', borderRadius: 18, padding: '28px 30px', width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+          <div className="px-6 py-6 md:px-8 md:py-7" style={{ background: 'var(--surface)', borderRadius: 18, width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 21, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
               {t('timetable.fillSlotTitle')}
             </div>
