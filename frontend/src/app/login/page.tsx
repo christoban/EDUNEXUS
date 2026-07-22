@@ -501,6 +501,11 @@ export default function LoginPage() {
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'var(--bg)', position: 'relative', overflowY: 'auto',
       }}>
+        {/* Le panneau gauche (qui porte normalement le selecteur de langue) est cache sous xl */}
+        <div className="xl:hidden" style={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }}>
+          <LanguageSwitch />
+        </div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
