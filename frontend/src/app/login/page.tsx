@@ -544,7 +544,7 @@ export default function LoginPage() {
             }}>
               {t('login.right_title')}
             </div>
-            <div className="text-[12.5px] md:text-[18px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.4 }}>
+            <div className="text-[11.5px] md:text-[18px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.4 }}>
               {t('login.right_subtitle')}
             </div>
           </div>
