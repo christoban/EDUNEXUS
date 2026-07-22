@@ -788,18 +788,19 @@ export default function LoginPage() {
           <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
             <style>{`@keyframes edu-fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }`}</style>
             <button onClick={() => { setStep('credentials'); if (otpTimerRef.current) clearInterval(otpTimerRef.current) }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 20 }}>
+              className="text-[13px] md:text-[15px] mb-4 md:mb-5"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit' }}>
               <ArrowLeft size={16} /> {t('login.back')}
             </button>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('login.otp_title')}</div>
-              <div style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
+            <div className="mb-4 md:mb-5">
+              <div className="text-[22px] md:text-[30px] mb-1.5 md:mb-2" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('login.otp_title')}</div>
+              <div className="text-[13px] md:text-[16px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>
                 {t('login.otp_subtitle', { email: maskEmail(email) })}
               </div>
             </div>
             {otpAlert && (
-              <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
-                <AlertTriangle size={16} strokeWidth={2} /><span>{otpAlert}</span>
+              <div className="text-[13px] md:text-[15px] mb-3 md:mb-4 px-3 py-2.5 md:px-3.5 md:py-3" style={{ borderRadius: 10, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
+                <AlertTriangle size={16} strokeWidth={2} className="shrink-0" /><span>{otpAlert}</span>
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
@@ -809,21 +810,24 @@ export default function LoginPage() {
                   type="tel" maxLength={1} value={v}
                   onChange={e => handleOtpInput(i, e.target.value)}
                   onKeyDown={e => handleOtpKey(i, e)}
-                  style={{ flex: 1, height: 68, textAlign: 'center', fontSize: 24, fontWeight: 900, background: v ? 'var(--green-light)' : 'var(--surface)', border: `1.5px solid ${v ? 'var(--green)' : 'var(--border)'}`, borderRadius: 10, outline: 'none', color: v ? 'var(--green)' : 'var(--text)', fontFamily: 'inherit', transition: 'all 0.2s', minWidth: 0, maxWidth: 100 }}
+                  className="h-12 sm:h-[68px] text-[18px] sm:text-[24px]"
+                  style={{ flex: 1, textAlign: 'center', fontWeight: 900, background: v ? 'var(--green-light)' : 'var(--surface)', border: `1.5px solid ${v ? 'var(--green)' : 'var(--border)'}`, borderRadius: 10, outline: 'none', color: v ? 'var(--green)' : 'var(--text)', fontFamily: 'inherit', transition: 'all 0.2s', minWidth: 0, maxWidth: 100 }}
                 />
               ))}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, color: otpTimerSecs <= 60 ? 'var(--red)' : 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="text-[12.5px] md:text-[14.5px]" style={{ fontWeight: 700, color: otpTimerSecs <= 60 ? 'var(--red)' : 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Clock size={15} /> {timerMin}:{String(timerSecDisp).padStart(2, '0')}
               </div>
               <button onClick={resendOtp} disabled={!otpResendEnabled}
-                style={{ fontSize: 14.5, fontWeight: 700, color: otpResendEnabled ? 'var(--green)' : 'var(--text3)', cursor: otpResendEnabled ? 'pointer' : 'default', background: 'none', border: 'none', fontFamily: 'inherit' }}>
+                className="text-[12.5px] md:text-[14.5px]"
+                style={{ fontWeight: 700, color: otpResendEnabled ? 'var(--green)' : 'var(--text3)', cursor: otpResendEnabled ? 'pointer' : 'default', background: 'none', border: 'none', fontFamily: 'inherit' }}>
                 {t('login.otp_resend')}
               </button>
             </div>
             <button onClick={() => submitOtp()} disabled={otpLoading}
-              style={{ width: '100%', marginTop: 20, padding: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: otpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: otpLoading ? 0.8 : 1 }}>
+              className="text-[15px] md:text-[17px] py-2.5 md:py-[14px] mt-4 md:mt-5"
+              style={{ width: '100%', background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, border: 'none', borderRadius: 10, cursor: otpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: otpLoading ? 0.8 : 1 }}>
               {otpLoading ? <Loader2 size={18} className="animate-spin" /> : null}
               {t('login.otp_verify')}
             </button>
@@ -833,39 +837,44 @@ export default function LoginPage() {
 
           <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
             <button onClick={() => setStep('email_otp')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', marginBottom: 20 }}>
+              className="text-[13px] md:text-[15px] mb-4 md:mb-5"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit' }}>
               <ArrowLeft size={16} /> {t('login.back')}
             </button>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('login.totp_title')}</div>
-              <div style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
+            <div className="mb-4 md:mb-5">
+              <div className="text-[21px] md:text-[28px] mb-1.5 md:mb-2" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('login.totp_title')}</div>
+              <div className="text-[13px] md:text-[16px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>
                 {isRecovery ? t('login.totp_subtitle_recovery') : t('login.totp_subtitle')}
               </div>
             </div>
             {totpAlert && (
-              <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
-                <AlertTriangle size={16} strokeWidth={2} /><span>{totpAlert}</span>
+              <div className="text-[13px] md:text-[15px] mb-3 md:mb-4 px-3 py-2.5 md:px-3.5 md:py-3" style={{ borderRadius: 10, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
+                <AlertTriangle size={16} strokeWidth={2} className="shrink-0" /><span>{totpAlert}</span>
               </div>
             )}
             {!isRecovery ? (
               <input type="tel" maxLength={6} value={totpCode} placeholder="123456" autoComplete="one-time-code"
                 onChange={e => { setTotpCode(e.target.value.replace(/\D/g, '')); setTotpAlert(null) }}
                 onKeyDown={e => e.key === 'Enter' && submitTotp()}
-                style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 28, fontFamily: 'inherit', fontWeight: 900, letterSpacing: 8, textAlign: 'center', outline: 'none' }} />
+                className="text-[22px] md:text-[28px] tracking-[4px] md:tracking-[8px] px-3 py-2.5 md:px-4 md:py-[19px]"
+                style={{ width: '100%', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 900, textAlign: 'center', outline: 'none' }} />
             ) : (
               <input type="text" value={recoveryCode} placeholder="ABCD-1234-EFGH-5678" autoComplete="off"
                 onChange={e => { setRecoveryCode(e.target.value); setTotpAlert(null) }}
                 onKeyDown={e => e.key === 'Enter' && submitTotp()}
-                style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 20, fontFamily: 'inherit', fontWeight: 700, letterSpacing: 2, textAlign: 'center', outline: 'none' }} />
+                className="text-[15px] md:text-[20px] tracking-[1px] md:tracking-[2px] px-3 py-2.5 md:px-4 md:py-[19px]"
+                style={{ width: '100%', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 700, textAlign: 'center', outline: 'none' }} />
             )}
-            <div style={{ textAlign: 'center', margin: '14px 0' }}>
+            <div className="my-2.5 md:my-[14px]" style={{ textAlign: 'center' }}>
               <button onClick={() => { setIsRecovery(r => !r); setTotpAlert(null) }}
-                style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--green)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                className="text-[12.5px] md:text-[14.5px]"
+                style={{ fontWeight: 700, color: 'var(--green)', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {isRecovery ? <><ArrowLeft size={14} /> {t('login.totp_use_app')}</> : <><KeyRound size={14} /> {t('login.totp_use_recovery')}</>}
               </button>
             </div>
             <button onClick={submitTotp} disabled={totpLoading}
-              style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: totpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: totpLoading ? 0.8 : 1 }}>
+              className="text-[15px] md:text-[17px] py-2.5 md:py-[14px]"
+              style={{ width: '100%', background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, border: 'none', borderRadius: 10, cursor: totpLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: totpLoading ? 0.8 : 1 }}>
               {totpLoading ? <Loader2 size={18} className="animate-spin" /> : null}
               {t('login.totp_verify')}
             </button>
