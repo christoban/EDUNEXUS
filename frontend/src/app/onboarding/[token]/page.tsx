@@ -2502,7 +2502,9 @@ export default function OnboardingPage() {
         .edu-mobile-lang { display: none; }
         @media (max-width: 768px) {
           .edu-left-panel { display: none !important; }
-          .edu-right-panel { width: 100vw !important; max-width: 100vw !important; }
+          /* Pas besoin de forcer une largeur ici : flex:1 suffit déjà une fois le panneau
+             gauche retiré du flux (display:none) — un ancien "width: 100vw !important" ici
+             provoquait un débordement horizontal (100vw inclut la barre de défilement). */
           .edu-mobile-lang { display: flex !important; }
         }
       `}</style>
