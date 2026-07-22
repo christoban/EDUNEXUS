@@ -886,66 +886,70 @@ export default function LoginPage() {
           <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
             {!recoveryCodes ? (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 18, fontSize: 14, fontWeight: 700, color: 'var(--amber)' }}>
+                <div className="text-[12.5px] md:text-[14px] px-3 py-2.5 md:px-4 md:py-3" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 18, fontWeight: 700, color: 'var(--amber)' }}>
                   <Shield size={16} /> {t('login.mfa_setup_subtitle')}
                 </div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>
+                <div className="text-[21px] md:text-[26px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>
                   {t('login.mfa_setup_title')}
                 </div>
                 {setupAlert && (
-                  <div style={{ padding: '12px 14px', borderRadius: 10, fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
-                    <AlertTriangle size={16} strokeWidth={2} /><span>{setupAlert}</span>
+                  <div className="text-[13px] md:text-[15px] mb-3 md:mb-4 px-3 py-2.5 md:px-3.5 md:py-3" style={{ borderRadius: 10, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--red-light)', border: '1px solid rgba(220,38,38,0.2)', color: 'var(--red)' }}>
+                    <AlertTriangle size={16} strokeWidth={2} className="shrink-0" /><span>{setupAlert}</span>
                   </div>
                 )}
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>{t('login.mfa_setup_step1')}</div>
+                <div className="text-[13px] md:text-[14.5px]" style={{ fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>{t('login.mfa_setup_step1')}</div>
                 {qrDataUri ? (
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                    <img src={qrDataUri} alt="QR MFA" style={{ width: 180, height: 180, borderRadius: 12, border: '1.5px solid var(--border)', padding: 8, background: 'white' }} />
+                    <img src={qrDataUri} alt="QR MFA" className="w-[150px] h-[150px] md:w-[180px] md:h-[180px]" style={{ borderRadius: 12, border: '1.5px solid var(--border)', padding: 8, background: 'white' }} />
                   </div>
                 ) : (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Loader2 size={24} className="animate-spin" /></div>
                 )}
                 {manualKey && (
                   <div style={{ marginBottom: 18 }}>
-                    <div style={{ fontSize: 12.5, color: 'var(--text3)', fontWeight: 700, marginBottom: 5 }}>{t('login.mfa_setup_manual_label')}</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: 'var(--text)', background: 'var(--bg2)', padding: '10px 14px', borderRadius: 8, textAlign: 'center', letterSpacing: 1, wordBreak: 'break-all' }}>{manualKey}</div>
+                    <div className="text-[11px] md:text-[12.5px]" style={{ color: 'var(--text3)', fontWeight: 700, marginBottom: 5 }}>{t('login.mfa_setup_manual_label')}</div>
+                    <div className="text-[12px] md:text-[14px] px-2.5 py-2 md:px-3.5 md:py-2.5" style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', background: 'var(--bg2)', borderRadius: 8, textAlign: 'center', letterSpacing: 1, wordBreak: 'break-all' }}>{manualKey}</div>
                   </div>
                 )}
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>{t('login.mfa_setup_code_label')}</div>
+                <div className="text-[13px] md:text-[14.5px]" style={{ fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>{t('login.mfa_setup_code_label')}</div>
                 <input type="tel" maxLength={6} value={setupTotpCode} placeholder="123456" autoComplete="one-time-code"
                   onChange={e => { setSetupTotpCode(e.target.value.replace(/\D/g, '')); setSetupAlert(null) }}
                   onKeyDown={e => e.key === 'Enter' && submitMfaSetup()}
-                  style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 28, fontFamily: 'inherit', fontWeight: 900, letterSpacing: 8, textAlign: 'center', outline: 'none', marginBottom: 18 }} />
+                  className="text-[22px] md:text-[28px] tracking-[4px] md:tracking-[8px] px-3 py-3 md:px-4 md:py-[19px]"
+                  style={{ width: '100%', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 900, textAlign: 'center', outline: 'none', marginBottom: 18 }} />
                 <button onClick={submitMfaSetup} disabled={setupLoading || !qrDataUri}
-                  style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: setupLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: setupLoading ? 0.8 : 1 }}>
+                  className="text-[15px] md:text-[17px] py-2.5 md:py-[14px]"
+                  style={{ width: '100%', background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, border: 'none', borderRadius: 10, cursor: setupLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: setupLoading ? 0.8 : 1 }}>
                   {setupLoading ? <Loader2 size={18} className="animate-spin" /> : null}
                   {t('login.mfa_setup_confirm')}
                 </button>
               </>
             ) : (
               <>
-                <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 14 }}><Shield size={40} strokeWidth={2} /></div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
+                <div className="[&>svg]:w-8 [&>svg]:h-8 md:[&>svg]:w-10 md:[&>svg]:h-10" style={{ display: 'flex', justifyContent: 'center', color: 'var(--green)', marginBottom: 14 }}><Shield strokeWidth={2} /></div>
+                <div className="text-[20px] md:text-[24px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
                   {t('login.mfa_setup_recovery_title')}
                 </div>
-                <div style={{ fontSize: 14.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 18, textAlign: 'center' }}>
+                <div className="text-[13px] md:text-[14.5px]" style={{ color: 'var(--text2)', lineHeight: 1.6, marginBottom: 18, textAlign: 'center' }}>
                   {t('login.mfa_setup_recovery_subtitle')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18, background: 'var(--bg2)', borderRadius: 12, padding: 16 }}>
                   {recoveryCodes.map(code => (
-                    <div key={code} style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: 'var(--text)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>{code}</div>
+                    <div key={code} className="text-[11px] md:text-[13px] px-2 py-1.5 md:px-2.5 md:py-2" style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, textAlign: 'center' }}>{code}</div>
                   ))}
                 </div>
                 <button onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))}
-                  style={{ width: '100%', marginBottom: 18, padding: 10, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13.5, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                  className="text-[12px] md:text-[13.5px] py-2 md:py-2.5"
+                  style={{ width: '100%', marginBottom: 18, background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 10, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
                   <Copy size={14} /> Copier les codes
                 </button>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 18, cursor: 'pointer' }}>
                   <input type="checkbox" checked={recoveryAck} onChange={e => setRecoveryAck(e.target.checked)} style={{ marginTop: 3, flexShrink: 0, width: 18, height: 18 }} />
-                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{t('login.mfa_setup_recovery_confirm')}</span>
+                  <span className="text-[12.5px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('login.mfa_setup_recovery_confirm')}</span>
                 </label>
                 <button onClick={() => pendingLoginData && completeLogin(pendingLoginData)} disabled={!recoveryAck}
-                  style={{ width: '100%', padding: 14, background: recoveryAck ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'var(--text3)', color: 'white', fontSize: 17, fontWeight: 800, border: 'none', borderRadius: 10, cursor: recoveryAck ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                  className="text-[15px] md:text-[17px] py-2.5 md:py-[14px]"
+                  style={{ width: '100%', background: recoveryAck ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'var(--text3)', color: 'white', fontWeight: 800, border: 'none', borderRadius: 10, cursor: recoveryAck ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
                   {t('login.mfa_setup_continue')}
                 </button>
               </>
