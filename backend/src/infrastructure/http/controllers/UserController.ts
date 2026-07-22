@@ -77,16 +77,21 @@ export class UserController {
   private readPendingToken(req: Request, expectedType: PendingLoginPayload['tokenType']): PendingLoginPayload {
     const raw = req.cookies?.pending_login_token;
     if (!raw) throw new Error('Session de connexion expirée. Veuillez recommencer.');
-    let decoded: PendingLoginPayload;
+    let decoded: PendingLoginPayload & { exp?: number; iat?: number; nbf?: number };
     try {
-      decoded = jwt.verify(raw, process.env.JWT_SECRET!) as PendingLoginPayload;
+      decoded = jwt.verify(raw, process.env.JWT_SECRET!) as PendingLoginPayload & { exp?: number; iat?: number; nbf?: number };
     } catch {
       throw new Error('Session de connexion expirée. Veuillez recommencer.');
     }
     if (decoded.tokenType !== expectedType) {
       throw new Error('Session de connexion invalide. Veuillez recommencer.');
     }
-    return decoded;
+    // jwt.verify renvoie aussi les claims standard (exp/iat/nbf) dans le payload decode. Si on
+    // reinjecte ce payload tel quel dans un futur jwt.sign(..., { expiresIn }) pour l-etape
+    // suivante, jsonwebtoken refuse ("Bad options.expiresIn option the payload already has an
+    // exp property") — on les retire ici, une fois pour toutes, plutot que dans chaque appelant.
+    const { exp, iat, nbf, ...clean } = decoded;
+    return clean as PendingLoginPayload;
   }
 
   private issueFinalSession(res: Response, payload: Omit<PendingLoginPayload, 'tokenType'>) {
