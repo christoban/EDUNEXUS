@@ -538,13 +538,13 @@ export default function LoginPage() {
           <>{/* Welcome */}
           <div style={{ marginBottom: 32 }}>
             <span style={{ color: 'var(--text)', marginBottom: 10, display: 'block' }}><Hand size={45} strokeWidth={2} /></span>
-            <div style={{
+            <div className="text-[24px] md:text-[36px]" style={{
               fontFamily: 'var(--font-spectral),Spectral,serif',
-              fontSize: 36, fontWeight: 700, color: 'var(--text)', marginBottom: 6
+              fontWeight: 700, color: 'var(--text)', marginBottom: 6, lineHeight: 1.2
             }}>
               {t('login.right_title')}
             </div>
-            <div style={{ fontSize: 18, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.6 }}>
+            <div className="text-[15px] md:text-[18px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>
               {t('login.right_subtitle')}
             </div>
           </div>

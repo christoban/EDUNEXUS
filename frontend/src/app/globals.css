@@ -136,6 +136,15 @@ html, body {
   height: 100%;
 }
 
+/* Empeche le "font boosting" automatique de Chrome/Android : sans cette regle, les
+   navigateurs mobiles agrandissent eux-memes certains blocs de texte (surtout ceux qui
+   passent sur plusieurs lignes) pour la lisibilite, ce qui fait que les tailles de police
+   definies dans le code ne correspondent plus a ce qui s-affiche reellement sur telephone. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
