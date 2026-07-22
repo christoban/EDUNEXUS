@@ -691,7 +691,7 @@ export default function LoginPage() {
                   <button
                     key={r.role}
                     type="button"
-                    className="flex-1 min-w-[92px] sm:flex-initial sm:min-w-0 sm:w-auto snap-start"
+                    className="flex-1 min-w-[108px] sm:flex-initial sm:min-w-0 sm:w-auto snap-start"
                     onClick={() => setSelectedRole(active ? null : r.role)}
                     style={{
                       padding: '10px 6px', border: `1.5px solid ${active ? r.border : 'var(--border)'}`,
