@@ -2514,7 +2514,7 @@ export default function OnboardingPage() {
         {LeftPanel}
 
         {/* ── Right panel ── */}
-        <div className="edu-right-panel" style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'var(--bg)', overflowY: 'auto', position: 'relative', padding: '32px 24px' }}>
+        <div className="edu-right-panel" style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', background: 'var(--bg)', overflowY: 'auto', overflowX: 'hidden', position: 'relative', padding: '32px 24px' }}>
           <div style={{ position: 'absolute', top: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.05) 0%,transparent 70%)', pointerEvents: 'none' }} />
           <div style={{ width: '100%', maxWidth: 520, position: 'relative', zIndex: 1 }}>
             {/* Bascule de langue — visible uniquement sur mobile (le panneau gauche, qui porte
