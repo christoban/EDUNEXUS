@@ -401,14 +401,16 @@ export default function LoginPage() {
   const timerSecDisp = Math.max(otpTimerSecs, 0) % 60
 
   return (
-    <div className="overflow-y-auto md:overflow-hidden" style={{
+    <div className="overflow-y-auto xl:overflow-hidden" style={{
       display: 'flex', minHeight: '100vh',
       background: 'var(--bg)',
       fontFamily: 'var(--font-nunito), Nunito, sans-serif'
     }}>
 
-      {/* ══ PANNEAU GAUCHE — vitrine, cachée sous md : la priorité mobile est le formulaire ══ */}
-      <div className="hidden md:flex md:w-[48%]" style={{
+      {/* ══ PANNEAU GAUCHE — vitrine, cachée sous xl : en dessous, le panneau droit devient trop
+          etroit pour la grille des roles (le mot "Administrateur" wrap), donc on repousse
+          l-apparition du panneau gauche a un point ou la moitie d-ecran restante reste large ══ */}
+      <div className="hidden xl:flex xl:w-[48%]" style={{
         background: 'var(--sidebar)',
         flexDirection: 'column',
         position: 'relative', overflow: 'hidden', flexShrink: 0
@@ -677,13 +679,14 @@ export default function LoginPage() {
             <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               {t('login.role_label')}
             </label>
-            <div className="grid-cols-3 sm:grid-cols-5" style={{ display: 'grid', gap: 8 }}>
+            <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible snap-x snap-mandatory sm:snap-none p-1 -m-1">
               {ROLE_SELECTOR.map(r => {
                 const active = selectedRole === r.role
                 return (
                   <button
                     key={r.role}
                     type="button"
+                    className="flex-1 min-w-[92px] sm:flex-initial sm:min-w-0 sm:w-auto snap-start"
                     onClick={() => setSelectedRole(active ? null : r.role)}
                     style={{
                       padding: '10px 6px', border: `1.5px solid ${active ? r.border : 'var(--border)'}`,
@@ -696,7 +699,7 @@ export default function LoginPage() {
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'center', color: active ? r.color : 'var(--text2)', marginBottom: 4 }}><r.icon size={22} strokeWidth={2} /></div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {t(r.label)}
                     </div>
                   </button>

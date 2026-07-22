@@ -51,9 +51,9 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 
 function FormHeader({ title, sub }: { title: string; sub: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 35, fontWeight: 700, color: '#1a1209', marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 20, color: '#6b5c45', fontWeight: 500, lineHeight: 1.6 }}>{sub}</div>
+    <div className="mb-[10px] md:mb-4">
+      <div className="text-[23px] md:text-[35px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: '#1a1209', marginBottom: 6, lineHeight: 1.2 }}>{title}</div>
+      <div className="text-[15px] md:text-[20px]" style={{ color: '#6b5c45', fontWeight: 500, lineHeight: 1.5 }}>{sub}</div>
     </div>
   )
 }
@@ -403,33 +403,46 @@ export default function SuperAdminLogin() {
         </div>
 
         {/* ══ RIGHT PANEL ══ */}
-        <div className="w-full md:w-[50vw] px-5 md:px-0 py-10 md:py-0" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f3ee', position: 'relative', overflow: 'hidden' }}>
+        <div className="w-full md:w-[50vw] px-5 md:px-0 py-6 md:py-0" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f3ee', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.05) 0%,transparent 70%)', pointerEvents: 'none' }} />
 
           <div className="w-full md:w-[500px]" style={{ maxWidth: 500, margin: '0 auto', position: 'relative', zIndex: 1, animation: 'edu-fadeUp 0.5s ease both' }}>
 
-            {/* STEPPER */}
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
-              {([{ n: 1, label: 'Identifiants' }, { n: 2, label: 'Vérif. email' }, { n: 3, label: 'Double auth.' }] as { n: 1 | 2 | 3; label: string }[]).map(({ n, label }) => {
-                const active = step === n, done = step > n
-                return (
-                  <div key={n}
-                    className={`edu-step${active ? ' s-active' : ''}${done ? ' s-done' : ''}`}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, position: 'relative' }}>
-                    <div style={{ width: 35, height: 35, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, zIndex: 1, border: `6px solid ${done ? '#047857' : active ? '#059669' : '#d4c8b8'}`, color: done ? 'white' : active ? '#059669' : '#a89478', background: done ? '#047857' : active ? 'rgba(5,150,105,0.08)' : 'white', transition: 'all 0.3s' }}>
-                      {done ? <Check size={16} /> : n}
+            {/* STEPPER — version compacte mobile : texte + barre de progression */}
+            <div className="md:hidden" style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Étape {step} sur 3</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#a89478' }}>{['Identifiants', 'Vérif. email', 'Double auth.'][step - 1]}</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: '#e5decf', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(step / 3) * 100}%`, background: 'linear-gradient(90deg,#059669,#047857)', borderRadius: 2, transition: 'width 0.3s ease' }} />
+              </div>
+            </div>
+
+            {/* STEPPER — version complète desktop */}
+            <div className="hidden md:block">
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
+                {([{ n: 1, label: 'Identifiants' }, { n: 2, label: 'Vérif. email' }, { n: 3, label: 'Double auth.' }] as { n: 1 | 2 | 3; label: string }[]).map(({ n, label }) => {
+                  const active = step === n, done = step > n
+                  return (
+                    <div key={n}
+                      className={`edu-step${active ? ' s-active' : ''}${done ? ' s-done' : ''}`}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1, position: 'relative' }}>
+                      <div style={{ width: 35, height: 35, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, zIndex: 1, border: `6px solid ${done ? '#047857' : active ? '#059669' : '#d4c8b8'}`, color: done ? 'white' : active ? '#059669' : '#a89478', background: done ? '#047857' : active ? 'rgba(5,150,105,0.08)' : 'white', transition: 'all 0.3s' }}>
+                        {done ? <Check size={16} /> : n}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, textAlign: 'center', color: done ? '#047857' : active ? '#059669' : '#a89478' }}>{label}</div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, textAlign: 'center', color: done ? '#047857' : active ? '#059669' : '#a89478' }}>{label}</div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
 
             {/* ── ÉTAPE 1 ── */}
             {step === 1 && (
               <div style={{ animation: 'edu-fadeUp 0.35s ease both' }}>
                 <FormHeader title="Connexion Admin ZekoulABia" sub="Entrez vos identifiants pour accéder au panneau de contrôle." />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 18px', background: '#fef3c7', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 14, fontSize: 16, fontWeight: 700, color: '#92400e' }}>
+                <div className="text-[13px] md:text-[16px] px-3 py-2.5 md:px-[18px] md:py-[14px]" style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fef3c7', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, marginBottom: 14, fontWeight: 700, color: '#92400e' }}>
                   <Shield size={16} /> Connexion chiffrée — URL d&apos;accès privée
                 </div>
                 {alert1 && <Alert a={alert1} />}
