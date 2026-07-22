@@ -691,10 +691,10 @@ export default function LoginPage() {
                   <button
                     key={r.role}
                     type="button"
-                    className="flex-1 min-w-[108px] sm:flex-initial sm:min-w-0 sm:w-auto snap-start"
+                    className="flex-1 min-w-[92px] sm:flex-initial sm:min-w-0 sm:w-auto snap-start px-1 sm:px-1.5"
                     onClick={() => setSelectedRole(active ? null : r.role)}
                     style={{
-                      padding: '10px 6px', border: `1.5px solid ${active ? r.border : 'var(--border)'}`,
+                      paddingTop: 10, paddingBottom: 10, border: `1.5px solid ${active ? r.border : 'var(--border)'}`,
                       borderRadius: 12, background: active ? r.bg : 'white',
                       cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
                       transition: 'all 0.15s',
@@ -704,7 +704,7 @@ export default function LoginPage() {
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'center', color: active ? r.color : 'var(--text2)', marginBottom: 4 }}><r.icon size={22} strokeWidth={2} /></div>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+                    <div className="text-[10px] sm:text-[11px]" style={{ fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {t(r.label)}
                     </div>
                   </button>
