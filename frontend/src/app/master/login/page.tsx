@@ -403,7 +403,7 @@ export default function SuperAdminLogin() {
         </div>
 
         {/* ══ RIGHT PANEL ══ */}
-        <div className="w-full md:w-[50vw] px-5 md:px-0 py-10 md:py-0" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f3ee', position: 'relative' }}>
+        <div className="w-full md:w-[50vw] px-5 md:px-0 py-10 md:py-0" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f3ee', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: -100, right: -100, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,0.05) 0%,transparent 70%)', pointerEvents: 'none' }} />
 
           <div className="w-full md:w-[500px]" style={{ maxWidth: 500, margin: '0 auto', position: 'relative', zIndex: 1, animation: 'edu-fadeUp 0.5s ease both' }}>

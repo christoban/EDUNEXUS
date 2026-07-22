@@ -677,7 +677,7 @@ export default function LoginPage() {
             <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               {t('login.role_label')}
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+            <div className="grid-cols-3 sm:grid-cols-5" style={{ display: 'grid', gap: 8 }}>
               {ROLE_SELECTOR.map(r => {
                 const active = selectedRole === r.role
                 return (
