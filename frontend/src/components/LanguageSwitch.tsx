@@ -8,7 +8,7 @@
  */
 import { useLanguage, useChangeLanguage } from '@/lib/i18n'
 
-export default function LanguageSwitch({ style }: { style?: React.CSSProperties }) {
+export default function LanguageSwitch({ style, compact }: { style?: React.CSSProperties; compact?: boolean }) {
   const { lang } = useLanguage()
   const change = useChangeLanguage()
 
@@ -17,8 +17,8 @@ export default function LanguageSwitch({ style }: { style?: React.CSSProperties 
       role="group"
       aria-label="Language / Langue"
       style={{
-        display: 'inline-flex', gap: 3, background: 'var(--bg2)',
-        border: '1.5px solid var(--border)', borderRadius: 10, padding: 3, ...style,
+        display: 'inline-flex', gap: compact ? 2 : 3, background: 'var(--bg2)',
+        border: '1.5px solid var(--border)', borderRadius: compact ? 8 : 10, padding: compact ? 2 : 3, ...style,
       }}
     >
       {(['fr', 'en'] as const).map((l) => {
@@ -29,9 +29,9 @@ export default function LanguageSwitch({ style }: { style?: React.CSSProperties 
             onClick={() => { if (!active) change(l) }}
             aria-pressed={active}
             style={{
-              padding: '6px 14px', borderRadius: 8, border: 'none',
+              padding: compact ? '3px 8px' : '6px 14px', borderRadius: compact ? 6 : 8, border: 'none',
               cursor: active ? 'default' : 'pointer', fontFamily: 'inherit',
-              fontWeight: 800, fontSize: 13, letterSpacing: '0.3px',
+              fontWeight: 800, fontSize: compact ? 10 : 13, letterSpacing: '0.3px',
               background: active ? 'var(--green)' : 'transparent',
               color: active ? 'white' : 'var(--text2)',
               transition: 'background 0.15s, color 0.15s',

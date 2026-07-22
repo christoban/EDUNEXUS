@@ -30,11 +30,11 @@ type SchoolOption = {
 }
 
 const ROLE_SELECTOR = [
-  { role: 'ADMIN',   icon: School,       label: 'login.role_admin', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
-  { role: 'TEACHER', icon: Presentation, label: 'login.role_teacher', color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
-  { role: 'PARENT',  icon: Users,        label: 'login.role_parent', color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
-  { role: 'STUDENT', icon: GraduationCap,label: 'login.role_student', color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
-  { role: 'STAFF',   icon: Search,       label: 'login.role_staff', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
+  { role: 'ADMIN',   icon: School,       label: 'login.role_admin', shortLabel: 'login.role_admin_short', color: 'var(--green)', bg: 'var(--green-light)', border: 'rgba(5,150,105,0.3)' },
+  { role: 'TEACHER', icon: Presentation, label: 'login.role_teacher', shortLabel: 'login.role_teacher_short', color: 'var(--blue)', bg: 'var(--blue-light)', border: 'rgba(29,78,216,0.3)'  },
+  { role: 'PARENT',  icon: Users,        label: 'login.role_parent', shortLabel: 'login.role_parent_short', color: 'var(--amber)', bg: 'var(--amber-light)', border: 'rgba(180,83,9,0.3)'   },
+  { role: 'STUDENT', icon: GraduationCap,label: 'login.role_student', shortLabel: 'login.role_student_short', color: 'var(--purple)', bg: 'var(--purple-light)', border: 'rgba(124,58,237,0.3)' },
+  { role: 'STAFF',   icon: Search,       label: 'login.role_staff', shortLabel: 'login.role_staff_short', color: 'var(--teal)', bg: 'var(--teal-light)', border: 'rgba(13,148,136,0.3)' },
 ]
 
 const ROLES = [
@@ -402,7 +402,7 @@ export default function LoginPage() {
 
   return (
     <div className="overflow-y-auto xl:overflow-hidden" style={{
-      display: 'flex', minHeight: '100vh',
+      display: 'flex', minHeight: '100dvh',
       background: 'var(--bg)',
       fontFamily: 'var(--font-nunito), Nunito, sans-serif'
     }}>
@@ -497,13 +497,13 @@ export default function LoginPage() {
       </div>
 
       {/* ══ PANNEAU DROIT ══ */}
-      <div className="px-5 py-8 md:p-10" style={{
+      <div className="px-4 py-4 md:p-10" style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'var(--bg)', position: 'relative', overflowY: 'auto',
       }}>
         {/* Le panneau gauche (qui porte normalement le selecteur de langue) est cache sous xl */}
-        <div className="xl:hidden" style={{ position: 'absolute', top: 16, right: 16, zIndex: 2 }}>
-          <LanguageSwitch />
+        <div className="xl:hidden" style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}>
+          <LanguageSwitch compact />
         </div>
 
         <motion.div
@@ -536,45 +536,46 @@ export default function LoginPage() {
           ) : step === 'credentials' ? (
 
           <>{/* Welcome */}
-          <div style={{ marginBottom: 32 }}>
-            <span style={{ color: 'var(--text)', marginBottom: 10, display: 'block' }}><Hand size={45} strokeWidth={2} /></span>
-            <div className="text-[24px] md:text-[36px]" style={{
+          <div className="mb-5 md:mb-8">
+            <span className="[&>svg]:w-6 [&>svg]:h-6 md:[&>svg]:w-11 md:[&>svg]:h-11 mb-2 md:mb-[10px]" style={{ color: 'var(--text)', display: 'block' }}><Hand strokeWidth={2} /></span>
+            <div className="text-[19px] md:text-[36px] mb-1 md:mb-1.5" style={{
               fontFamily: 'var(--font-spectral),Spectral,serif',
-              fontWeight: 700, color: 'var(--text)', marginBottom: 6, lineHeight: 1.2
+              fontWeight: 700, color: 'var(--text)', lineHeight: 1.2
             }}>
               {t('login.right_title')}
             </div>
-            <div className="text-[15px] md:text-[18px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>
+            <div className="text-[12.5px] md:text-[18px]" style={{ color: 'var(--text2)', fontWeight: 500, lineHeight: 1.4 }}>
               {t('login.right_subtitle')}
             </div>
           </div>
 
           {alert && (
-            <div style={{
-              padding: '12px 14px', borderRadius: 10, fontSize: 17, fontWeight: 700,
-              marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
+            <div className="text-[13px] md:text-[17px] mb-3 md:mb-4 px-3 py-2.5 md:px-3.5 md:py-3" style={{
+              borderRadius: 10, fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 8,
               background: alert.type === 'error' ? 'var(--red-light)' : 'var(--orange-light)',
               border: alert.type === 'error' ? '1px solid rgba(220,38,38,0.2)' : '1px solid rgba(234,88,12,0.2)',
               color: alert.type === 'error' ? 'var(--red)' : 'var(--orange)'
             }}>
-              <AlertTriangle size={17} strokeWidth={2} /><span>{alert.msg}</span>
+              <AlertTriangle size={17} strokeWidth={2} className="shrink-0" /><span>{alert.msg}</span>
             </div>
           )}
 
           {/* Sélecteur d'établissement */}
-          <div style={{ marginBottom: 18, position: 'relative' }} ref={dropdownRef}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div className="mb-4 md:mb-[18px]" style={{ position: 'relative' }} ref={dropdownRef}>
+            <label className="text-[12px] md:text-[15px] mb-1 md:mb-[7px]" style={{ fontWeight: 800, color: 'var(--text2)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               {t('login.school_label')}
             </label>
 
             <button
               type="button"
               onClick={() => { setDropdownOpen(o => !o); setSchoolSearch('') }}
+              className="text-[13px] md:text-[15px] px-3 py-2.5 md:px-4 md:py-4"
               style={{
-                width: '100%', padding: '16px 16px', background: 'var(--surface)',
+                width: '100%', background: 'var(--surface)',
                 border: `1.5px solid ${dropdownOpen ? 'var(--green)' : 'var(--border)'}`,
                 borderRadius: 14, color: selectedSchool ? 'var(--text)' : 'var(--text3)',
-                fontSize: 15, fontFamily: 'inherit', fontWeight: 600,
+                fontFamily: 'inherit', fontWeight: 600,
                 cursor: 'pointer', textAlign: 'left',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
                 boxShadow: dropdownOpen ? '0 0 0 3px rgba(5,150,105,0.1)' : 'none',
@@ -680,18 +681,18 @@ export default function LoginPage() {
           </div>
 
           {/* Sélecteur de rôle */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 10, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div className="mb-4 md:mb-[18px]">
+            <label className="text-[12px] md:text-[15px] mb-1.5 md:mb-[10px]" style={{ fontWeight: 800, color: 'var(--text2)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               {t('login.role_label')}
             </label>
-            <div className="flex sm:grid sm:grid-cols-5 gap-2 overflow-x-auto sm:overflow-visible snap-x snap-mandatory sm:snap-none p-1 -m-1">
+            <div className="grid grid-cols-5 gap-1 sm:gap-2 p-1 -m-1">
               {ROLE_SELECTOR.map(r => {
                 const active = selectedRole === r.role
                 return (
                   <button
                     key={r.role}
                     type="button"
-                    className="flex-1 min-w-[92px] sm:flex-initial sm:min-w-0 sm:w-auto snap-start px-1 sm:px-1.5"
+                    className="min-w-0 px-0.5 sm:px-1.5"
                     onClick={() => setSelectedRole(active ? null : r.role)}
                     style={{
                       paddingTop: 10, paddingBottom: 10, border: `1.5px solid ${active ? r.border : 'var(--border)'}`,
@@ -703,9 +704,9 @@ export default function LoginPage() {
                     onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = r.border }}
                     onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'center', color: active ? r.color : 'var(--text2)', marginBottom: 4 }}><r.icon size={22} strokeWidth={2} /></div>
-                    <div className="text-[10px] sm:text-[11px]" style={{ fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3, overflowWrap: 'anywhere' }}>
-                      {t(r.label)}
+                    <div className="[&>svg]:w-4 [&>svg]:h-4 sm:[&>svg]:w-[22px] sm:[&>svg]:h-[22px]" style={{ display: 'flex', justifyContent: 'center', color: active ? r.color : 'var(--text2)', marginBottom: 4 }}><r.icon strokeWidth={2} /></div>
+                    <div className="text-[9px] sm:text-[11px]" style={{ fontWeight: 800, color: active ? r.color : 'var(--text2)', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t(r.shortLabel)}
                     </div>
                   </button>
                 )
@@ -719,8 +720,8 @@ export default function LoginPage() {
           </div>
 
           {/* Email */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div className="mb-4 md:mb-[18px]">
+            <label className="text-[12px] md:text-[15px] mb-1 md:mb-[7px]" style={{ fontWeight: 800, color: 'var(--text2)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               {t('fields.email')}
             </label>
             <input
@@ -729,13 +730,14 @@ export default function LoginPage() {
               onKeyDown={e => e.key === 'Enter' && submitCredentials()}
               placeholder={t('login.email_placeholder')}
               autoComplete="off"
-              style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
+              className="text-[13px] md:text-[14px] px-3 py-2.5 md:px-4 md:py-[19px]"
+              style={{ width: '100%', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
             />
           </div>
 
           {/* Mot de passe */}
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ fontSize: 15, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <div className="mb-4 md:mb-[18px]">
+            <label className="text-[12px] md:text-[15px] mb-1 md:mb-[7px]" style={{ fontWeight: 800, color: 'var(--text2)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
               {t('fields.password')}
             </label>
             <div style={{ position: 'relative' }}>
@@ -744,7 +746,8 @@ export default function LoginPage() {
                 onChange={e => { setPassword(e.target.value); setAlert(null) }}
                 onKeyDown={e => e.key === 'Enter' && submitCredentials()}
                 placeholder={t('login.password_placeholder')} autoComplete="new-password"
-                style={{ width: '100%', padding: '19px 16px', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
+                className="text-[13px] md:text-[14px] px-3 py-2.5 md:px-4 md:py-[19px]"
+                style={{ width: '100%', background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
               />
               <button type="button" onClick={() => setShowPwd(s => !s)}
                 style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: 4 }}>
@@ -753,20 +756,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -10, marginBottom: 18 }}>
+          <div className="mb-4 md:mb-[18px]" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}>
             <button
               type="button"
               onClick={() => { setForgotOpen(true); setForgotDone(false); setForgotError(''); setForgotEmail(email) }}
-              style={{ fontSize: 15, fontWeight: 700, color: 'var(--green)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              className="text-[12.5px] md:text-[15px]"
+              style={{ fontWeight: 700, color: 'var(--green)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               {t('auth.forgotPassword')}
             </button>
           </div>
 
           <button onClick={submitCredentials} disabled={loading}
+            className="text-[15px] md:text-[19px] py-2.5 md:py-[14px]"
             style={{
-              width: '100%', padding: 14,
+              width: '100%',
               background: 'linear-gradient(135deg,var(--green),var(--green2))',
-              color: 'white', fontSize: 19, fontWeight: 800,
+              color: 'white', fontWeight: 800,
               border: 'none', borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit', transition: 'all 0.2s',
               boxShadow: '0 4px 16px rgba(5,150,105,0.25)',
