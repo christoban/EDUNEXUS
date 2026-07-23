@@ -68,10 +68,10 @@ export default function SectionAdminAI({ onToast }: Props) {
   const atRisk   = students.filter(s => s.alertLevel === 'critical' || s.alertLevel === 'warning').length
 
   return (
-    <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ overflowY: 'auto', height: '100%' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={sTitle}>{t('ai.title')}</div>
           <div style={sSub}>Scores de bien-être académique · Alertes automatiques</div>
@@ -86,7 +86,7 @@ export default function SectionAdminAI({ onToast }: Props) {
 
       {/* KPIs */}
       {summary && !loading && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14, marginBottom: 22 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-5" style={{ gap: 14, marginBottom: 22 }}>
           {(Object.entries(ALERT_STYLE) as [string, typeof ALERT_STYLE[string]][]).map(([key, s]) => (
             <div key={key} style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${alertFilter === key ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
               onClick={() => setAlertFilter(alertFilter === key ? '' : key)}>
@@ -137,7 +137,36 @@ export default function SectionAdminAI({ onToast }: Props) {
             <div style={{ fontSize: 17 }}>Aucun élève pour ce filtre</div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          {/* ── Cartes empilées — mobile ── */}
+          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            {filtered.map(s => {
+              const al = ALERT_STYLE[s.alertLevel] ?? ALERT_STYLE.good
+              const barColor = s.alertLevel === 'critical' ? 'var(--red)' : s.alertLevel === 'warning' ? 'var(--orange)' : s.alertLevel === 'recommendation' ? 'var(--amber)' : s.alertLevel === 'good' ? 'var(--blue)' : 'var(--green)'
+              return (
+                <div key={s.studentId} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{s.name}</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>{s.className}</div>
+                    </div>
+                    <span style={{ padding: '4px 10px', borderRadius: 22, fontSize: 12, fontWeight: 800, background: al.bg, color: al.color, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                      <al.icon size={12} /> {al.label}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                    <div style={{ flex: 1, height: 8, background: 'var(--bg2)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ width: `${s.healthScore}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width 0.5s' }} />
+                    </div>
+                    <span style={{ fontWeight: 900, color: barColor, fontSize: 15, flexShrink: 0 }}>{s.healthScore}</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Tableau — desktop ── */}
+          <div className="hidden md:block" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
               <thead>
                 <tr>{['Élève', 'Classe', 'Score santé', 'Niveau d\'alerte'].map(h => (
@@ -173,6 +202,7 @@ export default function SectionAdminAI({ onToast }: Props) {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

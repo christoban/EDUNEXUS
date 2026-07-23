@@ -130,11 +130,11 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   const publishedCount = filteredSessions.reduce((sum, s) => sum + (s.publishedCount ?? 0), 0)
 
   return (
-    <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ overflowY: 'auto', height: '100%' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div>
           <div style={sTitle}>Conseil de classe</div>
           <div style={sSub}>
@@ -154,7 +154,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
       {/* KPI cards */}
       {!loading && !error && sessions.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 14, marginBottom: 24 }}>
           {([
             { icon: ClipboardList, value: totalSessions,  label: 'Sessions au total' },
             { icon: Loader2, value: openCount,       label: 'En cours' },
@@ -194,7 +194,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
       )}
 
       {!loading && !error && filteredSessions.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: selected ? '340px 1fr' : 'repeat(3,1fr)', gap: 18, alignItems: 'start' }}>
+        <div className="grid grid-cols-1 sm:[grid-template-columns:var(--council-grid)]" style={{ '--council-grid': selected ? '340px 1fr' : 'repeat(3,1fr)', gap: 18, alignItems: 'start' } as React.CSSProperties}>
           {/* Liste */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filteredSessions.map(s => (
@@ -202,7 +202,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                 style={{ background: selected?.id === s.id ? 'var(--green-light)' : 'white', borderRadius: 14, border: `1.5px solid ${selected?.id === s.id ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }) }}
                 onMouseLeave={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border)', boxShadow: 'none' }) }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                   <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{s.class.name}</div>
                   <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: s.status === 'LOCKED' ? 'var(--green-light)' : 'var(--blue-light)', color: s.status === 'LOCKED' ? 'var(--green)' : 'var(--blue)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {s.status === 'LOCKED' ? <><Lock size={12} /> Verrouillé</> : <><BookOpen size={12} /> Ouvert</>}
@@ -276,7 +276,36 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                           <HeartPulse size={14} /> {selected.decisions.filter(d => d.alertLevel).length} élève(s) à risque dans cette classe — voir l'indicateur ci-dessous
                         </div>
                       )}
-                      <div style={{ overflowX: 'auto' }}>
+                      {/* ── Cartes empilées — mobile ── */}
+                      <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+                        {selected.decisions.map(d => {
+                          const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS!
+                          return (
+                            <div key={d.studentId} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>
+                                  {d.student.firstName} {d.student.lastName}
+                                  {d.alertLevel && (
+                                    <span title={`Indice de santé scolaire : ${d.healthScore}/100`}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800, background: d.alertLevel === 'critical' ? 'var(--red-light)' : 'var(--amber-light)', color: d.alertLevel === 'critical' ? 'var(--red)' : 'var(--amber)' }}>
+                                      <HeartPulse size={11} /> {d.healthScore}
+                                    </span>
+                                  )}
+                                </span>
+                                <span style={{ padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 800, background: dc?.bg, color: dc?.color, flexShrink: 0 }}>
+                                  {DEC_LABEL[d.decision] ?? d.decision}
+                                </span>
+                              </div>
+                              {d.observations && (
+                                <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 6 }}>{d.observations}</div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* ── Tableau — desktop ── */}
+                      <div className="hidden md:block" style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
                         <thead>
                           <tr>{['Élève', 'Décision', 'Observation'].map(h => (

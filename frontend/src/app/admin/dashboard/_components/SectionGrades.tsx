@@ -102,10 +102,10 @@ export default function SectionGrades({ onToast }: Props) {
   const pendingCount = grades.filter(g => g.validationStatus === 'SUBMITTED').length
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={sTitle}>{t('title')}</div>
           <div style={sSub}>Consultation et validation des notes</div>
@@ -124,16 +124,16 @@ export default function SectionGrades({ onToast }: Props) {
 
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
         {/* Filtres */}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <select value={classId} onChange={e => setClassId(e.target.value)} style={filterSelect} disabled={!filtersReady}>
+        <div className="grid grid-cols-2 sm:flex gap-2.5 px-3.5 py-3.5 sm:px-5 sm:items-center sm:flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
+          <select value={classId} onChange={e => setClassId(e.target.value)} className="w-full sm:w-auto" style={filterSelect} disabled={!filtersReady}>
             <option value="">Toutes les classes</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select value={subjectId} onChange={e => setSubjectId(e.target.value)} style={filterSelect} disabled={!filtersReady}>
+          <select value={subjectId} onChange={e => setSubjectId(e.target.value)} className="w-full sm:w-auto" style={filterSelect} disabled={!filtersReady}>
             <option value="">Toutes les matières</option>
             {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={status} onChange={e => setStatus(e.target.value)} style={filterSelect}>
+          <select value={status} onChange={e => setStatus(e.target.value)} className="w-full sm:w-auto" style={filterSelect}>
             <option value="">Tous les statuts</option>
             <option value="SUBMITTED">{t('status_labels.SUBMITTED')}</option>
             <option value="VALIDATED">{t('status_labels.VALIDATED')}</option>
@@ -141,11 +141,11 @@ export default function SectionGrades({ onToast }: Props) {
             <option value="REJECTED">{t('status_labels.REJECTED')}</option>
             <option value="LOCKED">{t('status_labels.LOCKED')}</option>
           </select>
-          <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={fetchGrades} disabled={loading}>
+          <button className="w-full sm:w-auto" style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={fetchGrades} disabled={loading}>
             {loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} Charger
           </button>
           {pendingCount > 0 && (
-            <button data-help-id="grades-bulk-validate" style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleBulkValidate}>
+            <button data-help-id="grades-bulk-validate" className="col-span-2 sm:col-span-1 w-full sm:w-auto" style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleBulkValidate}>
               <CheckCircle2 size={15} strokeWidth={2} /> Valider tout ({pendingCount})
             </button>
           )}
@@ -181,7 +181,50 @@ export default function SectionGrades({ onToast }: Props) {
 
         {!loading && !error && grades.length > 0 && (
           <>
-            <div style={{ overflowX: 'auto' }}>
+            {/* ── Cartes empilées — mobile ── */}
+            <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              {grades.map((grade) => {
+                const st = STATUS_STYLE[grade.validationStatus] ?? STATUS_STYLE.DRAFT
+                return (
+                  <div key={grade.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{grade.student.firstName} {grade.student.lastName}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>{grade.subject.name}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span style={{ fontSize: 20, fontWeight: 900, color: (grade.sequenceAverage ?? 0) < 10 ? 'var(--red)' : 'var(--green)' }}>
+                          {grade.sequenceAverage != null ? grade.sequenceAverage.toFixed(1) : '—'}
+                        </span>
+                        <span style={{ fontSize: 13, color: 'var(--text3)', marginLeft: 3 }}>/20</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>
+                        {st.label}
+                      </span>
+                      {grade.validationStatus === 'SUBMITTED' && (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            style={{ ...btnSecSm, color: 'var(--green)', borderColor: 'rgba(5,150,105,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                            onClick={() => handleValidate(grade.id)}>
+                            <Check size={14} strokeWidth={2} /> Valider
+                          </button>
+                          <button
+                            style={{ ...btnSecSm, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)', display: 'inline-flex', alignItems: 'center' }}
+                            onClick={() => onToast('Saisissez un motif de rejet dans le module notes', 'info')}>
+                            <X size={14} strokeWidth={2} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── Tableau — desktop ── */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 550 }}>
                 <thead>
                   <tr>{['Élève', 'Matière', 'Note /20', 'Statut', 'Actions'].map(h => (

@@ -39,6 +39,8 @@
     "no_results_for": "Aucun résultat pour",
     "change_password": "Changer le mot de passe",
     "invite": "+ Inviter",
+    "theme": "Thème",
+    "notifications": "Notifications",
     "type_labels": {
       "user": "Utilisateurs",
       "class": "Classes",

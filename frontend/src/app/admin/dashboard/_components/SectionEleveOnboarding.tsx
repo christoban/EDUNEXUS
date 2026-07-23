@@ -217,8 +217,8 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+    <div className="px-4 py-5 md:px-8 md:py-7">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('eleveOnboarding.title')}</h2>
           <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('eleveOnboarding.subtitle')}</p>
@@ -228,7 +228,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
 
       {/* Réglages */}
       {settings && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 20px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 20px', marginBottom: 20 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
             <input type="checkbox" checked={settings.selfServiceEnabled} onChange={toggleSelfService} />
             {t('eleveOnboarding.settingsToggle')}
@@ -262,7 +262,45 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
         ) : dossiers.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('eleveOnboarding.listEmpty')}</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          {/* ── Cartes empilées — mobile ── */}
+          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            {dossiers.map(d => (
+              <div key={d.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{d.nomProvisoire}</div>
+                {d.matchScore !== null && (
+                  <div style={{ fontSize: 11, color: '#b45309', marginTop: 3 }}>{t('eleveOnboarding.matchWarning', { score: String(d.matchScore) })}</div>
+                )}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                  <span style={{ padding: '3px 10px', borderRadius: 16, fontSize: 12, fontWeight: 700, ...(STATUT_COLORS[d.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }) }}>
+                    {t(`eleveOnboarding.status_${d.status}`)}
+                  </span>
+                  <span style={{ padding: '3px 10px', borderRadius: 16, fontSize: 12, fontWeight: 700, background: 'var(--bg2)', color: 'var(--text2)' }}>
+                    {t(`eleveOnboarding.source_${d.sourceType}`)}
+                  </span>
+                  {d.classe?.name && (
+                    <span style={{ padding: '3px 10px', borderRadius: 16, fontSize: 12, fontWeight: 700, background: 'var(--bg2)', color: 'var(--text2)' }}>{d.classe.name}</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8 }}>{new Date(d.createdAt).toLocaleDateString()}</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                  {d.status === 'PENDING_VALIDATION' && (
+                    <>
+                      <button onClick={() => openValidate(d)} style={btnSmall}>{t('eleveOnboarding.validateBtn')}</button>
+                      <button onClick={() => setRejectTarget(d)} style={btnDanger}>{t('eleveOnboarding.rejectBtn')}</button>
+                    </>
+                  )}
+                  {(d.status === 'LINK_SENT' || d.status === 'EXPIRED') && (
+                    <button onClick={() => resendLink(d)} style={btnSec}>{t('eleveOnboarding.resendBtn')}</button>
+                  )}
+                  <button onClick={() => exportPdf(d)} style={btnSec}>{t('eleveOnboarding.pdfBtn')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Tableau — desktop ── */}
+          <div className="hidden md:block" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
                 <tr>{[t('eleveOnboarding.colName'), t('eleveOnboarding.colStatus'), t('eleveOnboarding.colSource'), t('eleveOnboarding.colClasse'), t('eleveOnboarding.colCreated'), t('eleveOnboarding.colActions')].map(h => (
@@ -303,6 +341,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

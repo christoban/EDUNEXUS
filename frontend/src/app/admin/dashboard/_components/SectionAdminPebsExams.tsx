@@ -170,51 +170,51 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
   classes.forEach(c => { if (c.level) niveauxLabels[c.level] = c.level })
 
   return (
-    <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-6" style={{ height: '100%', overflowY: 'auto' }}>
       <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}><BookOpen size={22} /> {t('pebs_exams.title')}</h2>
 
       {/* Création */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>{t('pebs_exams.create_session')}</h3>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
-          <div style={{ flex: 2, minWidth: 200 }}>
+        <div className="grid grid-cols-2 sm:flex" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+          <div className="col-span-2 sm:flex-[2] sm:min-w-[200px]">
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('pebs_exams.session_name')}</label>
             <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Sélection PEBS 6e 2026" style={{ ...inputStyle, width: '100%' }} />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('lv2_choice.level')}</label>
-            <select value={formLevel} onChange={e => { setFormLevel(e.target.value); setFormTargetClass('') }} style={{ ...inputStyle, minWidth: 100 }}>
+            <select value={formLevel} onChange={e => { setFormLevel(e.target.value); setFormTargetClass('') }} className="w-full sm:w-auto" style={{ ...inputStyle, minWidth: 100 }}>
               <option value="">—</option>
               {niveaux.map(n => <option key={n} value={n!}>{n}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('pebs_exams.target_class')}</label>
-            <select value={formTargetClass} onChange={e => setFormTargetClass(e.target.value)} style={{ ...inputStyle, minWidth: 140 }}>
+            <select value={formTargetClass} onChange={e => setFormTargetClass(e.target.value)} className="w-full sm:w-auto" style={{ ...inputStyle, minWidth: 140 }}>
               <option value="">—</option>
               {classesForLevel.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('entrance_exams.exam_date')}</label>
-            <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} style={inputStyle} />
+            <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="w-full sm:w-auto" style={inputStyle} />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('lv2_choice.academic_year')}</label>
-            <select value={formYear} onChange={e => setFormYear(e.target.value)} style={{ ...inputStyle, minWidth: 140 }}>
+            <select value={formYear} onChange={e => setFormYear(e.target.value)} className="w-full sm:w-auto" style={{ ...inputStyle, minWidth: 140 }}>
               <option value="">—</option>
               {years.map(y => <option key={y.id} value={y.id}>{y.label}</option>)}
             </select>
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('entrance_exams.threshold')}</label>
-            <input type="number" value={formThreshold} onChange={e => setFormThreshold(e.target.value)} placeholder="/20" style={{ ...inputStyle, width: 80 }} />
+            <input type="number" value={formThreshold} onChange={e => setFormThreshold(e.target.value)} placeholder="/20" className="w-full sm:w-[80px]" style={inputStyle} />
           </div>
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('entrance_exams.seats')}</label>
-            <input type="number" value={formSeats} onChange={e => setFormSeats(e.target.value)} style={{ ...inputStyle, width: 80 }} />
+            <input type="number" value={formSeats} onChange={e => setFormSeats(e.target.value)} className="w-full sm:w-[80px]" style={inputStyle} />
           </div>
-          <button onClick={handleCreate} disabled={creating} style={btnPri}>{creating ? '...' : t('lv2_choice.create')}</button>
+          <button onClick={handleCreate} disabled={creating} className="col-span-2 sm:col-span-1" style={btnPri}>{creating ? '...' : t('lv2_choice.create')}</button>
         </div>
       </div>
 
@@ -224,7 +224,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
           {sessions.map(s => (
-            <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 18px' }}>
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 18px' }}>
               <div>
                 <span style={{ fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
                 <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text2)' }}>{new Date(s.examDate).toLocaleDateString()} — {s.level}</span>
@@ -298,7 +298,26 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
 
           {/* Tableau */}
           <div style={{ maxHeight: 350, overflowY: 'auto' }}>
-            <div style={{ overflowX: 'auto' }}>
+            {/* ── Cartes empilées — mobile ── */}
+            <div className="md:hidden flex flex-col" style={{ gap: 8 }}>
+              {summary.candidates.map(c => (
+                <div key={c.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text)' }}>{c.lastName} {c.firstName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text2)', flexShrink: 0 }}>{c.examScore ?? '—'}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>{c.currentClassName}</span>
+                    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.selectionResult === 'SELECTIONNE' ? 'rgba(22,163,74,0.12)' : c.selectionResult === 'NON_SELECTIONNE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.selectionResult === 'SELECTIONNE' ? 'var(--green)' : c.selectionResult === 'NON_SELECTIONNE' ? 'var(--red)' : 'var(--text2)' }}>
+                      {c.selectionResult}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Tableau — desktop ── */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
                 <thead>
                   <tr>

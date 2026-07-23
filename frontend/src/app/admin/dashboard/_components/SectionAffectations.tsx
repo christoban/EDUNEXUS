@@ -112,7 +112,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
   const selectedClass = classes.find(c => c.id === classId)
 
   return (
-    <div style={sScroll}>
+    <div className="px-4 py-5 md:px-10 md:py-8" style={{ ...sScroll, padding: undefined }}>
       {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
@@ -147,7 +147,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
 
       {/* KPI */}
       {meta && classId && (
-        <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
           <div style={{ background: meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)', border: `1.5px solid ${meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)'}`, borderRadius: 12, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
             {meta.assigned === meta.total ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
             <div>
@@ -180,7 +180,57 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
               </div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <>
+            {/* ── Cartes empilées — mobile ── */}
+            <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
+              {rows.map(row => {
+                const isSaving = saving === row.subjectId
+                const unassigned = row.currentTeacherId === null
+                return (
+                  <div key={row.subjectId} style={{ borderRadius: 12, padding: 14, background: unassigned ? 'var(--amber-light)' : 'var(--bg2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text)' }}>
+                        {unassigned && <span style={{ marginRight: 6, display: 'inline-flex', verticalAlign: 'middle' }}><AlertTriangle size={14} /></span>}
+                        {row.subjectName}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 700 }}>×{row.coefficient}</span>
+                        {isSaving && <Loader2 size={16} className="animate-spin" />}
+                        {!isSaving && !unassigned && <Check size={16} color="var(--green)" />}
+                      </div>
+                    </div>
+                    <select
+                      style={{
+                        ...sSelect,
+                        marginTop: 8,
+                        opacity: isSaving ? 0.6 : 1,
+                        borderColor: unassigned ? 'var(--amber-light)' : 'var(--border)',
+                        background: unassigned ? 'var(--amber-light)' : 'white',
+                      }}
+                      value={row.currentTeacherId ?? ''}
+                      disabled={isSaving}
+                      onChange={e => handleAssign(row.subjectId, e.target.value || null)}
+                    >
+                      <option value="">— Non assigné —</option>
+                      {row.eligibleTeachers.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                      {row.currentTeacherId && !row.eligibleTeachers.find(t => t.id === row.currentTeacherId) && (
+                        <option value={row.currentTeacherId}>{row.currentTeacherName ?? row.currentTeacherId}</option>
+                      )}
+                    </select>
+                    {row.eligibleTeachers.length === 0 && (
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+                        Aucun enseignant n'a déclaré cette matière.
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── Tableau — desktop ── */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border)' }}>
@@ -241,6 +291,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}

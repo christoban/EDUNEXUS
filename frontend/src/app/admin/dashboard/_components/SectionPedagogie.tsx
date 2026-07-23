@@ -201,7 +201,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
     n === 'CRITIQUE' ? { bg: 'var(--red-light)', color: 'var(--red)' } : { bg: 'var(--amber-light)', color: 'var(--amber)' }
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
           {t('pedagogie.title')}
@@ -391,8 +391,8 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
           {/* Formulaire création */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 24, marginBottom: 24 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 16 }}>Nouveau programme</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-              <div>
+            <div className="grid grid-cols-2 sm:[grid-template-columns:2fr_1fr_1fr]" style={{ gap: 14, marginBottom: 14 }}>
+              <div className="col-span-2 sm:col-span-1">
                 <label style={labelStyle}>Titre *</label>
                 <input value={formTitre} onChange={e => setFormTitre(e.target.value)} placeholder="Ex: Programme Maths 3ème 2025-2026" style={inputStyle} />
               </div>
@@ -437,12 +437,12 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
               {programmes.map(p => (
                 <div key={p.id} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
                   {/* Header prog */}
-                  <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                  <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', cursor: 'pointer' }}
                     onClick={() => setExpandedProg(expandedProg === p.id ? null : p.id)}>
                     <span style={{ fontSize: 18 }}>{expandedProg === p.id ? '▼' : '▶'}</span>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{p.titre}</div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                         <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{p.subject.name}</span>
                         {p.class && <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{p.class.name}</span>}
                         {p.level && !p.class && <span style={{ background: 'var(--bg2)', color: 'var(--text3)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{p.level}</span>}
@@ -461,9 +461,9 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                       {p.chapitres.length > 0 && (
                         <div style={{ marginBottom: 16 }}>
                           {p.chapitres.map(c => (
-                            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, marginBottom: 6 }}>
+                            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, marginBottom: 6 }}>
                               <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--sidebar)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>{c.ordre}</span>
-                              <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.titre}</span>
+                              <span style={{ flex: 1, minWidth: 120, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.titre}</span>
                               <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{c.volumeHeuresPrevu}h</span>
                               {c.sequenceCibleFin && <span style={{ background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>Seq {c.sequenceCibleFin}</span>}
                               <button onClick={() => handleDeleteChapitre(c.id)}
@@ -478,8 +478,8 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                       {/* Formulaire ajout chapitre */}
                       {addingChapFor === p.id ? (
                         <div style={{ background: 'var(--bg)', borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
-                            <div>
+                          <div className="grid grid-cols-2 sm:[grid-template-columns:2fr_1fr_1fr]" style={{ gap: 10 }}>
+                            <div className="col-span-2 sm:col-span-1">
                               <label style={labelStyle}>Titre *</label>
                               <input value={chapTitre} onChange={e => setChapTitre(e.target.value)} placeholder="Ex: Fonctions numériques" style={inputStyle} />
                             </div>

@@ -187,7 +187,7 @@ export default function SectionBulletins({ onToast }: Props) {
   ] : []
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Célébration ponctuelle après génération réussie — teinte fixe, texte clair fixe */}
@@ -234,7 +234,7 @@ export default function SectionBulletins({ onToast }: Props) {
       )}
 
       {!loadingCheck && check && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 18 }}>
 
           {/* Pré-vérification */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
@@ -284,7 +284,34 @@ export default function SectionBulletins({ onToast }: Props) {
                 Aucun bulletin généré pour cette classe
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <>
+              {/* ── Cartes empilées — mobile ── */}
+              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+                {reportCards.slice(0, 15).map((b) => (
+                  <div key={b.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>
+                        {b.student ? `${b.student.firstName} ${b.student.lastName}` : 'Élève'}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>
+                        {b.generalAverage != null ? `${b.generalAverage.toFixed(2)}/20` : '—'} · {b.rank != null ? `${b.rank}e` : '—'}
+                      </div>
+                    </div>
+                    <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+                      onClick={() => window.open(`/api/v2/report-cards/${b.id}/pdf`, '_blank')}>
+                      <Eye size={14} /> PDF
+                    </button>
+                  </div>
+                ))}
+                {reportCards.length > 15 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', fontStyle: 'italic', fontSize: 13, padding: '6px 0' }}>
+                    + {reportCards.length - 15} autres bulletins
+                  </div>
+                )}
+              </div>
+
+              {/* ── Tableau — desktop ── */}
+              <div className="hidden md:block" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
                   <thead>
                     <tr>{['Élève', 'Moy. gén.', 'Rang', 'PDF'].map(h => (
@@ -325,6 +352,7 @@ export default function SectionBulletins({ onToast }: Props) {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </div>

@@ -252,16 +252,16 @@ export default function SectionFinance({ onToast }: Props) {
   const overdueCount   = invoices.filter(i => i.status === 'OVERDUE').length
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={sTitle}>{t('title')}</div>
           <div style={sSub}>{t('subtitle')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button style={{ padding: '10px 18px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'var(--surface)', color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={openInvoiceModal}>{t('actions.create_invoice')}</button>
           <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('actions.new_plan')}</button>
         </div>
@@ -307,7 +307,7 @@ export default function SectionFinance({ onToast }: Props) {
               <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('empty_states.no_plans_action')}</button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 16 }}>
               {plans.map((plan) => (
                 <div key={plan.id} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 22, transition: 'all 0.15s' }}
                   onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'translateY(-2px)', boxShadow: '0 6px 20px rgba(0,0,0,0.07)' })}
@@ -358,7 +358,7 @@ export default function SectionFinance({ onToast }: Props) {
       {!loading && !error && tab === 'invoices' && (
         <>
           {/* KPIs factures (sur la page courante) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 20 }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 16, marginBottom: 20 }}>
             {[
               { icon: <Wallet size={20} strokeWidth={2} />, label: t('kpi.total_billed'),        val: fmtCFA(totalAmount),   bg: 'var(--blue-light)' },
               { icon: <CheckCircle2 size={20} strokeWidth={2} />, label: t('kpi.total_collected'),      val: fmtCFA(paidAmount),    bg: 'var(--green-light)' },
@@ -375,7 +375,7 @@ export default function SectionFinance({ onToast }: Props) {
 
           {/* Filtres */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div className="flex-wrap" style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center' }}>
               <select value={invStatus} onChange={e => setInvStatus(e.target.value)} style={filterSt}>
                 <option value="">{t('filters.all_statuses')}</option>
                 <option value="PENDING">{t('filters.pending')}</option>
@@ -385,7 +385,7 @@ export default function SectionFinance({ onToast }: Props) {
                 <option value="CANCELLED">{t('filters.cancelled')}</option>
               </select>
               <button style={btnPrim} onClick={() => { setPage(1); fetchInvoices(1) }}>{t('actions.filter')}</button>
-              <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
+              <span className="sm:ml-auto" style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
                 {t('totals.factures').replace('{count}', String(pag.total))} · {t('totals.page_info').replace('{page}', String(pag.page)).replace('{pages}', String(pag.pages))}
               </span>
             </div>
@@ -395,7 +395,42 @@ export default function SectionFinance({ onToast }: Props) {
                 {invStatus ? t('empty_states.no_invoices_with_status').replace('{status}', getInvStatus(invStatus).label) : t('empty_states.no_invoices')}
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <>
+              {/* ── Cartes empilées — mobile ── */}
+              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+                {invoices.map((inv) => {
+                  const st = getInvStatus(inv.status)
+                  const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
+                  return (
+                    <div key={inv.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{inv.student.firstName} {inv.student.lastName}</div>
+                          <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>{inv.feePlan?.name ?? '—'}</div>
+                        </div>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15, flexShrink: 0 }}>{fmtCFA(inv.amount)}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, background: st.bg, color: st.color }}>{st.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: paid > 0 ? 'var(--green)' : 'var(--text3)' }}>
+                          {paid > 0 ? `${t('table_headers.paid')} : ${fmtCFA(paid)}` : '—'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 }}>
+                        <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+                          {new Date(inv.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </span>
+                        <button style={btnSecSm} onClick={() => onToast(`Facture ${inv.id.slice(0,8)} — ${inv.status}`, 'info')}>
+                          {t('actions.view')}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* ── Tableau — desktop ── */}
+              <div className="hidden md:block" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
                   <thead>
                     <tr>{[t('table_headers.student'), t('table_headers.plan'), t('table_headers.amount'), t('table_headers.status'), t('table_headers.paid'), t('table_headers.date'), t('table_headers.actions')].map(h => (
@@ -441,6 +476,7 @@ export default function SectionFinance({ onToast }: Props) {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
 
             {pag.pages > 1 && (

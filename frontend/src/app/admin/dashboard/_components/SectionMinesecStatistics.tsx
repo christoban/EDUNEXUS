@@ -231,13 +231,13 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('common.loading') || '...'}</div>
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7">
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('minesecStats.title')}</h2>
         <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('minesecStats.subtitle')}</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         <button onClick={() => setTab('supplement')} style={tab === 'supplement' ? btnPri : btnSec}>{t('minesecStats.tabSupplement')}</button>
         <button onClick={() => setTab('generer')} style={tab === 'generer' ? btnPri : btnSec}>{t('minesecStats.tabGenerer')}</button>
       </div>
@@ -303,9 +303,9 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
             <input style={inputStyle} value={form.posteComptable ?? ''} onChange={(e) => setForm((f) => ({ ...f, posteComptable: e.target.value }))} />
 
             <FieldLabel>{t('minesecStats.fieldEcolesPrimaires')}</FieldLabel>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div className="grid grid-cols-2 sm:flex" style={{ gap: 10 }}>
               {(['moins1km', 'entre1et3km', 'entre4et5km', 'plus5km'] as const).map((key) => (
-                <div key={key} style={{ flex: 1 }}>
+                <div key={key} className="sm:flex-1">
                   <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>{t(`minesecStats.ecolesPrimaires_${key}`)}</div>
                   <input style={smallInputStyle} type="number"
                     value={form.ecolesPrimairesProximite?.[key] ?? ''}

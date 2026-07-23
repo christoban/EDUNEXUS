@@ -579,7 +579,7 @@ export default function SectionSubjects({ onToast }: Props) {
     (departments.find(d => d.id === deptId)?.subjects.length ?? 0) > 0
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* En-tête */}
@@ -657,6 +657,51 @@ export default function SectionSubjects({ onToast }: Props) {
                   </button>
                 </div>
               </div>
+              {/* ── Cartes empilées — mobile ── */}
+              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+                {classSubjects.map(s => (
+                  <div key={s.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <div>
+                        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{s.name}</span>
+                        {s.classOnly && (
+                          <span style={{ marginLeft: 6, background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 7px', borderRadius: 12, fontSize: 11, fontWeight: 800 }}>
+                            {t('subjects.class_view.class_only_badge')}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => handleDeleteSubject(s.subjectId, s.name)}
+                        style={{ background: 'none', border: '1.5px solid var(--red-light)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: deletingSubjId === s.subjectId ? 'var(--text3)' : 'var(--red)', opacity: deletingSubjId === s.subjectId ? 0.5 : 1, flexShrink: 0 }}
+                        disabled={deletingSubjId === s.subjectId}>
+                        {deletingSubjId === s.subjectId ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : <Trash2 size={14} strokeWidth={2} />}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                      {editingCoeffId === s.id ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <input type="number" min="0.5" step="0.5" value={editingCoeffValue}
+                            onChange={e => setEditingCoeffValue(e.target.value)}
+                            style={{ width: 56, padding: '4px 8px', borderRadius: 6, fontSize: 13, border: '1.5px solid var(--green)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', textAlign: 'center', outline: 'none' }} />
+                          <button onClick={() => handleUpdateCoefficient(s.subjectId)}
+                            style={{ background: 'var(--green)', color: 'white', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>OK</button>
+                          <button onClick={() => setEditingCoeffId(null)}
+                            style={{ background: 'var(--bg2)', color: 'var(--text2)', border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><X size={12} strokeWidth={2} /></button>
+                        </div>
+                      ) : (
+                        <span onClick={() => { setEditingCoeffId(s.id); setEditingCoeffValue(String(s.coefficient)) }}
+                          style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>×{s.coefficient}</span>
+                      )}
+                      {s.code && <code style={{ background: 'var(--bg2)', padding: '3px 8px', borderRadius: 6, fontSize: 12 }}>{s.code}</code>}
+                      {s.serieCode
+                        ? <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '3px 9px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{s.serieCode}</span>
+                        : <span style={{ color: 'var(--text3)', fontSize: 12.5 }}>{t('subjects.class_view.first_cycle')}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Tableau — desktop ── */}
+              <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
@@ -717,6 +762,7 @@ export default function SectionSubjects({ onToast }: Props) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
@@ -754,6 +800,52 @@ export default function SectionSubjects({ onToast }: Props) {
               {subjects.length === 0 ? 'Aucune matière configurée' : 'Aucun résultat'}
             </div>
           ) : (
+            <>
+            {/* ── Cartes empilées — mobile ── */}
+            <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              {filtered.map(sub => (
+                <div key={sub.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                    <button onClick={() => setOpenDD(openDD === sub.id ? null : sub.id)}
+                      style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', color: 'var(--text3)' }}>
+                      {deletingId === sub.id ? <Loader2 size={16} strokeWidth={2} className="animate-spin" /> : <MoreHorizontal size={16} strokeWidth={2} />}
+                    </button>
+                    {openDD === sub.id && (
+                      <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 210, zIndex: 100, overflow: 'hidden' }}>
+                        {[
+                          { icon: Users, key: 'assign_teacher', action: () => openAssign(sub), danger: false },
+                          { icon: Pencil, key: 'edit',            action: () => openMod(sub),    danger: false },
+                          { icon: BarChart3, key: 'bac_coefficients', action: () => openCoeff(sub),  danger: false },
+                          { icon: Trash2, key: 'delete',            action: () => handleDelete(sub), danger: false },
+                        ].map((item, j) => {
+                          const ItemIcon: LucideIcon = item.icon
+                          return (
+                          <div key={j} onClick={item.action}
+                            style={{ padding: '11px 16px', fontSize: 15, fontWeight: 600, color: item.danger ? 'var(--red)' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ItemIcon size={15} strokeWidth={2} /> {t(`subjects.action_menu.${item.key}`)}
+                          </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ paddingRight: 40, fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{sub.name}</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+                    <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 900 }}>×{sub.coefficient}</span>
+                    {sub.code && <code style={{ background: 'var(--bg2)', padding: '3px 8px', borderRadius: 6, fontSize: 12 }}>{sub.code}</code>}
+                    <span style={{ fontSize: 12.5, color: 'var(--text2)', fontWeight: 700 }}>{sub.hoursPerWeek}h · {t(`subjects.type_labels.${sub.subjectType}`) || sub.subjectType}</span>
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <span style={{ background: sub.teacherSubjects.length > 0 ? 'var(--green-light)' : 'var(--bg2)', color: sub.teacherSubjects.length > 0 ? 'var(--green)' : 'var(--text2)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 800 }}>
+                      {sub.teacherSubjects.length > 0 ? t('subjects.assign_status.assigned').replace('{count}', String(sub.teacherSubjects.length)) : t('subjects.assign_status.unassigned')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Tableau — desktop ── */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>{(t('subjects.table_headers') as unknown as string[]).map((h: string, i: number) => (
@@ -811,6 +903,8 @@ export default function SectionSubjects({ onToast }: Props) {
                 ))}
               </tbody>
             </table>
+            </div>
+            </>
           )}
         </div>
       )}

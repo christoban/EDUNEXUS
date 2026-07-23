@@ -197,7 +197,7 @@ export default function SectionCommunications({ onToast }: Props) {
   )
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '32px 36px', background: 'var(--bg)' }}>
+    <div className="px-4 py-5 md:px-9 md:py-8" style={{ height: '100%', overflow: 'auto', background: 'var(--bg)' }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('communications.title')}</h2>
@@ -225,7 +225,7 @@ export default function SectionCommunications({ onToast }: Props) {
 
       {/* ── COMPOSE TAB ──────────────────────────────────────────────────── */}
       {tab === 'compose' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
+        <div className="grid grid-cols-1 md:[grid-template-columns:1fr_340px]" style={{ gap: 24 }}>
           {/* Left — form */}
           <div style={{ background: 'var(--surface)', borderRadius: 14, padding: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: 'var(--text2)' }}>1. Canal d'envoi</h3>
@@ -398,7 +398,40 @@ export default function SectionCommunications({ onToast }: Props) {
               <div style={{ fontSize: 13, marginTop: 6 }}>Les campagnes envoyées apparaîtront ici.</div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <>
+            {/* ── Cartes empilées — mobile ── */}
+            <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              {logs.map((log) => {
+                const s = STATUS_STYLE[log.status] ?? STATUS_STYLE['partial']
+                return (
+                  <div key={log.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>{CANAL_LABEL[log.channel] ?? log.channel}</span>
+                        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                          {new Date(log.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })} · {new Date(log.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <span style={{ padding: '3px 10px', borderRadius: 6, background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                        {s.label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 8 }}>{targetSummary(log.target)}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.message}>
+                      {log.message}
+                    </div>
+                    <div style={{ fontSize: 12.5, marginTop: 8 }}>
+                      <span style={{ color: 'var(--green)', fontWeight: 700 }}>{log.sentCount} envoyés</span>
+                      {log.failedCount > 0 && <span style={{ color: 'var(--red)', marginLeft: 6 }}>· {log.failedCount} échoués</span>}
+                      <span style={{ color: 'var(--text3)', marginLeft: 6 }}>· {log.recipientCount} destinataire(s)</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── Tableau — desktop ── */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                 <thead>
                   <tr style={{ background: 'var(--bg2)' }}>
@@ -451,6 +484,7 @@ export default function SectionCommunications({ onToast }: Props) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}

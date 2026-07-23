@@ -458,7 +458,7 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
     <>
       <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)' }} />
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: '96%', maxWidth: 620, maxHeight: '92vh', overflowY: 'auto', borderRadius: 20 }}>
-        <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '40px 44px', boxShadow: '0 32px 80px rgba(0,0,0,0.22)' }}>
+        <div className="px-5 py-6 md:px-11 md:py-10" style={{ background: 'var(--surface)', borderRadius: 20, boxShadow: '0 32px 80px rgba(0,0,0,0.22)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
             <div>
               <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
@@ -550,7 +550,25 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 10 }}>
                     {t('users.import_modal.preview').replace('{shown}', String(Math.min(5, totalRows))).replace('{total}', String(totalRows))}
                   </div>
-                  <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                  {/* ── Cartes empilées — mobile ── */}
+                  <div className="md:hidden flex flex-col" style={{ gap: 8 }}>
+                    {preview.map((row, i) => (
+                      <div key={i} style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: 10 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 14 }}>{row.nom} {row.prenom}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--text2)', marginTop: 4 }}>{row.email || '—'} · {row.telephone || '—'}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--text2)', marginTop: 2 }}>{row.classe || row.matieres || '—'}</div>
+                        {importType === 'TEACHER' && (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                            {row.classePrincipale && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>{row.classePrincipale}</span>}
+                            {row.departementAp && <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--blue)' }}>{row.departementAp}</span>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── Tableau — desktop ── */}
+                  <div className="hidden md:block" style={{ border: '1.5px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
                         <thead>
@@ -990,14 +1008,14 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   const isEleveMaternellePrimaire = createForm.role === 'STUDENT' && (selectedClassCycle === 'maternelle' || selectedClassCycle === 'primaire')
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={sTitle}>{t('users.title')}</div>
           <div style={sSub}>{loading ? '…' : t('users.count_label').replace('{count}', String(totalAll))}</div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button style={{ ...btnSecSm, padding: '10px 18px' }} onClick={openCreateUser}>{t('users.btn_create')}</button>
           <button style={btnPrim} onClick={() => setInviteOpen(true)}>{t('users.btn_invite')}</button>
           <button style={{ ...btnSecSm, padding: '10px 18px' }} onClick={() => setImportOpen(true)}>{t('users.btn_import')}</button>
@@ -1057,7 +1075,74 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         )}
 
         {!loading && !error && users.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          {/* ── Cartes empilées — mobile ── */}
+          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            {users.map((user) => {
+              const rl = ROLE_LABEL[user.role] ?? { label: user.role, bg: 'var(--bg2)', color: 'var(--text2)' }
+              const className = user.studentProfile?.class?.name ?? null
+              const staffTitle = user.staffProfile?.title ?? null
+              const ppClasses = user.classesProfessorPrincipal?.map((c: { name: string }) => c.name) ?? []
+              return (
+                <div key={user.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                    <button onClick={() => setOpenDD(openDD === user.id ? null : user.id)}
+                      style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)' }}>
+                      <MoreHorizontal size={16} strokeWidth={2} />
+                    </button>
+                    {openDD === user.id && (
+                      <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 200, zIndex: 100, overflow: 'hidden' }}>
+                        {[
+                          { icon: Pencil, label: t('users.action_menu.edit'), danger: false, onClick: () => openModUser(user) },
+                          ...(user.role === 'STUDENT' ? [
+                            { icon: RefreshCw, label: t('users.action_menu.change_class'), danger: false, onClick: () => openTransfer(user) },
+                            { icon: FileText, label: t('users.action_menu.generate_doc'), danger: false, onClick: () => openDocModal(user) },
+                          ] : []),
+                          { icon: Trash2, label: t('users.action_menu.delete'), danger: true, onClick: () => { setOpenDD(null); handleDelete(user.id) } },
+                        ].map((item, j) => {
+                          const ItemIcon: LucideIcon = item.icon
+                          return (
+                          <div key={j} onClick={item.onClick}
+                            style={{ padding: '11px 16px', fontSize: 15, fontWeight: 600, color: item.danger ? 'var(--red)' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ItemIcon size={15} strokeWidth={2} /> {item.label}
+                          </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ paddingRight: 40 }}>
+                    <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{user.firstName} {user.lastName}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email ?? '—'}</div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+                    <span style={badge(rl.bg, rl.color)}>{rl.label}</span>
+                    <span style={badge(user.isActive ? 'var(--green-light)' : 'var(--bg2)', user.isActive ? 'var(--green)' : 'var(--text2)')}>
+                      {user.isActive ? t('users.i18n_ext.status.active') : t('users.i18n_ext.status.inactive')}
+                    </span>
+                    {className && <span style={badge('var(--bg2)', 'var(--text2)')}>{className}</span>}
+                    {ppClasses.length > 0 && (
+                      <span style={{ ...badge('var(--blue-light)', 'var(--blue)'), gap: 4 }}><School size={12} strokeWidth={2} /> PP {ppClasses[0]}</span>
+                    )}
+                    {staffTitle && (
+                      staffTitle === 'Animateur Pédagogique'
+                        ? <span style={{ ...badge('var(--green-light)', 'var(--green)'), gap: 4 }}><Star size={12} strokeWidth={2} /> AP</span>
+                        : <span style={badge('var(--orange-light)', 'var(--orange)')}>{staffTitle}</span>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: 9, fontSize: 12, color: 'var(--text3)' }}>
+                    {t('users.i18n_ext.table.lastLogin')} : {formatLastLogin(user.lastLogin)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Tableau — desktop ── */}
+          <div className="hidden md:block" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
                 <tr>{[t('users.i18n_ext.table.user'), t('users.i18n_ext.table.role'), t('users.i18n_ext.table.status'), t('users.i18n_ext.table.lastLogin'), t('users.i18n_ext.table.classTitle'), t('users.i18n_ext.table.actions')].map(h => (
@@ -1139,6 +1224,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

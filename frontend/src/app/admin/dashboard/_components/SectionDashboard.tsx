@@ -39,11 +39,11 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
   ] : []
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>
             {t('dashboard.overview_title')}
@@ -92,7 +92,7 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
       {!loading && !error && stats && (
         <>
           {/* KPIs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 22 }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 18, marginBottom: 22 }}>
             {kpi.map((k, i) => (
               <div key={i}
                 onClick={() => k.nav && onNav(k.nav)}
@@ -110,7 +110,7 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
           </div>
 
           {/* 2 colonnes */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 18 }}>
+          <div className="grid grid-cols-1 md:[grid-template-columns:2fr_1fr]" style={{ gap: 18 }}>
 
             {/* Activité récente */}
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>

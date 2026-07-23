@@ -99,10 +99,10 @@ export default function SectionAdminAttendance({ onToast }: Props) {
   const lateCount    = records.filter(r => r.status === 'LATE').length
 
   return (
-    <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ overflowY: 'auto', height: '100%' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={sTitle}>{t('attendance.title')}</div>
           <div style={sSub}>Supervision · Toutes les classes de l&apos;établissement</div>
@@ -122,7 +122,7 @@ export default function SectionAdminAttendance({ onToast }: Props) {
       ) : (
         <>
           {stats && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 22 }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 16, marginBottom: 22 }}>
               {([
                 { icon: CheckCircle2, bg: 'var(--green-light)', val: stats.attendanceRate, label: 'Taux de présence', color: 'var(--green)' },
                 { icon: Users, bg: 'var(--blue-light)', val: String(stats.total),   label: 'Enregistrements', color: 'var(--blue)' },
@@ -170,7 +170,37 @@ export default function SectionAdminAttendance({ onToast }: Props) {
               </div>
             )}
             {!loadingRecords && !error && records.length > 0 && (
-              <div style={{ overflowX: 'auto' }}>
+              <>
+              {/* ── Cartes empilées — mobile ── */}
+              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+                {records.map(r => {
+                  const st = STATUS_STYLE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: r.status, icon: Check }
+                  return (
+                    <div key={r.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{r.student ? `${r.student.firstName} ${r.student.lastName}` : '—'}</div>
+                          <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2 }}>{r.class?.name ?? '—'} · {new Date(r.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} · {r.period}</div>
+                        </div>
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800, background: st.bg, color: st.color, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}><st.icon size={12} /> {st.label}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 9 }}>
+                        <span style={{ fontSize: 12, color: 'var(--text3)' }}>{r.markedBy ? `${r.markedBy.firstName} ${r.markedBy.lastName}` : '—'}</span>
+                        {r.status === 'ABSENT' && (
+                          <button
+                            style={{ padding: '5px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: 'var(--amber-light)', color: 'var(--amber)', border: '1px solid rgba(217,119,6,0.25)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            onClick={() => justify(r.id)} disabled={justifyingId === r.id}>
+                            {justifyingId === r.id ? <Loader2 size={13} className="animate-spin" /> : <><ClipboardList size={13} /> Justifier</>}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* ── Tableau — desktop ── */}
+              <div className="hidden md:block" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                   <thead>
                     <tr>{['Élève', 'Classe', 'Date', 'Période', 'Statut', 'Saisi par', 'Actions'].map(h => (
@@ -207,6 +237,7 @@ export default function SectionAdminAttendance({ onToast }: Props) {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </>

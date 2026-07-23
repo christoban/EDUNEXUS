@@ -117,7 +117,7 @@ export default function SectionStatistics({ onToast }: Props) {
   const levels = Array.from(new Set(classes.map(c => c.level).filter(Boolean))) as string[]
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       <div style={{ marginBottom: 26 }}>
@@ -127,18 +127,18 @@ export default function SectionStatistics({ onToast }: Props) {
         <div style={{ fontSize: 17, color: 'var(--text3)', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 18 }}>
 
         {/* Évolution des moyennes */}
         <div style={card}>
           <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
             <span style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes <CacheBadge fromCache={evoFromCache} cachedAt={evoCachedAt} t={t} /></span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <select style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
+            <div className="flex-wrap" style={{ display: 'flex', gap: 8 }}>
+              <select className="min-w-0" style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
                 <option value="">Toutes les classes</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <select style={select} value={evoSubjectId} onChange={e => setEvoSubjectId(e.target.value)}>
+              <select className="min-w-0" style={select} value={evoSubjectId} onChange={e => setEvoSubjectId(e.target.value)}>
                 <option value="">Toutes les matières</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -238,7 +238,7 @@ export default function SectionStatistics({ onToast }: Props) {
               <EmptyState text="Aucune donnée disponible" />
             ) : (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 18 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12, marginBottom: 18 }}>
                   <Kpi label="Heures prévues/sem" value={String(teacherPerf.heuresPrevuesParSemaine)} />
                   <Kpi label="Séances enregistrées" value={String(teacherPerf.seancesEnregistrees)} />
                   <Kpi label="Taux de présence" value={teacherPerf.tauxPresence !== null ? `${teacherPerf.tauxPresence}%` : '—'} />

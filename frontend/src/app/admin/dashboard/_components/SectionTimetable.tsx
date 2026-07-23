@@ -79,6 +79,9 @@ export default function SectionTimetable({ onToast }: Props) {
   const [adjusting, setAdjusting]             = useState(false)
   const [adjustResult, setAdjustResult]       = useState<{ applied: string[]; errors: string[]; message: string } | null>(null)
 
+  // Vue mobile : un jour a la fois (onglets) au lieu de la grille complete, illisible en dessous de md.
+  const [mobileDay, setMobileDay]             = useState('LUNDI')
+
   useEffect(() => {
     Promise.all([
       fetchApi('/api/v2/classes', { credentials: 'include' }).then(r => r.json()),
@@ -202,13 +205,15 @@ export default function SectionTimetable({ onToast }: Props) {
   const joursNumeriques = joursActifs.map(j => DAY_MAP[j]).filter(Boolean)
   const hasGridConfig = squelette.length > 0
   const fallbackTimes = hasGridConfig ? [] : Array.from(new Set(slots.map(s => s.startTime))).sort()
+  const displayDays = hasGridConfig ? joursActifs : ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI']
+  const effectiveMobileDay = displayDays.includes(mobileDay) ? mobileDay : displayDays[0]
 
   const totalCours = slots.filter(s => s.kind === 'CLASS').length
   const remplis    = slots.filter(s => s.kind === 'CLASS' && s.subject).length
   const pct        = totalCours > 0 ? Math.round(remplis / totalCours * 100) : 0
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* En-tête */}
@@ -377,7 +382,71 @@ export default function SectionTimetable({ onToast }: Props) {
               {t('timetable.skeletonEmpty')}
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <>
+            {/* ── Vue jour-par-jour — mobile ── */}
+            <div className="md:hidden">
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+                {displayDays.map(j => (
+                  <button key={j} onClick={() => setMobileDay(j)}
+                    style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 800, border: `1.5px solid ${effectiveMobileDay === j ? 'var(--green)' : 'var(--border)'}`, background: effectiveMobileDay === j ? 'var(--green-light)' : 'white', color: effectiveMobileDay === j ? 'var(--green)' : 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    {t(`timetable.days.${j}`)}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {hasGridConfig ? squelette.map((periode, idx) => {
+                  if (periode.type !== 'COURS') {
+                    const isPetite = periode.type === 'PETITE_PAUSE'
+                    return (
+                      <div key={`m-pause-${idx}`} style={{ textAlign: 'center', padding: '6px 12px', background: 'var(--amber-light)', fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>
+                        {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} {t('timetable.to')} {periode.fin}
+                      </div>
+                    )
+                  }
+                  const slot = slotMap.get(`${DAY_MAP[effectiveMobileDay]}-${periode.debut}`)
+                  const col = slot?.subject ? subjectColor(slot.subject.id) : null
+                  return (
+                    <div key={`m-cours-${periode.debut}`} style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ width: 64, flexShrink: 0, padding: '10px 8px', background: 'var(--bg)', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>
+                        {periode.debut}<br /><span style={{ fontSize: 10 }}>{periode.fin}</span>
+                      </div>
+                      <div style={{ flex: 1, padding: '10px 12px', background: slot?.subject ? col!.bg : 'transparent', borderLeft: slot?.subject ? `3px solid ${col!.border}` : 'none' }}>
+                        {slot?.subject ? (
+                          <>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                              {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : <span style={{ color: 'var(--amber)' }}>{t('timetable.noTeacher')}</span>}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: 13, color: 'var(--text3)' }}>—</div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }) : fallbackTimes.map(time => {
+                  const d = DAY_MAP[effectiveMobileDay]
+                  const slot = slotMap.get(`${d}-${time}`)
+                  const col = slot?.subject ? subjectColor(slot.subject.id) : null
+                  return (
+                    <div key={`m-${time}`} style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ width: 64, flexShrink: 0, padding: '10px 8px', background: 'var(--bg)', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>{time}</div>
+                      <div style={{ flex: 1, padding: '10px 12px', background: slot?.subject ? col!.bg : 'transparent', borderLeft: slot?.subject ? `3px solid ${col!.border}` : 'none' }}>
+                        {slot?.subject ? (
+                          <>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : '—'}</div>
+                          </>
+                        ) : <div style={{ fontSize: 13, color: 'var(--text3)' }}>—</div>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* ── Grille complete — desktop ── */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
                 <thead>
                   <tr>
@@ -457,6 +526,7 @@ export default function SectionTimetable({ onToast }: Props) {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       )}

@@ -375,11 +375,11 @@ export default function SectionAcademicYear({ onToast }: Props) {
   const currentSeq    = currentPeriod?.sequences.find(s => s.isCurrent)
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
           <div style={sTitle}>{t('academic_year.title')}</div>
           <div style={sSub}>{t('academic_year.subtitle')}</div>
@@ -482,7 +482,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                   <div key={period.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <div
                       onClick={() => togglePeriod(period.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '18px 22px', cursor: 'pointer', userSelect: 'none', transition: 'background 0.1s' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '18px 22px', cursor: 'pointer', userSelect: 'none', transition: 'background 0.1s' }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                       <span style={{ color: 'var(--text3)', transition: 'transform 0.2s', display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }}><ChevronRight size={14} /></span>
@@ -510,7 +510,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                             const ss = getPStatus(seq.isCurrent, seq.startDate ?? period.startDate, seq.endDate ?? period.endDate)
                             const sb = STATUS_BADGE[ss]
                             return (
-                              <div key={seq.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', position: 'relative', borderBottom: si < period.sequences.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                              <div key={seq.id} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '12px 0', position: 'relative', borderBottom: si < period.sequences.length - 1 ? '1px solid var(--border)' : 'none' }}>
                                 <div style={{ position: 'absolute', left: -30, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, borderRadius: '50%', background: ss === 'done' ? 'var(--green)' : ss === 'active' ? 'var(--amber)' : 'var(--border2)', border: '2px solid white', boxShadow: ss === 'active' ? '0 0 0 4px rgba(217,119,6,0.18)' : 'none' }} />
                                 <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', minWidth: 120 }}>{seq.name}</span>
                                 <span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, flex: 1 }}>
@@ -547,7 +547,27 @@ export default function SectionAcademicYear({ onToast }: Props) {
           <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('academic_year.historyTitle')}</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          {/* ── Cartes empilées — mobile ── */}
+          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            {historyYears.map((y) => (
+              <div key={y.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{y.name}</div>
+                  <span style={{ background: y.status === 'CLOSED' ? 'var(--bg2)' : 'var(--green-light)', color: y.status === 'CLOSED' ? 'var(--text2)' : 'var(--green)', padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+                    {y.status === 'CLOSED' ? t('academic_year.archived') : y.status}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 6 }}>{fmtDate(y.startDate)} → {fmtDate(y.endDate)}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                  <button style={btnSecSm} onClick={() => onToast(t('academic_year.archivesToast', { name: y.name }), 'info')}>{t('academic_year.view')}</button>
+                  <button style={btnSecSm} onClick={() => openCalendar(y)}>{t('academic_year.calendar')}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Tableau — desktop ── */}
+          <div className="hidden md:block" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
               <thead>
                 <tr>{[t('academic_year.thYear'), t('academic_year.thFrom'), t('academic_year.thTo'), t('academic_year.thStatus'), t('academic_year.thActions')].map(h => (
@@ -617,7 +637,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                   <span style={{ fontWeight: 800, color: 'var(--text)', fontSize: 16 }}>{t('academic_year.periodN', { n: pi + 1 })}</span>
                   <button onClick={() => remPeriode(pi)} style={{ padding: '4px 10px', borderRadius: 8, fontSize: 13, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('academic_year.delete')}</button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 10 }}>
+                <div className="grid grid-cols-2 sm:[grid-template-columns:1fr_1fr_80px]" style={{ gap: 10 }}>
                   <div>
                     <div style={sLb}>{t('academic_year.nameReq')}</div>
                     <input style={sIn} value={p.name} onChange={e => updP(pi, 'name', e.target.value)} placeholder={t('academic_year.trimesterPlaceholder')} />
@@ -634,7 +654,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                     <input style={sIn} type="number" min={1} value={p.orderIndex} onChange={e => updP(pi, 'orderIndex', parseInt(e.target.value) || 1)} />
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="grid grid-cols-2" style={{ gap: 10 }}>
                   <div>
                     <div style={sLb}>{t('academic_year.startDateReq')}</div>
                     <input style={sIn} type="date" value={p.startDate} onChange={e => updP(pi, 'startDate', e.target.value)} />
@@ -653,7 +673,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                         <span style={{ fontWeight: 700, color: 'var(--text2)', fontSize: 14 }}>{t('academic_year.sequenceN', { n: si + 1 })}</span>
                         <button onClick={() => remSeq(pi, si)} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, background: 'var(--red-light)', color: 'var(--red)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center' }}><X size={12} /></button>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 70px', gap: 8 }}>
+                      <div className="grid grid-cols-2 sm:[grid-template-columns:1fr_1fr_70px]" style={{ gap: 8 }}>
                         <div>
                           <div style={sLb}>{t('academic_year.nameReq')}</div>
                           <input style={{ ...sIn, marginBottom: 0 }} value={seq.name} onChange={e => updS(pi, si, 'name', e.target.value)} placeholder={t('academic_year.assignmentPlaceholder')} />
@@ -667,7 +687,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                           <input style={{ ...sIn, marginBottom: 0 }} type="number" min={1} value={seq.orderIndex} onChange={e => updS(pi, si, 'orderIndex', parseInt(e.target.value) || 1)} />
                         </div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                      <div className="grid grid-cols-2" style={{ gap: 8, marginTop: 8 }}>
                         <div>
                           <div style={sLb}>{t('academic_year.startOptional')}</div>
                           <input style={{ ...sIn, marginBottom: 0 }} type="date" value={seq.startDate} onChange={e => updS(pi, si, 'startDate', e.target.value)} />
