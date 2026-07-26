@@ -49,7 +49,6 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
   // ── Profil ──────────────────────────────────────────────────────────────
   const [schoolName, setSchoolName] = useState('')
-  const [schoolType, setSchoolType] = useState('')
   const [schoolCity, setSchoolCity] = useState('')
   const [schoolPhone, setSchoolPhone] = useState('')
   const [schoolEmail, setSchoolEmail] = useState('')
@@ -194,7 +193,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         body: JSON.stringify({ classesParNiveau, classesParNiveauPrimaire }),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.message ?? 'Erreur serveur')
+      if (!res.ok) throw new Error(d.message ?? t('common.error'))
       setStructResult(d.data?.classesCreated ?? [])
       setStructConfig(null) // forcer rechargement
       onToast(d.message, 'success')
@@ -216,7 +215,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         body: JSON.stringify({ logRetentionDays }),
       })
       const d = await res.json()
-      if (!res.ok) throw new Error(d.message || 'Erreur')
+      if (!res.ok) throw new Error(d.message || t('common.error'))
       onToast(t('settings.structure.toast_retention_saved'), 'success')
     } catch (e) {
       onToast(String(e), 'error')
@@ -232,7 +231,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       const res = await fetchApi('/api/v2/school/export', { credentials: 'include' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.message || 'Erreur export RGPD')
+        throw new Error(data.message || t('settings.structure.export_error'))
       }
       const blob = await res.blob()
       const contentDisposition = res.headers.get('content-disposition') || ''
@@ -300,7 +299,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
     fetchApi(`/api/v2/schools/${schoolInfo.id}/security-settings`, { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) { setSecSettings(d.data); setSecEdit(d.data) } })
-      .catch(() => onToast('Erreur chargement sécurité', 'error'))
+      .catch(() => onToast(t('settings.security.load_error'), 'error'))
       .finally(() => setSecLoading(false))
   }, [activeTab, schoolInfo?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -326,7 +325,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
     fetchApi('/api/v2/school-settings', { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setPedSettings(d.data) })
-      .catch(() => onToast('Erreur chargement paramètres', 'error'))
+      .catch(() => onToast(t('settings.pedagogy.load_error'), 'error'))
       .finally(() => setPedLoading(false))
   }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -370,11 +369,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       try {
         const res = await fetchApi('/api/v2/school/logo', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logoBase64 }) })
         const data = await res.json()
-        if (!data.success) throw new Error(data.message || 'Erreur')
+        if (!data.success) throw new Error(data.message || t('common.error'))
         onLogoUpdate?.(logoBase64)
-        onToast(t('settings.profile.toast_updated'), 'success')
+        onToast(t('settings.profile.toast_logo_updated'), 'success')
       } catch (err: any) {
-        onToast(err.message || 'Erreur', 'error')
+        onToast(err.message || t('common.error'), 'error')
         setLogoPreview(schoolInfo?.logoUrl ?? null)
       } finally { setLogoLoading(false) }
     }
@@ -394,11 +393,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         body: JSON.stringify({ newSubdomain: val }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
+      if (!res.ok) throw new Error(data.message || t('common.error'))
       onToast(t('settings.profile.toast_updated'), 'success')
       setSubdomainAvail(null)
     } catch (err: any) {
-      onToast(err.message || 'Erreur', 'error')
+      onToast(err.message || t('common.error'), 'error')
     } finally { setSubdomainSaving(false) }
   }
 
@@ -433,12 +432,12 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         body: JSON.stringify(secEdit),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
+      if (!res.ok) throw new Error(data.message || t('common.error'))
       setSecSettings(data.data)
       setSecModal(false)
       onToast(t('settings.security.toast_updated'), 'success')
     } catch (err: any) {
-      onToast(err.message || 'Erreur', 'error')
+      onToast(err.message || t('common.error'), 'error')
     } finally { setSecSaving(false) }
   }
 
@@ -458,7 +457,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* Tabs — mobile : puces défilables avec indicateur glissant, fondu de bord (maquette,
           8 onglets ne tiennent pas dans le segmented control desktop sur mobile). */}
       <div className="relative md:hidden mb-[16px] -mr-4">
-        <div className="flex gap-[6px] overflow-x-auto pr-8 py-[2px]" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-[6px] overflow-x-auto" style={{ scrollbarWidth: 'none', padding: '2px 32px 4px 0' }}>
           {TABS.map((tab, i) => {
             const active = activeTab === i
             return (
@@ -493,31 +492,33 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           {/* Logo */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.logo_section')}</span></div>
-            <div style={{ padding: '22px 26px', display: 'flex', alignItems: 'center', gap: 24 }}>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.logo_section')}</span></div>
+            <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px] gap-[16px] md:gap-[24px]" style={{ display: 'flex', alignItems: 'center' }}>
               <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
               <div onClick={() => !logoLoading && logoInputRef.current?.click()}
-                style={{ width: 88, height: 88, borderRadius: 16, border: `2px dashed ${logoPreview ? 'var(--green)' : 'var(--border2)'}`, background: logoPreview ? 'transparent' : 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: logoLoading ? 'wait' : 'pointer', overflow: 'hidden', flexShrink: 0, transition: 'all 0.15s', position: 'relative' }}>
+                className="w-[64px] h-[64px] md:w-[88px] md:h-[88px]"
+                style={{ borderRadius: 16, border: `2px dashed ${logoPreview ? 'var(--green)' : 'var(--border2)'}`, background: logoPreview ? 'transparent' : 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: logoLoading ? 'wait' : 'pointer', overflow: 'hidden', flexShrink: 0, transition: 'all 0.15s', position: 'relative' }}>
                 {logoLoading && (
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
                     <div style={{ width: 22, height: 22, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
                   </div>
                 )}
-                {logoPreview ? <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <School size={36} strokeWidth={1.5} />}
+                {logoPreview ? <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <School size={30} strokeWidth={1.5} className="md:hidden" />}
+                {!logoPreview && <School size={36} strokeWidth={1.5} className="hidden md:block" />}
               </div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+              <div style={{ minWidth: 0 }}>
+                <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
                   {logoPreview ? t('settings.profile.current_logo') : t('settings.profile.no_logo')}
                 </div>
-                <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 10, lineHeight: 1.5 }}>
+                <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginBottom: 10, lineHeight: 1.5 }}>
                   {t('settings.profile.logo_desc')}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={btnSec} onClick={() => logoInputRef.current?.click()} disabled={logoLoading}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button className={btnSecCls} style={btnSec} onClick={() => logoInputRef.current?.click()} disabled={logoLoading}>
                     {logoPreview ? t('settings.profile.btn_change') : t('settings.profile.btn_upload')}
                   </button>
                   {logoPreview && (
-                    <button style={{ ...btnSec, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)' }} disabled={logoLoading}
+                    <button className={btnSecCls} style={{ ...btnSec, color: 'var(--red)', borderColor: 'rgba(220,38,38,0.3)' }} disabled={logoLoading}
                       onClick={async () => {
                         setLogoLoading(true)
                         try {
@@ -525,93 +526,93 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                           const data = await res.json()
                           if (data.success) { setLogoPreview(null); onLogoUpdate?.(''); onToast(t('settings.profile.toast_deleted'), 'success') }
                           else throw new Error(data.message)
-                        } catch (err: any) { onToast(err.message || 'Erreur', 'error') }
+                        } catch (err: any) { onToast(err.message || t('common.error'), 'error') }
                         finally { setLogoLoading(false) }
                       }}>
                       {t('settings.profile.btn_delete')}
                     </button>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>{t('settings.profile.logo_hint')}</div>
+                <div className="text-[10.5px] md:text-[12px]" style={{ color: 'var(--text3)', marginTop: 6 }}>{t('settings.profile.logo_hint')}</div>
               </div>
             </div>
           </div>
 
           {/* Identité */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.identity_section')}</span></div>
-            <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.identity_section')}</span></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 px-[16px] py-[16px] md:px-[26px] md:py-[22px] gap-[14px] md:gap-[18px]" style={{}}>
               {[
-                { label: t('settings.profile.name_label'), val: schoolName, set: setSchoolName },
-                { label: t('settings.profile.type_label'), val: schoolType, set: setSchoolType },
-                { label: t('settings.profile.city_label'), val: schoolCity, set: setSchoolCity },
-                { label: t('settings.profile.phone_label'), val: schoolPhone, set: setSchoolPhone },
+                { label: t('settings.profile.name_label'), val: schoolName, set: setSchoolName, type: 'text' },
+                { label: t('settings.profile.city_label'), val: schoolCity, set: setSchoolCity, type: 'text' },
+                { label: t('settings.profile.phone_label'), val: schoolPhone, set: setSchoolPhone, type: 'tel' },
               ].map((f, i) => (
                 <div key={i}>
-                  <div style={fieldLabel}>{f.label}</div>
-                  <input value={f.val} onChange={e => f.set(e.target.value)} style={fieldInput}
+                  <div className={fieldLabelCls} style={fieldLabel}>{f.label}</div>
+                  <input type={f.type} value={f.val} onChange={e => f.set(e.target.value)} className={fieldInputCls} style={fieldInput}
                     onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
                     onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
                 </div>
               ))}
               <div style={{ gridColumn: '1 / -1' }}>
-                <div style={fieldLabel}>{t('settings.profile.email_label')}</div>
-                <input value={schoolEmail} onChange={e => setSchoolEmail(e.target.value)} style={fieldInput}
+                <div className={fieldLabelCls} style={fieldLabel}>{t('settings.profile.email_label')}</div>
+                <input type="email" value={schoolEmail} onChange={e => setSchoolEmail(e.target.value)} className={fieldInputCls} style={fieldInput}
                   onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
-                <div style={fieldLabel}>{t('settings.profile.minesec_code_label')}</div>
-                <input value={minesecSchoolCode} onChange={e => setMinesecSchoolCode(e.target.value)} style={fieldInput}
+                <div className={fieldLabelCls} style={fieldLabel}>{t('settings.profile.minesec_code_label')}</div>
+                <input value={minesecSchoolCode} onChange={e => setMinesecSchoolCode(e.target.value)} className={fieldInputCls} style={fieldInput}
                   placeholder={t('settings.profile.minesec_code_placeholder')}
                   onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>{t('settings.profile.minesec_code_hint')}</div>
+                <div className="text-[10.5px] md:text-[12px]" style={{ color: 'var(--text3)', marginTop: 6 }}>{t('settings.profile.minesec_code_hint')}</div>
               </div>
             </div>
-            <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button style={btnPrim} onClick={async () => {
+            <div className="px-[16px] py-[14px] md:px-[26px] md:py-[16px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className={`${btnPrimCls} w-full md:w-auto justify-center`} style={{ ...btnPrim, display: 'flex' }} onClick={async () => {
                 try {
                   const res = await fetchApi('/api/v2/school/profile', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: schoolName, city: schoolCity, phone: schoolPhone, email: schoolEmail, minesecSchoolCode }) })
                   const data = await res.json()
-                  if (!res.ok) throw new Error(data.message || 'Erreur')
+                  if (!res.ok) throw new Error(data.message || t('common.error'))
                   onToast(t('settings.profile.toast_saved'), 'success')
-                } catch (err: any) { onToast(err.message || 'Erreur', 'error') }
+                } catch (err: any) { onToast(err.message || t('common.error'), 'error') }
               }}>{t('settings.profile.btn_save')}</button>
             </div>
           </div>
 
           {/* Sous-domaine */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.subdomain_section')}</span></div>
-            <div style={{ padding: '22px 26px' }}>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.subdomain_section')}</span></div>
+            <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px]">
               {schoolInfo?.subdomain && (
-                <div style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 16, fontWeight: 500 }}>
+                <div className="text-[13px] md:text-[15px]" style={{ color: 'var(--text2)', marginBottom: 16, fontWeight: 500 }}>
                   {t('settings.profile.subdomain_desc')}{' '}
                   <strong style={{ color: 'var(--green)' }}>https://{schoolInfo.subdomain}.zekoulabia.cm</strong>
                 </div>
               )}
 
               {/* Warning */}
-              <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 10, padding: '11px 15px', marginBottom: 16, fontSize: 14, color: 'var(--amber)', lineHeight: 1.5 }}>
+              <div className="text-[12.5px] md:text-[14px] px-[12px] py-[10px] md:px-[15px] md:py-[11px]" style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 10, marginBottom: 16, color: 'var(--amber)', lineHeight: 1.5 }}>
                 {t('settings.profile.subdomain_warning')}
               </div>
 
-              <div style={fieldLabel}>{t('settings.profile.subdomain_label')}</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 14, color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>https://</span>
+              <div className={fieldLabelCls} style={fieldLabel}>{t('settings.profile.subdomain_label')}</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                <span className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>https://</span>
                 <input
                   value={subdomainInput}
                   onChange={e => { setSubdomainInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setSubdomainAvail(null) }}
-                  style={{ ...fieldInput, flex: 1 }}
+                  className={fieldInputCls}
+                  style={{ ...fieldInput, flex: 1, minWidth: 100 }}
                   placeholder={t('settings.profile.subdomain_placeholder')}
                   onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }}
                 />
-                <span style={{ fontSize: 14, color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>.zekoulabia.cm</span>
+                <span className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', whiteSpace: 'nowrap', fontWeight: 600 }}>.zekoulabia.cm</span>
               </div>
 
-              <div style={{ fontSize: 13, marginBottom: 4, fontWeight: 600, minHeight: 20 }}>
+              <div className="text-[11.5px] md:text-[13px]" style={{ marginBottom: 4, fontWeight: 600, minHeight: 20 }}>
                 {subdomainAvail === 'checking'  && <span style={{ color: 'var(--text3)' }}>{t('settings.profile.checking')}</span>}
                 {subdomainAvail === 'available' && <span style={{ color: 'var(--green)' }}>{t('settings.profile.available')}</span>}
                 {subdomainAvail === 'taken'     && <span style={{ color: 'var(--red)' }}>{t('settings.profile.taken')}</span>}
@@ -619,10 +620,10 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                   <span style={{ color: 'var(--amber)' }}>{t('settings.profile.too_short')}</span>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text3)' }}>{t('settings.profile.hint')}</div>
+              <div className="text-[10.5px] md:text-[12px]" style={{ color: 'var(--text3)' }}>{t('settings.profile.hint')}</div>
             </div>
-            <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button style={{ ...btnPrim, opacity: subdomainSaving || !subdomainChanged || !subdomainValid || subdomainAvail === 'taken' || subdomainAvail === 'checking' ? 0.5 : 1 }}
+            <div className="px-[16px] py-[14px] md:px-[26px] md:py-[16px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className={`${btnPrimCls} w-full md:w-auto justify-center`} style={{ ...btnPrim, display: 'flex', opacity: subdomainSaving || !subdomainChanged || !subdomainValid || subdomainAvail === 'taken' || subdomainAvail === 'checking' ? 0.5 : 1 }}
                 disabled={subdomainSaving || !subdomainChanged || !subdomainValid || subdomainAvail === 'taken' || subdomainAvail === 'checking'}
                 onClick={handleSubdomainSave}>
                 {subdomainSaving ? t('settings.profile.updating') : t('settings.profile.btn_update')}
@@ -634,8 +635,8 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
       {/* ── TAB 1: NOTIFICATIONS ── */}
       {activeTab === 1 && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.notifications.title')}</span></div>
+        <div className="bg-transparent border-0 md:bg-[var(--surface)] md:border-[1.5px] md:border-[var(--border)]" style={{ borderRadius: 16, overflow: 'hidden' }}>
+          <div className={`${cardHeaderCls} hidden md:flex`} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.notifications.title')}</span></div>
 
           {notifLoading && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -646,13 +647,13 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           {!notifLoading && !notifData && (
             <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
               {t('settings.notifications.load_error')}
-              <button style={{ ...btnSec, marginLeft: 12 }} onClick={() => { setNotifData(null); setNotifLoading(true); fetchApi(`/api/v2/schools/${schoolInfo?.id}/notification-settings`, { credentials: 'include' }).then(r => r.json()).then(d => { if (d.success) setNotifData(d.data) }).finally(() => setNotifLoading(false)) }}>{t('settings.notifications.btn_retry')}</button>
+              <button className={btnSecCls} style={{ ...btnSec, marginLeft: 12 }} onClick={() => { setNotifData(null); setNotifLoading(true); fetchApi(`/api/v2/schools/${schoolInfo?.id}/notification-settings`, { credentials: 'include' }).then(r => r.json()).then(d => { if (d.success) setNotifData(d.data) }).finally(() => setNotifLoading(false)) }}>{t('settings.notifications.btn_retry')}</button>
             </div>
           )}
 
           {!notifLoading && notifData && (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ borderBottom: '1px solid var(--bg)' }}>
+            <div className="flex flex-col gap-[8px] md:gap-0">
+              <div className="rounded-[14px] md:rounded-none shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:border-b md:border-[var(--bg)]">
                 <PushNotificationToggle style={{ border: 'none', borderRadius: 0, padding: '18px 26px' }} />
               </div>
               {NOTIF_ROWS.map((n, i) => {
@@ -660,12 +661,13 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                 const saving = notifSaving === n.key
                 return (
                   <div key={n.key}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 26px', borderBottom: i < NOTIF_ROWS.length - 1 ? '1px solid var(--bg)' : 'none' }}
+                    className={`rounded-[14px] md:rounded-none shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] px-[16px] py-[14px] md:px-[26px] md:py-[18px] ${i < NOTIF_ROWS.length - 1 ? 'md:border-b md:border-[var(--bg)]' : ''}`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                     <div>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>{n.icon} {n.label}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{n.sub}</div>
+                      <div className="text-[13.5px] md:text-[17px]" style={{ fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>{n.icon} {n.label}</div>
+                      <div className="text-[11.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{n.sub}</div>
                     </div>
                     <div onClick={() => !saving && handleNotifToggle(n.key)}
                       style={{ width: 50, height: 28, borderRadius: 14, background: on ? 'var(--green)' : 'var(--border2)', cursor: saving ? 'wait' : 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0, opacity: saving ? 0.6 : 1 }}>
@@ -688,44 +690,44 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {/* Politique de mot de passe */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.security.password_policy')}</span></div>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.security.password_policy')}</span></div>
             {secLoading && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
                 <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
               </div>
             )}
             {!secLoading && secSettings && (
-              <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px]" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {[
                   { label: t('settings.security.min_length'),     val: t('settings.security.characters').replace('{count}', String(secSettings.passwordMinLength)) },
                   { label: t('settings.security.require_upper'), val: secSettings.passwordRequireUpper ? t('settings.security.yes') : t('settings.security.no') },
                   { label: t('settings.security.require_digit'), val: secSettings.passwordRequireDigit ? t('settings.security.yes') : t('settings.security.no') },
                   { label: t('settings.security.session_duration'), val: SESSION_OPTIONS.find(o => o.value === secSettings.sessionTimeoutMin)?.label ?? `${secSettings.sessionTimeoutMin} min` },
                 ].map((f, i, arr) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--bg)' : 'none' }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{f.label}</div>
-                    <div style={{ fontSize: 16, color: 'var(--text2)', fontWeight: 600 }}>{f.val}</div>
+                  <div key={i} className="py-[11px] md:py-[13px]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: i < arr.length - 1 ? '1px solid var(--bg)' : 'none' }}>
+                    <div className="text-[13.5px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{f.label}</div>
+                    <div className="text-[13.5px] md:text-[16px]" style={{ color: 'var(--text2)', fontWeight: 600 }}>{f.val}</div>
                   </div>
                 ))}
               </div>
             )}
             {!secLoading && !secSettings && (
-              <div style={{ padding: '22px 26px', color: 'var(--text3)', fontSize: 15 }}>{t('settings.security.load_error')}</div>
+              <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px] text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)' }}>{t('settings.security.load_error')}</div>
             )}
-            <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button style={btnSec} onClick={() => { if (secSettings) setSecEdit(secSettings); setSecModal(true) }}>{t('settings.security.btn_edit')}</button>
+            <div className="px-[16px] py-[14px] md:px-[26px] md:py-[16px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className={`${btnSecCls} w-full md:w-auto justify-center`} style={{ ...btnSec, display: 'flex' }} onClick={() => { if (secSettings) setSecEdit(secSettings); setSecModal(true) }}>{t('settings.security.btn_edit')}</button>
             </div>
           </div>
 
           {/* Journaux d'audit */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.security.audit_logs')}</span></div>
-            <div style={{ padding: '22px 26px' }}>
-              <div style={{ fontSize: 16, color: 'var(--text2)', marginBottom: 16, lineHeight: 1.7 }}>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.security.audit_logs')}</span></div>
+            <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px]">
+              <div className="text-[13.5px] md:text-[16px]" style={{ color: 'var(--text2)', marginBottom: 16, lineHeight: 1.7 }}>
                 {t('settings.security.audit_desc')}
               </div>
               {!auditOpen && (
-                <button style={btnSec} onClick={() => { setAuditOpen(true); setAuditPage(1) }}>{t('settings.security.btn_view')}</button>
+                <button className={`${btnSecCls} w-full md:w-auto justify-center`} style={{ ...btnSec, display: 'flex' }} onClick={() => { setAuditOpen(true); setAuditPage(1) }}>{t('settings.security.btn_view')}</button>
               )}
             </div>
 
@@ -746,8 +748,8 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     style={{ padding: '8px 10px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 9, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }} />
                   <input type="date" value={auditTo} onChange={e => { setAuditTo(e.target.value); setAuditPage(1) }}
                     style={{ padding: '8px 10px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 9, color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', fontWeight: 600, outline: 'none' }} />
-                  <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setAuditAction(auditActInput); setAuditPage(1) }}><Search size={14} strokeWidth={2} /></button>
-                  <button style={{ ...btnSec, marginLeft: 'auto' }} onClick={() => setAuditOpen(false)}>{t('settings.security.btn_close')}</button>
+                  <button className={btnSecCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setAuditAction(auditActInput); setAuditPage(1) }}><Search size={14} strokeWidth={2} /></button>
+                  <button className={btnSecCls} style={{ ...btnSec, marginLeft: 'auto' }} onClick={() => setAuditOpen(false)}>{t('settings.security.btn_close')}</button>
                 </div>
 
                 {/* Total */}
@@ -768,21 +770,21 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr>
-                          <th style={thLog}>{t('settings.security.table_headers.0')}</th>
-                          <th style={thLog}>{t('settings.security.table_headers.1')}</th>
-                          <th style={thLog}>{t('settings.security.table_headers.2')}</th>
-                          <th style={thLog}>{t('settings.security.table_headers.3')}</th>
+                          <th className={thLogCls} style={thLog}>{t('settings.security.table_headers.0')}</th>
+                          <th className={thLogCls} style={thLog}>{t('settings.security.table_headers.1')}</th>
+                          <th className={thLogCls} style={thLog}>{t('settings.security.table_headers.2')}</th>
+                          <th className={thLogCls} style={thLog}>{t('settings.security.table_headers.3')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {auditLogs.map((log, i) => (
                           <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                            <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
-                            <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>
+                            <td className={tdLogCls} style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
+                            <td className={tdLogCls} style={{ ...tdLog, whiteSpace: 'nowrap' }}>
                               {log.user ? `${log.user.firstName} ${log.user.lastName}` : <span style={{ color: 'var(--border2)' }}>—</span>}
                             </td>
-                            <td style={tdLog}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{log.action}</span></td>
-                            <td style={{ ...tdLog, maxWidth: 280, wordBreak: 'break-word' }}>{log.description ?? '—'}</td>
+                            <td className={tdLogCls} style={tdLog}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{log.action}</span></td>
+                            <td className={tdLogCls} style={{ ...tdLog, maxWidth: 280, wordBreak: 'break-word' }}>{log.description ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -793,8 +795,8 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                 <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 13, color: 'var(--text3)' }}>{t('settings.security.page_info').replace('{current}', String(auditPage)).replace('{total}', String(auditPages))}</span>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button style={{ ...btnSec, opacity: auditPage <= 1 ? 0.45 : 1 }} disabled={auditPage <= 1} onClick={() => setAuditPage(p => p - 1)}>{t('settings.security.btn_prev')}</button>
-                    <button style={{ ...btnSec, opacity: auditPage >= auditPages ? 0.45 : 1 }} disabled={auditPage >= auditPages} onClick={() => setAuditPage(p => p + 1)}>{t('settings.security.btn_next')}</button>
+                    <button className={btnSecCls} style={{ ...btnSec, opacity: auditPage <= 1 ? 0.45 : 1 }} disabled={auditPage <= 1} onClick={() => setAuditPage(p => p - 1)}>{t('settings.security.btn_prev')}</button>
+                    <button className={btnSecCls} style={{ ...btnSec, opacity: auditPage >= auditPages ? 0.45 : 1 }} disabled={auditPage >= auditPages} onClick={() => setAuditPage(p => p + 1)}>{t('settings.security.btn_next')}</button>
                   </div>
                 </div>
               </div>
@@ -814,37 +816,37 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           {!pedLoading && pedSettings && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.academic_rules')}</span></div>
-                <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.academic_rules')}</span></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 px-[16px] py-[16px] md:px-[26px] md:py-[22px] gap-[14px] md:gap-[18px]">
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.pass_mark')}</div>
-                    <input type="number" min="0" max="20" step="0.5" style={fieldInput} value={pedSettings.passMark}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.pass_mark')}</div>
+                    <input type="number" min="0" max="20" step="0.5" className={fieldInputCls} style={fieldInput} value={pedSettings.passMark}
                       onChange={e => setPedSettings(s => s ? { ...s, passMark: parseFloat(e.target.value) || 0 } : s)} />
                   </div>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.council_pass_mark')}</div>
-                    <input type="number" min="0" max="20" step="0.5" style={fieldInput} value={pedSettings.councilPassMark}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.council_pass_mark')}</div>
+                    <input type="number" min="0" max="20" step="0.5" className={fieldInputCls} style={fieldInput} value={pedSettings.councilPassMark}
                       onChange={e => setPedSettings(s => s ? { ...s, councilPassMark: parseFloat(e.target.value) || 0 } : s)} />
                   </div>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.grades_per_term')}</div>
-                    <div style={{ padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text3)', fontSize: 16, fontWeight: 600 }}>{pedSettings.gradesPerTerm}</div>
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.grades_per_term')}</div>
+                    <div className="text-[13.5px] md:text-[16px] px-[12px] py-[10px] md:px-[14px] md:py-[11px]" style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text3)', fontWeight: 600 }}>{pedSettings.gradesPerTerm}</div>
                   </div>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.terms_per_year')}</div>
-                    <div style={{ padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text3)', fontSize: 16, fontWeight: 600 }}>{pedSettings.termsPerYear}</div>
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.terms_per_year')}</div>
+                    <div className="text-[13.5px] md:text-[16px] px-[12px] py-[10px] md:px-[14px] md:py-[11px]" style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text3)', fontWeight: 600 }}>{pedSettings.termsPerYear}</div>
                   </div>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.calendar_type')}</div>
-                    <select style={fieldSelect} value={pedSettings.academicCalendarType}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.calendar_type')}</div>
+                    <select className={fieldSelectCls} style={fieldSelect} value={pedSettings.academicCalendarType}
                       onChange={e => setPedSettings(s => s ? { ...s, academicCalendarType: e.target.value } : s)}>
                       <option value="trimester">{t('settings.pedagogy.calendar_options.trimester')}</option>
                       <option value="semester">{t('settings.pedagogy.calendar_options.semester')}</option>
                     </select>
                   </div>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.language_mode')}</div>
-                    <select style={fieldSelect} value={pedSettings.schoolLanguageMode}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.language_mode')}</div>
+                    <select className={fieldSelectCls} style={fieldSelect} value={pedSettings.schoolLanguageMode}
                       onChange={e => setPedSettings(s => s ? { ...s, schoolLanguageMode: e.target.value } : s)}>
                       <option value="francophone">{t('settings.pedagogy.language_options.francophone')}</option>
                       <option value="anglophone">{t('settings.pedagogy.language_options.anglophone')}</option>
@@ -855,11 +857,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
 
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.attendance_section')}</span></div>
-                <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.attendance_section')}</span></div>
+                <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px]" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.max_absences')}</div>
-                    <input type="number" min="0" style={{ ...fieldInput, maxWidth: 200 }} value={pedSettings.maxAbsences}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.max_absences')}</div>
+                    <input type="number" min="0" className={fieldInputCls} style={{ ...fieldInput, maxWidth: 200 }} value={pedSettings.maxAbsences}
                       onChange={e => setPedSettings(s => s ? { ...s, maxAbsences: parseInt(e.target.value) || 0 } : s)} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -868,42 +870,42 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                       <div style={{ position: 'absolute', top: 3, left: pedSettings.attendanceLateAsAbsence ? 24 : 3, width: 22, height: 22, borderRadius: '50%', background: 'var(--surface)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{t('settings.pedagogy.late_label')}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.pedagogy.late_sub')}</div>
+                      <div className="text-[13.5px] md:text-[17px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('settings.pedagogy.late_label')}</div>
+                      <div className="text-[11.5px] md:text-[14px]" style={{ color: 'var(--text3)' }}>{t('settings.pedagogy.late_sub')}</div>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.contributions_section')}</span></div>
-                <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.contributions_section')}</span></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 px-[16px] py-[16px] md:px-[26px] md:py-[22px] gap-[14px] md:gap-[18px]">
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.max_first_cycle')}</div>
-                    <input type="number" min="0" style={fieldInput} value={pedSettings.legalMaxContributionFirstCycle}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.max_first_cycle')}</div>
+                    <input type="number" min="0" className={fieldInputCls} style={fieldInput} value={pedSettings.legalMaxContributionFirstCycle}
                       onChange={e => setPedSettings(s => s ? { ...s, legalMaxContributionFirstCycle: parseInt(e.target.value) || 0 } : s)} />
                   </div>
                   <div>
-                    <div style={fieldLabel}>{t('settings.pedagogy.max_second_cycle')}</div>
-                    <input type="number" min="0" style={fieldInput} value={pedSettings.legalMaxContributionSecondCycle}
+                    <div className={fieldLabelCls} style={fieldLabel}>{t('settings.pedagogy.max_second_cycle')}</div>
+                    <input type="number" min="0" className={fieldInputCls} style={fieldInput} value={pedSettings.legalMaxContributionSecondCycle}
                       onChange={e => setPedSettings(s => s ? { ...s, legalMaxContributionSecondCycle: parseInt(e.target.value) || 0 } : s)} />
                   </div>
                 </div>
-                <div style={{ padding: '0 26px 22px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div className="px-[16px] pb-[16px] md:px-[26px] md:pb-[22px]" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ width: 50, height: 28, borderRadius: 14, background: pedSettings.bulletinBlockOnUnpaidFees ? 'var(--green)' : 'var(--border2)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
                     onClick={() => setPedSettings(s => s ? { ...s, bulletinBlockOnUnpaidFees: !s.bulletinBlockOnUnpaidFees } : s)}>
                     <div style={{ position: 'absolute', top: 3, left: pedSettings.bulletinBlockOnUnpaidFees ? 24 : 3, width: 22, height: 22, borderRadius: '50%', background: 'var(--surface)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
                   </div>
                     <div>
-                      <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{t('settings.pedagogy.block_bulletin_label')}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.pedagogy.block_bulletin_sub')}</div>
+                      <div className="text-[13.5px] md:text-[17px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('settings.pedagogy.block_bulletin_label')}</div>
+                      <div className="text-[11.5px] md:text-[14px]" style={{ color: 'var(--text3)' }}>{t('settings.pedagogy.block_bulletin_sub')}</div>
                     </div>
                 </div>
               </div>
 
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.features_section')}</span></div>
-                <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.features_section')}</span></div>
+                <div className="px-[16px] py-[16px] md:px-[26px] md:py-[22px]" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[
                     { key: 'smsEnabled', label: t('settings.pedagogy.sms_label'), sub: t('settings.pedagogy.sms_sub') },
                     { key: 'offlineModeEnabled', label: t('settings.pedagogy.offline_label'), sub: t('settings.pedagogy.offline_sub') },
@@ -916,8 +918,8 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                         <div>
-                          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{label}</div>
-                          <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{sub}</div>
+                          <div className="text-[13.5px] md:text-[17px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{label}</div>
+                          <div className="text-[11.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{sub}</div>
                         </div>
                         <div style={{ width: 50, height: 28, borderRadius: 14, background: on ? 'var(--green)' : 'var(--border2)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
                           onClick={() => setPedSettings(s => s ? { ...s, [key]: !on } : s)}>
@@ -930,16 +932,16 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button style={{ ...btnPrim, opacity: pedSaving ? 0.7 : 1 }} disabled={pedSaving}
+                <button className={`${btnPrimCls} w-full md:w-auto justify-center`} style={{ ...btnPrim, display: 'flex', opacity: pedSaving ? 0.7 : 1 }} disabled={pedSaving}
                   onClick={async () => {
                     if (!pedSettings) return
                     setPedSaving(true)
                     try {
                       const res = await fetchApi('/api/v2/school-settings', { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passMark: pedSettings.passMark, councilPassMark: pedSettings.councilPassMark, maxAbsences: pedSettings.maxAbsences, attendanceLateAsAbsence: pedSettings.attendanceLateAsAbsence, legalMaxContributionFirstCycle: pedSettings.legalMaxContributionFirstCycle, legalMaxContributionSecondCycle: pedSettings.legalMaxContributionSecondCycle, bulletinBlockOnUnpaidFees: pedSettings.bulletinBlockOnUnpaidFees, schoolLanguageMode: pedSettings.schoolLanguageMode, academicCalendarType: pedSettings.academicCalendarType, smsEnabled: pedSettings.smsEnabled, offlineModeEnabled: pedSettings.offlineModeEnabled, aiAlertsEnabled: pedSettings.aiAlertsEnabled, messageModeration: pedSettings.messageModeration }) })
                       const data = await res.json()
-                      if (!res.ok) throw new Error(data.message || 'Erreur')
+                      if (!res.ok) throw new Error(data.message || t('common.error'))
                       onToast(t('settings.pedagogy.toast_saved'), 'success')
-                    } catch (err: any) { onToast(err.message || 'Erreur', 'error') }
+                    } catch (err: any) { onToast(err.message || t('common.error'), 'error') }
                     finally { setPedSaving(false) }
                   }}>
                   {pedSaving ? t('settings.pedagogy.saving') : t('settings.pedagogy.btn_save')}
@@ -953,22 +955,24 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* ── TAB 4: PRÉFÉRENCES ── */}
       {activeTab === 4 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.preferences.title')}</span></div>
-          <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+          <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.preferences.title')}</span></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 px-[16px] py-[16px] md:px-[26px] md:py-[22px] gap-[14px] md:gap-[18px]">
             {[
-              { label: 'Langue', opts: ['Français', 'English', 'Français/English (Bilingue)'] },
-              { label: 'Fuseau horaire', opts: ['Africa/Douala (UTC+1)', 'Africa/Lagos (UTC+1)', 'Europe/Paris (UTC+2)'] },
-              { label: 'Format de date', opts: ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] },
-              { label: 'Système de notation', opts: ['/20 (MINESEC)', '/100', 'Lettres A–F'] },
+              { label: t('settings.preferences.language_label'), optKey: 'language_options' },
+              { label: t('settings.preferences.timezone_label'), optKey: 'timezone_options' },
+              { label: t('settings.preferences.date_format_label'), optKey: 'date_format_options' },
+              { label: t('settings.preferences.grading_system_label'), optKey: 'grading_system_options' },
             ].map((f, i) => (
               <div key={i}>
-                <div style={fieldLabel}>{f.label}</div>
-                <select style={fieldSelect}>{f.opts.map(o => <option key={o}>{o}</option>)}</select>
+                <div className={fieldLabelCls} style={fieldLabel}>{f.label}</div>
+                <select className={fieldSelectCls} style={fieldSelect}>
+                  {[0, 1, 2].map(j => <option key={j}>{t(`settings.preferences.${f.optKey}.${j}`)}</option>)}
+                </select>
               </div>
             ))}
           </div>
-          <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-            <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => onToast('Préférences enregistrées', 'success')}><Save size={15} strokeWidth={2} /> Enregistrer</button>
+          <div className="px-[16px] py-[14px] md:px-[26px] md:py-[16px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className={`${btnPrimCls} w-full md:w-auto justify-center`} style={{ ...btnPrim, display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => onToast(t('settings.preferences.toast_saved'), 'success')}><Save size={15} strokeWidth={2} /> {t('settings.preferences.btn_save')}</button>
           </div>
         </div>
       )}
@@ -980,34 +984,35 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
             <input placeholder={t('settings.activities.search_placeholder')} value={actSearchInput}
               onChange={e => setActSearchInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { setActSearch(actSearchInput); setActPage(1) } }}
-              style={{ flex: 1, padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
+              className={fieldInputCls}
+              style={{ flex: 1, background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
               onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
-            <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setActSearch(actSearchInput); setActPage(1) }}><Search size={14} strokeWidth={2} /></button>
+            <button className={btnSecCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setActSearch(actSearchInput); setActPage(1) }}><Search size={14} strokeWidth={2} /></button>
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}>
-              <span style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><ClipboardList size={16} /> {t('settings.activities.title')}</span>
-              {actData && <span style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.activities.entries_count').replace('{count}', String(actData.total))}</span>}
+            <div className={cardHeaderCls} style={cardHeader}>
+              <span className="text-[14px] md:text-[17px]" style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><ClipboardList size={16} /> {t('settings.activities.title')}</span>
+              {actData && <span className="text-[12px] md:text-[14px]" style={{ color: 'var(--text3)' }}>{t('settings.activities.entries_count').replace('{count}', String(actData.total))}</span>}
             </div>
             {actLoading && (<div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} /></div>)}
-            {!actLoading && actData && actData.logs.length === 0 && (<div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 16 }}>{t('settings.activities.no_activities')}</div>)}
+            {!actLoading && actData && actData.logs.length === 0 && (<div className="text-[13.5px] md:text-[16px]" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>{t('settings.activities.no_activities')}</div>)}
             {!actLoading && actData && actData.logs.length > 0 && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead><tr>
-                    <th style={thLog}>{t('settings.activities.table_headers.0')}</th>
-                    <th style={thLog}>{t('settings.activities.table_headers.1')}</th>
-                    <th style={thLog}>{t('settings.activities.table_headers.2')}</th>
-                    <th style={thLog}>{t('settings.activities.table_headers.3')}</th>
+                    <th className={thLogCls} style={thLog}>{t('settings.activities.table_headers.0')}</th>
+                    <th className={thLogCls} style={thLog}>{t('settings.activities.table_headers.1')}</th>
+                    <th className={thLogCls} style={thLog}>{t('settings.activities.table_headers.2')}</th>
+                    <th className={thLogCls} style={thLog}>{t('settings.activities.table_headers.3')}</th>
                   </tr></thead>
                   <tbody>
                     {actData.logs.map((log, i) => (
                       <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                        <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
-                        <td style={tdLog}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{log.action}</span></td>
-                        <td style={{ ...tdLog, maxWidth: 320, wordBreak: 'break-word' }}>{log.description}</td>
-                        <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>{log.user ? (`${log.user.firstName ?? ''} ${log.user.lastName ?? ''}`).trim() || '—' : '—'}</td>
+                        <td className={tdLogCls} style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
+                        <td className={tdLogCls} style={tdLog}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{log.action}</span></td>
+                        <td className={tdLogCls} style={{ ...tdLog, maxWidth: 320, wordBreak: 'break-word' }}>{log.description}</td>
+                        <td className={tdLogCls} style={{ ...tdLog, whiteSpace: 'nowrap' }}>{log.user ? (`${log.user.firstName ?? ''} ${log.user.lastName ?? ''}`).trim() || '—' : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1015,11 +1020,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
             )}
             {actData && (
-              <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                <span style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.activities.page_info').replace('{current}', String(actData.page)).replace('{total}', String(actData.pages))}</span>
+              <div className="px-[14px] py-[12px] md:px-[20px] md:py-[14px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <span className="text-[12px] md:text-[14px]" style={{ color: 'var(--text3)' }}>{t('settings.activities.page_info').replace('{current}', String(actData.page)).replace('{total}', String(actData.pages))}</span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ ...btnSec, opacity: actData.page <= 1 ? 0.45 : 1 }} disabled={actData.page <= 1} onClick={() => setActPage(p => p - 1)}>{t('settings.activities.btn_prev')}</button>
-                  <button style={{ ...btnSec, opacity: actData.page >= actData.pages ? 0.45 : 1 }} disabled={actData.page >= actData.pages} onClick={() => setActPage(p => p + 1)}>{t('settings.activities.btn_next')}</button>
+                  <button className={btnSecCls} style={{ ...btnSec, opacity: actData.page <= 1 ? 0.45 : 1 }} disabled={actData.page <= 1} onClick={() => setActPage(p => p - 1)}>{t('settings.activities.btn_prev')}</button>
+                  <button className={btnSecCls} style={{ ...btnSec, opacity: actData.page >= actData.pages ? 0.45 : 1 }} disabled={actData.page >= actData.pages} onClick={() => setActPage(p => p + 1)}>{t('settings.activities.btn_next')}</button>
                 </div>
               </div>
             )}
@@ -1034,60 +1039,86 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
             <input placeholder={t('settings.emails.search_placeholder')} value={emlSearchInput}
               onChange={e => setEmlSearchInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { setEmlSearch(emlSearchInput); setEmlPage(1) } }}
-              style={{ flex: 1, minWidth: 200, padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
+              className={fieldInputCls}
+              style={{ flex: 1, minWidth: 200, background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s' }}
               onFocus={e => { e.currentTarget.style.borderColor = 'var(--green)'; e.currentTarget.style.background = 'var(--surface)' }}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.background = 'var(--bg2)' }} />
             <select value={emlStatus} onChange={e => { setEmlStatus(e.target.value); setEmlPage(1) }}
-              style={{ padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
+              className={fieldSelectCls}
+              style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
               <option value="">{t('settings.emails.status_all')}</option>
-              <option value="SENT">Envoyé</option>
-              <option value="FAILED">Échec</option>
-              <option value="PENDING">En attente</option>
+              <option value="SENT">{t('settings.emails.status_sent')}</option>
+              <option value="FAILED">{t('settings.emails.status_failed')}</option>
+              <option value="PENDING">{t('settings.emails.status_pending')}</option>
             </select>
-            <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setEmlSearch(emlSearchInput); setEmlPage(1) }}><Search size={14} strokeWidth={2} /></button>
+            <button className={btnSecCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => { setEmlSearch(emlSearchInput); setEmlPage(1) }}><Search size={14} strokeWidth={2} /></button>
           </div>
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}>
-              <span style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Mail size={16} /> {t('settings.emails.title')}</span>
-              {emlData && <span style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.emails.count').replace('{count}', String(emlData.pagination.total))}</span>}
+          <div className="bg-transparent border-0 md:bg-[var(--surface)] md:border-[1.5px] md:border-[var(--border)] rounded-none md:rounded-[16px]" style={{ overflow: 'hidden' }}>
+            <div className={cardHeaderCls} style={cardHeader}>
+              <span className="text-[14px] md:text-[17px]" style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><Mail size={16} /> {t('settings.emails.title')}</span>
+              {emlData && <span className="text-[12px] md:text-[14px]" style={{ color: 'var(--text3)' }}>{t('settings.emails.count').replace('{count}', String(emlData.pagination.total))}</span>}
             </div>
             {emlLoading && (<div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} /></div>)}
-            {!emlLoading && emlData && emlData.logs.length === 0 && (<div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 16 }}>{t('settings.emails.no_emails')}</div>)}
+            {!emlLoading && emlData && emlData.logs.length === 0 && (<div className="text-[13.5px] md:text-[16px]" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>{t('settings.emails.no_emails')}</div>)}
             {!emlLoading && emlData && emlData.logs.length > 0 && (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead><tr>
-                    <th style={thLog}>{t('settings.emails.table_headers.0')}</th>
-                    <th style={thLog}>{t('settings.emails.table_headers.1')}</th>
-                    <th style={thLog}>{t('settings.emails.table_headers.2')}</th>
-                    <th style={thLog}>{t('settings.emails.table_headers.3')}</th>
-                  </tr></thead>
-                  <tbody>
-                    {emlData.logs.map((log, i) => {
-                      const s = (log.status ?? '').toLowerCase()
-                      const badge = s.includes('sent') || s.includes('envoy') ? { bg: 'rgba(5,150,105,0.12)', color: 'var(--green2)' }
-                        : s.includes('fail') || s.includes('chec') ? { bg: 'rgba(220,38,38,0.12)', color: 'var(--red)' }
-                        : s.includes('pend') || s.includes('attente') ? { bg: 'rgba(217,119,6,0.12)', color: 'var(--amber)' }
-                        : { bg: 'var(--bg2)', color: 'var(--text3)' }
-                      return (
-                        <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
-                          <td style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
-                          <td style={{ ...tdLog, maxWidth: 200, wordBreak: 'break-word' }}>{log.to}</td>
-                          <td style={{ ...tdLog, maxWidth: 280, wordBreak: 'break-word' }}>{log.subject}</td>
-                          <td style={tdLog}><span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: badge.bg, color: badge.color }}>{log.status}</span></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Mobile : cartes empilées (une table serait illisible/étroite sur un écran de téléphone) */}
+                <div className="md:hidden flex flex-col gap-[8px] px-[16px] py-[12px]">
+                  {emlData.logs.map(log => {
+                    const s = (log.status ?? '').toLowerCase()
+                    const badge = s.includes('sent') || s.includes('envoy') ? { bg: 'rgba(5,150,105,0.12)', color: 'var(--green2)' }
+                      : s.includes('fail') || s.includes('chec') ? { bg: 'rgba(220,38,38,0.12)', color: 'var(--red)' }
+                      : s.includes('pend') || s.includes('attente') ? { bg: 'rgba(217,119,6,0.12)', color: 'var(--amber)' }
+                      : { bg: 'var(--bg2)', color: 'var(--text3)' }
+                    return (
+                      <div key={log.id} className="rounded-[14px] px-[14px] py-[12px]" style={{ background: 'var(--surface)', boxShadow: '0 1px 2px rgba(20,20,15,0.05),0 1px 6px rgba(20,20,15,0.06)' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                          <div className="text-[13px]" style={{ fontWeight: 700, color: 'var(--text)', wordBreak: 'break-word', minWidth: 0, flex: 1 }}>{log.subject}</div>
+                          <span className="text-[10px]" style={{ display: 'inline-block', flexShrink: 0, padding: '3px 9px', borderRadius: 20, fontWeight: 700, background: badge.bg, color: badge.color }}>{log.status}</span>
+                        </div>
+                        <div className="text-[11.5px]" style={{ color: 'var(--text3)', marginTop: 3, wordBreak: 'break-word' }}>{log.to}</div>
+                        <div className="text-[10.5px]" style={{ color: 'var(--text3)', marginTop: 6 }}>{fmtDate(log.createdAt)}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop : tableau classique */}
+                <div className="hidden md:block" style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead><tr>
+                      <th className={thLogCls} style={thLog}>{t('settings.emails.table_headers.0')}</th>
+                      <th className={thLogCls} style={thLog}>{t('settings.emails.table_headers.1')}</th>
+                      <th className={thLogCls} style={thLog}>{t('settings.emails.table_headers.2')}</th>
+                      <th className={thLogCls} style={thLog}>{t('settings.emails.table_headers.3')}</th>
+                    </tr></thead>
+                    <tbody>
+                      {emlData.logs.map((log, i) => {
+                        const s = (log.status ?? '').toLowerCase()
+                        const badge = s.includes('sent') || s.includes('envoy') ? { bg: 'rgba(5,150,105,0.12)', color: 'var(--green2)' }
+                          : s.includes('fail') || s.includes('chec') ? { bg: 'rgba(220,38,38,0.12)', color: 'var(--red)' }
+                          : s.includes('pend') || s.includes('attente') ? { bg: 'rgba(217,119,6,0.12)', color: 'var(--amber)' }
+                          : { bg: 'var(--bg2)', color: 'var(--text3)' }
+                        return (
+                          <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                            <td className={tdLogCls} style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.createdAt)}</td>
+                            <td className={tdLogCls} style={{ ...tdLog, maxWidth: 200, wordBreak: 'break-word' }}>{log.to}</td>
+                            <td className={tdLogCls} style={{ ...tdLog, maxWidth: 280, wordBreak: 'break-word' }}>{log.subject}</td>
+                            <td className={tdLogCls} style={tdLog}><span className="text-[10.5px] md:text-[12px]" style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontWeight: 700, background: badge.bg, color: badge.color }}>{log.status}</span></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
             {emlData && (
-              <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                <span style={{ fontSize: 14, color: 'var(--text3)' }}>{t('settings.emails.page_info').replace('{current}', String(emlData.pagination.page)).replace('{total}', String(emlData.pagination.pages))}</span>
+              <div className="px-[14px] py-[12px] md:px-[20px] md:py-[14px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <span className="text-[12px] md:text-[14px]" style={{ color: 'var(--text3)' }}>{t('settings.emails.page_info').replace('{current}', String(emlData.pagination.page)).replace('{total}', String(emlData.pagination.pages))}</span>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ ...btnSec, opacity: emlData.pagination.page <= 1 ? 0.45 : 1 }} disabled={emlData.pagination.page <= 1} onClick={() => setEmlPage(p => p - 1)}>{t('settings.emails.btn_prev')}</button>
-                  <button style={{ ...btnSec, opacity: emlData.pagination.page >= emlData.pagination.pages ? 0.45 : 1 }} disabled={emlData.pagination.page >= emlData.pagination.pages} onClick={() => setEmlPage(p => p + 1)}>{t('settings.emails.btn_next')}</button>
+                  <button className={btnSecCls} style={{ ...btnSec, opacity: emlData.pagination.page <= 1 ? 0.45 : 1 }} disabled={emlData.pagination.page <= 1} onClick={() => setEmlPage(p => p - 1)}>{t('settings.emails.btn_prev')}</button>
+                  <button className={btnSecCls} style={{ ...btnSec, opacity: emlData.pagination.page >= emlData.pagination.pages ? 0.45 : 1 }} disabled={emlData.pagination.page >= emlData.pagination.pages} onClick={() => setEmlPage(p => p + 1)}>{t('settings.emails.btn_next')}</button>
                 </div>
               </div>
             )}
@@ -1099,41 +1130,41 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {activeTab === 7 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.backup_title')}</span></div>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.backup_title')}</span></div>
             {backupLoading && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 36 }}>
                 <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
               </div>
             )}
             {!backupLoading && !backupInfo && (
-              <div style={{ padding: '20px 26px', color: 'var(--text3)', fontSize: 15 }}>{t('settings.structure.no_backup')}</div>
+              <div className="px-[16px] py-[16px] md:px-[26px] md:py-[20px] text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)' }}>{t('settings.structure.no_backup')}</div>
             )}
             {!backupLoading && backupInfo && (
-              <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 px-[16px] py-[16px] md:px-[26px] md:py-[20px] gap-[12px] md:gap-[14px]">
                 <div>
-                  <div style={fieldLabel}>Date</div>
-                  <div style={{ padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 15, fontWeight: 600 }}>
+                  <div className={fieldLabelCls} style={fieldLabel}>{t('settings.structure.date_label')}</div>
+                  <div className="text-[13.5px] md:text-[15px] px-[12px] py-[10px] md:px-[14px] md:py-[11px]" style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontWeight: 600 }}>
                     {backupInfo.lastBackupAt ? new Date(backupInfo.lastBackupAt).toLocaleString('fr-FR') : '—'}
                   </div>
                 </div>
                 <div>
-                  <div style={fieldLabel}>Fichier</div>
-                  <div style={{ padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 15, fontWeight: 600, wordBreak: 'break-word' }}>
+                  <div className={fieldLabelCls} style={fieldLabel}>{t('settings.structure.file_label')}</div>
+                  <div className="text-[13.5px] md:text-[15px] px-[12px] py-[10px] md:px-[14px] md:py-[11px]" style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontWeight: 600, wordBreak: 'break-word' }}>
                     {backupInfo.lastBackupFile ?? '—'}
                   </div>
                 </div>
-                <div style={{ gridColumn: '1 / -1', fontSize: 13, color: 'var(--text3)' }}>
-                  {backupInfo.latestFileExists ? 'Le dernier fichier de sauvegarde est disponible.' : 'Le dernier fichier n\'est pas encore accessible sur disque.'}
+                <div className="text-[11.5px] md:text-[13px]" style={{ gridColumn: '1 / -1', color: 'var(--text3)' }}>
+                  {backupInfo.latestFileExists ? t('settings.structure.backup_file_available') : t('settings.structure.backup_file_missing')}
                 </div>
               </div>
             )}
           </div>
 
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.rgpd_title')}</span></div>
-            <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className={cardHeaderCls} style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.rgpd_title')}</span></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 px-[16px] py-[16px] md:px-[26px] md:py-[20px] gap-[12px] md:gap-[14px]">
               <div>
-                <div style={fieldLabel}>{t('settings.structure.log_retention')}</div>
+                <div className={fieldLabelCls} style={fieldLabel}>{t('settings.structure.log_retention')}</div>
                 {logRetentionLoading ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 48 }}>
                     <div style={{ width: 24, height: 24, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
@@ -1145,29 +1176,29 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     max={3650}
                     value={logRetentionDays}
                     onChange={e => setLogRetentionDays(Math.max(1, parseInt(e.target.value || '90', 10) || 90))}
-                    style={fieldInput}
+                    className={fieldInputCls} style={fieldInput}
                   />
                 )}
-                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text3)' }}>{t('settings.structure.log_retention_hint')}</div>
+                <div className="text-[10.5px] md:text-[12px]" style={{ marginTop: 6, color: 'var(--text3)' }}>{t('settings.structure.log_retention_hint')}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <div style={fieldLabel}>{t('settings.structure.export_label')}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text3)', lineHeight: 1.6 }}>{t('settings.structure.export_desc')}</div>
+                  <div className={fieldLabelCls} style={fieldLabel}>{t('settings.structure.export_label')}</div>
+                  <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', lineHeight: 1.6 }}>{t('settings.structure.export_desc')}</div>
                 </div>
-                <button style={btnSec} onClick={handleRgpdExport} disabled={exportLoading}>
+                <button className={btnSecCls} style={btnSec} onClick={handleRgpdExport} disabled={exportLoading}>
                   {exportLoading ? t('settings.structure.exporting') : t('settings.structure.btn_export')}
                 </button>
               </div>
             </div>
-            <div style={{ padding: '16px 26px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button style={btnPrim} onClick={handleLogRetentionSave} disabled={logRetentionSaving || logRetentionLoading}>
+            <div className="px-[16px] py-[14px] md:px-[26px] md:py-[16px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className={`${btnPrimCls} w-full md:w-auto justify-center`} style={{ ...btnPrim, display: 'flex' }} onClick={handleLogRetentionSave} disabled={logRetentionSaving || logRetentionLoading}>
                 {logRetentionSaving ? t('settings.structure.saving_retention') : t('settings.structure.btn_save_retention')}
               </button>
             </div>
           </div>
 
-          <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: 'var(--amber)', fontWeight: 600 }}>
+          <div className="px-[14px] py-[12px] md:px-[18px] md:py-[14px] text-[12.5px] md:text-[14px]" style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 12, color: 'var(--amber)', fontWeight: 600 }}>
             {t('settings.structure.structure_warning')}
           </div>
 
@@ -1179,33 +1210,35 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {structConfig && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={cardHeader}>
+              <div className={cardHeaderCls} style={cardHeader}>
                 <span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.classes_per_level')}</span>
               </div>
-              <div style={{ padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="px-[16px] py-[16px] md:px-[26px] md:py-[20px]" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[...structConfig.niveaux1erCycle, ...structConfig.niveauxPrimaire].length === 0 && (
-                  <div style={{ color: 'var(--text3)', fontSize: 15 }}>{t('settings.structure.no_levels')}</div>
+                  <div className="text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)' }}>{t('settings.structure.no_levels')}</div>
                 )}
                 {[...structConfig.niveaux1erCycle, ...structConfig.niveauxPrimaire].map(niveau => (
-                  <div key={niveau} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <span style={{ minWidth: 60, fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{niveau}</span>
+                  <div key={niveau} style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                    <span className="text-[13.5px] md:text-[16px]" style={{ minWidth: 60, fontWeight: 800, color: 'var(--text)' }}>{niveau}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button onClick={() => setStructEdit(e => ({ ...e, [niveau]: Math.max(1, (e[niveau] ?? structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1) - 1) }))}
-                        style={{ width: 34, height: 34, borderRadius: 8, border: '1.5px solid var(--border2)', background: 'var(--surface)', fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', fontFamily: 'inherit' }}>−</button>
-                      <span style={{ minWidth: 32, textAlign: 'center', fontSize: 18, fontWeight: 800, color: 'var(--green)' }}>
+                        className="w-[30px] h-[30px] md:w-[34px] md:h-[34px] text-[15px] md:text-[18px]"
+                        style={{ borderRadius: 8, border: '1.5px solid var(--border2)', background: 'var(--surface)', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', fontFamily: 'inherit' }}>−</button>
+                      <span className="text-[15px] md:text-[18px]" style={{ minWidth: 32, textAlign: 'center', fontWeight: 800, color: 'var(--green)' }}>
                         {structEdit[niveau] ?? structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1}
                       </span>
                       <button onClick={() => setStructEdit(e => ({ ...e, [niveau]: Math.min(26, (e[niveau] ?? structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1) + 1) }))}
-                        style={{ width: 34, height: 34, borderRadius: 8, border: '1.5px solid var(--border2)', background: 'var(--surface)', fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', fontFamily: 'inherit' }}>+</button>
+                        className="w-[30px] h-[30px] md:w-[34px] md:h-[34px] text-[15px] md:text-[18px]"
+                        style={{ borderRadius: 8, border: '1.5px solid var(--border2)', background: 'var(--surface)', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', fontFamily: 'inherit' }}>+</button>
                     </div>
-                    <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+                    <span className="text-[11.5px] md:text-[13px]" style={{ color: 'var(--text3)' }}>
                       {(() => {
                         const current = structConfig.classesParNiveau[niveau] ?? structConfig.classesParNiveauPrimaire[niveau] ?? 1
                         const next = structEdit[niveau] ?? current
                         const diff = next - current
-                        if (diff > 0) return `+${diff} classe(s) à créer`
-                        if (diff < 0) return `(réduction ignorée — classes existantes conservées)`
-                        return `actuel : ${current} classe(s)`
+                        if (diff > 0) return t('settings.structure.classes_to_create').replace('{count}', String(diff))
+                        if (diff < 0) return t('settings.structure.reduction_ignored')
+                        return t('settings.structure.current_classes').replace('{count}', String(current))
                       })()}
                     </span>
                   </div>
@@ -1215,24 +1248,24 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           )}
 
           {structResult !== null && structResult.length > 0 && (
-            <div style={{ background: 'var(--green-light)', border: '1.5px solid var(--green)', borderRadius: 12, padding: '14px 18px' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--green2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} strokeWidth={2} /> Classes créées :</div>
+            <div className="px-[14px] py-[12px] md:px-[18px] md:py-[14px]" style={{ background: 'var(--green-light)', border: '1.5px solid var(--green)', borderRadius: 12 }}>
+              <div className="text-[13.5px] md:text-[15px]" style={{ fontWeight: 800, color: 'var(--green2)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={15} strokeWidth={2} /> {t('settings.structure.classes_created_title')}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {structResult.map(n => (
-                  <span key={n} style={{ padding: '4px 12px', borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--green)', fontSize: 14, fontWeight: 700, color: 'var(--green2)' }}>{n}</span>
+                  <span key={n} className="text-[12.5px] md:text-[14px]" style={{ padding: '4px 12px', borderRadius: 20, background: 'var(--surface)', border: '1px solid var(--green)', fontWeight: 700, color: 'var(--green2)' }}>{n}</span>
                 ))}
               </div>
             </div>
           )}
           {structResult !== null && structResult.length === 0 && (
-            <div style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 12, padding: '14px 18px', fontSize: 14, color: 'var(--text2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Info size={15} strokeWidth={2} /> Aucune nouvelle classe à créer — toutes les classes attendues existent déjà.
+            <div className="text-[12.5px] md:text-[14px] px-[14px] py-[12px] md:px-[18px] md:py-[14px]" style={{ background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 12, color: 'var(--text2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Info size={15} strokeWidth={2} /> {t('settings.structure.no_new_classes')}
             </div>
           )}
 
           {structConfig && (
-            <button onClick={handleStructSave} disabled={structSaving}
-              style={{ ...btnPrim, alignSelf: 'flex-start', opacity: structSaving ? 0.7 : 1, cursor: structSaving ? 'wait' : 'pointer' }}>
+            <button className={`${btnPrimCls} w-full md:w-auto justify-center md:self-start`} onClick={handleStructSave} disabled={structSaving}
+              style={{ ...btnPrim, display: 'flex', opacity: structSaving ? 0.7 : 1, cursor: structSaving ? 'wait' : 'pointer' }}>
               {structSaving ? t('settings.structure.applying') : t('settings.structure.btn_apply')}
             </button>
           )}
@@ -1245,13 +1278,13 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8"
             style={{ background: 'var(--surface)', borderRadius: 18, width: 460, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>
+            <div className="text-[18px] md:text-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>
               {t('settings.security.modal.title')}
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <div style={fieldLabel}>{t('settings.security.modal.min_length_label')}</div>
-              <select style={fieldSelect} value={secEdit.passwordMinLength}
+              <div className={fieldLabelCls} style={fieldLabel}>{t('settings.security.modal.min_length_label')}</div>
+              <select className={fieldSelectCls} style={fieldSelect} value={secEdit.passwordMinLength}
                 onChange={e => setSecEdit(s => ({ ...s, passwordMinLength: parseInt(e.target.value) }))}>
                 {[6,7,8,9,10,12,14,16].map(v => <option key={v} value={v}>{t('settings.security.characters').replace('{count}', String(v))}</option>)}
               </select>
@@ -1267,26 +1300,26 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                     onClick={() => setSecEdit(s => ({ ...s, [key]: !s[key] }))}>
                     <div style={{ position: 'absolute', top: 2, left: secEdit[key] ? 22 : 2, width: 22, height: 22, borderRadius: '50%', background: 'var(--surface)', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
                   </div>
-                  <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
+                  <span className="text-[13.5px] md:text-[16px]" style={{ fontWeight: 600, color: 'var(--text)' }}>{label}</span>
                 </div>
               ))}
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <div style={fieldLabel}>{t('settings.security.modal.session_label')}</div>
-              <select style={fieldSelect} value={secEdit.sessionTimeoutMin}
+              <div className={fieldLabelCls} style={fieldLabel}>{t('settings.security.modal.session_label')}</div>
+              <select className={fieldSelectCls} style={fieldSelect} value={secEdit.sessionTimeoutMin}
                 onChange={e => setSecEdit(s => ({ ...s, sessionTimeoutMin: parseInt(e.target.value) }))}>
                 {SESSION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setSecModal(false)} disabled={secSaving}
-                style={{ flex: 1, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button className="text-[13px] md:text-[15px]" onClick={() => setSecModal(false)} disabled={secSaving}
+                style={{ flex: 1, padding: '11px', borderRadius: 11, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {t('settings.security.modal.btn_cancel')}
               </button>
-              <button onClick={handleSecSave} disabled={secSaving}
-                style={{ flex: 2, padding: '11px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: secSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: secSaving ? 0.7 : 1 }}>
+              <button className="text-[13px] md:text-[15px]" onClick={handleSecSave} disabled={secSaving}
+                style={{ flex: 2, padding: '11px', borderRadius: 11, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: secSaving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: secSaving ? 0.7 : 1 }}>
                 {secSaving ? t('settings.security.modal.saving') : t('settings.security.modal.btn_save')}
               </button>
             </div>
@@ -1299,15 +1332,23 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
 const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
 const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
-const cardHeader: React.CSSProperties = { padding: '16px 26px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+const btnPrimCls = 'text-[13px] md:text-[16px] px-[16px] py-[10px] md:px-[20px] md:py-[10px]'
+const btnPrim: React.CSSProperties = { borderRadius: 11, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnSecCls = 'text-[13px] md:text-[16px] px-[14px] py-[9px] md:px-[18px] md:py-[10px]'
+const btnSec: React.CSSProperties = { borderRadius: 10, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const cardHeaderCls = 'px-[16px] py-[12px] md:px-[26px] md:py-[16px] flex-wrap gap-[6px]'
+const cardHeader: React.CSSProperties = { borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
 const cardTitle: React.CSSProperties = { fontWeight: 800, color: 'var(--text)' }
-const fieldLabel: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }
-const fieldInput: React.CSSProperties = { width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s', boxSizing: 'border-box' }
-const fieldSelect: React.CSSProperties = { width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }
-const thLog: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }
-const tdLog: React.CSSProperties = { padding: '10px 14px', fontSize: 14, color: 'var(--text2)', border: '1px solid var(--bg2)', verticalAlign: 'top' }
+const fieldLabelCls = 'text-[10.5px] md:text-[13px]'
+const fieldLabel: React.CSSProperties = { fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }
+const fieldInputCls = 'text-[13.5px] md:text-[16px] px-[12px] py-[10px] md:px-[14px] md:py-[11px]'
+const fieldInput: React.CSSProperties = { width: '100%', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s', boxSizing: 'border-box' }
+const fieldSelectCls = 'text-[13.5px] md:text-[16px] px-[12px] py-[10px] md:px-[14px] md:py-[11px]'
+const fieldSelect: React.CSSProperties = { width: '100%', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }
+const thLogCls = 'text-[10.5px] md:text-[12px] px-[10px] py-[8px] md:px-[14px] md:py-[10px]'
+const thLog: React.CSSProperties = { textAlign: 'left', fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', border: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }
+const tdLogCls = 'text-[12.5px] md:text-[14px] px-[10px] py-[8px] md:px-[14px] md:py-[10px]'
+const tdLog: React.CSSProperties = { color: 'var(--text2)', border: '1px solid var(--bg2)', verticalAlign: 'top' }
 
 function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }

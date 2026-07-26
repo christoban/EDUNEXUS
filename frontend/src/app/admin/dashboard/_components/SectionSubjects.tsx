@@ -44,6 +44,13 @@ interface Department {
 const COEFF_SERIES = ['A4', 'A', 'C', 'D', 'TI']
 const COEFF_LEVELS = ['2nde', '1ère', 'Tle']
 
+const AVATAR_PALETTE = ['var(--green)', 'var(--blue)', 'var(--amber)', 'var(--purple)', '#db2777', 'var(--teal)']
+function avatarColor(id: string) {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length]
+}
+
 const EMPTY_CREATE = { name: '', code: '', coefficient: '1', hoursPerWeek: '2', subjectType: 'THEORETICAL', loading: false, error: '' }
 const EMPTY_MOD    = { open: false, subjectId: '', name: '', code: '', coefficient: '', hoursPerWeek: '', subjectType: '', loading: false, error: '' }
 const EMPTY_ASSIGN = { open: false, subjectId: '', subjectName: '', teacherSearch: '', teachers: [] as Teacher[], selected: null as Teacher | null, loading: false, error: '' }
@@ -640,7 +647,7 @@ export default function SectionSubjects({ onToast }: Props) {
 
       {/* Onglets de vue — mobile : puces défilables avec indicateur glissant, fondu de bord (maquette) */}
       <div className="relative md:hidden mb-[14px] -mr-4">
-        <div className="flex gap-[6px] overflow-x-auto pr-8 py-[2px]" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex gap-[6px] overflow-x-auto" style={{ padding: '2px 32px 4px 0', scrollbarWidth: 'none' }}>
           {(['catalogue', 'par-classe', 'departements', 'par-enseignant'] as const).map(v => {
             const active = view === v
             return (
@@ -670,7 +677,8 @@ export default function SectionSubjects({ onToast }: Props) {
             <select
               value={selectedClass}
               onChange={e => handleSelectClass(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 15, color: 'var(--text)', background: 'var(--surface)', fontFamily: 'inherit', cursor: 'pointer' }}>
+              className="text-[14px] md:text-[15px] px-[13px] md:px-[14px] py-[10px] md:py-[10px] rounded-[10px] md:rounded-[10px]"
+              style={{ width: '100%', border: '1.5px solid var(--border)', color: 'var(--text)', background: 'var(--surface)', fontFamily: 'inherit', cursor: 'pointer', boxSizing: 'border-box' }}>
               <option value="">{t('subjects.class_view.selector_placeholder')}</option>
               {classList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -683,23 +691,26 @@ export default function SectionSubjects({ onToast }: Props) {
           )}
 
           {!loadingCV && selectedClass && classSubjects.length === 0 && !classViewError && (
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text3)' }}><BookOpen size={40} strokeWidth={1.5} /></div>
-              <div style={{ fontSize: 16, color: 'var(--text3)', marginBottom: 16 }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.no_subjects').replace('{name}', selectedClassName ?? '') }} />
-              <div style={{ fontSize: 14, color: 'var(--text3)' }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.sync_hint') }} />
+            <div className="px-[20px] py-[36px] md:px-[24px] md:py-[48px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--text3)' }}>
+                <BookOpen size={34} strokeWidth={1.5} className="md:hidden" /><BookOpen size={40} strokeWidth={1.5} className="hidden md:block" />
+              </div>
+              <div className="text-[14px] md:text-[16px]" style={{ color: 'var(--text3)', marginBottom: 16 }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.no_subjects').replace('{name}', selectedClassName ?? '') }} />
+              <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)' }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.sync_hint') }} />
             </div>
           )}
 
           {!loadingCV && classSubjects.length > 0 && (
             <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
-              <div className="mb-[14px] md:mb-0 md:p-[14px] md:px-[22px] md:border-b md:border-[var(--border)]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.program_label').replace('{name}', selectedClassName ?? '') }} />
+              <div className="gap-[8px] mb-[14px] md:mb-0 md:p-[14px] md:px-[22px] md:border-b md:border-[var(--border)]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <span className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)' }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.program_label').replace('{name}', selectedClassName ?? '') }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+                  <span className="text-[11.5px] md:text-[14px] px-[10px] md:px-[12px] py-[3px] md:py-[4px]" style={{ background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 20, fontWeight: 800 }}>
                     {t('subjects.class_view.count_badge').replace('{count}', String(classSubjects.length))}
                   </span>
                   <button onClick={() => { setAddSubjectOpen(true); setAddError(''); setAddSubjectId(''); setAddCoefficient(''); setAddClassOnly(false) }}
-                    style={{ padding: '6px 14px', borderRadius: 8, fontSize: 13, fontWeight: 700, border: '1.5px solid var(--green)', background: 'var(--green-light)', color: 'var(--green)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                    className="text-[12px] md:text-[13px] px-[12px] md:px-[14px] py-[5px] md:py-[6px]"
+                    style={{ borderRadius: 8, fontWeight: 700, border: '1.5px solid var(--green)', background: 'var(--green-light)', color: 'var(--green)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                     {t('subjects.class_view.btn_add')}
                   </button>
                 </div>
@@ -814,9 +825,11 @@ export default function SectionSubjects({ onToast }: Props) {
           )}
 
           {!selectedClass && !loadingCV && (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text3)' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><GraduationCap size={48} strokeWidth={1.5} /></div>
-              <div style={{ fontSize: 17 }}>{t('subjects.class_view.no_selection')}</div>
+            <div className="py-[44px] md:py-[60px]" style={{ textAlign: 'center', color: 'var(--text3)' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <GraduationCap size={40} strokeWidth={1.5} className="md:hidden" /><GraduationCap size={48} strokeWidth={1.5} className="hidden md:block" />
+              </div>
+              <div className="text-[14px] md:text-[17px]">{t('subjects.class_view.no_selection')}</div>
             </div>
           )}
         </div>
@@ -838,13 +851,17 @@ export default function SectionSubjects({ onToast }: Props) {
             <div className="rounded-[14px] md:rounded-[10px] px-[14px] py-[12px] md:px-[14px] md:py-[8px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:bg-[var(--bg2)]" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('subjects.search_placeholder')}
-                style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
+                className="text-[14px] md:text-[16px]" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
             </div>
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 17 }}>
-              {subjects.length === 0 ? 'Aucune matière configurée' : 'Aucun résultat'}
+            <div className="gap-[8px] px-[16px] py-[36px] md:py-[50px]" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', color: 'var(--text3)' }}>
+              <Search size={30} strokeWidth={1.6} className="md:hidden" color="var(--border2)" />
+              <Search size={34} strokeWidth={1.6} className="hidden md:block" color="var(--border2)" />
+              <div className="text-[13.5px] md:text-[17px]">
+                {subjects.length === 0 ? 'Aucune matière configurée' : 'Aucun résultat'}
+              </div>
             </div>
           ) : (
             <>
@@ -880,7 +897,8 @@ export default function SectionSubjects({ onToast }: Props) {
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
                     <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 700 }}>×{sub.coefficient}</span>
                     {sub.code && <code style={{ background: 'var(--bg2)', padding: '3px 7px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--text2)' }}>{sub.code}</code>}
-                    <span style={{ fontSize: 12.5, color: 'var(--text2)', fontWeight: 700 }}>{sub.hoursPerWeek}h · {t(`subjects.type_labels.${sub.subjectType}`) || sub.subjectType}</span>
+                    <span style={{ background: 'var(--bg2)', color: 'var(--text2)', padding: '4px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600 }}>{sub.hoursPerWeek}h</span>
+                    <span style={{ background: 'var(--bg2)', color: 'var(--text2)', padding: '4px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 600 }}>{t(`subjects.type_labels.${sub.subjectType}`) || sub.subjectType}</span>
                   </div>
                   <div style={{ marginTop: 8 }}>
                     <span style={{ background: sub.teacherSubjects.length > 0 ? 'var(--green-light)' : 'var(--bg2)', color: sub.teacherSubjects.length > 0 ? 'var(--green)' : 'var(--text2)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 800 }}>
@@ -968,7 +986,7 @@ export default function SectionSubjects({ onToast }: Props) {
               <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={deptSearch} onChange={e => setDeptSearch(e.target.value)}
                 placeholder={t('subjects.departments.search_placeholder')}
-                style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
+                className="text-[14px] md:text-[16px]" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
               {deptSearch && <span onClick={() => setDeptSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14, display: 'inline-flex' }}><X size={14} strokeWidth={2} /></span>}
             </div>
             {(deptSearch && searchMatchCount > 0) || depsWithoutAp.length > 0 ? (
@@ -997,19 +1015,21 @@ export default function SectionSubjects({ onToast }: Props) {
           )}
 
           {!deptLoading && !deptError && allDepartments.length === 0 && (
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '64px 24px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><FolderOpen size={48} strokeWidth={1.5} /></div>
-              <div style={{ fontSize: 17, color: 'var(--text3)', marginBottom: 16 }}>
+            <div className="px-[24px] py-[44px] md:px-[24px] md:py-[64px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <FolderOpen size={40} strokeWidth={1.5} className="md:hidden" /><FolderOpen size={48} strokeWidth={1.5} className="hidden md:block" />
+              </div>
+              <div className="text-[14px] md:text-[17px]" style={{ color: 'var(--text3)', marginBottom: 16 }}>
                 {t('subjects.departments.no_depts')}
               </div>
-              <button style={btnPrim} onClick={() => setDeptCreateForm({ open: true, name: '', color: 'var(--text3)', loading: false, error: '' })}>
+              <button className="w-full md:w-auto justify-center" style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center' }} onClick={() => setDeptCreateForm({ open: true, name: '', color: 'var(--text3)', loading: false, error: '' })}>
                 {t('subjects.departments.btn_create')}
               </button>
             </div>
           )}
 
           {!deptLoading && !deptError && allDepartments.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
+            <div className="grid grid-cols-1 md:[grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]" style={{ gap: 16 }}>
               {allDepartments.map(dept => {
                 const isVirtual = dept._virtual
                 const hasSearch = deptSearch.length > 0
@@ -1028,14 +1048,14 @@ export default function SectionSubjects({ onToast }: Props) {
                       {/* Barre de couleur — coins hauts arrondis pour epouser la forme de la
                           carte, plutot que overflow:hidden sur le conteneur (qui coupait aussi
                           le menu "Deplacer vers" quand il debordait en bas de la carte). */}
-                      <div style={{ height: 6, borderTopLeftRadius: 16, borderTopRightRadius: 16, background: isVirtual ? 'var(--border2)' : dept.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }} />
-                      <div style={{ padding: '16px 18px' }}>
+                      <div className="h-[5px] md:h-[6px]" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, background: isVirtual ? 'var(--border2)' : dept.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }} />
+                      <div className="p-[14px] md:px-[18px] md:py-[16px]">
                         {/* En-tête */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ width: 12, height: 12, borderRadius: '50%', background: isVirtual ? 'var(--border2)' : dept.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{dept.name}</span>
-                            <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 700 }}>({dept.subjects.length})</span>
+                            <div style={{ width: 11, height: 11, borderRadius: '50%', background: isVirtual ? 'var(--border2)' : dept.color, flexShrink: 0 }} />
+                            <span className="text-[15px] md:text-[17px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{dept.name}</span>
+                            <span className="text-[12px] md:text-[13px]" style={{ color: 'var(--text3)', fontWeight: 700 }}>({dept.subjects.length})</span>
                           </div>
                           {!isVirtual && (
                             <button onClick={() => openEditDept(dept)}
@@ -1145,7 +1165,7 @@ export default function SectionSubjects({ onToast }: Props) {
               <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={teacherViewSearch} onChange={e => setTeacherViewSearch(e.target.value)}
                 placeholder={t('subjects.teacher_view.search_placeholder')}
-                style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
+                className="text-[14px] md:text-[16px]" style={{ background: 'none', border: 'none', outline: 'none', fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
               {teacherViewSearch && <span onClick={() => setTeacherViewSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14, display: 'inline-flex' }}><X size={14} strokeWidth={2} /></span>}
             </div>
             <span style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{teacherViewTeachers.length} enseignant{teacherViewTeachers.length > 1 ? 's' : ''}</span>
@@ -1158,9 +1178,11 @@ export default function SectionSubjects({ onToast }: Props) {
           )}
 
           {!teacherViewLoading && teacherViewTeachers.length === 0 && (
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '64px 24px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Presentation size={48} strokeWidth={1.5} /></div>
-              <div style={{ fontSize: 17, color: 'var(--text3)' }}>{t('subjects.teacher_view.no_results')}</div>
+            <div className="px-[24px] py-[44px] md:py-[64px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <Presentation size={40} strokeWidth={1.5} className="md:hidden" /><Presentation size={48} strokeWidth={1.5} className="hidden md:block" />
+              </div>
+              <div className="text-[14px] md:text-[17px]" style={{ color: 'var(--text3)' }}>{t('subjects.teacher_view.no_results')}</div>
             </div>
           )}
 
@@ -1176,9 +1198,14 @@ export default function SectionSubjects({ onToast }: Props) {
                   return (
                     <div key={teacher.id} className="rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none" style={{ background: 'var(--surface)' }}>
                       <div className="p-4 md:px-[20px] md:py-[16px]">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <div className="text-[14.5px] md:text-[17px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{teacher.firstName} {teacher.lastName}</div>
-                          <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                            <div className="w-8 h-8 md:hidden" style={{ borderRadius: 10, background: avatarColor(teacher.id), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                              {teacher.firstName[0]?.toUpperCase()}{teacher.lastName[0]?.toUpperCase()}
+                            </div>
+                            <div className="text-[14.5px] md:text-[17px]" style={{ fontWeight: 800, color: 'var(--text)', minWidth: 0 }}>{teacher.firstName} {teacher.lastName}</div>
+                          </div>
+                          <span className="text-[11.5px] md:text-[13px] px-[9px] md:px-[10px] py-[3px]" style={{ background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 20, fontWeight: 800, flexShrink: 0 }}>
                             {t('subjects.class_view.count_badge').replace('{count}', String(teacherSubjects.length))}
                           </span>
                         </div>
@@ -1278,9 +1305,9 @@ export default function SectionSubjects({ onToast }: Props) {
           {/* ── Matières sans enseignant ── */}
           {!teacherViewLoading && subjects.length > 0 && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', marginTop: 18 }}>
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertTriangle size={16} strokeWidth={2} />
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{t('subjects.teacher_view.unassigned_title')}</span>
+              <div className="px-[16px] py-[12px] md:px-[20px] md:py-[14px] gap-[6px] md:gap-[8px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
+                <AlertTriangle size={15} strokeWidth={2} className="md:hidden" /><AlertTriangle size={16} strokeWidth={2} className="hidden md:block" />
+                <span className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('subjects.teacher_view.unassigned_title')}</span>
               </div>
               {(() => {
                 const assignedSubjectIds = new Set(
@@ -1288,12 +1315,12 @@ export default function SectionSubjects({ onToast }: Props) {
                 )
                 const unassignedSubjs = subjects.filter(s => !assignedSubjectIds.has(s.id))
                 if (unassignedSubjs.length === 0) return (
-                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)', fontSize: 15 }}>
+                  <div className="text-[13.5px] md:text-[15px]" style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>
                     {t('subjects.teacher_view.all_covered')}
                   </div>
                 )
                 return (
-                  <div style={{ padding: '14px 20px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div className="px-[16px] py-[12px] md:px-[20px] md:py-[14px]" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {unassignedSubjs.map(s => (
                       <span key={s.id} style={{
                         background: 'var(--amber-light)', color: 'var(--amber)', padding: '4px 12px', borderRadius: 20,

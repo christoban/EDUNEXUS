@@ -232,10 +232,10 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('common.loading') || '...'}</div>
 
   return (
-    <div className="px-4 py-5 md:px-8 md:py-7">
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <div style={{ marginBottom: 20 }}>
         <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.title')}</h2>
-        <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('minesecStats.subtitle')}</p>
+        <p className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 4 }}>{t('minesecStats.subtitle')}</p>
       </div>
 
       <div className="gap-[6px] md:gap-[8px] mb-[16px] md:mb-[20px]" style={{ display: 'flex' }}>
@@ -261,7 +261,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
 
           {/* Identification */}
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minesecStats.sectionIdentification')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minesecStats.sectionIdentification')}</h3>
 
             <FieldLabel>{t('minesecStats.fieldTitreFoncier')}</FieldLabel>
             <BoolSelect value={form.hasTitreFoncier} onChange={(v) => setForm((f) => ({ ...f, hasTitreFoncier: v }))} />
@@ -319,15 +319,15 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
           {/* Historique BIP */}
           <div className={cardStyleCls} style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.sectionBip')}</h3>
+              <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.sectionBip')}</h3>
               <button onClick={addBip} style={btnSmall}>+ {t('minesecStats.addBip')}</button>
             </div>
             {(form.historiqueBip ?? []).length === 0 && (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('minesecStats.bipEmpty')}</p>
             )}
             {(form.historiqueBip ?? []).map((bip: any, idx: number) => (
-              <div key={idx} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'center' }}>
-                <input style={inputStyle} placeholder={t('minesecStats.bipDesignation')} value={bip.designation} onChange={(e) => updateBip(idx, 'designation', e.target.value)} />
+              <div key={idx} className="flex-wrap md:flex-nowrap" style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'center' }}>
+                <input className="flex-1 min-w-[140px]" style={inputStyle} placeholder={t('minesecStats.bipDesignation')} value={bip.designation} onChange={(e) => updateBip(idx, 'designation', e.target.value)} />
                 <input style={{ ...inputStyle, maxWidth: 120 }} placeholder={t('minesecStats.bipAnnee')} value={bip.anneeObtention} onChange={(e) => updateBip(idx, 'anneeObtention', e.target.value)} />
                 <button onClick={() => removeBip(idx)} style={{ ...btnSec, padding: '8px 12px', color: 'var(--red)', borderColor: 'var(--red)' }}>×</button>
               </div>
@@ -337,7 +337,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
           {/* Infrastructures */}
           {meta && (
             <div className={cardStyleCls} style={cardStyle}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minesecStats.sectionInfrastructures')}</h3>
+              <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minesecStats.sectionInfrastructures')}</h3>
               <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minesecStats.infrastructuresHint')}</p>
 
               {meta.subsystems.map((s) => (
@@ -354,9 +354,10 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                       return (
                         <div key={row.code} style={{ borderTop: '1px solid var(--bg)' }}>
                           <div onClick={() => setExpandedInfraRow(isOpen ? null : rowKey)}
+                            className="flex-wrap gap-[6px]"
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer' }}>
                             <span style={{ fontSize: 13, color: 'var(--text)' }}>{row.label}</span>
-                            <span style={{ fontSize: 12, color: 'var(--text3)', display: 'flex', gap: 14 }}>
+                            <span className="gap-[10px] md:gap-[14px]" style={{ fontSize: 12, color: 'var(--text3)', display: 'flex' }}>
                               <span>{t('minesecStats.infraTotalLocaux')}: <strong style={{ color: 'var(--text)' }}>{total}</strong></span>
                               <span>{isOpen ? '▲' : '▼'}</span>
                             </span>
@@ -404,7 +405,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
           {meta && meta.specialitesTechniques.length > 0 && (
             <div className={cardStyleCls} style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.sectionEstp')}</h3>
+                <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.sectionEstp')}</h3>
                 <button onClick={addEstpEntry} style={btnSmall}>+ {t('minesecStats.addEstp')}</button>
               </div>
               <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minesecStats.estpHint')}</p>
@@ -419,8 +420,8 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                 const overCapacity = anneeInfo ? used > anneeInfo.capaciteMax : false
                 return (
                   <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 10 }}>
-                    <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-                      <div style={{ flex: 2 }}>
+                    <div className="flex-wrap sm:flex-nowrap" style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                      <div className="flex-1 min-w-[160px] sm:flex-[2]">
                         <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>{t('minesecStats.estpSpecialite')}</div>
                         <select style={smallInputStyle} value={entry.specialiteAcronyme} onChange={(e) => updateEstpEntry(idx, { specialiteAcronyme: e.target.value })}>
                           {meta.specialitesTechniques.map((s) => (
@@ -428,7 +429,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                           ))}
                         </select>
                       </div>
-                      <div style={{ flex: 1 }}>
+                      <div className="flex-1 min-w-[100px]">
                         <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>{t('minesecStats.estpAnnee')}</div>
                         <select style={smallInputStyle} value={entry.anneeEtude} onChange={(e) => updateEstpEntry(idx, { anneeEtude: e.target.value })}>
                           {meta.anneesEtudeEstp.map((a) => (
@@ -438,7 +439,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                       </div>
                       <button onClick={() => removeEstpEntry(idx)} style={{ ...btnSec, padding: '6px 12px', color: 'var(--red)', borderColor: 'var(--red)', alignSelf: 'flex-end' }}>×</button>
                     </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div className="grid grid-cols-3 sm:flex" style={{ gap: 10 }}>
                       {([
                         ['divisions', 'estpDivisions'],
                         ['fillesTotal', 'estpFillesTotal'],
@@ -446,7 +447,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                         ['fillesRedoublants', 'estpFillesRedoublants'],
                         ['garconsRedoublants', 'estpGarconsRedoublants'],
                       ] as const).map(([key, labelKey]) => (
-                        <div key={key} style={{ flex: 1 }}>
+                        <div key={key} className="sm:flex-1">
                           <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>{t(`minesecStats.${labelKey}`)}</div>
                           <input style={smallInputStyle} type="number" min={0} value={entry[key] ?? 0}
                             onChange={(e) => updateEstpEntry(idx, { [key]: Number(e.target.value) } as Partial<EstpEntry>)} />
@@ -478,15 +479,15 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
       {tab === 'generer' && (
         <div>
           <div className={cardStyleCls} style={cardStyle}>
-            <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 16 }}>{t('minesecStats.generateDescription')}</p>
-            <button onClick={genererDeclaration} disabled={generating} style={btnPri}>
+            <p className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text2)', marginBottom: 16, lineHeight: 1.5 }}>{t('minesecStats.generateDescription')}</p>
+            <button onClick={genererDeclaration} disabled={generating} className="w-full justify-center" style={{ ...btnPri, display: 'inline-flex', alignItems: 'center' }}>
               {generating ? '...' : t('minesecStats.generateBtn')}
             </button>
           </div>
 
           {lastSubmission && (
-            <div style={{ ...cardStyle, borderColor: 'var(--green)' }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)', marginBottom: 8 }}>{t('minesecStats.generationSuccess')}</p>
+            <div className={cardStyleCls} style={{ ...cardStyle, border: '1.5px solid var(--green)' }}>
+              <p className="text-[13px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--green)', marginBottom: 8 }}>{t('minesecStats.generationSuccess')}</p>
               <button onClick={() => downloadSubmission(lastSubmission.id)} style={btnSec}>{t('minesecStats.downloadBtn')}</button>
 
               {champsNonResolus.length > 0 && (
@@ -522,11 +523,25 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
           )}
 
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minesecStats.historyTitle')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minesecStats.historyTitle')}</h3>
             {submissions.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('minesecStats.historyEmpty')}</p>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <>
+              {/* ── Cartes empilées — mobile ── */}
+              <div className="md:hidden flex flex-col" style={{ gap: 8 }}>
+                {submissions.map((s) => (
+                  <div key={s.id} className="rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: '13px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{new Date(s.generatedAt).toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{s.status}</div>
+                    </div>
+                    {s.filePath && <button onClick={() => downloadSubmission(s.id)} style={{ padding: '7px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>{t('minesecStats.downloadBtn')}</button>}
+                  </div>
+                ))}
+              </div>
+              {/* ── Tableau — desktop ── */}
+              <div className="hidden md:block" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
                   <tbody>
                     {submissions.map((s) => (
@@ -541,6 +556,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </div>

@@ -465,8 +465,8 @@ export default function SectionAcademicYear({ onToast }: Props) {
 
           {/* Calendrier scolaire */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', marginBottom: 22 }}>
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>
+            <div className="px-[16px] py-[13px] md:px-[22px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span className="text-[14.5px] md:text-[17px]" style={{ fontWeight: 800, color: 'var(--text)' }}>
                 {t('academic_year.calendarTitle', { name: currentYear.name })}
               </span>
               <button style={btnSecSm} onClick={() => openCalendar(currentYear)}>{t('academic_year.editCalendar')}</button>
@@ -490,7 +490,7 @@ export default function SectionAcademicYear({ onToast }: Props) {
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                       <span style={{ color: 'var(--text3)', transition: 'transform 0.2s', display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }}><ChevronRight size={14} /></span>
-                      <span className="text-[15px] md:text-[20px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', flex: 1 }}>{period.name}</span>
+                      <span className="text-[14px] md:text-[20px] md:[font-family:var(--font-spectral),Spectral,serif]" style={{ fontWeight: 700, color: 'var(--text)', flex: 1 }}>{period.name}</span>
                       <span className="text-[12px] md:text-[15px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>
                         {fmtDate(period.startDate)} → {fmtDate(period.endDate)}
                       </span>
@@ -508,24 +508,25 @@ export default function SectionAcademicYear({ onToast }: Props) {
                     </div>
 
                     {open && period.sequences.length > 0 && (
-                      <div style={{ padding: '0 22px 20px 22px' }}>
-                        <div style={{ borderLeft: '3px solid var(--border)', marginLeft: 10, paddingLeft: 22, display: 'flex', flexDirection: 'column' }}>
+                      <div className="px-[14px] pb-[14px] md:px-[22px] md:pb-[20px]" style={{ paddingTop: 0 }}>
+                        <div className="border-l-[2px] md:border-l-[3px] ml-[6px] md:ml-[10px] pl-[16px] md:pl-[22px]" style={{ borderColor: 'var(--border)', display: 'flex', flexDirection: 'column' }}>
                           {period.sequences.map((seq, si) => {
                             const ss = getPStatus(seq.isCurrent, seq.startDate ?? period.startDate, seq.endDate ?? period.endDate)
                             const sb = STATUS_BADGE[ss]
                             return (
-                              <div key={seq.id} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '12px 0', position: 'relative', borderBottom: si < period.sequences.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                                <div style={{ position: 'absolute', left: -30, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, borderRadius: '50%', background: ss === 'done' ? 'var(--green)' : ss === 'active' ? 'var(--amber)' : 'var(--border2)', border: '2px solid white', boxShadow: ss === 'active' ? '0 0 0 4px rgba(217,119,6,0.18)' : 'none' }} />
-                                <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', minWidth: 120 }}>{seq.name}</span>
-                                <span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600, flex: 1 }}>
+                              <div key={seq.id} className="gap-[8px] md:gap-[14px] py-[9px] md:py-[12px]" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', position: 'relative', borderBottom: si < period.sequences.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                                <div className="w-[10px] h-[10px] md:w-[13px] md:h-[13px] left-[-22px] md:left-[-30px]" style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', borderRadius: '50%', background: ss === 'done' ? 'var(--green)' : ss === 'active' ? 'var(--amber)' : 'var(--border2)', border: '2px solid white', boxShadow: ss === 'active' ? '0 0 0 4px rgba(217,119,6,0.18)' : 'none' }} />
+                                <span className="text-[13.5px] md:text-[17px] min-w-[90px] md:min-w-[120px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{seq.name}</span>
+                                <span className="text-[12px] md:text-[15px]" style={{ color: 'var(--text3)', fontWeight: 600, flex: 1 }}>
                                   {seq.startDate ? `${fmtDate(seq.startDate)} → ${fmtDate(seq.endDate)}` : t('academic_year.noDates')}
                                 </span>
-                                <span style={{ background: sb.bg, color: sb.color, padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
+                                <span className="text-[11px] md:text-[13px] px-[8px] md:px-[10px] py-[2px] md:py-[3px]" style={{ background: sb.bg, color: sb.color, borderRadius: 20, fontWeight: 800 }}>
                                   {t(`academic_year.status.${ss}`)}
                                 </span>
                                 {!seq.isCurrent && (
                                   <button
-                                    style={btnSecSm}
+                                    className="text-[12px] md:text-[15px] px-[10px] md:px-[14px] py-[5px] md:py-[7px]"
+                                    style={{ ...btnSecSm, fontSize: undefined, padding: undefined }}
                                     onClick={e => { e.stopPropagation(); handleSetSequenceCurrent(seq.id) }}
                                     disabled={settingSequenceId === seq.id}>
                                     {settingSequenceId === seq.id ? <Loader2 size={14} className="animate-spin" /> : t('academic_year.setActiveFem')}
@@ -547,24 +548,24 @@ export default function SectionAcademicYear({ onToast }: Props) {
 
       {/* Historique */}
       {!loading && !error && historyYears.length > 0 && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden', marginBottom: 22 }}>
-          <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('academic_year.historyTitle')}</span>
+        <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden', marginBottom: 22 }}>
+          <div className="px-0 pb-[10px] md:px-[22px] md:py-[16px] md:border-b md:border-[var(--border)]">
+            <span className="text-[12.5px] md:text-[17px] uppercase md:normal-case" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('academic_year.historyTitle')}</span>
           </div>
           {/* ── Cartes empilées — mobile ── */}
-          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+          <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
             {historyYears.map((y) => (
-              <div key={y.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+              <div key={y.id} className="rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 13 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{y.name}</div>
-                  <span style={{ background: y.status === 'CLOSED' ? 'var(--bg2)' : 'var(--green-light)', color: y.status === 'CLOSED' ? 'var(--text2)' : 'var(--green)', padding: '4px 12px', borderRadius: 22, fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
+                  <div className="text-[13.5px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{y.name}</div>
+                  <span className="text-[10.5px]" style={{ background: y.status === 'CLOSED' ? 'var(--bg2)' : 'var(--green-light)', color: y.status === 'CLOSED' ? 'var(--text2)' : 'var(--green)', padding: '3px 9px', borderRadius: 20, fontWeight: 800, flexShrink: 0 }}>
                     {y.status === 'CLOSED' ? t('academic_year.archived') : y.status}
                   </span>
                 </div>
-                <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 6 }}>{fmtDate(y.startDate)} → {fmtDate(y.endDate)}</div>
+                <div className="text-[11.5px]" style={{ color: 'var(--text3)', marginTop: 4 }}>{fmtDate(y.startDate)} → {fmtDate(y.endDate)}</div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                  <button style={btnSecSm} onClick={() => onToast(t('academic_year.archivesToast', { name: y.name }), 'info')}>{t('academic_year.view')}</button>
-                  <button style={btnSecSm} onClick={() => openCalendar(y)}>{t('academic_year.calendar')}</button>
+                  <button className="text-[12px] px-[10px] py-[5px]" style={{ ...btnSecSm, fontSize: undefined, padding: undefined }} onClick={() => onToast(t('academic_year.archivesToast', { name: y.name }), 'info')}>{t('academic_year.view')}</button>
+                  <button className="text-[12px] px-[10px] py-[5px]" style={{ ...btnSecSm, fontSize: undefined, padding: undefined }} onClick={() => openCalendar(y)}>{t('academic_year.calendar')}</button>
                 </div>
               </div>
             ))}
@@ -609,17 +610,19 @@ export default function SectionAcademicYear({ onToast }: Props) {
 
       {/* Danger zone — clôture de l'année courante */}
       {!loading && !error && currentYear && (
-        <div style={{ background: 'var(--surface)', borderRadius: 18, border: '2px solid rgba(220,38,38,0.2)', overflow: 'hidden' }}>
-          <div style={{ padding: '20px 26px', background: 'var(--red-light)', borderBottom: '1px solid rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <AlertTriangle size={22} color="var(--red)" />
-            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--red)' }}>{t('academic_year.dangerZone')}</div>
+        <div className="rounded-[16px] md:rounded-[18px] border-[1.5px] md:border-2" style={{ background: 'var(--surface)', borderColor: 'rgba(220,38,38,0.2)', borderStyle: 'solid', overflow: 'hidden' }}>
+          <div className="px-[14px] py-[13px] md:px-[26px] md:py-[20px] gap-[8px] md:gap-[12px]" style={{ background: 'var(--red-light)', borderBottom: '1px solid rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center' }}>
+            <AlertTriangle size={16} className="md:hidden" color="var(--red)" />
+            <AlertTriangle size={22} className="hidden md:block" color="var(--red)" />
+            <div className="text-[13.5px] md:text-[18px]" style={{ fontWeight: 800, color: 'var(--red)' }}>{t('academic_year.dangerZone')}</div>
           </div>
-          <div style={{ padding: '22px 26px' }}>
-            <p style={{ fontSize: 17, color: 'var(--text2)', marginBottom: 20, lineHeight: 1.7 }}>
+          <div className="p-[14px] md:px-[26px] md:py-[22px]">
+            <p className="text-[12.5px] md:text-[17px] mb-[14px] md:mb-[20px]" style={{ color: 'var(--text2)', lineHeight: 1.55 }}>
               {t('academic_year.dangerText')}
             </p>
             <button
-              style={{ padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: closingId ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: closingId ? 0.6 : 1 }}
+              className="w-full md:w-auto text-[12.5px] md:text-[16px] py-[11px] md:py-[10px] px-[16px] md:px-[20px] rounded-[10px] md:rounded-[11px]"
+              style={{ background: 'var(--red-light)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: closingId ? 'wait' : 'pointer', fontFamily: 'inherit', fontWeight: 800, opacity: closingId ? 0.6 : 1 }}
               onClick={() => handleClose(currentYear.id)}
               disabled={!!closingId}>
               {closingId ? t('academic_year.closingInProgress') : t('academic_year.closeYear', { name: currentYear.name })}

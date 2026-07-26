@@ -107,7 +107,7 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
         setFormLevel(''); setFormOpen(''); setFormClose('')
         loadWindows()
       } else {
-        onToast(data.message || 'Erreur', 'error')
+        onToast(data.message || t('common.error'), 'error')
       }
     } catch { onToast(t('lv2_choice.update_error'), 'error') } finally { setCreating(false) }
   }
@@ -139,7 +139,7 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
         setManualStudent(''); setManualSubject('')
         openTracking(tracking.window.id)
       } else {
-        onToast(data.message || 'Erreur', 'error')
+        onToast(data.message || t('common.error'), 'error')
       }
     } catch { onToast(t('lv2_choice.update_error'), 'error') }
   }
@@ -157,7 +157,7 @@ export default function SectionAdminLV2Choice({ onToast }: Props) {
         setTracking(null)
         loadWindows()
       } else {
-        onToast(data.message || 'Erreur', 'error')
+        onToast(data.message || t('common.error'), 'error')
       }
     } catch { onToast(t('lv2_choice.update_error'), 'error') }
   }

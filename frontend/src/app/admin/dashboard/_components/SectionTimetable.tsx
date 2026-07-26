@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { X, AlertTriangle, CalendarDays, Calendar, Bot } from 'lucide-react'
@@ -217,7 +218,7 @@ export default function SectionTimetable({ onToast }: Props) {
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* En-tête */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-3" style={{ marginBottom: 18 }}>
         <div>
           <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('timetable.title')}</div>
           <div className="text-[13px] md:text-[17px]" style={sSub}>
@@ -226,55 +227,59 @@ export default function SectionTimetable({ onToast }: Props) {
               : t('timetable.selectOrGen')}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <select value={classId} onChange={e => handleClassChange(e.target.value)} style={selectSt} disabled={loadingClasses}>
+        <div className="flex flex-col md:flex-row gap-2 md:gap-[10px] md:items-center">
+          <select value={classId} onChange={e => handleClassChange(e.target.value)}
+            className="w-full md:w-auto rounded-[12px] md:rounded-[10px] px-[13px] py-[11px] md:px-[12px] md:py-[8px] text-[13px] md:text-[15px] font-bold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none"
+            style={{ ...selectSt, border: undefined, borderRadius: undefined, padding: undefined, fontSize: undefined }} disabled={loadingClasses}>
             <option value="">{loadingClasses ? t('timetable.loading') : t('timetable.selectClass')}</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
 
-          {/* Bouton génération automatique */}
-          {!confirmReset ? (
-            <button className="text-[12.5px] md:text-[15px]" style={{ ...btnAI, borderRadius: 20, padding: '10px 16px', fontWeight: 700, opacity: autoGenerating ? 0.7 : 1 }} disabled={autoGenerating}
-              onClick={() => setConfirmReset(true)}>
-              {autoGenerating
-                ? <><span style={spinInline} />{t('timetable.generating')}</>
-                : t('timetable.autoGen')}
-            </button>
-          ) : (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '6px 10px' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>{t('timetable.overwriteConfirm')}</span>
-              <button style={{ ...btnPrim, padding: '5px 12px', fontSize: 13 }} onClick={handleAutoGenerate} disabled={autoGenerating}>
-                {autoGenerating ? <><span style={spinInline} />…</> : t('timetable.yesGenerate')}
+          <div className="flex flex-wrap gap-2 md:gap-[10px] md:items-center">
+            {/* Bouton génération automatique */}
+            {!confirmReset ? (
+              <button className="text-[12.5px] md:text-[15px] font-semibold md:font-bold rounded-full px-[14px] py-[10px] md:px-[16px] md:py-[10px]" style={{ ...btnAI, borderRadius: undefined, padding: undefined, fontWeight: undefined, opacity: autoGenerating ? 0.7 : 1 }} disabled={autoGenerating}
+                onClick={() => setConfirmReset(true)}>
+                {autoGenerating
+                  ? <><span style={spinInline} />{t('timetable.generating')}</>
+                  : t('timetable.autoGen')}
               </button>
-              <button style={{ ...btnSec, padding: '5px 10px', fontSize: 13 }} onClick={() => setConfirmReset(false)}>{t('timetable.cancel')}</button>
-            </div>
-          )}
+            ) : (
+              <div className="flex-wrap md:flex-nowrap" style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '6px 10px' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--amber)' }}>{t('timetable.overwriteConfirm')}</span>
+                <button style={{ ...btnPrim, padding: '5px 12px', fontSize: 13, borderRadius: 8 }} onClick={handleAutoGenerate} disabled={autoGenerating}>
+                  {autoGenerating ? <><span style={spinInline} />…</> : t('timetable.yesGenerate')}
+                </button>
+                <button style={{ ...btnSec, padding: '5px 10px', fontSize: 13, borderRadius: 8 }} onClick={() => setConfirmReset(false)}>{t('timetable.cancel')}</button>
+              </div>
+            )}
 
-          {timetable && timetable.status !== 'PUBLISHED' && (
-            <button style={btnPrim} onClick={handlePublish} disabled={publishing}>
-              {publishing ? <><span style={spinInline} />{t('timetable.publishing')}</> : t('timetable.publishBtn')}
-            </button>
-          )}
+            {timetable && timetable.status !== 'PUBLISHED' && (
+              <button className="text-[12.5px] md:text-[15px] font-semibold md:font-bold rounded-full md:rounded-[11px] px-[14px] py-[10px] md:px-[18px] md:py-[10px]" style={{ ...btnPrim, borderRadius: undefined, padding: undefined, fontSize: undefined, fontWeight: undefined }} onClick={handlePublish} disabled={publishing}>
+                {publishing ? <><span style={spinInline} />{t('timetable.publishing')}</> : t('timetable.publishBtn')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Bandeau info rôle */}
-      <div style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)', borderRadius: 10, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: 'var(--blue)' }}>
+      <div className="text-[12px] md:text-[13px] px-[12px] py-[9px] md:px-[16px] md:py-[10px]" style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)', borderRadius: 10, marginBottom: 16, color: 'var(--blue)' }}>
         <strong>{t('timetable.bannerRole')}</strong> {t('timetable.bannerText1')} <strong>{t('timetable.bannerCenseur')}</strong> {t('timetable.bannerText2')} <strong>{t('timetable.bannerAutoGen')}</strong> {t('timetable.bannerText3')} <strong>{t('timetable.bannerPublish')}</strong>.
       </div>
 
       {/* Panel résultats génération */}
       {showGenPanel && genResults && (
         <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border2)', marginBottom: 20, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-            <div>
-              <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('timetable.genResultsTitle')}</span>
-              <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text3)' }}>
+          <div className="flex-wrap gap-[8px] px-[14px] py-[12px] md:px-[18px] md:py-[14px]" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <span className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('timetable.genResultsTitle')}</span>
+              <span className="text-[12px] md:text-[13px]" style={{ marginLeft: 12, color: 'var(--text3)' }}>
                 {t('timetable.genPanelSummary', { classes: genResults.stats.classesTraitees, slots: genResults.stats.slotsTotal })}
                 {genResults.stats.coursNonPlaces > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{t('timetable.genUnplacedSuffix', { n: genResults.stats.coursNonPlaces })}</span>}
               </span>
             </div>
-            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)', padding: 4, display: 'inline-flex', alignItems: 'center' }}><X size={16} strokeWidth={2} /></button>
+            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)', padding: 4, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}><X size={16} strokeWidth={2} /></button>
           </div>
 
           <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -333,20 +338,20 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Erreur */}
       {!loading && error && (
-        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="flex-wrap gap-[10px] md:gap-[12px] px-[16px] py-[14px] md:px-[22px] md:py-[18px]" style={{ background: 'var(--red-light)', borderRadius: 14, display: 'flex', alignItems: 'center' }}>
           <AlertTriangle size={16} strokeWidth={2} color="var(--red)" />
-          <span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
-          <button onClick={() => fetchTimetable()} style={btnSec}>{t('timetable.retry')}</button>
+          <span className="text-[13px] md:text-[15px]" style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <button onClick={() => fetchTimetable()} className="w-full md:w-auto text-[13px] md:text-[15px] px-[12px] md:px-[16px] py-[7px] md:py-[9px]" style={{ ...btnSec, padding: undefined, fontSize: undefined }}>{t('timetable.retry')}</button>
         </div>
       )}
 
       {/* Pas de classe */}
       {!loading && !error && !classId && (
-        <div className="p-[32px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarDays size={52} strokeWidth={1.5} /></div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.selectClassTitle')}</div>
-          <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{t('timetable.selectClassHint')}</div>
-          <button style={{ ...btnAI, fontSize: 16, padding: '12px 24px' }} disabled={autoGenerating}
+        <div className="p-[28px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarDays size={44} strokeWidth={1.5} className="md:hidden" /><CalendarDays size={52} strokeWidth={1.5} className="hidden md:block" /></div>
+          <div className="text-[17px] md:text-[20px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.selectClassTitle')}</div>
+          <div className="text-[13.5px] md:text-[15px] mb-[20px] md:mb-[24px]" style={{ color: 'var(--text3)' }}>{t('timetable.selectClassHint')}</div>
+          <button className="w-full md:w-auto justify-center md:justify-start text-[13.5px] md:text-[16px] px-[18px] md:px-[24px] py-[10px] md:py-[12px]" style={{ ...btnAI, fontSize: undefined, padding: undefined }} disabled={autoGenerating}
             onClick={() => setConfirmReset(true)}>
             {autoGenerating ? <><span style={spinInline} />{t('timetable.genInProgress')}</> : t('timetable.autoGenAll')}
           </button>
@@ -355,20 +360,20 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Classe sélectionnée, pas d'EDT */}
       {!loading && !error && classId && !timetable && (
-        <div className="p-[32px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Calendar size={52} strokeWidth={1.5} /></div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetable')}</div>
-          <div style={{ fontSize: 15, color: 'var(--text3)' }}>{t('timetable.noTimetableHint')}</div>
+        <div className="p-[28px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Calendar size={44} strokeWidth={1.5} className="md:hidden" /><Calendar size={52} strokeWidth={1.5} className="hidden md:block" /></div>
+          <div className="text-[17px] md:text-[20px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetable')}</div>
+          <div className="text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)' }}>{t('timetable.noTimetableHint')}</div>
         </div>
       )}
 
       {/* Grille lecture seule */}
       {!loading && !error && timetable && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+        <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
           {/* Barre progression */}
-          <div style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="rounded-[12px] md:rounded-none mb-3 md:mb-0 shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none flex-wrap md:flex-nowrap bg-[var(--surface)] md:bg-[var(--bg)] md:border-b md:border-[var(--border)]" style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>{t('timetable.slotsCount', { filled: remplis, total: totalCours })}</span>
-            <div style={{ flex: 1, background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+            <div style={{ flex: 1, background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden', minWidth: 60 }}>
               <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--green)' : 'var(--amber)', transition: 'width 0.3s', borderRadius: 4 }} />
             </div>
             <span style={{ fontSize: 13, fontWeight: 800, color: pct === 100 ? 'var(--green)' : 'var(--amber)' }}>{pct}%</span>
@@ -378,43 +383,62 @@ export default function SectionTimetable({ onToast }: Props) {
           </div>
 
           {slots.length === 0 ? (
-            <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 16 }}>
+            <div className="text-[13.5px] md:text-[16px] px-[16px] py-[32px] md:px-[20px] md:py-[40px]" style={{ textAlign: 'center', color: 'var(--text3)' }}>
               {t('timetable.skeletonEmpty')}
             </div>
           ) : (
             <>
             {/* ── Vue jour-par-jour — mobile ── */}
             <div className="md:hidden">
-              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
-                {displayDays.map(j => (
-                  <button key={j} onClick={() => setMobileDay(j)}
-                    style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 800, border: `1.5px solid ${effectiveMobileDay === j ? 'var(--green)' : 'var(--border)'}`, background: effectiveMobileDay === j ? 'var(--green-light)' : 'white', color: effectiveMobileDay === j ? 'var(--green)' : 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {t(`timetable.days.${j}`)}
-                  </button>
-                ))}
+              <div className="relative -mr-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="flex gap-[6px] overflow-x-auto" style={{ padding: '2px 32px 4px 0', scrollbarWidth: 'none' }}>
+                  {displayDays.map(j => {
+                    const active = effectiveMobileDay === j
+                    return (
+                      <button key={j} onClick={() => setMobileDay(j)}
+                        className="relative flex-shrink-0 rounded-full px-[14px] py-[9px] whitespace-nowrap border-0"
+                        style={{ background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {active && (
+                          <motion.div layoutId="timetable-day-pill" className="absolute inset-0 rounded-full"
+                            style={{ background: 'var(--sidebar)' }}
+                            transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                        )}
+                        <span className="relative z-10" style={{ fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? '#fff' : 'var(--text3)' }}>
+                          {t(`timetable.days.${j}`)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="pointer-events-none absolute top-0 right-0 bottom-1 w-7 md:hidden" style={{ background: 'linear-gradient(90deg,transparent,var(--bg) 65%)' }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="p-3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {hasGridConfig ? squelette.map((periode, idx) => {
                   if (periode.type !== 'COURS') {
                     const isPetite = periode.type === 'PETITE_PAUSE'
                     return (
-                      <div key={`m-pause-${idx}`} style={{ textAlign: 'center', padding: '6px 12px', background: 'var(--amber-light)', fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>
-                        {isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')} — {periode.debut} {t('timetable.to')} {periode.fin}
+                      <div key={`m-pause-${idx}`} className="rounded-[12px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
+                        <div style={{ width: 56, flexShrink: 0, padding: '10px 8px', background: 'var(--bg2)', fontSize: 10.5, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>
+                          {periode.debut}<br /><span style={{ fontSize: 9 }}>{periode.fin}</span>
+                        </div>
+                        <div style={{ flex: 1, padding: '10px 12px', background: 'var(--amber-light)', borderLeft: '3px solid var(--amber)', display: 'flex', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)' }}>{isPetite ? t('timetable.smallBreak') : t('timetable.bigBreak')}</span>
+                        </div>
                       </div>
                     )
                   }
                   const slot = slotMap.get(`${DAY_MAP[effectiveMobileDay]}-${periode.debut}`)
                   const col = slot?.subject ? subjectColor(slot.subject.id) : null
                   return (
-                    <div key={`m-cours-${periode.debut}`} style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ width: 64, flexShrink: 0, padding: '10px 8px', background: 'var(--bg)', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>
-                        {periode.debut}<br /><span style={{ fontSize: 10 }}>{periode.fin}</span>
+                    <div key={`m-cours-${periode.debut}`} className="rounded-[12px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
+                      <div style={{ width: 56, flexShrink: 0, padding: '10px 8px', background: 'var(--bg2)', fontSize: 10.5, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>
+                        {periode.debut}<br /><span style={{ fontSize: 9 }}>{periode.fin}</span>
                       </div>
-                      <div style={{ flex: 1, padding: '10px 12px', background: slot?.subject ? col!.bg : 'transparent', borderLeft: slot?.subject ? `3px solid ${col!.border}` : 'none' }}>
+                      <div style={{ flex: 1, padding: '10px 12px', background: slot?.subject ? col!.bg : 'var(--surface)', borderLeft: slot?.subject ? `3px solid ${col!.border}` : 'none' }}>
                         {slot?.subject ? (
                           <>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
                               {slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : <span style={{ color: 'var(--amber)' }}>{t('timetable.noTeacher')}</span>}
                             </div>
                           </>
@@ -429,13 +453,13 @@ export default function SectionTimetable({ onToast }: Props) {
                   const slot = slotMap.get(`${d}-${time}`)
                   const col = slot?.subject ? subjectColor(slot.subject.id) : null
                   return (
-                    <div key={`m-${time}`} style={{ display: 'flex', alignItems: 'stretch', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ width: 64, flexShrink: 0, padding: '10px 8px', background: 'var(--bg)', fontSize: 12, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>{time}</div>
-                      <div style={{ flex: 1, padding: '10px 12px', background: slot?.subject ? col!.bg : 'transparent', borderLeft: slot?.subject ? `3px solid ${col!.border}` : 'none' }}>
+                    <div key={`m-${time}`} className="rounded-[12px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ display: 'flex', alignItems: 'stretch', overflow: 'hidden' }}>
+                      <div style={{ width: 56, flexShrink: 0, padding: '10px 8px', background: 'var(--bg2)', fontSize: 10.5, fontWeight: 800, color: 'var(--text3)', textAlign: 'center' }}>{time}</div>
+                      <div style={{ flex: 1, padding: '10px 12px', background: slot?.subject ? col!.bg : 'var(--surface)', borderLeft: slot?.subject ? `3px solid ${col!.border}` : 'none' }}>
                         {slot?.subject ? (
                           <>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : '—'}</div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: col!.text }}>{slot.subject.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{slot.teacher ? `${slot.teacher.firstName} ${slot.teacher.lastName}` : '—'}</div>
                           </>
                         ) : <div style={{ fontSize: 13, color: 'var(--text3)' }}>—</div>}
                       </div>
@@ -533,20 +557,22 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Ajustement IA — visible si EDT DRAFT sélectionné */}
       {timetable && timetable.status !== 'PUBLISHED' && (
-        <div style={{ marginTop: 20, background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border2)', padding: '18px 20px' }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{t('timetable.adjustTitle')}</div>
-          <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 12 }}>
+        <div className="rounded-[14px] md:rounded-[14px] p-[14px] md:px-[20px] md:py-[18px]" style={{ marginTop: 20, background: 'var(--surface)', border: '1.5px solid var(--border2)' }}>
+          <div className="text-[14px] md:text-[15px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{t('timetable.adjustTitle')}</div>
+          <div className="text-[12px] md:text-[13px]" style={{ color: 'var(--text3)', marginBottom: 12 }}>
             {t('timetable.adjustHint')}
           </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <div className="flex-col md:flex-row" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
             <textarea
               value={adjustInstruction}
               onChange={e => setAdjustInstruction(e.target.value)}
               placeholder={t('timetable.adjustPlaceholder')}
               rows={2}
-              style={{ flex: 1, padding: '10px 13px', border: '1.5px solid var(--border2)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text)' }}
+              className="w-full text-[13px] md:text-[14px]"
+              style={{ flex: 1, padding: '10px 13px', border: '1.5px solid var(--border2)', borderRadius: 10, fontFamily: 'inherit', resize: 'vertical', outline: 'none', color: 'var(--text)' }}
             />
             <button
+              className="w-full md:w-auto justify-center"
               style={{ ...btnAI, alignSelf: 'flex-end', opacity: adjusting || !adjustInstruction.trim() ? 0.6 : 1 }}
               disabled={adjusting || !adjustInstruction.trim()}
               onClick={handleAdjust}

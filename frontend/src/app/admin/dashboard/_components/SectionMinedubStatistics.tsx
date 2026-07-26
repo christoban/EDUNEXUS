@@ -127,10 +127,10 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('common.loading') || '...'}</div>
 
   return (
-    <div className="px-4 py-5 md:px-8 md:py-7">
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <div className="mb-[16px] md:mb-[20px]">
         <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('minedubStats.title')}</h2>
-        <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('minedubStats.subtitle')}</p>
+        <p className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 4 }}>{t('minedubStats.subtitle')}</p>
       </div>
 
       <div className="text-[11.5px] md:text-[12px] px-[13px] md:px-[16px] py-[11px] md:py-[10px] mb-[16px] md:mb-[20px]" style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: 10, color: '#92400e' }}>
@@ -151,7 +151,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
           )}
 
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionIdentification')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionIdentification')}</h3>
             <FieldLabel>{t('minedubStats.fieldZone')}</FieldLabel>
             <select style={inputStyle} value={form.zoneImplantation ?? ''} onChange={(e) => setForm((f) => ({ ...f, zoneImplantation: e.target.value || null }))}>
               <option value="">—</option>
@@ -171,7 +171,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
           </div>
 
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionVulnerables')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionVulnerables')}</h3>
             <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minedubStats.vulnerablesHint')}</p>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -205,7 +205,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
           </div>
 
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionInfrastructures')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionInfrastructures')}</h3>
             <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minedubStats.infrastructuresHint')}</p>
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
               {INFRA_ROWS.map((row) => {
@@ -213,9 +213,10 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
                 return (
                   <div key={row.key} style={{ borderTop: '1px solid var(--bg)' }}>
                     <div onClick={() => setExpandedInfraRow(isOpen ? null : row.key)}
+                      className="flex-wrap gap-[6px]"
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer' }}>
                       <span style={{ fontSize: 13, color: 'var(--text)' }}>{row.label}</span>
-                      <span style={{ fontSize: 12, color: 'var(--text3)', display: 'flex', gap: 14 }}>
+                      <span className="gap-[10px] md:gap-[14px]" style={{ fontSize: 12, color: 'var(--text3)', display: 'flex' }}>
                         <span>{t('minedubStats.infraTotal')}: <strong style={{ color: 'var(--text)' }}>{getInfraTotal(row.key)}</strong></span>
                         <span>{isOpen ? '▲' : '▼'}</span>
                       </span>
@@ -239,7 +240,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
           </div>
 
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minedubStats.sectionCommodites')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minedubStats.sectionCommodites')}</h3>
             {(['pointEau', 'latrines', 'electricite', 'cantine'] as const).map((key) => (
               <div key={key} style={{ marginBottom: 10 }}>
                 <FieldLabel>{t(`minedubStats.commodite_${key}`)}</FieldLabel>
@@ -255,13 +256,13 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
       {tab === 'generer' && (
         <div>
           <div className={cardStyleCls} style={cardStyle}>
-            <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 16 }}>{t('minedubStats.generateDescription')}</p>
-            <button onClick={genererRapport} disabled={generating} style={btnPri}>{generating ? '...' : t('minedubStats.generateBtn')}</button>
+            <p className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text2)', marginBottom: 16, lineHeight: 1.5 }}>{t('minedubStats.generateDescription')}</p>
+            <button onClick={genererRapport} disabled={generating} className="w-full justify-center" style={{ ...btnPri, display: 'inline-flex', alignItems: 'center' }}>{generating ? '...' : t('minedubStats.generateBtn')}</button>
           </div>
 
           {lastReport && (
-            <div style={{ ...cardStyle, borderColor: 'var(--green)' }}>
-              <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)', marginBottom: 8 }}>{t('minedubStats.generationSuccess')}</p>
+            <div className={cardStyleCls} style={{ ...cardStyle, border: '1.5px solid var(--green)' }}>
+              <p className="text-[13px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--green)', marginBottom: 8 }}>{t('minedubStats.generationSuccess')}</p>
               <button onClick={() => downloadReport(lastReport.id)} style={btnSec}>{t('minedubStats.downloadBtn')}</button>
               {champsNonResolus.length > 0 && (
                 <div style={{ marginTop: 16 }}>
@@ -279,22 +280,36 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
           )}
 
           <div className={cardStyleCls} style={cardStyle}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minedubStats.historyTitle')}</h3>
+            <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minedubStats.historyTitle')}</h3>
             {reports.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('minedubStats.historyEmpty')}</p>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <tbody>
-                  {reports.map((r) => (
-                    <tr key={r.id} style={{ borderTop: '1px solid var(--bg)' }}>
-                      <td style={{ padding: '8px 12px', color: 'var(--text2)' }}>{new Date(r.generatedAt).toLocaleString()}</td>
-                      <td style={{ padding: '8px 12px' }}>
-                        <button onClick={() => downloadReport(r.id)} style={{ ...btnSec, padding: '4px 10px', fontSize: 12 }}>{t('minedubStats.downloadBtn')}</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <>
+              {/* ── Cartes empilées — mobile ── */}
+              <div className="md:hidden flex flex-col" style={{ gap: 8 }}>
+                {reports.map((r) => (
+                  <div key={r.id} className="rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: '13px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{new Date(r.generatedAt).toLocaleString()}</div>
+                    <button onClick={() => downloadReport(r.id)} style={{ padding: '7px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 800, background: 'var(--bg2)', color: 'var(--text)', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>{t('minedubStats.downloadBtn')}</button>
+                  </div>
+                ))}
+              </div>
+              {/* ── Tableau — desktop ── */}
+              <div className="hidden md:block">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <tbody>
+                    {reports.map((r) => (
+                      <tr key={r.id} style={{ borderTop: '1px solid var(--bg)' }}>
+                        <td style={{ padding: '8px 12px', color: 'var(--text2)' }}>{new Date(r.generatedAt).toLocaleString()}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <button onClick={() => downloadReport(r.id)} style={{ ...btnSec, padding: '4px 10px', fontSize: 12 }}>{t('minedubStats.downloadBtn')}</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              </>
             )}
           </div>
         </div>

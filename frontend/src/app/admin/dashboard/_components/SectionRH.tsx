@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { Users, Palmtree, CheckCircle2, FileText, AlertTriangle } from 'lucide-react'
@@ -373,7 +374,31 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
         <div className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>{t('rh.subtitle')}</div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+      {/* Onglets — mobile : puces défilables avec indicateur glissant, fondu de bord (maquette) */}
+      <div className="relative md:hidden mb-[16px] -mr-4">
+        <div className="flex gap-[6px] overflow-x-auto pr-8 py-[2px]" style={{ scrollbarWidth: 'none' }}>
+          {TABS.map(tb => {
+            const active = tab === tb.key
+            return (
+              <button key={tb.key} onClick={() => setTab(tb.key)}
+                className="relative flex-shrink-0 rounded-[12px] px-[14px] py-[9px] whitespace-nowrap border-0"
+                style={{ background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {active && (
+                  <motion.div layoutId="rh-tab-pill" className="absolute inset-0 rounded-[12px]"
+                    style={{ background: 'var(--sidebar)' }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                )}
+                <span className="relative z-10" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: active ? 700 : 500, color: active ? '#fff' : 'var(--text3)' }}>
+                  {tb.icon} {t(`rh.tabs.${tb.key}`)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="pointer-events-none absolute top-0 right-0 bottom-[4px] w-7" style={{ background: 'linear-gradient(90deg,transparent,var(--bg) 65%)' }} />
+      </div>
+
+      <div className="hidden md:flex" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
         {TABS.map(tb => tabButton(tb.key, t(`rh.tabs.${tb.key}`), tb.icon))}
       </div>
 
@@ -382,8 +407,8 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
       {tab === 'personnel' && (
         <div className="grid grid-cols-1 md:[grid-template-columns:360px_1fr]" style={{ gap: 18 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.staffList')}</div>
+            <div className="px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('rh.staffList')}</div>
               <button
                 title={t('rh.exportMinesecHint')}
                 style={{ ...chipStyle('var(--green-light)', 'var(--green)'), border: 'none', cursor: 'pointer' }}
@@ -413,18 +438,24 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                     <button
                       key={emp.id}
                       onClick={() => loadDetail(emp.id)}
+                      className="px-[14px] py-[12px] md:px-[18px] md:py-[14px]"
                       style={{
                         textAlign: 'left',
                         border: 'none',
                         background: active ? 'var(--bg2)' : 'white',
-                        padding: '14px 18px',
                         borderBottom: '1px solid var(--bg2)',
                         cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                      <div className="w-9 h-9 md:hidden text-[12px]" style={{ borderRadius: 11, background: emp.role === 'TEACHER' ? 'var(--blue)' : 'var(--orange)', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {(emp.firstName[0] ?? '').toUpperCase()}{(emp.lastName[0] ?? '').toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                         <div>
-                          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{emp.fullName}</div>
+                          <div className="text-[13.5px] md:text-[15px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{emp.fullName}</div>
                           <div style={{ marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <span style={chipStyle(emp.role === 'TEACHER' ? 'var(--blue-light)' : 'var(--orange-light)', emp.role === 'TEACHER' ? 'var(--blue)' : 'var(--orange)')}>
                               {emp.role === 'TEACHER' ? t('rh.roleTeacher') : t('rh.roleStaff')}
@@ -432,7 +463,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
                             {emp.staffProfile?.title && <span style={chipStyle('var(--purple-light)', 'var(--purple)')}>{emp.staffProfile.title}</span>}
                           </div>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>{emp.email ?? '—'}</div>
+                        <div className="hidden sm:block" style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>{emp.email ?? '—'}</div>
                       </div>
                     </button>
                   )
@@ -444,17 +475,17 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.employeeCard')}</div>
+              <div className="px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('rh.employeeCard')}</div>
                 <button style={{ ...chipStyle('var(--bg2)', 'var(--text2)'), border: 'none', cursor: 'pointer' }} onClick={() => selectedEmployeeId && loadDetail(selectedEmployeeId)}>{t('rh.refresh')}</button>
               </div>
               {loadingDetail || !selectedDetail ? (
                 <div style={{ padding: 32, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.selectEmployee')}</div>
               ) : (
-                <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 p-[14px] md:p-[20px]" style={{ gap: 14 }}>
                   <div>
                     <div style={labelStyle}>{t('rh.fullName')}</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{selectedDetail.employee.fullName}</div>
+                    <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{selectedDetail.employee.fullName}</div>
                   </div>
                   <div>
                     <div style={labelStyle}>{t('rh.role')}</div>
@@ -558,11 +589,11 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
             </div>
 
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.historyTitle')}</div>
+              <div className="text-[14px] md:text-[16px] px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', fontWeight: 800, color: 'var(--text)' }}>{t('rh.historyTitle')}</div>
               {!selectedDetail ? (
                 <div style={{ padding: 24, color: 'var(--text3)' }}>{t('rh.selectForHistory')}</div>
               ) : (
-                <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 p-[14px] md:p-[20px]" style={{ gap: 16 }}>
                   <div>
                     <div style={{ ...labelStyle, marginBottom: 10 }}>{t('rh.careerEvents')}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -604,10 +635,10 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
       )}
 
       {tab === 'conges' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div className="grid grid-cols-1 md:[grid-template-columns:1fr_1fr]" style={{ gap: 18 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.pendingRequests')}</div>
+            <div className="px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+              <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('rh.pendingRequests')}</div>
               <button style={{ ...chipStyle('var(--bg2)', 'var(--text2)'), border: 'none', cursor: 'pointer' }} onClick={loadLeaves}>{t('rh.refresh')}</button>
             </div>
             {loadingLeaves ? <div style={{ padding: 28, textAlign: 'center', color: 'var(--text3)' }}>{t('rh.loading')}</div> : (
@@ -633,7 +664,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
             )}
           </div>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.leaveHistory')}</div>
+            <div className="text-[14px] md:text-[16px] px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', fontWeight: 800, color: 'var(--text)' }}>{t('rh.leaveHistory')}</div>
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {leaveRequests.filter(l => l.statut !== 'PENDING').map(req => (
                 <div key={req.id} style={{ border: '1px solid var(--bg2)', borderRadius: 12, padding: 14, background: 'var(--bg)' }}>
@@ -656,8 +687,8 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
       {tab === 'pointage' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.dailyAttendance')}</div>
+            <div className="px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('rh.dailyAttendance')}</div>
               <button style={{ ...chipStyle('var(--blue-light)', 'var(--blue)'), border: 'none', cursor: 'pointer' }} onClick={saveAttendance}>{t('rh.saveAttendance')}</button>
             </div>
             <div style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -670,10 +701,10 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
           </div>
 
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.statusByEmployee')}</div>
+            <div className="text-[14px] md:text-[16px] px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', fontWeight: 800, color: 'var(--text)' }}>{t('rh.statusByEmployee')}</div>
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {employees.map(emp => (
-                <div key={emp.id} style={{ display: 'grid', gridTemplateColumns: '1fr 180px 1.4fr', gap: 10, alignItems: 'center', border: '1px solid var(--bg2)', borderRadius: 12, padding: 12, background: 'var(--bg)' }}>
+                <div key={emp.id} className="grid grid-cols-1 md:[grid-template-columns:1fr_180px_1.4fr]" style={{ gap: 10, alignItems: 'center', border: '1px solid var(--bg2)', borderRadius: 12, padding: 12, background: 'var(--bg)' }}>
                   <div>
                     <div style={{ fontWeight: 800, color: 'var(--text)' }}>{emp.fullName}</div>
                     <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>{emp.role}</div>
@@ -693,9 +724,9 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
       )}
 
       {tab === 'documents' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        <div className="grid grid-cols-1 md:[grid-template-columns:1fr_1fr]" style={{ gap: 18 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.generateDoc')}</div>
+            <div className="text-[14px] md:text-[16px] px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', fontWeight: 800, color: 'var(--text)' }}>{t('rh.generateDoc')}</div>
             <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <div style={labelStyle}>{t('rh.employee')}</div>
@@ -743,7 +774,7 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
           </div>
 
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.preview')}</div>
+            <div className="text-[14px] md:text-[16px] px-[14px] py-[12px] md:px-[20px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', fontWeight: 800, color: 'var(--text)' }}>{t('rh.preview')}</div>
             <div style={{ padding: 18, color: 'var(--text2)', lineHeight: 1.7 }}>
               {docType === 'attestation' && t('rh.previewAttestation')}
               {docType === 'certificat' && t('rh.previewCertificat')}

@@ -228,11 +228,11 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
       {/* ─── Onglet Alertes ─── */}
       {tab === 'alertes' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 600 }}>
+          <div className="flex-col sm:flex-row gap-3 sm:gap-2" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+            <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text2)', fontWeight: 600 }}>
               Classes/matières avec un retard significatif par rapport au calendrier prévu
             </div>
-            <button onClick={loadAlertes} style={{ padding: '8px 16px', borderRadius: 10, background: 'var(--sidebar)', color: 'white', border: 'none', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
+            <button onClick={loadAlertes} className="w-full sm:w-auto flex-shrink-0" style={{ padding: '8px 16px', borderRadius: 10, background: 'var(--sidebar)', color: 'white', border: 'none', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
               Actualiser
             </button>
           </div>
@@ -290,22 +290,23 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
       {/* ─── Onglet Progression ─── */}
       {tab === 'progression' && (
         <div>
-          <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div>
+          <div className="grid grid-cols-2 sm:flex" style={{ gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="col-span-1 sm:w-[200px]">
               <label style={labelStyle}>Classe</label>
-              <select value={progClassId} onChange={e => setProgClassId(e.target.value)} style={{ ...inputStyle, width: 200 }}>
+              <select value={progClassId} onChange={e => setProgClassId(e.target.value)} className="w-full" style={inputStyle}>
                 <option value="">— Choisir —</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <div>
+            <div className="col-span-1 sm:w-[200px]">
               <label style={labelStyle}>Matière</label>
-              <select value={progSubjectId} onChange={e => setProgSubjectId(e.target.value)} style={{ ...inputStyle, width: 200 }}>
+              <select value={progSubjectId} onChange={e => setProgSubjectId(e.target.value)} className="w-full" style={inputStyle}>
                 <option value="">— Choisir —</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <button onClick={loadProgression} disabled={!progClassId || !progSubjectId}
+              className="col-span-2 sm:col-span-1"
               style={{ padding: '10px 20px', borderRadius: 10, background: !progClassId || !progSubjectId ? 'var(--text3)' : 'var(--sidebar)', color: 'white', border: 'none', fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: !progClassId || !progSubjectId ? 'not-allowed' : 'pointer' }}>
               Voir progression
             </button>
@@ -365,14 +366,14 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {(progressionData.chapitres ?? []).map((c: Chapitre & { realise: boolean }) => (
-                      <div key={c.id} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '10px 16px', background: c.realise ? 'var(--green-light)' : 'var(--bg)', borderRadius: 10, border: `1px solid ${c.realise ? 'var(--green-light)' : 'var(--bg2)'}` }}>
-                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: c.realise ? 'var(--green)' : 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: c.realise ? 'white' : 'var(--text3)', fontWeight: 900, flexShrink: 0 }}>
-                          {c.realise ? <Check size={14} strokeWidth={3} /> : c.ordre}
+                      <div key={c.id} className="gap-[10px] md:gap-[14px] px-[12px] py-[9px] md:px-[16px] md:py-[10px]" style={{ display: 'flex', alignItems: 'center', background: c.realise ? 'var(--green-light)' : 'var(--bg)', borderRadius: 10, border: `1px solid ${c.realise ? 'var(--green-light)' : 'var(--bg2)'}` }}>
+                        <div className="w-[22px] h-[22px] md:w-6 md:h-6 text-[11px] md:text-[12px]" style={{ borderRadius: '50%', background: c.realise ? 'var(--green)' : 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.realise ? 'white' : 'var(--text3)', fontWeight: 900, flexShrink: 0 }}>
+                          {c.realise ? <Check size={13} strokeWidth={3} /> : c.ordre}
                         </div>
-                        <span style={{ flex: 1, fontSize: 14, fontWeight: c.realise ? 700 : 600, color: c.realise ? 'var(--green)' : 'var(--text2)' }}>{c.titre}</span>
-                        <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{c.volumeHeuresPrevu}h</span>
+                        <span className="text-[12.5px] md:text-[14px]" style={{ flex: 1, fontWeight: c.realise ? 700 : 600, color: c.realise ? 'var(--green)' : 'var(--text2)' }}>{c.titre}</span>
+                        <span className="text-[11px] md:text-[12px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>{c.volumeHeuresPrevu}h</span>
                         {c.sequenceCibleFin && (
-                          <span style={{ background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
+                          <span className="text-[10.5px] md:text-[11px]" style={{ background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 8px', borderRadius: 20, fontWeight: 800 }}>
                             Seq {c.sequenceCibleFin}
                           </span>
                         )}
@@ -390,8 +391,8 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
       {tab === 'programmes' && (
         <div>
           {/* Formulaire création */}
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 24, marginBottom: 24 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 16 }}>Nouveau programme</div>
+          <div className="p-[16px] md:p-[24px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', marginBottom: 24 }}>
+            <div className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 16 }}>Nouveau programme</div>
             <div className="grid grid-cols-2 sm:[grid-template-columns:2fr_1fr_1fr]" style={{ gap: 14, marginBottom: 14 }}>
               <div className="col-span-2 sm:col-span-1">
                 <label style={labelStyle}>Titre *</label>
@@ -419,6 +420,7 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
               </div>
             )}
             <button onClick={handleCreateProgramme} disabled={saving || !formTitre.trim() || !formSubjectId}
+              className="w-full sm:w-auto"
               style={{ padding: '10px 24px', borderRadius: 12, background: saving || !formTitre.trim() || !formSubjectId ? 'var(--text3)' : 'var(--sidebar)', color: 'white', border: 'none', fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: saving ? 'not-allowed' : 'pointer' }}>
               {saving ? 'Création...' : 'Créer le programme'}
             </button>
@@ -436,39 +438,41 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {programmes.map(p => (
-                <div key={p.id} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+                <div key={p.id} className="rounded-[16px] md:rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none" style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', overflow: 'hidden' }}>
                   {/* Header prog */}
-                  <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', cursor: 'pointer' }}
+                  <div className="p-[14px] md:px-[20px] md:py-[16px]" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', cursor: 'pointer' }}
                     onClick={() => setExpandedProg(expandedProg === p.id ? null : p.id)}>
-                    <span style={{ fontSize: 18 }}>{expandedProg === p.id ? '▼' : '▶'}</span>
+                    <span className="text-[15px] md:text-[18px]">{expandedProg === p.id ? '▼' : '▶'}</span>
                     <div style={{ flex: 1, minWidth: 160 }}>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{p.titre}</div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                        <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{p.subject.name}</span>
-                        {p.class && <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{p.class.name}</span>}
-                        {p.level && !p.class && <span style={{ background: 'var(--bg2)', color: 'var(--text3)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{p.level}</span>}
-                        <span style={{ background: 'var(--bg2)', color: 'var(--text3)', padding: '2px 8px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{p.chapitres.length} chapitre{p.chapitres.length !== 1 ? 's' : ''}</span>
+                      <div className="text-[14px] md:text-[15px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{p.titre}</div>
+                      <div className="gap-[6px] md:gap-[8px]" style={{ display: 'flex', flexWrap: 'wrap', marginTop: 4 }}>
+                        <span className="text-[10.5px] md:text-[12px]" style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 20, fontWeight: 800 }}>{p.subject.name}</span>
+                        {p.class && <span className="text-[10.5px] md:text-[12px]" style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '2px 8px', borderRadius: 20, fontWeight: 800 }}>{p.class.name}</span>}
+                        {p.level && !p.class && <span className="text-[10.5px] md:text-[12px]" style={{ background: 'var(--bg2)', color: 'var(--text3)', padding: '2px 8px', borderRadius: 20, fontWeight: 800 }}>{p.level}</span>}
+                        <span className="text-[10.5px] md:text-[12px]" style={{ background: 'var(--bg2)', color: 'var(--text3)', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>{p.chapitres.length} chapitre{p.chapitres.length !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
                     <button onClick={e => { e.stopPropagation(); handleDeleteProgramme(p.id) }}
-                      style={{ padding: '6px 12px', borderRadius: 8, background: 'var(--red-light)', color: 'var(--red)', border: 'none', fontSize: 12, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
+                      className="text-[11px] md:text-[12px] px-[10px] py-[5px] md:px-[12px] md:py-[6px]"
+                      style={{ borderRadius: 8, background: 'var(--red-light)', color: 'var(--red)', border: 'none', fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
                       Supprimer
                     </button>
                   </div>
 
                   {expandedProg === p.id && (
-                    <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
+                    <div className="p-[12px] md:px-[20px] md:py-[16px]" style={{ borderTop: '1px solid var(--border)' }}>
                       {/* Chapitres */}
                       {p.chapitres.length > 0 && (
                         <div style={{ marginBottom: 16 }}>
                           {p.chapitres.map(c => (
-                            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '8px 12px', background: 'var(--bg)', borderRadius: 8, marginBottom: 6 }}>
-                              <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--sidebar)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, flexShrink: 0 }}>{c.ordre}</span>
-                              <span style={{ flex: 1, minWidth: 120, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{c.titre}</span>
-                              <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{c.volumeHeuresPrevu}h</span>
-                              {c.sequenceCibleFin && <span style={{ background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>Seq {c.sequenceCibleFin}</span>}
+                            <div key={c.id} className="gap-[8px] md:gap-[12px] px-[10px] py-[7px] md:px-[12px] md:py-[8px]" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', background: 'var(--bg)', borderRadius: 8, marginBottom: 6 }}>
+                              <span className="w-5 h-5 md:w-6 md:h-6 text-[10.5px] md:text-[12px]" style={{ borderRadius: '50%', background: 'var(--sidebar)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, flexShrink: 0 }}>{c.ordre}</span>
+                              <span className="text-[12.5px] md:text-[14px]" style={{ flex: 1, minWidth: 120, fontWeight: 700, color: 'var(--text)' }}>{c.titre}</span>
+                              <span className="text-[10.5px] md:text-[12px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>{c.volumeHeuresPrevu}h</span>
+                              {c.sequenceCibleFin && <span className="text-[10px] md:text-[11px]" style={{ background: 'var(--purple-light)', color: 'var(--purple)', padding: '2px 8px', borderRadius: 20, fontWeight: 800 }}>Seq {c.sequenceCibleFin}</span>}
                               <button onClick={() => handleDeleteChapitre(c.id)}
-                                style={{ padding: '3px 8px', borderRadius: 6, background: 'var(--red-light)', color: 'var(--red)', border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                className="text-[11px] md:text-[12px]"
+                                style={{ padding: '3px 8px', borderRadius: 6, background: 'var(--red-light)', color: 'var(--red)', border: 'none', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
                                 ×
                               </button>
                             </div>
@@ -496,12 +500,14 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                               </select>
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: 10 }}>
+                          <div className="flex-col sm:flex-row" style={{ display: 'flex', gap: 10 }}>
                             <button onClick={() => handleAddChapitre(p.id)}
+                              className="w-full sm:w-auto"
                               style={{ padding: '8px 18px', borderRadius: 10, background: 'var(--sidebar)', color: 'white', border: 'none', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
                               Ajouter
                             </button>
                             <button onClick={() => { setAddingChapFor(null); setChapTitre(''); setChapHeures(2); setChapSeq('') }}
+                              className="w-full sm:w-auto"
                               style={{ padding: '8px 18px', borderRadius: 10, background: 'var(--bg2)', color: 'var(--text2)', border: 'none', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>
                               Annuler
                             </button>

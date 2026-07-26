@@ -91,21 +91,26 @@ export default function SectionSchoolPayments({ onToast }: Props) {
 
   return (
     <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
-      <h2 className="text-[22px] md:text-[28px] mb-[16px] md:mb-[20px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Wallet size={20} strokeWidth={2} /> {t('matricules.minesec_dashboard_title')}
-      </h2>
+      <div className="mb-[16px] md:mb-[20px]">
+        <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Wallet size={20} strokeWidth={2} /> {t('page.section_titles.school-payments')}
+        </h2>
+        <div className="text-[13px] md:text-[17px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{anneeScolaire || t('matricules.minesec_dashboard_title')}</div>
+      </div>
 
       {/* Filtre année */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>{t('lv2_choice.academic_year')}</label>
-        <select value={anneeScolaire} onChange={e => setAnneeScolaire(e.target.value)} style={{ padding: '7px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14 }}>
+      <div className="gap-[8px] md:gap-[12px] mb-[16px] md:mb-[20px]" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+        <label className="text-[12.5px] md:text-[13px]" style={{ fontWeight: 600, color: 'var(--text2)' }}>{t('lv2_choice.academic_year')}</label>
+        <select value={anneeScolaire} onChange={e => setAnneeScolaire(e.target.value)}
+          className="rounded-[10px] md:rounded-[6px] px-[10px] md:px-[12px] py-[6px] md:py-[7px] text-[12.5px] md:text-[14px] border-0 md:border md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:bg-[var(--bg)]"
+          style={{ color: 'var(--text)' }}>
           <option value="">—</option>
           {years.map(y => <option key={y.id} value={y.label}>{y.label}</option>)}
         </select>
       </div>
 
-      {loading ? <p style={{ color: 'var(--text2)' }}>{t('common.loading')}</p> : !overview ? (
-        <p style={{ color: 'var(--text3)', fontStyle: 'italic' }}>{t('matricules.no_imports')}</p>
+      {loading ? <p className="text-[13.5px] md:text-[16px]" style={{ color: 'var(--text2)' }}>{t('common.loading')}</p> : !overview ? (
+        <p className="text-[13.5px] md:text-[16px]" style={{ color: 'var(--text3)', fontStyle: 'italic' }}>{t('matricules.no_imports')}</p>
       ) : (
         <>
           {/* Résumé global */}
@@ -116,7 +121,7 @@ export default function SectionSchoolPayments({ onToast }: Props) {
                 { label: t('matricules.minesec_total_attendu'), value: `${stats.totalAttendu.toLocaleString()} FCFA`, bg: 'var(--blue-light)', color: 'var(--blue)' },
                 { label: t('matricules.minesec_total_paye'), value: `${stats.totalPaye.toLocaleString()} FCFA`, bg: 'rgba(22,163,74,0.12)', color: 'var(--green)' },
                 { label: t('matricules.minesec_total_restant'), value: `${(stats.totalAttendu - stats.totalPaye).toLocaleString()} FCFA`, bg: 'rgba(239,68,68,0.12)', color: 'var(--red)' },
-                { label: 'Taux recouvrement', value: `${stats.tauxRecouvrement}%`, bg: 'rgba(234,179,8,0.12)', color: '#b45309' },
+                { label: t('matricules.taux_recouvrement'), value: `${stats.tauxRecouvrement}%`, bg: 'rgba(234,179,8,0.12)', color: '#b45309' },
               ].map((c, i) => (
                 <div key={i} className="rounded-[14px] md:rounded-[12px] p-[12px] md:px-[20px] md:py-[16px]" style={{ background: c.bg, color: c.color }}>
                   <div className="text-[11px]" style={{ fontWeight: 700, opacity: 0.85, marginBottom: 4 }}>{c.label}</div>
@@ -127,14 +132,14 @@ export default function SectionSchoolPayments({ onToast }: Props) {
           </div>
 
           {/* Détail par statut */}
-          <div className="rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] mb-[16px] md:mb-[24px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
-            <h3 className="text-[12.5px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 12, textTransform: 'uppercase' }}>Frais MINESEC — Par statut</h3>
+          <div className="rounded-none md:rounded-[12px] p-0 md:p-[20px] mb-[16px] md:mb-[24px] border-0 md:border md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]">
+            <h3 className="text-[12.5px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 12, textTransform: 'uppercase' }}>{t('matricules.par_statut')}</h3>
             {/* Cartes — mobile */}
             <div className="md:hidden flex flex-col" style={{ gap: 8 }}>
               {overview.minesec.map((s, i) => {
                 const sc = STATUS_COLORS[s.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
                 return (
-                  <div key={i} className="rounded-[14px] px-[14px] py-[13px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div key={i} className="rounded-[14px] px-[14px] py-[13px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                       <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10.5, fontWeight: 800, background: sc.bg, color: sc.color }}>{s.status}</span>
                       <span style={{ fontSize: 11.5, color: 'var(--text3)', fontWeight: 700 }}>{s._count._all} paiement(s)</span>
@@ -179,8 +184,12 @@ export default function SectionSchoolPayments({ onToast }: Props) {
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={loadOverview} style={{ ...btnSec, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><RefreshCw size={14} strokeWidth={2} /> {t('matricules.sync_btn')}</button>
-            <button onClick={generateForSchool} disabled={generatingSchool} style={{ ...btnPri, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <button onClick={loadOverview}
+              className="text-[12.5px] md:text-[14px] py-[10px] md:py-[8px] px-[10px] md:px-[18px] rounded-[10px] md:rounded-[8px]"
+              style={{ ...btnSec, padding: undefined, fontSize: undefined, borderRadius: undefined, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><RefreshCw size={14} strokeWidth={2} /> {t('matricules.sync_btn')}</button>
+            <button onClick={generateForSchool} disabled={generatingSchool}
+              className="text-[12.5px] md:text-[14px] py-[10px] md:py-[8px] px-[10px] md:px-[18px] rounded-[10px] md:rounded-[8px]"
+              style={{ ...btnPri, padding: undefined, fontSize: undefined, borderRadius: undefined, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               {generatingSchool ? '...' : <><Settings size={14} strokeWidth={2} /> {t('matricules.generate_school_btn')}</>}
             </button>
           </div>

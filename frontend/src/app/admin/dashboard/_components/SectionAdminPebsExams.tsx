@@ -83,9 +83,9 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
           availableSeats: formSeats ? Number(formSeats) : undefined, targetClassId: formTargetClass }),
       })
       const data = await res.json()
-      if (data.success) { onToast('Session créée', 'success'); setFormName(''); setFormDate(''); setFormLevel(''); setFormThreshold(''); setFormSeats(''); setFormTargetClass(''); loadSessions() }
-      else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') } finally { setCreating(false) }
+      if (data.success) { onToast(t('pebs_exams.session_created'), 'success'); setFormName(''); setFormDate(''); setFormLevel(''); setFormThreshold(''); setFormSeats(''); setFormTargetClass(''); loadSessions() }
+      else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') } finally { setCreating(false) }
   }
 
   const openSummary = async (sessionId: string) => {
@@ -93,16 +93,16 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
       const res = await fetchApi(`/api/v2/pebs-exams/${sessionId}/summary`, { credentials: 'include' })
       const data = await res.json()
       setSummary(data.data ?? null); setAnomalies([]); setTransferPreview(null)
-    } catch { onToast('Erreur', 'error') }
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleCompute = async (sessionId: string) => {
     try {
       const res = await fetchApi(`/api/v2/pebs-exams/${sessionId}/compute-selection`, { method: 'POST', credentials: 'include' })
       const data = await res.json()
-      if (data.success) { onToast(`Sélectionnés: ${data.data.selectionnes}, Non sélectionnés: ${data.data.nonSelectionnes}`, 'success'); openSummary(sessionId) }
-      else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      if (data.success) { onToast(t('pebs_exams.selection_computed').replace('{selectionnes}', String(data.data.selectionnes)).replace('{nonSelectionnes}', String(data.data.nonSelectionnes)), 'success'); openSummary(sessionId) }
+      else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleApplyTransfer = async (sessionId: string) => {
@@ -115,10 +115,10 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
       if (data.success && data.data.needsConfirmation) {
         setTransferPreview(data.data)
       } else if (data.success) {
-        onToast(`${data.data.transferred} élève(s) transféré(s)`, 'success')
+        onToast(t('pebs_exams.transferred').replace('{count}', String(data.data.transferred)), 'success')
         openSummary(sessionId)
-      } else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      } else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const confirmTransfer = async (sessionId: string) => {
@@ -129,11 +129,11 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
       })
       const data = await res.json()
       if (data.success) {
-        onToast(`${data.data.transferred} élève(s) transféré(s) avec succès`, 'success')
+        onToast(t('pebs_exams.transferred_success').replace('{count}', String(data.data.transferred)), 'success')
         setTransferPreview(null)
         openSummary(sessionId)
-      } else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      } else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleAnomalies = async (sessionId: string) => {
@@ -141,8 +141,8 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
       const res = await fetchApi(`/api/v2/pebs-exams/${sessionId}/detect-anomalies`, { method: 'POST', credentials: 'include' })
       const data = await res.json()
       setAnomalies(data.data?.anomalies ?? [])
-      if ((data.data?.anomalies ?? []).length === 0) onToast('Aucune anomalie', 'success')
-    } catch { onToast('Erreur', 'error') }
+      if ((data.data?.anomalies ?? []).length === 0) onToast(t('pebs_exams.no_anomaly'), 'success')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleScan = async (sessionId: string) => {
@@ -159,9 +159,9 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
         const data = await res.json()
         if (data.success) {
           if ((data.data?.warnings ?? []).length) onToast(data.data.warnings.join('; '), 'info')
-          else onToast(`${(data.data?.candidats ?? []).length} candidat(s) extrait(s)`, 'success')
-        } else onToast(data.message || 'Erreur', 'error')
-      } catch { onToast('Erreur scan', 'error') }
+          else onToast(t('pebs_exams.candidates_extracted').replace('{count}', String((data.data?.candidats ?? []).length)), 'success')
+        } else onToast(data.message || t('common.error'), 'error')
+      } catch { onToast(t('common.error'), 'error') }
     }
     reader.readAsDataURL(file)
   }
@@ -179,7 +179,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
         <div className="grid grid-cols-2 sm:flex" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
           <div className="col-span-2 sm:flex-[2] sm:min-w-[200px]">
             <label className="text-[12px] md:text-[13px]" style={{ fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('pebs_exams.session_name')}</label>
-            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Sélection PEBS 6e 2026" style={{ ...inputStyle, width: '100%' }} />
+            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('pebs_exams.session_name_placeholder')} style={{ ...inputStyle, width: '100%' }} />
           </div>
           <div>
             <label className="text-[12px] md:text-[13px]" style={{ fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('lv2_choice.level')}</label>
@@ -229,7 +229,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
                 <span className="text-[13.5px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
                 <span className="text-[12px] md:text-[13px]" style={{ marginLeft: 12, color: 'var(--text2)' }}>{new Date(s.examDate).toLocaleDateString()} — {s.level}</span>
                 <span style={{ marginLeft: 12, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700, background: s.status === 'APPLIED' ? 'rgba(22,163,74,0.12)' : s.status === 'RESULTS_PENDING' ? 'rgba(234,179,8,0.12)' : 'var(--bg2)', color: s.status === 'APPLIED' ? 'var(--green)' : s.status === 'RESULTS_PENDING' ? '#b45309' : 'var(--text2)' }}>
-                  {s.status}
+                  {t(`pebs_exams.session_status.${s.status}`)}
                 </span>
               </div>
               <button onClick={() => openSummary(s.id)} style={btnSec}>{t('entrance_exams.view')}</button>
@@ -309,7 +309,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
                     <span style={{ fontSize: 12, color: 'var(--text2)' }}>{c.currentClassName}</span>
                     <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.selectionResult === 'SELECTIONNE' ? 'rgba(22,163,74,0.12)' : c.selectionResult === 'NON_SELECTIONNE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.selectionResult === 'SELECTIONNE' ? 'var(--green)' : c.selectionResult === 'NON_SELECTIONNE' ? 'var(--red)' : 'var(--text2)' }}>
-                      {c.selectionResult}
+                      {t(`pebs_exams.candidate_status.${c.selectionResult}`)}
                     </span>
                   </div>
                 </div>
@@ -335,7 +335,7 @@ export default function SectionAdminPebsExams({ onToast }: Props) {
                       <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{c.examScore ?? '—'}</td>
                       <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
                         <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.selectionResult === 'SELECTIONNE' ? 'rgba(22,163,74,0.12)' : c.selectionResult === 'NON_SELECTIONNE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.selectionResult === 'SELECTIONNE' ? 'var(--green)' : c.selectionResult === 'NON_SELECTIONNE' ? 'var(--red)' : 'var(--text2)' }}>
-                          {c.selectionResult}
+                          {t(`pebs_exams.candidate_status.${c.selectionResult}`)}
                         </span>
                       </td>
                     </tr>

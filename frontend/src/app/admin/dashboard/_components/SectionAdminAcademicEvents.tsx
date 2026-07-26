@@ -151,7 +151,7 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
           <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('academicEvents.title')}</div>
           <div className="text-[13px] md:text-[17px]" style={sSub}>{t('academicEvents.subtitle')}</div>
         </div>
-        <button onClick={() => setFormOpen(true)} className="rounded-full md:rounded-[10px] text-[12px] md:text-[15px] px-[14px] md:px-[16px] py-[9px] md:py-[8px]" style={{ ...btnPrim, fontWeight: 700 }}>
+        <button onClick={() => setFormOpen(true)} className="rounded-full md:rounded-[10px] text-[12px] md:text-[15px] px-[14px] md:px-[16px] py-[9px] md:py-[8px]" style={{ ...btnPrim, borderRadius: undefined, padding: undefined, fontSize: undefined, fontWeight: 700 }}>
           <Plus size={15} strokeWidth={2.5} /> {t('academicEvents.newEvent')}
         </button>
       </div>
@@ -180,17 +180,17 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
       )}
 
       {!loading && error && (
-        <div style={{ background: 'var(--red-light)', borderRadius: 14, padding: '18px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <AlertTriangle size={18} color="var(--red)" /><span style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
-          <button onClick={fetchEvents} style={btnRetry}>{t('academicEvents.retry')}</button>
+        <div className="flex-wrap gap-[10px] md:gap-[12px] px-[16px] py-[14px] md:px-[22px] md:py-[18px]" style={{ background: 'var(--red-light)', borderRadius: 14, display: 'flex', alignItems: 'center' }}>
+          <AlertTriangle size={18} color="var(--red)" /><span className="text-[13px] md:text-[15px]" style={{ fontWeight: 700, color: 'var(--red)', flex: 1 }}>{error}</span>
+          <button onClick={fetchEvents} className="w-full md:w-auto text-[12.5px] md:text-[14px] px-[12px] md:px-[14px] py-[6px] md:py-[6px]" style={{ ...btnRetry, padding: undefined }}>{t('academicEvents.retry')}</button>
         </div>
       )}
 
       {!loading && !error && events.length === 0 && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarClock size={48} /></div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('academicEvents.emptyTitle')}</div>
-          <div style={{ fontSize: 16, color: 'var(--text3)' }}>{t('academicEvents.emptySub')}</div>
+        <div className="px-[24px] py-[40px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarClock size={44} className="md:hidden" /><CalendarClock size={48} className="hidden md:block" /></div>
+          <div className="text-[16px] md:text-[20px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('academicEvents.emptyTitle')}</div>
+          <div className="text-[13.5px] md:text-[16px]" style={{ color: 'var(--text3)' }}>{t('academicEvents.emptySub')}</div>
         </div>
       )}
 
@@ -216,20 +216,24 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
               </div>
 
               {ev.category === 'MANUAL_TRIGGER' && ev.status === 'UPCOMING' && (
-                <button onClick={() => declencher(ev.id)} style={{ ...btnPrim, marginTop: 12 }}>
+                <button onClick={() => declencher(ev.id)}
+                  className="w-full md:w-auto justify-center md:justify-start text-[12.5px] md:text-[15px] px-[16px] md:px-[16px] py-[9px] md:py-[8px] rounded-[10px] md:rounded-[10px]"
+                  style={{ ...btnPrim, padding: undefined, fontSize: undefined, marginTop: 12 }}>
                   <Zap size={14} /> {t('academicEvents.triggerNow')}
                 </button>
               )}
 
               {ev.category === 'SLIDING_WINDOW' && ev.status === 'ACTIVE' && (
                 adjustingId === ev.id ? (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
-                    <input type="date" value={adjustDate} onChange={e => setAdjustDate(e.target.value)} style={inputSt} />
-                    <button onClick={() => ajuster(ev.id)} style={btnPrim}>{t('academicEvents.save')}</button>
-                    <button onClick={() => { setAdjustingId(null); setAdjustDate('') }} style={btnSec}>{t('academicEvents.cancel')}</button>
+                  <div className="flex-wrap md:flex-nowrap" style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
+                    <input type="date" value={adjustDate} onChange={e => setAdjustDate(e.target.value)} className="flex-1 md:flex-none min-w-[140px] text-[13px] md:text-[14px] px-[9px] md:px-[10px] py-[6px] md:py-[7px]" style={{ ...inputSt, padding: undefined, fontSize: undefined }} />
+                    <button onClick={() => ajuster(ev.id)} className="text-[12.5px] md:text-[15px] px-[14px] md:px-[16px] py-[7px] md:py-[8px]" style={{ ...btnPrim, padding: undefined, fontSize: undefined }}>{t('academicEvents.save')}</button>
+                    <button onClick={() => { setAdjustingId(null); setAdjustDate('') }} className="text-[12.5px] md:text-[15px] px-[12px] md:px-[14px] py-[7px] md:py-[8px]" style={{ ...btnSec, padding: undefined, fontSize: undefined }}>{t('academicEvents.cancel')}</button>
                   </div>
                 ) : (
-                  <button onClick={() => setAdjustingId(ev.id)} style={{ ...btnSec, marginTop: 12 }}>{t('academicEvents.adjustWindow')}</button>
+                  <button onClick={() => setAdjustingId(ev.id)}
+                    className="w-full md:w-auto justify-center md:justify-start text-[12.5px] md:text-[15px] px-[14px] md:px-[14px] py-[8px] md:py-[8px]"
+                    style={{ ...btnSec, padding: undefined, fontSize: undefined, marginTop: 12, display: 'inline-flex', alignItems: 'center' }}>{t('academicEvents.adjustWindow')}</button>
                 )
               )}
             </div>
@@ -286,7 +290,8 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {ROLES.map(role => (
                     <button key={role} type="button" onClick={() => toggleRole(role)}
-                      style={{ padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', fontFamily: 'inherit',
+                      className="text-[12px] md:text-[13px] px-[11px] md:px-[14px] py-[5px] md:py-[6px]"
+                      style={{ borderRadius: 20, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', fontFamily: 'inherit',
                         background: form.targetRoles.includes(role) ? 'var(--green-light)' : 'white',
                         borderColor: form.targetRoles.includes(role) ? 'var(--green)' : 'var(--border2)',
                         color: form.targetRoles.includes(role) ? 'var(--green)' : 'var(--text2)' }}>
@@ -308,7 +313,9 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
                 </div>
               )}
 
-              <button onClick={submitCreate} disabled={submitting} style={{ ...btnPrim, justifyContent: 'center', marginTop: 8, opacity: submitting ? 0.6 : 1 }}>
+              <button onClick={submitCreate} disabled={submitting}
+                className="w-full text-[13.5px] md:text-[15px] px-[16px] md:px-[16px] py-[10px] md:py-[8px]"
+                style={{ ...btnPrim, padding: undefined, fontSize: undefined, justifyContent: 'center', marginTop: 8, opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />} {t('academicEvents.create')}
               </button>
             </div>

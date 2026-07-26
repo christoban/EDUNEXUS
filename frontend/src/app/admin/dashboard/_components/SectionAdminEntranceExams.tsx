@@ -91,9 +91,9 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
           availableSeats: formSeats ? Number(formSeats) : undefined }),
       })
       const data = await res.json()
-      if (data.success) { onToast('Session créée', 'success'); setFormName(''); setFormDate(''); setFormThreshold(''); setFormSeats(''); loadSessions() }
-      else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') } finally { setCreating(false) }
+      if (data.success) { onToast(t('entrance_exams.session_created'), 'success'); setFormName(''); setFormDate(''); setFormThreshold(''); setFormSeats(''); loadSessions() }
+      else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') } finally { setCreating(false) }
   }
 
   const openSummary = async (sessionId: string) => {
@@ -103,7 +103,7 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
       setSummary(data.data ?? null)
       setAnomalies([])
       setScannedPreview([])
-    } catch { onToast('Erreur', 'error') }
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleImport = async (sessionId: string) => {
@@ -116,9 +116,9 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
         method: 'POST', credentials: 'include', body: fd,
       })
       const data = await res.json()
-      if (data.success) { onToast(`${data.data.added} candidat(s) importé(s)`, 'success'); openSummary(sessionId) }
-      else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      if (data.success) { onToast(t('entrance_exams.candidates_imported').replace('{count}', String(data.data.added)), 'success'); openSummary(sessionId) }
+      else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleCompute = async (sessionId: string) => {
@@ -127,13 +127,13 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
         method: 'POST', credentials: 'include',
       })
       const data = await res.json()
-      if (data.success) { onToast(`Admis: ${data.data.admis}, Non-admis: ${data.data.nonAdmis}`, 'success'); openSummary(sessionId) }
-      else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      if (data.success) { onToast(t('entrance_exams.admission_computed').replace('{admis}', String(data.data.admis)).replace('{nonAdmis}', String(data.data.nonAdmis)), 'success'); openSummary(sessionId) }
+      else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleCep = async (candidateId: string, result: 'REUSSI' | 'ECHOUE') => {
-    if (result === 'ECHOUE' && !confirm('Confirmer l\'échec CEP ? Le candidat sera annulé.')) return
+    if (result === 'ECHOUE' && !confirm(t('entrance_exams.confirm_cep_fail'))) return
     try {
       const res = await fetchApi(`/api/v2/entrance-exams/candidates/${candidateId}/cep-result`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -141,10 +141,10 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
       })
       const data = await res.json()
       if (data.success) {
-        onToast(result === 'REUSSI' ? `Admission confirmée — ${data.data.onboardingCreated ? 'dossier d\'inscription envoyé au parent' : 'lien non envoyé (vérifiez le téléphone du parent)'}` : 'Admission annulée', result === 'REUSSI' ? 'success' : 'info')
+        onToast(result === 'REUSSI' ? (data.data.onboardingCreated ? t('entrance_exams.admission_confirmed_sent') : t('entrance_exams.admission_confirmed_not_sent')) : t('entrance_exams.admission_cancelled'), result === 'REUSSI' ? 'success' : 'info')
         if (summary) openSummary(summary.session.id)
-      } else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      } else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleAnomalies = async (sessionId: string) => {
@@ -152,8 +152,8 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
       const res = await fetchApi(`/api/v2/entrance-exams/${sessionId}/detect-anomalies`, { method: 'POST', credentials: 'include' })
       const data = await res.json()
       setAnomalies(data.data?.anomalies ?? [])
-      if ((data.data?.anomalies ?? []).length === 0) onToast('Aucune anomalie détectée', 'success')
-    } catch { onToast('Erreur', 'error') }
+      if ((data.data?.anomalies ?? []).length === 0) onToast(t('entrance_exams.no_anomaly'), 'success')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   const handleScan = async (sessionId: string) => {
@@ -171,9 +171,9 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
         if (data.success) {
           setScannedPreview(data.data?.candidats ?? [])
           if ((data.data?.warnings ?? []).length) onToast(data.data.warnings.join('; '), 'info')
-          else onToast(`${(data.data?.candidats ?? []).length} candidat(s) extrait(s)`, 'success')
-        } else onToast(data.message || 'Erreur', 'error')
-      } catch { onToast('Erreur scan', 'error') }
+          else onToast(t('entrance_exams.candidates_extracted').replace('{count}', String((data.data?.candidats ?? []).length)), 'success')
+        } else onToast(data.message || t('common.error'), 'error')
+      } catch { onToast(t('common.error'), 'error') }
     }
     reader.readAsDataURL(file)
   }
@@ -191,9 +191,9 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
         body: JSON.stringify({ candidats }),
       })
       const data = await res.json()
-      if (data.success) { onToast(`${data.data.added} candidat(s) ajouté(s)`, 'success'); setScannedPreview([]); openSummary(sessionId) }
-      else onToast(data.message || 'Erreur', 'error')
-    } catch { onToast('Erreur', 'error') }
+      if (data.success) { onToast(t('entrance_exams.candidates_added').replace('{count}', String(data.data.added)), 'success'); setScannedPreview([]); openSummary(sessionId) }
+      else onToast(data.message || t('common.error'), 'error')
+    } catch { onToast(t('common.error'), 'error') }
   }
 
   return (
@@ -206,7 +206,7 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
         <div className="grid grid-cols-2 sm:flex" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
           <div className="col-span-2 sm:flex-[2] sm:min-w-[200px]">
             <label className="text-[12px] md:text-[13px]" style={{ fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('entrance_exams.session_name')}</label>
-            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Concours d'entrée 6e 2026-2027" style={{ ...inputStyle, width: '100%' }} />
+            <input value={formName} onChange={e => setFormName(e.target.value)} placeholder={t('entrance_exams.session_name_placeholder')} style={{ ...inputStyle, width: '100%' }} />
           </div>
           <div>
             <label className="text-[12px] md:text-[13px]" style={{ fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>{t('entrance_exams.exam_date')}</label>
@@ -242,7 +242,7 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
                 <span className="text-[13.5px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{s.name}</span>
                 <span className="text-[12px] md:text-[13px]" style={{ marginLeft: 12, color: 'var(--text2)' }}>{new Date(s.examDate).toLocaleDateString()}</span>
                 <span style={{ marginLeft: 12, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700, background: s.status === 'DRAFT' ? 'var(--bg2)' : s.status === 'RESULTS_PENDING' ? 'rgba(234,179,8,0.12)' : 'var(--green-light)', color: s.status === 'DRAFT' ? 'var(--text2)' : s.status === 'RESULTS_PENDING' ? '#b45309' : 'var(--green)' }}>
-                  {s.status}
+                  {t(`entrance_exams.session_status.${s.status}`)}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -328,19 +328,19 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
                     <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.admissionStatus === 'CONFIRME' ? 'rgba(22,163,74,0.12)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? 'rgba(234,179,8,0.12)' : c.admissionStatus === 'ANNULE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.admissionStatus === 'CONFIRME' ? 'var(--green)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? '#b45309' : c.admissionStatus === 'ANNULE' ? 'var(--red)' : 'var(--text2)' }}>
-                      {c.admissionStatus}
+                      {t(`entrance_exams.candidate_status.${c.admissionStatus}`)}
                     </span>
                     {c.admissionStatus === 'ADMIS_PROVISOIRE' && c.cepResult !== 'REUSSI' && c.cepResult !== 'ECHOUE' ? (
                       <>
-                        <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Réussi</button>
-                        <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> Échoué</button>
+                        <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> {t('entrance_exams.btn_cep_success')}</button>
+                        <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> {t('entrance_exams.btn_cep_fail')}</button>
                       </>
                     ) : c.cepResult ? (
-                      <span style={{ fontSize: 12, color: 'var(--text2)' }}>{t('entrance_exams.col_cep')} : {c.cepResult}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text2)' }}>{t('entrance_exams.col_cep')} : {t(`entrance_exams.cep_status.${c.cepResult}`)}</span>
                     ) : null}
                   </div>
                   {c.studentProfileId && (
-                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>Profil: {c.studentProfileId.slice(0, 8)}...</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>{t('entrance_exams.profile_label')}: {c.studentProfileId.slice(0, 8)}...</div>
                   )}
                 </div>
               ))}
@@ -365,21 +365,21 @@ export default function SectionAdminEntranceExams({ onToast }: Props) {
                       <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>{c.examScore ?? '—'}</td>
                       <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
                         <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.admissionStatus === 'CONFIRME' ? 'rgba(22,163,74,0.12)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? 'rgba(234,179,8,0.12)' : c.admissionStatus === 'ANNULE' ? 'rgba(239,68,68,0.12)' : 'var(--bg2)', color: c.admissionStatus === 'CONFIRME' ? 'var(--green)' : c.admissionStatus === 'ADMIS_PROVISOIRE' ? '#b45309' : c.admissionStatus === 'ANNULE' ? 'var(--red)' : 'var(--text2)' }}>
-                          {c.admissionStatus}
+                          {t(`entrance_exams.candidate_status.${c.admissionStatus}`)}
                         </span>
                       </td>
                       <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center' }}>
                         {c.admissionStatus === 'ADMIS_PROVISOIRE' && c.cepResult !== 'REUSSI' && c.cepResult !== 'ECHOUE' ? (
                           <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                            <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> Réussi</button>
-                            <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> Échoué</button>
+                            <button onClick={() => handleCep(c.id, 'REUSSI')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--green)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={11} /> {t('entrance_exams.btn_cep_success')}</button>
+                            <button onClick={() => handleCep(c.id, 'ECHOUE')} style={{ ...btnPri, fontSize: 11, padding: '3px 10px', background: 'var(--red)', display: 'inline-flex', alignItems: 'center', gap: 4 }}><X size={11} /> {t('entrance_exams.btn_cep_fail')}</button>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--text2)' }}>{c.cepResult ?? '—'}</span>
+                          <span style={{ color: 'var(--text2)' }}>{c.cepResult ? t(`entrance_exams.cep_status.${c.cepResult}`) : '—'}</span>
                         )}
                       </td>
                       <td style={{ padding: '6px 10px', borderBottom: '1px solid var(--bg2)', textAlign: 'center', fontSize: 11, color: 'var(--text3)' }}>
-                        {c.studentProfileId ? `Profil: ${c.studentProfileId.slice(0, 8)}...` : '—'}
+                        {c.studentProfileId ? `${t('entrance_exams.profile_label')}: ${c.studentProfileId.slice(0, 8)}...` : '—'}
                       </td>
                     </tr>
                   ))}

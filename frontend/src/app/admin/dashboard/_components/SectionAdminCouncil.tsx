@@ -145,7 +145,8 @@ export default function SectionAdminCouncil({ onToast }: Props) {
           <select
             value={selectedPeriodId}
             onChange={e => { setSelectedPeriodId(e.target.value); setSelected(null) }}
-            style={{ padding: '8px 14px', border: '1.5px solid var(--border2)', borderRadius: 10, background: 'var(--bg2)', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
+            className="rounded-[12px] md:rounded-[10px] px-[12px] py-[9px] md:px-[14px] md:py-[8px] text-[13px] md:text-[15px] font-semibold md:font-semibold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none"
+            style={{ background: 'var(--bg2)', fontFamily: 'inherit', color: 'var(--text)', outline: 'none', cursor: 'pointer' }}>
             <option value="all">Tous les trimestres</option>
             {periods.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -154,7 +155,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
       {/* KPI cards */}
       {!loading && !error && sessions.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 14, marginBottom: 24 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-[10px] md:gap-[14px]" style={{ marginBottom: 24 }}>
           {([
             { icon: ClipboardList, value: totalSessions,  label: 'Sessions au total' },
             { icon: Loader2, value: openCount,       label: 'En cours' },
@@ -199,71 +200,71 @@ export default function SectionAdminCouncil({ onToast }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filteredSessions.map(s => (
               <div key={s.id} onClick={() => openSession(s.id)}
-                className="shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none"
-                style={{ background: selected?.id === s.id ? 'var(--green-light)' : 'white', borderRadius: 14, border: `1.5px solid ${selected?.id === s.id ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
+                className="rounded-[16px] md:rounded-[14px] p-[14px] md:px-[18px] md:py-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none"
+                style={{ background: selected?.id === s.id ? 'var(--green-light)' : 'white', border: `1.5px solid ${selected?.id === s.id ? 'var(--green)' : 'var(--border)'}`, cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }) }}
                 onMouseLeave={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border)', boxShadow: 'none' }) }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
-                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>{s.class.name}</div>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800, background: s.status === 'LOCKED' ? 'var(--green-light)' : 'var(--blue-light)', color: s.status === 'LOCKED' ? 'var(--green)' : 'var(--blue)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <div className="text-[15px] md:text-[20px] md:[font-family:var(--font-spectral),Spectral,serif]" style={{ fontWeight: 700, color: 'var(--text)' }}>{s.class.name}</div>
+                  <span className="text-[11px] md:text-[13px]" style={{ padding: '3px 10px', borderRadius: 20, fontWeight: 800, background: s.status === 'LOCKED' ? 'var(--green-light)' : 'var(--blue-light)', color: s.status === 'LOCKED' ? 'var(--green)' : 'var(--blue)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {s.status === 'LOCKED' ? <><Lock size={12} /> Verrouillé</> : <><BookOpen size={12} /> Ouvert</>}
                   </span>
                 </div>
-                <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{s.academicPeriod.name}</div>
-                <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{s._count.decisions} décision{s._count.decisions !== 1 ? 's' : ''}</div>
+                <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>{s.academicPeriod.name}</div>
+                <div className="text-[12px] md:text-[13px]" style={{ color: 'var(--text3)', marginTop: 4 }}>{s._count.decisions} décision{s._count.decisions !== 1 ? 's' : ''}</div>
               </div>
             ))}
           </div>
 
           {/* Détail */}
           {selected && (
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div className="rounded-[16px] md:rounded-[16px]" style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', overflow: 'hidden' }}>
               {loadingDetail ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
                   <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
                 </div>
               ) : (
                 <>
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                    <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                      <Vote size={17} /> {selected.class.name} · {selected.academicPeriod.name}
+                  <div className="p-[14px] md:px-[22px] md:py-[16px]" style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                    <span className="text-[14.5px] md:text-[17px]" style={{ fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Vote size={16} /> {selected.class.name} · {selected.academicPeriod.name}
                     </span>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       {selected.status === 'LOCKED' && (
                         <>
-                          <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => publishBulletins(selected.id)} disabled={publishing}>
+                          <button className={detailBtnPrimCls} style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => publishBulletins(selected.id)} disabled={publishing}>
                             {publishing ? <><Loader2 size={14} className="animate-spin" /> Publication…</> : <><Upload size={14} /> Publier les bulletins</>}
                           </button>
-                          <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          <button className={detailBtnSecSmCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/class-councils/${selected.id}/pv`, '_blank')}
                             title="Procès-Verbal officiel de la délibération">
                             <ClipboardList size={14} /> PV officiel
                           </button>
-                          <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          <button className={detailBtnSecSmCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/classes/${selected.class.id}/tableau-honneur?periodId=${selected.academicPeriod.id}`, '_blank')}
                             title="Tableau d'honneur du trimestre">
                             <Trophy size={14} /> Tableau d'honneur
                           </button>
-                          <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          <button className={detailBtnSecSmCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                             onClick={() => window.open(`/api/v2/classes/${selected.class.id}/tableau-honneur-annuel`, '_blank')}
                             title="Tableau d'honneur annuel (disponible uniquement si tous les conseils sont verrouillés)">
                             <Trophy size={14} /> Annuel
                           </button>
                         </>
                       )}
-                      <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => window.open(`/api/v2/class-councils/${selected.id}/report`, '_blank')}><FileText size={14} /> Rapport</button>
-                      <button style={{ ...btnSec, fontSize: 14, display: 'inline-flex', alignItems: 'center' }} onClick={() => setSelected(null)}><X size={14} /></button>
+                      <button className={detailBtnSecCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => window.open(`/api/v2/class-councils/${selected.id}/report`, '_blank')}><FileText size={14} /> Rapport</button>
+                      <button className={detailBtnSecSmCls} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center' }} onClick={() => setSelected(null)}><X size={14} /></button>
                     </div>
                   </div>
 
                   {selected.status === 'OPEN' && (
-                    <div style={{ background: 'var(--orange-light)', borderBottom: '1px solid var(--orange-light)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--orange)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="text-[12.5px] md:text-[14px] px-[14px] py-[9px] md:px-[22px] md:py-[10px]" style={{ background: 'var(--orange-light)', borderBottom: '1px solid var(--orange-light)', fontWeight: 700, color: 'var(--orange)', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Loader2 size={14} /> En attente du verrouillage par le Censeur
                     </div>
                   )}
 
                   {selected.status === 'LOCKED' && (
-                    <div style={{ background: 'var(--green-light)', borderBottom: '1px solid var(--border)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="text-[12.5px] md:text-[14px] px-[14px] py-[9px] md:px-[22px] md:py-[10px]" style={{ background: 'var(--green-light)', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Lock size={14} /> Ce conseil est verrouillé.
                     </div>
                   )}
@@ -273,7 +274,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                   ) : (
                     <>
                       {selected.decisions.some(d => d.alertLevel) && (
-                        <div style={{ background: 'var(--red-light)', borderBottom: '1px solid var(--border)', padding: '10px 22px', fontSize: 14, fontWeight: 700, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="text-[12.5px] md:text-[14px] px-[14px] py-[9px] md:px-[22px] md:py-[10px]" style={{ background: 'var(--red-light)', borderBottom: '1px solid var(--border)', fontWeight: 700, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 8 }}>
                           <HeartPulse size={14} /> {selected.decisions.filter(d => d.alertLevel).length} élève(s) à risque dans cette classe — voir l'indicateur ci-dessous
                         </div>
                       )}
@@ -357,8 +358,11 @@ export default function SectionAdminCouncil({ onToast }: Props) {
 
 const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
 const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
-const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
+const detailBtnPrimCls = 'px-[10px] py-[6px] md:px-[16px] md:py-[8px] text-[12px] md:text-[15px] rounded-[8px] md:rounded-[10px]'
+const detailBtnSecCls = 'px-[10px] py-[6px] md:px-[14px] md:py-[8px] text-[12px] md:text-[15px] rounded-[8px] md:rounded-[10px]'
+const detailBtnSecSmCls = 'px-[10px] py-[6px] md:px-[14px] md:py-[8px] text-[12px] md:text-[14px] rounded-[8px] md:rounded-[10px]'
+const btnPrim: React.CSSProperties = { background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800 }
+const btnSec: React.CSSProperties = { background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 800 }
 const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
 const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
 const tdSt: React.CSSProperties = { padding: '12px 16px', fontSize: 16, color: 'var(--text2)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }

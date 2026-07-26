@@ -195,16 +195,19 @@ export default function SectionBulletins({ onToast }: Props) {
         <div style={{ position: 'fixed', inset: 0, zIndex: 3000, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'edu-celebIn 0.3s ease both' }}>
           <style>{`@keyframes edu-celebIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
           <AnimatedBackground variant="celebration" style={{ zIndex: 0 }} />
-          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: 32, maxWidth: 460 }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, color: 'white' }}><PartyPopper size={74} /></div>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 30, fontWeight: 700, color: 'white', marginBottom: 10 }}>
+          <div className="px-[24px] py-[24px] md:px-[32px] md:py-[32px] max-w-[92vw] md:max-w-[460px]" style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, color: 'white' }}>
+              <PartyPopper size={52} className="md:hidden" /><PartyPopper size={74} className="hidden md:block" />
+            </div>
+            <div className="text-[22px] md:text-[30px] mb-[8px] md:mb-[10px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'white' }}>
               {t('bulletins.celebrate.title')}
             </div>
-            <div style={{ fontSize: 17, color: 'rgba(247,243,238,0.75)', marginBottom: 30, lineHeight: 1.6 }}>
+            <div className="text-[14px] md:text-[17px] mb-[22px] md:mb-[30px]" style={{ color: 'rgba(247,243,238,0.75)', lineHeight: 1.6 }}>
               {t('bulletins.celebrate.subtitle')}
             </div>
             <button onClick={() => setCelebrate(false)}
-              style={{ background: 'var(--green)', color: 'white', fontWeight: 800, fontSize: 16, padding: '13px 34px', borderRadius: 11, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+              className="w-full md:w-auto text-[14px] md:text-[16px] px-[24px] md:px-[34px] py-[11px] md:py-[13px]"
+              style={{ background: 'var(--green)', color: 'white', fontWeight: 800, borderRadius: 11, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               {t('bulletins.celebrate.cta')}
             </button>
           </div>
@@ -218,11 +221,11 @@ export default function SectionBulletins({ onToast }: Props) {
 
       {/* Sélecteur de classe */}
       <div className="rounded-[12px] md:rounded-[16px] px-[12px] py-[10px] md:px-[20px] md:py-[14px] mb-[14px] md:mb-[18px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={classId} onChange={e => setClassId(e.target.value)} style={selectSt} disabled={loadingClasses}>
+        <select value={classId} onChange={e => setClassId(e.target.value)} className={selectStCls} style={selectSt} disabled={loadingClasses}>
           <option value="">{loadingClasses ? 'Chargement…' : 'Sélectionner une classe'}</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <button style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={loadClass} disabled={loadingClasses || loadingCheck || !classId}>
+        <button className="text-[12.5px] md:text-[16px] px-[14px] py-[8px] md:px-[20px] md:py-[10px] rounded-[9px] md:rounded-[11px]" style={{ ...btnPrim, display: 'inline-flex', alignItems: 'center', gap: 7 }} onClick={loadClass} disabled={loadingClasses || loadingCheck || !classId}>
           {loadingCheck ? <><Loader2 size={15} className="animate-spin" /> Chargement…</> : 'Charger'}
         </button>
       </div>
@@ -239,7 +242,7 @@ export default function SectionBulletins({ onToast }: Props) {
           {/* Pré-vérification */}
           <div className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', overflow: 'hidden' }}>
             <div className="px-[16px] pt-[14px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]">
-              <span className="text-[14px] md:text-[17px] font-bold md:font-extrabold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Search size={16} /> Pré-vérification — {className}</span>
+              <span className="text-[14px] md:text-[17px] font-extrabold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Search size={16} /> Pré-vérification — {className}</span>
             </div>
             <div className="p-[16px] md:p-[20px] gap-[10px] md:gap-[12px]" style={{ display: 'flex', flexDirection: 'column' }}>
               {checks.map((c, i) => (
@@ -253,7 +256,7 @@ export default function SectionBulletins({ onToast }: Props) {
               ))}
               <button
                 data-help-id="bulletins-generate-btn"
-                className="text-[13.5px] md:text-[16px] py-[12px] md:py-[10px] px-[16px] md:px-[20px]"
+                className="w-full md:w-auto justify-center text-[13.5px] md:text-[16px] py-[12px] md:py-[10px] px-[16px] md:px-[20px] rounded-[12px] md:rounded-[11px]"
                 style={{ ...btnPrim, fontWeight: 800, marginTop: 6, opacity: check.canGenerateReportCard ? 1 : 0.45, cursor: check.canGenerateReportCard ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 8 }}
                 onClick={handleGenerate}
                 disabled={!check.canGenerateReportCard || generating}>
@@ -265,7 +268,7 @@ export default function SectionBulletins({ onToast }: Props) {
           {/* Bulletins générés */}
           <div className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', overflow: 'hidden' }}>
             <div className="px-[16px] pt-[14px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <span className="text-[14px] md:text-[17px] font-bold md:font-extrabold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span className="text-[14px] md:text-[17px] font-extrabold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <BarChart3 size={16} /> Bulletins générés ({reportCards.length})
               </span>
               {reportCards.length > 0 && (
@@ -281,7 +284,7 @@ export default function SectionBulletins({ onToast }: Props) {
             </div>
 
             {reportCards.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 16 }}>
+              <div className="text-[13.5px] md:text-[16px] px-[16px] py-[32px] md:px-[20px] md:py-[40px]" style={{ textAlign: 'center', color: 'var(--text3)' }}>
                 Aucun bulletin généré pour cette classe
               </div>
             ) : (
@@ -360,12 +363,14 @@ export default function SectionBulletins({ onToast }: Props) {
       )}
 
       {!loadingCheck && !check && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '70px 32px', textAlign: 'center' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><FileText size={52} /></div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+        <div className="px-[24px] py-[44px] md:px-[32px] md:py-[70px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <FileText size={40} className="md:hidden" /><FileText size={52} className="hidden md:block" />
+          </div>
+          <div className="text-[16px] md:text-[20px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
             Sélectionnez une classe
           </div>
-          <div style={{ fontSize: 16, color: 'var(--text3)' }}>
+          <div className="text-[13.5px] md:text-[16px]" style={{ color: 'var(--text3)' }}>
             Choisissez une classe et cliquez sur « Charger » pour voir les bulletins.
           </div>
         </div>
@@ -376,8 +381,9 @@ export default function SectionBulletins({ onToast }: Props) {
 
 const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
 const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
-const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
+const btnPrim: React.CSSProperties = { fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec: React.CSSProperties = { padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
-const selectSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const selectStCls = 'rounded-[10px] px-[10px] py-[7px] md:px-[12px] md:py-[8px] text-[13px] md:text-[16px] font-semibold md:font-bold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] flex-1 md:flex-none'
+const selectSt: React.CSSProperties = { background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
 const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px' }
 const tdSt: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }

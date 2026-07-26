@@ -42,7 +42,8 @@ const card: React.CSSProperties = { background: 'var(--surface)', overflow: 'hid
 const cardHeaderCls = 'px-[16px] pt-[14px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]'
 const cardHeader: React.CSSProperties = {}
 const cardTitle: React.CSSProperties = { fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }
-const select: React.CSSProperties = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border2)', fontFamily: 'inherit', fontSize: 14, color: 'var(--text)', background: 'var(--surface)' }
+const selectCls = 'text-[12.5px] md:text-[14px] px-[10px] py-[7px] md:px-[12px] md:py-[8px]'
+const select: React.CSSProperties = { borderRadius: 9, border: '1.5px solid var(--border2)', fontFamily: 'inherit', color: 'var(--text)', background: 'var(--surface)' }
 
 export default function SectionStatistics({ onToast }: Props) {
   const t = useT('admin')
@@ -77,7 +78,7 @@ export default function SectionStatistics({ onToast }: Props) {
     if (evoSubjectId) params.set('subjectId', evoSubjectId)
     const res = await fetchApi(`/api/v2/statistics/grades-evolution?${params}`, { credentials: 'include' })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    if (!res.ok) throw new Error(data.message || t('common.error'))
     return data.data || []
   }, [evoClassId, evoSubjectId])
   const { data: evolutionData, loading: evoLoading, error: evoError, fromCache: evoFromCache, cachedAt: evoCachedAt } = useCachedFetch<EvolutionPoint[]>(`admin:stats-evolution:${evoClassId}:${evoSubjectId}`, fetchEvolutionFn)
@@ -88,7 +89,7 @@ export default function SectionStatistics({ onToast }: Props) {
     if (level) params.set('level', level)
     const res = await fetchApi(`/api/v2/statistics/classes-comparison?${params}`, { credentials: 'include' })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    if (!res.ok) throw new Error(data.message || t('common.error'))
     return data.data || []
   }, [level])
   const { data: comparisonData, loading: compLoading, fromCache: compFromCache, cachedAt: compCachedAt } = useCachedFetch<ClassComparisonRow[]>(`admin:stats-comparison:${level}`, fetchComparisonFn)
@@ -97,7 +98,7 @@ export default function SectionStatistics({ onToast }: Props) {
   const fetchDistributionFn = useCallback(async (): Promise<DistributionRow[]> => {
     const res = await fetchApi(`/api/v2/statistics/students-distribution?criteria=${criteria}`, { credentials: 'include' })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    if (!res.ok) throw new Error(data.message || t('common.error'))
     return data.data || []
   }, [criteria])
   const { data: distributionData, loading: distLoading, fromCache: distFromCache, cachedAt: distCachedAt } = useCachedFetch<DistributionRow[]>(`admin:stats-distribution:${criteria}`, fetchDistributionFn)
@@ -107,7 +108,7 @@ export default function SectionStatistics({ onToast }: Props) {
     if (!teacherId) return null
     const res = await fetchApi(`/api/v2/statistics/teacher-performance/${teacherId}`, { credentials: 'include' })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.message || 'Erreur serveur')
+    if (!res.ok) throw new Error(data.message || t('common.error'))
     return data.data
   }, [teacherId])
   const { data: teacherPerf, loading: teacherLoading, fromCache: teacherFromCache, cachedAt: teacherCachedAt } = useCachedFetch<TeacherPerf | null>(`admin:stats-teacher:${teacherId}`, fetchTeacherPerfFn)
@@ -126,7 +127,7 @@ export default function SectionStatistics({ onToast }: Props) {
         <div className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>
           {t('statistics.title')}
         </div>
-        <div className="text-[13px] md:text-[17px]" style={{ color: 'var(--text3)', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
+        <div className="text-[13px] md:text-[17px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{t('statistics.subtitle')}</div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 18 }}>
@@ -134,14 +135,14 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Évolution des moyennes */}
         <div className={cardCls} style={card}>
           <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span className="text-[14px] md:text-[17px]" style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes <CacheBadge fromCache={evoFromCache} cachedAt={evoCachedAt} t={t} /></span>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> {t('statistics.evolution_title')} <CacheBadge fromCache={evoFromCache} cachedAt={evoCachedAt} t={t} /></span>
             <div className="flex-wrap" style={{ display: 'flex', gap: 8 }}>
-              <select className="min-w-0" style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
-                <option value="">Toutes les classes</option>
+              <select className={`min-w-0 ${selectCls}`} style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
+                <option value="">{t('statistics.all_classes')}</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <select className="min-w-0" style={select} value={evoSubjectId} onChange={e => setEvoSubjectId(e.target.value)}>
-                <option value="">Toutes les matières</option>
+              <select className={`min-w-0 ${selectCls}`} style={select} value={evoSubjectId} onChange={e => setEvoSubjectId(e.target.value)}>
+                <option value="">{t('statistics.all_subjects')}</option>
                 {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
@@ -151,7 +152,7 @@ export default function SectionStatistics({ onToast }: Props) {
             {evoLoading ? (
               <Spinner />
             ) : evolution.length === 0 ? (
-              <EmptyState text="Aucune séquence clôturée avec des notes validées" />
+              <EmptyState text={t('statistics.evolution_empty')} />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={evolution}>
@@ -159,7 +160,7 @@ export default function SectionStatistics({ onToast }: Props) {
                   <XAxis dataKey="sequenceName" tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
                   <YAxis domain={[0, 20]} tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
                   <Tooltip {...CHART_TOOLTIP} />
-                  <Line type="monotone" dataKey="moyenne" name="Moyenne" stroke="var(--green)" strokeWidth={2.5} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="moyenne" name={t('statistics.series_average')} stroke="var(--green)" strokeWidth={2.5} dot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
             )}
@@ -169,9 +170,9 @@ export default function SectionStatistics({ onToast }: Props) {
         {/* Comparaison entre classes */}
         <div className={cardCls} style={card}>
           <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span className="text-[14px] md:text-[17px]" style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> Comparaison entre classes <CacheBadge fromCache={compFromCache} cachedAt={compCachedAt} t={t} /></span>
-            <select style={select} value={level} onChange={e => setLevel(e.target.value)}>
-              <option value="">Tous les niveaux</option>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> {t('statistics.comparison_title')} <CacheBadge fromCache={compFromCache} cachedAt={compCachedAt} t={t} /></span>
+            <select className={selectCls} style={select} value={level} onChange={e => setLevel(e.target.value)}>
+              <option value="">{t('statistics.all_levels')}</option>
               {levels.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
@@ -180,7 +181,7 @@ export default function SectionStatistics({ onToast }: Props) {
             {compLoading ? (
               <Spinner />
             ) : comparison.length === 0 ? (
-              <EmptyState text="Aucune classe trouvée" />
+              <EmptyState text={t('statistics.comparison_empty')} />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={comparison}>
@@ -188,7 +189,7 @@ export default function SectionStatistics({ onToast }: Props) {
                   <XAxis dataKey="className" tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
                   <YAxis domain={[0, 20]} tick={{ fontSize: 12, fill: 'var(--text3)' }} stroke="var(--border)" />
                   <Tooltip {...CHART_TOOLTIP} />
-                  <Bar dataKey="moyenne" name="Moyenne générale" fill="var(--blue)" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="moyenne" name={t('statistics.series_general_average')} fill="var(--blue)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -197,12 +198,12 @@ export default function SectionStatistics({ onToast }: Props) {
 
         {/* Répartition des effectifs */}
         <div className={cardCls} style={card}>
-          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="text-[14px] md:text-[17px]" style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> Répartition des effectifs <CacheBadge fromCache={distFromCache} cachedAt={distCachedAt} t={t} /></span>
-            <select style={select} value={criteria} onChange={e => setCriteria(e.target.value as typeof criteria)}>
-              <option value="gender">Par sexe</option>
-              <option value="level">Par niveau</option>
-              <option value="paymentStatus">Par statut de paiement</option>
+          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> {t('statistics.distribution_title')} <CacheBadge fromCache={distFromCache} cachedAt={distCachedAt} t={t} /></span>
+            <select className={selectCls} style={select} value={criteria} onChange={e => setCriteria(e.target.value as typeof criteria)}>
+              <option value="gender">{t('statistics.criteria_gender')}</option>
+              <option value="level">{t('statistics.criteria_level')}</option>
+              <option value="paymentStatus">{t('statistics.criteria_payment')}</option>
             </select>
           </div>
           <div className="p-[14px] md:px-[22px] md:py-[18px] h-[260px] md:h-[300px]">
@@ -210,7 +211,7 @@ export default function SectionStatistics({ onToast }: Props) {
             {distLoading ? (
               <Spinner />
             ) : distribution.length === 0 ? (
-              <EmptyState text="Aucune donnée disponible" />
+              <EmptyState text={t('statistics.no_data_available')} />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -227,30 +228,30 @@ export default function SectionStatistics({ onToast }: Props) {
 
         {/* Performance enseignant */}
         <div className={cardCls} style={card}>
-          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span className="text-[14px] md:text-[17px]" style={cardTitle}><Apple size={17} strokeWidth={2} /> Performance enseignant <CacheBadge fromCache={teacherFromCache} cachedAt={teacherCachedAt} t={t} /></span>
-            <select style={select} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
-              <option value="">Sélectionner un enseignant</option>
-              {teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
+          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><Apple size={17} strokeWidth={2} /> {t('statistics.teacher_title')} <CacheBadge fromCache={teacherFromCache} cachedAt={teacherCachedAt} t={t} /></span>
+            <select className={selectCls} style={select} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
+              <option value="">{t('statistics.teacher_select_placeholder')}</option>
+              {teachers.map(tc => <option key={tc.id} value={tc.id}>{tc.firstName} {tc.lastName}</option>)}
             </select>
           </div>
           <div className="p-[14px] md:px-[22px] md:py-[18px]" style={{ minHeight: 300 }}>
             {!teacherId ? (
-              <EmptyState text="Sélectionnez un enseignant pour voir ses statistiques" />
+              <EmptyState text={t('statistics.teacher_empty_no_selection')} />
             ) : teacherLoading ? (
               <Spinner />
             ) : !teacherPerf ? (
-              <EmptyState text="Aucune donnée disponible" />
+              <EmptyState text={t('statistics.no_data_available')} />
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12, marginBottom: 18 }}>
-                  <Kpi label="Heures prévues/sem" value={String(teacherPerf.heuresPrevuesParSemaine)} />
-                  <Kpi label="Séances enregistrées" value={String(teacherPerf.seancesEnregistrees)} />
-                  <Kpi label="Taux de présence" value={teacherPerf.tauxPresence !== null ? `${teacherPerf.tauxPresence}%` : '—'} />
+                  <Kpi label={t('statistics.kpi_hours_planned')} value={String(teacherPerf.heuresPrevuesParSemaine)} />
+                  <Kpi label={t('statistics.kpi_sessions_recorded')} value={String(teacherPerf.seancesEnregistrees)} />
+                  <Kpi label={t('statistics.kpi_attendance_rate')} value={teacherPerf.tauxPresence !== null ? `${teacherPerf.tauxPresence}%` : '—'} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
                   {teacherPerf.moyennesParClasse.map((m, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 12px', background: 'var(--bg)', borderRadius: 8 }}>
+                    <div key={i} className="text-[13px] md:text-[14px]" style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg)', borderRadius: 8 }}>
                       <span style={{ color: 'var(--text2)', fontWeight: 600 }}>{m.subjectName} · {m.className}</span>
                       <span style={{ fontWeight: 800, color: 'var(--text)' }}>{m.moyenne !== null ? `${m.moyenne}/20` : '—'}</span>
                     </div>
@@ -275,7 +276,7 @@ function Spinner() {
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 14, color: 'var(--text3)', textAlign: 'center', padding: '0 20px' }}>
+    <div className="text-[12.5px] md:text-[14px]" style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'var(--text3)', textAlign: 'center', padding: '0 20px' }}>
       {text}
     </div>
   )
@@ -284,7 +285,7 @@ function EmptyState({ text }: { text: string }) {
 function CacheBadge({ fromCache, cachedAt, t }: { fromCache: boolean; cachedAt: number | null; t: (key: string, params?: Record<string, string | number>) => string }) {
   if (!fromCache || !cachedAt) return null
   return (
-    <span style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+    <span className="text-[11px] md:text-[12px]" style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '3px 9px', fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
       <Package size={12} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
     </span>
   )
@@ -292,9 +293,9 @@ function CacheBadge({ fromCache, cachedAt, t }: { fromCache: boolean; cachedAt: 
 
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px', textAlign: 'center' }}>
-      <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
+    <div className="p-[10px] md:p-[14px]" style={{ background: 'var(--bg)', borderRadius: 10, textAlign: 'center' }}>
+      <div className="text-[18px] md:text-[22px]" style={{ fontWeight: 900, color: 'var(--text)' }}>{value}</div>
+      <div className="text-[11px] md:text-[12px]" style={{ color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
     </div>
   )
 }

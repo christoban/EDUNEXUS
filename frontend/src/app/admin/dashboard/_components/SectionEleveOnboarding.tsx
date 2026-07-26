@@ -217,26 +217,29 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
   }
 
   return (
-    <div className="px-4 py-5 md:px-8 md:py-7">
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div>
           <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('eleveOnboarding.title')}</h2>
-          <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('eleveOnboarding.subtitle')}</p>
+          <p className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 4 }}>{t('eleveOnboarding.subtitle')}</p>
         </div>
         <button onClick={() => setCreateOpen(true)} style={{ ...btnPri, borderRadius: 20, padding: '9px 14px', fontSize: 12 }}>{t('eleveOnboarding.createBtn')}</button>
       </div>
 
       {/* Réglages */}
       {settings && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 20px', marginBottom: 20 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={settings.selfServiceEnabled} onChange={toggleSelfService} />
-            {t('eleveOnboarding.settingsToggle')}
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--text2)' }}>
+        <div className="flex-col md:flex-row gap-[12px] md:gap-[24px] rounded-[12px] md:rounded-[12px] px-[14px] py-[12px] md:px-[20px] md:py-[14px] mb-[16px] md:mb-[20px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]" style={{ display: 'flex', alignItems: 'stretch', background: 'var(--surface)' }}>
+          <div onClick={toggleSelfService} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer' }}>
+            <span className="text-[12.5px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('eleveOnboarding.settingsToggle')}</span>
+            <div style={{ width: 38, height: 22, borderRadius: 11, background: settings.selfServiceEnabled ? 'var(--green)' : 'var(--border2)', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+              <div style={{ width: 16, height: 16, borderRadius: 8, background: '#fff', position: 'absolute', top: 3, left: settings.selfServiceEnabled ? 19 : 3, transition: 'left 0.2s' }} />
+            </div>
+          </div>
+          <label className="text-[12.5px] md:text-[14px] gap-[8px] md:gap-[10px]" style={{ display: 'flex', alignItems: 'center', color: 'var(--text2)' }}>
             {t('eleveOnboarding.settingsResponsable')}
             <select value={settings.responsableRole} onChange={e => changeResponsableRole(e.target.value as 'ADMIN' | 'STAFF')}
-              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
+              className="text-[12.5px] md:text-[14px] px-[8px] md:px-[10px] py-[5px] md:py-[6px] rounded-[8px] md:rounded-[8px]"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}>
               <option value="ADMIN">ADMIN</option>
               <option value="STAFF">STAFF</option>
             </select>
@@ -247,7 +250,8 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       {/* Filtre statut */}
       <div style={{ marginBottom: 14 }}>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13 }}>
+          className="rounded-[12px] md:rounded-[8px] px-[12px] md:px-[14px] py-[9px] md:py-[8px] text-[12.5px] md:text-[13px] font-semibold md:font-normal border-0 md:border md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none"
+          style={{ background: 'var(--surface)', color: 'var(--text)' }}>
           <option value="">{t('eleveOnboarding.filterAll')}</option>
           {['DRAFT', 'LINK_SENT', 'SUBMITTED', 'PENDING_VALIDATION', 'VALIDATED', 'ACTIVATED', 'REJECTED', 'EXPIRED'].map(s => (
             <option key={s} value={s}>{t(`eleveOnboarding.status_${s}`)}</option>
@@ -256,11 +260,11 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       </div>
 
       {/* Liste */}
-      <div style={{ background: 'var(--surface)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div className="rounded-none md:rounded-[12px] border-0 md:border md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('common.loading') || '...'}</div>
+          <div className="text-[13.5px] md:text-[16px] py-[30px] md:py-[40px]" style={{ textAlign: 'center', color: 'var(--text3)' }}>{t('common.loading') || '...'}</div>
         ) : dossiers.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('eleveOnboarding.listEmpty')}</div>
+          <div className="text-[13.5px] md:text-[16px] py-[30px] md:py-[40px]" style={{ textAlign: 'center', color: 'var(--text3)' }}>{t('eleveOnboarding.listEmpty')}</div>
         ) : (
           <>
           {/* ── Cartes empilées — mobile ── */}
@@ -283,7 +287,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
                   )}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 8 }}>{new Date(d.createdAt).toLocaleDateString()}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg2)' }}>
                   {d.status === 'PENDING_VALIDATION' && (
                     <>
                       <button onClick={() => openValidate(d)} style={btnSmall}>{t('eleveOnboarding.validateBtn')}</button>
@@ -291,9 +295,9 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
                     </>
                   )}
                   {(d.status === 'LINK_SENT' || d.status === 'EXPIRED') && (
-                    <button onClick={() => resendLink(d)} style={btnSec}>{t('eleveOnboarding.resendBtn')}</button>
+                    <button onClick={() => resendLink(d)} style={{ ...btnSec, padding: '6px 12px', fontSize: 12, fontWeight: 700 }}>{t('eleveOnboarding.resendBtn')}</button>
                   )}
-                  <button onClick={() => exportPdf(d)} style={btnSec}>{t('eleveOnboarding.pdfBtn')}</button>
+                  <button onClick={() => exportPdf(d)} style={{ ...btnSec, padding: '6px 12px', fontSize: 12, fontWeight: 700 }}>{t('eleveOnboarding.pdfBtn')}</button>
                 </div>
               </div>
             ))}

@@ -303,13 +303,15 @@ export default function SectionFinance({ onToast }: Props) {
       {!loading && !error && tab === 'plans' && (
         <>
           {plans.length === 0 ? (
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Wallet size={52} strokeWidth={1.5} /></div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('empty_states.no_plans_title')}</div>
-              <div style={{ fontSize: 16, color: 'var(--text3)', marginBottom: 22 }}>
+            <div className="px-[24px] py-[44px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                <Wallet size={40} strokeWidth={1.5} className="md:hidden" /><Wallet size={52} strokeWidth={1.5} className="hidden md:block" />
+              </div>
+              <div className="text-[16px] md:text-[20px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('empty_states.no_plans_title')}</div>
+              <div className="text-[13.5px] md:text-[16px] mb-[18px] md:mb-[22px]" style={{ color: 'var(--text3)' }}>
                 {t('empty_states.no_plans_description')}
               </div>
-              <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('empty_states.no_plans_action')}</button>
+              <button className="w-full md:w-auto justify-center text-[13.5px] md:text-[16px] px-[16px] md:px-[20px] py-[10px] md:py-[10px]" style={{ ...btnPrim, padding: undefined, fontSize: undefined, display: 'inline-flex', alignItems: 'center' }} onClick={() => setCreateOpen(true)}>{t('empty_states.no_plans_action')}</button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 16 }}>
@@ -318,14 +320,14 @@ export default function SectionFinance({ onToast }: Props) {
                   onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'translateY(-2px)', boxShadow: '0 6px 20px rgba(0,0,0,0.07)' })}
                   onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'none', boxShadow: 'none' })}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 18, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>
+                    <div className="text-[14.5px] md:text-[18px] md:[font-family:var(--font-spectral),Spectral,serif]" style={{ fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>
                       {plan.name}
                     </div>
-                    <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>
+                    <span className="text-[10.5px] md:text-[13px]" style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontWeight: 700, flexShrink: 0, marginLeft: 8 }}>
                       {FEE_TYPE_LABEL[plan.feeType] ?? plan.feeType}
                     </span>
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--green)', marginBottom: 8 }}>
+                  <div className="text-[22px] md:text-[28px]" style={{ fontWeight: 900, color: 'var(--green)', marginBottom: 8 }}>
                     {fmtCFA(plan.amount)}
                   </div>
                   {plan.description && (
@@ -333,17 +335,17 @@ export default function SectionFinance({ onToast }: Props) {
                   )}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
                     {plan.level && (
-                      <span style={{ background: 'var(--bg2)', color: 'var(--text2)', padding: '2px 8px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                      <span className="text-[10.5px] md:text-[13px]" style={{ background: 'var(--bg2)', color: 'var(--text2)', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>
                         {t('badges.level').replace('{level}', plan.level)}
                       </span>
                     )}
                     {plan.isRefundable && (
-                      <span style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '2px 8px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                      <span className="text-[10.5px] md:text-[13px]" style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>
                         {t('badges.refundable')}
                       </span>
                     )}
                     {plan.dueDate && (
-                      <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+                      <span className="text-[10.5px] md:text-[13px]" style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '2px 8px', borderRadius: 8, fontWeight: 600 }}>
                         {t('badges.due_date').replace('{date}', new Date(plan.dueDate).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }))}
                       </span>
                     )}
@@ -363,7 +365,7 @@ export default function SectionFinance({ onToast }: Props) {
       {!loading && !error && tab === 'invoices' && (
         <>
           {/* KPIs factures (sur la page courante) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 16, marginBottom: 20 }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-[10px] md:gap-[16px]" style={{ marginBottom: 20 }}>
             {[
               { icon: <Wallet size={20} strokeWidth={2} />, label: t('kpi.total_billed'),        val: fmtCFA(totalAmount),   bg: 'var(--blue-light)' },
               { icon: <CheckCircle2 size={20} strokeWidth={2} />, label: t('kpi.total_collected'),      val: fmtCFA(paidAmount),    bg: 'var(--green-light)' },
@@ -381,7 +383,7 @@ export default function SectionFinance({ onToast }: Props) {
           {/* Filtres */}
           <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
             <div className="flex-wrap p-0 mb-4 md:p-[14px] md:px-[20px] md:mb-0 md:border-b md:border-[var(--border)]" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <select value={invStatus} onChange={e => setInvStatus(e.target.value)} style={filterSt}>
+              <select value={invStatus} onChange={e => setInvStatus(e.target.value)} className={filterStCls} style={filterSt}>
                 <option value="">{t('filters.all_statuses')}</option>
                 <option value="PENDING">{t('filters.pending')}</option>
                 <option value="PAID">{t('filters.paid')}</option>
@@ -389,14 +391,14 @@ export default function SectionFinance({ onToast }: Props) {
                 <option value="PARTIAL">{t('filters.partial')}</option>
                 <option value="CANCELLED">{t('filters.cancelled')}</option>
               </select>
-              <button style={btnPrim} onClick={() => { setPage(1); fetchInvoices(1) }}>{t('actions.filter')}</button>
-              <span className="sm:ml-auto" style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>
+              <button className="text-[13px] md:text-[16px] px-[14px] md:px-[20px] py-[8px] md:py-[10px]" style={{ ...btnPrim, padding: undefined, fontSize: undefined }} onClick={() => { setPage(1); fetchInvoices(1) }}>{t('actions.filter')}</button>
+              <span className="sm:ml-auto text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>
                 {t('totals.factures').replace('{count}', String(pag.total))} · {t('totals.page_info').replace('{page}', String(pag.page)).replace('{pages}', String(pag.pages))}
               </span>
             </div>
 
             {invoices.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 17 }}>
+              <div className="text-[13.5px] md:text-[17px] px-[16px] py-[30px] md:px-[20px] md:py-[40px]" style={{ textAlign: 'center', color: 'var(--text3)' }}>
                 {invStatus ? t('empty_states.no_invoices_with_status').replace('{status}', getInvStatus(invStatus).label) : t('empty_states.no_invoices')}
               </div>
             ) : (
@@ -643,7 +645,8 @@ const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral
 const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSecSm: React.CSSProperties = { padding: '6px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
-const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
+const filterStCls = 'rounded-[12px] md:rounded-[10px] px-[12px] py-[10px] md:py-[8px] text-[13px] md:text-[16px] font-semibold md:font-bold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none'
+const filterSt: React.CSSProperties = { background: 'var(--surface)', color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
 const thStyle: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
 const tdStyle: React.CSSProperties = { padding: '14px 16px', fontSize: 16, color: 'var(--text2)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }
 
