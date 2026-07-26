@@ -217,38 +217,52 @@ export default function AssistantWidget({ section, rolePrefix = 'admin', suggest
         </button>
       )}
 
-      {/* Bouton flottant */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          position: 'fixed', bottom: 24, right: 24, zIndex: 1200,
-          height: 58, borderRadius: 30, border: 'none', cursor: 'pointer',
-          padding: open ? '0 18px' : '0 20px',
-          background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white',
-          fontWeight: 800, fontSize: 15, fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', gap: 9,
-          boxShadow: '0 8px 24px rgba(5,150,105,0.4)',
-        }}>
-        <span style={{ display: 'flex', alignItems: 'center' }}>{open ? <X size={22} /> : <Bot size={22} />}</span>
-        {!open && <span>{t('assistant.title')}</span>}
-      </button>
+      {/* Bouton flottant — masqué quand le panneau est ouvert (pattern standard : la bulle
+          disparaît quand la conversation est ouverte, la croix de l'en-tête suffit à fermer ;
+          évite le chevauchement et le risque de double-tap accidentel sur le champ/l'envoi). */}
+      {!open && (
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-[56px] h-[56px] md:w-auto md:h-[58px] rounded-[16px] md:rounded-[30px] md:px-[18px]"
+          style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 1200,
+            border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white',
+            fontWeight: 800, fontSize: 15, fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+            boxShadow: '0 8px 24px rgba(5,150,105,0.4)',
+          }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}><Bot size={22} /></span>
+          <span className="hidden md:inline">{t('assistant.title')}</span>
+        </button>
+      )}
 
-      {/* Panneau */}
+      {/* Panneau — sous md : feuille flottante avec marges de tous côtés (pas collée aux bords),
+          le FAB masqué evite le chevauchement sans avoir besoin d'ancrer la feuille au ras du bas.
+          À partir de md : boîte flottante ancrée en bas à droite, inchangée. */}
       {open && (
-        <div style={{
-          position: 'fixed', bottom: 92, right: 24, zIndex: 1200,
-          width: 400, maxWidth: 'calc(100vw - 32px)', height: 560, maxHeight: 'calc(100vh - 140px)',
-          background: 'var(--surface)', borderRadius: 18, border: '1.5px solid var(--border)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.22)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
+        <>
+          <div className="md:hidden" onClick={() => setOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 1199, background: 'rgba(15,17,12,0.5)' }} />
+          <div onClick={e => e.stopPropagation()}
+            className="fixed z-[1200] flex flex-col overflow-hidden left-4 right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] h-[60dvh] max-h-[560px] rounded-[20px] md:left-auto md:right-[24px] md:bottom-[92px] md:w-[400px] md:h-[560px] md:max-w-[calc(100vw-32px)] md:max-h-[calc(100vh-140px)] md:rounded-[18px]"
+            style={{
+              background: 'var(--surface)', border: '1.5px solid var(--border)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.22)',
+            }}>
           <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
-          {/* Header */}
-          <div style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--green))', color: 'white', padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bot size={20} /></div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 15.5 }}>{t('assistant.title')}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Décrivez une action, je l’exécute</div>
+          {/* Header — bouton fermer dedie dans le panneau (maquette) ; le FAB garde une icone
+              fixe (ne bascule plus en X) puisque cette croix suffit desormais a fermer. */}
+          <div className="gap-[10px] px-[16px] py-[13px] md:px-[18px] md:py-[16px]" style={{ background: 'linear-gradient(135deg,var(--sidebar),var(--green))', color: 'white', display: 'flex', alignItems: 'center' }}>
+            <div className="w-[32px] h-[32px] md:w-9 md:h-9" style={{ borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Bot size={20} /></div>
+            <div style={{ flex: 1 }}>
+              <div className="text-[14.5px] md:text-[15.5px]" style={{ fontWeight: 800 }}>{t('assistant.title')}</div>
+              <div className="text-[11px] md:text-[12px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Décrivez une action, je l’exécute</div>
             </div>
+            <button onClick={() => setOpen(false)} aria-label="Fermer" className="flex-shrink-0"
+              style={{ width: 32, height: 32, borderRadius: 16, border: 'none', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <X size={14} color="white" />
+            </button>
           </div>
 
           {/* Bandeau de confiance — gouvernance RBAC de l'assistant, visible en permanence */}
@@ -257,7 +271,7 @@ export default function AssistantWidget({ section, rolePrefix = 'admin', suggest
           </div>
 
           {/* Messages */}
-          <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'var(--bg)' }}>
+          <div ref={scrollRef} className="p-[14px] md:p-[16px]" style={{ flex: 1, overflowY: 'auto', background: 'var(--bg)' }}>
             {items.length === 0 && (
               <div>
                 <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 14, display: 'flex', gap: 8 }}>
@@ -277,8 +291,8 @@ export default function AssistantWidget({ section, rolePrefix = 'admin', suggest
               if (it.kind === 'user' || it.kind === 'assistant') {
                 return (
                   <div key={it.id} style={{ display: 'flex', justifyContent: it.kind === 'user' ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
-                    <div style={{
-                      maxWidth: '82%', padding: '10px 13px', borderRadius: 13, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+                    <div className="max-w-[80%] md:max-w-[82%] rounded-[14px] md:rounded-[13px] px-[13px] py-[10px] text-[14px]" style={{
+                      lineHeight: 1.5, whiteSpace: 'pre-wrap',
                       background: it.kind === 'user' ? 'linear-gradient(135deg,var(--green),var(--green2))' : 'white',
                       color: it.kind === 'user' ? 'white' : 'var(--text)',
                       border: it.kind === 'user' ? 'none' : '1.5px solid var(--border)',
@@ -363,21 +377,25 @@ export default function AssistantWidget({ section, rolePrefix = 'admin', suggest
           </div>
 
           {/* Input */}
-          <div style={{ borderTop: '1px solid var(--border)', padding: 12, display: 'flex', gap: 8 }}>
+          <div className="p-[10px] md:p-[12px]" style={{ borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && send(input)}
               placeholder="Ex. « Crée une classe de 4e D »…"
-              style={{ flex: 1, border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 13px', fontSize: 14, outline: 'none', fontFamily: 'inherit', color: 'var(--text)' }}
+              className="rounded-[12px] md:rounded-[10px] px-[12px] py-[10px] text-[14px]"
+              style={{ flex: 1, border: '1.5px solid var(--border)', outline: 'none', fontFamily: 'inherit', color: 'var(--text)' }}
             />
-            <button onClick={() => send(input)} disabled={loading || !input.trim()} style={{
-              background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none',
-              borderRadius: 10, padding: '0 16px', cursor: loading || !input.trim() ? 'default' : 'pointer',
-              opacity: loading || !input.trim() ? 0.5 : 1, display: 'flex', alignItems: 'center',
-            }}><Send size={17} /></button>
+            <button onClick={() => send(input)} disabled={loading || !input.trim()}
+              className="w-[42px] h-[42px] rounded-[12px] md:w-auto md:h-auto md:rounded-[10px] md:px-[16px]"
+              style={{
+                background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none',
+                cursor: loading || !input.trim() ? 'default' : 'pointer',
+                opacity: loading || !input.trim() ? 0.5 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}><Send size={17} /></button>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </>
   )

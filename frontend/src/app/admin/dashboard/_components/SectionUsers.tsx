@@ -1,18 +1,17 @@
 ﻿'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import {
   Search, Eye, Wallet, Wrench, BookOpen, Compass, Package, School, KeyRound,
   X, GraduationCap, Presentation, Download, FileText, FolderOpen, AlertTriangle,
   UserCheck, Star, Pencil, RefreshCw, Trash2, ClipboardList, IdCard, Upload,
-  Loader2, CheckCircle2, MoreHorizontal, type LucideIcon,
+  Loader2, CheckCircle2, MoreHorizontal, MoreVertical, UserPlus, type LucideIcon,
 } from 'lucide-react'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
-  openInviteOnMount?: boolean
-  onInviteMounted?: () => void
 }
 
 // ── Mapping titre → permissions (doit correspondre au backend StaffPermissionRules.ts) ──
@@ -178,15 +177,15 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
 
       {/* Conteneur centrage */}
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: '96%', maxWidth: 640, maxHeight: '92vh', overflowY: 'auto', borderRadius: 20 }}>
-        <div style={{ background: 'var(--surface)', borderRadius: 20, padding: '40px 44px', boxShadow: '0 32px 80px rgba(0,0,0,0.22)', animation: 'popIn 0.22s ease' }}>
+        <div className="px-5 py-6 md:px-11 md:py-10" style={{ background: 'var(--surface)', borderRadius: 20, boxShadow: '0 32px 80px rgba(0,0,0,0.22)', animation: 'popIn 0.22s ease' }}>
 
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="mb-[16px] md:mb-[24px]" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+              <div className="text-[18px] md:text-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>
                 {t('users.invite_modal.title')}
               </div>
-              <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>
+              <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 4 }}>
                 {t('users.invite_modal.subtitle')}
               </div>
             </div>
@@ -194,31 +193,31 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
               style={{ background: 'var(--bg2)', border: 'none', cursor: 'pointer', color: 'var(--text2)', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><X size={16} strokeWidth={2} /></button>
           </div>
 
-          <div style={{ height: 1, background: 'var(--border)', marginBottom: 26 }} />
+          <div className="mb-[18px] md:mb-[26px]" style={{ height: 1, background: 'var(--border)' }} />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="gap-[14px] md:gap-[20px]" style={{ display: 'flex', flexDirection: 'column' }}>
 
             {/* Nom + Prénom */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="gap-[12px] md:gap-[16px]" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
               <Field label={t('users.invite_modal.first_name_label')}>
                 <input value={form.firstName} onChange={e => set('firstName', e.target.value)}
-                  placeholder={t('users.invite_modal.first_name_placeholder')} style={inputSt} />
+                  placeholder={t('users.invite_modal.first_name_placeholder')} className={inputStCls} style={inputSt} />
               </Field>
               <Field label={t('users.invite_modal.last_name_label')}>
                 <input value={form.lastName} onChange={e => set('lastName', e.target.value)}
-                  placeholder={t('users.invite_modal.last_name_placeholder')} style={inputSt} />
+                  placeholder={t('users.invite_modal.last_name_placeholder')} className={inputStCls} style={inputSt} />
               </Field>
             </div>
 
             {/* Email */}
             <Field label={t('users.invite_modal.email_label')}>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
-                placeholder={t('users.invite_modal.email_placeholder')} style={inputSt} />
+                placeholder={t('users.invite_modal.email_placeholder')} className={inputStCls} style={inputSt} />
             </Field>
 
             {/* Rôle */}
             <Field label={t('users.invite_modal.role_label')}>
-              <select value={form.role} onChange={e => set('role', e.target.value)} style={{ ...inputSt, cursor: 'pointer', appearance: 'auto' }}>
+              <select value={form.role} onChange={e => set('role', e.target.value)} className={inputStCls} style={{ ...inputSt, cursor: 'pointer', appearance: 'auto' }}>
                 <option value="TEACHER">{t('users.invite_modal.role_teacher')}</option>
                 <option value="STAFF">{t('users.invite_modal.role_staff')}</option>
                 <option value="STUDENT">{t('users.invite_modal.role_student')}</option>
@@ -314,7 +313,8 @@ function InviteModal({ onClose, onSuccess, staffTitles }: { onClose: () => void;
 
             {/* Submit */}
             <button onClick={submit} disabled={form.loading}
-              style={{ width: '100%', background: form.loading ? 'var(--border)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, fontSize: 17, padding: '16px 24px', borderRadius: 11, border: 'none', cursor: form.loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              className="text-[14.5px] md:text-[17px] py-[13px] px-[20px] md:py-[16px] md:px-[24px]"
+              style={{ width: '100%', background: form.loading ? 'var(--border)' : 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, borderRadius: 11, border: 'none', cursor: form.loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
               {form.loading ? t('users.invite_modal.sending') : t('users.invite_modal.send')}
             </button>
           </div>
@@ -459,12 +459,12 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
       <div onClick={handleClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)' }} />
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: '96%', maxWidth: 620, maxHeight: '92vh', overflowY: 'auto', borderRadius: 20 }}>
         <div className="px-5 py-6 md:px-11 md:py-10" style={{ background: 'var(--surface)', borderRadius: 20, boxShadow: '0 32px 80px rgba(0,0,0,0.22)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div className="mb-[16px] md:mb-[24px]" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+              <div className="text-[18px] md:text-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>
                 {step === 0 ? t('users.import_modal.title') : step === 1 ? t('users.import_modal.step1_title') : step === 2 ? t('users.import_modal.step2_title') : t('users.import_modal.step3_title')}
               </div>
-              <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>
+              <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 4 }}>
                 {step === 0 && t('users.import_modal.step0_title')}
                 {step === 1 && t('users.import_modal.step1_desc')}
                 {step === 2 && file ? t('users.i18n_ext.rowsDetected', { n: totalRows }) : t('users.import_modal.upload_hint')}
@@ -474,35 +474,37 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
             <button onClick={handleClose} style={{ background: 'var(--bg2)', border: 'none', cursor: 'pointer', color: 'var(--text2)', fontSize: 18, padding: '6px 11px', borderRadius: 9, lineHeight: 1, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}><X size={16} strokeWidth={2} /></button>
           </div>
 
-          <div style={{ height: 1, background: 'var(--border)', marginBottom: 26 }} />
+          <div className="mb-[18px] md:mb-[26px]" style={{ height: 1, background: 'var(--border)' }} />
 
           {/* Steps indicator */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 28, justifyContent: 'center' }}>
+          <div className="gap-[6px] mb-[20px] md:gap-[8px] md:mb-[28px]" style={{ display: 'flex', justifyContent: 'center' }}>
             {(t('users.import_modal.steps') as unknown as string[]).map((label: string, i: number) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, background: i <= step ? 'var(--green)' : 'var(--border)', color: i <= step ? 'white' : 'var(--text3)' }}>{i + 1}</div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: i <= step ? 'var(--green)' : 'var(--text3)', display: i === step ? 'inline' : 'none' }}>{label}</span>
+                <div className="w-[24px] h-[24px] md:w-[28px] md:h-[28px] text-[12px] md:text-[13px]" style={{ borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, background: i <= step ? 'var(--green)' : 'var(--border)', color: i <= step ? 'white' : 'var(--text3)' }}>{i + 1}</div>
+                <span className="text-[12px] md:text-[13px]" style={{ fontWeight: 600, color: i <= step ? 'var(--green)' : 'var(--text3)', display: i === step ? 'inline' : 'none' }}>{label}</span>
               </div>
             ))}
           </div>
 
           {/* Step 0 — Choose type */}
           {step === 0 && (
-            <div style={{ display: 'flex', gap: 16, flexDirection: 'column' }}>
+            <div className="gap-[10px] md:gap-[16px]" style={{ display: 'flex', flexDirection: 'column' }}>
               <button onClick={() => { setImportType('STUDENT'); setStep(1) }}
-                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 14, border: `2px solid ${importType === 'STUDENT' ? 'var(--green)' : 'var(--border)'}`, background: importType === 'STUDENT' ? 'var(--green-light)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
-                <GraduationCap size={32} strokeWidth={1.5} />
+                className="gap-[12px] md:gap-[16px] rounded-[14px] py-[14px] px-[16px] md:py-[20px] md:px-[24px]"
+                style={{ display: 'flex', alignItems: 'center', border: `2px solid ${importType === 'STUDENT' ? 'var(--green)' : 'var(--border)'}`, background: importType === 'STUDENT' ? 'var(--green-light)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
+                <GraduationCap className="w-[26px] h-[26px] md:w-[32px] md:h-[32px]" strokeWidth={1.5} />
                 <div>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{t('users.import_modal.choose_student')}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{t('users.import_modal.choose_student_desc')}</div>
+                  <div className="text-[15px] md:text-[17px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('users.import_modal.choose_student')}</div>
+                  <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{t('users.import_modal.choose_student_desc')}</div>
                 </div>
               </button>
               <button onClick={() => { setImportType('TEACHER'); setStep(1) }}
-                style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 14, border: `2px solid ${importType === 'TEACHER' ? 'var(--green)' : 'var(--border)'}`, background: importType === 'TEACHER' ? 'var(--green-light)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
-                <Presentation size={32} strokeWidth={1.5} />
+                className="gap-[12px] md:gap-[16px] rounded-[14px] py-[14px] px-[16px] md:py-[20px] md:px-[24px]"
+                style={{ display: 'flex', alignItems: 'center', border: `2px solid ${importType === 'TEACHER' ? 'var(--green)' : 'var(--border)'}`, background: importType === 'TEACHER' ? 'var(--green-light)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit', width: '100%' }}>
+                <Presentation className="w-[26px] h-[26px] md:w-[32px] md:h-[32px]" strokeWidth={1.5} />
                 <div>
-                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>{t('users.import_modal.choose_teacher')}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text3)', marginTop: 3 }}>{t('users.import_modal.choose_teacher_desc')}</div>
+                  <div className="text-[15px] md:text-[17px]" style={{ fontWeight: 700, color: 'var(--text)' }}>{t('users.import_modal.choose_teacher')}</div>
+                  <div className="text-[12.5px] md:text-[14px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{t('users.import_modal.choose_teacher_desc')}</div>
                 </div>
               </button>
             </div>
@@ -511,17 +513,18 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
           {/* Step 1 — Download template */}
           {step === 1 && (
             <div style={{ textAlign: 'center', padding: '12px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Download size={48} strokeWidth={1.5} /></div>
-              <div style={{ fontSize: 16, color: 'var(--text2)', marginBottom: 24, lineHeight: 1.6 }}>
+              <div className="mb-[12px] md:mb-[16px]" style={{ display: 'flex', justifyContent: 'center' }}><Download className="w-[36px] h-[36px] md:w-[48px] md:h-[48px]" strokeWidth={1.5} /></div>
+              <div className="text-[14px] md:text-[16px] mb-[18px] md:mb-[24px]" style={{ color: 'var(--text2)', lineHeight: 1.6 }}>
                 {t('users.import_modal.step1_desc')}
               </div>
               <button onClick={handleDownloadTemplate}
-                style={{ padding: '16px 28px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                className="text-[14px] md:text-[16px] py-[13px] px-[22px] md:py-[16px] md:px-[28px]"
+                style={{ borderRadius: 11, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                 {t('users.import_modal.download').replace('{type}', importType === 'STUDENT' ? t('users.import_modal.download_type_student') : t('users.import_modal.download_type_teacher'))}
               </button>
               <div style={{ marginTop: 16 }}>
                 <button onClick={() => setStep(2)}
-                  style={{ background: 'none', border: 'none', color: 'var(--green)', fontWeight: 700, cursor: 'pointer', fontSize: 15, fontFamily: 'inherit' }}>
+                  className="text-[13.5px] md:text-[15px]" style={{ background: 'none', border: 'none', color: 'var(--green)', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   {t('users.import_modal.already_have_file')}
                 </button>
               </div>
@@ -531,8 +534,8 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
           {/* Step 2 — Upload file */}
           {step === 2 && (
             <div>
-              <label style={{ display: 'block', border: `2px dashed ${file ? 'var(--green)' : 'var(--border2)'}`, borderRadius: 14, padding: '36px 20px', textAlign: 'center', cursor: 'pointer', background: file ? 'var(--green-light)' : 'var(--bg)', transition: 'all 0.12s' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>{file ? <FileText size={40} strokeWidth={1.5} /> : <FolderOpen size={40} strokeWidth={1.5} />}</div>
+              <label className="rounded-[14px] py-[24px] px-[16px] md:py-[36px] md:px-[20px]" style={{ display: 'block', border: `2px dashed ${file ? 'var(--green)' : 'var(--border2)'}`, textAlign: 'center', cursor: 'pointer', background: file ? 'var(--green-light)' : 'var(--bg)', transition: 'all 0.12s' }}>
+                <div className="mb-[10px] md:mb-[12px]" style={{ display: 'flex', justifyContent: 'center' }}>{file ? <FileText className="w-[32px] h-[32px] md:w-[40px] md:h-[40px]" strokeWidth={1.5} /> : <FolderOpen className="w-[32px] h-[32px] md:w-[40px] md:h-[40px]" strokeWidth={1.5} />}</div>
                 {file ? (
                   <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--green)' }}>{file.name}</div>
                 ) : (
@@ -693,15 +696,16 @@ function ImportModal({ onClose, onToast, onSuccess }: Omit<ImportStepProps, 'imp
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>{label}</label>
+      <label className="block text-[12.5px] md:text-[14px] mb-[4px] md:mb-[6px]" style={{ fontWeight: 700, color: 'var(--text2)' }}>{label}</label>
       {children}
     </div>
   )
 }
 
+const inputStCls = 'rounded-[10px] px-[12px] py-[10px] text-[14px] md:px-[14px] md:py-[12px] md:text-[16px]'
 const inputSt: React.CSSProperties = {
-  width: '100%', padding: '12px 14px', borderRadius: 10, border: '1.5px solid var(--border)',
-  fontSize: 16, fontFamily: 'inherit', color: 'var(--text)', background: 'var(--bg)',
+  width: '100%', border: '1.5px solid var(--border)',
+  fontFamily: 'inherit', color: 'var(--text)', background: 'var(--bg)',
   outline: 'none', boxSizing: 'border-box',
 }
 
@@ -722,7 +726,7 @@ const EMPTY_CREATE_USER = {
 }
 interface SubjectItem2 { id: string; name: string }
 
-export default function SectionUsers({ onToast, openInviteOnMount, onInviteMounted }: Props) {
+export default function SectionUsers({ onToast }: Props) {
   const t = useT('admin')
 
   const ROLE_TABS: { label: string; role: string }[] = [
@@ -755,6 +759,16 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   const [activeTab, setActiveTab] = useState(0)
   const [openDD, setOpenDD] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  // Mobile — menu "..." de l'entete (Inviter / Import Excel), reproduction maquette drawer.
+  const [userActionsOpen, setUserActionsOpen] = useState(false)
+  const userActionsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (userActionsRef.current && !userActionsRef.current.contains(e.target as Node)) setUserActionsOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [])
   const [modUser, setModUser]       = useState(EMPTY_MOD_USER)
   const [transfer, setTransfer]     = useState(EMPTY_TRANSFER)
   const [docModal, setDocModal]     = useState(EMPTY_DOC_MODAL)
@@ -774,12 +788,6 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       .catch(() => { /* non bloquant */ })
   }, [])
 
-  useEffect(() => {
-    if (openInviteOnMount) {
-      setInviteOpen(true)
-      onInviteMounted?.()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [users, setUsers] = useState<UserItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1012,18 +1020,71 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>{t('users.title')}</div>
-          <div style={sSub}>{loading ? '…' : t('users.count_label').replace('{count}', String(totalAll))}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('users.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{loading ? '…' : t('users.count_label').replace('{count}', String(totalAll))}</div>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {/* Desktop — 3 boutons inchangés */}
+        <div className="hidden md:flex" style={{ gap: 10, flexWrap: 'wrap' }}>
           <button style={{ ...btnSecSm, padding: '10px 18px' }} onClick={openCreateUser}>{t('users.btn_create')}</button>
           <button style={btnPrim} onClick={() => setInviteOpen(true)}>{t('users.btn_invite')}</button>
           <button style={{ ...btnSecSm, padding: '10px 18px' }} onClick={() => setImportOpen(true)}>{t('users.btn_import')}</button>
         </div>
+        {/* Mobile — CTA principal + "..." (Inviter / Import Excel), reproduction maquette */}
+        <div className="flex md:hidden items-center gap-[6px] flex-shrink-0">
+          <button onClick={openCreateUser}
+            className="inline-flex items-center gap-[6px] rounded-full px-[14px] py-[10px] text-[12.5px] whitespace-nowrap border-0"
+            style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 900 }}>
+            {t('users.btn_create')}
+          </button>
+          <div ref={userActionsRef} className="relative flex-shrink-0">
+            <button onClick={() => setUserActionsOpen(o => !o)} aria-label="Menu"
+              style={{ width: 38, height: 38, borderRadius: 19, border: 'none', background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <MoreVertical size={17} strokeWidth={2} color="var(--text2)" />
+            </button>
+            {userActionsOpen && (
+              <div style={{ position: 'absolute', top: 44, right: 0, width: 190, background: 'var(--surface)', borderRadius: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.18),0 2px 6px rgba(0,0,0,0.08)', padding: 8, zIndex: 20 }}>
+                <div onClick={() => { setUserActionsOpen(false); setInviteOpen(true) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 10, cursor: 'pointer' }}>
+                  <UserPlus size={18} color="var(--text2)" strokeWidth={2} />
+                  <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500 }}>{t('users.btn_invite')}</span>
+                </div>
+                <div onClick={() => { setUserActionsOpen(false); setImportOpen(true) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', borderRadius: 10, cursor: 'pointer' }}>
+                  <FileText size={18} color="var(--text2)" strokeWidth={2} />
+                  <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500 }}>{t('users.btn_import')}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 2, background: 'var(--bg2)', padding: 5, borderRadius: 12, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
+      {/* Tabs — mobile : puces défilables + indicateur glissant, fondu de bord (maquette) */}
+      <div className="relative md:hidden mb-[14px] -mr-4">
+        <div className="flex gap-[6px] overflow-x-auto pr-8 py-[2px]" style={{ scrollbarWidth: 'none' }}>
+          {ROLE_TABS.map((tab, i) => {
+            const cnt = i === 0 ? totalAll : (counts[tab.role] ?? 0)
+            const active = activeTab === i
+            return (
+              <button key={i} onClick={() => setActiveTab(i)}
+                className="relative flex-shrink-0 flex items-center gap-[6px] rounded-full px-[14px] py-[9px] whitespace-nowrap border-0"
+                style={{ background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {active && (
+                  <motion.div layoutId="users-tab-pill" className="absolute inset-0 rounded-full"
+                    style={{ background: 'var(--sidebar)' }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                )}
+                <span className="relative z-10 text-[13px]" style={{ fontWeight: active ? 700 : 500, color: active ? '#fff' : 'var(--text3)' }}>{tab.label}</span>
+                <span className="relative z-10 text-[11px] font-bold rounded-lg px-[6px]" style={{ color: active ? '#fff' : 'var(--text3)', background: active ? 'rgba(255,255,255,0.2)' : 'var(--border)' }}>{cnt}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="pointer-events-none absolute top-0 right-0 bottom-[4px] w-7" style={{ background: 'linear-gradient(90deg,transparent,var(--bg) 65%)' }} />
+      </div>
+
+      {/* Tabs — desktop : segmented control inchangé */}
+      <div className="hidden md:flex" style={{ gap: 2, background: 'var(--bg2)', padding: 5, borderRadius: 12, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
         {ROLE_TABS.map((tab, i) => {
           const cnt = i === 0 ? totalAll : (counts[tab.role] ?? 0)
           return (
@@ -1036,10 +1097,11 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         })}
       </div>
 
-      {/* Table */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', flex: 1, minWidth: 200 }}>
+      {/* Table — carte bordee sur desktop ; sur mobile, la barre de recherche porte sa propre
+          carte (ombre) et la liste flotte directement sur le fond de page (maquette). */}
+      <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]">
+        <div className="p-0 mb-4 md:p-[14px] md:px-[20px] md:mb-0 md:border-b md:border-[var(--border)]" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="rounded-[14px] md:rounded-[10px] px-[14px] py-[12px] md:px-[14px] md:py-[8px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:bg-[var(--bg2)]" style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 200 }}>
             <Search size={16} strokeWidth={2} color="var(--text3)" />
             <input
               value={search}
@@ -1049,7 +1111,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
               style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%', color: 'var(--text)' }}
             />
           </div>
-          <button style={{ ...btnSecSm, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}><Search size={14} strokeWidth={2} /> Rechercher</button>
+          <button className="hidden md:inline-flex" style={{ ...btnSecSm, alignItems: 'center', gap: 6 }} onClick={() => fetchUsers(ROLE_TABS[activeTab]?.role ?? '')}><Search size={14} strokeWidth={2} /> Rechercher</button>
         </div>
 
         {loading && (
@@ -1077,18 +1139,19 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
         {!loading && !error && users.length > 0 && (
           <>
           {/* ── Cartes empilées — mobile ── */}
-          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+          <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
             {users.map((user) => {
               const rl = ROLE_LABEL[user.role] ?? { label: user.role, bg: 'var(--bg2)', color: 'var(--text2)' }
               const className = user.studentProfile?.class?.name ?? null
               const staffTitle = user.staffProfile?.title ?? null
               const ppClasses = user.classesProfessorPrincipal?.map((c: { name: string }) => c.name) ?? []
+              const initials = `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase()
               return (
-                <div key={user.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14, position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                <div key={user.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 16, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 16, right: 16 }}>
                     <button onClick={() => setOpenDD(openDD === user.id ? null : user.id)}
-                      style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 16, color: 'var(--text3)' }}>
-                      <MoreHorizontal size={16} strokeWidth={2} />
+                      style={{ width: 32, height: 32, borderRadius: 16, background: 'none', border: '1px solid var(--border2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text3)' }}>
+                      <MoreHorizontal size={15} strokeWidth={2} />
                     </button>
                     {openDD === user.id && (
                       <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: 200, zIndex: 100, overflow: 'hidden' }}>
@@ -1112,12 +1175,17 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                     )}
                   </div>
 
-                  <div style={{ paddingRight: 40 }}>
-                    <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{user.firstName} {user.lastName}</div>
-                    <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email ?? '—'}</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div className="w-[42px] h-[42px] rounded-[12px] text-[14px] font-bold flex-shrink-0" style={{ background: avatarColorFor(user.id), color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: 34 }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{user.firstName} {user.lastName}</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text3)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email ?? '—'}</div>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
                     <span style={badge(rl.bg, rl.color)}>{rl.label}</span>
                     <span style={badge(user.isActive ? 'var(--green-light)' : 'var(--bg2)', user.isActive ? 'var(--green)' : 'var(--text2)')}>
                       {user.isActive ? t('users.i18n_ext.status.active') : t('users.i18n_ext.status.inactive')}
@@ -1133,8 +1201,15 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                     )}
                   </div>
 
-                  <div style={{ marginTop: 9, fontSize: 12, color: 'var(--text3)' }}>
-                    {t('users.i18n_ext.table.lastLogin')} : {formatLastLogin(user.lastLogin)}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--bg2)' }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('users.i18n_ext.table.lastLogin')}</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text2)', fontWeight: 700, marginTop: 2 }}>{formatLastLogin(user.lastLogin)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 10.5, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('users.i18n_ext.table.classTitle')}</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--text2)', fontWeight: 500, marginTop: 2 }}>{className ?? staffTitle ?? (ppClasses[0] ? `PP ${ppClasses[0]}` : '—')}</div>
+                    </div>
                   </div>
                 </div>
               )
@@ -1240,29 +1315,29 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       {/* ── Modal modifier utilisateur ── */}
       {modUser.open && (
         <div onClick={() => setModUser(EMPTY_MOD_USER)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('users.edit_modal.title')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-5 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 440, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div className="text-[18px] md:text-[22px] mb-[16px] md:mb-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('users.edit_modal.title')}</div>
+            <div className="gap-[10px] md:gap-[12px]" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
               <div>
-                <div style={sLb}>{t('users.edit_modal.first_name_label')}</div>
-                <input style={sIn} value={modUser.firstName} onChange={e => setModUser(f => ({ ...f, firstName: e.target.value }))} />
+                <div className={sLbCls} style={sLb}>{t('users.edit_modal.first_name_label')}</div>
+                <input className={sInCls} style={sIn} value={modUser.firstName} onChange={e => setModUser(f => ({ ...f, firstName: e.target.value }))} />
               </div>
               <div>
-                <div style={sLb}>{t('users.edit_modal.last_name_label')}</div>
-                <input style={sIn} value={modUser.lastName} onChange={e => setModUser(f => ({ ...f, lastName: e.target.value }))} />
+                <div className={sLbCls} style={sLb}>{t('users.edit_modal.last_name_label')}</div>
+                <input className={sInCls} style={sIn} value={modUser.lastName} onChange={e => setModUser(f => ({ ...f, lastName: e.target.value }))} />
               </div>
             </div>
-            <div style={sLb}>{t('users.edit_modal.email_label')}</div>
-            <input style={sIn} type="email" value={modUser.email} onChange={e => setModUser(f => ({ ...f, email: e.target.value }))} />
+            <div className={sLbCls} style={sLb}>{t('users.edit_modal.email_label')}</div>
+            <input className={sInCls} style={sIn} type="email" value={modUser.email} onChange={e => setModUser(f => ({ ...f, email: e.target.value }))} />
             {modUser.role === 'STUDENT' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+              <div className="gap-[10px] md:gap-[12px] mt-[10px] md:mt-[12px]" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                 <div>
-                  <div style={sLb}>{t('users.create_modal.dob_label')}</div>
-                  <input style={sIn} type="date" value={modUser.dateOfBirth} onChange={e => setModUser(f => ({ ...f, dateOfBirth: e.target.value }))} />
+                  <div className={sLbCls} style={sLb}>{t('users.create_modal.dob_label')}</div>
+                  <input className={sInCls} style={sIn} type="date" value={modUser.dateOfBirth} onChange={e => setModUser(f => ({ ...f, dateOfBirth: e.target.value }))} />
                 </div>
                 <div>
-                  <div style={sLb}>{t('users.create_modal.gender_label')}</div>
-                  <select style={sIn} value={modUser.gender} onChange={e => setModUser(f => ({ ...f, gender: e.target.value }))}>
+                  <div className={sLbCls} style={sLb}>{t('users.create_modal.gender_label')}</div>
+                  <select className={sInCls} style={sIn} value={modUser.gender} onChange={e => setModUser(f => ({ ...f, gender: e.target.value }))}>
                     <option value="">—</option>
                     <option value="M">{t('users.i18n_ext.form.male')}</option>
                     <option value="F">{t('users.i18n_ext.form.female')}</option>
@@ -1287,8 +1362,8 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
           <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 420, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{t('users.transfer_modal.title')}</div>
             <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 22 }}>{t('users.transfer_modal.subtitle').replace('{name}', transfer.userName)}</div>
-            <div style={sLb}>{t('users.transfer_modal.select_label')}</div>
-            <select style={sIn} value={transfer.classId} onChange={e => setTransfer(f => ({ ...f, classId: e.target.value }))}>
+            <div className={sLbCls} style={sLb}>{t('users.transfer_modal.select_label')}</div>
+            <select className={sInCls} style={sIn} value={transfer.classId} onChange={e => setTransfer(f => ({ ...f, classId: e.target.value }))}>
               <option value="">{t('users.i18n_ext.form.selectClass')}</option>
               {transfer.classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -1350,32 +1425,32 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
       {/* ── Modal créer un utilisateur ── */}
       {createOpen && (
         <div onClick={() => { setCreateOpen(false); setCreateForm(EMPTY_CREATE_USER) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 540, maxWidth: '94vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('users.create_modal.title')}</div>
+          <div onClick={e => e.stopPropagation()} className="px-5 py-5 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 540, maxWidth: '94vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+            <div className="text-[18px] md:text-[22px] mb-[16px] md:mb-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('users.create_modal.title')}</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="gap-[10px] md:gap-[14px]" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
               <Field label={t('users.create_modal.first_name_label')}>
-                <input value={createForm.firstName} onChange={e => setCreate('firstName', e.target.value)} placeholder="Marie" style={sIn} />
+                <input value={createForm.firstName} onChange={e => setCreate('firstName', e.target.value)} placeholder="Marie" className={sInCls} style={sIn} />
               </Field>
               <Field label={t('users.create_modal.last_name_label')}>
-                <input value={createForm.lastName} onChange={e => setCreate('lastName', e.target.value)} placeholder="Ngono" style={sIn} />
+                <input value={createForm.lastName} onChange={e => setCreate('lastName', e.target.value)} placeholder="Ngono" className={sInCls} style={sIn} />
               </Field>
             </div>
 
             {!isEleveMaternellePrimaire && (
               <>
                 <Field label={t('users.create_modal.email_label')}>
-                  <input type="email" value={createForm.email} onChange={e => setCreate('email', e.target.value)} placeholder="marie@lycee.cm" style={sIn} />
+                  <input type="email" value={createForm.email} onChange={e => setCreate('email', e.target.value)} placeholder="marie@lycee.cm" className={sInCls} style={sIn} />
                 </Field>
 
                 <Field label={t('users.create_modal.phone_label')}>
-                  <input type="tel" value={createForm.phone} onChange={e => setCreate('phone', e.target.value)} placeholder="691234567" style={sIn} />
+                  <input type="tel" value={createForm.phone} onChange={e => setCreate('phone', e.target.value)} placeholder="691234567" className={sInCls} style={sIn} />
                 </Field>
               </>
             )}
 
             <Field label={t('users.create_modal.role_label')}>
-              <select value={createForm.role} onChange={e => setCreate('role', e.target.value)} style={sIn}>
+              <select value={createForm.role} onChange={e => setCreate('role', e.target.value)} className={sInCls} style={sIn}>
                 <option value="TEACHER">{t('users.invite_modal.role_teacher')}</option>
                 <option value="STUDENT">{t('users.invite_modal.role_student')}</option>
                 <option value="PARENT">{t('users.invite_modal.role_parent')}</option>
@@ -1386,7 +1461,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             {/* TEACHER — matières */}
             {createForm.role === 'TEACHER' && (
               <div>
-                <div style={sLb}>{t('users.create_modal.subjects_label')}</div>
+                <div className={sLbCls} style={sLb}>{t('users.create_modal.subjects_label')}</div>
                 <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, maxHeight: 160, overflowY: 'auto', padding: 4 }}>
                   {availSubjects.length === 0 && <div style={{ padding: 12, color: 'var(--text3)', fontSize: 14, textAlign: 'center' }}>{t('users.i18n_ext.form.noSubjects')}</div>}
                   {availSubjects.map(sub => {
@@ -1406,7 +1481,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             {createForm.role === 'STUDENT' && (
               <>
                 <Field label={t('users.create_modal.class_label')}>
-                  <select value={createForm.classeId} onChange={e => setCreate('classeId', e.target.value)} style={sIn}>
+                  <select value={createForm.classeId} onChange={e => setCreate('classeId', e.target.value)} className={sInCls} style={sIn}>
                     <option value="">{t('users.i18n_ext.form.selectClass')}</option>
                     {availClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -1418,10 +1493,10 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                   <Field label={t('users.create_modal.dob_label')}>
-                    <input type="date" value={createForm.dateOfBirth} onChange={e => setCreate('dateOfBirth', e.target.value)} style={sIn} />
+                    <input type="date" value={createForm.dateOfBirth} onChange={e => setCreate('dateOfBirth', e.target.value)} className={sInCls} style={sIn} />
                   </Field>
                   <Field label={t('users.create_modal.gender_label')}>
-                    <select value={createForm.gender} onChange={e => setCreate('gender', e.target.value)} style={sIn}>
+                    <select value={createForm.gender} onChange={e => setCreate('gender', e.target.value)} className={sInCls} style={sIn}>
                       <option value="">—</option>
                       <option value="M">{t('users.i18n_ext.form.male')}</option>
                       <option value="F">{t('users.i18n_ext.form.female')}</option>
@@ -1434,7 +1509,7 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
             {/* STAFF — titre */}
             {createForm.role === 'STAFF' && (
               <Field label={t('users.create_modal.staff_title_label')}>
-                <select value={createForm.staffTitle} onChange={e => setCreate('staffTitle', e.target.value)} style={sIn}>
+                <select value={createForm.staffTitle} onChange={e => setCreate('staffTitle', e.target.value)} className={sInCls} style={sIn}>
                   <option value="">{t('users.i18n_ext.form.selectPost')}</option>
                   {staffTitles.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                 </select>
@@ -1455,18 +1530,33 @@ export default function SectionUsers({ onToast, openInviteOnMount, onInviteMount
   )
 }
 
+// Pas de variante responsive ici (fonction utilitaire, pas de className injectable au call
+// site) — taille fixe resserree vers la cible mobile de la maquette (11-13px).
+// Couleur d'avatar déterministe (palette de l'app, pas celle de la maquette) — mobile uniquement.
+const AVATAR_COLORS = ['var(--green)', 'var(--blue)', 'var(--amber)', 'var(--teal)', 'var(--purple)', 'var(--orange)']
+function avatarColorFor(id: string): string {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
+
 const badge = (bg: string, color: string): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', padding: '4px 12px',
-  borderRadius: 22, fontSize: 14, fontWeight: 800, background: bg, color, whiteSpace: 'nowrap'
+  display: 'inline-flex', alignItems: 'center', padding: '3px 10px',
+  borderRadius: 20, fontSize: 12.5, fontWeight: 800, background: bg, color, whiteSpace: 'nowrap'
 })
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSecSm: React.CSSProperties = { padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 
 const thStyle: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
 const tdStyle: React.CSSProperties = { padding: '14px 16px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--bg)', verticalAlign: 'middle' }
-const sLb: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }
-const sIn: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }
+// Tailles resserrees vers la cible mobile — desktop inchangee via md: (meme technique que
+// AdminSidebar/AdminTopbar). fontSize/padding/marginBottom retires de l'objet style (qui gagne
+// toujours sur className) et portes par sLbCls/sInCls a la place.
+const sLb: React.CSSProperties = { fontWeight: 700, color: 'var(--text3)' }
+const sLbCls = 'text-[12px] md:text-[13px] mb-[4px] md:mb-[6px]'
+const sIn: React.CSSProperties = { width: '100%', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }
+const sInCls = 'rounded-[10px] px-[12px] py-[9px] mb-[10px] text-[13px] md:px-[14px] md:py-[10px] md:mb-[14px] md:text-[14px]'
 const sErr: React.CSSProperties = { background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8 }

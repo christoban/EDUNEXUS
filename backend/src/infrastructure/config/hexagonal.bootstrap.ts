@@ -231,10 +231,16 @@ export function bootstrapHexagonal(app: Application): void {
       const schoolId = req.user!.schoolId;
       const school = await prisma.school.findUnique({
         where: { id: schoolId },
-        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true, status: true, educationType: true, ownership: true, onboardingConfig: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true, minesecSchoolCode: true },
+        select: { id: true, name: true, subdomain: true, logoUrl: true, plan: true, city: true, region: true, phone: true, email: true, subsystem: true, status: true, educationType: true, ownership: true, onboardingConfig: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true, minesecSchoolCode: true, templateCode: true },
       });
       if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
-      res.json({ success: true, data: school });
+      // isPrimaire pilote l-affichage MINESEC (secondaire) vs MINEDUB (maternelle/primaire)
+      // dans la sidebar admin — les deux menus etaient affiches sans distinction jusqu-ici.
+      // templateCode absent (écoles créées avant l-introduction du champ, ou artefacts de
+      // tests) : on ne devine pas "secondaire" par défaut, on renvoie null pour que le
+      // frontend garde les deux menus visibles plutôt que d-en masquer un à tort.
+      const isPrimaire = school.templateCode ? getTemplateMeta(school.templateCode).isPrimaire : null;
+      res.json({ success: true, data: { ...school, isPrimaire } });
     } catch (err) { next(err); }
   });
 

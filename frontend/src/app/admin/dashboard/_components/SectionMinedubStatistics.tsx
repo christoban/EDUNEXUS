@@ -36,7 +36,8 @@ const btnPri = { padding: '10px 20px', borderRadius: 8, border: 'none', backgrou
 const btnSec = { padding: '10px 20px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, fontSize: 14, cursor: 'pointer' as const }
 const inputStyle = { padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, width: '100%', boxSizing: 'border-box' as const }
 const smallInputStyle = { ...inputStyle, padding: '6px 10px', fontSize: 13 }
-const cardStyle = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }
+const cardStyleCls = 'rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] mb-[12px] md:mb-[20px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]'
+const cardStyle = { background: 'var(--surface)' }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', margin: '12px 0 6px' }}>{children}</div>
@@ -126,19 +127,19 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>{t('common.loading') || '...'}</div>
 
   return (
-    <div style={{ padding: '28px 32px' }}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('minedubStats.title')}</h2>
+    <div className="px-4 py-5 md:px-8 md:py-7">
+      <div className="mb-[16px] md:mb-[20px]">
+        <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('minedubStats.title')}</h2>
         <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('minedubStats.subtitle')}</p>
       </div>
 
-      <div style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: 10, padding: '10px 16px', marginBottom: 20, fontSize: 12, color: '#92400e' }}>
+      <div className="text-[11.5px] md:text-[12px] px-[13px] md:px-[16px] py-[11px] md:py-[10px] mb-[16px] md:mb-[20px]" style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid #eab308', borderRadius: 10, color: '#92400e' }}>
         {t('minedubStats.nonOfficialWarning')}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        <button onClick={() => setTab('supplement')} style={tab === 'supplement' ? btnPri : btnSec}>{t('minedubStats.tabSupplement')}</button>
-        <button onClick={() => setTab('generer')} style={tab === 'generer' ? btnPri : btnSec}>{t('minedubStats.tabGenerer')}</button>
+      <div className="gap-[6px] md:gap-[8px] mb-[16px] md:mb-[20px]" style={{ display: 'flex' }}>
+        <button onClick={() => setTab('supplement')} className="flex-1 md:flex-none rounded-[12px] md:rounded-[8px] text-[12.5px] md:text-[14px] py-[10px] px-0 md:px-[20px] md:py-[10px]" style={{ ...(tab === 'supplement' ? btnPri : btnSec), padding: undefined }}>{t('minedubStats.tabSupplement')}</button>
+        <button onClick={() => setTab('generer')} className="flex-1 md:flex-none rounded-[12px] md:rounded-[8px] text-[12.5px] md:text-[14px] py-[10px] px-0 md:px-[20px] md:py-[10px]" style={{ ...(tab === 'generer' ? btnPri : btnSec), padding: undefined }}>{t('minedubStats.tabGenerer')}</button>
       </div>
 
       {tab === 'supplement' && (
@@ -149,7 +150,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
             </div>
           )}
 
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionIdentification')}</h3>
             <FieldLabel>{t('minedubStats.fieldZone')}</FieldLabel>
             <select style={inputStyle} value={form.zoneImplantation ?? ''} onChange={(e) => setForm((f) => ({ ...f, zoneImplantation: e.target.value || null }))}>
@@ -169,7 +170,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
             </select>
           </div>
 
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionVulnerables')}</h3>
             <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minedubStats.vulnerablesHint')}</p>
             <div style={{ overflowX: 'auto' }}>
@@ -203,7 +204,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
             </div>
           </div>
 
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minedubStats.sectionInfrastructures')}</h3>
             <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minedubStats.infrastructuresHint')}</p>
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
@@ -237,7 +238,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
             </div>
           </div>
 
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minedubStats.sectionCommodites')}</h3>
             {(['pointEau', 'latrines', 'electricite', 'cantine'] as const).map((key) => (
               <div key={key} style={{ marginBottom: 10 }}>
@@ -253,7 +254,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
 
       {tab === 'generer' && (
         <div>
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 16 }}>{t('minedubStats.generateDescription')}</p>
             <button onClick={genererRapport} disabled={generating} style={btnPri}>{generating ? '...' : t('minedubStats.generateBtn')}</button>
           </div>
@@ -277,7 +278,7 @@ export default function SectionMinedubStatistics({ onToast }: Props) {
             </div>
           )}
 
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minedubStats.historyTitle')}</h3>
             {reports.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('minedubStats.historyEmpty')}</p>

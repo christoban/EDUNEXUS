@@ -17,7 +17,8 @@ interface AssignmentRow {
 }
 
 const sScroll: React.CSSProperties = { height: '100%', overflowY: 'auto', padding: '32px 40px' }
-const sCard: React.CSSProperties = { background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '28px 32px' }
+const sCardCls = 'rounded-[16px] md:rounded-[16px] p-[16px] md:px-[32px] md:py-[28px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]'
+const sCard: React.CSSProperties = { background: 'var(--surface)' }
 const sLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }
 const sSelect: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 15, color: 'var(--text)', background: 'var(--surface)', fontFamily: 'inherit', cursor: 'pointer' }
 
@@ -115,7 +116,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
     <div className="px-4 py-5 md:px-10 md:py-8" style={{ ...sScroll, padding: undefined }}>
       {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+        <div className="text-[21px] md:text-[26px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
           {t('affectations.title')}
         </div>
         <div style={{ fontSize: 15, color: 'var(--text3)' }}>
@@ -131,7 +132,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
       )}
 
       {/* Sélecteur de classe */}
-      <div style={{ ...sCard, marginBottom: 24, maxWidth: 480 }}>
+      <div className={sCardCls} style={{ ...sCard, marginBottom: 24, maxWidth: 480 }}>
         <div style={sLabel}>Choisir une classe</div>
         {loadingClasses ? (
           <div style={{ color: 'var(--text3)', fontSize: 14 }}>Chargement…</div>
@@ -148,17 +149,17 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
       {/* KPI */}
       {meta && classId && (
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-          <div style={{ background: meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)', border: `1.5px solid ${meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)'}`, borderRadius: 12, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="rounded-[12px] px-[16px] py-[12px] md:px-[22px] md:py-[14px]" style={{ background: meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)', border: `1.5px solid ${meta.assigned === meta.total ? 'var(--green-light)' : 'var(--amber-light)'}`, display: 'flex', alignItems: 'center', gap: 12 }}>
             {meta.assigned === meta.total ? <CheckCircle2 size={24} /> : <AlertTriangle size={24} />}
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{meta.assigned}/{meta.total}</div>
-              <div style={{ fontSize: 13, color: 'var(--text2)' }}>matières affectées</div>
+              <div className="text-[18px] md:text-[22px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{meta.assigned}/{meta.total}</div>
+              <div className="text-[12px] md:text-[13px]" style={{ color: 'var(--text2)' }}>matières affectées</div>
             </div>
           </div>
           {meta.assigned < meta.total && (
-            <div style={{ background: 'var(--orange-light)', border: '1.5px solid var(--orange-light)', borderRadius: 12, padding: '14px 22px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="rounded-[12px] px-[16px] py-[12px] md:px-[22px] md:py-[14px]" style={{ background: 'var(--orange-light)', border: '1.5px solid var(--orange-light)', display: 'flex', alignItems: 'center', gap: 10 }}>
               <ClipboardList size={20} />
-              <div style={{ fontSize: 14, color: 'var(--orange)' }}>
+              <div className="text-[13px] md:text-[14px]" style={{ color: 'var(--orange)' }}>
                 <strong>{meta.total - meta.assigned}</strong> matière{meta.total - meta.assigned > 1 ? 's' : ''} sans enseignant
               </div>
             </div>
@@ -168,7 +169,7 @@ export default function SectionAffectations({ onToast }: { onToast: (msg: string
 
       {/* Tableau */}
       {classId && (
-        <div style={sCard}>
+        <div className={sCardCls} style={sCard}>
           {loadingRows ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text3)' }}>Chargement des matières…</div>
           ) : rows.length === 0 ? (

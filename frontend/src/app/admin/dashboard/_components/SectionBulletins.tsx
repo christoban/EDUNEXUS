@@ -211,13 +211,13 @@ export default function SectionBulletins({ onToast }: Props) {
         </div>
       )}
 
-      <div style={{ marginBottom: 26 }}>
-        <div style={sTitle}>{t('bulletins.title')}</div>
-        <div style={sSub}>Génération et distribution</div>
+      <div className="mb-[14px] md:mb-[26px]">
+        <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('bulletins.title')}</div>
+        <div className="text-[13px] md:text-[17px]" style={sSub}>Génération et distribution</div>
       </div>
 
       {/* Sélecteur de classe */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '14px 20px', marginBottom: 18, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="rounded-[12px] md:rounded-[16px] px-[12px] py-[10px] md:px-[20px] md:py-[14px] mb-[14px] md:mb-[18px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={classId} onChange={e => setClassId(e.target.value)} style={selectSt} disabled={loadingClasses}>
           <option value="">{loadingClasses ? 'Chargement…' : 'Sélectionner une classe'}</option>
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -237,23 +237,24 @@ export default function SectionBulletins({ onToast }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 18 }}>
 
           {/* Pré-vérification */}
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Search size={16} /> Pré-vérification — {className}</span>
+          <div className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', overflow: 'hidden' }}>
+            <div className="px-[16px] pt-[14px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]">
+              <span className="text-[14px] md:text-[17px] font-bold md:font-extrabold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><Search size={16} /> Pré-vérification — {className}</span>
             </div>
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="p-[16px] md:p-[20px] gap-[10px] md:gap-[12px]" style={{ display: 'flex', flexDirection: 'column' }}>
               {checks.map((c, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '13px 16px', background: c.warn ? 'var(--amber-light)' : 'var(--green-light)', borderRadius: 11 }}>
-                  {c.warn ? <AlertTriangle size={22} color="var(--amber)" /> : <CheckCircle2 size={22} color="var(--green)" />}
+                <div key={i} className="gap-[10px] md:gap-[12px] p-[12px] md:px-[16px] md:py-[13px] rounded-[10px] md:rounded-[11px]" style={{ display: 'flex', alignItems: 'flex-start', background: c.warn ? 'var(--amber-light)' : 'var(--green-light)' }}>
+                  {c.warn ? <AlertTriangle size={20} color="var(--amber)" /> : <CheckCircle2 size={20} color="var(--green)" />}
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: c.warn ? 'var(--amber)' : 'var(--green)' }}>{c.title}</div>
-                    <div style={{ fontSize: 14, color: c.warn ? 'var(--amber)' : 'var(--green)', marginTop: 3, lineHeight: 1.5 }}>{c.sub}</div>
+                    <div className="text-[13px] md:text-[16px]" style={{ fontWeight: 800, color: c.warn ? 'var(--amber)' : 'var(--green)' }}>{c.title}</div>
+                    <div className="text-[11.5px] md:text-[14px]" style={{ color: c.warn ? 'var(--amber)' : 'var(--green)', marginTop: 3, lineHeight: 1.5 }}>{c.sub}</div>
                   </div>
                 </div>
               ))}
               <button
                 data-help-id="bulletins-generate-btn"
-                style={{ ...btnPrim, marginTop: 6, opacity: check.canGenerateReportCard ? 1 : 0.45, cursor: check.canGenerateReportCard ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                className="text-[13.5px] md:text-[16px] py-[12px] md:py-[10px] px-[16px] md:px-[20px]"
+                style={{ ...btnPrim, fontWeight: 800, marginTop: 6, opacity: check.canGenerateReportCard ? 1 : 0.45, cursor: check.canGenerateReportCard ? 'pointer' : 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: 8 }}
                 onClick={handleGenerate}
                 disabled={!check.canGenerateReportCard || generating}>
                 {generating ? <><Loader2 size={16} className="animate-spin" /> Génération en cours…</> : <><FileText size={16} /> Générer les bulletins →</>}
@@ -262,17 +263,17 @@ export default function SectionBulletins({ onToast }: Props) {
           </div>
 
           {/* Bulletins générés */}
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          <div className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', overflow: 'hidden' }}>
+            <div className="px-[16px] pt-[14px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span className="text-[14px] md:text-[17px] font-bold md:font-extrabold" style={{ color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <BarChart3 size={16} /> Bulletins générés ({reportCards.length})
               </span>
               {reportCards.length > 0 && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleExportZip} disabled={exporting}>
+                  <button className="text-[11px] md:text-[15px] px-[10px] py-[6px] md:px-[14px] md:py-[7px] rounded-[8px] md:rounded-[10px] border-0 md:border md:border-[1.5px] md:border-[var(--border2)] bg-[var(--bg2)] md:bg-[var(--surface)]" style={{ fontWeight: 800, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleExportZip} disabled={exporting}>
                     {exporting ? <Loader2 size={14} className="animate-spin" /> : <Package size={14} />} ZIP
                   </button>
-                  <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleSendParents} disabled={sending}>
+                  <button className="text-[11px] md:text-[15px] px-[10px] py-[6px] md:px-[14px] md:py-[7px] rounded-[8px] md:rounded-[10px] border-0 md:border md:border-[1.5px] md:border-[var(--border2)] bg-[var(--bg2)] md:bg-[var(--surface)]" style={{ fontWeight: 800, color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={handleSendParents} disabled={sending}>
                     {sending ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Envoyer
                   </button>
                 </div>
@@ -286,9 +287,9 @@ export default function SectionBulletins({ onToast }: Props) {
             ) : (
               <>
               {/* ── Cartes empilées — mobile ── */}
-              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
                 {reportCards.slice(0, 15).map((b) => (
-                  <div key={b.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div key={b.id} className="rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                     <div>
                       <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>
                         {b.student ? `${b.student.firstName} ${b.student.lastName}` : 'Élève'}
@@ -297,7 +298,7 @@ export default function SectionBulletins({ onToast }: Props) {
                         {b.generalAverage != null ? `${b.generalAverage.toFixed(2)}/20` : '—'} · {b.rank != null ? `${b.rank}e` : '—'}
                       </div>
                     </div>
-                    <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+                    <button className="text-[11.5px] px-[12px] py-[7px] rounded-[8px] border-0" style={{ background: 'var(--bg2)', color: 'var(--text2)', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
                       onClick={() => window.open(`/api/v2/report-cards/${b.id}/pdf`, '_blank')}>
                       <Eye size={14} /> PDF
                     </button>
@@ -373,8 +374,8 @@ export default function SectionBulletins({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec: React.CSSProperties = { padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const selectSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }

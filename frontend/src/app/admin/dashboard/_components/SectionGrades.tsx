@@ -107,8 +107,8 @@ export default function SectionGrades({ onToast }: Props) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>{t('title')}</div>
-          <div style={sSub}>Consultation et validation des notes</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>Consultation et validation des notes</div>
           {fromCache && cachedAt && (
             <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
               <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
@@ -116,15 +116,31 @@ export default function SectionGrades({ onToast }: Props) {
           )}
         </div>
         {pendingCount > 0 && (
-          <div style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 700, color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <AlertTriangle size={15} strokeWidth={2} /> {pendingCount} note{pendingCount > 1 ? 's' : ''} en attente
-          </div>
+          <>
+            {/* Mobile — pilule "Valider tout" a cote du titre (maquette) */}
+            <button className="md:hidden inline-flex items-center gap-[6px] rounded-full px-[14px] py-[10px] text-[12.5px] flex-shrink-0 border-0"
+              style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}
+              onClick={handleBulkValidate}>
+              Valider tout
+            </button>
+            <div className="hidden md:flex" style={{ background: 'var(--amber-light)', border: '1.5px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '8px 16px', fontSize: 15, fontWeight: 700, color: 'var(--amber)', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle size={15} strokeWidth={2} /> {pendingCount} note{pendingCount > 1 ? 's' : ''} en attente
+            </div>
+          </>
         )}
       </div>
 
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+      {/* Bandeau "en attente" — mobile uniquement, sous le titre (maquette) */}
+      {pendingCount > 0 && (
+        <div className="md:hidden" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--amber-light)', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 12, padding: '10px 14px', marginBottom: 14, marginTop: -12 }}>
+          <AlertTriangle size={16} strokeWidth={2.2} color="var(--amber)" />
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--amber)' }}>{pendingCount} note{pendingCount > 1 ? 's' : ''} en attente</span>
+        </div>
+      )}
+
+      <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
         {/* Filtres */}
-        <div className="grid grid-cols-2 sm:flex gap-2.5 px-3.5 py-3.5 sm:px-5 sm:items-center sm:flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="grid grid-cols-2 sm:flex gap-2.5 px-0 py-0 mb-4 md:mb-0 sm:px-5 sm:py-3.5 sm:items-center sm:flex-wrap md:border-b md:border-[var(--border)]">
           <select value={classId} onChange={e => setClassId(e.target.value)} className="w-full sm:w-auto" style={filterSelect} disabled={!filtersReady}>
             <option value="">Toutes les classes</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -145,7 +161,7 @@ export default function SectionGrades({ onToast }: Props) {
             {loading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : <Search size={15} strokeWidth={2} />} Charger
           </button>
           {pendingCount > 0 && (
-            <button data-help-id="grades-bulk-validate" className="col-span-2 sm:col-span-1 w-full sm:w-auto" style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleBulkValidate}>
+            <button data-help-id="grades-bulk-validate" className="hidden md:inline-flex sm:col-span-1 w-full sm:w-auto" style={{ ...btnSec, color: 'var(--green)', borderColor: 'var(--green)', marginLeft: 'auto', alignItems: 'center', justifyContent: 'center', gap: 6 }} onClick={handleBulkValidate}>
               <CheckCircle2 size={15} strokeWidth={2} /> Valider tout ({pendingCount})
             </button>
           )}
@@ -182,11 +198,11 @@ export default function SectionGrades({ onToast }: Props) {
         {!loading && !error && grades.length > 0 && (
           <>
             {/* ── Cartes empilées — mobile ── */}
-            <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
               {grades.map((grade) => {
                 const st = STATUS_STYLE[grade.validationStatus] ?? STATUS_STYLE.DRAFT
                 return (
-                  <div key={grade.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                  <div key={grade.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                       <div>
                         <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{grade.student.firstName} {grade.student.lastName}</div>
@@ -290,8 +306,8 @@ export default function SectionGrades({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSecSm: React.CSSProperties = { padding: '5px 12px', borderRadius: 8, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }

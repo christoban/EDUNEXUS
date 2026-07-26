@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { Smartphone, Mail, School, Search, Save, CheckCircle2, Info, ClipboardList } from 'lucide-react'
@@ -445,17 +446,40 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const subdomainValid   = /^[a-z0-9-]+$/.test(subdomainInput.trim()) && subdomainInput.trim().length >= 3
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-settings-spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div className="mb-[16px] md:mb-[26px]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={sTitle}>{t('settings.title')}</div>
-          <div style={sSub}>{t('settings.subtitle')}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('settings.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{t('settings.subtitle')}</div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 2, background: 'var(--bg2)', padding: 5, borderRadius: 12, marginBottom: 24, width: 'fit-content' }}>
+      {/* Tabs — mobile : puces défilables avec indicateur glissant, fondu de bord (maquette,
+          8 onglets ne tiennent pas dans le segmented control desktop sur mobile). */}
+      <div className="relative md:hidden mb-[16px] -mr-4">
+        <div className="flex gap-[6px] overflow-x-auto pr-8 py-[2px]" style={{ scrollbarWidth: 'none' }}>
+          {TABS.map((tab, i) => {
+            const active = activeTab === i
+            return (
+              <button key={i} onClick={() => setActiveTab(i)}
+                className="relative flex-shrink-0 rounded-full px-[14px] py-[9px] whitespace-nowrap border-0"
+                style={{ background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {active && (
+                  <motion.div layoutId="settings-tab-pill" className="absolute inset-0 rounded-full"
+                    style={{ background: 'var(--sidebar)' }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                )}
+                <span className="relative z-10 text-[12px]" style={{ fontWeight: active ? 700 : 500, color: active ? '#fff' : 'var(--text3)' }}>{tab}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="pointer-events-none absolute top-0 right-0 bottom-[4px] w-7" style={{ background: 'linear-gradient(90deg,transparent,var(--bg) 65%)' }} />
+      </div>
+
+      {/* Tabs — desktop : segmented control inchangé */}
+      <div className="hidden md:flex" style={{ gap: 2, background: 'var(--bg2)', padding: 5, borderRadius: 12, marginBottom: 24, width: 'fit-content', flexWrap: 'wrap' }}>
         {TABS.map((tab, i) => (
           <button key={i} onClick={() => setActiveTab(i)}
             style={{ padding: '8px 20px', borderRadius: 9, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: activeTab === i ? 'white' : 'transparent', color: activeTab === i ? 'var(--text)' : 'var(--text3)', boxShadow: activeTab === i ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.12s' }}>
@@ -469,7 +493,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
         <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
           {/* Logo */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.profile.logo_section')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.logo_section')}</span></div>
             <div style={{ padding: '22px 26px', display: 'flex', alignItems: 'center', gap: 24 }}>
               <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
               <div onClick={() => !logoLoading && logoInputRef.current?.click()}
@@ -515,7 +539,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {/* Identité */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.profile.identity_section')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.identity_section')}</span></div>
             <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
               {[
                 { label: t('settings.profile.name_label'), val: schoolName, set: setSchoolName },
@@ -559,7 +583,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {/* Sous-domaine */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.profile.subdomain_section')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.profile.subdomain_section')}</span></div>
             <div style={{ padding: '22px 26px' }}>
               {schoolInfo?.subdomain && (
                 <div style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 16, fontWeight: 500 }}>
@@ -611,7 +635,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* ── TAB 1: NOTIFICATIONS ── */}
       {activeTab === 1 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <div style={cardHeader}><span style={cardTitle}>{t('settings.notifications.title')}</span></div>
+          <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.notifications.title')}</span></div>
 
           {notifLoading && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -664,7 +688,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {/* Politique de mot de passe */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.security.password_policy')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.security.password_policy')}</span></div>
             {secLoading && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
                 <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
@@ -695,7 +719,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
 
           {/* Journaux d'audit */}
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.security.audit_logs')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.security.audit_logs')}</span></div>
             <div style={{ padding: '22px 26px' }}>
               <div style={{ fontSize: 16, color: 'var(--text2)', marginBottom: 16, lineHeight: 1.7 }}>
                 {t('settings.security.audit_desc')}
@@ -790,7 +814,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           {!pedLoading && pedSettings && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span style={cardTitle}>{t('settings.pedagogy.academic_rules')}</span></div>
+                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.academic_rules')}</span></div>
                 <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
                   <div>
                     <div style={fieldLabel}>{t('settings.pedagogy.pass_mark')}</div>
@@ -831,7 +855,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
 
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span style={cardTitle}>{t('settings.pedagogy.attendance_section')}</span></div>
+                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.attendance_section')}</span></div>
                 <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div>
                     <div style={fieldLabel}>{t('settings.pedagogy.max_absences')}</div>
@@ -852,7 +876,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
 
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span style={cardTitle}>{t('settings.pedagogy.contributions_section')}</span></div>
+                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.contributions_section')}</span></div>
                 <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
                   <div>
                     <div style={fieldLabel}>{t('settings.pedagogy.max_first_cycle')}</div>
@@ -878,7 +902,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
               </div>
 
               <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-                <div style={cardHeader}><span style={cardTitle}>{t('settings.pedagogy.features_section')}</span></div>
+                <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.pedagogy.features_section')}</span></div>
                 <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[
                     { key: 'smsEnabled', label: t('settings.pedagogy.sms_label'), sub: t('settings.pedagogy.sms_sub') },
@@ -929,7 +953,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* ── TAB 4: PRÉFÉRENCES ── */}
       {activeTab === 4 && (
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-          <div style={cardHeader}><span style={cardTitle}>{t('settings.preferences.title')}</span></div>
+          <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.preferences.title')}</span></div>
           <div style={{ padding: '22px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
             {[
               { label: 'Langue', opts: ['Français', 'English', 'Français/English (Bilingue)'] },
@@ -1075,7 +1099,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {activeTab === 7 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.structure.backup_title')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.backup_title')}</span></div>
             {backupLoading && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 36 }}>
                 <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} />
@@ -1106,7 +1130,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           </div>
 
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={cardHeader}><span style={cardTitle}>{t('settings.structure.rgpd_title')}</span></div>
+            <div style={cardHeader}><span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.rgpd_title')}</span></div>
             <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div>
                 <div style={fieldLabel}>{t('settings.structure.log_retention')}</div>
@@ -1156,7 +1180,7 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
           {structConfig && (
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
               <div style={cardHeader}>
-                <span style={cardTitle}>{t('settings.structure.classes_per_level')}</span>
+                <span className="text-[14px] md:text-[17px]" style={cardTitle}>{t('settings.structure.classes_per_level')}</span>
               </div>
               <div style={{ padding: '20px 26px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {[...structConfig.niveaux1erCycle, ...structConfig.niveauxPrimaire].length === 0 && (
@@ -1273,12 +1297,12 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const cardHeader: React.CSSProperties = { padding: '16px 26px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
-const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: 'var(--text)' }
+const cardTitle: React.CSSProperties = { fontWeight: 800, color: 'var(--text)' }
 const fieldLabel: React.CSSProperties = { fontSize: 13, fontWeight: 800, color: 'var(--text2)', marginBottom: 7, display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }
 const fieldInput: React.CSSProperties = { width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', transition: 'all 0.15s', boxSizing: 'border-box' }
 const fieldSelect: React.CSSProperties = { width: '100%', padding: '11px 14px', background: 'var(--bg2)', border: '1.5px solid var(--border2)', borderRadius: 11, color: 'var(--text)', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, outline: 'none', cursor: 'pointer' }

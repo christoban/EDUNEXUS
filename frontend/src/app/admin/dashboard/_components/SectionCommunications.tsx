@@ -199,19 +199,20 @@ export default function SectionCommunications({ onToast }: Props) {
   return (
     <div className="px-4 py-5 md:px-9 md:py-8" style={{ height: '100%', overflow: 'auto', background: 'var(--bg)' }}>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('communications.title')}</h2>
-        <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text3)' }}>
+      <div className="mb-[16px] md:mb-[28px]">
+        <h2 className="text-[22px] md:text-[28px]" style={{ margin: 0, fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('communications.title')}</h2>
+        <p className="text-[13px] md:text-[14px]" style={{ margin: '6px 0 0', color: 'var(--text3)' }}>
           Envoyez un message groupé par SMS ou email à votre communauté scolaire.
         </p>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--border)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+      <div className="mb-[16px] md:mb-[24px]" style={{ display: 'flex', gap: 4, background: 'var(--border)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
         {(['compose', 'history'] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
+            className="text-[12.5px] md:text-[14px] px-[14px] md:px-[20px] py-[8px] md:py-[7px]"
             style={{
-              padding: '7px 20px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+              borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700,
               background: tab === t ? 'white' : 'transparent',
               color: tab === t ? 'var(--text)' : 'var(--text3)',
               boxShadow: tab === t ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
@@ -225,19 +226,20 @@ export default function SectionCommunications({ onToast }: Props) {
 
       {/* ── COMPOSE TAB ──────────────────────────────────────────────────── */}
       {tab === 'compose' && (
-        <div className="grid grid-cols-1 md:[grid-template-columns:1fr_340px]" style={{ gap: 24 }}>
+        <div className="grid grid-cols-1 md:[grid-template-columns:1fr_340px] gap-[16px] md:gap-[24px]">
           {/* Left — form */}
-          <div style={{ background: 'var(--surface)', borderRadius: 14, padding: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: 'var(--text2)' }}>1. Canal d'envoi</h3>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 28 }}>
+          <div className="rounded-[16px] md:rounded-[14px] p-[16px] md:p-[28px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-[0_1px_4px_rgba(0,0,0,0.06)]" style={{ background: 'var(--surface)' }}>
+            <h3 className="text-[12.5px] md:text-[15px]" style={{ margin: '0 0 12px', fontWeight: 800, color: 'var(--text2)', textTransform: 'uppercase' }}>1. Canal d'envoi</h3>
+            <div className="gap-[8px] md:gap-[10px] mb-[18px] md:mb-[28px]" style={{ display: 'flex' }}>
               {(['SMS', 'EMAIL', 'BOTH'] as const).map((c) => {
                 const Icon = CANAL_ICON[c]
                 return (
                 <button key={c} onClick={() => setChannel(c)}
+                  className="rounded-[10px] py-[10px] px-0 text-[12.5px] md:text-[13px]"
                   style={{
-                    flex: 1, padding: '10px 0', borderRadius: 9, border: channel === c ? '2px solid var(--blue)' : '2px solid var(--border)',
+                    flex: 1, border: channel === c ? '1.5px solid var(--blue)' : '1.5px solid var(--border)',
                     background: channel === c ? 'var(--blue-light)' : 'white', color: channel === c ? 'var(--blue)' : 'var(--text3)',
-                    fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    fontWeight: 800, cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}>
                   <Icon size={14} /> {CANAL_LABEL[c]}
@@ -339,7 +341,7 @@ export default function SectionCommunications({ onToast }: Props) {
           {/* Right — preview card */}
           <div>
             {/* Aperçu destinataires */}
-            <div style={{ background: 'var(--surface)', borderRadius: 14, padding: 22, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+            <div className="rounded-[14px] p-[16px] md:p-[22px]" style={{ background: 'var(--surface)', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}>
               <h4 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 700, color: 'var(--text2)' }}>Aperçu des destinataires</h4>
               {!preview ? (
                 <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text3)', fontSize: 13 }}>
@@ -400,11 +402,11 @@ export default function SectionCommunications({ onToast }: Props) {
           ) : (
             <>
             {/* ── Cartes empilées — mobile ── */}
-            <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
               {logs.map((log) => {
                 const s = STATUS_STYLE[log.status] ?? STATUS_STYLE['partial']
                 return (
-                  <div key={log.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                  <div key={log.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                       <div>
                         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--blue)' }}>{CANAL_LABEL[log.channel] ?? log.channel}</span>

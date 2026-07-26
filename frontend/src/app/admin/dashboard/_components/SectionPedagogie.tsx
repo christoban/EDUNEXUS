@@ -182,7 +182,8 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
 
   const tabBtn = (t: Tab, label: React.ReactNode) => (
     <button onClick={() => setTab(t)}
-      style={{ padding: '8px 20px', borderRadius: 10, fontSize: 14, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
+      className="flex-1 md:flex-none text-[12px] md:text-[14px] px-[4px] md:px-[20px] py-[9px] md:py-[8px] rounded-[12px] md:rounded-[10px]"
+      style={{ fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', border: 'none',
         background: tab === t ? 'var(--sidebar)' : 'var(--bg2)', color: tab === t ? 'white' : 'var(--text2)', transition: 'all 0.15s' }}>
       {label}
     </button>
@@ -202,11 +203,11 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
 
   return (
     <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+      <div className="mb-[16px] md:mb-[24px]">
+        <div className="text-[22px] md:text-[24px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>
           {t('pedagogie.title')}
         </div>
-        <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
+        <div className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>
           Programmes, cahiers de texte et suivi des progressions
         </div>
       </div>
@@ -251,18 +252,18 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
               {alertes.map((a, i) => {
                 const nc = niveauColor(a.niveau)
                 return (
-                  <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${a.niveau === 'CRITIQUE' ? 'var(--red-light)' : 'var(--amber-light)'}`, padding: '18px 22px', display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-                    <div style={{ flexShrink: 0, textAlign: 'center', padding: '10px 14px', background: nc.bg, borderRadius: 12 }}>
-                      <div style={{ fontSize: 22, fontWeight: 900, color: nc.color }}>-{a.retardPct}%</div>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: nc.color, textTransform: 'uppercase' }}>{a.niveau}</div>
+                  <div key={i} className="rounded-[16px] md:rounded-[14px] gap-[12px] md:gap-[20px] p-[15px] md:px-[22px] md:py-[18px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none" style={{ background: 'var(--surface)', border: `1.5px solid ${a.niveau === 'CRITIQUE' ? 'var(--red-light)' : 'var(--amber-light)'}`, display: 'flex', alignItems: 'flex-start' }}>
+                    <div className="px-[12px] py-[8px] md:px-[14px] md:py-[10px]" style={{ flexShrink: 0, textAlign: 'center', background: nc.bg, borderRadius: 12 }}>
+                      <div className="text-[17px] md:text-[22px]" style={{ fontWeight: 900, color: nc.color }}>-{a.retardPct}%</div>
+                      <div className="text-[9px] md:text-[11px]" style={{ fontWeight: 800, color: nc.color, textTransform: 'uppercase' }}>{a.niveau}</div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                        <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{a.className}</span>
-                        <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>{a.subjectName}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="gap-[6px] md:gap-[8px] mb-[6px] md:mb-[8px]" style={{ display: 'flex', flexWrap: 'wrap' }}>
+                        <span className="text-[10.5px] md:text-[12px] px-[8px] py-[2px] md:px-[10px] md:py-[3px]" style={{ background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 20, fontWeight: 800 }}>{a.className}</span>
+                        <span className="text-[10.5px] md:text-[12px] px-[8px] py-[2px] md:px-[10px] md:py-[3px]" style={{ background: 'var(--amber-light)', color: 'var(--amber)', borderRadius: 20, fontWeight: 800 }}>{a.subjectName}</span>
                       </div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{a.programmeTitre}</div>
-                      <div style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>
+                      <div className="text-[13px] md:text-[14px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{a.programmeTitre}</div>
+                      <div className="gap-[10px] md:gap-[20px] text-[11.5px] md:text-[13px]" style={{ display: 'flex', flexWrap: 'wrap', color: 'var(--text2)', fontWeight: 600 }}>
                         <span>Réalisé : {a.progressionPct}%</span>
                         <span>Attendu : {a.attenduPct}%</span>
                         <span>{a.chapitresRealises}/{a.chapitresTotal} chapitres</span>
@@ -321,22 +322,22 @@ export default function SectionPedagogie({ onToast }: { onToast: OnToast }) {
                   <div style={{ fontSize: 13, color: 'var(--border2)', marginTop: 4 }}>Créez d'abord un programme dans l'onglet Programmes.</div>
                 </div>
               ) : (
-                <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 28 }}>
+                <div className="p-[16px] md:p-[28px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
                   <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>
                     {progressionData.programme.titre}
                   </div>
 
                   {/* Métriques */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-[10px] md:gap-[12px] mb-[18px] md:mb-[24px]">
                     {[
                       { label: 'Chapitres réalisés', value: `${progressionData.chapitresRealises}/${progressionData.chapitresTotal}`, color: 'var(--sidebar)' },
                       { label: 'Progression réelle', value: progressionData.progressionPct !== null ? `${progressionData.progressionPct}%` : '—', color: progressionData.progressionPct !== null && progressionData.progressionPct >= (progressionData.attenduPct ?? 0) ? 'var(--green)' : 'var(--red)' },
                       { label: 'Progression attendue', value: progressionData.attenduPct !== null ? `${progressionData.attenduPct}%` : '—', color: 'var(--text3)' },
                       { label: 'Retard', value: progressionData.retardPct !== null ? (progressionData.retardPct > 0 ? `-${progressionData.retardPct}%` : 'À jour') : '—', color: (progressionData.retardPct ?? 0) > 15 ? 'var(--red)' : (progressionData.retardPct ?? 0) > 0 ? 'var(--amber)' : 'var(--green)' },
                     ].map(m => (
-                      <div key={m.label} style={{ background: 'var(--bg)', borderRadius: 12, padding: '14px 18px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 22, fontWeight: 900, color: m.color }}>{m.value}</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{m.label}</div>
+                      <div key={m.label} className="rounded-[12px] px-[12px] py-[12px] md:px-[18px] md:py-[14px]" style={{ background: 'var(--bg)', textAlign: 'center' }}>
+                        <div className="text-[18px] md:text-[22px]" style={{ fontWeight: 900, color: m.color }}>{m.value}</div>
+                        <div className="text-[10px] md:text-[12px]" style={{ fontWeight: 700, color: 'var(--text3)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{m.label}</div>
                       </div>
                     ))}
                   </div>

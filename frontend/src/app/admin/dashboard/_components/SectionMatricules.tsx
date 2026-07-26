@@ -136,27 +136,27 @@ export default function SectionMatricules({ onToast }: Props) {
   const fuzzyMatches = extractFuzzy(selectedJob?.resultDetails ?? null).filter(f => f.status === 'PENDING')
 
   return (
-    <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
+      <h2 className="text-[22px] md:text-[28px] mb-[16px] md:mb-[20px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <IdCard size={20} strokeWidth={2} /> {t('matricules.title')}
       </h2>
 
       {/* Import */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>{t('matricules.import_title')}</h3>
-        <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
+      <div className="rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] mb-[16px] md:mb-[24px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+        <h3 className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>{t('matricules.import_title')}</h3>
+        <p className="text-[12px] md:text-[13px]" style={{ color: 'var(--text2)', marginBottom: 14, lineHeight: 1.5 }}>
           {t('matricules.import_desc')}
         </p>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} />
-          <button onClick={() => fileRef.current?.click()} style={btnSec}>{t('matricules.select_file')}</button>
-          <button data-help-id="matricules-import-btn" onClick={handleImport} disabled={importing} style={btnPri}>{importing ? '...' : t('matricules.start_import')}</button>
+          <button onClick={() => fileRef.current?.click()} style={{ ...btnSec, flex: 1, textAlign: 'center' }}>{t('matricules.select_file')}</button>
+          <button data-help-id="matricules-import-btn" onClick={handleImport} disabled={importing} style={{ ...btnPri, flex: 1 }}>{importing ? '...' : t('matricules.start_import')}</button>
         </div>
       </div>
 
       {/* Historique */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>{t('matricules.history')}</h3>
+      <div className="rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+        <h3 className="text-[12.5px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 10, textTransform: 'uppercase' }}>{t('matricules.history')}</h3>
         {loading ? <p style={{ color: 'var(--text2)' }}>{t('common.loading')}</p> : jobs.length === 0 ? (
           <p style={{ color: 'var(--text3)', fontStyle: 'italic' }}>{t('matricules.no_imports')}</p>
         ) : (
@@ -164,13 +164,13 @@ export default function SectionMatricules({ onToast }: Props) {
             {jobs.map(j => {
               const pendingFuzzy = extractFuzzy(j.resultDetails).filter(f => f.status === 'PENDING').length
               return (
-                <div key={j.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div key={j.id} className="flex-col md:flex-row items-start md:items-center p-[12px] md:px-[14px] md:py-[10px]" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
                   <div>
-                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>{j.fileName}</span>
+                    <span className="text-[13px] md:text-[14px]" style={{ fontWeight: 600, color: 'var(--text)' }}>{j.fileName}</span>
                     <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text3)' }}>{new Date(j.createdAt).toLocaleDateString()}</span>
                     <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: j.status === 'COMPLETED' ? 'rgba(22,163,74,0.12)' : 'var(--bg2)', color: j.status === 'COMPLETED' ? 'var(--green)' : 'var(--text2)' }}>{j.status}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--text2)', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, fontSize: 12, color: 'var(--text2)', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} strokeWidth={2} /> {j.matchedRows}</span>
                     {pendingFuzzy > 0 && (
                       <span style={{ padding: '2px 8px', borderRadius: 10, fontWeight: 700, background: 'rgba(234,179,8,0.15)', color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: 4 }}>

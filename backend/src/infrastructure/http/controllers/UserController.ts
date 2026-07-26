@@ -506,10 +506,12 @@ export class UserController {
 
       res.status(201).json({ success: true, data: resultat });
 
-      // Envoi du lien d'invitation (prod uniquement, STAFF/TEACHER avec email)
+      // Envoi du lien d'invitation (prod uniquement, tout rôle avec email — le garde-fou
+      // maternelle/primaire ci-dessus garantit qu'un STUDENT avec email est bien un élève du
+      // secondaire, donc éligible aux identifiants propres comme PARENT/STAFF/TEACHER).
       const recipientEmail: string | undefined = (req.body.email as string | undefined)?.trim();
       const role: string = req.body.role || '';
-      if (!isDevMode && recipientEmail && ['STAFF', 'TEACHER'].includes(role)) {
+      if (!isDevMode && recipientEmail && ['STAFF', 'TEACHER', 'STUDENT', 'PARENT'].includes(role)) {
         (async () => {
           try {
             const jwt = await import('jsonwebtoken');

@@ -577,15 +577,19 @@ export default function SectionClasses({ onToast }: Props) {
   }
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
+      <div className="mb-[16px] md:mb-[26px]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={sTitle}>{t('classes.title')}</div>
-          <div style={sSub}>{loading ? '…' : t('classes.subtitle').replace('{count}', String(classes.length)).replace('{students}', String(totalEleves))}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('classes.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{loading ? '…' : t('classes.subtitle').replace('{count}', String(classes.length)).replace('{students}', String(totalEleves))}</div>
         </div>
-        <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('classes.btn_create')}</button>
+        <button className="hidden md:inline-block" style={btnPrim} onClick={() => setCreateOpen(true)}>{t('classes.btn_create')}</button>
+        <button
+          className="md:hidden inline-flex items-center gap-[6px] rounded-full px-[14px] py-[10px] text-[12.5px] border-0 flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 900 }}
+          onClick={() => setCreateOpen(true)}>{t('classes.btn_create')}</button>
       </div>
 
       {loading && (
@@ -611,7 +615,81 @@ export default function SectionClasses({ onToast }: Props) {
       )}
 
       {!loading && !error && classes.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
+        <>
+        {/* ── Cartes empilées — mobile (reproduction maquette) ── */}
+        <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
+          {classes.map(cls => {
+            const badge = getLevelBadge(cls.name)
+            const ppName = cls.professorPrincipal ? `${cls.professorPrincipal.firstName} ${cls.professorPrincipal.lastName}` : t('classes.pp_not_assigned')
+            const cardBtnMobile: React.CSSProperties = { flex: 1, fontSize: 13, fontWeight: 850, color: 'var(--text2)', background: 'var(--bg2)', border: 'none', borderRadius: 10, padding: '9px 0', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+            return (
+              <div key={cls.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 16, fontWeight: 850, color: 'var(--text)' }}>{cls.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 850, color: badge.color, background: badge.bg, borderRadius: 8, padding: '3px 9px' }}>{badge.label}</span>
+                    <button onClick={() => setDelConfirm({ classId: cls.id, className: cls.name })}
+                      style={{ width: 26, height: 26, borderRadius: 8, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--red)', flexShrink: 0, cursor: 'pointer' }}>
+                      <Trash2 size={14} strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text2)' }}><GraduationCap size={15} strokeWidth={2} color="var(--text3)" /> {t('classes.student_count').replace('{count}', String(cls._count.students))}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text2)' }}><Armchair size={15} strokeWidth={2} color="var(--text3)" /> {t('classes.capacity_label').replace('{capacity}', String(cls.capacity))}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12.5, color: 'var(--text2)' }}>
+                  <UserCheck size={15} strokeWidth={2} color="var(--text3)" /> {t('classes.pp_label')} <span style={{ fontStyle: cls.professorPrincipal ? 'normal' : 'italic', color: cls.professorPrincipal ? 'var(--text2)' : 'var(--text3)' }}>{ppName}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                  {(() => {
+                    const pebsBadge = (cls as any).pebsBadge as string | null
+                    const isPEBSFiliere = cls.filiere === 'FR_PEBS' || cls.filiere === 'EN_PEBS'
+                    if (pebsBadge === 'PEBS' || isPEBSFiliere) {
+                      const label = cls.filiere === 'EN_PEBS' ? 'PEBS EN' : 'PEBS FR'
+                      return <span style={{ fontSize: 12, fontWeight: 850, color: 'var(--green)', background: 'var(--green-light)', borderRadius: 8, padding: '4px 10px' }}>{label}</span>
+                    }
+                    if (pebsBadge === 'MIXTE') return <span style={{ fontSize: 12.5, fontWeight: 850, color: '#b45309', background: 'rgba(234,179,8,0.12)', borderRadius: 8, padding: '4px 10px' }}>{t('classes.filiere_labels.MIXTE')}</span>
+                    if (pebsBadge === 'GENERAL') return <span style={{ fontSize: 12.5, fontWeight: 850, color: 'var(--blue)', background: 'var(--blue-light)', borderRadius: 8, padding: '4px 10px' }}>{t('classes.filiere_labels.GENERAL')}</span>
+                    if (cls.filiere && !['FR_PEBS', 'EN_PEBS', 'FR_GENERAL', 'EN_GENERAL'].includes(cls.filiere)) return <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--blue)', background: 'var(--blue-light)', borderRadius: 8, padding: '4px 10px' }}>{cls.filiere}</span>
+                    return null
+                  })()}
+                  {cls.serie && <span style={{ fontSize: 12, fontWeight: 850, color: 'var(--text2)', background: 'var(--bg2)', borderRadius: 8, padding: '4px 10px' }}>{t('classes.serie_label').replace('{serie}', cls.serie)}</span>}
+                  {/* LV2/PEBS — pas d'équivalent maquette : intégrés comme pastilles dans la ligne
+                      des tags (filière/série), pas comme boutons pleine largeur dans le pied. */}
+                  {isLV2Level(cls) && (
+                    <button onClick={() => openLV2(cls)}
+                      style={{ fontSize: 12, fontWeight: 850, color: 'var(--blue)', background: 'var(--blue-light)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {t('classes.btn_lv2')}
+                    </button>
+                  )}
+                  {(schoolInfo?.hasPEBSFrancophone || schoolInfo?.hasPEBSAnglophone) && (
+                    <button onClick={() => openPEBS(cls)}
+                      style={{ fontSize: 12, fontWeight: 850, color: 'var(--green)', background: 'var(--green-light)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {t('classes.btn_pebs')}
+                    </button>
+                  )}
+                  {isSixthForm(cls) && (
+                    <button onClick={() => openALevel(cls)}
+                      style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--purple)', background: 'var(--purple-light)', border: 'none', borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {t('classes.btn_alevel')}
+                    </button>
+                  )}
+                </div>
+                {/* Pied — exactement les 3 boutons de la maquette (PP/Modifier/Sous-groupes,
+                    ratios 1/1/1.4), pas de retour à la ligne. */}
+                <div style={{ display: 'flex', gap: 6, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--bg2)' }}>
+                  <button onClick={() => openPP(cls)} style={cardBtnMobile}>{t('classes.btn_pp')}</button>
+                  <button onClick={() => openMod(cls)} style={cardBtnMobile}>{t('classes.btn_edit')}</button>
+                  <button onClick={() => openSubgroups(cls)} style={{ ...cardBtnMobile, flex: 1.4 }}>{t('classes.btn_subgroups')}</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── Grille — desktop (inchangée) ── */}
+        <div className="hidden md:grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
           {classes.map(cls => {
             const badge = getLevelBadge(cls.name)
             const ppName = cls.professorPrincipal ? `${cls.professorPrincipal.firstName} ${cls.professorPrincipal.lastName}` : t('classes.pp_not_assigned')
@@ -673,6 +751,7 @@ export default function SectionClasses({ onToast }: Props) {
             )
           })}
         </div>
+        </>
       )}
 
       {/* ── Modal créer ── */}
@@ -680,25 +759,25 @@ export default function SectionClasses({ onToast }: Props) {
         const college = isCollegLevel(form.level, form.name)
         return (
         <ModalOverlay onClose={() => { setCreateOpen(false); setForm(EMPTY_FORM) }}>
-          <div style={sModalTitle}>{t('classes.create_modal.title')}</div>
-          <div style={sLabel}>{t('classes.create_modal.name_label')}</div>
-          <input style={sInput} placeholder={t('classes.create_modal.name_placeholder')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <div className={sModalTitleCls} style={sModalTitle}>{t('classes.create_modal.title')}</div>
+          <div className={sLabelCls} style={sLabel}>{t('classes.create_modal.name_label')}</div>
+          <input className={sInputCls} style={sInput} placeholder={t('classes.create_modal.name_placeholder')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={sLabel}>{t('classes.create_modal.level_label')}</div>
-              <input style={sInput} placeholder={t('classes.create_modal.level_placeholder')} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>{t('classes.create_modal.level_label')}</div>
+              <input className={sInputCls} style={sInput} placeholder={t('classes.create_modal.level_placeholder')} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>{t('classes.create_modal.filiere_label')}</div>
+              <div className={sLabelCls} style={sLabel}>{t('classes.create_modal.filiere_label')}</div>
               {college ? (
-                <select style={sInput} value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}>
+                <select className={sInputCls} style={sInput} value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}>
                   <option value="">{t('classes.create_modal.filiere_select')}</option>
                   {getFiliereOptions(college).map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
               ) : (
-                <select style={sInput} value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}>
+                <select className={sInputCls} style={sInput} value={form.filiere} onChange={e => setForm(f => ({ ...f, filiere: e.target.value }))}>
                   <option value="">{t('classes.create_modal.filiere_select_empty')}</option>
                   {filiereOptions.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -708,8 +787,8 @@ export default function SectionClasses({ onToast }: Props) {
             </div>
             {!college && (
               <div>
-                <div style={sLabel}>{t('classes.create_modal.serie_label')}</div>
-                <select style={sInput} value={form.serie} onChange={e => {
+                <div className={sLabelCls} style={sLabel}>{t('classes.create_modal.serie_label')}</div>
+                <select className={sInputCls} style={sInput} value={form.serie} onChange={e => {
                   const serie = e.target.value
                   setForm(f => ({ ...f, serie, filiere: f.filiere || serieToFiliere(serie) }))
                 }}>
@@ -721,8 +800,8 @@ export default function SectionClasses({ onToast }: Props) {
               </div>
             )}
             <div>
-              <div style={sLabel}>{t('classes.create_modal.capacity_label')}</div>
-              <input style={sInput} type="number" min="1" max="200" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>{t('classes.create_modal.capacity_label')}</div>
+              <input className={sInputCls} style={sInput} type="number" min="1" max="200" value={form.capacity} onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))} />
             </div>
           </div>
           {form.error && <div style={sError}>{form.error}</div>}
@@ -741,25 +820,25 @@ export default function SectionClasses({ onToast }: Props) {
         const college = isCollegLevel(modForm.level, modForm.name)
         return (
         <ModalOverlay onClose={() => setModForm(EMPTY_MOD)}>
-          <div style={sModalTitle}>{t('classes.edit_modal.title')}</div>
-          <div style={sLabel}>{t('classes.edit_modal.name_label')}</div>
-          <input style={sInput} value={modForm.name} onChange={e => setModForm(f => ({ ...f, name: e.target.value }))} />
+          <div className={sModalTitleCls} style={sModalTitle}>{t('classes.edit_modal.title')}</div>
+          <div className={sLabelCls} style={sLabel}>{t('classes.edit_modal.name_label')}</div>
+          <input className={sInputCls} style={sInput} value={modForm.name} onChange={e => setModForm(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={sLabel}>{t('classes.edit_modal.level_label')}</div>
-              <input style={sInput} placeholder={t('classes.edit_modal.level_placeholder')} value={modForm.level} onChange={e => setModForm(f => ({ ...f, level: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>{t('classes.edit_modal.level_label')}</div>
+              <input className={sInputCls} style={sInput} placeholder={t('classes.edit_modal.level_placeholder')} value={modForm.level} onChange={e => setModForm(f => ({ ...f, level: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>{t('classes.edit_modal.filiere_label')}</div>
+              <div className={sLabelCls} style={sLabel}>{t('classes.edit_modal.filiere_label')}</div>
               {college ? (
-                <select style={sInput} value={modForm.filiere} onChange={e => setModForm(f => ({ ...f, filiere: e.target.value }))}>
+                <select className={sInputCls} style={sInput} value={modForm.filiere} onChange={e => setModForm(f => ({ ...f, filiere: e.target.value }))}>
                   <option value="">{t('classes.create_modal.filiere_select')}</option>
                   {getFiliereOptions(college).map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
               ) : (
-                <select style={sInput} value={modForm.filiere} onChange={e => setModForm(f => ({ ...f, filiere: e.target.value }))}>
+                <select className={sInputCls} style={sInput} value={modForm.filiere} onChange={e => setModForm(f => ({ ...f, filiere: e.target.value }))}>
                   <option value="">{t('classes.create_modal.filiere_select_empty')}</option>
                   {filiereOptions.map(o => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -769,8 +848,8 @@ export default function SectionClasses({ onToast }: Props) {
             </div>
             {!college && (
               <div>
-                <div style={sLabel}>{t('classes.edit_modal.serie_label')}</div>
-                <select style={sInput} value={modForm.serie} onChange={e => {
+                <div className={sLabelCls} style={sLabel}>{t('classes.edit_modal.serie_label')}</div>
+                <select className={sInputCls} style={sInput} value={modForm.serie} onChange={e => {
                   const serie = e.target.value
                   setModForm(f => ({ ...f, serie, filiere: f.filiere || serieToFiliere(serie) }))
                 }}>
@@ -782,8 +861,8 @@ export default function SectionClasses({ onToast }: Props) {
               </div>
             )}
             <div>
-              <div style={sLabel}>{t('classes.edit_modal.capacity_label')}</div>
-              <input style={sInput} type="number" min="1" value={modForm.capacity} onChange={e => setModForm(f => ({ ...f, capacity: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>{t('classes.edit_modal.capacity_label')}</div>
+              <input className={sInputCls} style={sInput} type="number" min="1" value={modForm.capacity} onChange={e => setModForm(f => ({ ...f, capacity: e.target.value }))} />
             </div>
           </div>
           {modForm.error && <div style={sError}>{modForm.error}</div>}
@@ -800,10 +879,10 @@ export default function SectionClasses({ onToast }: Props) {
       {/* ── Modal assigner PP ── */}
       {ppForm.open && (
         <ModalOverlay onClose={() => setPPForm(EMPTY_PP)}>
-          <div style={sModalTitle}>{t('classes.pp_modal.title')}</div>
+          <div className={sModalTitleCls} style={sModalTitle}>{t('classes.pp_modal.title')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 18 }}>{t('classes.pp_modal.class_name').replace('{name}', ppForm.className)}</div>
-          <div style={sLabel}>{t('classes.pp_modal.search_label')}</div>
-          <input style={sInput} placeholder={t('classes.pp_modal.search_placeholder')} value={ppForm.teacherSearch}
+          <div className={sLabelCls} style={sLabel}>{t('classes.pp_modal.search_label')}</div>
+          <input className={sInputCls} style={sInput} placeholder={t('classes.pp_modal.search_placeholder')} value={ppForm.teacherSearch}
             onChange={e => setPPForm(f => ({ ...f, teacherSearch: e.target.value, selected: null }))} />
           {ppForm.selected && (
             <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -838,8 +917,8 @@ export default function SectionClasses({ onToast }: Props) {
       {/* ── ACTION 1 : Confirmation de suppression ── */}
       {delConfirm && (
         <ModalOverlay onClose={() => !deleting && setDelConfirm(null)}>
-          <div style={{ ...sModalTitle, color: 'var(--red)' }}>{t('classes.delete_modal.title')}</div>
-          <div style={{ fontSize: 15, color: 'var(--text2)', marginBottom: 24, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: t('classes.delete_modal.confirm').replace('{name}', delConfirm.className) }} />
+          <div className={sModalTitleCls} style={{ ...sModalTitle, color: 'var(--red)' }}>{t('classes.delete_modal.title')}</div>
+          <div className="text-[13.5px] md:text-[15px] mb-[18px] md:mb-[24px]" style={{ color: 'var(--text2)', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: t('classes.delete_modal.confirm').replace('{name}', delConfirm.className) }} />
           <div style={{ display: 'flex', gap: 10 }}>
             <button style={{ ...btnSec2, flex: 1 }} onClick={() => setDelConfirm(null)} disabled={deleting}>{t('classes.delete_modal.btn_cancel')}</button>
             <button
@@ -854,7 +933,7 @@ export default function SectionClasses({ onToast }: Props) {
       {/* ── ACTION 2 : Gérer les sous-groupes ── */}
       {sgForm.open && !assignForm.open && (
         <ModalOverlay onClose={() => setSgForm(EMPTY_SG)}>
-          <div style={sModalTitle}>{t('classes.subgroups.title').replace('{name}', sgForm.className)}</div>
+          <div className={sModalTitleCls} style={sModalTitle}>{t('classes.subgroups.title').replace('{name}', sgForm.className)}</div>
 
           {/* Liste des sous-groupes existants */}
           {sgForm.subgroups.length === 0 ? (
@@ -875,10 +954,10 @@ export default function SectionClasses({ onToast }: Props) {
           )}
 
           {/* Créer un nouveau sous-groupe */}
-          <div style={sLabel}>{t('classes.subgroups.new_name_label')}</div>
+          <div className={sLabelCls} style={sLabel}>{t('classes.subgroups.new_name_label')}</div>
           <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
             <input
-              style={{ ...sInput, marginBottom: 0, flex: 1 }}
+              className={sInputCls} style={{ ...sInput, marginBottom: 0, flex: 1 }}
               placeholder={t('classes.subgroups.new_name_placeholder')}
               value={sgForm.newName}
               onChange={e => setSgForm(f => ({ ...f, newName: e.target.value, error: '' }))}
@@ -903,7 +982,7 @@ export default function SectionClasses({ onToast }: Props) {
         <div onClick={() => setLV2Form(EMPTY_LV2)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 680, maxWidth: '96vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={sModalTitle}>{t('classes.lv2.title').replace('{name}', lv2Form.className)}</div>
+              <div className={sModalTitleCls} style={sModalTitle}>{t('classes.lv2.title').replace('{name}', lv2Form.className)}</div>
               <button onClick={() => setLV2Form(EMPTY_LV2)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--text3)', lineHeight: 1 }}>×</button>
             </div>
 
@@ -952,7 +1031,7 @@ export default function SectionClasses({ onToast }: Props) {
                     <select
                       value={lv2Form.bulkSubjectId}
                       onChange={e => setLV2Form(f => ({ ...f, bulkSubjectId: e.target.value }))}
-                      style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 140, fontSize: 13 }}>
+                      className={sInputCls} style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 140, fontSize: 13 }}>
                       <option value="">{t('classes.lv2.bulk_clear_option')}</option>
                       {lv2Form.subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -1032,7 +1111,7 @@ export default function SectionClasses({ onToast }: Props) {
         <div onClick={() => setPEBSForm(EMPTY_PEBS)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 680, maxWidth: '96vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={sModalTitle}>{t('classes.pebs.title').replace('{name}', pebsForm.className)}</div>
+              <div className={sModalTitleCls} style={sModalTitle}>{t('classes.pebs.title').replace('{name}', pebsForm.className)}</div>
               <button onClick={() => setPEBSForm(EMPTY_PEBS)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--text3)', lineHeight: 1 }}>×</button>
             </div>
 
@@ -1085,7 +1164,7 @@ export default function SectionClasses({ onToast }: Props) {
                     <select
                       value={pebsForm.bulkValue}
                       onChange={e => setPEBSForm(f => ({ ...f, bulkValue: e.target.value }))}
-                      style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 140, fontSize: 13 }}>
+                      className={sInputCls} style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 140, fontSize: 13 }}>
                       <option value="">{t('classes.pebs.bulk_clear_option')}</option>
                       {getPEBSOptions().map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -1167,7 +1246,7 @@ export default function SectionClasses({ onToast }: Props) {
         <div onClick={() => setALevelForm(EMPTY_ALEVEL)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} className="px-5 py-5 md:px-7 md:py-7" style={{ background: 'var(--surface)', borderRadius: 18, width: 720, maxWidth: '96vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={sModalTitle}>{t('classes.alevel.title').replace('{name}', alevelForm.className)}</div>
+              <div className={sModalTitleCls} style={sModalTitle}>{t('classes.alevel.title').replace('{name}', alevelForm.className)}</div>
               <button onClick={() => setALevelForm(EMPTY_ALEVEL)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: 'var(--text3)', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 14 }}>
@@ -1187,7 +1266,7 @@ export default function SectionClasses({ onToast }: Props) {
                 {/* Barre d'action de masse */}
                 <div style={{ background: 'var(--purple-light)', border: '1.5px solid var(--purple-light)', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--purple)' }}>Combinaison de départ pour toute la classe :</span>
-                  <select value={alevelForm.bulkCombo} onChange={e => setALevelForm(f => ({ ...f, bulkCombo: e.target.value }))} style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 160, fontSize: 13 }}>
+                  <select value={alevelForm.bulkCombo} onChange={e => setALevelForm(f => ({ ...f, bulkCombo: e.target.value }))} className={sInputCls} style={{ ...sInput, marginBottom: 0, flex: 1, minWidth: 160, fontSize: 13 }}>
                     <option value="">— Choisir —</option>
                     {alevelForm.combos.map(c => <option key={c.code} value={c.code}>{c.code} — {c.label}</option>)}
                   </select>
@@ -1275,7 +1354,7 @@ export default function SectionClasses({ onToast }: Props) {
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', padding: 0, lineHeight: 1, display: 'flex' }}>
               <ArrowLeft size={20} />
             </button>
-            <div style={sModalTitle}>{t('classes.subgroups.btn_assign')}</div>
+            <div className={sModalTitleCls} style={sModalTitle}>{t('classes.subgroups.btn_assign')}</div>
           </div>
           <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 18 }}>
             Sous-groupe : <strong style={{ color: 'var(--text2)' }}>{assignForm.subGroupName}</strong>
@@ -1335,18 +1414,24 @@ export default function SectionClasses({ onToast }: Props) {
 function ModalOverlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 480, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+      <div onClick={e => e.stopPropagation()} className="px-5 py-5 md:px-9 md:py-8 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 18, width: 480, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
         {children}
       </div>
     </div>
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
-const sModalTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }
-const sLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }
-const sInput: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
+// Tailles resserrees vers la cible mobile (meme technique que SectionUsers) — desktop inchangee
+// via md:. fontSize/padding/marginBottom retires des objets style (toujours gagnants sur
+// className) et portes par les classNames compagnes ci-dessous.
+const sModalTitleCls = 'text-[18px] md:text-[22px] mb-[16px] md:mb-[22px]'
+const sModalTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sLabelCls = 'text-[12px] md:text-[13px] mb-[4px] md:mb-[6px]'
+const sLabel: React.CSSProperties = { fontWeight: 700, color: 'var(--text3)' }
+const sInputCls = 'rounded-[10px] px-[12px] py-[9px] mb-[10px] text-[13px] md:px-[14px] md:py-[10px] md:mb-[14px] md:text-[14px]'
+const sInput: React.CSSProperties = { width: '100%', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }
 const sError: React.CSSProperties = { background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec2: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }

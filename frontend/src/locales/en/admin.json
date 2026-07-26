@@ -35,18 +35,11 @@
     }
   },
   "topbar": {
-    "search_placeholder": "Search...",
-    "no_results_for": "No results for",
     "change_password": "Change Password",
-    "invite": "+ Invite",
     "theme": "Theme",
     "notifications": "Notifications",
-    "type_labels": {
-      "user": "Users",
-      "class": "Classes",
-      "subject": "Subjects",
-      "activity": "Activities"
-    }
+    "no_notifications": "No notifications",
+    "view_all_notifications": "View all"
   },
   "dashboard": {
     "overview_title": "Overview",

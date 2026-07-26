@@ -73,28 +73,36 @@ export default function SectionAdminAI({ onToast }: Props) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>{t('ai.title')}</div>
-          <div style={sSub}>Scores de bien-être académique · Alertes automatiques</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('ai.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>Scores de bien-être académique · Alertes automatiques</div>
           {fromCache && cachedAt && (
             <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
               {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
             </div>
           )}
         </div>
-        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={refetch}><RefreshCw size={15} /> Actualiser</button>
+        <button
+          className="inline-flex items-center gap-[6px] cursor-pointer font-nunito flex-shrink-0 rounded-full md:rounded-[10px] px-[14px] py-[9px] md:px-[16px] md:py-[8px] text-[12.5px] md:text-[15px] font-semibold md:font-extrabold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] bg-[var(--bg2)] md:bg-[var(--surface)]"
+          style={{ color: 'var(--text2)' }}
+          onClick={refetch}><RefreshCw size={14} /> Actualiser</button>
       </div>
 
       {/* KPIs */}
       {summary && !loading && (
         <div className="grid grid-cols-2 sm:grid-cols-5" style={{ gap: 14, marginBottom: 22 }}>
-          {(Object.entries(ALERT_STYLE) as [string, typeof ALERT_STYLE[string]][]).map(([key, s]) => (
-            <div key={key} style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${alertFilter === key ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
-              onClick={() => setAlertFilter(alertFilter === key ? '' : key)}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}><s.icon size={16} color={s.color} /></div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color }}>{summary[key as keyof HealthSummary]}</div>
-              <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 3 }}>{s.label}</div>
+          {(Object.entries(ALERT_STYLE) as [string, typeof ALERT_STYLE[string]][]).map(([key, s]) => {
+            const isActive = alertFilter === key
+            return (
+            <div key={key}
+              className={`p-4 md:px-[18px] md:py-4 rounded-[16px] md:rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none md:border md:border-[1.5px] ${isActive ? 'border-[1.5px]' : 'border-0'}`}
+              style={{ background: 'var(--surface)', borderStyle: 'solid', borderColor: isActive ? 'var(--green)' : 'var(--border)', cursor: 'pointer', transition: 'all 0.15s' }}
+              onClick={() => setAlertFilter(isActive ? '' : key)}>
+              <div className="w-[34px] h-[34px] md:w-9 md:h-9" style={{ borderRadius: 9, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}><s.icon size={16} color={s.color} /></div>
+              <div className="text-[22px] md:text-[24px] font-bold md:font-black" style={{ color: s.color }}>{summary[key as keyof HealthSummary]}</div>
+              <div className="text-[12px] md:text-[13px]" style={{ color: 'var(--text3)', fontWeight: 600, marginTop: 3 }}>{s.label}</div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -124,7 +132,7 @@ export default function SectionAdminAI({ onToast }: Props) {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+      <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
             <div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
@@ -139,12 +147,12 @@ export default function SectionAdminAI({ onToast }: Props) {
         ) : (
           <>
           {/* ── Cartes empilées — mobile ── */}
-          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+          <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
             {filtered.map(s => {
               const al = ALERT_STYLE[s.alertLevel] ?? ALERT_STYLE.good
               const barColor = s.alertLevel === 'critical' ? 'var(--red)' : s.alertLevel === 'warning' ? 'var(--orange)' : s.alertLevel === 'recommendation' ? 'var(--amber)' : s.alertLevel === 'good' ? 'var(--blue)' : 'var(--green)'
               return (
-                <div key={s.studentId} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                <div key={s.studentId} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div>
                       <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{s.name}</div>
@@ -158,7 +166,7 @@ export default function SectionAdminAI({ onToast }: Props) {
                     <div style={{ flex: 1, height: 8, background: 'var(--bg2)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{ width: `${s.healthScore}%`, height: '100%', background: barColor, borderRadius: 4, transition: 'width 0.5s' }} />
                     </div>
-                    <span style={{ fontWeight: 900, color: barColor, fontSize: 15, flexShrink: 0 }}>{s.healthScore}</span>
+                    <span style={{ fontWeight: 700, color: barColor, fontSize: 15, flexShrink: 0 }}>{s.healthScore}</span>
                   </div>
                 </div>
               )
@@ -209,8 +217,8 @@ export default function SectionAdminAI({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnSec: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', outline: 'none', fontFamily: 'inherit' }
 const thSt: React.CSSProperties = { padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }

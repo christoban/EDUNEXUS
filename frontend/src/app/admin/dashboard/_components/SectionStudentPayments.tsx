@@ -121,8 +121,8 @@ export default function SectionStudentPayments({ onToast }: Props) {
   }
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginTop: 24 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>{t('matricules.student_dashboard_title')}</h3>
+    <div className="rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', marginTop: 24 }}>
+      <h3 className="text-[14.5px] md:text-[16px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>{t('matricules.student_dashboard_title')}</h3>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <input style={inputStyle} value={query} onChange={e => setQuery(e.target.value)}
@@ -197,22 +197,22 @@ export default function SectionStudentPayments({ onToast }: Props) {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-                <div style={{ background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{t('matricules.minesec_total_attendu')}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>{dashboard.totaux.totalAttendu.toLocaleString()} FCFA</div>
+              <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12, marginBottom: 20 }}>
+                <div className="px-[14px] py-[10px] md:px-[16px] md:py-[12px]" style={{ background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 10 }}>
+                  <div className="text-[10.5px] md:text-[11px]" style={{ fontWeight: 700, opacity: 0.8 }}>{t('matricules.minesec_total_attendu')}</div>
+                  <div className="text-[16px] md:text-[18px]" style={{ fontWeight: 800 }}>{dashboard.totaux.totalAttendu.toLocaleString()} FCFA</div>
                 </div>
-                <div style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--green)', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{t('matricules.minesec_total_paye')}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>{dashboard.totaux.totalPaye.toLocaleString()} FCFA</div>
+                <div className="px-[14px] py-[10px] md:px-[16px] md:py-[12px]" style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--green)', borderRadius: 10 }}>
+                  <div className="text-[10.5px] md:text-[11px]" style={{ fontWeight: 700, opacity: 0.8 }}>{t('matricules.minesec_total_paye')}</div>
+                  <div className="text-[16px] md:text-[18px]" style={{ fontWeight: 800 }}>{dashboard.totaux.totalPaye.toLocaleString()} FCFA</div>
                 </div>
-                <div style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--red)', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{t('matricules.minesec_total_restant')}</div>
-                  <div style={{ fontSize: 18, fontWeight: 800 }}>{dashboard.totaux.totalRestant.toLocaleString()} FCFA</div>
+                <div className="px-[14px] py-[10px] md:px-[16px] md:py-[12px]" style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--red)', borderRadius: 10 }}>
+                  <div className="text-[10.5px] md:text-[11px]" style={{ fontWeight: 700, opacity: 0.8 }}>{t('matricules.minesec_total_restant')}</div>
+                  <div className="text-[16px] md:text-[18px]" style={{ fontWeight: 800 }}>{dashboard.totaux.totalRestant.toLocaleString()} FCFA</div>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="grid grid-cols-1 md:[grid-template-columns:1fr_1fr]" style={{ gap: 16 }}>
                 {/* MINESEC */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>

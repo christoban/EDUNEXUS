@@ -54,7 +54,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {}
 
-interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string }
+interface SchoolInfo { id?: string; name: string; logoUrl: string | null; subdomain?: string; city?: string; phone?: string; email?: string; isPrimaire?: boolean | null }
 interface AdminBadges { users?: string; classes?: string; grades?: string; finance?: string }
 interface SessionUser { nomComplet?: string; firstName?: string; role?: string }
 
@@ -65,7 +65,6 @@ export default function AdminDashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null)
-  const [inviteOpen, setInviteOpen] = useState(false)
   const [changePwdOpen, setChangePwdOpen] = useState(false)
   const [badges, setBadges] = useState<AdminBadges>({})
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null)
@@ -164,10 +163,10 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: 'var(--bg)' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} isPrimaire={schoolInfo?.isPrimaire} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <AdminTopbar title={t(`page.section_titles.${section}`)} onInvite={() => { setSection('users'); setInviteOpen(true) }} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} onMenuClick={() => setMobileNavOpen(true)} />
+        <AdminTopbar title={t(`page.section_titles.${section}`)} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} onMenuClick={() => setMobileNavOpen(true)} sessionUser={sessionUser} onLogout={logoutUser} />
         <EventCenterWidget onNav={s => setSection(s as AdminSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
@@ -178,7 +177,7 @@ export default function AdminDashboard() {
               onToast={showToast}
             />
           )}
-          {section === 'users'     && <SectionUsers     onToast={showToast} openInviteOnMount={inviteOpen} onInviteMounted={() => setInviteOpen(false)} />}
+          {section === 'users'     && <SectionUsers     onToast={showToast} />}
           {section === 'classes'      && <SectionClasses      onToast={showToast} />}
           {section === 'subjects'     && <SectionSubjects     onToast={showToast} />}
           {section === 'grades'    && <SectionGrades    onToast={showToast} />}

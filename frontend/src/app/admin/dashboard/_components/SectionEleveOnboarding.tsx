@@ -220,10 +220,10 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
     <div className="px-4 py-5 md:px-8 md:py-7">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('eleveOnboarding.title')}</h2>
+          <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('eleveOnboarding.title')}</h2>
           <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('eleveOnboarding.subtitle')}</p>
         </div>
-        <button onClick={() => setCreateOpen(true)} style={btnPri}>{t('eleveOnboarding.createBtn')}</button>
+        <button onClick={() => setCreateOpen(true)} style={{ ...btnPri, borderRadius: 20, padding: '9px 14px', fontSize: 12 }}>{t('eleveOnboarding.createBtn')}</button>
       </div>
 
       {/* Réglages */}
@@ -264,9 +264,9 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
         ) : (
           <>
           {/* ── Cartes empilées — mobile ── */}
-          <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+          <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
             {dossiers.map(d => (
-              <div key={d.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 14 }}>
+              <div key={d.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 15 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{d.nomProvisoire}</div>
                 {d.matchScore !== null && (
                   <div style={{ fontSize: 11, color: '#b45309', marginTop: 3 }}>{t('eleveOnboarding.matchWarning', { score: String(d.matchScore) })}</div>
@@ -349,7 +349,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       {createOpen && (
         <div onClick={() => !creating && setCreateOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div onClick={e => e.stopPropagation()} className="p-5 md:p-7" style={{ background: 'var(--surface)', borderRadius: 16, width: 460, maxWidth: '92vw' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 18 }}>{t('eleveOnboarding.createModalTitle')}</h3>
+            <h3 className="text-[16px] md:text-[18px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 18 }}>{t('eleveOnboarding.createModalTitle')}</h3>
 
             <FieldLabel>{t('eleveOnboarding.fieldNomProvisoire')}</FieldLabel>
             <input style={inputStyle} value={createForm.nomProvisoire} onChange={e => setCreateForm(f => ({ ...f, nomProvisoire: e.target.value }))} />
@@ -420,7 +420,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       {validateTarget && (
         <div onClick={() => !validating && setValidateTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div onClick={e => e.stopPropagation()} className="p-5 md:p-7" style={{ background: 'var(--surface)', borderRadius: 16, width: 420, maxWidth: '92vw' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('eleveOnboarding.validateModalTitle')}</h3>
+            <h3 className="text-[16px] md:text-[18px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('eleveOnboarding.validateModalTitle')}</h3>
             <p style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 16 }}>{validateTarget.nomProvisoire}</p>
 
             <FieldLabel>{t('eleveOnboarding.validateClasseLabel')}</FieldLabel>
@@ -443,7 +443,7 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
       {rejectTarget && (
         <div onClick={() => !rejecting && setRejectTarget(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div onClick={e => e.stopPropagation()} className="p-5 md:p-7" style={{ background: 'var(--surface)', borderRadius: 16, width: 420, maxWidth: '92vw' }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('eleveOnboarding.rejectModalTitle')}</h3>
+            <h3 className="text-[16px] md:text-[18px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('eleveOnboarding.rejectModalTitle')}</h3>
             <p style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 16 }}>{rejectTarget.nomProvisoire}</p>
 
             <FieldLabel>{t('eleveOnboarding.rejectReasonLabel')}</FieldLabel>
@@ -461,5 +461,5 @@ export default function SectionEleveOnboarding({ onToast }: Props) {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', margin: '12px 0 6px' }}>{children}</div>
+  return <div className="text-[12px] md:text-[13px]" style={{ fontWeight: 700, color: 'var(--text2)', margin: '12px 0 6px' }}>{children}</div>
 }

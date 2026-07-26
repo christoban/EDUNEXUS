@@ -8,6 +8,11 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
 const NGROK_HOSTNAME = process.env.NGROK_HOSTNAME
 
 const nextConfig: NextConfig = {
+  // Masque le badge d'indicateur de route affiché en permanence en bas de l'écran en dev
+  // (infos de rendu statique/dynamique) — Next.js continue quand même de signaler les vraies
+  // erreurs de compilation/exécution.
+  devIndicators: false,
+
   turbopack: {
     root: path.resolve(__dirname),
   },

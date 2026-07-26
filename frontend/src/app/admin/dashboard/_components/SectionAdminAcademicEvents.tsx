@@ -145,29 +145,29 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
   const clos = events.filter(e => e.status === 'CLOSED').length
 
   return (
-    <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ overflowY: 'auto', height: '100%' }}>
+      <div className="mb-[16px] md:mb-[20px]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={sTitle}>{t('academicEvents.title')}</div>
-          <div style={sSub}>{t('academicEvents.subtitle')}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('academicEvents.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{t('academicEvents.subtitle')}</div>
         </div>
-        <button onClick={() => setFormOpen(true)} style={btnPrim}>
+        <button onClick={() => setFormOpen(true)} className="rounded-full md:rounded-[10px] text-[12px] md:text-[15px] px-[14px] md:px-[16px] py-[9px] md:py-[8px]" style={{ ...btnPrim, fontWeight: 700 }}>
           <Plus size={15} strokeWidth={2.5} /> {t('academicEvents.newEvent')}
         </button>
       </div>
 
       {!loading && !error && events.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-[10px] md:gap-[14px] mb-[18px] md:mb-[24px]">
           {[
             { icon: CalendarClock, value: total, label: t('academicEvents.kpiTotal') },
             { icon: Zap, value: actifs, label: t('academicEvents.kpiActive') },
             { icon: Clock, value: aVenir, label: t('academicEvents.kpiUpcoming') },
             { icon: CheckCircle2, value: clos, label: t('academicEvents.kpiClosed') },
           ].map(({ icon: Icon, value, label }) => (
-            <div key={label} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '16px 18px' }}>
+            <div key={label} className="rounded-[14px] p-[12px] md:px-[18px] md:py-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
               <div style={{ marginBottom: 6 }}><Icon size={22} /></div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
-              <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
+              <div className="text-[20px] md:text-[28px] font-black md:font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
+              <div className="text-[11.5px] md:text-[13px]" style={{ color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -197,22 +197,21 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
       {!loading && !error && events.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {events.map(ev => (
-            <div key={ev.id} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 22px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{ev.title}</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800, background: CATEGORY_COLOR[ev.category]?.bg, color: CATEGORY_COLOR[ev.category]?.color }}>
+            <div key={ev.id} className="rounded-[16px] md:rounded-[14px] p-[15px] md:px-[22px] md:py-[18px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+              <div className="mb-[8px] gap-[8px]" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <div className="text-[14.5px] md:text-[18px]" style={{ fontWeight: 800, color: 'var(--text)', flex: 1 }}>{ev.title}</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <span className="text-[10.5px] md:text-[12px]" style={{ padding: '2px 8px', borderRadius: 20, fontWeight: 800, background: CATEGORY_COLOR[ev.category]?.bg, color: CATEGORY_COLOR[ev.category]?.color }}>
                     {t(`academicEvents.category.${ev.category}`)}
                   </span>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800, background: STATUS_COLOR[ev.status]?.bg, color: STATUS_COLOR[ev.status]?.color }}>
+                  <span className="text-[10.5px] md:text-[12px]" style={{ padding: '2px 8px', borderRadius: 20, fontWeight: 800, background: STATUS_COLOR[ev.status]?.bg, color: STATUS_COLOR[ev.status]?.color }}>
                     {t(`academicEvents.status.${ev.status}`)}
                   </span>
                 </div>
               </div>
-              {ev.description && <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 8 }}>{ev.description}</div>}
-              <div style={{ fontSize: 13, color: 'var(--text3)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                <span>{t('academicEvents.opensOn')} {fmt(ev.openDate)}</span>
-                <span>{t('academicEvents.closesOn')} {fmt(ev.closeDate)}</span>
+              {ev.description && <div className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', marginBottom: 8 }}>{ev.description}</div>}
+              <div className="text-[11.5px] md:text-[13px] gap-[4px] md:gap-[16px]" style={{ color: 'var(--text3)', display: 'flex', flexDirection: 'column' }}>
+                <span>{t('academicEvents.opensOn')} {fmt(ev.openDate)} · {t('academicEvents.closesOn')} {fmt(ev.closeDate)}</span>
                 <span>{t('academicEvents.roles')} {ev.targetRoles.join(', ')}</span>
               </div>
 
@@ -241,28 +240,28 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
       {formOpen && (
         <div onClick={() => setFormOpen(false)}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} className="p-5 md:p-7"
-            style={{ background: 'var(--surface)', borderRadius: 16, width: 480, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} className="p-5 md:p-7 rounded-[16px] w-[480px] max-w-[94vw] max-h-[85vh] overflow-y-auto"
+            style={{ background: 'var(--surface)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{t('academicEvents.newEvent')}</div>
+              <div className="text-[18px] md:text-[20px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('academicEvents.newEvent')}</div>
               <button onClick={() => setFormOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}><X size={20} /></button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={labelSt}>{t('academicEvents.formTitle')}</label>
-                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={inputFullSt} placeholder={t('academicEvents.formTitlePlaceholder')} />
+                <label className={labelStCls} style={labelSt}>{t('academicEvents.formTitle')}</label>
+                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} className={inputFullStCls} style={inputFullSt} placeholder={t('academicEvents.formTitlePlaceholder')} />
               </div>
               <div>
-                <label style={labelSt}>{t('academicEvents.formType')}</label>
-                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={inputFullSt}>
+                <label className={labelStCls} style={labelSt}>{t('academicEvents.formType')}</label>
+                <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className={inputFullStCls} style={inputFullSt}>
                   {EVENT_TYPES.map(ty => <option key={ty} value={ty}>{t(`academicEvents.type.${ty}`)}</option>)}
                 </select>
               </div>
               {form.type === 'CHOIX_LV2' && (
                 <div>
-                  <label style={labelSt}>{t('academicEvents.formLevel')}</label>
-                  <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={inputFullSt}>
+                  <label className={labelStCls} style={labelSt}>{t('academicEvents.formLevel')}</label>
+                  <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={inputFullStCls} style={inputFullSt}>
                     <option value="">{t('academicEvents.formLevelPlaceholder')}</option>
                     {niveaux.map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
@@ -270,8 +269,8 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
                 </div>
               )}
               <div>
-                <label style={labelSt}>{t('academicEvents.formCategory')}</label>
-                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as AcademicEvent['category'] }))} style={inputFullSt}>
+                <label className={labelStCls} style={labelSt}>{t('academicEvents.formCategory')}</label>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as AcademicEvent['category'] }))} className={inputFullStCls} style={inputFullSt}>
                   <option value="FIXED_DATE">{t('academicEvents.category.FIXED_DATE')}</option>
                   <option value="MANUAL_TRIGGER">{t('academicEvents.category.MANUAL_TRIGGER')}</option>
                   <option value="SLIDING_WINDOW">{t('academicEvents.category.SLIDING_WINDOW')}</option>
@@ -279,11 +278,11 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{t(`academicEvents.categoryHint.${form.category}`)}</div>
               </div>
               <div>
-                <label style={labelSt}>{t('academicEvents.formDescription')}</label>
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ ...inputFullSt, minHeight: 60, resize: 'vertical' }} />
+                <label className={labelStCls} style={labelSt}>{t('academicEvents.formDescription')}</label>
+                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className={inputFullStCls} style={{ ...inputFullSt, minHeight: 60, resize: 'vertical' }} />
               </div>
               <div>
-                <label style={labelSt}>{t('academicEvents.formRoles')}</label>
+                <label className={labelStCls} style={labelSt}>{t('academicEvents.formRoles')}</label>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {ROLES.map(role => (
                     <button key={role} type="button" onClick={() => toggleRole(role)}
@@ -298,14 +297,14 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
               </div>
               {form.category !== 'MANUAL_TRIGGER' && (
                 <div>
-                  <label style={labelSt}>{t('academicEvents.formOpenDate')}</label>
-                  <input type="date" value={form.openDate} onChange={e => setForm(f => ({ ...f, openDate: e.target.value }))} style={inputFullSt} />
+                  <label className={labelStCls} style={labelSt}>{t('academicEvents.formOpenDate')}</label>
+                  <input type="date" value={form.openDate} onChange={e => setForm(f => ({ ...f, openDate: e.target.value }))} className={inputFullStCls} style={inputFullSt} />
                 </div>
               )}
               {form.category !== 'MANUAL_TRIGGER' && (
                 <div>
-                  <label style={labelSt}>{t('academicEvents.formCloseDate')}</label>
-                  <input type="date" value={form.closeDate} onChange={e => setForm(f => ({ ...f, closeDate: e.target.value }))} style={inputFullSt} />
+                  <label className={labelStCls} style={labelSt}>{t('academicEvents.formCloseDate')}</label>
+                  <input type="date" value={form.closeDate} onChange={e => setForm(f => ({ ...f, closeDate: e.target.value }))} className={inputFullStCls} style={inputFullSt} />
                 </div>
               )}
 
@@ -320,11 +319,13 @@ export default function SectionAdminAcademicEvents({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
 const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }
-const labelSt: React.CSSProperties = { display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 5 }
-const inputFullSt: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid var(--border2)', fontSize: 15, fontFamily: 'inherit', color: 'var(--text)', background: 'var(--bg2)', outline: 'none', boxSizing: 'border-box' }
+const labelStCls = 'text-[12px] md:text-[13px] mb-[4px] md:mb-[5px]'
+const labelSt: React.CSSProperties = { display: 'block', fontWeight: 700, color: 'var(--text2)' }
+const inputFullStCls = 'rounded-[10px] md:rounded-[9px] px-[12px] py-[9px] text-[13px] md:text-[15px]'
+const inputFullSt: React.CSSProperties = { width: '100%', border: '1.5px solid var(--border2)', fontFamily: 'inherit', color: 'var(--text)', background: 'var(--bg2)', outline: 'none', boxSizing: 'border-box' }
 const inputSt: React.CSSProperties = { padding: '7px 10px', borderRadius: 8, border: '1.5px solid var(--border2)', fontSize: 14, fontFamily: 'inherit', color: 'var(--text)', background: 'var(--bg2)', outline: 'none' }

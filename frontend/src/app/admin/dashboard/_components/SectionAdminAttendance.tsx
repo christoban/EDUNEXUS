@@ -104,15 +104,18 @@ export default function SectionAdminAttendance({ onToast }: Props) {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>{t('attendance.title')}</div>
-          <div style={sSub}>Supervision · Toutes les classes de l&apos;établissement</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('attendance.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>Supervision · Toutes les classes de l&apos;établissement</div>
           {fromCache && cachedAt && (
             <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
               {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
             </div>
           )}
         </div>
-        <button style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { fetchStats(); fetchRecords() }}><RefreshCw size={15} /> Rafraîchir</button>
+        <button
+          className="inline-flex items-center gap-[6px] cursor-pointer font-nunito flex-shrink-0 rounded-full md:rounded-[10px] px-[14px] py-[9px] md:px-[16px] md:py-[8px] text-[12.5px] md:text-[15px] border-0 md:border md:border-[1.5px] md:border-[var(--border2)] bg-[var(--bg2)] md:bg-[var(--surface)]"
+          style={{ color: 'var(--text2)', fontWeight: 700 }}
+          onClick={() => { fetchStats(); fetchRecords() }}><RefreshCw size={14} /> Rafraîchir</button>
       </div>
 
       {loading ? (
@@ -129,17 +132,17 @@ export default function SectionAdminAttendance({ onToast }: Props) {
                 { icon: X,  bg: 'var(--red-light)', val: String(stats.absent),  label: 'Absences',         color: 'var(--red)' },
                 { icon: AlarmClock, bg: 'var(--amber-light)', val: String(stats.late),    label: 'Retards',           color: 'var(--amber)' },
               ] as { icon: LucideIcon; bg: string; val: string; label: string; color: string }[]).map((k, i) => (
-                <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}><k.icon size={18} color={k.color} /></div>
-                  <div style={{ fontSize: 26, fontWeight: 900, color: k.color }}>{k.val}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+                <div key={i} className="p-3.5 md:px-5 md:py-[18px] rounded-[16px] md:rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+                  <div className="w-[34px] h-[34px] md:w-10 md:h-10 [&>svg]:w-4 [&>svg]:h-4 md:[&>svg]:w-[18px] md:[&>svg]:h-[18px]" style={{ borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}><k.icon color={k.color} /></div>
+                  <div className="text-[22px] md:text-[26px] font-bold md:font-black" style={{ color: k.color }}>{k.val}</div>
+                  <div className="text-[11.5px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
                 </div>
               ))}
             </div>
           )}
 
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
+            <div className="p-0 mb-4 md:p-[14px] md:px-[20px] md:mb-0 md:border-b md:border-[var(--border)]" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <select value={classId} onChange={e => setClassId(e.target.value)} style={filterSt}>
                 <option value="">Toutes les classes</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -172,11 +175,11 @@ export default function SectionAdminAttendance({ onToast }: Props) {
             {!loadingRecords && !error && records.length > 0 && (
               <>
               {/* ── Cartes empilées — mobile ── */}
-              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
                 {records.map(r => {
                   const st = STATUS_STYLE[r.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)', label: r.status, icon: Check }
                   return (
-                    <div key={r.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                    <div key={r.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 16 }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                         <div>
                           <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{r.student ? `${r.student.firstName} ${r.student.lastName}` : '—'}</div>
@@ -246,8 +249,8 @@ export default function SectionAdminAttendance({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '9px 18px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 15, fontWeight: 700, color: 'var(--text2)', outline: 'none', fontFamily: 'inherit' }

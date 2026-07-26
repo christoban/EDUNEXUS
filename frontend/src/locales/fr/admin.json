@@ -35,18 +35,11 @@
     }
   },
   "topbar": {
-    "search_placeholder": "Rechercher...",
-    "no_results_for": "Aucun résultat pour",
     "change_password": "Changer le mot de passe",
-    "invite": "+ Inviter",
     "theme": "Thème",
     "notifications": "Notifications",
-    "type_labels": {
-      "user": "Utilisateurs",
-      "class": "Classes",
-      "subject": "Matières",
-      "activity": "Activités"
-    }
+    "no_notifications": "Aucune notification",
+    "view_all_notifications": "Voir tout"
   },
   "dashboard": {
     "overview_title": "Vue d'ensemble",

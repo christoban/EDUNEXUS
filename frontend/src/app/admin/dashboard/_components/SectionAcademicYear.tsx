@@ -381,10 +381,14 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>{t('academic_year.title')}</div>
-          <div style={sSub}>{t('academic_year.subtitle')}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('academic_year.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{t('academic_year.subtitle')}</div>
         </div>
-        <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('academic_year.newYear')}</button>
+        <button className="hidden md:inline-block" style={btnPrim} onClick={() => setCreateOpen(true)}>{t('academic_year.newYear')}</button>
+        <button
+          className="md:hidden inline-flex items-center rounded-full px-[14px] py-[9px] text-[12px] border-0 flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+          onClick={() => setCreateOpen(true)}>+ {t('academic_year.newYear')}</button>
       </div>
 
       {loading && (
@@ -416,44 +420,43 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {!loading && !error && currentYear && (
         <>
           {/* Bannière année courante */}
-          <div style={{
+          <div className="rounded-[18px] md:rounded-[20px] p-[22px] md:px-[36px] md:py-[32px] mb-[16px] md:mb-[22px]" style={{
             background: 'linear-gradient(135deg,var(--sidebar) 0%,var(--sidebar2) 60%,var(--sidebar) 100%)',
-            borderRadius: 20, padding: '32px 36px', marginBottom: 22,
             border: '1.5px solid rgba(255,255,255,0.08)', position: 'relative', overflow: 'hidden',
           }}>
-            <div style={{ position: 'absolute', right: 36, top: '50%', transform: 'translateY(-50%)', opacity: 0.04, color: 'white', pointerEvents: 'none' }}><Star size={100} fill="white" /></div>
+            <div className="hidden md:block" style={{ position: 'absolute', right: 36, top: '50%', transform: 'translateY(-50%)', opacity: 0.04, color: 'white', pointerEvents: 'none' }}><Star size={100} fill="white" /></div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div className="mb-[16px] md:mb-[20px]" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+                <div className="text-[11px] md:text-[13px] mb-[6px] md:mb-[8px]" style={{ fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
                   {t('academic_year.currentYearLabel')}
                 </div>
-                <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 44, fontWeight: 700, color: 'white', lineHeight: 1 }}>
+                <div className="text-[26px] md:text-[44px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'white', lineHeight: 1 }}>
                   {currentYear.name}
                 </div>
-                <div style={{ fontSize: 17, color: 'rgba(255,255,255,0.5)', marginTop: 8, fontWeight: 600 }}>
+                <div className="text-[13px] md:text-[17px] mt-[6px] md:mt-[8px]" style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
                   {fmtDate(currentYear.startDate)} → {fmtDate(currentYear.endDate)}
                 </div>
               </div>
               {currentSeq && (
-                <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '6px 16px', borderRadius: 20, fontSize: 14, fontWeight: 800, alignSelf: 'flex-start', marginTop: 8 }}>
+                <span className="text-[13px] md:text-[14px] px-[14px] md:px-[16px] py-[5px] md:py-[6px]" style={{ background: 'var(--amber-light)', color: 'var(--amber)', borderRadius: 20, fontWeight: 800, alignSelf: 'flex-start', marginTop: 8 }}>
                   {t('academic_year.seqInProgress', { name: currentSeq.name })}
                 </span>
               )}
             </div>
 
             {currentPeriod && (
-              <div style={{ display: 'flex', gap: 28 }}>
+              <div className="gap-[20px] md:gap-[28px]" style={{ display: 'flex', flexWrap: 'wrap' }}>
                 {[
                   { label: t('academic_year.currentPeriodLabel'), value: currentPeriod.name },
                   { label: t('academic_year.type'), value: currentPeriod.type === 'TRIMESTER' ? t('academic_year.trimesters') : t('academic_year.semesters') },
                   currentSeq ? { label: t('academic_year.sequenceLabel'), value: currentSeq.name } : null,
                 ].filter(Boolean).map((m, i) => m && (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <div className="text-[11px] md:text-[13px]" style={{ fontWeight: 800, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '1px' }}>
                       {m.label}
                     </div>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: 'white' }}>{m.value}</div>
+                    <div className="text-[14px] md:text-[17px]" style={{ fontWeight: 700, color: 'white' }}>{m.value}</div>
                   </div>
                 ))}
               </div>
@@ -482,15 +485,16 @@ export default function SectionAcademicYear({ onToast }: Props) {
                   <div key={period.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <div
                       onClick={() => togglePeriod(period.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '18px 22px', cursor: 'pointer', userSelect: 'none', transition: 'background 0.1s' }}
+                      className="gap-[10px] md:gap-[14px] px-[16px] py-[14px] md:px-[22px] md:py-[18px]"
+                      style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', cursor: 'pointer', userSelect: 'none', transition: 'background 0.1s' }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--bg)'}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'var(--surface)'}>
                       <span style={{ color: 'var(--text3)', transition: 'transform 0.2s', display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', flexShrink: 0 }}><ChevronRight size={14} /></span>
-                      <span style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 20, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{period.name}</span>
-                      <span style={{ fontSize: 15, color: 'var(--text3)', fontWeight: 600 }}>
+                      <span className="text-[15px] md:text-[20px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', flex: 1 }}>{period.name}</span>
+                      <span className="text-[12px] md:text-[15px]" style={{ color: 'var(--text3)', fontWeight: 600 }}>
                         {fmtDate(period.startDate)} → {fmtDate(period.endDate)}
                       </span>
-                      <span style={{ background: badge.bg, color: badge.color, padding: '4px 12px', borderRadius: 22, fontSize: 14, fontWeight: 800 }}>
+                      <span className="text-[11.5px] md:text-[14px] px-[10px] md:px-[12px] py-[3px] md:py-[4px]" style={{ background: badge.bg, color: badge.color, borderRadius: 22, fontWeight: 800 }}>
                         {t(`academic_year.status.${ps}`)}
                       </span>
                       {!period.isCurrent && (
@@ -628,8 +632,8 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {calForm.open && (
         <div onClick={() => setCalForm(EMPTY_CAL)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 720, maxWidth: '96vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('academic_year.calModalTitle')}</div>
-            <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{calForm.yearName}</div>
+            <div className="text-[18px] md:text-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('academic_year.calModalTitle')}</div>
+            <div className="text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)', marginBottom: 24 }}>{calForm.yearName}</div>
 
             {calForm.periodes.map((p, pi) => (
               <div key={pi} style={{ border: '1.5px solid var(--border)', borderRadius: 12, padding: 18, marginBottom: 18 }}>
@@ -639,29 +643,29 @@ export default function SectionAcademicYear({ onToast }: Props) {
                 </div>
                 <div className="grid grid-cols-2 sm:[grid-template-columns:1fr_1fr_80px]" style={{ gap: 10 }}>
                   <div>
-                    <div style={sLb}>{t('academic_year.nameReq')}</div>
-                    <input style={sIn} value={p.name} onChange={e => updP(pi, 'name', e.target.value)} placeholder={t('academic_year.trimesterPlaceholder')} />
+                    <div className={sLbCls} style={sLb}>{t('academic_year.nameReq')}</div>
+                    <input className={sInCls} style={sIn} value={p.name} onChange={e => updP(pi, 'name', e.target.value)} placeholder={t('academic_year.trimesterPlaceholder')} />
                   </div>
                   <div>
-                    <div style={sLb}>{t('academic_year.typeReq')}</div>
-                    <select style={sIn} value={p.type} onChange={e => updP(pi, 'type', e.target.value)}>
+                    <div className={sLbCls} style={sLb}>{t('academic_year.typeReq')}</div>
+                    <select className={sInCls} style={sIn} value={p.type} onChange={e => updP(pi, 'type', e.target.value)}>
                       <option value="TRIMESTER">{t('academic_year.trimester')}</option>
                       <option value="SEMESTER">{t('academic_year.semester')}</option>
                     </select>
                   </div>
                   <div>
-                    <div style={sLb}>{t('academic_year.order')}</div>
-                    <input style={sIn} type="number" min={1} value={p.orderIndex} onChange={e => updP(pi, 'orderIndex', parseInt(e.target.value) || 1)} />
+                    <div className={sLbCls} style={sLb}>{t('academic_year.order')}</div>
+                    <input className={sInCls} style={sIn} type="number" min={1} value={p.orderIndex} onChange={e => updP(pi, 'orderIndex', parseInt(e.target.value) || 1)} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2" style={{ gap: 10 }}>
                   <div>
-                    <div style={sLb}>{t('academic_year.startDateReq')}</div>
-                    <input style={sIn} type="date" value={p.startDate} onChange={e => updP(pi, 'startDate', e.target.value)} />
+                    <div className={sLbCls} style={sLb}>{t('academic_year.startDateReq')}</div>
+                    <input className={sInCls} style={sIn} type="date" value={p.startDate} onChange={e => updP(pi, 'startDate', e.target.value)} />
                   </div>
                   <div>
-                    <div style={sLb}>{t('academic_year.endDateReq')}</div>
-                    <input style={sIn} type="date" value={p.endDate} onChange={e => updP(pi, 'endDate', e.target.value)} />
+                    <div className={sLbCls} style={sLb}>{t('academic_year.endDateReq')}</div>
+                    <input className={sInCls} style={sIn} type="date" value={p.endDate} onChange={e => updP(pi, 'endDate', e.target.value)} />
                   </div>
                 </div>
 
@@ -675,26 +679,26 @@ export default function SectionAcademicYear({ onToast }: Props) {
                       </div>
                       <div className="grid grid-cols-2 sm:[grid-template-columns:1fr_1fr_70px]" style={{ gap: 8 }}>
                         <div>
-                          <div style={sLb}>{t('academic_year.nameReq')}</div>
-                          <input style={{ ...sIn, marginBottom: 0 }} value={seq.name} onChange={e => updS(pi, si, 'name', e.target.value)} placeholder={t('academic_year.assignmentPlaceholder')} />
+                          <div className={sLbCls} style={sLb}>{t('academic_year.nameReq')}</div>
+                          <input className={sInCls} style={{ ...sIn, marginBottom: 0 }} value={seq.name} onChange={e => updS(pi, si, 'name', e.target.value)} placeholder={t('academic_year.assignmentPlaceholder')} />
                         </div>
                         <div>
-                          <div style={sLb}>{t('academic_year.typeReq')}</div>
-                          <input style={{ ...sIn, marginBottom: 0 }} value={seq.type} onChange={e => updS(pi, si, 'type', e.target.value)} placeholder="DS1" />
+                          <div className={sLbCls} style={sLb}>{t('academic_year.typeReq')}</div>
+                          <input className={sInCls} style={{ ...sIn, marginBottom: 0 }} value={seq.type} onChange={e => updS(pi, si, 'type', e.target.value)} placeholder="DS1" />
                         </div>
                         <div>
-                          <div style={sLb}>{t('academic_year.order')}</div>
-                          <input style={{ ...sIn, marginBottom: 0 }} type="number" min={1} value={seq.orderIndex} onChange={e => updS(pi, si, 'orderIndex', parseInt(e.target.value) || 1)} />
+                          <div className={sLbCls} style={sLb}>{t('academic_year.order')}</div>
+                          <input className={sInCls} style={{ ...sIn, marginBottom: 0 }} type="number" min={1} value={seq.orderIndex} onChange={e => updS(pi, si, 'orderIndex', parseInt(e.target.value) || 1)} />
                         </div>
                       </div>
                       <div className="grid grid-cols-2" style={{ gap: 8, marginTop: 8 }}>
                         <div>
-                          <div style={sLb}>{t('academic_year.startOptional')}</div>
-                          <input style={{ ...sIn, marginBottom: 0 }} type="date" value={seq.startDate} onChange={e => updS(pi, si, 'startDate', e.target.value)} />
+                          <div className={sLbCls} style={sLb}>{t('academic_year.startOptional')}</div>
+                          <input className={sInCls} style={{ ...sIn, marginBottom: 0 }} type="date" value={seq.startDate} onChange={e => updS(pi, si, 'startDate', e.target.value)} />
                         </div>
                         <div>
-                          <div style={sLb}>{t('academic_year.endOptional')}</div>
-                          <input style={{ ...sIn, marginBottom: 0 }} type="date" value={seq.endDate} onChange={e => updS(pi, si, 'endDate', e.target.value)} />
+                          <div className={sLbCls} style={sLb}>{t('academic_year.endOptional')}</div>
+                          <input className={sInCls} style={{ ...sIn, marginBottom: 0 }} type="date" value={seq.endDate} onChange={e => updS(pi, si, 'endDate', e.target.value)} />
                         </div>
                       </div>
                     </div>
@@ -721,24 +725,24 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {/* ── Modal créer une année ── */}
       {createOpen && (
         <ModalOverlay onClose={() => { setCreateOpen(false); setForm(EMPTY_YEAR) }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>
+          <div className="text-[18px] md:text-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>
             {t('academic_year.createYearTitle')}
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }}>{t('academic_year.nameReq')}</div>
+          <div className={sLbCls} style={sLb}>{t('academic_year.nameReq')}</div>
           <input
-            style={{ width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }}
+            className={sInCls} style={sIn}
             placeholder={t('academic_year.yearPlaceholder')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }}>{t('academic_year.startDateFull')}</div>
+              <div className={sLbCls} style={sLb}>{t('academic_year.startDateFull')}</div>
               <input type="date"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }}
+                className={sInCls} style={sIn}
                 value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }}>{t('academic_year.endDateFull')}</div>
+              <div className={sLbCls} style={sLb}>{t('academic_year.endDateFull')}</div>
               <input type="date"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }}
+                className={sInCls} style={sIn}
                 value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
             </div>
           </div>
@@ -758,10 +762,10 @@ export default function SectionAcademicYear({ onToast }: Props) {
       {reconduction.open && (
         <div onClick={closeReconduction} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 640, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+            <div className="text-[18px] md:text-[22px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
               Reconduire les plans de frais ?
             </div>
-            <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 18 }}>
+            <div className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', marginBottom: 18 }}>
               Vers <strong>{reconduction.targetYearName}</strong> — décochez les plans à ne pas reconduire, ajustez les montants si besoin. Rien n&apos;est créé tant que vous n&apos;avez pas confirmé.
             </div>
 
@@ -809,15 +813,17 @@ export default function SectionAcademicYear({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSecSm: React.CSSProperties = { padding: '7px 14px', borderRadius: 9, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const thStyle: React.CSSProperties = { padding: '11px 20px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: 'var(--text3)', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }
 const tdStyle: React.CSSProperties = { padding: '15px 20px', fontSize: 17, color: 'var(--text2)', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' }
 
-const sLb: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 4, display: 'block' }
-const sIn: React.CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 9, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 10, outline: 'none' }
+const sLbCls = 'text-[11.5px] md:text-[13px]'
+const sLb: React.CSSProperties = { fontWeight: 700, color: 'var(--text3)', marginBottom: 4, display: 'block' }
+const sInCls = 'rounded-[9px] px-[10px] py-[8px] mb-[8px] text-[12.5px] md:px-[12px] md:py-[9px] md:mb-[10px] md:text-[14px]'
+const sIn: React.CSSProperties = { width: '100%', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }
 
 function toDateInput(d: string | null): string {
   if (!d) return ''

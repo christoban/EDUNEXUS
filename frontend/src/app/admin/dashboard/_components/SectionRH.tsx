@@ -349,13 +349,11 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
   const tabButton = (key: Tab, label: string, icon: React.ReactNode) => (
     <button key={key}
       onClick={() => setTab(key)}
+      className="text-[12px] md:text-[14px] px-[12px] md:px-[18px] py-[8px] md:py-[9px] rounded-[12px] md:rounded-[11px]"
       style={{
-        padding: '9px 18px',
-        borderRadius: 11,
         border: 'none',
         cursor: 'pointer',
         fontFamily: 'inherit',
-        fontSize: 14,
         fontWeight: 800,
         background: tab === key ? 'var(--sidebar)' : 'var(--bg2)',
         color: tab === key ? 'white' : 'var(--text2)',
@@ -369,18 +367,20 @@ export default function SectionRH({ onToast }: { onToast: OnToast }) {
   )
 
   return (
-    <div style={{ padding: '28px 32px', height: '100%', overflowY: 'auto' }}>
-      <div style={{ marginBottom: 22 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>{t('rh.title')}</div>
-        <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>{t('rh.subtitle')}</div>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
+      <div className="mb-[16px] md:mb-[22px]">
+        <div className="text-[22px] md:text-[24px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('rh.title')}</div>
+        <div className="text-[13px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 500, marginTop: 4 }}>{t('rh.subtitle')}</div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
         {TABS.map(tb => tabButton(tb.key, t(`rh.tabs.${tb.key}`), tb.icon))}
       </div>
 
+      {/* Sur mobile, la liste employes / detail (360px fixe) ecrasait l'ecran — empile en 1
+          colonne en dessous de md, cote a cote a partir de md (inchange). */}
       {tab === 'personnel' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 18 }}>
+        <div className="grid grid-cols-1 md:[grid-template-columns:360px_1fr]" style={{ gap: 18 }}>
           <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{t('rh.staffList')}</div>

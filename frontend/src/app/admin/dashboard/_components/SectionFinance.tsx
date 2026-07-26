@@ -258,20 +258,25 @@ export default function SectionFinance({ onToast }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={sTitle}>{t('title')}</div>
-          <div style={sSub}>{t('subtitle')}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{t('subtitle')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="hidden md:flex" style={{ gap: 10, flexWrap: 'wrap' }}>
           <button style={{ padding: '10px 18px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'var(--surface)', color: 'var(--green)', border: '1.5px solid rgba(5,150,105,0.35)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={openInvoiceModal}>{t('actions.create_invoice')}</button>
           <button style={btnPrim} onClick={() => setCreateOpen(true)}>{t('actions.new_plan')}</button>
+        </div>
+        <div className="flex md:hidden" style={{ gap: 8 }}>
+          <button style={{ borderRadius: 20, padding: '9px 14px', fontSize: 12, background: 'var(--bg2)', color: 'var(--green)', fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }} onClick={openInvoiceModal}>{t('actions.create_invoice')}</button>
+          <button style={{ ...btnPrim, borderRadius: 20, padding: '9px 14px', fontSize: 12, fontWeight: 700 }} onClick={() => setCreateOpen(true)}>{t('actions.new_plan')}</button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 2, background: 'var(--bg2)', padding: 5, borderRadius: 12, marginBottom: 22, width: 'fit-content' }}>
+      <div className="gap-[2px] mb-[16px] md:mb-[22px]" style={{ display: 'flex', background: 'var(--bg2)', padding: 5, borderRadius: 12, width: 'fit-content' }}>
         {(['plans', 'invoices'] as const).map(tabKey => (
           <button key={tabKey} onClick={() => setTab(tabKey)}
-            style={{ padding: '8px 20px', borderRadius: 9, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: tab === tabKey ? 'white' : 'transparent', color: tab === tabKey ? 'var(--text)' : 'var(--text3)', boxShadow: tab === tabKey ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.12s' }}>
+            className="px-[14px] md:px-[20px] py-[7px] md:py-[8px] text-[13px] md:text-[16px]"
+            style={{ borderRadius: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: tab === tabKey ? 'white' : 'transparent', color: tab === tabKey ? 'var(--text)' : 'var(--text3)', boxShadow: tab === tabKey ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.12s' }}>
             {tabKey === 'plans' ? t('tabs.plans') : t('tabs.invoices')}
           </button>
         ))}
@@ -309,7 +314,7 @@ export default function SectionFinance({ onToast }: Props) {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ gap: 16 }}>
               {plans.map((plan) => (
-                <div key={plan.id} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: 22, transition: 'all 0.15s' }}
+                <div key={plan.id} className="p-[16px] md:p-[22px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', borderRadius: 16, transition: 'all 0.15s' }}
                   onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'translateY(-2px)', boxShadow: '0 6px 20px rgba(0,0,0,0.07)' })}
                   onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'none', boxShadow: 'none' })}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -365,17 +370,17 @@ export default function SectionFinance({ onToast }: Props) {
               { icon: <Loader2 size={20} strokeWidth={2} />, label: t('kpi.pending'),             val: String(pendingCount),  bg: 'var(--amber-light)' },
               { icon: <Circle size={12} fill="var(--red)" stroke="none" />, label: t('kpi.overdue'),             val: String(overdueCount),  bg: 'var(--red-light)' },
             ].map((k, i) => (
-              <div key={i} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '18px 20px' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 10 }}>{k.icon}</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>{k.val}</div>
-                <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
+              <div key={i} className="p-[12px] md:px-[20px] md:py-[18px] rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+                <div className="w-[34px] h-[34px] md:w-10 md:h-10" style={{ borderRadius: 10, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 10 }}>{k.icon}</div>
+                <div className="text-[18px] md:text-[22px] font-black" style={{ color: 'var(--text)' }}>{k.val}</div>
+                <div className="text-[11.5px] md:text-[14px]" style={{ color: 'var(--text3)', fontWeight: 600, marginTop: 4 }}>{k.label}</div>
               </div>
             ))}
           </div>
 
           {/* Filtres */}
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-            <div className="flex-wrap" style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
+            <div className="flex-wrap p-0 mb-4 md:p-[14px] md:px-[20px] md:mb-0 md:border-b md:border-[var(--border)]" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <select value={invStatus} onChange={e => setInvStatus(e.target.value)} style={filterSt}>
                 <option value="">{t('filters.all_statuses')}</option>
                 <option value="PENDING">{t('filters.pending')}</option>
@@ -397,12 +402,12 @@ export default function SectionFinance({ onToast }: Props) {
             ) : (
               <>
               {/* ── Cartes empilées — mobile ── */}
-              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
                 {invoices.map((inv) => {
                   const st = getInvStatus(inv.status)
                   const paid = inv.payments.filter(p => p.status === 'PAID').reduce((s, p) => s + p.amount, 0)
                   return (
-                    <div key={inv.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                    <div key={inv.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 14 }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                         <div>
                           <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{inv.student.firstName} {inv.student.lastName}</div>
@@ -497,25 +502,25 @@ export default function SectionFinance({ onToast }: Props) {
       {/* ── Modal créer plan ── */}
       {createOpen && (
         <ModalOverlay onClose={() => { setCreateOpen(false); setPlanForm(EMPTY_PLAN) }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modals.create_fee_plan.title')}</div>
-          <div style={sLb}>{t('modals.create_fee_plan.name_label')}</div>
-          <input style={sIn} placeholder={t('modals.create_fee_plan.name_placeholder')} value={planForm.name} onChange={e => setPlanForm(f => ({ ...f, name: e.target.value }))} />
+          <div className={sModalTitleCls} style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modals.create_fee_plan.title')}</div>
+          <div className={sLbCls} style={sLb}>{t('modals.create_fee_plan.name_label')}</div>
+          <input className={sInCls} style={sIn} placeholder={t('modals.create_fee_plan.name_placeholder')} value={planForm.name} onChange={e => setPlanForm(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={sLb}>{t('modals.create_fee_plan.amount_label')}</div>
-              <input style={sIn} type="number" min="0" placeholder={t('modals.create_fee_plan.amount_placeholder')} value={planForm.amount} onChange={e => setPlanForm(f => ({ ...f, amount: e.target.value }))} />
+              <div className={sLbCls} style={sLb}>{t('modals.create_fee_plan.amount_label')}</div>
+              <input className={sInCls} style={sIn} type="number" min="0" placeholder={t('modals.create_fee_plan.amount_placeholder')} value={planForm.amount} onChange={e => setPlanForm(f => ({ ...f, amount: e.target.value }))} />
             </div>
             <div>
-              <div style={sLb}>{t('modals.create_fee_plan.type_label')}</div>
-              <select style={sIn} value={planForm.feeType} onChange={e => setPlanForm(f => ({ ...f, feeType: e.target.value }))}>
+              <div className={sLbCls} style={sLb}>{t('modals.create_fee_plan.type_label')}</div>
+              <select className={sInCls} style={sIn} value={planForm.feeType} onChange={e => setPlanForm(f => ({ ...f, feeType: e.target.value }))}>
                 {FEE_TYPES.map(t => <option key={t} value={t}>{FEE_TYPE_LABEL[t] ?? t}</option>)}
               </select>
             </div>
           </div>
-          <div style={sLb}>{t('modals.create_fee_plan.description_label')}</div>
-          <input style={sIn} placeholder={t('modals.create_fee_plan.description_placeholder')} value={planForm.description} onChange={e => setPlanForm(f => ({ ...f, description: e.target.value }))} />
-          <div style={sLb}>{t('modals.create_fee_plan.due_date_label')}</div>
-          <input style={sIn} type="date" value={planForm.dueDate} onChange={e => setPlanForm(f => ({ ...f, dueDate: e.target.value }))} />
+          <div className={sLbCls} style={sLb}>{t('modals.create_fee_plan.description_label')}</div>
+          <input className={sInCls} style={sIn} placeholder={t('modals.create_fee_plan.description_placeholder')} value={planForm.description} onChange={e => setPlanForm(f => ({ ...f, description: e.target.value }))} />
+          <div className={sLbCls} style={sLb}>{t('modals.create_fee_plan.due_date_label')}</div>
+          <input className={sInCls} style={sIn} type="date" value={planForm.dueDate} onChange={e => setPlanForm(f => ({ ...f, dueDate: e.target.value }))} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <input type="checkbox" id="refund" checked={planForm.isRefundable} onChange={e => setPlanForm(f => ({ ...f, isRefundable: e.target.checked }))} />
             <label htmlFor="refund" style={{ fontSize: 14, color: 'var(--text2)', cursor: 'pointer' }}>{t('modals.create_fee_plan.refundable_label')}</label>
@@ -533,25 +538,25 @@ export default function SectionFinance({ onToast }: Props) {
       {/* ── Modal modifier plan ── */}
       {modPlan.open && (
         <ModalOverlay onClose={() => setModPlan(EMPTY_MOD_PLAN)}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modals.edit_fee_plan.title')}</div>
-          <div style={sLb}>{t('modals.edit_fee_plan.name_label')}</div>
-          <input style={sIn} value={modPlan.name} onChange={e => setModPlan(f => ({ ...f, name: e.target.value }))} />
+          <div className={sModalTitleCls} style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modals.edit_fee_plan.title')}</div>
+          <div className={sLbCls} style={sLb}>{t('modals.edit_fee_plan.name_label')}</div>
+          <input className={sInCls} style={sIn} value={modPlan.name} onChange={e => setModPlan(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={sLb}>{t('modals.edit_fee_plan.amount_label')}</div>
-              <input style={sIn} type="number" min="0" value={modPlan.amount} onChange={e => setModPlan(f => ({ ...f, amount: e.target.value }))} />
+              <div className={sLbCls} style={sLb}>{t('modals.edit_fee_plan.amount_label')}</div>
+              <input className={sInCls} style={sIn} type="number" min="0" value={modPlan.amount} onChange={e => setModPlan(f => ({ ...f, amount: e.target.value }))} />
             </div>
             <div>
-              <div style={sLb}>{t('modals.edit_fee_plan.type_label')}</div>
-              <select style={sIn} value={modPlan.feeType} onChange={e => setModPlan(f => ({ ...f, feeType: e.target.value }))}>
+              <div className={sLbCls} style={sLb}>{t('modals.edit_fee_plan.type_label')}</div>
+              <select className={sInCls} style={sIn} value={modPlan.feeType} onChange={e => setModPlan(f => ({ ...f, feeType: e.target.value }))}>
                 {FEE_TYPES.map(t => <option key={t} value={t}>{FEE_TYPE_LABEL[t] ?? t}</option>)}
               </select>
             </div>
           </div>
-          <div style={sLb}>{t('modals.edit_fee_plan.description_label')}</div>
-          <input style={sIn} value={modPlan.description} onChange={e => setModPlan(f => ({ ...f, description: e.target.value }))} />
-          <div style={sLb}>{t('modals.edit_fee_plan.due_date_label')}</div>
-          <input style={sIn} type="date" value={modPlan.dueDate} onChange={e => setModPlan(f => ({ ...f, dueDate: e.target.value }))} />
+          <div className={sLbCls} style={sLb}>{t('modals.edit_fee_plan.description_label')}</div>
+          <input className={sInCls} style={sIn} value={modPlan.description} onChange={e => setModPlan(f => ({ ...f, description: e.target.value }))} />
+          <div className={sLbCls} style={sLb}>{t('modals.edit_fee_plan.due_date_label')}</div>
+          <input className={sInCls} style={sIn} type="date" value={modPlan.dueDate} onChange={e => setModPlan(f => ({ ...f, dueDate: e.target.value }))} />
           {modPlan.error && <div style={{ background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{modPlan.error}</div>}
           <div style={{ display: 'flex', gap: 10 }}>
             <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={() => setModPlan(EMPTY_MOD_PLAN)}>{t('actions.cancel')}</button>
@@ -565,15 +570,15 @@ export default function SectionFinance({ onToast }: Props) {
       {/* ── Modal créer facture individuelle ── */}
       {invoiceOpen && (
         <ModalOverlay onClose={() => { setInvoiceOpen(false); setInvoiceForm(EMPTY_INVOICE) }}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modals.create_invoice.title')}</div>
+          <div className={sModalTitleCls} style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 22 }}>{t('modals.create_invoice.title')}</div>
           {invModalLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
               <div style={{ width: 30, height: 30, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} />
             </div>
           ) : (
             <>
-              <div style={sLb}>{t('modals.create_invoice.student_label')}</div>
-              <select style={sIn} value={invoiceForm.studentId} onChange={e => setInvoiceForm(f => ({ ...f, studentId: e.target.value }))}>
+              <div className={sLbCls} style={sLb}>{t('modals.create_invoice.student_label')}</div>
+              <select className={sInCls} style={sIn} value={invoiceForm.studentId} onChange={e => setInvoiceForm(f => ({ ...f, studentId: e.target.value }))}>
                 <option value="">{t('modals.create_invoice.student_placeholder')}</option>
                 {invStudents.map(s => (
                   <option key={s.id} value={s.id}>
@@ -581,15 +586,15 @@ export default function SectionFinance({ onToast }: Props) {
                   </option>
                 ))}
               </select>
-              <div style={sLb}>{t('modals.create_invoice.plan_label')}</div>
-              <select style={sIn} value={invoiceForm.feePlanId} onChange={e => setInvoiceForm(f => ({ ...f, feePlanId: e.target.value }))}>
+              <div className={sLbCls} style={sLb}>{t('modals.create_invoice.plan_label')}</div>
+              <select className={sInCls} style={sIn} value={invoiceForm.feePlanId} onChange={e => setInvoiceForm(f => ({ ...f, feePlanId: e.target.value }))}>
                 <option value="">{t('modals.create_invoice.plan_placeholder')}</option>
                 {invPlans.map(p => (
                   <option key={p.id} value={p.id}>{p.name} — {fmtCFA(p.amount)}</option>
                 ))}
               </select>
-              <div style={sLb}>{t('modals.create_invoice.description_label')}</div>
-              <input style={sIn} placeholder={t('modals.create_invoice.description_placeholder')} value={invoiceForm.description} onChange={e => setInvoiceForm(f => ({ ...f, description: e.target.value }))} />
+              <div className={sLbCls} style={sLb}>{t('modals.create_invoice.description_label')}</div>
+              <input className={sInCls} style={sIn} placeholder={t('modals.create_invoice.description_placeholder')} value={invoiceForm.description} onChange={e => setInvoiceForm(f => ({ ...f, description: e.target.value }))} />
             </>
           )}
           {invoiceForm.error && (
@@ -611,10 +616,10 @@ export default function SectionFinance({ onToast }: Props) {
       {/* ── Modal générer factures ── */}
       {bulkForm.open && (
         <ModalOverlay onClose={() => setBulkForm(EMPTY_BULK)}>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{t('modals.bulk_generate.title')}</div>
-          <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 22 }}>{bulkForm.planName}</div>
-          <div style={sLb}>{t('modals.bulk_generate.year_label')}</div>
-          <select style={sIn} value={bulkForm.academicYearId} onChange={e => setBulkForm(f => ({ ...f, academicYearId: e.target.value }))}>
+          <div className={sModalTitleCls} style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{t('modals.bulk_generate.title')}</div>
+          <div className="text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)', marginBottom: 22 }}>{bulkForm.planName}</div>
+          <div className={sLbCls} style={sLb}>{t('modals.bulk_generate.year_label')}</div>
+          <select className={sInCls} style={sIn} value={bulkForm.academicYearId} onChange={e => setBulkForm(f => ({ ...f, academicYearId: e.target.value }))}>
             <option value="">{t('modals.bulk_generate.year_placeholder')}</option>
             {bulkForm.years.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
           </select>
@@ -634,8 +639,8 @@ export default function SectionFinance({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSecSm: React.CSSProperties = { padding: '6px 14px', borderRadius: 9, fontSize: 14, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const filterSt: React.CSSProperties = { background: 'var(--surface)', border: '1.5px solid var(--border2)', borderRadius: 10, padding: '8px 12px', fontSize: 16, fontWeight: 700, color: 'var(--text2)', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }
@@ -652,5 +657,8 @@ function ModalOverlay({ onClose, children }: { onClose: () => void; children: Re
   )
 }
 
-const sLb: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }
-const sIn: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }
+const sLbCls = 'text-[12px] md:text-[13px] mb-[4px] md:mb-[6px]'
+const sLb: React.CSSProperties = { fontWeight: 700, color: 'var(--text3)' }
+const sInCls = 'rounded-[10px] px-[12px] py-[9px] mb-[10px] text-[13px] md:px-[14px] md:py-[10px] md:mb-[14px] md:text-[14px]'
+const sIn: React.CSSProperties = { width: '100%', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }
+const sModalTitleCls = 'text-[18px] md:text-[22px]'

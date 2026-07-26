@@ -219,8 +219,8 @@ export default function SectionTimetable({ onToast }: Props) {
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div style={sTitle}>{t('timetable.title')}</div>
-          <div style={sSub}>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('timetable.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>
             {timetable
               ? `${timetable.class.name} — ${t('timetable.slotsFilled', { filled: remplis, total: totalCours })} · ${timetable.status === 'PUBLISHED' ? t('timetable.statusPublished') : timetable.generatedByAI ? t('timetable.statusAIDraft') : t('timetable.statusDraft')}`
               : t('timetable.selectOrGen')}
@@ -234,7 +234,7 @@ export default function SectionTimetable({ onToast }: Props) {
 
           {/* Bouton génération automatique */}
           {!confirmReset ? (
-            <button style={{ ...btnAI, opacity: autoGenerating ? 0.7 : 1 }} disabled={autoGenerating}
+            <button className="text-[12.5px] md:text-[15px]" style={{ ...btnAI, borderRadius: 20, padding: '10px 16px', fontWeight: 700, opacity: autoGenerating ? 0.7 : 1 }} disabled={autoGenerating}
               onClick={() => setConfirmReset(true)}>
               {autoGenerating
                 ? <><span style={spinInline} />{t('timetable.generating')}</>
@@ -342,7 +342,7 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Pas de classe */}
       {!loading && !error && !classId && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
+        <div className="p-[32px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarDays size={52} strokeWidth={1.5} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.selectClassTitle')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 24 }}>{t('timetable.selectClassHint')}</div>
@@ -355,7 +355,7 @@ export default function SectionTimetable({ onToast }: Props) {
 
       {/* Classe sélectionnée, pas d'EDT */}
       {!loading && !error && classId && !timetable && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '60px 32px', textAlign: 'center' }}>
+        <div className="p-[32px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Calendar size={52} strokeWidth={1.5} /></div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.noTimetable')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)' }}>{t('timetable.noTimetableHint')}</div>
@@ -580,8 +580,8 @@ export default function SectionTimetable({ onToast }: Props) {
   )
 }
 
-const sTitle:    React.CSSProperties = { fontFamily: 'var(--font-spectral,Spectral,serif)', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub:      React.CSSProperties = { fontSize: 16, color: 'var(--text3)', marginTop: 3 }
+const sTitle:    React.CSSProperties = { fontFamily: 'var(--font-spectral,Spectral,serif)', fontWeight: 700, color: 'var(--text)' }
+const sSub:      React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim:   React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
 const btnAI:     React.CSSProperties = { padding: '10px 18px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--purple),var(--purple))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }
 const btnSec:    React.CSSProperties = { padding: '9px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }

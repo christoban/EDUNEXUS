@@ -37,9 +37,11 @@ const CHART_TOOLTIP = {
   itemStyle: { color: 'var(--text)' },
 } as const
 
-const card: React.CSSProperties = { background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }
-const cardHeader: React.CSSProperties = { padding: '16px 22px', borderBottom: '1px solid var(--border)' }
-const cardTitle: React.CSSProperties = { fontSize: 17, fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }
+const cardCls = 'rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]'
+const card: React.CSSProperties = { background: 'var(--surface)', overflow: 'hidden' }
+const cardHeaderCls = 'px-[16px] pt-[14px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]'
+const cardHeader: React.CSSProperties = {}
+const cardTitle: React.CSSProperties = { fontWeight: 800, color: 'var(--text)', display: 'inline-flex', alignItems: 'center', gap: 8 }
 const select: React.CSSProperties = { padding: '8px 12px', borderRadius: 9, border: '1.5px solid var(--border2)', fontFamily: 'inherit', fontSize: 14, color: 'var(--text)', background: 'var(--surface)' }
 
 export default function SectionStatistics({ onToast }: Props) {
@@ -121,18 +123,18 @@ export default function SectionStatistics({ onToast }: Props) {
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       <div style={{ marginBottom: 26 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>
+        <div className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>
           {t('statistics.title')}
         </div>
-        <div style={{ fontSize: 17, color: 'var(--text3)', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
+        <div className="text-[13px] md:text-[17px]" style={{ color: 'var(--text3)', marginTop: 3 }}>Visualisation des données de l&apos;établissement</div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 18 }}>
 
         {/* Évolution des moyennes */}
-        <div style={card}>
-          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes <CacheBadge fromCache={evoFromCache} cachedAt={evoCachedAt} t={t} /></span>
+        <div className={cardCls} style={card}>
+          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><TrendingUp size={17} strokeWidth={2} /> Évolution des moyennes <CacheBadge fromCache={evoFromCache} cachedAt={evoCachedAt} t={t} /></span>
             <div className="flex-wrap" style={{ display: 'flex', gap: 8 }}>
               <select className="min-w-0" style={select} value={evoClassId} onChange={e => setEvoClassId(e.target.value)}>
                 <option value="">Toutes les classes</option>
@@ -144,7 +146,8 @@ export default function SectionStatistics({ onToast }: Props) {
               </select>
             </div>
           </div>
-          <div style={{ padding: '18px 22px', height: 300 }}>
+          <div className="p-[14px] md:px-[22px] md:py-[18px] h-[260px] md:h-[300px]">
+
             {evoLoading ? (
               <Spinner />
             ) : evolution.length === 0 ? (
@@ -164,15 +167,16 @@ export default function SectionStatistics({ onToast }: Props) {
         </div>
 
         {/* Comparaison entre classes */}
-        <div style={card}>
-          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <span style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> Comparaison entre classes <CacheBadge fromCache={compFromCache} cachedAt={compCachedAt} t={t} /></span>
+        <div className={cardCls} style={card}>
+          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><BarChart3 size={17} strokeWidth={2} /> Comparaison entre classes <CacheBadge fromCache={compFromCache} cachedAt={compCachedAt} t={t} /></span>
             <select style={select} value={level} onChange={e => setLevel(e.target.value)}>
               <option value="">Tous les niveaux</option>
               {levels.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
-          <div style={{ padding: '18px 22px', height: 300 }}>
+          <div className="p-[14px] md:px-[22px] md:py-[18px] h-[260px] md:h-[300px]">
+
             {compLoading ? (
               <Spinner />
             ) : comparison.length === 0 ? (
@@ -192,16 +196,17 @@ export default function SectionStatistics({ onToast }: Props) {
         </div>
 
         {/* Répartition des effectifs */}
-        <div style={card}>
-          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> Répartition des effectifs <CacheBadge fromCache={distFromCache} cachedAt={distCachedAt} t={t} /></span>
+        <div className={cardCls} style={card}>
+          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><PieChartIcon size={17} strokeWidth={2} /> Répartition des effectifs <CacheBadge fromCache={distFromCache} cachedAt={distCachedAt} t={t} /></span>
             <select style={select} value={criteria} onChange={e => setCriteria(e.target.value as typeof criteria)}>
               <option value="gender">Par sexe</option>
               <option value="level">Par niveau</option>
               <option value="paymentStatus">Par statut de paiement</option>
             </select>
           </div>
-          <div style={{ padding: '18px 22px', height: 300 }}>
+          <div className="p-[14px] md:px-[22px] md:py-[18px] h-[260px] md:h-[300px]">
+
             {distLoading ? (
               <Spinner />
             ) : distribution.length === 0 ? (
@@ -221,15 +226,15 @@ export default function SectionStatistics({ onToast }: Props) {
         </div>
 
         {/* Performance enseignant */}
-        <div style={card}>
-          <div style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={cardTitle}><Apple size={17} strokeWidth={2} /> Performance enseignant <CacheBadge fromCache={teacherFromCache} cachedAt={teacherCachedAt} t={t} /></span>
+        <div className={cardCls} style={card}>
+          <div className={cardHeaderCls} style={{ ...cardHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span className="text-[14px] md:text-[17px]" style={cardTitle}><Apple size={17} strokeWidth={2} /> Performance enseignant <CacheBadge fromCache={teacherFromCache} cachedAt={teacherCachedAt} t={t} /></span>
             <select style={select} value={teacherId} onChange={e => setTeacherId(e.target.value)}>
               <option value="">Sélectionner un enseignant</option>
               {teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
             </select>
           </div>
-          <div style={{ padding: '18px 22px', minHeight: 300 }}>
+          <div className="p-[14px] md:px-[22px] md:py-[18px]" style={{ minHeight: 300 }}>
             {!teacherId ? (
               <EmptyState text="Sélectionnez un enseignant pour voir ses statistiques" />
             ) : teacherLoading ? (

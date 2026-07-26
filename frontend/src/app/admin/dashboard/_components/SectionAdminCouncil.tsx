@@ -136,8 +136,8 @@ export default function SectionAdminCouncil({ onToast }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div>
-          <div style={sTitle}>Conseil de classe</div>
-          <div style={sSub}>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>Conseil de classe</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>
             {totalSessions} session{totalSessions !== 1 ? 's' : ''} · {openCount} ouvert{openCount !== 1 ? 's' : ''} · {lockedCount} verrouillé{lockedCount !== 1 ? 's' : ''}
           </div>
         </div>
@@ -161,10 +161,10 @@ export default function SectionAdminCouncil({ onToast }: Props) {
             { icon: Lock, value: lockedCount,     label: 'Verrouillés' },
             { icon: Upload, value: publishedCount,  label: 'Bulletins publiés' },
           ] as { icon: typeof ClipboardList; value: number; label: string }[]).map(({ icon: Icon, value, label }) => (
-            <div key={label} style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '16px 18px' }}>
-              <div style={{ marginBottom: 6 }}><Icon size={22} /></div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
-              <div style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
+            <div key={label} className="p-3 md:px-[18px] md:py-4 rounded-[14px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+              <div className="[&>svg]:w-4 [&>svg]:h-4 md:[&>svg]:w-[22px] md:[&>svg]:h-[22px]" style={{ marginBottom: 6 }}><Icon /></div>
+              <div className="text-[20px] md:text-[28px] font-black" style={{ color: 'var(--text)', fontFamily: 'var(--font-spectral),Spectral,serif' }}>{value}</div>
+              <div className="text-[11px] md:text-[13px]" style={{ color: 'var(--text3)', fontWeight: 600, marginTop: 2 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -199,6 +199,7 @@ export default function SectionAdminCouncil({ onToast }: Props) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filteredSessions.map(s => (
               <div key={s.id} onClick={() => openSession(s.id)}
+                className="shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none"
                 style={{ background: selected?.id === s.id ? 'var(--green-light)' : 'white', borderRadius: 14, border: `1.5px solid ${selected?.id === s.id ? 'var(--green)' : 'var(--border)'}`, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.15s' }}
                 onMouseEnter={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }) }}
                 onMouseLeave={e => { if (selected?.id !== s.id) Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border)', boxShadow: 'none' }) }}>
@@ -277,11 +278,11 @@ export default function SectionAdminCouncil({ onToast }: Props) {
                         </div>
                       )}
                       {/* ── Cartes empilées — mobile ── */}
-                      <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+                      <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
                         {selected.decisions.map(d => {
                           const dc = DEC_COLOR[d.decision] ?? DEC_COLOR.PASS!
                           return (
-                            <div key={d.studentId} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                            <div key={d.studentId} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 14 }}>
                               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>
                                   {d.student.firstName} {d.student.lastName}
@@ -354,8 +355,8 @@ export default function SectionAdminCouncil({ onToast }: Props) {
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
 const btnPrim: React.CSSProperties = { padding: '8px 16px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec: React.CSSProperties = { padding: '8px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit' }
 const btnRetry: React.CSSProperties = { padding: '6px 14px', borderRadius: 8, background: 'var(--surface)', color: 'var(--red)', border: '1.5px solid rgba(220,38,38,0.3)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }

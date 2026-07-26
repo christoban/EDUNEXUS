@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
-import { GraduationCap, Presentation, CheckCircle2, FileText, RefreshCw, AlertTriangle, Users, User, ScrollText, Package } from 'lucide-react'
+import { GraduationCap, Presentation, CheckCircle2, FileText, RefreshCw, AlertTriangle, Users, User, ScrollText, Package, Clock } from 'lucide-react'
 
 interface Props {
   onNav: (s: string) => void
@@ -45,10 +45,10 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 26 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }}>
+          <div className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>
             {t('dashboard.overview_title')}
           </div>
-          <div style={{ fontSize: 17, color: 'var(--text3)', marginTop: 3 }}>{t('dashboard.overview_subtitle')}</div>
+          <div className="text-[13px] md:text-[17px]" style={{ color: 'var(--text3)', marginTop: 3 }}>{t('dashboard.overview_subtitle')}</div>
           {fromCache && cachedAt && (
             <div style={{ background: 'var(--amber-light)', border: '1px solid var(--amber)', borderRadius: 8, padding: '5px 12px', fontSize: 13, fontWeight: 600, color: 'var(--amber)', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
               <Package size={14} strokeWidth={2} /> {t('cacheBadge', { date: new Date(cachedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) })}
@@ -57,8 +57,9 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
         </div>
         <button
           onClick={() => { fetchStats(); onToast(t('dashboard.refreshing'), 'info') }}
-          style={btnSecSm}
-        ><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><RefreshCw size={15} strokeWidth={2} />{t('dashboard.refresh')}</span></button>
+          className="inline-flex items-center gap-[6px] cursor-pointer font-nunito flex-shrink-0 rounded-full md:rounded-[10px] px-[14px] py-[9px] md:px-[14px] md:py-[7px] text-[12.5px] md:text-[15px] font-semibold md:font-extrabold border-0 md:border md:border-[1.5px] md:border-[var(--border2)] bg-[var(--bg2)] md:bg-[var(--surface)]"
+          style={{ color: 'var(--text2)' }}
+        ><RefreshCw size={14} strokeWidth={2} />{t('dashboard.refresh')}</button>
       </div>
 
       {/* Loading */}
@@ -96,15 +97,16 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
             {kpi.map((k, i) => (
               <div key={i}
                 onClick={() => k.nav && onNav(k.nav)}
-                style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '22px 26px', cursor: k.nav ? 'pointer' : 'default', transition: 'all 0.15s' }}
+                className="p-4 md:px-[26px] md:py-[22px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]"
+                style={{ background: 'var(--surface)', borderRadius: 16, cursor: k.nav ? 'pointer' : 'default', transition: 'all 0.15s' }}
                 onMouseEnter={e => k.nav && Object.assign((e.currentTarget as HTMLElement).style, { transform: 'translateY(-2px)', boxShadow: '0 6px 20px rgba(0,0,0,0.07)' })}
                 onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { transform: 'none', boxShadow: 'none' })}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{k.icon}</div>
+                  <div className="w-[38px] h-[38px] md:w-12 md:h-12 [&>svg]:w-[18px] [&>svg]:h-[18px] md:[&>svg]:w-[22px] md:[&>svg]:h-[22px]" style={{ borderRadius: 12, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{k.icon}</div>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>{k.val}</div>
-                <div style={{ fontSize: 16, color: 'var(--text3)', marginTop: 5, fontWeight: 600 }}>{k.label}</div>
+                <div className="text-[24px] md:text-[36px] font-bold md:font-black" style={{ color: 'var(--text)', lineHeight: 1 }}>{k.val}</div>
+                <div className="text-[12.5px] md:text-[16px]" style={{ color: 'var(--text3)', marginTop: 5, fontWeight: 600 }}>{k.label}</div>
               </div>
             ))}
           </div>
@@ -113,14 +115,15 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
           <div className="grid grid-cols-1 md:[grid-template-columns:2fr_1fr]" style={{ gap: 18 }}>
 
             {/* Activité récente */}
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('dashboard.recent_activity_title')}</span>
+            <div className="shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>
+              <div className="px-[18px] pt-[18px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]">
+                <span className="text-[15px] md:text-[17px] font-bold md:font-extrabold" style={{ color: 'var(--text)' }}>{t('dashboard.recent_activity_title')}</span>
               </div>
-              <div style={{ padding: '18px 22px' }}>
+              <div className="px-[18px] pb-[18px] pt-0 md:px-[22px] md:py-[18px]">
                 {stats.recentActivity.length === 0 ? (
-                  <div style={{ fontSize: 16, color: 'var(--text3)', textAlign: 'center', padding: '20px 0' }}>
-                    {t('dashboard.no_recent_activity')}
+                  <div className="flex flex-col items-center gap-2 py-6 md:block md:py-5" style={{ color: 'var(--text3)', textAlign: 'center' }}>
+                    <Clock size={30} strokeWidth={1.6} className="md:hidden" style={{ color: 'var(--border2)' }} />
+                    <span className="text-[13px] md:text-[16px]">{t('dashboard.no_recent_activity')}</span>
                   </div>
                 ) : (
                   stats.recentActivity.map((act, i) => (
@@ -134,11 +137,11 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
             </div>
 
             {/* Actions rapides */}
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('dashboard.quick_actions_title')}</span>
+            <div className="shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]" style={{ background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>
+              <div className="px-[18px] pt-[18px] pb-2 md:px-[22px] md:py-4 md:border-b md:border-[var(--border)]">
+                <span className="text-[15px] md:text-[17px] font-bold md:font-extrabold" style={{ color: 'var(--text)' }}>{t('dashboard.quick_actions_title')}</span>
               </div>
-              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="px-[10px] pb-[10px] pt-[6px] gap-[6px] md:px-[18px] md:pb-4 md:pt-0 md:gap-[10px]" style={{ display: 'flex', flexDirection: 'column' }}>
                 {[
                   { icon: <FileText size={16} strokeWidth={2} />, label: t('dashboard.quick_actions.pending_grades'),    nav: 'grades'    },
                   { icon: <ScrollText size={16} strokeWidth={2} />, label: t('dashboard.quick_actions.generate_reports'),   nav: 'bulletins' },
@@ -147,11 +150,13 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
                 ].map((btn, i) => (
                   <button key={i}
                     onClick={() => btn.action ? btn.action() : onNav(btn.nav!)}
-                    style={{ width: '100%', padding: '10px 20px', borderRadius: 10, fontSize: 16, fontWeight: 800, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.12s' }}
+                    className="w-full rounded-[12px] md:rounded-[10px] py-[13px] px-[10px] md:py-[10px] md:px-5 text-[14px] md:text-[16px] font-semibold md:font-extrabold gap-[14px] md:gap-2 border-0 md:border md:border-[1.5px] md:border-[var(--border2)] bg-transparent md:bg-[var(--surface)]"
+                    style={{ color: 'var(--text2)', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', transition: 'all 0.12s' }}
                     onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--green)', color: 'var(--green)' })}
                     onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { borderColor: 'var(--border2)', color: 'var(--text2)' })}
                   >
-                    <span>{btn.icon}</span> {btn.label}
+                    <span className="w-[34px] h-[34px] md:w-auto md:h-auto flex items-center justify-center rounded-[10px] md:rounded-none flex-shrink-0 bg-[var(--bg2)] md:bg-transparent">{btn.icon}</span>
+                    {btn.label}
                   </button>
                 ))}
               </div>
@@ -161,10 +166,4 @@ export default function SectionDashboard({ onNav, onInvite, onToast }: Props) {
       )}
     </div>
   )
-}
-
-const btnSecSm: React.CSSProperties = {
-  padding: '7px 14px', borderRadius: 10, fontSize: 15, fontWeight: 800,
-  background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border2)',
-  cursor: 'pointer', fontFamily: 'inherit',
 }

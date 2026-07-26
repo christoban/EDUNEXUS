@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { generateText, tool } from 'ai';
+import { generateText, tool, APICallError } from 'ai';
 import { groqModel } from '../../../services/groq';
 import {
   buildTools,
@@ -18,6 +18,38 @@ const UNDO_WINDOW_MS = 5 * 60 * 1000;
 const SUPPORT_CONTACT = process.env.ASSISTANT_SUPPORT_CONTACT || 'le support ZekoulABia (contact à configurer)';
 
 const ESCALATE_TOOL_NAME = 'escalate_to_support';
+
+/**
+ * Détecte quand le modèle a recopié (intégralement OU partiellement, paraphrasé) la description
+ * Zod d'un champ comme s'il s'agissait de sa valeur réelle — ex. `teacherName: "Nom de
+ * l'enseignant à nommer professeur principal"`, ou une version raccourcie comme "Nom de
+ * l'enseignant", au lieu du vrai nom, quand l'utilisateur n'a jamais précisé quel enseignant.
+ * Comportement réellement observé chez Groq/Llama malgré l'instruction système explicite de ne
+ * jamais deviner — et observé sous DEUX formes différentes (copie complète, puis copie tronquée)
+ * lors des mêmes tests, d'où une correspondance par sous-chaîne plutôt qu'exacte : le modèle ne
+ * recopie pas toujours la description à l'identique. `min(1)` sur un champ string laisse passer
+ * cette hallucination sans jamais la détecter (n'importe quelle chaîne non vide est valide).
+ * Le seuil de 8 caractères évite de bloquer à tort une valeur légitime courte qui partagerait
+ * par coïncidence un petit fragment avec la description.
+ * Retourne la description du premier champ concerné (à réutiliser comme question de
+ * clarification), ou `null` si l'appel est légitime.
+ */
+function detecterParametreHallucine(action: ActionDefinition, input: Record<string, unknown>): string | null {
+  const schema = action.inputSchema;
+  if (!(schema instanceof z.ZodObject)) return null;
+  const shape = schema.shape as Record<string, z.ZodTypeAny>;
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value !== 'string') continue;
+    const description = shape[key]?.description;
+    if (!description) continue;
+    const v = value.trim().toLowerCase();
+    const d = description.trim().toLowerCase();
+    if (v.length >= 8 && d.includes(v)) {
+      return description;
+    }
+  }
+  return null;
+}
 
 /**
  * INFRASTRUCTURE — Assistant IA exécutant (copilot) pour le rôle ADMIN.
@@ -220,7 +252,16 @@ export class AssistantController {
       try {
         result = await generateText({ model: groqModel, system, prompt: message, tools, toolChoice: 'auto' });
       } catch (e: any) {
-        console.error('Assistant Groq error:', e?.message);
+        // Le message top-level (ex. « Failed to call a function ») ne dit jamais QUEL tool ni
+        // QUELS arguments malformés Groq a tenté de générer — cette information vit dans
+        // responseBody (le champ `failed_generation` de l'API Groq). Sans elle, ce log est
+        // muet sur la vraie cause (schéma Zod trop strict pour un tool donné, catalogue trop
+        // large pour que le modèle choisisse fiablement, etc.) et impossible à diagnostiquer.
+        if (APICallError.isInstance(e)) {
+          console.error('Assistant Groq error:', e.message, '| responseBody:', e.responseBody);
+        } else {
+          console.error('Assistant Groq error:', e?.message);
+        }
         res.json({ success: true, type: 'message', response: "Le service IA est momentanément indisponible. Réessayez dans un instant.", conversationId });
         return;
       }
@@ -255,6 +296,22 @@ export class AssistantController {
           conversationId,
         });
         return;
+      }
+
+      // Garde-fou avant toute exécution : si un des tool calls a un paramètre dont la valeur
+      // est identique à sa propre description Zod, le modèle a inventé une donnée manquante
+      // plutôt que de demander une clarification. On n'exécute rien pour ce tour — mieux vaut
+      // redemander l'info que d'agir avec un paramètre que l'utilisateur n'a jamais fourni.
+      for (const tc of toolCalls) {
+        const candidateAction = allowed.find((a) => a.name === tc.toolName);
+        if (!candidateAction) continue;
+        const champManquant = detecterParametreHallucine(candidateAction, tc.input as Record<string, unknown>);
+        if (champManquant) {
+          const clarification = `Il me manque une information pour continuer : ${champManquant}. Peux-tu préciser ?`;
+          this.saveTurn(conversationId, user.schoolId, user.userId, 'assistant', clarification);
+          res.json({ success: true, type: 'message', response: clarification, conversationId });
+          return;
+        }
       }
 
       logQuery('ACTION');

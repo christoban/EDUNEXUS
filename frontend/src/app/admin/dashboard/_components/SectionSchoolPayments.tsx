@@ -90,8 +90,8 @@ export default function SectionSchoolPayments({ onToast }: Props) {
   }
 
   return (
-    <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="px-4 py-5 md:px-8 md:py-7" style={{ height: '100%', overflowY: 'auto' }}>
+      <h2 className="text-[22px] md:text-[28px] mb-[16px] md:mb-[20px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Wallet size={20} strokeWidth={2} /> {t('matricules.minesec_dashboard_title')}
       </h2>
 
@@ -109,7 +109,7 @@ export default function SectionSchoolPayments({ onToast }: Props) {
       ) : (
         <>
           {/* Résumé global */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-[10px] md:gap-[16px] mb-[16px] md:mb-[24px]">
             {(() => {
               const stats = getStats(overview.minesec)
               return [
@@ -118,18 +118,37 @@ export default function SectionSchoolPayments({ onToast }: Props) {
                 { label: t('matricules.minesec_total_restant'), value: `${(stats.totalAttendu - stats.totalPaye).toLocaleString()} FCFA`, bg: 'rgba(239,68,68,0.12)', color: 'var(--red)' },
                 { label: 'Taux recouvrement', value: `${stats.tauxRecouvrement}%`, bg: 'rgba(234,179,8,0.12)', color: '#b45309' },
               ].map((c, i) => (
-                <div key={i} style={{ background: c.bg, color: c.color, borderRadius: 12, padding: '16px 20px' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, marginBottom: 4 }}>{c.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800 }}>{c.value}</div>
+                <div key={i} className="rounded-[14px] md:rounded-[12px] p-[12px] md:px-[20px] md:py-[16px]" style={{ background: c.bg, color: c.color }}>
+                  <div className="text-[11px]" style={{ fontWeight: 700, opacity: 0.85, marginBottom: 4 }}>{c.label}</div>
+                  <div className="text-[16px] md:text-[22px]" style={{ fontWeight: 900 }}>{c.value}</div>
                 </div>
               ))
             })()}
           </div>
 
           {/* Détail par statut */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Frais MINESEC — Par statut</h3>
-            <div style={{ overflowX: 'auto' }}>
+          <div className="rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] mb-[16px] md:mb-[24px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+            <h3 className="text-[12.5px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)', marginBottom: 12, textTransform: 'uppercase' }}>Frais MINESEC — Par statut</h3>
+            {/* Cartes — mobile */}
+            <div className="md:hidden flex flex-col" style={{ gap: 8 }}>
+              {overview.minesec.map((s, i) => {
+                const sc = STATUS_COLORS[s.status] ?? { bg: 'var(--bg2)', color: 'var(--text2)' }
+                return (
+                  <div key={i} className="rounded-[14px] px-[14px] py-[13px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 10.5, fontWeight: 800, background: sc.bg, color: sc.color }}>{s.status}</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--text3)', fontWeight: 700 }}>{s._count._all} paiement(s)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
+                      <span>Attendu : {(s._sum.montantAttendu ?? 0).toLocaleString()} FCFA</span>
+                      <span>Payé : {(s._sum.montantPaye ?? 0).toLocaleString()} FCFA</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Tableau — desktop */}
+            <div className="hidden md:block" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 500 }}>
                 <thead>
                   <tr>
@@ -159,9 +178,9 @@ export default function SectionSchoolPayments({ onToast }: Props) {
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={loadOverview} style={{ ...btnSec, display: 'inline-flex', alignItems: 'center', gap: 6 }}><RefreshCw size={14} strokeWidth={2} /> {t('matricules.sync_btn')}</button>
-            <button onClick={generateForSchool} disabled={generatingSchool} style={{ ...btnPri, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={loadOverview} style={{ ...btnSec, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><RefreshCw size={14} strokeWidth={2} /> {t('matricules.sync_btn')}</button>
+            <button onClick={generateForSchool} disabled={generatingSchool} style={{ ...btnPri, flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               {generatingSchool ? '...' : <><Settings size={14} strokeWidth={2} /> {t('matricules.generate_school_btn')}</>}
             </button>
           </div>

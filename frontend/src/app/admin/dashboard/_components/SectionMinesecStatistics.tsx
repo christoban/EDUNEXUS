@@ -53,7 +53,8 @@ const btnSec = { padding: '10px 20px', borderRadius: 8, border: '1px solid var(-
 const btnSmall = { padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' as const }
 const inputStyle = { padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 14, width: '100%', boxSizing: 'border-box' as const }
 const smallInputStyle = { ...inputStyle, padding: '6px 10px', fontSize: 13 }
-const cardStyle = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }
+const cardStyleCls = 'rounded-[16px] md:rounded-[12px] p-[16px] md:p-[20px] mb-[12px] md:mb-[20px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[var(--border)]'
+const cardStyle = { background: 'var(--surface)' }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', margin: '12px 0 6px' }}>{children}</div>
@@ -233,13 +234,13 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
   return (
     <div className="px-4 py-5 md:px-8 md:py-7">
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{t('minesecStats.title')}</h2>
+        <h2 className="text-[22px] md:text-[28px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.title')}</h2>
         <p style={{ fontSize: 14, color: 'var(--text3)', marginTop: 4 }}>{t('minesecStats.subtitle')}</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-        <button onClick={() => setTab('supplement')} style={tab === 'supplement' ? btnPri : btnSec}>{t('minesecStats.tabSupplement')}</button>
-        <button onClick={() => setTab('generer')} style={tab === 'generer' ? btnPri : btnSec}>{t('minesecStats.tabGenerer')}</button>
+      <div className="gap-[6px] md:gap-[8px] mb-[16px] md:mb-[20px]" style={{ display: 'flex' }}>
+        <button onClick={() => setTab('supplement')} className="flex-1 md:flex-none rounded-[12px] md:rounded-[8px] text-[12.5px] md:text-[14px] py-[10px] px-0 md:px-[20px] md:py-[10px]" style={{ ...(tab === 'supplement' ? btnPri : btnSec), padding: undefined }}>{t('minesecStats.tabSupplement')}</button>
+        <button onClick={() => setTab('generer')} className="flex-1 md:flex-none rounded-[12px] md:rounded-[8px] text-[12.5px] md:text-[14px] py-[10px] px-0 md:px-[20px] md:py-[10px]" style={{ ...(tab === 'generer' ? btnPri : btnSec), padding: undefined }}>{t('minesecStats.tabGenerer')}</button>
       </div>
 
       {tab === 'supplement' && (
@@ -259,7 +260,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
           <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 16 }}>{t('minesecStats.persistenceExplainer')}</p>
 
           {/* Identification */}
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minesecStats.sectionIdentification')}</h3>
 
             <FieldLabel>{t('minesecStats.fieldTitreFoncier')}</FieldLabel>
@@ -316,7 +317,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
           </div>
 
           {/* Historique BIP */}
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.sectionBip')}</h3>
               <button onClick={addBip} style={btnSmall}>+ {t('minesecStats.addBip')}</button>
@@ -335,7 +336,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
 
           {/* Infrastructures */}
           {meta && (
-            <div style={cardStyle}>
+            <div className={cardStyleCls} style={cardStyle}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{t('minesecStats.sectionInfrastructures')}</h3>
               <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>{t('minesecStats.infrastructuresHint')}</p>
 
@@ -401,7 +402,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
 
           {/* Effectifs techniques ESTP */}
           {meta && meta.specialitesTechniques.length > 0 && (
-            <div style={cardStyle}>
+            <div className={cardStyleCls} style={cardStyle}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{t('minesecStats.sectionEstp')}</h3>
                 <button onClick={addEstpEntry} style={btnSmall}>+ {t('minesecStats.addEstp')}</button>
@@ -476,7 +477,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
 
       {tab === 'generer' && (
         <div>
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <p style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 16 }}>{t('minesecStats.generateDescription')}</p>
             <button onClick={genererDeclaration} disabled={generating} style={btnPri}>
               {generating ? '...' : t('minesecStats.generateBtn')}
@@ -520,7 +521,7 @@ export default function SectionMinesecStatistics({ onToast }: Props) {
             </div>
           )}
 
-          <div style={cardStyle}>
+          <div className={cardStyleCls} style={cardStyle}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{t('minesecStats.historyTitle')}</h3>
             {submissions.length === 0 ? (
               <p style={{ fontSize: 13, color: 'var(--text3)' }}>{t('minesecStats.historyEmpty')}</p>

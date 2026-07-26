@@ -1,11 +1,12 @@
 ﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { DndContext, DragOverlay, useDraggable, useDroppable, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import {
   AlertTriangle, BookOpen, Loader2, Trash2, X, Search, GraduationCap, MoreHorizontal,
-  Users, Pencil, BarChart3, FolderOpen, Presentation, Check, type LucideIcon,
+  Users, Pencil, BarChart3, FolderOpen, Presentation, Check, RefreshCw, type LucideIcon,
 } from 'lucide-react'
 
 interface Props {
@@ -583,12 +584,34 @@ export default function SectionSubjects({ onToast }: Props) {
       <style>{`@keyframes edu-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* En-tête */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+      <div className="mb-[16px] md:mb-[20px]" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div style={sTitle}>{t('subjects.title')}</div>
-          <div style={sSub}>{loading ? '…' : t('subjects.count').replace('{count}', String(subjects.length))}</div>
+          <div className="text-[22px] md:text-[28px]" style={sTitle}>{t('subjects.title')}</div>
+          <div className="text-[13px] md:text-[17px]" style={sSub}>{loading ? '…' : t('subjects.count').replace('{count}', String(subjects.length))}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {/* Actions — mobile : sync compact + CTA pilule (vert, nôtre), reproduction maquette */}
+        <div className="flex md:hidden items-center gap-[6px] flex-shrink-0">
+          <button onClick={handleSync} disabled={syncing} title={t('subjects.sync_title')}
+            style={{ width: 38, height: 38, borderRadius: 19, border: 'none', background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text2)', opacity: syncing ? 0.7 : 1 }}>
+            {syncing ? <Loader2 size={16} strokeWidth={2} className="animate-spin" /> : <RefreshCw size={16} strokeWidth={2} />}
+          </button>
+          {view === 'catalogue' && (
+            <button onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-[6px] rounded-full px-[14px] py-[10px] text-[12.5px] whitespace-nowrap border-0"
+              style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 900 }}>
+              {t('subjects.btn_create')}
+            </button>
+          )}
+          {view === 'departements' && (
+            <button onClick={() => setDeptCreateForm({ open: true, name: '', color: 'var(--text3)', loading: false, error: '' })}
+              className="inline-flex items-center gap-[6px] rounded-full px-[14px] py-[10px] text-[12.5px] whitespace-nowrap border-0"
+              style={{ background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 900 }}>
+              {t('subjects.btn_create_dept')}
+            </button>
+          )}
+        </div>
+        {/* Actions — desktop, inchangées */}
+        <div className="hidden md:flex" style={{ alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {/* Toggle Vue */}
           <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 10, padding: 3, gap: 2 }}>
             {(['catalogue', 'par-classe', 'departements', 'par-enseignant'] as const).map(v => (
@@ -615,11 +638,35 @@ export default function SectionSubjects({ onToast }: Props) {
         </div>
       </div>
 
+      {/* Onglets de vue — mobile : puces défilables avec indicateur glissant, fondu de bord (maquette) */}
+      <div className="relative md:hidden mb-[14px] -mr-4">
+        <div className="flex gap-[6px] overflow-x-auto pr-8 py-[2px]" style={{ scrollbarWidth: 'none' }}>
+          {(['catalogue', 'par-classe', 'departements', 'par-enseignant'] as const).map(v => {
+            const active = view === v
+            return (
+              <button key={v} onClick={() => setView(v)}
+                className="relative flex-shrink-0 rounded-full px-[14px] py-[9px] whitespace-nowrap border-0"
+                style={{ background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {active && (
+                  <motion.div layoutId="subjects-view-pill" className="absolute inset-0 rounded-full"
+                    style={{ background: 'var(--sidebar)' }}
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }} />
+                )}
+                <span className="relative z-10 text-[12.5px]" style={{ fontWeight: active ? 700 : 500, color: active ? '#fff' : 'var(--text3)' }}>
+                  {t(`subjects.view_toggles.${v === 'par-classe' ? 'par_classe' : v === 'par-enseignant' ? 'par_enseignant' : v}`)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <div className="pointer-events-none absolute top-0 right-0 bottom-[4px] w-7" style={{ background: 'linear-gradient(90deg,transparent,var(--bg) 65%)' }} />
+      </div>
+
       {/* ── Vue par Classe ─────────────────────────────────────────────────────── */}
       {view === 'par-classe' && (
         <div>
-          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '20px 24px', marginBottom: 20, maxWidth: 480 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('subjects.class_view.selector_label')}</div>
+          <div className="p-4 md:p-[20px] md:px-[24px] mb-[16px] md:mb-[20px] md:max-w-[480px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
+            <div className="text-[11px] md:text-[13px]" style={{ fontWeight: 700, color: 'var(--text2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('subjects.class_view.selector_label')}</div>
             <select
               value={selectedClass}
               onChange={e => handleSelectClass(e.target.value)}
@@ -644,8 +691,8 @@ export default function SectionSubjects({ onToast }: Props) {
           )}
 
           {!loadingCV && classSubjects.length > 0 && (
-            <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
-              <div style={{ padding: '14px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]" style={{ overflow: 'hidden' }}>
+              <div className="mb-[14px] md:mb-0 md:p-[14px] md:px-[22px] md:border-b md:border-[var(--border)]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.program_label').replace('{name}', selectedClassName ?? '') }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
@@ -658,9 +705,9 @@ export default function SectionSubjects({ onToast }: Props) {
                 </div>
               </div>
               {/* ── Cartes empilées — mobile ── */}
-              <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+              <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
                 {classSubjects.map(s => (
-                  <div key={s.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14 }}>
+                  <div key={s.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                       <div>
                         <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 15 }}>{s.name}</span>
@@ -689,9 +736,9 @@ export default function SectionSubjects({ onToast }: Props) {
                         </div>
                       ) : (
                         <span onClick={() => { setEditingCoeffId(s.id); setEditingCoeffValue(String(s.coefficient)) }}
-                          style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 900, cursor: 'pointer' }}>×{s.coefficient}</span>
+                          style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>×{s.coefficient}</span>
                       )}
-                      {s.code && <code style={{ background: 'var(--bg2)', padding: '3px 8px', borderRadius: 6, fontSize: 12 }}>{s.code}</code>}
+                      {s.code && <code style={{ background: 'var(--bg2)', padding: '3px 7px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--text2)' }}>{s.code}</code>}
                       {s.serieCode
                         ? <span style={{ background: 'var(--amber-light)', color: 'var(--amber)', padding: '3px 9px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{s.serieCode}</span>
                         : <span style={{ color: 'var(--text3)', fontSize: 12.5 }}>{t('subjects.class_view.first_cycle')}</span>}
@@ -786,9 +833,9 @@ export default function SectionSubjects({ onToast }: Props) {
       )}
 
       {view === 'catalogue' && !loading && !error && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px' }}>
+        <div className="rounded-none md:rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] bg-transparent md:bg-[var(--surface)]">
+          <div className="p-0 mb-4 md:p-[14px] md:px-[20px] md:mb-0 md:border-b md:border-[var(--border)]">
+            <div className="rounded-[14px] md:rounded-[10px] px-[14px] py-[12px] md:px-[14px] md:py-[8px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:bg-[var(--bg2)]" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('subjects.search_placeholder')}
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
@@ -802,12 +849,12 @@ export default function SectionSubjects({ onToast }: Props) {
           ) : (
             <>
             {/* ── Cartes empilées — mobile ── */}
-            <div className="md:hidden flex flex-col" style={{ gap: 10, padding: 14 }}>
+            <div className="md:hidden flex flex-col" style={{ gap: 10 }}>
               {filtered.map(sub => (
-                <div key={sub.id} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: 14, position: 'relative' }}>
-                  <div style={{ position: 'absolute', top: 10, right: 10 }}>
+                <div key={sub.id} className="rounded-[16px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)]" style={{ background: 'var(--surface)', padding: 16, position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 16, right: 16 }}>
                     <button onClick={() => setOpenDD(openDD === sub.id ? null : sub.id)}
-                      style={{ background: 'none', border: '1.5px solid var(--border2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', color: 'var(--text3)' }}>
+                      style={{ width: 30, height: 30, borderRadius: 15, background: 'transparent', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text3)' }}>
                       {deletingId === sub.id ? <Loader2 size={16} strokeWidth={2} className="animate-spin" /> : <MoreHorizontal size={16} strokeWidth={2} />}
                     </button>
                     {openDD === sub.id && (
@@ -831,8 +878,8 @@ export default function SectionSubjects({ onToast }: Props) {
                   </div>
                   <div style={{ paddingRight: 40, fontWeight: 700, color: 'var(--text)', fontSize: 15.5 }}>{sub.name}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-                    <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 900 }}>×{sub.coefficient}</span>
-                    {sub.code && <code style={{ background: 'var(--bg2)', padding: '3px 8px', borderRadius: 6, fontSize: 12 }}>{sub.code}</code>}
+                    <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 22, fontSize: 12.5, fontWeight: 700 }}>×{sub.coefficient}</span>
+                    {sub.code && <code style={{ background: 'var(--bg2)', padding: '3px 7px', borderRadius: 6, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--text2)' }}>{sub.code}</code>}
                     <span style={{ fontSize: 12.5, color: 'var(--text2)', fontWeight: 700 }}>{sub.hoursPerWeek}h · {t(`subjects.type_labels.${sub.subjectType}`) || sub.subjectType}</span>
                   </div>
                   <div style={{ marginTop: 8 }}>
@@ -912,28 +959,32 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Vue Départements ───────────────────────────────────────────────────── */}
       {view === 'departements' && (
         <DndContext sensors={sensors} onDragStart={e => setActiveDragId(e.active.id as string)} onDragEnd={handleDragEnd}>
-          {/* Barre d'outils */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', minWidth: 200, maxWidth: 400 }}>
+          {/* Barre d'outils — le bouton "Créer un département" a été retiré d'ici : il fait
+              doublon avec celui de l'en-tête (maquette : un seul bouton, dans l'en-tête). Ça
+              libère la ligne pour que le badge de résultats de recherche et l'alerte "sans AP"
+              s'affichent sans être à l'étroit ; ils passent sur une deuxième ligne au besoin. */}
+          <div className="flex flex-col md:flex-row md:items-center gap-[10px] md:gap-3 mb-[14px] md:mb-4">
+            <div className="rounded-[14px] md:rounded-[10px] px-[14px] py-[12px] md:py-[8px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:bg-[var(--bg2)] md:max-w-[400px]" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={deptSearch} onChange={e => setDeptSearch(e.target.value)}
                 placeholder={t('subjects.departments.search_placeholder')}
                 style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, fontFamily: 'inherit', fontWeight: 600, width: '100%' }} />
               {deptSearch && <span onClick={() => setDeptSearch('')} style={{ cursor: 'pointer', color: 'var(--text3)', fontSize: 14, display: 'inline-flex' }}><X size={14} strokeWidth={2} /></span>}
             </div>
-            {deptSearch && searchMatchCount > 0 && (
-              <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
-                {t('subjects.departments.subject_count').replace('{count}', String(searchMatchCount))}
-              </span>
-            )}
-            {depsWithoutAp.length > 0 && (
-              <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-                {t('subjects.departments.ap_warning').replace('{count}', String(depsWithoutAp.length))}
-              </span>
-            )}
-            <button style={btnPrim} onClick={() => setDeptCreateForm({ open: true, name: '', color: 'var(--text3)', loading: false, error: '' })}>
-              {t('subjects.departments.btn_create')}
-            </button>
+            {(deptSearch && searchMatchCount > 0) || depsWithoutAp.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-[8px]">
+                {deptSearch && searchMatchCount > 0 && (
+                  <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800 }}>
+                    {t('subjects.departments.subject_count').replace('{count}', String(searchMatchCount))}
+                  </span>
+                )}
+                {depsWithoutAp.length > 0 && (
+                  <span style={{ background: 'var(--red-light)', color: 'var(--red)', padding: '4px 12px', borderRadius: 20, fontSize: 14, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {t('subjects.departments.ap_warning').replace('{count}', String(depsWithoutAp.length))}
+                  </span>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {deptLoading && <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><div style={{ width: 36, height: 36, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-spin 0.7s linear infinite' }} /></div>}
@@ -974,7 +1025,10 @@ export default function SectionSubjects({ onToast }: Props) {
                       opacity: hasSearch && !hasAnyMatch ? 0.4 : 1,
                       transition: 'opacity 0.2s',
                     }}>
-                      <div style={{ height: 6, background: isVirtual ? 'var(--border2)' : dept.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }} />
+                      {/* Barre de couleur — coins hauts arrondis pour epouser la forme de la
+                          carte, plutot que overflow:hidden sur le conteneur (qui coupait aussi
+                          le menu "Deplacer vers" quand il debordait en bas de la carte). */}
+                      <div style={{ height: 6, borderTopLeftRadius: 16, borderTopRightRadius: 16, background: isVirtual ? 'var(--border2)' : dept.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white' }} />
                       <div style={{ padding: '16px 18px' }}>
                         {/* En-tête */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -1086,8 +1140,8 @@ export default function SectionSubjects({ onToast }: Props) {
       {view === 'par-enseignant' && (
         <div>
           {/* Barre outils */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '8px 14px', maxWidth: 400 }}>
+          <div className="mb-[14px] md:mb-[16px]" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div className="rounded-[14px] md:rounded-[10px] px-[14px] py-[12px] md:py-[8px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none bg-[var(--surface)] md:bg-[var(--bg2)]" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, maxWidth: 400 }}>
               <Search size={16} strokeWidth={2} color="var(--text3)" />
               <input value={teacherViewSearch} onChange={e => setTeacherViewSearch(e.target.value)}
                 placeholder={t('subjects.teacher_view.search_placeholder')}
@@ -1120,11 +1174,11 @@ export default function SectionSubjects({ onToast }: Props) {
                     s => !teacherSubjects.some(ts => ts.subjectId === s.id)
                   )
                   return (
-                    <div key={teacher.id} style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)' }}>
-                      <div style={{ padding: '16px 20px' }}>
+                    <div key={teacher.id} className="rounded-[16px] border-0 md:border md:border-[1.5px] md:border-[var(--border)] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none" style={{ background: 'var(--surface)' }}>
+                      <div className="p-4 md:px-[20px] md:py-[16px]">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                          <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{teacher.firstName} {teacher.lastName}</div>
-                          <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+                          <div className="text-[14.5px] md:text-[17px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{teacher.firstName} {teacher.lastName}</div>
+                          <span style={{ background: 'var(--blue-light)', color: 'var(--blue)', padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
                             {t('subjects.class_view.count_badge').replace('{count}', String(teacherSubjects.length))}
                           </span>
                         </div>
@@ -1259,25 +1313,25 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal créer ── */}
       {createOpen && (
         <ModalOverlay onClose={() => { setCreateOpen(false); setForm(EMPTY_CREATE) }}>
-          <div style={sModalTitle}>{t('subjects.create_modal.title')}</div>
-          <div style={sLabel}>Nom *</div>
-          <input style={sInput} placeholder="Ex: Mathématiques, Français…" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.create_modal.title')}</div>
+          <div className={sLabelCls} style={sLabel}>Nom *</div>
+          <input className={sInputCls} style={sInput} placeholder="Ex: Mathématiques, Français…" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={sLabel}>Code</div>
-              <input style={sInput} placeholder="Ex: MATH, FR" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>Code</div>
+              <input className={sInputCls} style={sInput} placeholder="Ex: MATH, FR" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Coefficient</div>
-              <input style={sInput} type="number" min="0.5" step="0.5" value={form.coefficient} onChange={e => setForm(f => ({ ...f, coefficient: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>Coefficient</div>
+              <input className={sInputCls} style={sInput} type="number" min="0.5" step="0.5" value={form.coefficient} onChange={e => setForm(f => ({ ...f, coefficient: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Heures / semaine</div>
-              <input style={sInput} type="number" min="1" value={form.hoursPerWeek} onChange={e => setForm(f => ({ ...f, hoursPerWeek: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>Heures / semaine</div>
+              <input className={sInputCls} style={sInput} type="number" min="1" value={form.hoursPerWeek} onChange={e => setForm(f => ({ ...f, hoursPerWeek: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Type</div>
-              <select style={sInput} value={form.subjectType} onChange={e => setForm(f => ({ ...f, subjectType: e.target.value }))}>
+              <div className={sLabelCls} style={sLabel}>Type</div>
+              <select className={sInputCls} style={sInput} value={form.subjectType} onChange={e => setForm(f => ({ ...f, subjectType: e.target.value }))}>
                 <option value="THEORETICAL">{t('subjects.type_labels.THEORETICAL')}</option>
                 <option value="PRACTICAL">{t('subjects.type_labels.PRACTICAL')}</option>
                 <option value="MIXED">{t('subjects.type_labels.MIXED')}</option>
@@ -1297,25 +1351,25 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal modifier ── */}
       {modForm.open && (
         <ModalOverlay onClose={() => setModForm(EMPTY_MOD)}>
-          <div style={sModalTitle}>{t('subjects.edit_modal.title')}</div>
-          <div style={sLabel}>Nom *</div>
-          <input style={sInput} value={modForm.name} onChange={e => setModForm(f => ({ ...f, name: e.target.value }))} />
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.edit_modal.title')}</div>
+          <div className={sLabelCls} style={sLabel}>Nom *</div>
+          <input className={sInputCls} style={sInput} value={modForm.name} onChange={e => setModForm(f => ({ ...f, name: e.target.value }))} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <div style={sLabel}>Code</div>
-              <input style={sInput} value={modForm.code} onChange={e => setModForm(f => ({ ...f, code: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>Code</div>
+              <input className={sInputCls} style={sInput} value={modForm.code} onChange={e => setModForm(f => ({ ...f, code: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Coefficient</div>
-              <input style={sInput} type="number" min="0.5" step="0.5" value={modForm.coefficient} onChange={e => setModForm(f => ({ ...f, coefficient: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>Coefficient</div>
+              <input className={sInputCls} style={sInput} type="number" min="0.5" step="0.5" value={modForm.coefficient} onChange={e => setModForm(f => ({ ...f, coefficient: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Heures / semaine</div>
-              <input style={sInput} type="number" min="1" value={modForm.hoursPerWeek} onChange={e => setModForm(f => ({ ...f, hoursPerWeek: e.target.value }))} />
+              <div className={sLabelCls} style={sLabel}>Heures / semaine</div>
+              <input className={sInputCls} style={sInput} type="number" min="1" value={modForm.hoursPerWeek} onChange={e => setModForm(f => ({ ...f, hoursPerWeek: e.target.value }))} />
             </div>
             <div>
-              <div style={sLabel}>Type</div>
-              <select style={sInput} value={modForm.subjectType} onChange={e => setModForm(f => ({ ...f, subjectType: e.target.value }))}>
+              <div className={sLabelCls} style={sLabel}>Type</div>
+              <select className={sInputCls} style={sInput} value={modForm.subjectType} onChange={e => setModForm(f => ({ ...f, subjectType: e.target.value }))}>
                 <option value="THEORETICAL">{t('subjects.type_labels.THEORETICAL')}</option>
                 <option value="PRACTICAL">{t('subjects.type_labels.PRACTICAL')}</option>
                 <option value="MIXED">{t('subjects.type_labels.MIXED')}</option>
@@ -1335,7 +1389,7 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal coefficients BAC ── */}
       {coeffForm.open && (
         <ModalOverlay onClose={() => setCoeffForm(EMPTY_COEFF)}>
-          <div style={sModalTitle}>{t('subjects.coeff_modal.title')}</div>
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.coeff_modal.title')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 18 }}>{coeffForm.subjectName}</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16 }}>
@@ -1380,20 +1434,20 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal ajouter matière à la classe ── */}
       {addSubjectOpen && (
         <ModalOverlay onClose={() => { setAddSubjectOpen(false); setAddSubjectId(''); setAddCoefficient(''); setAddError(''); setAddClassOnly(false) }}>
-          <div style={sModalTitle}>{t('subjects.class_view.add_modal.title')}</div>
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.class_view.add_modal.title')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 18 }} dangerouslySetInnerHTML={{ __html: t('subjects.class_view.add_modal.to_label').replace('{name}', selectedClassName ?? '') }} />
-          <div style={sLabel}>{t('subjects.class_view.add_modal.subject_label')}</div>
+          <div className={sLabelCls} style={sLabel}>{t('subjects.class_view.add_modal.subject_label')}</div>
           <select value={addSubjectId} onChange={e => setAddSubjectId(e.target.value)}
-            style={sInput}>
+            className={sInputCls} style={sInput}>
             <option value="">{t('subjects.class_view.add_modal.subject_placeholder')}</option>
             {subjects.filter(s => !classSubjectIds.has(s.id)).map(s => (
               <option key={s.id} value={s.id}>{s.name} {s.code ? `(${s.code})` : ''}</option>
             ))}
           </select>
-          <div style={sLabel}>{t('subjects.class_view.add_modal.coeff_label')}</div>
+          <div className={sLabelCls} style={sLabel}>{t('subjects.class_view.add_modal.coeff_label')}</div>
           <input type="number" min="0.5" step="0.5" value={addCoefficient}
             onChange={e => setAddCoefficient(e.target.value)}
-            style={sInput} placeholder={t('subjects.class_view.add_modal.coeff_placeholder')} />
+            className={sInputCls} style={sInput} placeholder={t('subjects.class_view.add_modal.coeff_placeholder')} />
 
           {/* Toggle portée */}
           <div style={{ display: 'flex', background: 'var(--bg2)', borderRadius: 10, padding: 3, gap: 2, marginBottom: 4, marginTop: 4 }}>
@@ -1435,10 +1489,10 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal assigner enseignant ── */}
       {assignForm.open && (
         <ModalOverlay onClose={() => setAssignForm(EMPTY_ASSIGN)}>
-          <div style={sModalTitle}>{t('subjects.assign_modal.title')}</div>
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.assign_modal.title')}</div>
           <div style={{ fontSize: 15, color: 'var(--text3)', marginBottom: 18 }}>{assignForm.subjectName}</div>
-          <div style={sLabel}>{t('subjects.assign_modal.search_placeholder')}</div>
-          <input style={sInput} placeholder={t('subjects.assign_modal.search_placeholder')} value={assignForm.teacherSearch}
+          <div className={sLabelCls} style={sLabel}>{t('subjects.assign_modal.search_placeholder')}</div>
+          <input className={sInputCls} style={sInput} placeholder={t('subjects.assign_modal.search_placeholder')} value={assignForm.teacherSearch}
             onChange={e => setAssignForm(f => ({ ...f, teacherSearch: e.target.value, selected: null }))} />
           {assignForm.selected && (
             <div style={{ background: 'var(--green-light)', color: 'var(--green)', padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1473,11 +1527,11 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal créer département ── */}
       {deptCreateForm.open && (
         <ModalOverlay onClose={() => setDeptCreateForm({ open: false, name: '', color: 'var(--text3)', loading: false, error: '' })}>
-          <div style={sModalTitle}>{t('subjects.departments.create_modal.title')}</div>
-          <div style={sLabel}>Nom *</div>
-          <input style={sInput} placeholder="Ex: Lettres, Sciences…" value={deptCreateForm.name}
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.departments.create_modal.title')}</div>
+          <div className={sLabelCls} style={sLabel}>Nom *</div>
+          <input className={sInputCls} style={sInput} placeholder="Ex: Lettres, Sciences…" value={deptCreateForm.name}
             onChange={e => setDeptCreateForm(f => ({ ...f, name: e.target.value }))} />
-          <div style={sLabel}>Couleur</div>
+          <div className={sLabelCls} style={sLabel}>Couleur</div>
           <DeptColorPicker value={deptCreateForm.color} onChange={c => setDeptCreateForm(f => ({ ...f, color: c }))} />
           {deptCreateForm.error && <div style={sError}>{deptCreateForm.error}</div>}
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
@@ -1492,18 +1546,18 @@ export default function SectionSubjects({ onToast }: Props) {
       {/* ── Modal modifier département ── */}
       {deptEditForm.open && (
         <ModalOverlay onClose={() => setDeptEditForm(f => ({ ...f, open: false }))}>
-          <div style={sModalTitle}>{t('subjects.departments.edit_modal.title')}</div>
+          <div className={sModalTitleCls} style={sModalTitle}>{t('subjects.departments.edit_modal.title')}</div>
 
-          <div style={sLabel}>Nom *</div>
-          <input style={sInput} value={deptEditForm.name}
+          <div className={sLabelCls} style={sLabel}>Nom *</div>
+          <input className={sInputCls} style={sInput} value={deptEditForm.name}
             onChange={e => setDeptEditForm(f => ({ ...f, name: e.target.value }))} />
 
-          <div style={sLabel}>Couleur</div>
+          <div className={sLabelCls} style={sLabel}>Couleur</div>
           <DeptColorPicker value={deptEditForm.color} onChange={c => setDeptEditForm(f => ({ ...f, color: c }))} />
 
-          <div style={sLabel}>{t('subjects.departments.edit_modal.ap_label')}</div>
+          <div className={sLabelCls} style={sLabel}>{t('subjects.departments.edit_modal.ap_label')}</div>
           <div style={{ position: 'relative', marginBottom: 14 }}>
-            <input style={sInput} placeholder={t('subjects.departments.edit_modal.search_placeholder')} value={deptEditForm.teacherSearch}
+            <input className={sInputCls} style={sInput} placeholder={t('subjects.departments.edit_modal.search_placeholder')} value={deptEditForm.teacherSearch}
               onChange={e => setDeptEditForm(f => ({ ...f, teacherSearch: e.target.value, headId: '' }))}
               onFocus={() => { if (!deptEditForm.headId) setDeptEditForm(f => ({ ...f, teacherSearch: '' })) }} />
             {deptEditForm.headId && (
@@ -1640,18 +1694,23 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 function ModalOverlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} className="px-5 py-6 md:px-9 md:py-8" style={{ background: 'var(--surface)', borderRadius: 18, width: 480, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
+      <div onClick={e => e.stopPropagation()} className="px-5 py-5 md:px-9 md:py-8 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', borderRadius: 18, width: 480, maxWidth: '94vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
         {children}
       </div>
     </div>
   )
 }
 
-const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 28, fontWeight: 700, color: 'var(--text)' }
-const sSub: React.CSSProperties = { fontSize: 17, color: 'var(--text3)', marginTop: 3 }
-const sModalTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 22 }
-const sLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 6 }
-const sInput: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, fontSize: 14, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 14, outline: 'none' }
+const sTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sSub: React.CSSProperties = { color: 'var(--text3)', marginTop: 3 }
+// Tailles resserrees vers la cible mobile (meme technique que SectionUsers/SectionClasses) —
+// desktop inchangee via md:. fontSize/padding/marginBottom portes par les classNames compagnes.
+const sModalTitleCls = 'text-[18px] md:text-[22px] mb-[16px] md:mb-[22px]'
+const sModalTitle: React.CSSProperties = { fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)' }
+const sLabelCls = 'text-[12px] md:text-[13px] mb-[4px] md:mb-[6px]'
+const sLabel: React.CSSProperties = { fontWeight: 700, color: 'var(--text3)' }
+const sInputCls = 'rounded-[10px] px-[12px] py-[9px] mb-[10px] text-[13px] md:px-[14px] md:py-[10px] md:mb-[14px] md:text-[14px]'
+const sInput: React.CSSProperties = { width: '100%', border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }
 const sError: React.CSSProperties = { background: 'var(--red-light)', color: 'var(--red)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, marginBottom: 8 }
 const btnPrim: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: 'linear-gradient(135deg,var(--green),var(--green2))', color: 'white', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }
 const btnSec2: React.CSSProperties = { padding: '10px 20px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }

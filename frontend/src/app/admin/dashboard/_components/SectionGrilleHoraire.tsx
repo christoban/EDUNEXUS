@@ -68,7 +68,8 @@ function calculerSquelette(f: GridForm): PeriodeGrille[] {
 }
 
 const sScroll: React.CSSProperties = { height: '100%', overflowY: 'auto', padding: '32px 40px' }
-const sCard: React.CSSProperties = { background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', padding: '28px 32px' }
+const sCardCls = 'rounded-[16px] p-[16px] md:px-[32px] md:py-[28px] shadow-[0_1px_2px_rgba(20,20,15,0.05),0_1px_6px_rgba(20,20,15,0.06)] md:shadow-none border-0 md:border md:border-[1.5px] md:border-[var(--border)]'
+const sCard: React.CSSProperties = { background: 'var(--surface)' }
 const sLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }
 const sInput: React.CSSProperties = { width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 15, color: 'var(--text)', fontFamily: 'inherit', boxSizing: 'border-box' }
 const sNum: React.CSSProperties = { ...sInput, width: 90 }
@@ -152,9 +153,9 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
   const derniereHeure = squelette.length > 0 ? squelette[squelette.length - 1].fin : '—'
 
   return (
-    <div style={sScroll}>
+    <div className="px-4 py-5 md:px-10 md:py-8" style={{ ...sScroll, padding: undefined }}>
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontSize: 26, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
+        <div className="text-[21px] md:text-[26px]" style={{ fontFamily: 'var(--font-spectral),Spectral,serif', fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>
           {t('grille_horaire.title')}
         </div>
         <div style={{ fontSize: 15, color: 'var(--text3)' }}>
@@ -179,10 +180,10 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="grid grid-cols-1 md:[grid-template-columns:1fr_1fr]" style={{ gap: 24, alignItems: 'start' }}>
         {/* ── Formulaire ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={sCard}>
+          <div className={sCardCls} style={sCard}>
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>{t('grille_horaire.settings')}</div>
 
             {/* Heure de début */}
@@ -275,7 +276,7 @@ export default function SectionGrilleHoraire({ onToast }: { onToast: (msg: strin
         </div>
 
         {/* ── Aperçu squelette ── */}
-        <div style={sCard}>
+        <div className={sCardCls} style={sCard}>
           <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 20 }}>{t('grille_horaire.previewTitle')}</div>
           {squelette.length === 0 ? (
             <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '40px 0' }}>
