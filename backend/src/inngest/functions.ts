@@ -13,6 +13,11 @@ import { GroqIAService } from "../infrastructure/services/GroqIAService";
 import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../utils/schoolCalendar";
 import { notifierEvenementAcademique } from "../utils/academicEventNotifier";
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "../application/academicEvent";
+import { PrismaOrientationRepository } from "../infrastructure/persistence/prisma/PrismaOrientationRepository";
+import { GenererRecommandationOrientationUseCase } from "../application/orientation/GenererRecommandationOrientationUseCase";
+import { RelancerElevesEnAttenteUseCase } from "../application/orientation/RelancerElevesEnAttenteUseCase";
+import { FinaliserParDefautUseCase } from "../application/orientation/FinaliserParDefautUseCase";
+import { ListerElevesAOrienterUseCase } from "../application/orientation/ListerElevesAOrienterUseCase";
 
 const iaService = new GroqIAService();
 const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
@@ -1447,6 +1452,116 @@ export const checkAcademicEvents = inngest.createFunction(
           where: { id: { in: aCloturer.map((e: any) => e.id) } },
           data: { status: "CLOSED" },
         });
+      }
+    });
+    return { checked: true };
+  },
+);
+
+// ── Orientation — checkpoints scolaires (fin 3ème / fin Seconde C) ──────────────────────────
+
+function dansLaFenetreOrientation(
+  config: { windowStartMonth: number; windowStartDay: number; windowEndMonth: number; windowEndDay: number },
+  now: Date,
+): boolean {
+  const cur = (now.getMonth() + 1) * 100 + now.getDate();
+  const start = config.windowStartMonth * 100 + config.windowStartDay;
+  const end = config.windowEndMonth * 100 + config.windowEndDay;
+  return start <= end ? (cur >= start && cur <= end) : (cur >= start || cur <= end);
+}
+
+async function resolverConseillersOrientation(schoolId: string): Promise<string[]> {
+  const conseillers = await (prisma as any).staffProfile.findMany({
+    where: { schoolId, permissions: { some: { permission: "MANAGE_ORIENTATION" } } },
+    select: { userId: true },
+  }).catch(() => []);
+  if (conseillers.length > 0) return conseillers.map((c: any) => c.userId);
+  // Échappatoire explicite (A.2 du plan) : aucun conseiller dédié dans cet établissement →
+  // notifier les Admins plutôt que de laisser une recommandation calculée sans destinataire.
+  const admins = await prisma.user.findMany({ where: { schoolId, role: "ADMIN" }, select: { id: true } });
+  return admins.map((a) => a.id);
+}
+
+export const checkOrientationCheckpoints = inngest.createFunction(
+  { id: "check-orientation-checkpoints", name: "Vérification quotidienne des checkpoints d'orientation", triggers: [{ cron: "0 7 * * *" }] },
+  async ({ step }) => {
+    await step.run("process-orientation-checkpoints", async () => {
+      const schools = await prisma.school.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
+      const now = new Date();
+      const orientationRepo = new PrismaOrientationRepository(prisma);
+      const genererUseCase = new GenererRecommandationOrientationUseCase(prisma, orientationRepo);
+      const relancerUseCase = new RelancerElevesEnAttenteUseCase(orientationRepo);
+      const finaliserUseCase = new FinaliserParDefautUseCase(orientationRepo);
+      const listerUseCase = new ListerElevesAOrienterUseCase(prisma);
+
+      for (const school of schools) {
+        try {
+          const anneeCourante = await prisma.academicYear.findFirst({ where: { schoolId: school.id, isCurrent: true }, select: { id: true } });
+          if (!anneeCourante) continue;
+
+          const conseillerIds = await resolverConseillersOrientation(school.id);
+
+          // ── Déclenchement du moteur, élève par élève, dans la fenêtre d'orientation ──
+          const configs = await orientationRepo.findCheckpointConfigsActives(school.id);
+          for (const config of configs) {
+            if (!dansLaFenetreOrientation(config, now)) continue;
+
+            const eleves = await listerUseCase.execute({ schoolId: school.id, checkpointType: config.type, academicYearId: anneeCourante.id });
+            for (const eleve of eleves) {
+              if (eleve.hasRecommendation) continue;
+              if (conseillerIds.length === 0) continue; // rien à assigner — le filet de sécurité le signalera au conseiller dès qu'il existera
+
+              // Déclenchement dès qu'une donnée significative existe (A.1.3 point 2) — au minimum
+              // une note validée, pour ne jamais calculer une recommandation entièrement à vide.
+              const aDesDonnees = await prisma.grade.findFirst({
+                where: { schoolId: school.id, studentId: eleve.studentId, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
+                select: { id: true },
+              });
+              if (!aDesDonnees) continue;
+
+              try {
+                await genererUseCase.execute({
+                  schoolId: school.id, studentId: eleve.studentId, checkpointType: config.type,
+                  academicYearId: anneeCourante.id, conseillerId: conseillerIds[0]!,
+                });
+                for (const cId of conseillerIds) {
+                  await notifierPersonnelDirect(
+                    cId, school.id, "Nouvelle recommandation d'orientation",
+                    `Une proposition a été calculée pour ${eleve.firstName} ${eleve.lastName} (${eleve.className}).`,
+                  );
+                }
+              } catch (err: any) {
+                console.error(`[Orientation] génération recommandation (${eleve.studentId}):`, err?.message);
+              }
+            }
+          }
+
+          // ── Relances et finalisation par défaut — indépendant de la fenêtre d'ouverture, une
+          // proposition déjà envoyée à l'élève doit continuer son cycle jusqu'au bout ──
+          const relances = await relancerUseCase.execute(school.id);
+          for (const reco of relances) {
+            await notifierPersonnelDirect(
+              reco.studentId, school.id, "Rappel — proposition d'orientation en attente",
+              `Votre délai de réponse approche pour votre proposition d'orientation. Répondez avant l'échéance.`,
+            );
+          }
+
+          const finalisees = await finaliserUseCase.execute(school.id);
+          for (const reco of finalisees) {
+            await notifierPersonnelDirect(
+              reco.studentId, school.id, "Orientation finalisée",
+              `Le délai de réponse est passé — la piste ${reco.finalTrack} a été retenue.`,
+            );
+            for (const cId of conseillerIds) {
+              await notifierPersonnelDirect(
+                cId, school.id, "Orientation finalisée par défaut",
+                `Un élève n'a pas répondu à temps — la piste ${reco.finalTrack} a été retenue par défaut.`,
+              );
+            }
+          }
+        } catch (err: any) {
+          console.error(`[Orientation] école ${school.id}:`, err?.message);
+        }
       }
     });
     return { checked: true };

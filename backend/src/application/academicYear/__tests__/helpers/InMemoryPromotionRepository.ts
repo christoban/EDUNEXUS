@@ -27,4 +27,10 @@ export class InMemoryPromotionRepository implements PromotionRepository {
     const redoublants = this.promotionsEnregistrees.filter(p => p.fromClassId === p.toClassId).length;
     return { promus, redoublants };
   }
+
+  classesCibleOrientation = new Map<string, string>();
+  definirClasseCibleOrientation(studentId: string, classId: string): void { this.classesCibleOrientation.set(studentId, classId); }
+  async findClasseCibleOrientation(_schoolId: string, studentId: string, _yearId: string) {
+    return this.classesCibleOrientation.get(studentId) ?? null;
+  }
 }

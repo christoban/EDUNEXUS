@@ -28,6 +28,18 @@
   "retry": "Retry",
   "errorLoad": "Loading error",
   "cacheBadge": "Data from {date} — offline",
+  "orientationCheckpoint": {
+    "section_title": "Academic orientation",
+    "checkpoint_3e": "End of Form 4 (3ème)",
+    "checkpoint_2ndeC": "End of Lower Sixth C (Seconde C)",
+    "parent_final_track": "Track retained:",
+    "parent_status_prefix": "Status:",
+    "status_calculee": "Calculated by the counselor",
+    "status_validee_conseiller": "Validated by the counselor",
+    "status_proposee_eleve": "Proposed to your child",
+    "status_validee_eleve": "Confirmed by your child",
+    "status_validee_par_defaut": "Kept by default (deadline passed)"
+  },
   "children": {
     "title": "My Children",
     "subtitle": "Real-time academic tracking",

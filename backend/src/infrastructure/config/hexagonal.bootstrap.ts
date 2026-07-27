@@ -1288,6 +1288,14 @@ export function bootstrapHexagonal(app: Application): void {
     container.orientation.listerFiches,
     container.orientation.getStats,
     container.orientation.repo,
+    container.orientation.saisirAspiration,
+    container.orientation.genererRecommandation,
+    container.orientation.validerRecommandationConseiller,
+    container.orientation.proposerRecommandationEleve,
+    container.orientation.choisirPisteEleve,
+    container.orientation.listerElevesAOrienter,
+    container.orientation.configurerCheckpoint,
+    prisma,
   );
 
   app.use('/api/v2/orientation', creerOrientationRoutes(orientationController));

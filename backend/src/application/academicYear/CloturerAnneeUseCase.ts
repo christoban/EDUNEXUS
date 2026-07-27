@@ -68,7 +68,12 @@ export class CloturerAnneeUseCase {
 
     for (const decision of decisions) {
       if (decision.decision === 'PASS' || decision.decision === 'DELIBERATION') {
-        const toClassId = mappingMap.get(decision.fromClassId);
+        // Une recommandation d'orientation finalisée (fin 3ème / fin Seconde C) prime sur le
+        // mapping générique classe→classe — c'est elle qui détermine la vraie destination
+        // (niveau + série choisie), le mapping ne sert que pour les élèves hors checkpoint.
+        const toClassId = await this.promotionRepository.findClasseCibleOrientation(
+          commande.schoolId, decision.studentId, commande.academicYearId
+        ) ?? mappingMap.get(decision.fromClassId);
 
         if (!toClassId) {
           avertissements.push(

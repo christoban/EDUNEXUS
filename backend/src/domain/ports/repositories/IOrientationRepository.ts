@@ -2,7 +2,7 @@
  * DOMAIN LAYER — Port Repository Orientation
  * Toutes les opérations de persistance du module d'orientation.
  */
-import type { FicheOrientation, NiveauRisque, TypePreoccupation, TypeEntretien, MotifEntretien, StatutEntretien, TypeTest, StatutRecommandation } from '@domain/entities/FicheOrientation';
+import type { FicheOrientation, NiveauRisque, TypePreoccupation, TypeEntretien, MotifEntretien, StatutEntretien, TypeTest, StatutRecommandation, OrientationCheckpointType, ConfidenceLevel } from '@domain/entities/FicheOrientation';
 
 // ── DTOs lecture ─────────────────────────────────────────────────────────────
 
@@ -41,6 +41,11 @@ export interface TestDetail {
   resultats: string;
   interpretation: string | null;
   scoreGlobal: number | null;
+  checkpointType: OrientationCheckpointType | null;
+  scientificAptitude: number | null;
+  literaryAptitude: number | null;
+  technicalAptitude: number | null;
+  administeredById: string | null;
   createdAt: Date;
 }
 
@@ -55,6 +60,39 @@ export interface RecommandationDetail {
   adminValidated: boolean;
   status: StatutRecommandation;
   createdAt: Date;
+  checkpointType: OrientationCheckpointType | null;
+  suggestedTracks: unknown;
+  confidenceLevel: ConfidenceLevel | null;
+  dataDepthMonths: number | null;
+  responseDeadline: Date | null;
+  remindersSentAt: unknown;
+  studentChosenTrack: string | null;
+  finalizedAt: Date | null;
+  finalTrack: string | null;
+}
+
+export interface CheckpointConfigDetail {
+  id: string;
+  schoolId: string;
+  type: OrientationCheckpointType;
+  possibleTracks: unknown;
+  relevantSubjects: unknown;
+  psychotechnicalTestRequired: boolean;
+  windowStartMonth: number;
+  windowStartDay: number;
+  windowEndMonth: number;
+  windowEndDay: number;
+  responseDeadlineDays: number;
+}
+
+export interface AspirationDetail {
+  id: string;
+  studentId: string;
+  schoolId: string;
+  checkpointType: OrientationCheckpointType;
+  desiredTrack: string | null;
+  careerInterest: string | null;
+  submittedAt: Date;
 }
 
 export interface SuiviDetail {
@@ -137,13 +175,49 @@ export interface IOrientationRepository {
   createTest(ficheId: string, data: {
     type: TypeTest; datePassage: Date; resultats: string;
     interpretation?: string; scoreGlobal?: number;
+    checkpointType?: OrientationCheckpointType;
+    scientificAptitude?: number; literaryAptitude?: number; technicalAptitude?: number;
+    administeredById?: string;
   }): Promise<TestDetail>;
+  findTestByFicheAndCheckpoint(ficheId: string, checkpointType: OrientationCheckpointType): Promise<TestDetail | null>;
 
   // Recommandation série
   createOrUpdateRecommandation(ficheId: string, studentId: string, data: {
     serieActuelle: string; serieRecommandee: string; justification: string;
   }): Promise<RecommandationDetail>;
   validerRecommandation(recommandationId: string): Promise<RecommandationDetail>;
+
+  // Recommandation — moteur de checkpoints (workflow CALCULEE → ... → VALIDEE_ELEVE/VALIDEE_PAR_DEFAUT)
+  findRecommandationById(recommandationId: string, schoolId: string): Promise<RecommandationDetail | null>;
+  createOrUpdateRecommandationCheckpoint(ficheId: string, studentId: string, data: {
+    checkpointType: OrientationCheckpointType;
+    serieActuelle: string;
+    suggestedTracks: unknown;
+    confidenceLevel: ConfidenceLevel;
+    dataDepthMonths: number;
+    justification: string;
+  }): Promise<RecommandationDetail>;
+  validerRecommandationConseiller(recommandationId: string, serieRecommandee: string): Promise<RecommandationDetail>;
+  proposerRecommandationEleve(recommandationId: string, responseDeadline: Date): Promise<RecommandationDetail>;
+  choisirPisteEleve(recommandationId: string, track: string): Promise<RecommandationDetail>;
+  finaliserParDefaut(recommandationId: string): Promise<RecommandationDetail>;
+  ajouterRappelEnvoye(recommandationId: string): Promise<void>;
+  findRecommandationsParStatut(schoolId: string, status: StatutRecommandation): Promise<RecommandationDetail[]>;
+
+  // Configuration des checkpoints
+  findCheckpointConfig(schoolId: string, type: OrientationCheckpointType): Promise<CheckpointConfigDetail | null>;
+  findCheckpointConfigsActives(schoolId: string): Promise<CheckpointConfigDetail[]>;
+  upsertCheckpointConfig(schoolId: string, type: OrientationCheckpointType, data: {
+    possibleTracks: unknown; relevantSubjects: unknown; psychotechnicalTestRequired: boolean;
+    windowStartMonth: number; windowStartDay: number; windowEndMonth: number; windowEndDay: number;
+    responseDeadlineDays: number;
+  }): Promise<CheckpointConfigDetail>;
+
+  // Aspirations élève
+  findAspiration(studentId: string, checkpointType: OrientationCheckpointType): Promise<AspirationDetail | null>;
+  createOrUpdateAspiration(studentId: string, schoolId: string, checkpointType: OrientationCheckpointType, data: {
+    desiredTrack?: string; careerInterest?: string;
+  }): Promise<AspirationDetail>;
 
   // Suivis
   createSuivi(ficheId: string, data: {

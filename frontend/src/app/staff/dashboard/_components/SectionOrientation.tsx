@@ -47,10 +47,33 @@ interface TestAptitude {
   resultats: string; interpretation: string | null; scoreGlobal: number | null; createdAt: string
 }
 
+interface SuggestedTrack { track: string; score: number; justification: string }
+
 interface Recommandation {
   id: string; ficheOrientationId: string; studentId: string
   serieActuelle: string; serieRecommandee: string; justification: string
   parentNotified: boolean; adminValidated: boolean; status: string; createdAt: string
+  // Moteur de checkpoints — null pour une recommandation manuelle classique
+  checkpointType: string | null
+  suggestedTracks: SuggestedTrack[] | null
+  confidenceLevel: string | null
+  dataDepthMonths: number | null
+  responseDeadline: string | null
+  studentChosenTrack: string | null
+  finalizedAt: string | null
+  finalTrack: string | null
+}
+
+interface EleveAOrienter {
+  studentId: string; firstName: string; lastName: string; className: string
+  hasRecommendation: boolean; recommendationStatus: string | null
+}
+
+interface CheckpointConfig {
+  type: string; possibleTracks: string[]; relevantSubjects: unknown
+  psychotechnicalTestRequired: boolean
+  windowStartMonth: number; windowStartDay: number; windowEndMonth: number; windowEndDay: number
+  responseDeadlineDays: number
 }
 
 interface Suivi {
@@ -137,6 +160,33 @@ const PREOCCUPATION_OPTIONS = [
   { value: 'AUTRE',           labelKey: 'preoccupationAutre' },
 ]
 
+const CHECKPOINT_STATUS_STYLE: Record<string, { bg: string; color: string }> = {
+  CALCULEE:            { bg: 'var(--blue-light)', color: 'var(--blue)' },
+  VALIDEE_CONSEILLER:  { bg: 'var(--amber-light)', color: 'var(--amber)' },
+  PROPOSEE_A_L_ELEVE:  { bg: 'var(--amber-light)', color: 'var(--amber)' },
+  VALIDEE_ELEVE:       { bg: 'var(--green-light)', color: 'var(--green)' },
+  VALIDEE_PAR_DEFAUT:  { bg: 'var(--green-light)', color: 'var(--green)' },
+}
+const CHECKPOINT_STATUS_LABEL_KEY: Record<string, string> = {
+  CALCULEE: 'checkpointStatusCalculee',
+  VALIDEE_CONSEILLER: 'checkpointStatusValideeConseiller',
+  PROPOSEE_A_L_ELEVE: 'checkpointStatusProposeeEleve',
+  VALIDEE_ELEVE: 'checkpointStatusValideeEleve',
+  VALIDEE_PAR_DEFAUT: 'checkpointStatusValideeParDefaut',
+}
+const CONFIDENCE_STYLE: Record<string, { bg: string; color: string }> = {
+  ELEVEE: { bg: 'var(--green-light)', color: 'var(--green)' },
+  MOYENNE: { bg: 'var(--amber-light)', color: 'var(--amber)' },
+  FAIBLE: { bg: 'var(--red-light)', color: 'var(--red)' },
+}
+const CONFIDENCE_LABEL_KEY: Record<string, string> = {
+  ELEVEE: 'confidenceHigh', MOYENNE: 'confidenceMedium', FAIBLE: 'confidenceLow',
+}
+const CHECKPOINT_TYPE_LABEL_KEY: Record<string, string> = {
+  FIN_TROISIEME: 'checkpointFinTroisieme',
+  FIN_SECONDE_C: 'checkpointFinSecondeC',
+}
+
 const RISK_OPTIONS = [
   { value: 'FAIBLE',   labelKey: 'riskFaible' },
   { value: 'MOYEN',    labelKey: 'riskMoyen' },
@@ -153,7 +203,7 @@ function fmt(dateStr: string) {
 export default function SectionOrientation({ onToast }: Props) {
   const t = useT('staff')
   const { isOnline, addToQueue } = useSyncQueue()
-  type View = 'dashboard' | 'fiche'
+  type View = 'dashboard' | 'fiche' | 'checkpoints'
   const [view, setView]                     = useState<View>('dashboard')
   const [stats, setStats]                   = useState<OrientationStats | null>(null)
   const [fiches, setFiches]                 = useState<FicheListItem[]>([])
@@ -194,6 +244,8 @@ export default function SectionOrientation({ onToast }: Props) {
   const [testForm, setTestForm]             = useState({
     type: 'COGNITIF', datePassage: '', resultats: '',
     interpretation: '', scoreGlobal: '',
+    // Test psychotechnique de checkpoint — utilisés uniquement si type=PSYCHOTECHNIQUE
+    checkpointType: '', scientificAptitude: '', literaryAptitude: '', technicalAptitude: '',
     loading: false, error: '',
   })
 
@@ -236,6 +288,26 @@ export default function SectionOrientation({ onToast }: Props) {
     serieActuelle: '', serieRecommandee: '', justification: '',
     loading: false, error: '',
   })
+
+  // ── Moteur de checkpoints ─────────────────────────────────────────────────────
+  const [checkpointType, setCheckpointType]     = useState<'FIN_TROISIEME' | 'FIN_SECONDE_C'>('FIN_TROISIEME')
+  const [checkpointConfig, setCheckpointConfig] = useState<CheckpointConfig | null>(null)
+  const [loadingCheckpointConfig, setLoadingCheckpointConfig] = useState(false)
+  const [elevesAOrienter, setElevesAOrienter]   = useState<EleveAOrienter[]>([])
+  const [loadingEleves, setLoadingEleves]       = useState(false)
+  const [generatingFor, setGeneratingFor]       = useState<string | null>(null)
+  const [configOpen, setConfigOpen]             = useState(false)
+  const [configForm, setConfigForm]             = useState({
+    psychotechnicalTestRequired: false,
+    windowStartMonth: 3, windowStartDay: 1, windowEndMonth: 5, windowEndDay: 31,
+    responseDeadlineDays: 15, loading: false, error: '',
+  })
+
+  // modal validation conseiller (choix de piste parmi celles calculées)
+  const [validerCheckpointOpen, setValiderCheckpointOpen] = useState(false)
+  const [validerCheckpointPiste, setValiderCheckpointPiste] = useState('')
+  const [validatingCheckpoint, setValidatingCheckpoint] = useState(false)
+  const [proposingCheckpoint, setProposingCheckpoint] = useState(false)
 
   // ── Fetch years ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -422,19 +494,27 @@ export default function SectionOrientation({ onToast }: Props) {
     }
     if (!selectedFiche) return
 
+    const isPsychotechnique = testForm.type === 'PSYCHOTECHNIQUE' && testForm.checkpointType
     const testPayload = {
       type: testForm.type,
       datePassage: testForm.datePassage,
       resultats: testForm.resultats,
       interpretation: testForm.interpretation || undefined,
       scoreGlobal: testForm.scoreGlobal ? parseInt(testForm.scoreGlobal) : undefined,
+      ...(isPsychotechnique ? {
+        checkpointType: testForm.checkpointType,
+        scientificAptitude: testForm.scientificAptitude ? parseInt(testForm.scientificAptitude) : undefined,
+        literaryAptitude: testForm.literaryAptitude ? parseInt(testForm.literaryAptitude) : undefined,
+        technicalAptitude: testForm.technicalAptitude ? parseInt(testForm.technicalAptitude) : undefined,
+      } : {}),
     }
+    const resetTestForm = { type: 'COGNITIF', datePassage: '', resultats: '', interpretation: '', scoreGlobal: '', checkpointType: '', scientificAptitude: '', literaryAptitude: '', technicalAptitude: '', loading: false, error: '' }
 
     if (!isOnline) {
       await addToQueue({ type: 'ORIENTATION_RECORD', endpoint: `/api/v2/orientation/fiches/${selectedFiche.id}/tests`, method: 'POST', payload: testPayload })
       onToast(`${t('orientation.testAdded')} (${t('offlineQueued')})`, 'success')
       setTestOpen(false)
-      setTestForm({ type: 'COGNITIF', datePassage: '', resultats: '', interpretation: '', scoreGlobal: '', loading: false, error: '' })
+      setTestForm(resetTestForm)
       return
     }
 
@@ -449,7 +529,7 @@ export default function SectionOrientation({ onToast }: Props) {
       if (!res.ok) throw new Error(d.message || 'Erreur')
       onToast(t('orientation.testAdded'), 'success')
       setTestOpen(false)
-      setTestForm({ type: 'COGNITIF', datePassage: '', resultats: '', interpretation: '', scoreGlobal: '', loading: false, error: '' })
+      setTestForm(resetTestForm)
       openFiche(selectedFiche.id)
     } catch (err) {
       setTestForm(f => ({ ...f, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
@@ -552,6 +632,134 @@ export default function SectionOrientation({ onToast }: Props) {
     }
   }
 
+  // ── Moteur de checkpoints ─────────────────────────────────────────────────────
+
+  const fetchCheckpointConfig = useCallback(async (type: string) => {
+    setLoadingCheckpointConfig(true)
+    try {
+      const res = await fetchApi(`/api/v2/orientation/checkpoints/${type}/config`, { credentials: 'include' })
+      const d = await res.json()
+      if (res.ok) {
+        setCheckpointConfig(d.data)
+        if (d.data) {
+          setConfigForm(f => ({
+            ...f,
+            psychotechnicalTestRequired: d.data.psychotechnicalTestRequired,
+            windowStartMonth: d.data.windowStartMonth, windowStartDay: d.data.windowStartDay,
+            windowEndMonth: d.data.windowEndMonth, windowEndDay: d.data.windowEndDay,
+            responseDeadlineDays: d.data.responseDeadlineDays,
+          }))
+        }
+      }
+    } catch { /* silencieux */ }
+    finally { setLoadingCheckpointConfig(false) }
+  }, [])
+
+  const fetchElevesAOrienter = useCallback(async (type: string) => {
+    setLoadingEleves(true)
+    try {
+      const res = await fetchApi(`/api/v2/orientation/eleves-a-orienter?checkpointType=${type}`, { credentials: 'include' })
+      const d = await res.json()
+      if (res.ok) setElevesAOrienter(d.data || [])
+    } catch { /* silencieux */ }
+    finally { setLoadingEleves(false) }
+  }, [])
+
+  useEffect(() => {
+    if (view !== 'checkpoints') return
+    fetchCheckpointConfig(checkpointType)
+    fetchElevesAOrienter(checkpointType)
+  }, [view, checkpointType, fetchCheckpointConfig, fetchElevesAOrienter])
+
+  const genererPourEleve = async (studentId: string) => {
+    setGeneratingFor(studentId)
+    try {
+      const res = await fetchApi(`/api/v2/orientation/checkpoints/${checkpointType}/generer`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message || 'Erreur')
+      onToast(t('orientation.checkpointGenerated'), 'success')
+      fetchElevesAOrienter(checkpointType)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally {
+      setGeneratingFor(null)
+    }
+  }
+
+  const submitConfigCheckpoint = async () => {
+    setConfigForm(f => ({ ...f, loading: true, error: '' }))
+    try {
+      const res = await fetchApi(`/api/v2/orientation/checkpoints/${checkpointType}/config`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          psychotechnicalTestRequired: configForm.psychotechnicalTestRequired,
+          windowStartMonth: configForm.windowStartMonth, windowStartDay: configForm.windowStartDay,
+          windowEndMonth: configForm.windowEndMonth, windowEndDay: configForm.windowEndDay,
+          responseDeadlineDays: configForm.responseDeadlineDays,
+        }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message || 'Erreur')
+      onToast(t('orientation.checkpointConfigSaved'), 'success')
+      setConfigOpen(false)
+      setCheckpointConfig(d.data)
+    } catch (err) {
+      setConfigForm(f => ({ ...f, error: err instanceof Error ? err.message : 'Erreur', loading: false }))
+      return
+    }
+    setConfigForm(f => ({ ...f, loading: false }))
+  }
+
+  const ouvrirValidationCheckpoint = () => {
+    if (!selectedFiche?.recommandation?.suggestedTracks) return
+    setValiderCheckpointPiste(selectedFiche.recommandation.suggestedTracks[0]?.track ?? '')
+    setValiderCheckpointOpen(true)
+  }
+
+  const submitValiderCheckpoint = async () => {
+    if (!selectedFiche?.recommandation || !validerCheckpointPiste) return
+    setValidatingCheckpoint(true)
+    try {
+      const res = await fetchApi(`/api/v2/orientation/recommandations/${selectedFiche.recommandation.id}/valider-conseiller`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serieRecommandee: validerCheckpointPiste }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message || 'Erreur')
+      onToast(t('orientation.checkpointValidated'), 'success')
+      setValiderCheckpointOpen(false)
+      openFiche(selectedFiche.id)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally {
+      setValidatingCheckpoint(false)
+    }
+  }
+
+  const proposerAuxEleve = async () => {
+    if (!selectedFiche?.recommandation) return
+    setProposingCheckpoint(true)
+    try {
+      const res = await fetchApi(`/api/v2/orientation/recommandations/${selectedFiche.recommandation.id}/proposer-eleve`, {
+        method: 'PATCH', credentials: 'include',
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.message || 'Erreur')
+      onToast(t('orientation.checkpointProposed'), 'success')
+      openFiche(selectedFiche.id)
+    } catch (err) {
+      onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    } finally {
+      setProposingCheckpoint(false)
+    }
+  }
+
   // ── Modifier entretien ────────────────────────────────────────────────────────
   const openEditEntretien = (e: Entretien) => {
     const orig = {
@@ -632,7 +840,10 @@ export default function SectionOrientation({ onToast }: Props) {
             <div style={sTitle}>{t('orientation.title')}</div>
             <div style={sSub}>{t('orientation.subtitle')}</div>
           </div>
-          <button style={btnPrim} onClick={() => setNewFicheOpen(true)}>{t('orientation.newFiche')}</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={btnSec} onClick={() => setView('checkpoints')}>{t('orientation.checkpointsButton')}</button>
+            <button style={btnPrim} onClick={() => setNewFicheOpen(true)}>{t('orientation.newFiche')}</button>
+          </div>
         </div>
 
         {!isOnline && (
@@ -896,13 +1107,72 @@ export default function SectionOrientation({ onToast }: Props) {
         {/* Tab: Série BAC */}
         {ficheTab === 'serie' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-              <button style={btnPrim} onClick={() => setRecoOpen(true)}>
-                {f.recommandation ? t('orientation.modifyRecommendation') : t('orientation.createRecommendation')}
-              </button>
-            </div>
+            {!f.recommandation?.checkpointType && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                <button style={btnPrim} onClick={() => setRecoOpen(true)}>
+                  {f.recommandation ? t('orientation.modifyRecommendation') : t('orientation.createRecommendation')}
+                </button>
+              </div>
+            )}
             {!f.recommandation ? (
               <EmptyState icon={<GraduationCap size={36} strokeWidth={2} />} text={t('orientation.noRecommendation')} />
+            ) : f.recommandation.checkpointType ? (
+              <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '24px 28px' }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
+                  <span style={{ background: 'var(--bg2)', color: 'var(--text2)', borderRadius: 8, padding: '4px 12px', fontSize: 13, fontWeight: 700 }}>
+                    {t(`orientation.${CHECKPOINT_TYPE_LABEL_KEY[f.recommandation.checkpointType] ?? f.recommandation.checkpointType}`)}
+                  </span>
+                  <Badge value={f.recommandation.status} map={CHECKPOINT_STATUS_STYLE} labelMap={CHECKPOINT_STATUS_LABEL_KEY} />
+                  {f.recommandation.confidenceLevel && (
+                    <Badge value={f.recommandation.confidenceLevel} map={CONFIDENCE_STYLE} labelMap={CONFIDENCE_LABEL_KEY} />
+                  )}
+                </div>
+
+                <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 700, marginBottom: 10 }}>{t('orientation.checkpointSuggestedTracks')}</div>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+                  {(f.recommandation.suggestedTracks ?? []).map(st => (
+                    <div key={st.track} style={{
+                      border: `1.5px solid ${st.track === f.recommandation!.serieRecommandee ? 'var(--green)' : 'var(--border)'}`,
+                      borderRadius: 12, padding: '14px 18px', minWidth: 140,
+                      background: st.track === f.recommandation!.serieRecommandee ? 'var(--green-light)' : 'var(--bg)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>{st.track}</span>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--green)' }}>{st.score}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.5 }}>{st.justification}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {f.recommandation.finalTrack ? (
+                  <div style={{ background: 'var(--green-light)', borderRadius: 10, padding: '14px 18px', marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700, marginBottom: 4 }}>{t('orientation.checkpointFinalTrack')}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--green)' }}>{f.recommandation.finalTrack}</div>
+                    {f.recommandation.status === 'VALIDEE_PAR_DEFAUT' && (
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{t('orientation.checkpointDefaultNote')}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {f.recommandation.status === 'CALCULEE' && (
+                      <button style={btnPrim} onClick={ouvrirValidationCheckpoint}>{t('orientation.checkpointValidate')}</button>
+                    )}
+                    {f.recommandation.status === 'VALIDEE_CONSEILLER' && (
+                      <button style={btnPrim} onClick={proposerAuxEleve} disabled={proposingCheckpoint}>
+                        {proposingCheckpoint ? <Loader2 size={14} strokeWidth={2} className="animate-spin" /> : t('orientation.checkpointPropose')}
+                      </button>
+                    )}
+                    {f.recommandation.status === 'PROPOSEE_A_L_ELEVE' && (
+                      <span style={{ fontSize: 14, color: 'var(--text3)' }}>
+                        {t('orientation.checkpointWaitingStudent')}
+                        {f.recommandation.responseDeadline && ` (${fmt(f.recommandation.responseDeadline)})`}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.7, marginTop: 16 }}>{f.recommandation.justification}</p>
+              </div>
             ) : (
               <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '24px 28px' }}>
                 <div style={{ display: 'flex', gap: 20, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -981,6 +1251,86 @@ export default function SectionOrientation({ onToast }: Props) {
             )}
           </div>
         )}
+      </>
+    )
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VUE 3 — Checkpoints d'orientation (moteur systématique)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  function ViewCheckpoints() {
+    return (
+      <>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+          <button onClick={() => setView('dashboard')} style={{ ...btnSec, padding: '8px 14px', fontSize: 14 }}>{t('orientation.backToDashboard')}</button>
+          <div>
+            <div style={sTitle}>{t('orientation.checkpointsTitle')}</div>
+            <div style={sSub}>{t('orientation.checkpointsSubtitle')}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, marginBottom: 22, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select value={checkpointType} onChange={e => setCheckpointType(e.target.value as 'FIN_TROISIEME' | 'FIN_SECONDE_C')} style={sSelect}>
+            <option value="FIN_TROISIEME">{t('orientation.checkpointFinTroisieme')}</option>
+            <option value="FIN_SECONDE_C">{t('orientation.checkpointFinSecondeC')}</option>
+          </select>
+          <button style={btnSec} onClick={() => setConfigOpen(true)} disabled={loadingCheckpointConfig}>
+            {t('orientation.checkpointConfigButton')}
+          </button>
+          {checkpointConfig && (
+            <span style={{ fontSize: 13, color: 'var(--text3)' }}>
+              {t('orientation.checkpointWindowLabel')} {String(checkpointConfig.windowStartDay).padStart(2, '0')}/{String(checkpointConfig.windowStartMonth).padStart(2, '0')} → {String(checkpointConfig.windowEndDay).padStart(2, '0')}/{String(checkpointConfig.windowEndMonth).padStart(2, '0')}
+              {checkpointConfig.psychotechnicalTestRequired ? ` · ${t('orientation.checkpointTestRequiredLabel')}` : ''}
+            </span>
+          )}
+        </div>
+
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--text)' }}>{t('orientation.checkpointEligibleStudents')}</span>
+          </div>
+          {loadingEleves ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)' }}>{t('orientation.loadingFiches')}</div>
+          ) : elevesAOrienter.length === 0 ? (
+            <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text3)' }}>
+              <div style={{ fontSize: 40, marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Compass size={40} strokeWidth={2} /></div>
+              <div style={{ fontSize: 16 }}>{t('orientation.checkpointNoEligibleStudents')}</div>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg)' }}>
+                    {[t('orientation.tableHeaderStudent'), t('orientation.tableHeaderClass'), t('orientation.checkpointStatusColumn'), t('orientation.tableHeaderActions')].map(h => (
+                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 13, fontWeight: 700, color: 'var(--text3)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {elevesAOrienter.map(e => (
+                    <tr key={e.studentId} style={{ borderBottom: '1px solid var(--bg2)' }}>
+                      <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{e.firstName} {e.lastName}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 14, color: 'var(--text3)' }}>{e.className}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {e.hasRecommendation
+                          ? <Badge value={e.recommendationStatus ?? ''} map={CHECKPOINT_STATUS_STYLE} labelMap={CHECKPOINT_STATUS_LABEL_KEY} />
+                          : <span style={{ fontSize: 13, color: 'var(--text3)' }}>{t('orientation.checkpointNotCalculated')}</span>}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {!e.hasRecommendation && (
+                          <button onClick={() => genererPourEleve(e.studentId)} disabled={generatingFor === e.studentId} style={{ ...btnSec, fontSize: 12, padding: '5px 12px' }}>
+                            {generatingFor === e.studentId ? <Loader2 size={13} strokeWidth={2} className="animate-spin" /> : t('orientation.checkpointGenerate')}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </>
     )
   }
@@ -1112,6 +1462,33 @@ export default function SectionOrientation({ onToast }: Props) {
         <textarea style={{ ...sInput, minHeight: 60, resize: 'vertical' }} value={testForm.interpretation} onChange={e => setTestForm(f => ({ ...f, interpretation: e.target.value }))} placeholder={t('orientation.testInterpretationPlaceholder')} />
         <div style={sLabel}>{t('orientation.testScoreLabel')}</div>
         <input style={sInput} type="number" min="0" max="100" value={testForm.scoreGlobal} onChange={e => setTestForm(f => ({ ...f, scoreGlobal: e.target.value }))} placeholder={t('orientation.testScorePlaceholder')} />
+
+        {testForm.type === 'PSYCHOTECHNIQUE' && (
+          <div style={{ background: 'var(--bg)', borderRadius: 12, padding: '16px 18px', marginBottom: 12 }}>
+            <div style={sLabel}>{t('orientation.checkpointColumn')}</div>
+            <select style={sInput} value={testForm.checkpointType} onChange={e => setTestForm(f => ({ ...f, checkpointType: e.target.value }))}>
+              <option value="">{t('orientation.checkpointNoneOption')}</option>
+              <option value="FIN_TROISIEME">{t('orientation.checkpointFinTroisieme')}</option>
+              <option value="FIN_SECONDE_C">{t('orientation.checkpointFinSecondeC')}</option>
+            </select>
+            {testForm.checkpointType && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                <div>
+                  <div style={sLabel}>{t('orientation.aptitudeScientific')}</div>
+                  <input style={sInput} type="number" min="0" max="100" value={testForm.scientificAptitude} onChange={e => setTestForm(f => ({ ...f, scientificAptitude: e.target.value }))} />
+                </div>
+                <div>
+                  <div style={sLabel}>{t('orientation.aptitudeLiterary')}</div>
+                  <input style={sInput} type="number" min="0" max="100" value={testForm.literaryAptitude} onChange={e => setTestForm(f => ({ ...f, literaryAptitude: e.target.value }))} />
+                </div>
+                <div>
+                  <div style={sLabel}>{t('orientation.aptitudeTechnical')}</div>
+                  <input style={sInput} type="number" min="0" max="100" value={testForm.technicalAptitude} onChange={e => setTestForm(f => ({ ...f, technicalAptitude: e.target.value }))} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {testForm.error && <div style={sError}>{testForm.error}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
           <button style={{ ...btnSec, flex: 1 }} onClick={() => setTestOpen(false)}>{t('orientation.cancel')}</button>
@@ -1192,6 +1569,75 @@ export default function SectionOrientation({ onToast }: Props) {
     )
   }
 
+  function ModalConfigCheckpoint() {
+    return (
+      <ModalOverlay onClose={() => setConfigOpen(false)}>
+        <div style={sModalTitle}>{t('orientation.checkpointConfigModalTitle')} — {t(`orientation.${CHECKPOINT_TYPE_LABEL_KEY[checkpointType]}`)}</div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <input type="checkbox" id="cp-test" checked={configForm.psychotechnicalTestRequired}
+            onChange={e => setConfigForm(f => ({ ...f, psychotechnicalTestRequired: e.target.checked }))} />
+          <label htmlFor="cp-test" style={{ fontSize: 14, color: 'var(--text2)', cursor: 'pointer' }}>{t('orientation.checkpointTestRequiredCheckbox')}</label>
+        </div>
+
+        <div style={sLabel}>{t('orientation.checkpointWindowStartLabel')}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <input style={sInput} type="number" min={1} max={12} value={configForm.windowStartMonth}
+            onChange={e => setConfigForm(f => ({ ...f, windowStartMonth: Number(e.target.value) }))} placeholder={t('orientation.checkpointMonthPlaceholder')} />
+          <input style={sInput} type="number" min={1} max={31} value={configForm.windowStartDay}
+            onChange={e => setConfigForm(f => ({ ...f, windowStartDay: Number(e.target.value) }))} placeholder={t('orientation.checkpointDayPlaceholder')} />
+        </div>
+        <div style={sLabel}>{t('orientation.checkpointWindowEndLabel')}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <input style={sInput} type="number" min={1} max={12} value={configForm.windowEndMonth}
+            onChange={e => setConfigForm(f => ({ ...f, windowEndMonth: Number(e.target.value) }))} placeholder={t('orientation.checkpointMonthPlaceholder')} />
+          <input style={sInput} type="number" min={1} max={31} value={configForm.windowEndDay}
+            onChange={e => setConfigForm(f => ({ ...f, windowEndDay: Number(e.target.value) }))} placeholder={t('orientation.checkpointDayPlaceholder')} />
+        </div>
+        <div style={sLabel}>{t('orientation.checkpointDeadlineDaysLabel')}</div>
+        <input style={sInput} type="number" min={1} max={90} value={configForm.responseDeadlineDays}
+          onChange={e => setConfigForm(f => ({ ...f, responseDeadlineDays: Number(e.target.value) }))} />
+
+        {configForm.error && <div style={sError}>{configForm.error}</div>}
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button style={{ ...btnSec, flex: 1 }} onClick={() => setConfigOpen(false)}>{t('orientation.cancel')}</button>
+          <button style={{ ...btnPrim, flex: 1, opacity: configForm.loading ? 0.7 : 1 }} onClick={submitConfigCheckpoint} disabled={configForm.loading}>
+            {configForm.loading ? t('orientation.checkpointConfigSaving') : t('orientation.checkpointConfigSave')}
+          </button>
+        </div>
+      </ModalOverlay>
+    )
+  }
+
+  function ModalValiderCheckpoint() {
+    const tracks = selectedFiche?.recommandation?.suggestedTracks ?? []
+    return (
+      <ModalOverlay onClose={() => setValiderCheckpointOpen(false)}>
+        <div style={sModalTitle}>{t('orientation.checkpointValidateModalTitle')}</div>
+        <div style={{ fontSize: 14, color: 'var(--text3)', marginBottom: 16, lineHeight: 1.6 }}>{t('orientation.checkpointValidateModalHint')}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          {tracks.map(st => (
+            <label key={st.track} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+              border: `2px solid ${validerCheckpointPiste === st.track ? 'var(--green)' : 'var(--border)'}`,
+              borderRadius: 10, cursor: 'pointer', background: validerCheckpointPiste === st.track ? 'var(--green-light)' : 'transparent',
+            }}>
+              <input type="radio" name="piste-checkpoint" checked={validerCheckpointPiste === st.track} onChange={() => setValiderCheckpointPiste(st.track)} />
+              <span style={{ fontWeight: 800, fontSize: 16 }}>{st.track}</span>
+              <span style={{ fontSize: 13, color: 'var(--text3)' }}>({st.score}/100)</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button style={{ ...btnSec, flex: 1 }} onClick={() => setValiderCheckpointOpen(false)}>{t('orientation.cancel')}</button>
+          <button style={{ ...btnPrim, flex: 1, opacity: validatingCheckpoint ? 0.7 : 1 }} onClick={submitValiderCheckpoint} disabled={validatingCheckpoint || !validerCheckpointPiste}>
+            {validatingCheckpoint ? t('orientation.checkpointConfigSaving') : t('orientation.checkpointValidateConfirm')}
+          </button>
+        </div>
+      </ModalOverlay>
+    )
+  }
+
   function ModalModifierEntretien() {
     return (
       <ModalOverlay onClose={() => setEditEntOpen(false)}>
@@ -1237,8 +1683,9 @@ export default function SectionOrientation({ onToast }: Props) {
 
   return (
     <div style={{ padding: '28px 32px', overflowY: 'auto', height: '100%' }}>
-      {view === 'dashboard' && <ViewDashboard />}
-      {view === 'fiche'     && <ViewFiche />}
+      {view === 'dashboard'   && <ViewDashboard />}
+      {view === 'fiche'       && <ViewFiche />}
+      {view === 'checkpoints' && <ViewCheckpoints />}
 
       {newFicheOpen   && <ModalNouvelleFiche />}
       {entretienOpen  && <ModalEntretien />}
@@ -1246,6 +1693,8 @@ export default function SectionOrientation({ onToast }: Props) {
       {testOpen       && <ModalTest />}
       {suiviOpen      && <ModalSuivi />}
       {recoOpen       && <ModalReco />}
+      {configOpen     && <ModalConfigCheckpoint />}
+      {validerCheckpointOpen && <ModalValiderCheckpoint />}
     </div>
   )
 }

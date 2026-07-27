@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import OfflineEmptyState from '@/components/OfflineEmptyState'
 import { useT } from '@/lib/i18n'
+import OrientationCheckpointParentView from './OrientationCheckpointParentView'
 
 interface Props {
   onNav: (s: string) => void
@@ -121,6 +122,8 @@ export default function SectionParentChildren({ onNav, onToast, userId }: Props)
       </div>
 
       {fromCache && <CacheBadge cachedAt={cachedAt} label={t('cacheBadge')} />}
+
+      <OrientationCheckpointParentView children={list.map(c => ({ studentId: c.studentId, prenom: c.prenom, nom: c.nom }))} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 18 }}>
         {list.map((child, i) => {

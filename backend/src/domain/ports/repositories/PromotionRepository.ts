@@ -60,4 +60,16 @@ export interface PromotionRepository {
     schoolId: string,
     academicYearId: string
   ): Promise<{ promus: number; redoublants: number }>;
+
+  /**
+   * Résout la classe cible depuis une recommandation d'orientation finalisée (statut
+   * VALIDEE_ELEVE ou VALIDEE_PAR_DEFAUT) pour cet élève sur cette année de clôture — prioritaire
+   * sur le mapping générique classe→classe. Retourne null si aucune recommandation finalisée
+   * n'existe (comportement normal pour la quasi-totalité des élèves, hors année de checkpoint).
+   */
+  findClasseCibleOrientation(
+    schoolId: string,
+    studentId: string,
+    academicYearId: string
+  ): Promise<string | null>;
 }

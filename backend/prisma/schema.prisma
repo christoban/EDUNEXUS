@@ -195,6 +195,7 @@ model School {
   books                      Book[]
   bookLoans                  BookLoan[]
   ficheOrientations          FicheOrientation[]
+  orientationCheckpointConfigs OrientationCheckpointConfig[]
   studentRecommendations     StudentRecommendation[]
   academicEvents             AcademicEvent[]
   calendarExceptions         SchoolCalendarException[]
@@ -257,6 +258,10 @@ model SchoolConfig {
   offlineModeEnabled              Boolean          @default(true)
   aiAlertsEnabled                 Boolean          @default(true)
   messageModeration               Boolean          @default(false)
+  /// Échappatoire explicite et traçable : true par défaut (l'école a un vrai conseiller
+  /// d'orientation dédié). Réglé à false uniquement si un établissement précis n'a
+  /// effectivement personne dans ce rôle — jamais le comportement par défaut.
+  hasDedicatedOrientationCounselor Boolean         @default(true)
   /// Redondant avec School.subsystem. Utilisé par l'API SchoolSettings (frontend + locale auto-dérivation).
   /// La résolution de langue RUNTIME utilise School.subsystem via resolveLanguage() — NE PAS utiliser pour la langue.
   schoolLanguageMode              String           @default("francophone")
@@ -505,6 +510,8 @@ model User {
   bookLoans                       BookLoan[]                 @relation("StudentBookLoans")
   ficheOrientations               FicheOrientation[]         @relation("studentFiches")
   ficheOrientationsConseille      FicheOrientation[]         @relation("conseillerFiches")
+  studentAspirations               StudentAspiration[]        @relation("studentAspirations")
+  testsAptitudeAdministres         TestAptitude[]              @relation("testAdministeredBy")
   teachingAssignments             TeachingAssignment[]       @relation("TeacherAssignments")
   headedDepartments               Department[]               @relation("DepartmentHead")
   cahierDeTexte                   CahierDeTexte[]            @relation("TeacherCahierDeTexte")
@@ -2124,11 +2131,70 @@ enum TypeTest {
 }
 
 enum StatutRecommandation {
+  // Workflow manuel historique (CreerRecommandationSerieUseCase, conseiller au fil de l'eau)
   PROPOSEE
   VALIDEE_ADMIN
   ACCEPTEE_PARENT
   REFUSEE_PARENT
   TRANSMISE_DRES
+  // Workflow moteur de checkpoints (GenererRecommandationOrientationUseCase, systématique
+  // fin 3ème / fin Seconde C) — le dernier mot revient à l'élève, pas au parent ni à l'admin.
+  CALCULEE
+  VALIDEE_CONSEILLER
+  PROPOSEE_A_L_ELEVE
+  VALIDEE_ELEVE
+  VALIDEE_PAR_DEFAUT
+}
+
+enum OrientationCheckpointType {
+  FIN_TROISIEME // Checkpoint 1 : 3ème -> Seconde (A / SES / C)
+  FIN_SECONDE_C // Checkpoint 2 : Seconde C -> Première (C / D / TI)
+}
+
+enum ConfidenceLevel {
+  ELEVEE
+  MOYENNE
+  FAIBLE
+}
+
+// Configuration par établissement et par checkpoint : quelles pistes sont possibles, quelles
+// matières comptent, et si le test psychotechnique est utilisé à ce checkpoint dans cet
+// établissement précis (pas un indicateur de donnée manquante — un vrai réglage par école).
+model OrientationCheckpointConfig {
+  id                           String                    @id @default(cuid())
+  schoolId                     String
+  school                       School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  type                         OrientationCheckpointType
+  possibleTracks               Json // ex. ["A", "SES", "C"] ou ["C", "D", "TI"]
+  relevantSubjects             Json // matières déterminantes et poids pour ce checkpoint
+  psychotechnicalTestRequired  Boolean                   @default(false)
+  // Fenêtre d'orientation annuelle récurrente (ex. mars-mai) — mois/jour seulement, pas d'année
+  // fixe puisqu'elle se répète chaque année scolaire.
+  windowStartMonth             Int                       @default(3)
+  windowStartDay               Int                       @default(1)
+  windowEndMonth               Int                       @default(5)
+  windowEndDay                 Int                       @default(31)
+  responseDeadlineDays         Int                       @default(15)
+  createdAt                    DateTime                  @default(now())
+  updatedAt                    DateTime                  @updatedAt
+
+  @@unique([schoolId, type])
+}
+
+// Aspirations déclarées par l'élève lui-même — indépendant de l'existence d'une FicheOrientation
+// (l'élève peut la soumettre avant même qu'un dossier ne soit ouvert pour lui).
+model StudentAspiration {
+  id                String                    @id @default(cuid())
+  studentId         String
+  student           User                      @relation("studentAspirations", fields: [studentId], references: [id], onDelete: Cascade)
+  schoolId          String
+  checkpointType    OrientationCheckpointType
+  desiredTrack      String?
+  careerInterest    String?
+  submittedAt       DateTime                  @default(now())
+
+  @@unique([studentId, checkpointType])
+  @@index([schoolId, checkpointType])
 }
 
 model FicheOrientation {
@@ -2181,10 +2247,19 @@ model TestAptitude {
   resultats          String
   interpretation     String?
   scoreGlobal        Int?
+  // Champs structurés du test psychotechnique de checkpoint (type=PSYCHOTECHNIQUE, moteur de
+  // scoring) — null pour tout test manuel classique (COGNITIF/INTERETS_PROFESSIONNELS/PERSONNALITE).
+  checkpointType     OrientationCheckpointType?
+  scientificAptitude Int?
+  literaryAptitude   Int?
+  technicalAptitude  Int?
+  administeredById   String?
+  administeredBy     User?            @relation("testAdministeredBy", fields: [administeredById], references: [id])
   createdAt          DateTime         @default(now())
   fiche              FicheOrientation @relation(fields: [ficheOrientationId], references: [id], onDelete: Cascade)
 
   @@index([ficheOrientationId])
+  @@index([ficheOrientationId, checkpointType])
 }
 
 model RecommandationSerie {
@@ -2199,6 +2274,17 @@ model RecommandationSerie {
   status             StatutRecommandation @default(PROPOSEE)
   createdAt          DateTime             @default(now())
   fiche              FicheOrientation     @relation(fields: [ficheOrientationId], references: [id], onDelete: Cascade)
+
+  // ── Champs du moteur de checkpoints (null pour une recommandation manuelle classique) ──
+  checkpointType      OrientationCheckpointType?
+  suggestedTracks     Json? // [{ track: "C", score: 82, justification: "..." }, ...]
+  confidenceLevel     ConfidenceLevel?
+  dataDepthMonths     Int?
+  responseDeadline    DateTime?
+  remindersSentAt     Json? // liste de timestamps des rappels déjà envoyés
+  studentChosenTrack  String?
+  finalizedAt         DateTime?
+  finalTrack          String? // piste réellement retenue — celle que le passage de classe utilise
 }
 
 model SuiviOrientation {

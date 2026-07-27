@@ -209,6 +209,13 @@ import { CreerRecommandationSerieUseCase } from '@application/orientation/CreerR
 import { AjouterSuiviUseCase } from '@application/orientation/AjouterSuiviUseCase';
 import { ListerFichesOrientationUseCase } from '@application/orientation/ListerFichesOrientationUseCase';
 import { GetStatsOrientationUseCase } from '@application/orientation/GetStatsOrientationUseCase';
+import { SaisirAspirationsEleveUseCase } from '@application/orientation/SaisirAspirationsEleveUseCase';
+import { GenererRecommandationOrientationUseCase } from '@application/orientation/GenererRecommandationOrientationUseCase';
+import { ValiderRecommandationConseillerUseCase } from '@application/orientation/ValiderRecommandationConseillerUseCase';
+import { ProposerRecommandationEleveUseCase } from '@application/orientation/ProposerRecommandationEleveUseCase';
+import { ChoisirPisteEleveUseCase } from '@application/orientation/ChoisirPisteEleveUseCase';
+import { ListerElevesAOrienterUseCase } from '@application/orientation/ListerElevesAOrienterUseCase';
+import { ConfigurerCheckpointOrientationUseCase } from '@application/orientation/ConfigurerCheckpointOrientationUseCase';
 
 // --- Use Cases : MasterAdmin ---
 import { InviterEcoleUseCase } from '@application/masterAdmin/InviterEcoleUseCase';
@@ -400,6 +407,13 @@ export function creerContainer() {
   const ajouterSuiviUseCase = new AjouterSuiviUseCase(orientationRepository);
   const listerFichesOrientationUseCase = new ListerFichesOrientationUseCase(orientationRepository);
   const getStatsOrientationUseCase = new GetStatsOrientationUseCase(orientationRepository);
+  const saisirAspirationsEleveUseCase = new SaisirAspirationsEleveUseCase(orientationRepository);
+  const genererRecommandationOrientationUseCase = new GenererRecommandationOrientationUseCase(prisma, orientationRepository);
+  const validerRecommandationConseillerUseCase = new ValiderRecommandationConseillerUseCase(orientationRepository);
+  const proposerRecommandationEleveUseCase = new ProposerRecommandationEleveUseCase(orientationRepository);
+  const choisirPisteEleveUseCase = new ChoisirPisteEleveUseCase(orientationRepository);
+  const listerElevesAOrienterUseCase = new ListerElevesAOrienterUseCase(prisma);
+  const configurerCheckpointOrientationUseCase = new ConfigurerCheckpointOrientationUseCase(orientationRepository);
 
   // 17. Use Cases — MasterAdmin
   const inviterEcoleUseCase = new InviterEcoleUseCase(
@@ -514,6 +528,13 @@ export function creerContainer() {
       listerFiches: listerFichesOrientationUseCase,
       getStats: getStatsOrientationUseCase,
       repo: orientationRepository,
+      saisirAspiration: saisirAspirationsEleveUseCase,
+      genererRecommandation: genererRecommandationOrientationUseCase,
+      validerRecommandationConseiller: validerRecommandationConseillerUseCase,
+      proposerRecommandationEleve: proposerRecommandationEleveUseCase,
+      choisirPisteEleve: choisirPisteEleveUseCase,
+      listerElevesAOrienter: listerElevesAOrienterUseCase,
+      configurerCheckpoint: configurerCheckpointOrientationUseCase,
     },
     matricule: {
       importerMatricules: new ImporterMatriculesUseCase(prisma),

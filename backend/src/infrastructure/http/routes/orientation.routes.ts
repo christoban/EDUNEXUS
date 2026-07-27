@@ -27,5 +27,21 @@ export function creerOrientationRoutes(controller: OrientationController): Route
   // Suivis
   router.post('/fiches/:id/suivis', requireAuth, controller.ajouterSuiviHandler);
 
+  // Aspirations élève
+  router.post('/aspirations',                    requireAuth, controller.saisirAspirationHandler);
+  router.get('/aspirations/:checkpointType',      requireAuth, controller.obtenirAspiration);
+
+  // Moteur de checkpoints
+  router.post('/checkpoints/:type/generer',       requireAuth, controller.genererRecommandationHandler);
+  router.get('/checkpoints/:type/config',         requireAuth, controller.obtenirConfigCheckpoint);
+  router.put('/checkpoints/:type/config',         requireAuth, controller.configurerCheckpointHandler);
+  router.get('/eleves-a-orienter',                requireAuth, controller.elevesAOrienterHandler);
+
+  // Workflow de décision (conseiller puis élève)
+  router.patch('/recommandations/:id/valider-conseiller', requireAuth, controller.validerRecommandationConseillerHandler);
+  router.patch('/recommandations/:id/proposer-eleve',     requireAuth, controller.proposerRecommandationEleveHandler);
+  router.patch('/recommandations/:id/choisir-piste',      requireAuth, controller.choisirPisteEleveHandler);
+  router.get('/ma-recommandation/:checkpointType',        requireAuth, controller.maRecommandation);
+
   return router;
 }

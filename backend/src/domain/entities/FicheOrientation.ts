@@ -14,7 +14,12 @@ export type TypeTest          =
   | 'COGNITIF' | 'INTERETS_PROFESSIONNELS' | 'PERSONNALITE' | 'PSYCHOTECHNIQUE';
 export type StatutRecommandation =
   | 'PROPOSEE' | 'VALIDEE_ADMIN' | 'ACCEPTEE_PARENT'
-  | 'REFUSEE_PARENT' | 'TRANSMISE_DRES';
+  | 'REFUSEE_PARENT' | 'TRANSMISE_DRES'
+  | 'CALCULEE' | 'VALIDEE_CONSEILLER' | 'PROPOSEE_A_L_ELEVE'
+  | 'VALIDEE_ELEVE' | 'VALIDEE_PAR_DEFAUT';
+
+export type OrientationCheckpointType = 'FIN_TROISIEME' | 'FIN_SECONDE_C';
+export type ConfidenceLevel = 'ELEVEE' | 'MOYENNE' | 'FAIBLE';
 
 export interface FicheOrientationProps {
   id:             string;

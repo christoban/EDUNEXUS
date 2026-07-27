@@ -29,6 +29,7 @@ import {
   markOverdueLoans,
   checkAbsenceThreshold,
   checkAcademicEvents,
+  checkOrientationCheckpoints,
   BackupSchoolDataJob,
 } from "./inngest/functions.ts";
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
@@ -152,6 +153,7 @@ app.use(
       markOverdueLoans,
       checkAbsenceThreshold,
       checkAcademicEvents,
+      checkOrientationCheckpoints,
       BackupSchoolDataJob,
       syncCarteScolaire,
       relancePaiements,

@@ -1,0 +1,173 @@
+'use client'
+import { useState, useEffect, useCallback } from 'react'
+import { Compass, Clock } from 'lucide-react'
+import { fetchApi } from '@/lib/fetchApi'
+import { useT } from '@/lib/i18n'
+
+interface Props {
+  onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
+}
+
+type SuggestedTrack = { track: string; score: number; justification: string }
+
+interface Recommandation {
+  id: string; status: string; suggestedTracks: SuggestedTrack[] | null
+  responseDeadline: string | null; finalTrack: string | null
+}
+
+const CHECKPOINTS = ['FIN_TROISIEME', 'FIN_SECONDE_C'] as const
+
+export default function OrientationCheckpointBanner({ onToast }: Props) {
+  const t = useT('student')
+  const [loading, setLoading] = useState(true)
+  const [proposition, setProposition] = useState<{ checkpointType: string; reco: Recommandation } | null>(null)
+  const [selectedTrack, setSelectedTrack] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Formulaire d'aspiration (optionnel, disponible en tout temps)
+  const [aspirationOpen, setAspirationOpen] = useState(false)
+  const [aspirationCheckpoint, setAspirationCheckpoint] = useState<'FIN_TROISIEME' | 'FIN_SECONDE_C'>('FIN_TROISIEME')
+  const [desiredTrack, setDesiredTrack] = useState('')
+  const [careerInterest, setCareerInterest] = useState('')
+  const [savingAspiration, setSavingAspiration] = useState(false)
+  const [aspirationSaved, setAspirationSaved] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      for (const cp of CHECKPOINTS) {
+        const res = await fetchApi(`/api/v2/orientation/ma-recommandation/${cp}`, { credentials: 'include' })
+        const json = await res.json()
+        if (json.success && json.data?.status === 'PROPOSEE_A_L_ELEVE') {
+          setProposition({ checkpointType: cp, reco: json.data })
+          setSelectedTrack(json.data.suggestedTracks?.[0]?.track ?? '')
+          setLoading(false)
+          return
+        }
+      }
+      setProposition(null)
+    } catch { /* silencieux — pas de proposition active par défaut */ }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const handleChoisir = async () => {
+    if (!proposition || !selectedTrack) return
+    setSubmitting(true)
+    try {
+      const res = await fetchApi(`/api/v2/orientation/recommandations/${proposition.reco.id}/choisir-piste`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ track: selectedTrack }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        onToast(t('orientationCheckpoint.toast_choice_saved'), 'success')
+        await load()
+      } else {
+        onToast(json.message || t('orientationCheckpoint.toast_error'), 'error')
+      }
+    } catch {
+      onToast(t('orientationCheckpoint.toast_error'), 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleSaveAspiration = async () => {
+    setSavingAspiration(true)
+    try {
+      const res = await fetchApi('/api/v2/orientation/aspirations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ checkpointType: aspirationCheckpoint, desiredTrack: desiredTrack || undefined, careerInterest: careerInterest || undefined }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        onToast(t('orientationCheckpoint.toast_aspiration_saved'), 'success')
+        setAspirationSaved(true)
+      } else {
+        onToast(json.message || t('orientationCheckpoint.toast_error'), 'error')
+      }
+    } catch {
+      onToast(t('orientationCheckpoint.toast_error'), 'error')
+    } finally {
+      setSavingAspiration(false)
+    }
+  }
+
+  if (loading) return null
+
+  if (proposition) {
+    const deadline = proposition.reco.responseDeadline ? new Date(proposition.reco.responseDeadline) : null
+    return (
+      <div style={{ background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 16, padding: '20px 24px', marginBottom: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <Compass size={22} strokeWidth={2} />
+          <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)' }}>{t('orientationCheckpoint.banner_title')}</span>
+        </div>
+        <div style={{ fontSize: 15, color: 'var(--text2)', fontWeight: 600, marginBottom: 14 }}>
+          {t('orientationCheckpoint.banner_subtitle')}
+          {deadline && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8, color: 'var(--amber)' }}>
+              <Clock size={14} strokeWidth={2} /> {deadline.toLocaleDateString()}
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+          {(proposition.reco.suggestedTracks ?? []).map(st => (
+            <button key={st.track} onClick={() => setSelectedTrack(st.track)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4, textAlign: 'left',
+                padding: '12px 16px', borderRadius: 12, minWidth: 160, cursor: 'pointer', fontFamily: 'inherit',
+                border: `2px solid ${selectedTrack === st.track ? 'var(--amber)' : 'var(--border)'}`,
+                background: selectedTrack === st.track ? 'white' : 'var(--surface)',
+              }}>
+              <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--text)' }}>{st.track}</span>
+              <span style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.5 }}>{st.justification}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={handleChoisir} disabled={!selectedTrack || submitting}
+          style={{ padding: '10px 22px', borderRadius: 10, border: 'none', background: 'var(--amber)', color: 'white', fontWeight: 800, fontSize: 15, cursor: selectedTrack && !submitting ? 'pointer' : 'not-allowed', opacity: selectedTrack && !submitting ? 1 : 0.6 }}>
+          {submitting ? t('orientationCheckpoint.submitting') : t('orientationCheckpoint.confirm_choice')}
+        </button>
+      </div>
+    )
+  }
+
+  // Pas de proposition en attente — formulaire d'aspiration optionnel
+  return (
+    <div style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 16, padding: '16px 22px', marginBottom: 22 }}>
+      <button onClick={() => setAspirationOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', width: '100%', textAlign: 'left' }}>
+        <Compass size={20} strokeWidth={2} color="var(--text3)" />
+        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{t('orientationCheckpoint.aspiration_prompt')}</span>
+      </button>
+      {aspirationOpen && (
+        <div style={{ marginTop: 14 }}>
+          {aspirationSaved ? (
+            <div style={{ fontSize: 14, color: 'var(--green)', fontWeight: 700 }}>{t('orientationCheckpoint.aspiration_confirmed')}</div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                <select value={aspirationCheckpoint} onChange={e => setAspirationCheckpoint(e.target.value as any)}
+                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, fontWeight: 600 }}>
+                  <option value="FIN_TROISIEME">{t('orientationCheckpoint.checkpoint_3e')}</option>
+                  <option value="FIN_SECONDE_C">{t('orientationCheckpoint.checkpoint_2ndeC')}</option>
+                </select>
+                <input value={desiredTrack} onChange={e => setDesiredTrack(e.target.value)} placeholder={t('orientationCheckpoint.desired_track_placeholder')}
+                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, minWidth: 140 }} />
+              </div>
+              <input value={careerInterest} onChange={e => setCareerInterest(e.target.value)} placeholder={t('orientationCheckpoint.career_interest_placeholder')}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, marginBottom: 12 }} />
+              <button onClick={handleSaveAspiration} disabled={savingAspiration}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: 'var(--green)', color: 'white', fontWeight: 700, fontSize: 13, cursor: savingAspiration ? 'wait' : 'pointer' }}>
+                {savingAspiration ? t('orientationCheckpoint.submitting') : t('orientationCheckpoint.save_aspiration')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

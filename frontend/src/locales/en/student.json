@@ -29,6 +29,22 @@
     "toast_submitted": "Your LV2 choice has been recorded",
     "toast_error": "Error while recording your choice"
   },
+  "orientationCheckpoint": {
+    "banner_title": "Your orientation is waiting",
+    "banner_subtitle": "Your counselor has suggested one or more tracks — choose the one you want to follow before",
+    "confirm_choice": "Confirm my choice",
+    "submitting": "Submitting…",
+    "toast_choice_saved": "Your choice has been recorded",
+    "toast_aspiration_saved": "Your aspiration has been recorded",
+    "toast_error": "An error occurred",
+    "aspiration_prompt": "Share your orientation plans (optional)",
+    "aspiration_confirmed": "Your aspiration has been recorded — the counselor will take it into account.",
+    "checkpoint_3e": "End of Form 4 (3ème)",
+    "checkpoint_2ndeC": "End of Lower Sixth C (Seconde C)",
+    "desired_track_placeholder": "Desired track (e.g. C, A, D…)",
+    "career_interest_placeholder": "Career or field of interest (optional)",
+    "save_aspiration": "Save"
+  },
   "library": {
     "title": "My reading",
     "subtitle": "Books borrowed from the school library",

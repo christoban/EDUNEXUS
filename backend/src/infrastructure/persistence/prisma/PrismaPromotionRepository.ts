@@ -94,4 +94,40 @@ export class PrismaPromotionRepository implements PromotionRepository {
     const redoublants = promotions.filter(p => p.fromClassId === p.toClassId).length;
     return { promus, redoublants };
   }
+
+  private static readonly NIVEAU_CIBLE_PAR_CHECKPOINT: Record<string, string> = {
+    FIN_TROISIEME: '2nde',
+    FIN_SECONDE_C: '1ere',
+  };
+
+  async findClasseCibleOrientation(
+    schoolId: string,
+    studentId: string,
+    academicYearId: string
+  ): Promise<string | null> {
+    const reco = await this.prisma.recommandationSerie.findFirst({
+      where: {
+        studentId,
+        status: { in: ['VALIDEE_ELEVE', 'VALIDEE_PAR_DEFAUT'] },
+        finalTrack: { not: null },
+        checkpointType: { not: null },
+        fiche: { academicYearId },
+      },
+      select: { finalTrack: true, checkpointType: true },
+    });
+    if (!reco?.finalTrack || !reco.checkpointType) return null;
+
+    const niveauCible = PrismaPromotionRepository.NIVEAU_CIBLE_PAR_CHECKPOINT[reco.checkpointType];
+    if (!niveauCible) return null;
+
+    // Répartit sur la classe la moins chargée en cas de plusieurs classes niveau+série identiques
+    // (ex. "2nde C A" et "2nde C B") — jamais toujours la même classe par défaut.
+    const classes = await this.prisma.class.findMany({
+      where: { schoolId, level: niveauCible, serie: reco.finalTrack },
+      select: { id: true, _count: { select: { students: true } } },
+    });
+    if (classes.length === 0) return null;
+    classes.sort((a, b) => a._count.students - b._count.students);
+    return classes[0]!.id;
+  }
 }

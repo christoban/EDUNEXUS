@@ -1,5 +1,5 @@
 import type { IOrientationRepository, TestDetail } from '@domain/ports/repositories/IOrientationRepository';
-import type { TypeTest } from '@domain/entities/FicheOrientation';
+import type { TypeTest, OrientationCheckpointType } from '@domain/entities/FicheOrientation';
 
 export interface AjouterTestCommande {
   ficheId:        string;
@@ -9,6 +9,13 @@ export interface AjouterTestCommande {
   resultats:      string;
   interpretation?: string;
   scoreGlobal?:   number;
+  // Test psychotechnique structuré de checkpoint (type=PSYCHOTECHNIQUE, moteur de scoring) —
+  // ignorés pour un test manuel classique (COGNITIF/INTERETS_PROFESSIONNELS/PERSONNALITE).
+  checkpointType?: OrientationCheckpointType;
+  scientificAptitude?: number;
+  literaryAptitude?:   number;
+  technicalAptitude?:  number;
+  administeredById?:  string;
 }
 
 export class AjouterTestAptitudeUseCase {
@@ -25,6 +32,11 @@ export class AjouterTestAptitudeUseCase {
       resultats:      cmd.resultats,
       interpretation: cmd.interpretation,
       scoreGlobal:    cmd.scoreGlobal,
+      checkpointType:      cmd.checkpointType,
+      scientificAptitude:  cmd.scientificAptitude,
+      literaryAptitude:    cmd.literaryAptitude,
+      technicalAptitude:   cmd.technicalAptitude,
+      administeredById:    cmd.administeredById,
     });
   }
 }

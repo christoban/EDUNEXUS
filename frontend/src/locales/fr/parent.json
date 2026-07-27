@@ -28,6 +28,18 @@
   "retry": "Réessayer",
   "errorLoad": "Erreur de chargement",
   "cacheBadge": "Données du {date} — hors-ligne",
+  "orientationCheckpoint": {
+    "section_title": "Orientation scolaire",
+    "checkpoint_3e": "Fin de 3ème",
+    "checkpoint_2ndeC": "Fin de Seconde C",
+    "parent_final_track": "Piste retenue :",
+    "parent_status_prefix": "Statut :",
+    "status_calculee": "Calculée par le conseiller",
+    "status_validee_conseiller": "Validée par le conseiller",
+    "status_proposee_eleve": "Proposée à votre enfant",
+    "status_validee_eleve": "Confirmée par votre enfant",
+    "status_validee_par_defaut": "Retenue par défaut (délai dépassé)"
+  },
   "children": {
     "title": "Mes enfants",
     "subtitle": "Suivi scolaire en temps réel",

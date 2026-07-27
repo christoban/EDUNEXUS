@@ -29,6 +29,22 @@
     "toast_submitted": "Votre choix de LV2 a été enregistré",
     "toast_error": "Erreur lors de l'enregistrement de votre choix"
   },
+  "orientationCheckpoint": {
+    "banner_title": "Votre orientation vous attend",
+    "banner_subtitle": "Le conseiller vous propose une ou plusieurs pistes — choisissez celle que vous souhaitez suivre avant le",
+    "confirm_choice": "Confirmer mon choix",
+    "submitting": "Envoi…",
+    "toast_choice_saved": "Votre choix a été enregistré",
+    "toast_aspiration_saved": "Votre aspiration a été enregistrée",
+    "toast_error": "Une erreur est survenue",
+    "aspiration_prompt": "Faire connaître votre projet d'orientation (facultatif)",
+    "aspiration_confirmed": "Votre aspiration a été enregistrée — le conseiller en tiendra compte.",
+    "checkpoint_3e": "Fin de 3ème",
+    "checkpoint_2ndeC": "Fin de Seconde C",
+    "desired_track_placeholder": "Série souhaitée (ex. C, A, D…)",
+    "career_interest_placeholder": "Métier ou domaine qui vous intéresse (facultatif)",
+    "save_aspiration": "Enregistrer"
+  },
   "library": {
     "title": "Mes lectures",
     "subtitle": "Livres empruntés à la bibliothèque de l'établissement",
