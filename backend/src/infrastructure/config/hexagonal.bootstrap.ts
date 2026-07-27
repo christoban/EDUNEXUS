@@ -121,6 +121,26 @@ import { LoginMasterUseCase } from '@application/masterAdmin/LoginMasterUseCase'
 import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
 import { MasterAuthController } from '@infrastructure/http/controllers/MasterAuthController';
 import { creerMasterAuthRoutes } from '@infrastructure/http/routes/masterAuth.routes';
+import { LoginGroupOwnerUseCase } from '@application/schoolGroup/LoginGroupOwnerUseCase';
+import { VerifyGroupOwnerMfaUseCase } from '@application/schoolGroup/VerifyGroupOwnerMfaUseCase';
+import { GroupAuthController } from '@infrastructure/http/controllers/GroupAuthController';
+import { creerGroupAuthRoutes } from '@infrastructure/http/routes/groupAuth.routes';
+import { ObtenirKpisGroupeUseCase } from '@application/schoolGroup/ObtenirKpisGroupeUseCase';
+import { ListerEcolesGroupeUseCase } from '@application/schoolGroup/ListerEcolesGroupeUseCase';
+import { ObtenirDetailEcoleGroupeUseCase } from '@application/schoolGroup/ObtenirDetailEcoleGroupeUseCase';
+import { GroupDashboardController } from '@infrastructure/http/controllers/GroupDashboardController';
+import { creerGroupDashboardRoutes } from '@infrastructure/http/routes/groupDashboard.routes';
+import { CreerDemandeTransfertGroupeUseCase } from '@application/schoolGroup/CreerDemandeTransfertGroupeUseCase';
+import { ListerDemandesTransfertGroupeUseCase } from '@application/schoolGroup/ListerDemandesTransfertGroupeUseCase';
+import { RechercherPersonneEcoleGroupeUseCase } from '@application/schoolGroup/RechercherPersonneEcoleGroupeUseCase';
+import { ListerDemandesTransfertEntrantesUseCase } from '@application/schoolGroup/ListerDemandesTransfertEntrantesUseCase';
+import { AccepterTransfertEleveUseCase } from '@application/schoolGroup/AccepterTransfertEleveUseCase';
+import { AccepterTransfertEnseignantUseCase } from '@application/schoolGroup/AccepterTransfertEnseignantUseCase';
+import { RejeterTransfertGroupeUseCase } from '@application/schoolGroup/RejeterTransfertGroupeUseCase';
+import { GroupTransferController } from '@infrastructure/http/controllers/GroupTransferController';
+import { creerGroupTransferRoutes } from '@infrastructure/http/routes/groupTransfer.routes';
+import { AdminGroupTransferController } from '@infrastructure/http/controllers/AdminGroupTransferController';
+import { creerAdminGroupTransferRoutes } from '@infrastructure/http/routes/adminGroupTransfer.routes';
 import { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
 import { sendTransactionalEmail } from '../../services/emailService';
@@ -901,6 +921,49 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/master/auth', creerMasterAuthRoutes(masterAuthController));
 
   app.use('/api/v2/master', creerMasterAdminHexRoutes(masterAdminHexController));
+
+  // ── Group Owner Auth — Fondateur de Groupe scolaire (compte séparé, cf. Plan_Groupe_Scolaire) ──
+  const loginGroupOwnerUseCase = new LoginGroupOwnerUseCase(
+    prisma,
+    async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
+      const result = await sendTransactionalEmail({
+        recipientEmail,
+        subject: 'ZekoulABia — Code de vérification connexion (Groupe Scolaire)',
+        html: `<p>Votre code de vérification est : <strong>${otp}</strong></p><p>Ce code expire dans 10 minutes.</p>`,
+        template: 'group-owner-login-otp',
+        eventType: 'group_login_otp',
+      });
+      if (result.status === 'failed') {
+        throw new Error(result.error || "Échec d'envoi de l'email");
+      }
+    },
+  );
+  const verifyGroupOwnerMfaUseCase = new VerifyGroupOwnerMfaUseCase(prisma);
+  const groupAuthController = new GroupAuthController(loginGroupOwnerUseCase, verifyGroupOwnerMfaUseCase);
+  app.use('/api/v2/group/auth', creerGroupAuthRoutes(groupAuthController));
+
+  const groupDashboardController = new GroupDashboardController(
+    new ObtenirKpisGroupeUseCase(prisma),
+    new ListerEcolesGroupeUseCase(prisma),
+    new ObtenirDetailEcoleGroupeUseCase(prisma),
+  );
+  app.use('/api/v2/group/dashboard', creerGroupDashboardRoutes(groupDashboardController));
+
+  const groupTransferController = new GroupTransferController(
+    new CreerDemandeTransfertGroupeUseCase(prisma),
+    new ListerDemandesTransfertGroupeUseCase(prisma),
+    new RechercherPersonneEcoleGroupeUseCase(prisma),
+  );
+  app.use('/api/v2/group/transfers', creerGroupTransferRoutes(groupTransferController));
+
+  const adminGroupTransferController = new AdminGroupTransferController(
+    prisma,
+    new ListerDemandesTransfertEntrantesUseCase(prisma),
+    new AccepterTransfertEleveUseCase(prisma, container.eleveOnboarding.creerSquelette),
+    new AccepterTransfertEnseignantUseCase(prisma, container.user.inscrire),
+    new RejeterTransfertGroupeUseCase(prisma),
+  );
+  app.use('/api/v2/group-transfers', creerAdminGroupTransferRoutes(adminGroupTransferController));
 
   const financeController = new FinanceController(
     container.finance.creerPlanFrais,

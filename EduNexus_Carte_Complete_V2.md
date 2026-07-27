@@ -1425,7 +1425,7 @@ Toutes les notes de la classe en `VALIDATED` → sinon session bloquée + liste 
 
 ---
 
-## MODULE 21 — Groupe Scolaire (Phase 5) [RÉEL: ⬜ PAS FAIT — aucune trace : pas de modèle `SchoolGroup`, pas de rôle `SCHOOL_GROUP_OWNER`, rien côté frontend. Cohérent avec le fait que c'est planifié pour la Phase 5, donc pas encore attendu.]
+## MODULE 21 — Groupe Scolaire (Phase 5) [RÉEL: ✅ FAIT, en avance sur la planification (prévu Phase 5, déjà construit — juillet 2026) — voir `Plan_Groupe_Scolaire_ZekoulABia.md` pour le détail. Compte séparé `SchoolGroupOwner` (jamais un rôle `User`, cf. décision d'architecture Section 1) avec sa propre auth 3FA (`/api/v2/group/auth`, cookie `group_jwt`), dashboard `/group/dashboard` (KPIs agrégés + liste écoles + transferts). Agrégation toujours calculée école-par-école, jamais un `schoolId IN (...)` sur une table individuelle (isolation multi-tenant préservée). Transferts élève/enseignant via `GroupTransferRequest` : jamais de mutation directe de `schoolId`, l'ancien compte reste intact (marqué `studentStatus: TRANSFERRED`), le nouveau dossier passe par le même mécanisme de lien sécurisé/validation humaine que l'onboarding classique. `PlanType.ETABLISSEMENT_PLUS` ajouté. Volontairement PAS fait dans ce premier jet (Section 12 du plan) : facturation consolidée automatisée, comptes délégués/lecture-seule pour un groupe, héritage de calendrier scolaire à l'échelle du groupe, dashboard marque blanche.]
 
 **Contexte :** De nombreux fondateurs gèrent plusieurs établissements (primaire + collège + lycée) sous une même direction. Aujourd'hui, aucun outil ne leur offre une vue consolidée.
 

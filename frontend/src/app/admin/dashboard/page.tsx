@@ -34,6 +34,7 @@ import SectionMinesecStatistics from './_components/SectionMinesecStatistics'
 import SectionMinedubStatistics from './_components/SectionMinedubStatistics'
 import SectionAdminPebsExams from './_components/SectionAdminPebsExams'
 import SectionAdminAcademicEvents from './_components/SectionAdminAcademicEvents'
+import SectionAdminGroupTransfers from './_components/SectionAdminGroupTransfers'
 import EventCenterWidget from '@/components/EventCenterWidget'
 import AdminToast from './_components/AdminToast'
 import AssistantWidget from './_components/AssistantWidget'
@@ -49,7 +50,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
   'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'settings',
-  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats',
+  'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats', 'group-transfers',
 ]
 
 const PLACEHOLDERS: Partial<Record<AdminSection, { icon: string; desc: string }>> = {}
@@ -76,6 +77,7 @@ export default function AdminDashboard() {
   // propre machine à états) pilote directement la visibilité, sans dupliquer l'information.
   const [hasActiveEntranceExam, setHasActiveEntranceExam] = useState(false)
   const [hasActivePebs, setHasActivePebs] = useState(false)
+  const [hasPendingGroupTransfers, setHasPendingGroupTransfers] = useState(false)
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -140,6 +142,11 @@ export default function AdminDashboard() {
       .then(r => r.json())
       .then(d => { if (d.success) setHasActivePebs((d.data || []).some((s: { status: string }) => s.status !== 'APPLIED')) })
       .catch(() => {})
+
+    fetchApi('/api/v2/group-transfers/incoming')
+      .then(r => r.json())
+      .then(d => { if (d.success) setHasPendingGroupTransfers((d.data || []).length > 0) })
+      .catch(() => {})
   }, [router, showToast])
 
   useEffect(() => {
@@ -163,7 +170,7 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-nunito),Nunito,sans-serif', background: 'var(--bg)' }}>
-      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} isPrimaire={schoolInfo?.isPrimaire} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+      <AdminSidebar current={section} onChange={setSection} schoolName={schoolInfo?.name} logoUrl={schoolInfo?.logoUrl} onLogout={logoutUser} badges={badges} sessionUser={sessionUser} activeEventTypes={activeEventTypes} hasActiveEntranceExam={hasActiveEntranceExam} hasActivePebs={hasActivePebs} hasPendingGroupTransfers={hasPendingGroupTransfers} isPrimaire={schoolInfo?.isPrimaire} mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <AdminTopbar title={t(`page.section_titles.${section}`)} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} onMenuClick={() => setMobileNavOpen(true)} sessionUser={sessionUser} onLogout={logoutUser} />
@@ -201,6 +208,7 @@ export default function AdminDashboard() {
           {section === 'minedub-stats'  && <SectionMinedubStatistics onToast={showToast} />}
           {section === 'pebs-exams'    && <SectionAdminPebsExams    onToast={showToast} />}
           {section === 'lv2-choice'    && <SectionAdminLV2Choice    onToast={showToast} />}
+          {section === 'group-transfers' && <SectionAdminGroupTransfers onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>

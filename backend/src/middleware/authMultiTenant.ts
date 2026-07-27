@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma.ts";
 import type { AuthPayload } from "./auth";
 
 const masterJwtSecret = process.env.MASTER_JWT_SECRET || process.env.JWT_SECRET;
+const groupOwnerJwtSecret = process.env.GROUP_OWNER_JWT_SECRET || process.env.JWT_SECRET;
 
 export type MasterUserRole = "super_admin" | "platform_admin" | "school_manager" | "support";
 
@@ -23,6 +24,13 @@ declare global {
         role: MasterUserRole;
         name?: string;
         isActive?: boolean;
+      };
+      groupOwner?: {
+        id: string;
+        email: string;
+        name: string;
+        groupId: string | null;
+        schoolIds: string[];
       };
       user?: AuthPayload;
       schoolId?: string;
@@ -89,6 +97,51 @@ export const authorizeMaster = (roles: MasterUserRole[]) => {
 
     return next();
   };
+};
+
+// Réplique de protectMaster pour le Fondateur de Groupe (SchoolGroupOwner) — jamais mélangé
+// à protectSchool/authorizeSchool, voir Plan_Groupe_Scolaire_ZekoulABia.md Section 1/3.
+export const protectGroupOwner = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!groupOwnerJwtSecret) {
+      return res.status(500).json({ message: "Group owner auth misconfigured" });
+    }
+
+    const token = normalizeToken(req.cookies?.group_jwt);
+
+    if (!token) {
+      return res.status(401).json({ message: "No token, not authorized" });
+    }
+
+    const decoded = jwt.verify(token, groupOwnerJwtSecret, {
+      algorithms: ["HS512"],
+    }) as { tokenType?: string; id?: string };
+
+    if (decoded?.tokenType !== "group_owner" || !decoded.id) {
+      return res.status(401).json({ message: "Invalid token type" });
+    }
+
+    const owner = await prisma.schoolGroupOwner.findUnique({
+      where: { id: decoded.id },
+      include: { group: { include: { schools: { select: { id: true } } } } },
+    });
+
+    if (!owner || !owner.isActive) {
+      return res.status(401).json({ message: "Group owner account not authorized" });
+    }
+
+    req.groupOwner = {
+      id: owner.id,
+      email: owner.email,
+      name: owner.name,
+      groupId: owner.group?.id ?? null,
+      schoolIds: owner.group?.schools.map((s) => s.id) ?? [],
+    };
+
+    return next();
+  } catch (error) {
+    return res.status(401).json({ message: "Not authorized", error: error instanceof Error ? error.message : String(error) });
+  }
 };
 
 export const protectSchool = async (req: Request, res: Response, next: NextFunction) => {

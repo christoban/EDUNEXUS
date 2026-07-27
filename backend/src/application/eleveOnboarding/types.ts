@@ -1,5 +1,5 @@
 export type OnboardingRecipient = 'ELEVE' | 'PARENT' | 'LES_DEUX';
-export type OnboardingSource = 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS';
+export type OnboardingSource = 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS' | 'GROUPE_TRANSFERT';
 export type OnboardingStatus =
   | 'DRAFT' | 'LINK_SENT' | 'SUBMITTED' | 'PENDING_VALIDATION'
   | 'VALIDATED' | 'ACTIVATED' | 'REJECTED' | 'EXPIRED';

@@ -11,7 +11,7 @@ interface Props {
   onSuspend: (id: string, name: string, subdomain: string) => void
 }
 
-const PLAN_LABELS: Record<string, string> = { DISCOVERY: 'Découverte', STANDARD: 'Standard', PREMIUM: 'Premium' }
+const PLAN_LABELS: Record<string, string> = { DISCOVERY: 'Découverte', STANDARD: 'Standard', PREMIUM: 'Premium', ETABLISSEMENT_PLUS: 'Établissement+ (Groupe)' }
 
 function initials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'

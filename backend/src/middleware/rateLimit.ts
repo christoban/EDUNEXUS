@@ -50,6 +50,36 @@ export const masterEmailOtpLimiter = rateLimit({
   },
 });
 
+export const groupAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many login attempts. Please try again later.",
+  },
+});
+
+export const groupMfaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many MFA attempts. Please try again later.",
+  },
+});
+
+export const groupEmailOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many email verification attempts. Please try again later.",
+  },
+});
+
 export const userEmailOtpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 8,

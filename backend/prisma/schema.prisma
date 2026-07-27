@@ -38,6 +38,80 @@ model MasterUser {
   @@index([passwordChangeEmailOtpExpiresAt])
 }
 
+// ─── Module Groupe Scolaire (Phase A — fondations) ─────────────────────────
+// Voir Plan_Groupe_Scolaire_ZekoulABia.md section 1 : un SchoolGroupOwner n'est PAS un User
+// d'école — il n'a pas de schoolId unique (il en supervise plusieurs), donc un compte
+// entièrement séparé, sur le modèle de MasterUser, plutôt qu'une extension risquée de User/
+// UserRole. Champs MFA/OTP dupliqués volontairement (cohérent avec l'authentification
+// renforcée déjà exigée pour Admin/Staff/Enseignant — un compte à privilèges agrégés sur
+// plusieurs écoles n'est pas moins sensible qu'un compte Admin).
+model SchoolGroupOwner {
+  id                         String       @id @default(cuid())
+  email                      String       @unique
+  passwordHash               String
+  name                       String
+  isActive                   Boolean      @default(true)
+  mfaEnabled                 Boolean      @default(false)
+  mfaSecret                  String?
+  mfaTempSecret              String?
+  mfaRecoveryCodeHashes      String[]     @default([])
+  mfaRecoveryCodeGeneratedAt DateTime?
+  loginEmailOtpHash          String?
+  loginEmailOtpExpiresAt     DateTime?
+  loginEmailOtpAttempts      Int          @default(0)
+  loginEmailOtpSentAt        DateTime?
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
+  group                      SchoolGroup?
+
+  @@index([loginEmailOtpExpiresAt])
+}
+
+// planTier reste un texte libre pour l'instant (tarif négocié manuellement, "sur devis") —
+// pas de moteur de facturation groupée automatisé dans ce premier jet (voir plan, Section 12).
+model SchoolGroup {
+  id        String            @id @default(cuid())
+  name      String
+  ownerId   String            @unique
+  owner     SchoolGroupOwner  @relation(fields: [ownerId], references: [id])
+  schools   School[]
+  planTier  String            @default("ETABLISSEMENT_PLUS")
+  createdAt DateTime          @default(now())
+}
+
+// Transfert d'élève/enseignant entre deux écoles du même groupe — jamais une mutation directe
+// de schoolId (casserait l'historique Grade/Attendance/Payment de l'ancien tenant). Deux étapes
+// toujours : le Fondateur initie (PENDING_TARGET_ADMIN), l'Admin de l'école CIBLE valide.
+// Voir Plan_Groupe_Scolaire_ZekoulABia.md Section 5. Champs volontairement sans relation Prisma
+// (simples ids) — cette table n'est interrogée que par ces ids directement, jamais par jointure.
+model GroupTransferRequest {
+  id                  String              @id @default(cuid())
+  groupId             String
+  type                GroupTransferType
+  sourceSchoolId      String
+  targetSchoolId      String
+  sourceUserId        String
+  status              GroupTransferStatus @default(PENDING_TARGET_ADMIN)
+  onboardingId        String?
+  requestedByOwnerId  String
+  createdAt           DateTime            @default(now())
+  decidedAt           DateTime?
+
+  @@index([groupId])
+  @@index([targetSchoolId, status])
+}
+
+enum GroupTransferType {
+  STUDENT
+  STAFF
+}
+
+enum GroupTransferStatus {
+  PENDING_TARGET_ADMIN
+  ACCEPTED
+  REJECTED
+}
+
 model School {
   id                         String                       @id @default(cuid())
   name                       String
@@ -56,6 +130,10 @@ model School {
   // une fois par l'admin, pas deviné automatiquement (la liste des établissements y est trop longue
   // et instable pour un matching fiable).
   minesecSchoolCode          String?
+  // Groupe scolaire multi-établissements (nullable — la quasi-totalité des écoles restent
+  // des clients individuels hors groupe). Voir Plan_Groupe_Scolaire_ZekoulABia.md.
+  groupId                    String?
+  group                      SchoolGroup?                 @relation(fields: [groupId], references: [id])
   subsystem                  SchoolSubsystem              @default(FRANCOPHONE)
   educationType              EducationType                @default(GENERAL)
   ownership                  SchoolOwnership              @default(PRIVATE_SECULAR)
@@ -1849,6 +1927,7 @@ enum PlanType {
   DISCOVERY
   STANDARD
   PREMIUM
+  ETABLISSEMENT_PLUS // écoles membres d'un groupe scolaire — tarif négocié manuellement (SchoolGroup.planTier)
 }
 
 enum SchoolStatus {
@@ -2740,6 +2819,7 @@ enum OnboardingSource {
   IMPORT_MASSE // rentrée, via Excel/CSV — ne passe normalement pas par ce modèle
   AUTOSERVICE // nouvel arrivant en cours d'année, initié par l'établissement
   CONCOURS // issu d'un EntranceExamCandidate confirmé (CEP réussi)
+  GROUPE_TRANSFERT // transfert d'élève entre deux écoles du même groupe scolaire
 }
 
 model StudentOnboarding {

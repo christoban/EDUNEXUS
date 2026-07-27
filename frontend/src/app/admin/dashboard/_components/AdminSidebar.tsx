@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, School, BookOpen, ClipboardCheck, FileText,
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
-  Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X,
+  Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X, ArrowRightLeft,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -51,6 +51,9 @@ interface Props {
    * session (EntranceExamSession/PebsExamSession != CLOSED|APPLIED). */
   hasActiveEntranceExam?: boolean
   hasActivePebs?: boolean
+  /** Transferts entrants du groupe scolaire en attente de validation — masqué tant qu'aucune
+   * demande PENDING_TARGET_ADMIN ne cible cette école (même principe que entrance-exams/pebs). */
+  hasPendingGroupTransfers?: boolean
   /** Type d'établissement (School.templateCode → getTemplateMeta().isPrimaire) — pilote
    * l'affichage de Statistiques MINESEC (secondaire) vs MINEDUB (maternelle/primaire).
    * undefined tant que /api/v2/school/me n'a pas répondu : les deux restent visibles le temps
@@ -61,7 +64,7 @@ interface Props {
   onMobileClose?: () => void
 }
 
-export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [], hasActiveEntranceExam = false, hasActivePebs = false, isPrimaire, mobileOpen = false, onMobileClose }: Props) {
+export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [], hasActiveEntranceExam = false, hasActivePebs = false, hasPendingGroupTransfers = false, isPrimaire, mobileOpen = false, onMobileClose }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
   const displayName = schoolName || tcommon('brand.fallbackSchool')
@@ -111,6 +114,8 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         ...(isPrimaire !== false ? [{ id: 'minedub-stats' as const, icon: ClipboardList, label: tnav('sidebar.minedubStats') }] : []),
         // Même principe — masqué tant qu'aucune session PEBS n'est en cours (!= APPLIED).
         ...(hasActivePebs ? [{ id: 'pebs-exams' as const, icon: Globe, label: tnav('sidebar.pebsExams') }] : []),
+        // Masqué tant qu'aucune demande de transfert du groupe ne cible cette école.
+        ...(hasPendingGroupTransfers ? [{ id: 'group-transfers' as const, icon: ArrowRightLeft, label: tnav('sidebar.groupTransfers') }] : []),
         // Masqué tant qu'aucune fenêtre de choix LV2 n'est réellement ouverte (AcademicEvent
         // CHOIX_LV2 actif) — jamais affiché à vide toute l'année pour rien.
         ...(activeEventTypes.includes('CHOIX_LV2') ? [{ id: 'lv2-choice' as const, icon: Languages, label: tnav('sidebar.lv2Choice') }] : []),

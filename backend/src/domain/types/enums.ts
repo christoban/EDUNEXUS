@@ -7,7 +7,7 @@ export type UserRole = 'ADMIN' | 'STAFF' | 'TEACHER' | 'PARENT' | 'STUDENT';
 export type MasterUserRole = 'SUPER_ADMIN' | 'PLATFORM_ADMIN' | 'SCHOOL_MANAGER' | 'SUPPORT';
 
 export type SchoolStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED';
-export type PlanType = 'DISCOVERY' | 'STANDARD' | 'PREMIUM';
+export type PlanType = 'DISCOVERY' | 'STANDARD' | 'PREMIUM' | 'ETABLISSEMENT_PLUS';
 export type SchoolSubsystem = 'FRANCOPHONE' | 'ANGLOPHONE' | 'BILINGUAL';
 export type EducationType = 'GENERAL' | 'TECHNICAL' | 'PROFESSIONAL' | 'MIXED';
 export type SchoolOwnership = 'PUBLIC' | 'PRIVATE_SECULAR' | 'PRIVATE_FAITH';

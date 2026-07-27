@@ -98,7 +98,7 @@ export class MasterAdminHexController {
     try {
       const { plan } = req.body;
       if (!plan) {
-        res.status(400).json({ success: false, message: 'plan requis (DISCOVERY/STANDARD/PREMIUM)' });
+        res.status(400).json({ success: false, message: 'plan requis (DISCOVERY/STANDARD/PREMIUM/ETABLISSEMENT_PLUS)' });
         return;
       }
       await this.changerPlan.execute({

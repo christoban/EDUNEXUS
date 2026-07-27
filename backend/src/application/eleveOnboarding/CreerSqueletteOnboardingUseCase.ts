@@ -22,10 +22,11 @@ export class CreerSqueletteOnboardingUseCase {
 
     const settings = await (this.prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
 
-    // L'auto-service classique peut être désactivé par établissement, mais JAMAIS le flux
-    // CONCOURS — sinon un candidat admis n'aurait plus aucun moyen d'obtenir un compte
-    // correctement rempli (c'est justement la faille que ce module corrige).
-    if (sourceType !== 'CONCOURS' && !settings?.selfServiceEnabled) {
+    // L'auto-service classique peut être désactivé par établissement, mais JAMAIS les flux
+    // CONCOURS ou GROUPE_TRANSFERT — dans les deux cas, c'est un Admin (pas une famille) qui
+    // valide chaque dossier un par un ; le toggle self-service ne concerne que l'inscription
+    // spontanée d'une famille inconnue, pas ce mécanisme administratif encadré.
+    if (sourceType !== 'CONCOURS' && sourceType !== 'GROUPE_TRANSFERT' && !settings?.selfServiceEnabled) {
       throw new Error("L'auto-service des inscriptions n'est pas activé pour cet établissement");
     }
 
