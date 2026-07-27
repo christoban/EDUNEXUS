@@ -2,9 +2,13 @@ import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { generateWithGroq } from '../../../services/groq';
 import { resolveLanguage, instructionLangue, type Language } from '../../../utils/languageHelper';
+import type { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
 
 export class AIController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly compareRisquePredictions?: CompareRisquePredictionsUseCase,
+  ) {}
 
   /** Résout la langue de l'école courante (via son sous-système) pour les prompts Groq. */
   private async langueEcole(schoolId: string): Promise<Language> {
@@ -358,6 +362,30 @@ export class AIController {
         weakSubjects: weakSubjects.slice(0, 5),
         analysis,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/v2/ai/compare-risk-predictions/:studentId — ADMIN uniquement, outil interne
+  // (Partie B du plan, B.6.6) : compare la prédiction RULES (production) à TABPFN (expérimental)
+  // sur les données courantes du même élève. Ne pilote rien — lecture seule à but d'observation.
+  comparerRisquePredictions = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!this.compareRisquePredictions) {
+        res.status(503).json({ message: 'Outil de comparaison non configuré' });
+        return;
+      }
+      const schoolId = req.user!.schoolId;
+      const studentId = req.params.studentId as string;
+
+      const anneeCourante = await this.prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+      if (!anneeCourante) { res.status(404).json({ message: 'Aucune année académique courante' }); return; }
+
+      const resultat = await this.compareRisquePredictions.execute({
+        studentId, schoolId, academicYearId: anneeCourante.id,
+      });
+      res.json(resultat);
     } catch (error) {
       next(error);
     }

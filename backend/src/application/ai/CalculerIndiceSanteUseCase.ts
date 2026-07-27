@@ -12,6 +12,7 @@
  */
 import type { IAService, ResultatIndiceSante } from '@domain/ports/services/IAService';
 import type { SanteEleveRepository } from '@domain/ports/repositories/SanteEleveRepository';
+import { calculerComposantesSante, niveauDepuisScore } from '@domain/rules/IndiceSanteRules';
 
 export interface CalculerIndiceSanteCommande {
   studentId: string;
@@ -39,8 +40,9 @@ export class CalculerIndiceSanteUseCase {
       throw new Error(`Données de santé introuvables pour l'élève : ${commande.studentId}`);
     }
 
-    // 2. Composantes + score pondéré (partagé avec calculerScoreSeulement, source unique)
-    const composantes = this.calculerComposantes(donnees);
+    // 2. Composantes + score pondéré (partagé avec calculerScoreSeulement, source unique —
+    // voir domain/rules/IndiceSanteRules.ts, aussi réutilisé par RulesBasedPredictionService)
+    const composantes = calculerComposantesSante(donnees);
 
     // 3. Déléguer l'analyse narrative et les recommandations à l'IA
     const resultat = await this.iaService.calculerIndiceSante({
@@ -81,82 +83,13 @@ export class CalculerIndiceSanteUseCase {
       throw new Error(`Données de santé introuvables pour l'élève : ${studentId}`);
     }
 
-    const composantes = this.calculerComposantes(donnees);
+    const composantes = calculerComposantesSante(donnees);
     await this.santeRepository.sauvegarderScore(studentId, composantes.score);
 
     // Hausse significative et non compensée par une baisse ailleurs dans la fenêtre — cf.
     // calculerTendance (75 = au moins un +25 net, sans redescendre sous la neutralité 50).
     const tendancePositive = composantes.scoreTendance >= 75;
 
-    return { score: composantes.score, niveau: this.niveauDepuisScore(composantes.score), tendancePositive };
-  }
-
-  private calculerComposantes(donnees: {
-    moyenneGenerale: number;
-    joursPresent: number;
-    joursTotaux: number;
-    moyennesPrecedentes: number[];
-    nombreSanctions: number;
-    nombrePeriodes: number;
-    fraisRegles: number;
-    fraisTotaux: number;
-  }) {
-    const scoreNotes = Math.min(100, (donnees.moyenneGenerale / 20) * 100);
-
-    const tauxPresence = donnees.joursTotaux > 0
-      ? (donnees.joursPresent / donnees.joursTotaux) * 100
-      : 100;
-
-    const scoreTendance = this.calculerTendance(donnees.moyennesPrecedentes);
-
-    const scoreComportement = donnees.nombrePeriodes > 0
-      ? Math.max(0, 100 - (donnees.nombreSanctions / donnees.nombrePeriodes) * 20)
-      : 100;
-
-    const scorePaiements = donnees.fraisTotaux > 0
-      ? (donnees.fraisRegles / donnees.fraisTotaux) * 100
-      : 100;
-
-    const scoreBrut = Math.round(
-      scoreNotes * 0.35 +
-      tauxPresence * 0.25 +
-      scoreTendance * 0.20 +
-      scoreComportement * 0.10 +
-      scorePaiements * 0.10
-    );
-
-    return {
-      scoreNotes, tauxPresence, scoreTendance, scoreComportement, scorePaiements,
-      score: Math.max(0, Math.min(100, scoreBrut)),
-    };
-  }
-
-  private niveauDepuisScore(score: number): string {
-    if (score <= 30) return 'CRITIQUE';
-    if (score <= 50) return 'ELEVE';
-    if (score <= 70) return 'MOYEN';
-    if (score <= 85) return 'STABLE';
-    return 'PROGRESSION';
-  }
-
-  /**
-   * Calcule un score de tendance basé sur l'évolution des moyennes.
-   * Hausse régulière = bon score, baisse = mauvais score.
-   */
-  private calculerTendance(moyennes: number[]): number {
-    if (moyennes.length < 2) return 50; // Neutre si pas assez de données
-
-    const dernieres = moyennes.slice(-3); // Max 3 dernières périodes
-    let tendance = 50; // Point de départ neutre
-
-    for (let i = 1; i < dernieres.length; i++) {
-      const diff = dernieres[i]! - dernieres[i - 1]!;
-      if (diff >= 2) tendance += 25;        // Hausse significative ≥ 2 pts → +25
-      else if (diff >= 0.5) tendance += 10; // Légère hausse → +10
-      else if (diff <= -2) tendance -= 25;  // Baisse significative → -25
-      else if (diff < 0) tendance -= 10;    // Légère baisse → -10
-    }
-
-    return Math.max(0, Math.min(100, tendance));
+    return { score: composantes.score, niveau: niveauDepuisScore(composantes.score), tendancePositive };
   }
 }

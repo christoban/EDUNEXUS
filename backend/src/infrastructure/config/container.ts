@@ -156,6 +156,9 @@ import { GroqIAService } from '@infrastructure/services/GroqIAService';
 
 // --- Use Cases : AI ---
 import { CalculerIndiceSanteUseCase } from '@application/ai/CalculerIndiceSanteUseCase';
+import { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
+import { RulesBasedPredictionService } from '@infrastructure/services/RulesBasedPredictionService';
+import { TabPfnPredictionService } from '@infrastructure/services/TabPfnPredictionService';
 
 // --- Adapters Persistence Parent + SchoolSettings ---
 import { PrismaParentRepository } from '@infrastructure/persistence/prisma/PrismaParentRepository';
@@ -389,6 +392,15 @@ export function creerContainer() {
     santeEleveRepository, groqIAService
   );
 
+  // Infrastructure prédictive (Partie B du plan) — jamais branchée à un flux de production réel
+  // (calculerIndiceSanteUseCase ci-dessus reste la seule voie réelle, via IndiceSanteRules
+  // directement). Ces deux adapters existent pour être comparés via compareRisquePredictionsUseCase.
+  const rulesBasedPredictionService = new RulesBasedPredictionService();
+  const tabPfnPredictionService = new TabPfnPredictionService();
+  const compareRisquePredictionsUseCase = new CompareRisquePredictionsUseCase(
+    santeEleveRepository, rulesBasedPredictionService, tabPfnPredictionService
+  );
+
   // 15. Use Cases — Parent + SchoolSettings
   const parentRepository = new PrismaParentRepository(prisma);
   const schoolSettingsRepository = new PrismaSchoolSettingsRepository(prisma);
@@ -510,6 +522,11 @@ export function creerContainer() {
     },
     ai: {
       calculerIndiceSante: calculerIndiceSanteUseCase,
+    },
+    prediction: {
+      rulesService: rulesBasedPredictionService,
+      tabpfnService: tabPfnPredictionService,
+      comparerRisque: compareRisquePredictionsUseCase,
     },
     parent: {
       obtenirEnfants: obtenirEnfantsUseCase,

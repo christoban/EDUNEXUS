@@ -1267,7 +1267,7 @@ export function bootstrapHexagonal(app: Application): void {
   const dashboardController  = new DashboardController(prisma);
   const emailLogController   = new EmailLogController(prisma);
   const searchController     = new SearchController(prisma);
-  const aiController         = new AIController(prisma);
+  const aiController         = new AIController(prisma, container.prediction.comparerRisque);
   const academicEventController = new AcademicEventController(
     new CreerEvenementAcademiqueUseCase(prisma),
     new DeclencherEvenementUseCase(prisma),
