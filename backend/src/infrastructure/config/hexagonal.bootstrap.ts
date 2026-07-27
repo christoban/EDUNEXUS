@@ -98,6 +98,7 @@ import { AffecterMatieresALevelEleveUseCase } from '@application/student/Affecte
 import { PreremplirDepuisCombinaisonUseCase } from '@application/student/PreremplirDepuisCombinaisonUseCase';
 import { GetElevesParMatiereALevelUseCase } from '@application/student/GetElevesParMatiereALevelUseCase';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
+import { isNiveauPrimaireOuMaternelle } from '../../lib/classSerieValidator';
 import { getStaffTitlesForTemplate } from '@domain/rules/StaffPermissionRules';
 import {
   assignerMatieresPourClasse,
@@ -258,8 +259,12 @@ export function bootstrapHexagonal(app: Application): void {
       // dans la sidebar admin — les deux menus etaient affiches sans distinction jusqu-ici.
       // templateCode absent (écoles créées avant l-introduction du champ, ou artefacts de
       // tests) : on ne devine pas "secondaire" par défaut, on renvoie null pour que le
-      // frontend garde les deux menus visibles plutôt que d-en masquer un à tort.
-      const isPrimaire = school.templateCode ? getTemplateMeta(school.templateCode).isPrimaire : null;
+      // frontend garde les deux menus visibles plutôt que d-en masquer un à tort. Même repli
+      // pour COMPLEXE_SCOLAIRE : une école multi-cycles a des élèves des deux types, donc les
+      // deux menus doivent rester visibles plutôt que d'en masquer un.
+      const isPrimaire = school.templateCode && school.templateCode !== 'COMPLEXE_SCOLAIRE'
+        ? getTemplateMeta(school.templateCode).isPrimaire
+        : null;
       res.json({ success: true, data: { ...school, isPrimaire } });
     } catch (err) { next(err); }
   });
@@ -1634,12 +1639,14 @@ export function bootstrapHexagonal(app: Application): void {
         orderBy: { name: 'asc' },
       });
 
-      // Aucun champ "cycle" par classe/section dans le schéma — le seul signal fiable est le
-      // template de l'école (School.templateCode → isPrimaire), appliqué uniformément à toutes
-      // les classes de cette école. Limite connue : ne distingue pas primaire/secondaire au sein
-      // d'un établissement COMPLEXE_SCOLAIRE (primaire + secondaire mélangés dans la même école).
+      // Le niveau RÉEL de chaque classe (Class.level) tranche en priorité — nécessaire pour
+      // COMPLEXE_SCOLAIRE où primaire et secondaire coexistent dans la même école. Repli sur le
+      // template de l'école si le niveau n'est pas reconnu (inchangé pour tout établissement
+      // mono-cycle, où toutes les classes ont de toute façon le même cycle).
       const ecole = await prisma.school.findUnique({ where: { id: schoolId }, select: { templateCode: true } });
-      const cycle: 'primaire' | 'secondaire' = getTemplateMeta(ecole?.templateCode).isPrimaire ? 'primaire' : 'secondaire';
+      const ecoleEstPrimaire = getTemplateMeta(ecole?.templateCode).isPrimaire;
+      const cycleDeClasse = (level: string | null | undefined): 'primaire' | 'secondaire' =>
+        isNiveauPrimaireOuMaternelle(level) ? 'primaire' : (ecoleEstPrimaire ? 'primaire' : 'secondaire');
 
       // Nombre d'élèves PEBS par classe (une seule requête groupée)
       const classIds = classes.map(c => c.id);
@@ -1665,7 +1672,7 @@ export function bootstrapHexagonal(app: Application): void {
             ? (pebsMixte ? 'MIXTE' : 'GENERAL')
             : (pebsN === 0 ? 'GENERAL' : pebsN === total ? 'PEBS' : 'MIXTE');
         }
-        return { ...cls, pebsBadge, cycle };
+        return { ...cls, pebsBadge, cycle: cycleDeClasse(cls.level) };
       });
 
       res.json({ success: true, data });

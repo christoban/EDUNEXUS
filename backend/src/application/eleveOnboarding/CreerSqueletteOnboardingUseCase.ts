@@ -12,6 +12,7 @@ import { randomBytes } from 'crypto';
 import { logActivity } from '../../utils/activitieslog';
 import { determinerRecipientType } from './rules';
 import { getTemplateMeta } from '../school/schoolTemplateConfig';
+import { isNiveauPrimaireOuMaternelle } from '../../lib/classSerieValidator';
 import type { CreerSqueletteOnboardingCommande, CreerSqueletteOnboardingResultat } from './types';
 
 export class CreerSqueletteOnboardingUseCase {
@@ -45,21 +46,22 @@ export class CreerSqueletteOnboardingUseCase {
       throw new Error('Le contact élève et le contact parent doivent utiliser des numéros de téléphone différents');
     }
 
-    // Signal structurel prioritaire (maternelle/primaire) : il n'existe aucun champ "cycle" par
-    // classe ou par section dans le schéma (Section n'a que code/gradingSystem) — le seul signal
-    // fiable actuellement disponible est le template de l'ÉCOLE (School.templateCode →
-    // getTemplateMeta().isPrimaire, déjà utilisé ailleurs pour StaffPermissionRules). Limite
-    // connue : pour un établissement COMPLEXE_SCOLAIRE (primaire + secondaire mélangés dans la
-    // même école), ce signal école-entière ne distingue pas les classes primaire des classes
-    // secondaire en son sein — seul un vrai champ par classe résoudrait ça correctement.
+    // Signal structurel prioritaire (maternelle/primaire) : le niveau RÉEL de la classe
+    // (Class.level, ex. "CM2" vs "6e") tranche en priorité — nécessaire pour un établissement
+    // COMPLEXE_SCOLAIRE où primaire et secondaire coexistent dans la même école, donc le
+    // template seul ne suffit pas à distinguer. Repli sur le template de l'école si le niveau
+    // de la classe n'est pas reconnu (ancien comportement, inchangé pour tout établissement
+    // mono-cycle).
     let sectionCycle: 'primaire' | 'secondaire' | null = null;
     if (cmd.classId) {
       const classe = await this.prisma.class.findUnique({
         where: { id: cmd.classId },
-        select: { school: { select: { templateCode: true } } },
+        select: { level: true, school: { select: { templateCode: true } } },
       });
       if (classe?.school) {
-        sectionCycle = getTemplateMeta(classe.school.templateCode).isPrimaire ? 'primaire' : 'secondaire';
+        sectionCycle = isNiveauPrimaireOuMaternelle(classe.level)
+          ? 'primaire'
+          : getTemplateMeta(classe.school.templateCode).isPrimaire ? 'primaire' : 'secondaire';
       }
     }
 

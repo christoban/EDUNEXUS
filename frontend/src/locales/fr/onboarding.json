@@ -229,9 +229,9 @@
         "hint": "Détecté automatiquement d'après vos choix (sous-système, enseignement, statut). Vous pourrez modifier la configuration après activation depuis le tableau de bord."
       },
       "complexe": {
-        "title": "Complexe Scolaire — Bientôt disponible",
-        "msg": "Ce type d'établissement sera bientôt disponible.",
-        "hint": "Pour continuer, veuillez sélectionner un autre type d'enseignement à l'étape 1 (Enseignement général au lieu de Mixte)."
+        "title": "Complexe Scolaire",
+        "msgAvailable": "Un complexe scolaire regroupe plusieurs cycles (maternelle, primaire, 1er cycle, 2nd cycle) sous une même direction. Configurez ci-dessous chacun des cycles que comporte votre établissement — vous pouvez en cocher un, plusieurs, ou tous.",
+        "hintAvailable": "Seuls les cycles que vous configurez seront créés. Vous pourrez ajuster ou ajouter des classes plus tard depuis votre espace Admin."
       },
       "noTemplate": "Impossible de détecter le type d'établissement. Revenez à l'étape 1 et vérifiez vos choix.",
       "firstCycle": {
@@ -721,6 +721,7 @@
     "linkNotPending": "Ce dossier n'est plus en attente de saisie.",
     "formTitle": "Complétez le dossier de {name}",
     "suggestedClass": "Classe proposée : {className}",
+    "transferContext": "Ce dossier fait suite à un transfert depuis un autre établissement du même groupe scolaire — complétez les informations ci-dessous pour finaliser l'inscription.",
     "nomLabel": "Nom de famille *",
     "prenomLabel": "Prénom(s) *",
     "dateNaissanceLabel": "Date de naissance",

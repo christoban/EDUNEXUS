@@ -1690,6 +1690,7 @@
     "source_IMPORT_MASSE": "Bulk import",
     "source_AUTOSERVICE": "Self-service",
     "source_CONCOURS": "Entrance exam",
+    "source_GROUPE_TRANSFERT": "Transfer (school group)",
     "matchWarning": "Possible match with an existing student ({score}%) — check before validating",
     "validateBtn": "Validate",
     "rejectBtn": "Reject",

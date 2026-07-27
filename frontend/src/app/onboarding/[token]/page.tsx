@@ -555,10 +555,11 @@ export default function OnboardingPage() {
   }, [token])
 
   // Réinitialiser maternelleSections/nurseryLevels si le template ne correspond pas
+  // (COMPLEXE_SCOLAIRE garde maternelleSections — un complexe inclut typiquement une maternelle)
   useEffect(() => {
-    if (template?.code !== 'MATERNELLE_FR') setMaternelleSections([]);
+    if (template?.code !== 'MATERNELLE_FR' && !template?.isComplexe) setMaternelleSections([]);
     if (template?.code !== 'NURSERY_EN') setNurseryLevels([]);
-  }, [template?.code])
+  }, [template?.code, template?.isComplexe])
 
   // Auto-ajouter/retirer ABI des filières quand PEBS Francophone change
   useEffect(() => {
@@ -649,7 +650,18 @@ export default function OnboardingPage() {
   // Validate step 3
   function validateStep3(): string {
     if (!template) return 'Impossible de détecter le type d\'établissement.'
-    if (template.isComplexe) return 'Complexe Scolaire n\'est pas encore disponible. Revenez à l\'étape 1 et choisissez un autre type d\'enseignement.'
+
+    if (template.isComplexe) {
+      const hasPrimaireCfg = form.niveauxPrimaire.length > 0 || maternelleSections.length > 0
+      const has1erCfg = form.niveaux1erCycle.length > 0
+      const has2eCfg = form.niveaux2eCycle.length > 0
+      if (!hasPrimaireCfg && !has1erCfg && !has2eCfg) return 'Configurez au moins un cycle (maternelle/primaire, 1er cycle ou 2nd cycle).'
+      if (has1erCfg && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau du 1er cycle.'
+      if (has2eCfg && form.filieres.length === 0) return 'Veuillez sélectionner au moins une filière pour le 2nd cycle.'
+      if (form.niveauxPrimaire.length > 0 && Object.keys(form.classesParNiveauPrimaire).length < form.niveauxPrimaire.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau primaire.'
+      return ''
+    }
+
     if (template.hasPremierCycle && form.niveaux1erCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 1er cycle.'
     if (template.hasPremierCycle && Object.keys(form.classesParNiveau).length < form.niveaux1erCycle.length) return 'Veuillez indiquer le nombre de classes pour chaque niveau.'
     if (template.hasDeuxiemeCycle && form.niveaux2eCycle.length === 0) return 'Veuillez sélectionner au moins un niveau du 2e cycle.'
@@ -1179,10 +1191,10 @@ export default function OnboardingPage() {
                   {t('phase1.step3.complexe.title')}
                 </div>
                 <div style={{ fontSize: 14, color: 'var(--amber)', fontWeight: 600, lineHeight: 1.6 }}>
-                  {t('phase1.step3.complexe.msg')}
+                  {t('phase1.step3.complexe.msgAvailable')}
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 8, fontWeight: 600 }}>
-                  {t('phase1.step3.complexe.hint')}
+                  {t('phase1.step3.complexe.hintAvailable')}
                 </div>
               </div>
             )}
@@ -1191,8 +1203,8 @@ export default function OnboardingPage() {
               <Alert msg={t('phase1.step3.noTemplate')} type="error" />
             )}
 
-            {/* ── GROUPE A — 1er cycle (caché si COMPLEXE) ── */}
-            {template && !template.isComplexe && template.hasPremierCycle && (
+            {/* ── GROUPE A — 1er cycle ── */}
+            {template && template.hasPremierCycle && (
               <div style={{ marginTop: 4, marginBottom: 8 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 800, color: 'var(--text)',
@@ -1354,7 +1366,7 @@ export default function OnboardingPage() {
                 <Alert msg={t('phase1.step3.secondCycle.cesNotice')} type="info" />
               </div>
             )}
-            {template && !template.isComplexe && template.hasDeuxiemeCycle && !['CES_FR', 'GTC_GTHS_EN'].includes(template.code ?? '') && (
+            {template && template.hasDeuxiemeCycle && !['CES_FR', 'GTC_GTHS_EN'].includes(template.code ?? '') && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 800, color: 'var(--text)',
@@ -1988,8 +2000,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── GROUPE D — Primaire (caché si COMPLEXE) ── */}
-            {template && !template.isComplexe && template.isPrimaire && (
+            {/* ── GROUPE D — Primaire ── */}
+            {template && (template.isPrimaire || template.isComplexe) && (
               <div style={{ marginTop: 8, marginBottom: 8 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 800, color: 'var(--text)',
@@ -1998,8 +2010,8 @@ export default function OnboardingPage() {
                   {t('phase1.step3.primary.sectionTitle')}
                 </div>
 
-                {/* MATERNELLE_FR — formulaire simplifié */}
-                {template.code === 'MATERNELLE_FR' && (
+                {/* MATERNELLE_FR — formulaire simplifié (aussi affiché pour COMPLEXE_SCOLAIRE) */}
+                {(template.code === 'MATERNELLE_FR' || template.isComplexe) && (
                   <div>
                     <Field label={t('phase1.step3.primary.maternelleSections')}>
                       <CheckboxGroup
@@ -2228,8 +2240,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* ── APERÇU EN TEMPS RÉEL (caché si COMPLEXE) ── */}
-            {template && !template.isComplexe && (
+            {/* ── APERÇU EN TEMPS RÉEL ── */}
+            {template && (
               <div style={{ marginTop: 16, marginBottom: 12 }}>
                 <div style={{
                   fontSize: 15, fontWeight: 800, color: 'var(--text)',
@@ -2331,8 +2343,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            <SubmitBtn onClick={goNext} disabled={!template || template.isComplexe} loadingText={t('phase1.loading.processing')}>
-              {template?.isComplexe ? t('phase1.step3.buttonDisabled') : t('phase1.step3.button')}
+            <SubmitBtn onClick={goNext} disabled={!template} loadingText={t('phase1.loading.processing')}>
+              {t('phase1.step3.button')}
             </SubmitBtn>
           </div>
         )}

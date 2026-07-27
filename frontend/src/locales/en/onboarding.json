@@ -229,9 +229,9 @@
         "hint": "Automatically detected from your choices (subsystem, education, status). You can modify the configuration after activation from the dashboard."
       },
       "complexe": {
-        "title": "Complexe Scolaire — Coming Soon",
-        "msg": "This type of school will be available soon.",
-        "hint": "To continue, please select a different education type in step 1 (General education instead of Mixed)."
+        "title": "School Complex",
+        "msgAvailable": "A school complex combines several education cycles (nursery, primary, first cycle, second cycle) under one administration. Configure below each cycle your institution includes — you can select one, several, or all of them.",
+        "hintAvailable": "Only the cycles you configure will be created. You can adjust or add classes later from your Admin space."
       },
       "noTemplate": "Unable to detect school type. Go back to step 1 and check your choices.",
       "firstCycle": {
@@ -721,6 +721,7 @@
     "linkNotPending": "This file is no longer awaiting submission.",
     "formTitle": "Complete {name}'s enrollment file",
     "suggestedClass": "Suggested class: {className}",
+    "transferContext": "This file follows a transfer from another school in the same school group — please complete the information below to finalize the enrollment.",
     "nomLabel": "Last name *",
     "prenomLabel": "First name(s) *",
     "dateNaissanceLabel": "Date of birth",

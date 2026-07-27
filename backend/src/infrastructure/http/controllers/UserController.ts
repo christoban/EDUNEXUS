@@ -22,6 +22,7 @@ import type { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaC
 import type { TokenService } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
+import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
 import * as XLSX from 'xlsx';
 
 const COOKIE_OPTIONS = {
@@ -487,8 +488,10 @@ export class UserController {
       // pour notes/présences), mais sans email ni téléphone. Aucun champ "cycle" par classe/
       // section dans le schéma — signal dérivé du template de l'école (School.templateCode).
       if (req.body.role === 'STUDENT' && req.body.classeId && (req.body.email || req.body.phone)) {
+        const classe = await this.prisma.class.findUnique({ where: { id: req.body.classeId }, select: { level: true } });
         const ecole = await this.prisma.school.findUnique({ where: { id: user.schoolId }, select: { templateCode: true } });
-        if (getTemplateMeta(ecole?.templateCode).isPrimaire) {
+        const isPrimaireClasse = classe ? isNiveauPrimaireOuMaternelle(classe.level) : getTemplateMeta(ecole?.templateCode).isPrimaire;
+        if (isPrimaireClasse) {
           res.status(400).json({
             success: false,
             message: "Un élève de maternelle/primaire ne peut pas avoir d'identifiants de connexion propres (email/téléphone) — créez plutôt un compte PARENT pour la connexion.",
@@ -886,12 +889,15 @@ export class UserController {
       if (req.body.email || req.body.phone) {
         const cible = await this.prisma.user.findUnique({
           where: { id: req.params.id as string },
-          select: { role: true },
+          select: { role: true, studentProfile: { select: { class: { select: { level: true } } } } },
         });
         const effectiveRole = req.body.role ?? cible?.role;
         if (effectiveRole === 'STUDENT') {
           const ecole = await this.prisma.school.findUnique({ where: { id: user.schoolId }, select: { templateCode: true } });
-          if (getTemplateMeta(ecole?.templateCode).isPrimaire) {
+          const isPrimaireClasse = cible?.studentProfile?.class?.level
+            ? isNiveauPrimaireOuMaternelle(cible.studentProfile.class.level)
+            : getTemplateMeta(ecole?.templateCode).isPrimaire;
+          if (isPrimaireClasse) {
             res.status(400).json({
               success: false,
               message: "Un élève de maternelle/primaire ne peut pas avoir d'identifiants de connexion propres (email/téléphone) — créez plutôt un compte PARENT pour la connexion.",

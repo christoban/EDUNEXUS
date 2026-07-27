@@ -1690,6 +1690,7 @@
     "source_IMPORT_MASSE": "Import en masse",
     "source_AUTOSERVICE": "Auto-service",
     "source_CONCOURS": "Concours",
+    "source_GROUPE_TRANSFERT": "Transfert (groupe scolaire)",
     "matchWarning": "Correspondance possible avec un élève existant ({score}%) — vérifiez avant de valider",
     "validateBtn": "Valider",
     "rejectBtn": "Rejeter",

@@ -54,6 +54,15 @@ export const ANGLOPHONE_LOWER_LEVELS = ["Form1", "Form2", "Form3"]
 // Arts : A1, A2, A3, A4  |  Sciences : S1, S2, S3, S4
 export const ANGLOPHONE_UPPER_LEVELS = ["Form4", "Form5", "LowerSixth", "UpperSixth"]
 
+// Détection PAR CLASSE (pas par école entière) — nécessaire pour COMPLEXE_SCOLAIRE, où une
+// même école a simultanément des classes primaire/maternelle et des classes secondaire.
+// Pour tout autre template (mono-cycle), le résultat coïncide exactement avec
+// getTemplateMeta(templateCode).isPrimaire — donc aucun changement de comportement ailleurs.
+export function isNiveauPrimaireOuMaternelle(level: string | null | undefined): boolean {
+  if (!level) return false
+  return PRIMARY_LEVELS.includes(level) || PRESCHOOL_LEVELS.includes(level)
+}
+
 // Filières anglophones officielles GCE Board
 export const ANGLOPHONE_SERIES = ["A1", "A2", "A3", "A4", "S1", "S2", "S3", "S4"]
 

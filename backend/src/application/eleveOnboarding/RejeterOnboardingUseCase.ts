@@ -36,6 +36,22 @@ export class RejeterOnboardingUseCase {
       },
     });
 
+    // Rejet d'un dossier GROUPE_TRANSFERT : l'Admin cible avait déjà accepté la demande de
+    // transfert (GroupTransferRequest.status=ACCEPTED), qui avait marqué l'ancien StudentProfile
+    // TRANSFERRED côté école source. Si la famille échoue à compléter ce dossier (ou que l'Admin
+    // le rejette), l'élève ne doit pas rester en limbe — on le réactive côté école source. Le
+    // GroupTransferRequest reste ACCEPTED (fait historique : l'Admin a bien accepté le principe
+    // du transfert), l'échec réel se lit sur le statut REJECTED du StudentOnboarding lui-même.
+    if (onboarding.sourceType === 'GROUPE_TRANSFERT') {
+      const demande = await this.prisma.groupTransferRequest.findFirst({ where: { onboardingId: onboarding.id } });
+      if (demande) {
+        await this.prisma.studentProfile.updateMany({
+          where: { userId: demande.sourceUserId, studentStatus: 'TRANSFERRED' },
+          data: { studentStatus: 'ACTIVE' },
+        });
+      }
+    }
+
     await logActivity({
       userId: cmd.rejectedById,
       schoolId: cmd.schoolId,

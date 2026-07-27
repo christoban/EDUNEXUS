@@ -64,6 +64,23 @@ export class ActiverEtablissementUseCase {
     const isAnglophone = templateMeta.isAnglophone;
     const isTechnique = templateMeta.isTechnique;
 
+    // COMPLEXE_SCOLAIRE — un seul établissement regroupant plusieurs cycles (maternelle,
+    // primaire, 1er cycle, 2nd cycle) simultanément. isPrimaire reste false pour ce template
+    // (Section "école entière" ne peut pas être binaire primaire/secondaire) — à la place, on
+    // dérive ce qui a été RÉELLEMENT configuré et on fait tourner les deux pipelines (primaire
+    // APC + secondaire à coefficients) en parallèle, chacun scopé à ses propres classes/niveaux.
+    // Tous les autres templates restent strictement inchangés (isComplexe toujours false pour eux).
+    const isComplexe = templateCode === 'COMPLEXE_SCOLAIRE';
+    const hasPrimaireContent = isComplexe && (
+      (Array.isArray(config?.niveauxPrimaire) && config.niveauxPrimaire.length > 0) ||
+      (Array.isArray(config?.maternelleSections) && config.maternelleSections.length > 0) ||
+      (Array.isArray(config?.nurseryLevels) && config.nurseryLevels.length > 0)
+    );
+    const hasSecondaireContent = isComplexe && (
+      (Array.isArray(config?.niveaux1erCycle) && config.niveaux1erCycle.length > 0) ||
+      (Array.isArray(config?.niveaux2eCycle) && config.niveaux2eCycle.length > 0)
+    );
+
     // PEBS flags (from onboarding config or defaults)
     const hasPEBSFrancophone = config?.hasPEBSFrancophone === true && isPEBSFrancophoneEligible(templateCode);
     const hasPEBSAnglophone  = config?.hasPEBSAnglophone  === true && isPEBSAnglophoneEligible(templateCode);
@@ -107,7 +124,9 @@ export class ActiverEtablissementUseCase {
       // 2. Créer les périodes.
       // Primaire (APC) et anglophone restent sur 3 périodes (l'APC dépend d'un découpage en 3 trimestres).
       // FR secondaire/technique : nombre de périodes configurable (2 semestres OU 3 trimestres).
-      const canConfigurePeriods = !isPrimaire && !isAnglophone;
+      // COMPLEXE_SCOLAIRE avec du contenu primaire configuré : verrouillé sur 3 aussi, pour que
+      // les deux pipelines (APC + DS) partagent le même découpage de périodes.
+      const canConfigurePeriods = !isPrimaire && !isAnglophone && !hasPrimaireContent;
       const requestedPeriods = Number(config?.periodsCount);
       const periodsCount = canConfigurePeriods && requestedPeriods === 2 ? 2 : 3;
       const isSemester = periodsCount === 2;
@@ -141,17 +160,37 @@ export class ActiverEtablissementUseCase {
         // EN : Sequence 1 (Class Test) + Sequence 2 (Terminal Exam) par terme
         // FR : "Séquence 1...N" — N = seqPerPeriod × periodsCount
         type SeqDef = { name: string; type: 'DS' | 'COMPOSITION' | 'CLASS_TEST' | 'TERMINAL_EXAM' | 'UA' };
-        const seqDefs: SeqDef[] = isPrimaire
-          ? APC_UNITES[i].unites.map(ua => ({ name: ua, type: 'UA' as const }))
-          : isAnglophone
-            ? [
-                { name: 'Sequence 1', type: 'CLASS_TEST'    },
-                { name: 'Sequence 2', type: 'TERMINAL_EXAM' },
-              ]
-            : Array.from({ length: seqPerPeriod }, () => {
+        let seqDefs: SeqDef[];
+        if (isComplexe) {
+          // Dual pipeline : chaque famille de séquences n'apparaît que si son cycle a
+          // effectivement été configuré — jamais les deux par défaut, jamais aucune par erreur.
+          seqDefs = [];
+          if (hasPrimaireContent) {
+            seqDefs.push(...APC_UNITES[i].unites.map(ua => ({ name: ua, type: 'UA' as const })));
+          }
+          if (hasSecondaireContent) {
+            if (isAnglophone) {
+              seqDefs.push({ name: 'Sequence 1', type: 'CLASS_TEST' }, { name: 'Sequence 2', type: 'TERMINAL_EXAM' });
+            } else {
+              for (let s = 0; s < seqPerPeriod; s++) {
                 runningSeq += 1;
-                return { name: `Séquence ${runningSeq}`, type: 'DS' as const };
-              });
+                seqDefs.push({ name: `Séquence ${runningSeq}`, type: 'DS' });
+              }
+            }
+          }
+        } else {
+          seqDefs = isPrimaire
+            ? APC_UNITES[i].unites.map(ua => ({ name: ua, type: 'UA' as const }))
+            : isAnglophone
+              ? [
+                  { name: 'Sequence 1', type: 'CLASS_TEST'    },
+                  { name: 'Sequence 2', type: 'TERMINAL_EXAM' },
+                ]
+              : Array.from({ length: seqPerPeriod }, () => {
+                  runningSeq += 1;
+                  return { name: `Séquence ${runningSeq}`, type: 'DS' as const };
+                });
+        }
 
         for (let j = 0; j < seqDefs.length; j++) {
           await tx.academicSequence.create({
@@ -375,8 +414,8 @@ export class ActiverEtablissementUseCase {
           }
         }
 
-        // 4e-mat. Maternelle_FR : classes par section
-        if (templateCode === 'MATERNELLE_FR' && (config.maternelleSections as string[] | undefined)?.length) {
+        // 4e-mat. Maternelle_FR (ou COMPLEXE_SCOLAIRE avec section maternelle) : classes par section
+        if ((templateCode === 'MATERNELLE_FR' || isComplexe) && (config.maternelleSections as string[] | undefined)?.length) {
           for (const section of config.maternelleSections as string[]) {
             classesACreer.push({ name: section, level: section, schoolId });
           }
@@ -410,10 +449,11 @@ export class ActiverEtablissementUseCase {
       // 4f. Primaire APC — créer une Matière par Sous-Compétence (11 au total)
       // Structure terrain : 6 Compétences → 11 Sous-Compétences évaluées par UA (UA1-UA8)
       // Le coefficient ici = totalPoints de la sous-compétence (poids dans /260)
-      if (isPrimaire) {
+      const apcSubjectIds: string[] = [];
+      if (isPrimaire || (isComplexe && hasPrimaireContent)) {
         for (const comp of APC_COMPETENCES) {
           for (const sc of comp.sousCompetences) {
-            await tx.subject.create({
+            const created = await tx.subject.create({
               data: {
                 schoolId,
                 name:         sc.label,
@@ -423,6 +463,7 @@ export class ActiverEtablissementUseCase {
                 subjectType:  'THEORETICAL',
               },
             });
+            apcSubjectIds.push(created.id);
             subjectCount++;
           }
         }
@@ -437,7 +478,7 @@ export class ActiverEtablissementUseCase {
       }
       // Templates with full reference data (CycleCoefficients, BacCoefficients, AnglophoneSubjectLoad)
       // skip 4f-bis — section 4g below creates subjects on-demand from correct reference data instead.
-      const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE'];
+      const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE', 'COMPLEXE_SCOLAIRE'];
       const hasReferenceData = templateCode && TEMPLATES_WITH_REFERENCE_DATA.includes(templateCode);
       if (effectiveTemplate && !hasReferenceData && !isPrimaire) {
         const tCfg = effectiveTemplate.config as any;
@@ -474,6 +515,12 @@ export class ActiverEtablissementUseCase {
 
       // 4g. SubjectCoefficients pour toutes les classes — secondaire uniquement
       // Primaire APC : pas de SubjectCoefficient par classe (toutes les classes ont les mêmes sous-compétences)
+      // COMPLEXE_SCOLAIRE (isPrimaire toujours false pour ce template, donc déjà couvert par
+      // !isPrimaire ci-dessous) : assignerMatieresPourClasse() s'auto-protège contre la
+      // contamination cross-cycle (une classe dont le niveau n'est ni dans niveaux1erCycle ni
+      // dans NIVEAU_MAP — donc une classe primaire — ne fait rien, voir
+      // SubjectAssignmentHelper.ts B.1/B.2), donc il est sûr de laisser la boucle parcourir
+      // classesACreer en entier même s'il contient des classes primaire et secondaire mélangées.
       if (classesACreer.length > 0 && !isPrimaire) {
         const schoolSubjects = await tx.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
         const subjectByName  = new Map(schoolSubjects.map(s => [s.name, s.id]));
@@ -568,8 +615,13 @@ export class ActiverEtablissementUseCase {
       }
 
       // 4h. Créer les départements pédagogiques (uniquement secondaire)
+      // COMPLEXE_SCOLAIRE : exclut les matières APC (déjà réparties dans leurs propres
+      // départements par compétence en 4h-APC ci-dessous) — sinon chaque sous-compétence
+      // se retrouverait aussi dans un département parasite ici, avant d'être réassignée.
       if (templateCode && !isPrimaire) {
-        const schoolSubjects = await tx.subject.findMany({ where: { schoolId } });
+        const schoolSubjects = await tx.subject.findMany({
+          where: { schoolId, ...(apcSubjectIds.length > 0 ? { id: { notIn: apcSubjectIds } } : {}) },
+        });
         const DEPT_MERGE: Record<string, string> = {
           'Sciences':                                    'SVT',
           'SVTEEHB':                                     'SVT',
@@ -621,7 +673,7 @@ export class ActiverEtablissementUseCase {
 
       // 4h-APC. Primaire — créer un Département par Compétence APC (6 compétences)
       // Les Sujets (sous-compétences) créés à l'étape 4f sont rattachés à leur compétence.
-      if (isPrimaire) {
+      if (isPrimaire || (isComplexe && hasPrimaireContent)) {
         const APC_DEPT_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#10b981', '#f97316'];
         const apcSubjects = await tx.subject.findMany({
           where: { schoolId },

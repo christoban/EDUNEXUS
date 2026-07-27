@@ -12,7 +12,7 @@ interface DossierInfo {
   nomProvisoire: string
   classeSuggeree: { name: string; level: string | null } | null
   recipientType: 'ELEVE' | 'PARENT' | 'LES_DEUX'
-  sourceType: 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS'
+  sourceType: 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS' | 'GROUPE_TRANSFERT'
   eleveADispositif: boolean | null
   parentADispositif: boolean | null
 }
@@ -127,8 +127,13 @@ export default function EleveOnboardingPage() {
                 {t('eleveAutoservice.formTitle', { name: dossier.nomProvisoire })}
               </p>
               {dossier.classeSuggeree && (
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: dossier.sourceType === 'GROUPE_TRANSFERT' ? 8 : 20 }}>
                   {t('eleveAutoservice.suggestedClass', { className: dossier.classeSuggeree.name })}
+                </p>
+              )}
+              {dossier.sourceType === 'GROUPE_TRANSFERT' && (
+                <p style={{ fontSize: 13, color: '#0f766e', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 8, padding: '10px 12px', marginBottom: 20 }}>
+                  {t('eleveAutoservice.transferContext')}
                 </p>
               )}
 
