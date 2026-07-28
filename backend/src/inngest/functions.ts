@@ -802,16 +802,15 @@ export const handleCriticalHealthAlert = inngest.createFunction(
       recipientRole: "STUDENT", contextType: "HEALTH_CRITICAL", destinataire: "ELEVE",
     });
 
+    // Persisté pour le digest quotidien du professeur principal (sendProfessorPrincipalDigest) —
+    // plus de push immédiat ici : "un push par élève" devient "un digest groupé le lendemain
+    // matin", aligné sur le job nocturne qui ne recalcule le score qu'une fois par nuit
+    // (relecture juillet 2026).
     if (professorPrincipalId) {
-      const conseilEnseignant = await genererEtPersisterConseil({
+      void genererEtPersisterConseil({
         schoolId, studentId, nomEleve: nomComplet, contexte,
         recipientRole: "TEACHER", contextType: "HEALTH_CRITICAL", destinataire: "ENSEIGNANT",
       });
-      await notifierPersonnelDirect(
-        professorPrincipalId, schoolId,
-        "Élève en risque critique",
-        conseilEnseignant ?? `${nomComplet} (${className ?? "votre classe"}) — indice de santé scolaire : ${healthScore}/100. Suivi rapproché recommandé.`,
-      );
     }
 
     const censeurs = await prisma.staffProfile.findMany({
@@ -856,16 +855,13 @@ export const handleWarningHealthAlert = inngest.createFunction(
       recipientRole: "STUDENT", contextType: "HEALTH_WARNING", destinataire: "ELEVE",
     });
 
+    // Persisté pour le digest quotidien du professeur principal — voir le même commentaire dans
+    // handleCriticalHealthAlert.
     if (professorPrincipalId) {
-      const conseilEnseignant = await genererEtPersisterConseil({
+      void genererEtPersisterConseil({
         schoolId, studentId, nomEleve: nomComplet, contexte,
         recipientRole: "TEACHER", contextType: "HEALTH_WARNING", destinataire: "ENSEIGNANT",
       });
-      await notifierPersonnelDirect(
-        professorPrincipalId, schoolId,
-        "Élève à surveiller",
-        conseilEnseignant ?? `${nomComplet} (${className ?? "votre classe"}) — indice de santé scolaire : ${healthScore}/100.`,
-      );
     }
 
     return { notified: true };
@@ -903,6 +899,94 @@ export const handlePositiveHealthAlert = inngest.createFunction(
 );
 
 /**
+ * Digest quotidien du professeur principal (relecture juillet 2026) — aligné sur le job nocturne :
+ * la donnée source (score composite) n'est recalculée qu'une fois par nuit, pas la peine de
+ * notifier plus souvent qu'elle ne change. Regroupe en UN seul message par PP : les alertes
+ * critiques/vigilance du calcul qui vient de tourner (score déjà persisté sur StudentProfile par
+ * computeStudentHealthScores), ET toutes les chutes par matière détectées la veille sur sa classe
+ * (persistées par detecterChutePourNote dans StudentRecommendation, contextType SUBJECT_DROP) —
+ * peu importe combien d'enseignants de matière différents ont contribué à ces événements.
+ * Exécuté 30 min après compute-student-health-scores (2h), pour laisser le calcul se terminer.
+ */
+export const sendProfessorPrincipalDigest = inngest.createFunction(
+  { id: "send-professor-principal-digest", name: "Digest quotidien — professeur principal", triggers: [{ cron: "30 2 * * *" }] },
+  async ({ step }) => {
+    await step.run("digest-all-schools", async () => {
+      const schools = await prisma.school.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
+
+      for (const school of schools) {
+        const config = await (prisma as any).schoolConfig
+          .findFirst({ where: { schoolId: school.id }, select: { aiAlertsEnabled: true, aiRiskThreshold: true, aiRiskThresholdCritical: true } })
+          .catch(() => null);
+        if (config?.aiAlertsEnabled === false) continue;
+        const warningThreshold = config?.aiRiskThreshold ?? 50;
+        const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+
+        type Digest = { critiques: string[]; vigilances: string[]; chutes: string[] };
+        const parPP = new Map<string, Digest>();
+        const ajouter = (ppId: string | null | undefined, champ: keyof Digest, ligne: string) => {
+          if (!ppId) return;
+          const d = parPP.get(ppId) ?? { critiques: [], vigilances: [], chutes: [] };
+          d[champ].push(ligne);
+          parPP.set(ppId, d);
+        };
+
+        // 1. Alertes composite du calcul qui vient de tourner (score déjà persisté).
+        const eleves = await prisma.studentProfile.findMany({
+          where: { user: { schoolId: school.id }, classId: { not: null }, healthScore: { lte: warningThreshold } },
+          select: { healthScore: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true, professorPrincipalId: true } } },
+        }) as any[];
+        for (const e of eleves) {
+          const nom = `${e.user.firstName} ${e.user.lastName}`;
+          const ligne = `${nom} (${e.class?.name ?? "N/A"}) — indice ${e.healthScore}/100`;
+          ajouter(e.class?.professorPrincipalId, e.healthScore <= criticalThreshold ? "critiques" : "vigilances", ligne);
+        }
+
+        // 2. Chutes par matière détectées la veille — peu importe quel enseignant de matière a
+        // validé la note qui les a déclenchées.
+        const depuis = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const chutes = await prisma.studentRecommendation.findMany({
+          where: { schoolId: school.id, recipientRole: "TEACHER", contextType: "SUBJECT_DROP", createdAt: { gte: depuis } },
+          select: { studentId: true, subjectId: true },
+        });
+        if (chutes.length > 0) {
+          const studentIds = Array.from(new Set(chutes.map((c) => c.studentId)));
+          const subjectIds = Array.from(new Set(chutes.map((c) => c.subjectId).filter((s): s is string => !!s)));
+          const [profils, matieres] = await Promise.all([
+            prisma.studentProfile.findMany({
+              where: { userId: { in: studentIds }, user: { schoolId: school.id } },
+              select: { userId: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true, professorPrincipalId: true } } },
+            }),
+            prisma.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true } }),
+          ]);
+          const profilParEleve = new Map(profils.map((p) => [p.userId, p]));
+          const nomMatiere = new Map(matieres.map((m) => [m.id, m.name]));
+          for (const c of chutes) {
+            const profil = profilParEleve.get(c.studentId);
+            if (!profil?.class) continue;
+            const nom = `${profil.user.firstName} ${profil.user.lastName}`;
+            const matiere = c.subjectId ? (nomMatiere.get(c.subjectId) ?? "une matière") : "une matière";
+            ajouter(profil.class.professorPrincipalId, "chutes", `${nom} (${profil.class.name}) — chute en ${matiere}`);
+          }
+        }
+
+        // 3. Un seul message par PP, même s'il cumule plusieurs signaux de nature différente.
+        for (const [ppId, d] of parPP) {
+          const sections: string[] = [];
+          if (d.critiques.length) sections.push(`Critique (${d.critiques.length}) :\n${d.critiques.join("\n")}`);
+          if (d.vigilances.length) sections.push(`Vigilance (${d.vigilances.length}) :\n${d.vigilances.join("\n")}`);
+          if (d.chutes.length) sections.push(`Chutes de matière hier (${d.chutes.length}) :\n${d.chutes.join("\n")}`);
+          if (sections.length === 0) continue;
+          await notifierPersonnelDirect(ppId, school.id, "Votre digest quotidien — élèves à suivre", sections.join("\n\n"));
+        }
+      }
+    });
+
+    return { digestSent: true };
+  },
+);
+
+/**
  * Phase 3 — détection de chute par matière, déclenchée en temps réel à la validation d'une
  * séquence (pas seulement au calcul nocturne global) : compare la moyenne de la séquence qui
  * vient d'être validée à la moyenne de la séquence précédente, POUR LA MÊME MATIÈRE — le job
@@ -926,68 +1010,129 @@ export async function trouverSequencePrecedente(sequenceId: string, schoolId: st
   return idx > 0 ? triees[idx - 1]! : null;
 }
 
+/**
+ * Détection de chute pour UNE note validée — factorisé pour être appelable soit isolément (une
+ * seule note validée à la fois, `handleGradeValidatedDropDetection`), soit en boucle sur tout un
+ * lot de notes validées d'un même geste (`handleGradeValidatedBatchDropDetection`), sans dupliquer
+ * la logique de seuil/comparaison. Persiste toujours le conseil IA (StudentRecommendation) même
+ * en mode lot — c'est une donnée silencieuse, pas une notification, elle alimente aussi le digest
+ * quotidien du professeur principal (sendProfessorPrincipalDigest, qui relit ces lignes pour la
+ * veille). N'envoie JAMAIS de notification elle-même, ni au professeur principal ni à
+ * l'enseignant de matière : c'est l'appelant qui décide (immédiat et groupé par lot pour
+ * l'enseignant de matière, digest du lendemain matin pour le PP — relecture juillet 2026, "un
+ * push par élève" devient "un digest groupé" pour les deux).
+ */
+async function detecterChutePourNote(data: {
+  studentId: string; subjectId: string; schoolId: string; sequenceId: string;
+}): Promise<{
+  studentId: string; subjectId: string; teacherId: string | null;
+  nomComplet: string; className: string | null; matiere: string;
+  avant: number; apres: number; corpsIndividuel: string;
+} | null> {
+  const noteActuelle = await prisma.grade.findFirst({
+    where: { studentId: data.studentId, subjectId: data.subjectId, sequenceId: data.sequenceId, schoolId: data.schoolId, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
+    select: { sequenceAverage: true },
+  });
+  if (noteActuelle?.sequenceAverage == null) return null;
+
+  const precedente = await trouverSequencePrecedente(data.sequenceId, data.schoolId);
+  if (!precedente) return null;
+
+  const noteAvant = await prisma.grade.findFirst({
+    where: { studentId: data.studentId, subjectId: data.subjectId, schoolId: data.schoolId, sequenceId: precedente.id, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
+    select: { sequenceAverage: true },
+  });
+  if (noteAvant?.sequenceAverage == null) return null;
+
+  const config = await (prisma as any).schoolConfig
+    .findFirst({ where: { schoolId: data.schoolId }, select: { subjectDropThreshold: true, aiAlertsEnabled: true } })
+    .catch(() => null);
+  if (config?.aiAlertsEnabled === false) return null;
+  const seuil = config?.subjectDropThreshold ?? 3;
+
+  const chute = noteAvant.sequenceAverage - noteActuelle.sequenceAverage;
+  if (chute < seuil) return null;
+
+  const [contexte, subject] = await Promise.all([
+    resolveStudentContext(data.studentId, data.schoolId),
+    prisma.subject.findUnique({ where: { id: data.subjectId }, select: { name: true } }),
+  ]);
+  const matiere = subject?.name ?? "une matière";
+  const corpsGenerique = `${contexte.nomComplet} (${contexte.className ?? "N/A"}) a chuté de ${chute.toFixed(1)} points en ${matiere} (${noteAvant.sequenceAverage.toFixed(1)} → ${noteActuelle.sequenceAverage.toFixed(1)}/20) entre les deux dernières séquences.`;
+  const conseilEnseignant = await genererEtPersisterConseil({
+    schoolId: data.schoolId, studentId: data.studentId, subjectId: data.subjectId, nomEleve: contexte.nomComplet,
+    contexte: corpsGenerique,
+    recipientRole: "TEACHER", contextType: "SUBJECT_DROP", destinataire: "ENSEIGNANT",
+  });
+
+  // Enseignant de la matière POUR CETTE CLASSE précisément (un même enseignant peut avoir
+  // plusieurs classes, une même matière peut avoir plusieurs enseignants selon la classe).
+  let teacherId: string | null = null;
+  if (contexte.classId) {
+    const assignment = await prisma.teachingAssignment.findUnique({
+      where: { classId_subjectId: { classId: contexte.classId, subjectId: data.subjectId } },
+      select: { teacherId: true },
+    }).catch(() => null);
+    teacherId = assignment?.teacherId ?? null;
+  }
+
+  return {
+    studentId: data.studentId, subjectId: data.subjectId, teacherId,
+    nomComplet: contexte.nomComplet, className: contexte.className, matiere,
+    avant: noteAvant.sequenceAverage, apres: noteActuelle.sequenceAverage,
+    corpsIndividuel: conseilEnseignant ?? corpsGenerique,
+  };
+}
+
 export const handleGradeValidatedDropDetection = inngest.createFunction(
   { id: "handle-grade-validated-drop-detection", name: "Détection chute par matière", triggers: [{ event: "grade/validated" }] },
   async ({ event }) => {
     const { studentId, subjectId, schoolId, sequenceId } = event.data as {
       gradeId: string; studentId: string; subjectId: string; schoolId: string; sequenceId: string;
     };
+    const resultat = await detecterChutePourNote({ studentId, subjectId, schoolId, sequenceId });
+    if (!resultat) return { skipped: true };
+    if (resultat.teacherId) {
+      await notifierPersonnelDirect(resultat.teacherId, schoolId, `Chute en ${resultat.matiere}`, resultat.corpsIndividuel);
+    }
+    return { notified: !!resultat.teacherId };
+  },
+);
 
-    const noteActuelle = await prisma.grade.findFirst({
-      where: { studentId, subjectId, sequenceId, schoolId, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
-      select: { sequenceAverage: true },
-    });
-    if (noteActuelle?.sequenceAverage == null) return { skipped: "no-average" };
+/**
+ * Regroupement "un geste de validation = une seule notification" (relecture juillet 2026) : un
+ * enseignant qui valide les notes de toute une classe d'un coup ne doit pas recevoir un push par
+ * élève détecté, mais UN message listant tous les élèves en chute pour CE lot de validation
+ * précisément — pas de fenêtre de temps arbitraire à choisir, le regroupement naturel est déjà
+ * l'appel de validation lui-même (voir GradeController.validerTout, qui émet un seul événement
+ * `grade/validated-batch` avec toutes les notes venant d'être validées, au lieu d'un événement par
+ * note).
+ */
+export const handleGradeValidatedBatchDropDetection = inngest.createFunction(
+  { id: "handle-grade-validated-batch-drop-detection", name: "Détection chute par matière (validation en bloc)", triggers: [{ event: "grade/validated-batch" }] },
+  async ({ event }) => {
+    const { schoolId, grades } = event.data as {
+      schoolId: string;
+      grades: Array<{ studentId: string; subjectId: string; sequenceId: string }>;
+    };
 
-    const precedente = await trouverSequencePrecedente(sequenceId, schoolId);
-    if (!precedente) return { skipped: "no-previous-sequence" };
-
-    const noteAvant = await prisma.grade.findFirst({
-      where: { studentId, subjectId, schoolId, sequenceId: precedente.id, validationStatus: { in: ["VALIDATED", "LOCKED"] } },
-      select: { sequenceAverage: true },
-    });
-    if (noteAvant?.sequenceAverage == null) return { skipped: "no-previous-grade" };
-
-    const config = await (prisma as any).schoolConfig
-      .findFirst({ where: { schoolId }, select: { subjectDropThreshold: true, aiAlertsEnabled: true } })
-      .catch(() => null);
-    if (config?.aiAlertsEnabled === false) return { skipped: "alerts-disabled" };
-    const seuil = config?.subjectDropThreshold ?? 3;
-
-    const chute = noteAvant.sequenceAverage - noteActuelle.sequenceAverage;
-    if (chute < seuil) return { skipped: "no-significant-drop" };
-
-    const [contexte, subject] = await Promise.all([
-      resolveStudentContext(studentId, schoolId),
-      prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
-    ]);
-    const matiere = subject?.name ?? "une matière";
-    const corpsGenerique = `${contexte.nomComplet} (${contexte.className ?? "N/A"}) a chuté de ${chute.toFixed(1)} points en ${matiere} (${noteAvant.sequenceAverage.toFixed(1)} → ${noteActuelle.sequenceAverage.toFixed(1)}/20) entre les deux dernières séquences.`;
-    const conseilEnseignant = await genererEtPersisterConseil({
-      schoolId, studentId, subjectId, nomEleve: contexte.nomComplet,
-      contexte: corpsGenerique,
-      recipientRole: "TEACHER", contextType: "SUBJECT_DROP", destinataire: "ENSEIGNANT",
-    });
-    const corps = conseilEnseignant ?? corpsGenerique;
-
-    // Enseignant de la matière POUR CETTE CLASSE précisément (un même enseignant peut avoir
-    // plusieurs classes, une même matière peut avoir plusieurs enseignants selon la classe).
-    if (contexte.classId) {
-      const assignment = await prisma.teachingAssignment.findUnique({
-        where: { classId_subjectId: { classId: contexte.classId, subjectId } },
-        select: { teacherId: true },
-      }).catch(() => null);
-      if (assignment?.teacherId) {
-        await notifierPersonnelDirect(assignment.teacherId, schoolId, `Chute en ${matiere}`, corps);
-      }
+    const parEnseignant = new Map<string, string[]>();
+    for (const g of grades) {
+      const resultat = await detecterChutePourNote({ studentId: g.studentId, subjectId: g.subjectId, schoolId, sequenceId: g.sequenceId }).catch(() => null);
+      if (!resultat || !resultat.teacherId) continue;
+      const lignes = parEnseignant.get(resultat.teacherId) ?? [];
+      lignes.push(`${resultat.nomComplet} (${resultat.className ?? "N/A"}) — ${resultat.matiere} : ${resultat.avant.toFixed(1)} → ${resultat.apres.toFixed(1)}/20`);
+      parEnseignant.set(resultat.teacherId, lignes);
     }
 
-    // Professeur Principal — vue d'ensemble de l'élève, pas seulement de la matière concernée.
-    if (contexte.professorPrincipalId) {
-      await notifierPersonnelDirect(contexte.professorPrincipalId, schoolId, `Chute en ${matiere}`, corps);
+    for (const [teacherId, lignes] of parEnseignant) {
+      const corps = lignes.length === 1
+        ? lignes[0]!
+        : `${lignes.length} élèves en chute lors de cette validation :\n${lignes.join("\n")}`;
+      await notifierPersonnelDirect(teacherId, schoolId, "Chutes détectées lors de votre validation", corps);
     }
 
-    return { notified: true, chute };
+    return { enseignantsNotifies: parEnseignant.size };
   },
 );
 

@@ -59,6 +59,16 @@ export class GenererBulletinUseCase {
     const classe = await this.classeRepository.findById(commande.classId);
     if (!classe) throw new Error(`Classe introuvable : ${commande.classId}`);
 
+    // Période/année inexistantes — vérifié ICI, avant le calcul des élèves ayant des notes :
+    // sinon un academicPeriodId invalide fait tomber silencieusement dans le early-return "Aucun
+    // élève avec des notes validées" (aucune séquence ne peut matcher une période qui n'existe
+    // pas), masquant la vraie cause derrière un message trompeur.
+    const periode = await this.anneeRepository.findPeriodeById(commande.academicPeriodId);
+    if (!periode) throw new Error('Période académique introuvable');
+
+    const annee = await this.anneeRepository.findById(commande.academicYearId);
+    if (!annee) throw new Error('Année académique introuvable');
+
     // Lance BulletinBloqueError si des notes ne sont pas validées
     Bulletin.verifierPrerequisGeneration(notesNonValidees, classe.nomComplet);
 
@@ -90,13 +100,8 @@ export class GenererBulletinUseCase {
       return { bulletinsGeneres: 0, bulletinsIgnores: 0, message: 'Aucun élève avec des notes validées dans cette classe' };
     }
 
-    // 3. Récupérer les matières et la période
+    // 3. Récupérer les matières (période/année déjà résolues plus haut)
     const matieres = await this.matiereRepository.findBySchool(commande.schoolId);
-    const periode = await this.anneeRepository.findPeriodeById(commande.academicPeriodId);
-    if (!periode) throw new Error('Période académique introuvable');
-
-    const annee = await this.anneeRepository.findById(commande.academicYearId);
-    if (!annee) throw new Error('Année académique introuvable');
 
     // Lookup rapide matière par subjectId
     const matiereParId = new Map(matieres.map(m => [m.id, m]));

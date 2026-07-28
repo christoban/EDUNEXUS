@@ -70,12 +70,16 @@ describe('ConnecterUtilisateurUseCase', () => {
       status: 'SUSPENDED',
     });
     schoolRepo.ajouter(ecoleSuspendue);
+    // Les credentials sont vérifiés AVANT le statut de l'école (voir ConnecterUtilisateurUseCase) —
+    // il faut un utilisateur réellement rattaché à school-2, sinon on échoue plus tôt sur
+    // "Email ou mot de passe incorrect" et le test ne teste jamais ce qu'il prétend tester.
+    userRepo.ajouter(User.reconstituer({ ...enseignant.toObject(), id: 'user-2', schoolId: 'school-2' }));
 
     await expect(useCase.execute({
       email: 'prof@test.cm',
       plainPassword: 'motdepasse',
       schoolId: 'school-2',
-    })).rejects.toThrow('suspendu');
+    })).rejects.toThrow('SCHOOL_SUSPENDED');
   });
 
   it("devrait rejeter si l'école n'est ni ACTIVE ni APPROVED", async () => {
@@ -85,6 +89,7 @@ describe('ConnecterUtilisateurUseCase', () => {
       status: 'PENDING',
     });
     schoolRepo.ajouter(ecolePending);
+    userRepo.ajouter(User.reconstituer({ ...enseignant.toObject(), id: 'user-3', schoolId: 'school-3' }));
 
     await expect(useCase.execute({
       email: 'prof@test.cm',

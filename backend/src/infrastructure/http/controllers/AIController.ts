@@ -16,6 +16,73 @@ export class AIController {
     return resolveLanguage(school?.subsystem);
   }
 
+  /**
+   * Garde-fou de confidentialité (données de santé/risque scolaire — sensibles) : vérifie que
+   * l'utilisateur authentifié a un lien légitime avec l'élève demandé, pas seulement qu'il est
+   * connecté. Même principe que le scoping déjà appliqué dans getAtRiskStudentsForTeacher (via
+   * TeachingAssignment/professorPrincipalId) et getHealthTracking (via ParentStudent), regroupé
+   * ici pour être réutilisable par détectRisk et toute future route élève-par-élève. ADMIN et
+   * STAFF avec la permission VALIDATE_GRADES (censeur — même permission que celle qui déclenche
+   * déjà leur notification de risque critique, voir inngest/functions.ts) voient tout ; les
+   * autres rôles doivent avoir un lien direct et vérifiable avec CET élève précis.
+   */
+  private async estAutoriseAVoirRisqueEleve(
+    user: { userId: string; schoolId: string; role: string; permissions?: string[] },
+    studentId: string,
+  ): Promise<boolean> {
+    const profile = await this.prisma.studentProfile.findFirst({
+      where: { userId: studentId, user: { schoolId: user.schoolId } },
+      select: { classId: true },
+    });
+    if (!profile) return false;
+
+    const role = user.role.toUpperCase();
+
+    if (role === 'ADMIN') return true;
+
+    // Permission portée par le JWT (voir AuthPayload/JwtTokenService) — même source que
+    // authorizeSchool('perm:...'), pas de requête DB supplémentaire nécessaire.
+    if (role === 'STAFF') {
+      return Array.isArray(user.permissions) && user.permissions.includes('VALIDATE_GRADES');
+    }
+
+    if (role === 'TEACHER') {
+      if (!profile.classId) return false;
+      const [assignment, estProfPrincipal] = await Promise.all([
+        this.prisma.teachingAssignment.findFirst({ where: { teacherId: user.userId, classId: profile.classId }, select: { id: true } }),
+        this.prisma.class.findFirst({ where: { id: profile.classId, professorPrincipalId: user.userId }, select: { id: true } }),
+      ]);
+      return !!assignment || !!estProfPrincipal;
+    }
+
+    if (role === 'PARENT') {
+      const lien = await this.prisma.parentStudent.findFirst({
+        where: { parentProfile: { userId: user.userId }, studentProfile: { userId: studentId } },
+        select: { parentProfileId: true },
+      });
+      return !!lien;
+    }
+
+    if (role === 'STUDENT') {
+      return user.userId === studentId;
+    }
+
+    return false;
+  }
+
+  /**
+   * Gate pour les vues "tous les élèves d'une classe/école" (pas un élève précis) : seuls ADMIN
+   * et STAFF avec VALIDATE_GRADES (censeur) ont un motif légitime de parcourir une liste — les
+   * autres rôles ont leurs propres routes déjà scopées (getAtRiskStudentsForTeacher,
+   * getHealthTracking), jamais besoin de la vue large.
+   */
+  private peutVoirVueEnsembleSante(user: { role: string; permissions?: string[] }): boolean {
+    const role = user.role.toUpperCase();
+    if (role === 'ADMIN') return true;
+    if (role === 'STAFF') return Array.isArray(user.permissions) && user.permissions.includes('VALIDATE_GRADES');
+    return false;
+  }
+
   generateInsight = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user!;
@@ -64,6 +131,11 @@ export class AIController {
       const schoolId = req.user!.schoolId;
       const classId = typeof req.query.classId === 'string' ? req.query.classId : undefined;
 
+      if (!this.peutVoirVueEnsembleSante(req.user!)) {
+        res.status(403).json({ message: 'Accès réservé à la direction et au personnel habilité' });
+        return;
+      }
+
       const students = await this.prisma.studentProfile.findMany({
         where: { user: { schoolId }, ...(classId ? { classId } : {}) },
         include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
@@ -102,17 +174,35 @@ export class AIController {
       const teacherId = req.user!.userId;
 
       const [assignments, ppClasses] = await Promise.all([
-        this.prisma.teachingAssignment.findMany({ where: { teacherId, schoolId }, select: { classId: true } }),
+        this.prisma.teachingAssignment.findMany({ where: { teacherId, schoolId }, select: { classId: true, subjectId: true, subject: { select: { name: true } } } }),
         this.prisma.class.findMany({ where: { schoolId, professorPrincipalId: teacherId }, select: { id: true } }),
       ]);
       const classIds = Array.from(new Set([...assignments.map((a) => a.classId), ...ppClasses.map((c) => c.id)]));
       if (classIds.length === 0) { res.json({ students: [], summary: { critical: 0, warning: 0 } }); return; }
+
+      const ppClassIds = new Set(ppClasses.map((c) => c.id));
+      // Matières enseignées par CE professeur, par classe — pour distinguer "professeur principal"
+      // (autorité pleine, voir CreerActionSuiviEleveUseCase) de "enseignant de matière" (observation
+      // seulement, restreinte à sa propre matière) sans jamais coder de rôle en dur.
+      const mesMatieresParClasse = new Map<string, { id: string; name: string }[]>();
+      for (const a of assignments) {
+        const liste = mesMatieresParClasse.get(a.classId) ?? [];
+        liste.push({ id: a.subjectId, name: a.subject.name });
+        mesMatieresParClasse.set(a.classId, liste);
+      }
 
       const config = await this.prisma.schoolConfig
         .findUnique({ where: { schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
         .catch(() => null) as { aiRiskThreshold: number; aiRiskThresholdCritical: number } | null;
       const warningThreshold = config?.aiRiskThreshold ?? 50;
       const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
+
+      // Conseiller pédagogique présent dans ~15% des établissements secondaires publics
+      // camerounais uniquement — le frontend masque "Signaler au conseiller" quand c'est absent,
+      // plutôt que d'offrir une option qui ne mène nulle part (relecture juillet 2026).
+      const conseillerPedagogiqueDisponible = (await this.prisma.staffProfile.count({
+        where: { schoolId, permissions: { some: { permission: { in: ['MANAGE_ORIENTATION', 'MANAGE_PEDAGOGICAL_BRIEF'] } } } },
+      })) > 0;
 
       const students = await this.prisma.studentProfile.findMany({
         where: { classId: { in: classIds }, healthScore: { lte: warningThreshold } },
@@ -134,15 +224,21 @@ export class AIController {
         const score: number = s.healthScore ?? 75;
         const alertLevel = score <= criticalThreshold ? 'critical' : 'warning';
         const conseil = dernierConseilParEleve.get(s.user.id);
+        const classId = s.class?.id ?? null;
         return {
           studentId: s.user.id,
           name: `${s.user.firstName} ${s.user.lastName}`,
-          classId: s.class?.id ?? null,
+          classId,
           className: s.class?.name ?? '—',
           healthScore: score,
           alertLevel,
           conseil: conseil?.content ?? null,
           conseilDate: conseil?.createdAt ?? null,
+          recommendationId: conseil?.id ?? null,
+          // Autorité pour le suivi (Partie B) : PP = pleine autorité, sinon liste de ses propres
+          // matières dans cette classe = observation seulement, restreinte à l'une d'elles.
+          isProfesseurPrincipal: classId ? ppClassIds.has(classId) : false,
+          mesMatieres: classId ? (mesMatieresParClasse.get(classId) ?? []) : [],
         };
       });
 
@@ -152,6 +248,7 @@ export class AIController {
           critical: result.filter((r) => r.alertLevel === 'critical').length,
           warning: result.filter((r) => r.alertLevel === 'warning').length,
         },
+        conseillerPedagogiqueDisponible,
       });
     } catch (error) {
       next(error);
@@ -330,6 +427,11 @@ export class AIController {
       const schoolId = req.user!.schoolId;
       const studentId = req.params.studentId as string;
       const since30d = new Date(Date.now() - 30 * 86400000);
+
+      if (!(await this.estAutoriseAVoirRisqueEleve(req.user!, studentId))) {
+        res.status(403).json({ message: 'Vous n\'avez pas accès aux données de cet élève' });
+        return;
+      }
 
       const [grades, attendance, studentProfile] = await Promise.all([
         this.prisma.grade.findMany({ where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } }, include: { subject: true }, orderBy: { createdAt: 'desc' }, take: 20 }) as Promise<any[]>,

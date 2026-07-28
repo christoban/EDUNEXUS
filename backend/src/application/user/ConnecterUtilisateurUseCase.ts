@@ -95,6 +95,15 @@ export class ConnecterUtilisateurUseCase {
       throw new Error("Cet établissement n'est pas encore actif.");
     }
 
+    // 3bis. Premier login Admin sur une école APPROVED → auto-activation (décrit dans le
+    // commentaire de classe mais jamais réellement persisté jusqu'ici : School.activer() existe
+    // sur l'entité, mais rien n'appelait schoolRepository.update() pour le faire).
+    const ecoleVientDetreActivee = user.estAdmin() && school.status === 'APPROVED';
+    if (ecoleVientDetreActivee) {
+      school.activer();
+      await this.schoolRepository.update(school);
+    }
+
     // 4. Enregistrer le dernier login
     user.enregistrerConnexion();
     await this.userRepository.update(user);
@@ -117,8 +126,9 @@ export class ConnecterUtilisateurUseCase {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       roleMismatch,
-      // Indique au frontend où rediriger : ADMIN sur école APPROVED → configuration
-      redirectTo: (user.estAdmin() && school.status === 'APPROVED') ? '/admin/configuration' : undefined,
+      // Indique au frontend où rediriger : ADMIN sur école qui vient d'être auto-activée →
+      // configuration (school.status vaut déjà 'ACTIVE' à ce stade, d'où le flag capturé plus haut).
+      redirectTo: ecoleVientDetreActivee ? '/admin/configuration' : undefined,
     };
   }
 }

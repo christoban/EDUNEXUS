@@ -83,10 +83,21 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
       }
     }
 
-    // 4. Comportement — sanctions dans l'établissement
-    const nombreSanctions = await this.prisma.disciplineRecord.count({
-      where: { studentId, schoolId },
+    // 4. Comportement — sanctions de l'ANNÉE SCOLAIRE COURANTE uniquement (DisciplineRecord n'a
+    // pas de academicYearId direct, on borne donc par les dates de l'année). Auparavant compté
+    // depuis toujours (bug d'incohérence trouvé en vérification — voir
+    // PLAN_VERIFICATION_ET_ACTIONS_SUIVI.md A.1) : une sanction en 6e pénalisait encore le score
+    // en Terminale, alors que nombrePeriodes (dénominateur de la même composante, ci-dessous) ne
+    // regarde lui que les périodes de l'année en cours — les deux bornes doivent coïncider.
+    const anneeScolaire = await this.prisma.academicYear.findUnique({
+      where: { id: academicYearId },
+      select: { startDate: true, endDate: true },
     });
+    const nombreSanctions = anneeScolaire
+      ? await this.prisma.disciplineRecord.count({
+          where: { studentId, schoolId, createdAt: { gte: anneeScolaire.startDate, lte: anneeScolaire.endDate } },
+        })
+      : 0;
 
     // 5. Paiements
     const factures = await this.prisma.invoice.findMany({

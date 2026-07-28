@@ -101,6 +101,16 @@ const ANNEE = {
   status: 'ACTIVE' as const,
 };
 
+const SEQUENCE = {
+  id: 'seq-1',
+  academicPeriodId: PERIOD_ID,
+  schoolId: SCHOOL_ID,
+  name: 'Séquence 1',
+  type: 'DS' as const,
+  orderIndex: 1,
+  isCurrent: true,
+};
+
 function creerNoteValidee(): Note {
   return Note.reconstituer({
     id: 'note-1',
@@ -174,6 +184,7 @@ describe('GenererBulletinUseCase', () => {
     matiereRepo.ajouter(MATIERE);
     anneeRepo.ajouterAnnee(ANNEE);
     anneeRepo.ajouterPeriode(PERIODE);
+    anneeRepo.ajouterSequence(SEQUENCE);
     noteRepo.setNonValidees([]); // par défaut : toutes validées
   });
 

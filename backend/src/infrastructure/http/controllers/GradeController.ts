@@ -123,14 +123,19 @@ export class GradeController {
         validateurId: user.userId,
       });
 
-      // Déclenche la détection de chute par matière (Phase 3) pour chaque note réellement
-      // validée par CET appel — jamais pour des notes déjà validées avant (voir
-      // ValiderEnBlocUseCase.gradesValidees).
-      for (const g of resultat.gradesValidees) {
+      // Déclenche la détection de chute par matière (Phase 3) pour les notes réellement validées
+      // par CET appel — jamais pour des notes déjà validées avant (voir
+      // ValiderEnBlocUseCase.gradesValidees). UN SEUL événement pour tout le lot (pas un par
+      // note) : un enseignant qui valide toute une classe d'un coup ne doit recevoir qu'UNE seule
+      // notification groupée, pas un push par élève détecté (relecture juillet 2026).
+      if (resultat.gradesValidees.length > 0) {
         void inngest.send({
-          name: 'grade/validated',
-          data: { gradeId: g.id, studentId: g.studentId, subjectId: g.subjectId, schoolId: g.schoolId, sequenceId: g.sequenceId },
-        }).catch((err) => console.error('[GradeController] Échec envoi grade/validated (bloc):', err?.message));
+          name: 'grade/validated-batch',
+          data: {
+            schoolId: resultat.gradesValidees[0]!.schoolId,
+            grades: resultat.gradesValidees.map((g) => ({ studentId: g.studentId, subjectId: g.subjectId, sequenceId: g.sequenceId })),
+          },
+        }).catch((err) => console.error('[GradeController] Échec envoi grade/validated-batch:', err?.message));
       }
 
       res.json({ success: true, data: resultat });

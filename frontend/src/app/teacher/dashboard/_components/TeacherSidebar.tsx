@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   LogOut, LayoutDashboard, School, ClipboardCheck, FileText, Calendar,
   NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw,
-  AlertTriangle, X,
+  AlertTriangle, X, ListChecks,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -42,6 +42,7 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
       items: [
         { id: 'cahier-de-texte', icon: NotebookPen, label: tnav('sidebar.cahierDeTexte') },
         { id: 'at-risk', icon: AlertTriangle, label: tnav('sidebar.atRiskStudents') },
+        { id: 'mon-suivi', icon: ListChecks, label: tnav('sidebar.monSuivi') },
       ],
     },
     {

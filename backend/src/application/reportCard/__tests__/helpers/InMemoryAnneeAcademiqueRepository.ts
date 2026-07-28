@@ -9,9 +9,11 @@ import type {
 export class InMemoryAnneeAcademiqueRepository implements AnneeAcademiqueRepository {
   private annees = new Map<string, AnneeAcademiqueProps>();
   private periodes = new Map<string, PeriodeAcademiqueProps>();
+  private sequences = new Map<string, SequenceAcademiqueProps>();
 
   ajouterAnnee(a: AnneeAcademiqueProps): void { this.annees.set(a.id, a); }
   ajouterPeriode(p: PeriodeAcademiqueProps): void { this.periodes.set(p.id, p); }
+  ajouterSequence(s: SequenceAcademiqueProps): void { this.sequences.set(s.id, s); }
 
   async findById(id: string): Promise<AnneeAcademiqueProps | null> { return this.annees.get(id) ?? null; }
 
@@ -69,12 +71,23 @@ export class InMemoryAnneeAcademiqueRepository implements AnneeAcademiqueReposit
     if (p) this.periodes.set(periodeId, { ...p, isCurrent: true });
   }
 
-  async findSequenceById(_id: string): Promise<SequenceAcademiqueProps | null> { return null; }
-  async findSequencesByPeriode(_academicPeriodId: string): Promise<SequenceAcademiqueProps[]> { return []; }
-  async findSequenceCourante(_schoolId: string): Promise<SequenceAcademiqueProps | null> { return null; }
-  async saveSequence(_s: SequenceAcademiqueProps): Promise<void> {}
-  async desactiverToutesSequences(_academicPeriodId: string): Promise<void> {}
-  async activerSequence(_sequenceId: string): Promise<void> {}
+  async findSequenceById(id: string): Promise<SequenceAcademiqueProps | null> { return this.sequences.get(id) ?? null; }
+  async findSequencesByPeriode(academicPeriodId: string): Promise<SequenceAcademiqueProps[]> {
+    return [...this.sequences.values()].filter(s => s.academicPeriodId === academicPeriodId);
+  }
+  async findSequenceCourante(schoolId: string): Promise<SequenceAcademiqueProps | null> {
+    return [...this.sequences.values()].find(s => s.schoolId === schoolId && s.isCurrent) ?? null;
+  }
+  async saveSequence(s: SequenceAcademiqueProps): Promise<void> { this.sequences.set(s.id, s); }
+  async desactiverToutesSequences(academicPeriodId: string): Promise<void> {
+    for (const [id, s] of this.sequences) {
+      if (s.academicPeriodId === academicPeriodId) this.sequences.set(id, { ...s, isCurrent: false });
+    }
+  }
+  async activerSequence(sequenceId: string): Promise<void> {
+    const s = this.sequences.get(sequenceId);
+    if (s) this.sequences.set(sequenceId, { ...s, isCurrent: true });
+  }
   async upsertCalendrier(_academicYearId: string, _schoolId: string, _periodes: CalendrierPeriode[]): Promise<void> {}
   async countNotesNonValidees(_academicYearId: string): Promise<number> { return 0; }
   async getClassesAvecBulletinsManquants(_academicYearId: string) { return []; }

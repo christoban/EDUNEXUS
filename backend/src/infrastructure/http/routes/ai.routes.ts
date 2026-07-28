@@ -7,7 +7,7 @@ export function creerAIRoutes(controller: AIController): Router {
   const router = Router();
   router.use(requireAuth);
   router.post('/generate-insight', sensitiveWriteLimiter, controller.generateInsight);
-  router.get('/students-health', controller.getStudentsHealth);
+  router.get('/students-health', requireRole('ADMIN', 'STAFF'), controller.getStudentsHealth);
   router.get('/at-risk-students', controller.getAtRiskStudentsForTeacher);
   router.get('/health-tracking', controller.getHealthTracking);
   router.post('/bulletin-comment', sensitiveWriteLimiter, controller.generateBulletinComment);

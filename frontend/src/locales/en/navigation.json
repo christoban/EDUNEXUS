@@ -50,6 +50,7 @@
     "myAttendance": "My attendance",
     "myLibrary": "My reading",
     "atRiskStudents": "At-risk students",
+    "monSuivi": "My follow-up actions",
     "myHealthTracking": "My school health tracking",
     "academicEvents": "Academic events"
   },
@@ -101,6 +102,7 @@
     "teacher_apDepartement": "My department",
     "teacher_cahierDeTexte": "Lesson log",
     "teacher_atRisk": "At-risk students",
+    "teacher_monSuivi": "My follow-up actions",
     "staff_dashboard": "Dashboard",
     "staff_council": "Class Council",
     "staff_grades": "Grade Validation",

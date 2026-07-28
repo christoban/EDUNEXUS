@@ -4,6 +4,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import { AlertTriangle, Package } from 'lucide-react'
+import StudentFollowUpButtons from '@/components/StudentFollowUpButtons'
 
 interface AtRiskStudent {
   studentId: string
@@ -14,14 +15,22 @@ interface AtRiskStudent {
   alertLevel: 'critical' | 'warning'
   conseil: string | null
   conseilDate: string | null
+  recommendationId: string | null
+  isProfesseurPrincipal: boolean
+  mesMatieres: { id: string; name: string }[]
 }
 
 interface AtRiskResponse {
   students: AtRiskStudent[]
   summary: { critical: number; warning: number }
+  conseillerPedagogiqueDisponible: boolean
 }
 
-export default function SectionTeacherAtRisk() {
+interface Props {
+  onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
+}
+
+export default function SectionTeacherAtRisk({ onToast }: Props) {
   const t = useT('teacher')
   const tcommon = useT('common')
 
@@ -33,6 +42,7 @@ export default function SectionTeacherAtRisk() {
   const { data, loading, error, fromCache, cachedAt, refetch } = useCachedFetch<AtRiskResponse>('teacher:at-risk-students', fetchAtRiskFn)
   const students = data?.students ?? []
   const summary = data?.summary ?? { critical: 0, warning: 0 }
+  const conseillerDisponible = data?.conseillerPedagogiqueDisponible ?? false
 
   if (loading) {
     return (
@@ -120,6 +130,15 @@ export default function SectionTeacherAtRisk() {
                     <div style={{ fontSize: 15, color: 'var(--text2)', fontWeight: 500, lineHeight: 1.5 }}>{s.conseil}</div>
                   </div>
                 )}
+
+                <StudentFollowUpButtons
+                  studentId={s.studentId}
+                  triggeringRecommendationId={s.recommendationId}
+                  isProfesseurPrincipal={s.isProfesseurPrincipal}
+                  mesMatieres={s.mesMatieres}
+                  conseillerDisponible={conseillerDisponible}
+                  onToast={onToast}
+                />
               </div>
             )
           })}

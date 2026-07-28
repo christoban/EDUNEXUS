@@ -19,6 +19,7 @@ import SectionAppreciationsPP from './_components/SectionAppreciationsPP'
 import SectionDepartementAP from './_components/SectionDepartementAP'
 import SectionCahierDeTexte from './_components/SectionCahierDeTexte'
 import SectionTeacherAtRisk from './_components/SectionTeacherAtRisk'
+import SectionMesActionsSuivi from './_components/SectionMesActionsSuivi'
 import type { TeacherSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
@@ -33,7 +34,7 @@ import { useT } from '@/lib/i18n'
 
 const TEACHER_SECTIONS: TeacherSection[] = [
   'dashboard', 'classes', 'attendance', 'grades', 'bulletins', 'timetable', 'resources', 'sync',
-  'pp-classe', 'pp-appreciations', 'ap-departement', 'cahier-de-texte', 'at-risk',
+  'pp-classe', 'pp-appreciations', 'ap-departement', 'cahier-de-texte', 'at-risk', 'mon-suivi',
   'mon-profil-rh', 'notifications',
 ]
 const TEACHER_ASSISTANT_SUGGESTIONS = [
@@ -66,6 +67,7 @@ export default function TeacherDashboard() {
     'ap-departement':    tnav('pageTitle.teacher_apDepartement'),
     'cahier-de-texte':   tnav('pageTitle.teacher_cahierDeTexte'),
     'at-risk':           tnav('pageTitle.teacher_atRisk'),
+    'mon-suivi':         tnav('pageTitle.teacher_monSuivi'),
     'mon-profil-rh':     tnav('sidebar.monProfilRH'),
     notifications:       tnav('pageTitle.teacher_notifications'),
   }
@@ -159,7 +161,8 @@ export default function TeacherDashboard() {
             return dept ? <SectionDepartementAP user={user!} departementId={dept.id} departementNom={dept.name} /> : null
           })()}
           {section === 'cahier-de-texte' && <SectionCahierDeTexte user={user} onToast={showToast} />}
-          {section === 'at-risk' && <SectionTeacherAtRisk />}
+          {section === 'at-risk' && <SectionTeacherAtRisk onToast={showToast} />}
+          {section === 'mon-suivi' && <SectionMesActionsSuivi onToast={showToast} />}
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>

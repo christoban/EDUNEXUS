@@ -17,7 +17,11 @@ export class InMemoryNoteRepository implements NoteRepository {
     );
   }
 
-  async findByClasse(_classId: string, _sequenceId: string): Promise<Note[]> { return []; }
+  async findByClasse(classId: string, sequenceId: string): Promise<Note[]> {
+    return [...this.store.values()].filter(
+      n => n.toObject().classId === classId && n.toObject().sequenceId === sequenceId
+    );
+  }
   async findByEnseignant(_teacherId: string, _sequenceId: string): Promise<Note[]> { return []; }
   async findByEleveEtMatiere(_studentId: string, _subjectId: string, _sequenceId: string): Promise<Note | null> { return null; }
   async findByStatut(_classId: string, _sequenceId: string, _statut: GradeValidationStatus): Promise<Note[]> { return []; }

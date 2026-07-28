@@ -112,6 +112,14 @@ import { creerDashboardRoutes } from '@infrastructure/http/routes/dashboard.rout
 import { creerEmailLogRoutes } from '@infrastructure/http/routes/emailLog.routes';
 import { creerSearchRoutes } from '@infrastructure/http/routes/search.routes';
 import { creerAIRoutes } from '@infrastructure/http/routes/ai.routes';
+import { StudentFollowUpController } from '@infrastructure/http/controllers/StudentFollowUpController';
+import { creerStudentFollowUpRoutes } from '@infrastructure/http/routes/studentFollowUp.routes';
+import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
+import { CreerActionSuiviEleveUseCase } from '@application/suivi/CreerActionSuiviEleveUseCase';
+import { ClorreActionSuiviUseCase } from '@application/suivi/ClorreActionSuiviUseCase';
+import { ListerActionsEnCoursUseCase } from '@application/suivi/ListerActionsEnCoursUseCase';
+import { AssignerActionSuiviUseCase } from '@application/suivi/AssignerActionSuiviUseCase';
+import { ListerHistoriqueSuiviEleveUseCase } from '@application/suivi/ListerHistoriqueSuiviEleveUseCase';
 import { creerCoreDomainRoutes } from '@infrastructure/http/routes/coreDomain.routes';
 import { creerPublicRoutes } from '@infrastructure/http/routes/public.routes';
 import { creerSMSRoutes } from '@infrastructure/http/routes/sms.routes';
@@ -1268,6 +1276,15 @@ export function bootstrapHexagonal(app: Application): void {
   const emailLogController   = new EmailLogController(prisma);
   const searchController     = new SearchController(prisma);
   const aiController         = new AIController(prisma, container.prediction.comparerRisque);
+  const studentFollowUpRepo  = new PrismaStudentFollowUpRepository(prisma);
+  const studentFollowUpController = new StudentFollowUpController(
+    new CreerActionSuiviEleveUseCase(studentFollowUpRepo, prisma),
+    new ClorreActionSuiviUseCase(studentFollowUpRepo),
+    new ListerActionsEnCoursUseCase(studentFollowUpRepo),
+    new AssignerActionSuiviUseCase(studentFollowUpRepo),
+    new ListerHistoriqueSuiviEleveUseCase(studentFollowUpRepo, prisma),
+    prisma,
+  );
   const academicEventController = new AcademicEventController(
     new CreerEvenementAcademiqueUseCase(prisma),
     new DeclencherEvenementUseCase(prisma),
@@ -1420,6 +1437,7 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/email-logs',    creerEmailLogRoutes(emailLogController));
   app.use('/api/v2/search',        creerSearchRoutes(searchController));
   app.use('/api/v2/ai',            creerAIRoutes(aiController));
+  app.use('/api/v2/student-follow-up', creerStudentFollowUpRoutes(studentFollowUpController));
   app.use('/api/v2/academic-events', creerAcademicEventRoutes(academicEventController));
   app.post('/api/v2/assistant/chat', requireAuth, aiController.assistantChat);
 

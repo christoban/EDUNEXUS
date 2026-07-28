@@ -226,7 +226,10 @@ export async function assignerMatieresPourClasse(
   // ── B.2 Deuxième cycle ────────────────────────────────────────────────────
   const niveauBac = NIVEAU_MAP[level];
   if (!niveauBac) {
-    // Niveau inconnu (technique, primaire, etc.) → on ne touche rien
+    // Niveau inconnu (technique, primaire, etc.) — c'est précisément le cas d'usage documenté
+    // pour ensureCoefficients() ("utile pour technique, primaire, etc.", voir plus haut), mais
+    // rien ne l'appelait ici jusqu'ici : ces classes ne recevaient jamais aucun SubjectCoefficient.
+    await ensureCoefficients();
     return;
   }
 
