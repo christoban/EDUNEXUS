@@ -21,6 +21,7 @@ import SectionDiscipline       from './_components/SectionDiscipline'
 import SectionLibrary          from './_components/SectionLibrary'
 import SectionOrientation      from './_components/SectionOrientation'
 import SectionDepartementsStaff from './_components/SectionDepartementsStaff'
+import SectionSuiviElevesStaff from './_components/SectionSuiviElevesStaff'
 import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import NotificationCenter from '@/components/NotificationCenter'
 import { fetchApi } from '@/lib/fetchApi'
@@ -172,6 +173,10 @@ export default function StaffDashboard() {
 
           {section === 'departements' && can('departements') && (
             <SectionDepartementsStaff onToast={showToast} />
+          )}
+
+          {section === 'suivi-eleves' && can('suivi-eleves') && (
+            <SectionSuiviElevesStaff sessionUser={sessionUser} onToast={showToast} />
           )}
 
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}

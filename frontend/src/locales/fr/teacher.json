@@ -346,6 +346,8 @@
     "summary_warning": "{count} à surveiller",
     "level_critical": "Critique",
     "level_warning": "À surveiller",
+    "level_subject_drop": "Chute détectée",
+    "subject_drop_label": "Chute de moyenne détectée en",
     "score_label": "Indice de santé scolaire",
     "advice_title": "Conseil généré par l'IA",
     "no_advice": "Aucun conseil généré pour le moment.",

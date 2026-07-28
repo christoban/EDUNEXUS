@@ -718,5 +718,24 @@
       "H",
       "F"
     ]
+  },
+  "suivi": {
+    "page_title": "Suivi élèves",
+    "censeur_subtitle": "Vue d'ensemble en lecture seule — signalements ouverts dans l'établissement",
+    "conseiller_subtitle": "Cas qui vous ont été signalés par un professeur principal",
+    "vigilance_title": "Liste de vigilance",
+    "vigilance_vide": "Aucun élève en alerte critique ou à surveiller actuellement.",
+    "hors_ligne": "Données hors-ligne (dernière synchronisation)",
+    "signalements_ecole_title": "Signalements ouverts — établissement",
+    "mes_cas_title": "Mes cas en cours",
+    "aucun_cas": "Aucun cas en cours pour le moment.",
+    "chargement": "Chargement…",
+    "erreur": "Une erreur est survenue",
+    "type_entretien": "Entretien parent",
+    "type_signalement": "Signalement au conseiller",
+    "type_observation": "Observation",
+    "type_convocation": "Convocation élève",
+    "cree_par": "Créé par {name}",
+    "assigne_a": "assigné à {name}"
   }
 }

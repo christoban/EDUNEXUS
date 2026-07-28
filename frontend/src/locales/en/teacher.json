@@ -346,6 +346,8 @@
     "summary_warning": "{count} to monitor",
     "level_critical": "Critical",
     "level_warning": "To monitor",
+    "level_subject_drop": "Drop detected",
+    "subject_drop_label": "Average drop detected in",
     "score_label": "School health score",
     "advice_title": "AI-generated advice",
     "no_advice": "No advice generated yet.",

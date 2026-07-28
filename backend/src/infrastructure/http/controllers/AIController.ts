@@ -204,13 +204,28 @@ export class AIController {
         where: { schoolId, permissions: { some: { permission: { in: ['MANAGE_ORIENTATION', 'MANAGE_PEDAGOGICAL_BRIEF'] } } } },
       })) > 0;
 
-      const students = await this.prisma.studentProfile.findMany({
-        where: { classId: { in: classIds }, healthScore: { lte: warningThreshold } },
-        include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
-        orderBy: { healthScore: 'asc' },
-      }) as any[];
+      interface AtRiskEntry {
+        studentId: string; name: string; classId: string | null; className: string;
+        source: 'COMPOSITE' | 'SUBJECT_DROP';
+        healthScore: number | null; alertLevel: 'critical' | 'warning' | null; subjectName: string | null;
+        conseil: string | null; conseilDate: Date | null; recommendationId: string | null;
+        isProfesseurPrincipal: boolean; mesMatieres: { id: string; name: string }[];
+      }
 
-      const studentIds = students.map((s) => s.user.id);
+      // Score composite — UNIQUEMENT sur les classes où l'enseignant est professeur principal
+      // ("tout ce qui concerne les élèves de sa classe"). Un enseignant de matière ne doit jamais
+      // voir le score général (absences, discipline, paiement ne le concernent pas) — relecture
+      // juillet 2026.
+      const ppClassIdList = Array.from(ppClassIds);
+      const studentsComposite = ppClassIdList.length
+        ? await this.prisma.studentProfile.findMany({
+            where: { classId: { in: ppClassIdList }, healthScore: { lte: warningThreshold } },
+            include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
+            orderBy: { healthScore: 'asc' },
+          }) as any[]
+        : [];
+
+      const studentIds = studentsComposite.map((s) => s.user.id);
       const recommendations = studentIds.length
         ? await this.prisma.studentRecommendation.findMany({
             where: { studentId: { in: studentIds }, recipientRole: 'TEACHER' },
@@ -220,7 +235,7 @@ export class AIController {
       const dernierConseilParEleve = new Map<string, (typeof recommendations)[number]>();
       for (const r of recommendations) if (!dernierConseilParEleve.has(r.studentId)) dernierConseilParEleve.set(r.studentId, r);
 
-      const result = students.map((s) => {
+      const resultComposite: AtRiskEntry[] = studentsComposite.map((s) => {
         const score: number = s.healthScore ?? 75;
         const alertLevel = score <= criticalThreshold ? 'critical' : 'warning';
         const conseil = dernierConseilParEleve.get(s.user.id);
@@ -230,8 +245,10 @@ export class AIController {
           name: `${s.user.firstName} ${s.user.lastName}`,
           classId,
           className: s.class?.name ?? '—',
+          source: 'COMPOSITE' as const,
           healthScore: score,
           alertLevel,
+          subjectName: null as string | null,
           conseil: conseil?.content ?? null,
           conseilDate: conseil?.createdAt ?? null,
           recommendationId: conseil?.id ?? null,
@@ -241,6 +258,66 @@ export class AIController {
           mesMatieres: classId ? (mesMatieresParClasse.get(classId) ?? []) : [],
         };
       });
+
+      // Chutes de matière — pour les classes où l'enseignant n'est QUE enseignant de matière
+      // (jamais le score général, seulement ses propres chutes détectées dans sa propre matière).
+      // Source : StudentRecommendation persistée par detecterChutePourNote (inngest/functions.ts),
+      // fenêtre de 30 jours (choix raisonnable, non confirmé explicitement par l'utilisateur).
+      const classIdsMatiereSeule = classIds.filter((id) => !ppClassIds.has(id));
+      let resultSubjectDrop: AtRiskEntry[] = [];
+      if (classIdsMatiereSeule.length > 0) {
+        const elevesMatiereSeule = await this.prisma.studentProfile.findMany({
+          where: { classId: { in: classIdsMatiereSeule } },
+          select: { userId: true, classId: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } },
+        });
+        const profilParEleve = new Map(elevesMatiereSeule.map((e) => [e.userId, e]));
+
+        const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const chutes = profilParEleve.size
+          ? await this.prisma.studentRecommendation.findMany({
+              where: {
+                schoolId, recipientRole: 'TEACHER', contextType: 'SUBJECT_DROP',
+                createdAt: { gte: depuis },
+                studentId: { in: Array.from(profilParEleve.keys()) },
+              },
+              orderBy: { createdAt: 'desc' },
+            })
+          : [];
+
+        const vueParEleveMatiere = new Map<string, (typeof chutes)[number]>();
+        for (const c of chutes) {
+          const profil = profilParEleve.get(c.studentId);
+          if (!profil || !c.subjectId) continue;
+          // Ne garder que si CE professeur enseigne bien CETTE matière dans CETTE classe — pas la
+          // chute d'un élève détectée pour un autre enseignant partageant la même classe.
+          const mesMatieresIci = mesMatieresParClasse.get(profil.classId!) ?? [];
+          if (!mesMatieresIci.some((m) => m.id === c.subjectId)) continue;
+          const cle = `${c.studentId}__${c.subjectId}`;
+          if (!vueParEleveMatiere.has(cle)) vueParEleveMatiere.set(cle, c);
+        }
+
+        resultSubjectDrop = Array.from(vueParEleveMatiere.values()).map((c): AtRiskEntry => {
+          const profil = profilParEleve.get(c.studentId)!;
+          const matiere = (mesMatieresParClasse.get(profil.classId!) ?? []).find((m) => m.id === c.subjectId);
+          return {
+            studentId: c.studentId,
+            name: `${profil.user.firstName} ${profil.user.lastName}`,
+            classId: profil.classId,
+            className: profil.class?.name ?? '—',
+            source: 'SUBJECT_DROP' as const,
+            healthScore: null,
+            alertLevel: null,
+            subjectName: matiere?.name ?? null,
+            conseil: c.content,
+            conseilDate: c.createdAt,
+            recommendationId: c.id,
+            isProfesseurPrincipal: false,
+            mesMatieres: mesMatieresParClasse.get(profil.classId!) ?? [],
+          };
+        });
+      }
+
+      const result = [...resultComposite, ...resultSubjectDrop];
 
       res.json({
         students: result,

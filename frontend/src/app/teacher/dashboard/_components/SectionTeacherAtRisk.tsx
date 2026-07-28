@@ -11,8 +11,15 @@ interface AtRiskStudent {
   name: string
   classId: string | null
   className: string
-  healthScore: number
-  alertLevel: 'critical' | 'warning'
+  // COMPOSITE = score de santé scolaire général (uniquement pour les classes dont l'enseignant
+  // est professeur principal) ; SUBJECT_DROP = chute détectée dans SA matière précisément, pour
+  // les classes où il n'est qu'enseignant de matière — jamais le score général dans ce cas
+  // (relecture juillet 2026, "jamais pour le score général… absences, discipline, paiement ne le
+  // concernent pas").
+  source: 'COMPOSITE' | 'SUBJECT_DROP'
+  healthScore: number | null
+  alertLevel: 'critical' | 'warning' | null
+  subjectName: string | null
   conseil: string | null
   conseilDate: string | null
   recommendationId: string | null
@@ -101,26 +108,33 @@ export default function SectionTeacherAtRisk({ onToast }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {students.map((s) => {
+            const isSubjectDrop = s.source === 'SUBJECT_DROP'
             const isCritical = s.alertLevel === 'critical'
-            const color = isCritical ? 'var(--red)' : 'var(--amber)'
-            const bg = isCritical ? 'var(--red-light)' : 'var(--amber-light)'
+            const color = isSubjectDrop ? 'var(--blue)' : isCritical ? 'var(--red)' : 'var(--amber)'
+            const bg = isSubjectDrop ? 'var(--blue-light)' : isCritical ? 'var(--red-light)' : 'var(--amber-light)'
             return (
-              <div key={s.studentId}
-                style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${isCritical ? 'var(--red)' : 'var(--border)'}`, padding: 22 }}>
+              <div key={`${s.studentId}-${s.source}-${s.subjectName ?? ''}`}
+                style={{ background: 'var(--surface)', borderRadius: 14, border: `1.5px solid ${!isSubjectDrop && isCritical ? 'var(--red)' : 'var(--border)'}`, padding: 22 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{s.name}</div>
                     <div style={{ fontSize: 14, color: 'var(--text3)', fontWeight: 600 }}>{s.className}</div>
                   </div>
                   <span style={{ background: bg, color, padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 800 }}>
-                    {isCritical ? t('at_risk.level_critical') : t('at_risk.level_warning')}
+                    {isSubjectDrop ? t('at_risk.level_subject_drop') : isCritical ? t('at_risk.level_critical') : t('at_risk.level_warning')}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: s.conseil ? 14 : 0 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)' }}>{t('at_risk.score_label')}</span>
-                  <span style={{ fontSize: 20, fontWeight: 900, color }}>{s.healthScore}<span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text3)' }}>/100</span></span>
-                </div>
+                {isSubjectDrop ? (
+                  <div style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 600, marginBottom: s.conseil ? 14 : 0 }}>
+                    {t('at_risk.subject_drop_label')} <strong>{s.subjectName}</strong>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: s.conseil ? 14 : 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text3)' }}>{t('at_risk.score_label')}</span>
+                    <span style={{ fontSize: 20, fontWeight: 900, color }}>{s.healthScore}<span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text3)' }}>/100</span></span>
+                  </div>
+                )}
 
                 {s.conseil && (
                   <div style={{ background: 'var(--bg2)', borderRadius: 10, padding: '12px 16px' }}>
@@ -134,7 +148,7 @@ export default function SectionTeacherAtRisk({ onToast }: Props) {
                 <StudentFollowUpButtons
                   studentId={s.studentId}
                   triggeringRecommendationId={s.recommendationId}
-                  isProfesseurPrincipal={s.isProfesseurPrincipal}
+                  role={s.isProfesseurPrincipal ? 'PROF_PRINCIPAL' : 'ENSEIGNANT_MATIERE'}
                   mesMatieres={s.mesMatieres}
                   conseillerDisponible={conseillerDisponible}
                   onToast={onToast}

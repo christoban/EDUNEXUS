@@ -7,7 +7,16 @@ export interface AssignerActionSuiviCommande {
   nouvelAssigneId: string;
 }
 
-/** Rôle autorisé (B.4) : Censeur uniquement — cas secondaire de réattribution. */
+/**
+ * Rôle autorisé (B.4) : Censeur uniquement — cas secondaire de réattribution.
+ * Revérifié contre la spec exacte et définitive (relecture juillet 2026) qui retire au Censeur
+ * toute capacité de CRÉATION d'action (observation/entretien/convocation/signalement, voir
+ * CreerActionSuiviEleveUseCase) : réassigner n'est pas créer une nouvelle action, c'est une
+ * capacité administrative de dispatch cohérente avec son rôle de supervision d'ensemble
+ * ("notifié seulement... aucune action déclenchable" concerne les 4 types d'action de suivi, pas
+ * la réattribution d'un cas déjà signalé par le PP vers un autre conseiller). Volontairement pas
+ * changé.
+ */
 export class AssignerActionSuiviUseCase {
   constructor(private readonly repo: StudentFollowUpRepository) {}
 

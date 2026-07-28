@@ -2,28 +2,38 @@
 import { useState } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
-import { CalendarClock, MessageSquareWarning, StickyNote, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { CalendarClock, MessageSquareWarning, StickyNote, UserCheck, ChevronDown, ChevronUp, X } from 'lucide-react'
+
+// Chaîne d'escalade — spec exacte et définitive (relecture juillet 2026) :
+// - PROF_PRINCIPAL     : entretien parent, signalement au conseiller (si disponible dans
+//                        l'établissement), observation. PAS de convocation — le PP voit déjà ses
+//                        élèves quotidiennement en classe, une convocation formelle ne lui apporte
+//                        rien.
+// - ENSEIGNANT_MATIERE : observation uniquement, restreinte à sa propre matière.
+// - CONSEILLER         : observation, entretien parent, convocation élève (exclusive à ce rôle) —
+//                        jamais signalement, il ne peut pas se signaler un cas à lui-même. N'existe
+//                        que sur un cas déjà escaladé vers lui (vérifié côté backend,
+//                        CreerActionSuiviEleveUseCase.casEscaladeVersMoi).
+// Le Censeur n'a aucune capacité de création — pas de rôle correspondant ici, il consulte en
+// lecture seule (SectionSuiviElevesStaff.tsx).
+export type FollowUpRole = 'PROF_PRINCIPAL' | 'ENSEIGNANT_MATIERE' | 'CONSEILLER'
 
 interface Props {
   studentId: string
   triggeringRecommendationId?: string | null
-  // Professeur principal = entretien parent, signalement au conseiller, observation. PAS de
-  // convocation élève ici : exclusive au conseiller pédagogique une fois le cas escaladé (le PP
-  // voit déjà ses élèves quotidiennement en classe, une convocation formelle ne lui apporte rien
-  // — spec exacte et définitive, relecture juillet 2026). Sinon, la présence de matières dans
-  // mesMatieres signale un enseignant de matière = observation uniquement, restreinte à l'une
-  // d'elles (jamais de rôle codé en dur, uniquement dérivé de professorPrincipalId/
-  // TeachingAssignment côté backend, valable sur tous les templates).
-  isProfesseurPrincipal: boolean
-  mesMatieres: { id: string; name: string }[]
-  // ~15% des établissements secondaires publics camerounais seulement ont un conseiller
-  // pédagogique configuré — masquer "Signaler au conseiller" plutôt que d'offrir une option qui
-  // ne mène nulle part (calculé par AIController.getAtRiskStudentsForTeacher, jamais côté client).
-  conseillerDisponible: boolean
+  role: FollowUpRole
+  // Pertinent seulement pour ENSEIGNANT_MATIERE (jamais de rôle codé en dur, uniquement dérivé de
+  // professorPrincipalId/TeachingAssignment côté backend, valable sur tous les templates).
+  mesMatieres?: { id: string; name: string }[]
+  // Pertinent seulement pour PROF_PRINCIPAL — ~15% des établissements secondaires publics
+  // camerounais seulement ont un conseiller pédagogique configuré ; masque "Signaler au
+  // conseiller" plutôt que d'offrir une option qui ne mène nulle part (calculé côté backend,
+  // jamais côté client).
+  conseillerDisponible?: boolean
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
 }
 
-type ActionType = 'ENTRETIEN_PARENT' | 'SIGNALEMENT_CONSEILLER' | 'OBSERVATION'
+type ActionType = 'ENTRETIEN_PARENT' | 'SIGNALEMENT_CONSEILLER' | 'OBSERVATION' | 'CONVOCATION_ELEVE'
 type InterviewMode = 'DATE_PROPOSEE' | 'DEMANDE_DISPONIBILITE'
 
 interface FollowUpAction {
@@ -51,11 +61,11 @@ const btnAction: React.CSSProperties = {
 /**
  * Transforme une alerte lue passivement en suivi tracé — boutons (PLAN_VERIFICATION_ET_ACTIONS
  * _SUIVI.md, Partie B) sous chaque alerte, plus l'historique des actions déjà engagées sur cet
- * élève (B.5.3). Réutilisable sur toute "fiche élève signalée" (aujourd'hui : SectionTeacherAtRisk,
- * demain : censeur/conseiller pédagogique une fois leurs écrans construits — la convocation élève
- * n'a pas encore de bouton ici, exclusive au conseiller qui n'a pas encore d'écran).
+ * élève (B.5.3). Réutilisé sur toute "fiche élève signalée" : `SectionTeacherAtRisk.tsx`
+ * (professeur principal, enseignant de matière) et `SectionSuiviElevesStaff.tsx` (conseiller
+ * pédagogique).
  */
-export default function StudentFollowUpButtons({ studentId, triggeringRecommendationId, isProfesseurPrincipal, mesMatieres, conseillerDisponible, onToast }: Props) {
+export default function StudentFollowUpButtons({ studentId, triggeringRecommendationId, role, mesMatieres = [], conseillerDisponible = false, onToast }: Props) {
   const t = useT('teacher')
   const [openForm, setOpenForm] = useState<ActionType | null>(null)
   const [targetDate, setTargetDate] = useState('')
@@ -104,9 +114,10 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
   const soumettre = async () => {
     if (!openForm) return
     if (openForm === 'ENTRETIEN_PARENT' && interviewMode === 'DATE_PROPOSEE' && !targetDate) { onToast(t('suivi.date_requise'), 'error'); return }
+    if (openForm === 'CONVOCATION_ELEVE' && !targetDate) { onToast(t('suivi.date_requise'), 'error'); return }
     if (openForm === 'SIGNALEMENT_CONSEILLER' && !conseillerId) { onToast(t('suivi.destinataire_requis'), 'error'); return }
     if (openForm === 'OBSERVATION' && !note.trim()) { onToast(t('suivi.note_requise'), 'error'); return }
-    if (openForm === 'OBSERVATION' && !isProfesseurPrincipal && !observationSubjectId) { onToast(t('suivi.matiere_requise'), 'error'); return }
+    if (openForm === 'OBSERVATION' && role === 'ENSEIGNANT_MATIERE' && !observationSubjectId) { onToast(t('suivi.matiere_requise'), 'error'); return }
 
     setSubmitting(true)
     try {
@@ -116,9 +127,9 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
           studentId,
           type: openForm,
           triggeringRecommendationId: triggeringRecommendationId ?? undefined,
-          subjectId: openForm === 'OBSERVATION' && !isProfesseurPrincipal ? observationSubjectId : undefined,
+          subjectId: openForm === 'OBSERVATION' && role === 'ENSEIGNANT_MATIERE' ? observationSubjectId : undefined,
           assignedToId: openForm === 'SIGNALEMENT_CONSEILLER' ? conseillerId : undefined,
-          targetDate: openForm === 'ENTRETIEN_PARENT' ? (targetDate || undefined) : undefined,
+          targetDate: (openForm === 'ENTRETIEN_PARENT' || openForm === 'CONVOCATION_ELEVE') ? (targetDate || undefined) : undefined,
           interviewMode: openForm === 'ENTRETIEN_PARENT' ? interviewMode : undefined,
           note: note || undefined,
         }),
@@ -157,6 +168,7 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
     ENTRETIEN_PARENT: t('suivi.type_entretien'),
     SIGNALEMENT_CONSEILLER: t('suivi.type_signalement'),
     OBSERVATION: t('suivi.type_observation'),
+    CONVOCATION_ELEVE: t('suivi.type_convocation'),
   }
   const labelStatus: Record<FollowUpAction['status'], string> = {
     OUVERT: t('suivi.status_ouvert'),
@@ -167,7 +179,7 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
   return (
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--bg2)' }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        {isProfesseurPrincipal && (
+        {role === 'PROF_PRINCIPAL' && (
           <>
             <button style={btnAction} onClick={() => setOpenForm('ENTRETIEN_PARENT')}>
               <CalendarClock size={14} /> {t('suivi.btn_entretien')}
@@ -179,10 +191,20 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
             )}
           </>
         )}
+        {role === 'CONSEILLER' && (
+          <>
+            <button style={btnAction} onClick={() => setOpenForm('ENTRETIEN_PARENT')}>
+              <CalendarClock size={14} /> {t('suivi.btn_entretien')}
+            </button>
+            <button style={btnAction} onClick={() => setOpenForm('CONVOCATION_ELEVE')}>
+              <UserCheck size={14} /> {t('suivi.btn_convocation')}
+            </button>
+          </>
+        )}
         <button style={btnAction} onClick={() => setOpenForm('OBSERVATION')}>
           <StickyNote size={14} /> {t('suivi.btn_observation')}
         </button>
-        {!isProfesseurPrincipal && (
+        {role === 'ENSEIGNANT_MATIERE' && (
           <span style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>{t('suivi.note_enseignant_matiere')}</span>
         )}
         <button style={{ ...btnAction, marginLeft: 'auto', border: 'none', background: 'transparent' }} onClick={toggleHistory}>
@@ -220,6 +242,14 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
             </div>
           )}
 
+          {openForm === 'CONVOCATION_ELEVE' && (
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>{t('suivi.date_cible')}</label>
+              <input type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)}
+                style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13 }} />
+            </div>
+          )}
+
           {openForm === 'SIGNALEMENT_CONSEILLER' && (
             <div>
               <label style={{ fontSize: 12, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>{t('suivi.destinataire')}</label>
@@ -232,7 +262,7 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
             </div>
           )}
 
-          {openForm === 'OBSERVATION' && !isProfesseurPrincipal && mesMatieres.length > 1 && (
+          {openForm === 'OBSERVATION' && role === 'ENSEIGNANT_MATIERE' && mesMatieres.length > 1 && (
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 12, color: 'var(--text3)', display: 'block', marginBottom: 4 }}>{t('suivi.matiere_concernee')}</label>
               <select value={observationSubjectId} onChange={(e) => setObservationSubjectId(e.target.value)}

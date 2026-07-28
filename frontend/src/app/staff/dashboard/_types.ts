@@ -2,7 +2,7 @@ export type StaffSection =
   | 'dashboard' | 'council' | 'grades' | 'timetable'
   | 'grille-horaire' | 'affectations'
   | 'attendance' | 'finance' | 'cautions' | 'discipline'
-  | 'library' | 'orientation' | 'departements'
+  | 'library' | 'orientation' | 'departements' | 'suivi-eleves'
   | 'mon-profil-rh' | 'apee' | 'notifications'
 
 export interface SessionUser {
@@ -35,6 +35,12 @@ export const PERM_TO_SECTION: { perm: string; section: StaffSection }[] = [
   { perm: 'MANAGE_LIBRARY',             section: 'library'          },
   { perm: 'MANAGE_ORIENTATION',         section: 'orientation'      },
   { perm: 'SUPERVISE_DEPARTMENT_TEACHERS', section: 'departements'  },
+  // Suivi élève signalé (Partie B) — Censeur en lecture seule, Conseiller pédagogique (deux
+  // permissions possibles selon le template, jamais la même titulature partout, voir
+  // StaffPermissionRules.ts) une fois un cas escaladé vers lui.
+  { perm: 'VALIDATE_GRADES',            section: 'suivi-eleves'     },
+  { perm: 'MANAGE_ORIENTATION',         section: 'suivi-eleves'     },
+  { perm: 'MANAGE_PEDAGOGICAL_BRIEF',   section: 'suivi-eleves'     },
 ]
 
 export function getSectionsFromPermissions(permissions: string[]): Set<StaffSection> {

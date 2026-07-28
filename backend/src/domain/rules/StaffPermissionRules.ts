@@ -86,6 +86,14 @@ export const PERMISSIONS_PAR_TITRE: Record<string, StaffPermissionType[]> = {
     'SUPERVISE_TEACHERS', 'GENERATE_REPORTS', 'SUPERVISE_LESSON_PLANS',
     'MANAGE_CLASS_COUNCIL',
   ],
+  // Comble le gap EN_PRIMARY (aucun titre ne portait MANAGE_PEDAGOGICAL_BRIEF ni
+  // MANAGE_ORIENTATION avant ceci — "Signaler au conseiller" n'avait jamais de destinataire
+  // possible pour ce template) — équivalent du "Conseiller Pédagogique" francophone primaire.
+  // Nom confirmé par l'utilisateur, pas vérifié contre un référentiel MINESEC officiel.
+  'Pedagogic Coordinator': [
+    'VIEW_SUPERVISED_GRADES', 'SUPERVISE_LESSON_PLANS',
+    'GENERATE_PEDAGOGICAL_REPORTS', 'MANAGE_PEDAGOGICAL_BRIEF',
+  ],
 };
 
 // ─── Titres par type d'établissement ─────────────────────────────────────────
@@ -136,6 +144,7 @@ const EN_PRIMARY_TITLES: StaffTitleDef[] = [
   { key: 'Deputy Head Teacher',     label: 'Deputy Head Teacher',               permissions: PERMISSIONS_PAR_TITRE['Deputy Head Teacher'] },
   { key: 'Bursar',                  label: 'Bursar',                            permissions: PERMISSIONS_PAR_TITRE['Bursar'] },
   { key: 'Librarian',               label: 'Librarian / Teacher-Librarian',     permissions: PERMISSIONS_PAR_TITRE['Librarian'] },
+  { key: 'Pedagogic Coordinator',   label: 'Pedagogic Coordinator',             permissions: PERMISSIONS_PAR_TITRE['Pedagogic Coordinator'] },
 ];
 
 // Bilingue secondaire : les deux sections cohabitent dans le même établissement

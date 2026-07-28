@@ -718,5 +718,24 @@
       "H",
       "F"
     ]
+  },
+  "suivi": {
+    "page_title": "Student follow-up",
+    "censeur_subtitle": "Read-only overview — open referrals across the school",
+    "conseiller_subtitle": "Cases referred to you by a main class teacher",
+    "vigilance_title": "Watch list",
+    "vigilance_vide": "No student currently in critical alert or to monitor.",
+    "hors_ligne": "Offline data (last sync)",
+    "signalements_ecole_title": "Open referrals — school-wide",
+    "mes_cas_title": "My current cases",
+    "aucun_cas": "No case in progress right now.",
+    "chargement": "Loading…",
+    "erreur": "Something went wrong",
+    "type_entretien": "Parent interview",
+    "type_signalement": "Referral to counselor",
+    "type_observation": "Observation",
+    "type_convocation": "Student summons",
+    "cree_par": "Created by {name}",
+    "assigne_a": "assigned to {name}"
   }
 }
