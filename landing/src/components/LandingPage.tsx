@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react'
 import type { CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence, useMotionValue, animate as motionAnimate, useInView, useReducedMotion } from 'framer-motion'
 import {
   CheckCircle2, XCircle, Lock, Smartphone, WifiOff, School, GraduationCap, Presentation,
@@ -373,45 +372,21 @@ function HeroMockup() {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-// Même mapping rôle → tableau de bord que login/page.tsx (ROLE_CONFIG) — dupliqué ici
-// volontairement, ce composant reste autonome tant qu'il vit dans la même app Next.js que le
-// reste du produit (voir note plus bas sur la séparation en projet marketing indépendant).
-const DASHBOARD_BY_ROLE: Record<string, string> = {
-  ADMIN: '/admin/dashboard',
-  TEACHER: '/teacher/dashboard',
-  PARENT: '/parent/dashboard',
-  STUDENT: '/student/dashboard',
-  STAFF: '/staff/dashboard',
-}
-
+// Pas de vérification de session ici (contrairement à la copie de ce composant dans l'app
+// principale, frontend/src/components/LandingPage.tsx) : ce projet vit sur un domaine séparé
+// (zekoulabia.com) de l'app authentifiée (app.zekoulabia.com) — localStorage n'est jamais
+// partagé entre deux origines différentes, un utilisateur déjà connecté n'atterrit donc
+// structurellement jamais ici avec une session visible. Voir README.md pour le détail.
 export default function LandingPage() {
   const { lang } = useLanguage()
-  const router = useRouter()
   const [tabRole, setTabRole] = useState(0)
   const [faqOpen, setFaqOpen] = useState<number | null>(null)
   const [navScrolled, setNavScrolled] = useState(false)
-  // true tant qu'on n'a pas fini de vérifier si une session valide existe déjà — évite un flash
-  // de la landing page pour un utilisateur déjà connecté qui revient sur "/" (ex. favori, lien
-  // partagé). Vérification volontairement légère : présence de zekoulabia_user en localStorage
-  // (même convention que les tableaux de bord existants pour hydrater sessionUser), pas un appel
-  // réseau — si le token sous-jacent est en réalité expiré, le premier appel API du tableau de
-  // bord déclenchera le refresh silencieux déjà en place (fetchApi.ts), ou échouera proprement.
-  const [checkingSession, setCheckingSession] = useState(true)
 
   const tx = lang === 'fr' ? textsFR : textsEN
 
   const [demoOpen, setDemoOpen] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('zekoulabia_user')
-      const role = raw ? JSON.parse(raw)?.role : null
-      const dest = role ? DASHBOARD_BY_ROLE[role] : null
-      if (dest) { router.replace(dest); return }
-    } catch { /* localStorage absent/corrompu — afficher la landing page normalement */ }
-    setCheckingSession(false)
-  }, [router])
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 10)
@@ -460,10 +435,6 @@ export default function LandingPage() {
     whiteSpace: 'nowrap',
   }
 
-  // Rien à afficher tant qu'on vérifie/redirige — évite le flash de la landing page pour un
-  // utilisateur déjà connecté (voir l'effet de vérification de session plus haut).
-  if (checkingSession) return null
-
   return (
     <div style={{ fontFamily: 'var(--font-nunito),Nunito,sans-serif', color: 'var(--text)', background: 'var(--bg)' }}>
 
@@ -511,10 +482,9 @@ export default function LandingPage() {
               en phase d'acquisition (pas encore de base d'écoles clientes qui reviennent taper le
               domaine par réflexe), chaque bouton en plus du CTA "Demander une démo" est une fuite
               d'attention pour un public à 95%+ composé de prospects sans compte. Un utilisateur
-              déjà connecté qui revient sur "/" est de toute façon redirigé automatiquement vers
-              son tableau de bord avant même de voir cette page (voir l'effet de redirection dans
-              LandingPage). À réintroduire en footer/header le jour où une base significative
-              d'écoles actives justifie le compromis inverse. */}
+              déjà connecté ne revient de toute façon jamais ici : sa session vit sur
+              app.zekoulabia.com, un domaine séparé de celui-ci. À réintroduire en footer/header
+              le jour où une base significative d'écoles actives justifie le compromis inverse. */}
           <button onClick={openDemo} className="hidden sm:inline-flex py-[9px] px-3 md:px-[18px] text-[14px] md:text-[17px] whitespace-nowrap" style={{ ...btnPrimary, padding: undefined, fontSize: undefined, display: undefined }}>{tx.nav.demo}</button>
         </div>
       </nav>

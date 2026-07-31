@@ -1,0 +1,228 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── FONTS ── */
+@theme {
+  --font-nunito: var(--font-nunito);
+  --font-spectral: var(--font-spectral);
+}
+
+/* ── DESIGN TOKENS ZEKOULABIA ── */
+:root {
+  /* Backgrounds */
+  --bg: #f7f3ee;
+  --bg2: #f0ebe3;
+  --surface: #ffffff;
+
+  /* Sidebar */
+  --sidebar: #1a2e1e;
+  --sidebar2: #243b29;
+  --sidebar3: #2d4f34;
+  --sidebar-active: #3a6b44;
+
+  /* Borders */
+  --border: #e8e0d4;
+  --border2: #d4c8b8;
+
+  /* Text */
+  --text: #1a1209;
+  --text2: #6b5c45;
+  --text3: #a89478;
+
+  /* Semantic colors */
+  --green: #059669;
+  --green2: #047857;
+  --green-light: #d1fae5;
+
+  --blue: #1d4ed8;
+  --blue-light: #dbeafe;
+
+  --teal: #0d9488;
+  --teal-light: #ccfbf1;
+
+  --amber: #d97706;
+  --amber-light: #fef3c7;
+
+  --red: #dc2626;
+  --red-light: #fee2e2;
+
+  --purple: #7c3aed;
+  --purple-light: #ede9fe;
+
+  --orange: #ea580c;
+  --orange-light: #ffedd5;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10);
+}
+
+/* ── DARK THEME PALETTE (Warm African) ── */
+.dark {
+  /* Backgrounds — deep forest */
+  --bg: #0c1810;
+  --bg2: #142618;
+  --surface: #1a2e1e;
+
+  /* Sidebar — very dark for layer separation */
+  --sidebar: #070f0a;
+  --sidebar2: #0c1810;
+  --sidebar3: #142618;
+  --sidebar-active: #2d5c3a;
+
+  /* Borders — forest greens */
+  --border: #243b29;
+  --border2: #2d4f34;
+
+  /* Text — warm beige/cream */
+  --text: #f7f3ee;
+  --text2: #d4c8b8;
+  --text3: #a89478;
+
+  /* Semantic greens */
+  --green: #10b981;
+  --green2: #059669;
+  --green-light: #064e3b;
+
+  /* Blue */
+  --blue: #3b82f6;
+  --blue-light: #1e3a5f;
+
+  /* Teal */
+  --teal: #14b8a6;
+  --teal-light: #134e4a;
+
+  /* Amber */
+  --amber: #f59e0b;
+  --amber-light: #451a03;
+
+  /* Red */
+  --red: #ef4444;
+  --red-light: #450a0a;
+
+  /* Purple */
+  --purple: #8b5cf6;
+  --purple-light: #2e1065;
+
+  /* Orange */
+  --orange: #f97316;
+  --orange-light: #431407;
+
+  /* Shadows — light-on-dark */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.45);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.55);
+}
+
+/* -- BASE STYLES --
+   Enveloppe dans @layer base (obligatoire en Tailwind v4) : sinon cette regle est du CSS
+   non-layered, toujours prioritaire sur les classes utilitaires Tailwind, situees en
+   @layer utilities, quelle que soit la specificite -- les cascade layers priment sur la
+   specificite classique. Consequence concrete observee : les classes de padding et de
+   marge Tailwind devenaient sans effet des qu-un element navait plus son padding directement
+   en style inline. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+}
+
+html, body {
+  height: 100%;
+}
+
+/* Empeche le "font boosting" automatique de Chrome/Android : sans cette regle, les
+   navigateurs mobiles agrandissent eux-memes certains blocs de texte (surtout ceux qui
+   passent sur plusieurs lignes) pour la lisibilite, ce qui fait que les tailles de police
+   definies dans le code ne correspondent plus a ce qui s-affiche reellement sur telephone. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-nunito), 'Nunito', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── TYPOGRAPHY UTILITIES ── */
+.font-serif {
+  font-family: var(--font-spectral), 'Spectral', serif;
+}
+
+/* ── BANDE DÉCORATIVE CAMEROUNAISE ── */
+.deco-band {
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    #f59e0b 0, #f59e0b 12px,
+    #22c55e 12px, #22c55e 24px,
+    #ef4444 24px, #ef4444 36px,
+    #60a5fa 36px, #60a5fa 48px
+  );
+  flex-shrink: 0;
+}
+
+/* ── FADE IN ANIMATION ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── VIEW TRANSITIONS (section navigation) ── */
+@keyframes slide-in {
+  from { transform: translateX(20px); opacity: 0; }
+}
+@keyframes slide-out {
+  to { transform: translateX(-20px); opacity: 0; }
+}
+
+/* ── ACCESSIBILITY — respect prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
