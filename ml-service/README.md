@@ -53,7 +53,29 @@ Vérifier : `GET http://localhost:8001/health`
 - `POST /predict/risque-eleve`
 - `POST /predict/risque-impaye`
 - `POST /predict/orientation`
+- `POST /ocr/extract`
 
-Chaque endpoint POST attend `query_features` (obligatoire) et, optionnellement,
+Chaque endpoint `/predict/*` attend `query_features` (obligatoire) et, optionnellement,
 `context_features`/`context_labels` (exemples déjà étiquetés). Sans contexte suffisant, la
 réponse indique `insufficient_context: true` et aucune probabilité n'est calculée.
+
+## OCR local (`/ocr/extract`)
+
+Première étape du pipeline de scan de document (diplôme RH, liste de candidats, cahier de
+textes) : extrait le texte brut d'une image via **PaddleOCR** (CPU, aucune dépendance GPU),
+localement et gratuitement, avant que le backend Node ne décide s'il envoie ce texte à un LLM
+(`openai/gpt-oss-120b`, confiance haute) ou bascule sur un modèle vision Groq (confiance basse).
+Voir `backend/src/infrastructure/services/DocumentAiOrchestrator.ts` pour la logique de décision.
+
+Attend `{"image_base64": "..."}` (sans préfixe `data:...`), renvoie `{"text", "confidence",
+"lines"}` — `confidence` est la moyenne des confiances par ligne détectée, `0.0` si rien n'a été
+détecté (image vide, floue, ou pas de texte). Cet endpoint ne fait AUCUNE interprétation — il
+extrait, il ne comprend pas.
+
+**Langue** : `OCR_LANG` (défaut `fr`) — PaddleOCR regroupe plusieurs langues latines proches sous
+un même modèle, raisonnable pour le francophone/anglophone camerounais mais pas vérifié
+spécifiquement sur des documents 100% anglophones. Ajustable si un besoin réel apparaît.
+
+**Poids du modèle** : téléchargés automatiquement au premier appel de `/ocr/extract` (pas au
+démarrage du service) — le tout premier scan sera plus lent le temps du téléchargement, les
+appels suivants réutilisent le moteur déjà chargé en mémoire.

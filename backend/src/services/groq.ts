@@ -5,7 +5,10 @@ const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY || "",
 });
 
-export const groqModel = groq("llama-3.3-70b-versatile");
+// gpt-oss-120b : moins cher et plus rapide que llama-3.3-70b-versatile sur Groq pour ce type
+// d'usage texte (chat, raisonnement), sans perte de qualité constatée dans la doc Groq. Texte
+// seul — jamais d'image ici, voir DocumentAiOrchestrator.ts pour le pipeline de scan de document.
+export const groqModel = groq("openai/gpt-oss-120b");
 
 const cleanMarkdownArtifacts = (text: string): string => {
   return text

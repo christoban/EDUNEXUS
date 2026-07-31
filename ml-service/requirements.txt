@@ -3,3 +3,11 @@ uvicorn[standard]>=0.34
 pydantic>=2.10
 numpy>=1.26
 tabpfn>=2.0
+
+# OCR local (Partie C — pipeline scan document, voir README.md) — paddlepaddle est le framework
+# sous-jacent de paddleocr, installation lourde (~500 Mo, télécharge les poids du modèle au
+# premier lancement). Pas de dépendance GPU ici : usage CPU volontaire, cohérent avec un service
+# qui doit rester déployable sur une petite instance.
+paddlepaddle>=2.6
+paddleocr>=2.9
+Pillow>=10.0

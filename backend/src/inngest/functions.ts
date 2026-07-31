@@ -270,7 +270,9 @@ export const generateTimeTable = inngest.createFunction(
       `;
 
       const groqClient = createGroq({ apiKey });
-      const activeModel = groqClient("llama-3.3-70b-versatile");
+      // gpt-oss-120b : moins cher, plus rapide, et particulièrement solide en génération JSON
+      // structurée sur Groq — exactement le profil de cette tâche (texte seul, jamais d'image).
+      const activeModel = groqClient("openai/gpt-oss-120b");
 
       const { text } = await generateText({
         prompt,

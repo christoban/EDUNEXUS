@@ -15,7 +15,9 @@ const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY ?? '',
 });
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+// gpt-oss-120b : moins cher et plus rapide que llama-3.3-70b-versatile sur Groq pour ce type
+// d'usage texte, sans perte de qualité constatée dans la doc Groq. Texte seul.
+const GROQ_MODEL = 'openai/gpt-oss-120b';
 
 function nettoyerMarkdown(texte: string): string {
   return texte

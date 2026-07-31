@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { extraireDocument } from '@infrastructure/services/DocumentAiOrchestrator';
 
 // ─── Alertes de retard programme (extrait pour être réutilisable hors HTTP —
 // ex. catalogue copilot) ────────────────────────────────────────────────────
@@ -574,7 +575,10 @@ export class PedagogieController {
     } catch (e) { next(e); }
   };
 
-  // ─── Scan photo du cahier via Groq Vision ──────────────────────────────────
+  // ─── Scan photo du cahier — orchestrateur OCR-d'abord (DocumentAiOrchestrator) ─────────────
+  // Un cahier de textes est un document texte : PaddleOCR suffit dans la grande majorité des cas ;
+  // le modèle vision Groq ne sert que si l'OCR échoue à lire correctement (écriture manuscrite
+  // peu lisible, photo floue).
 
   scanCahier = async (req: Request, res: Response): Promise<void> => {
     const FALLBACK = {
@@ -585,38 +589,31 @@ export class PedagogieController {
       const file = (req as any).file as (Express.Multer.File | undefined);
       if (!file) { res.status(400).json({ success: false, message: 'Image manquante' }); return; }
 
-      const apiKey = process.env.GROQ_API_KEY;
-      if (!apiKey) { res.json({ success: true, data: FALLBACK }); return; }
-
       const base64 = file.buffer.toString('base64');
       const mimeType = file.mimetype || 'image/jpeg';
-
-      const prompt = `Tu es un assistant qui extrait des informations d'une photo de cahier de textes scolaire. Analyse l'image et retourne UNIQUEMENT un JSON valide sans markdown avec ces champs :
+      const consignes = `Retourne UNIQUEMENT un JSON valide sans markdown avec ces champs :
 {"chapitreDetecte":"titre du chapitre ou leçon visible, null si non détecté","contenuRealise":"résumé court de ce qui a été fait, null si non détecté","devoirsDonnes":"devoirs mentionnés, null si aucun","confidence":0.8}
-Si l'image n'est pas un cahier de textes scolaire, retourne confidence: 0 et null pour tous les autres champs.`;
+Si le document n'est manifestement pas un cahier de textes scolaire, retourne confidence: 0 et null pour tous les autres champs.`;
 
-      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
-            ],
-          }],
-          max_tokens: 512,
-          temperature: 0.1,
-        }),
+      const resultat = await extraireDocument({
+        imageBase64: base64,
+        mimeType,
+        maxTokens: 512,
+        promptOcrTexte: (texte) => `Tu es un assistant qui extrait des informations d'un cahier de textes scolaire. Voici le texte extrait par OCR de la photo :
+
+"""
+${texte}
+"""
+
+${consignes}`,
+        promptVision: `Tu es un assistant qui extrait des informations d'une photo de cahier de textes scolaire. Analyse l'image.
+
+${consignes}`,
       });
 
-      if (!groqRes.ok) { res.json({ success: true, data: FALLBACK }); return; }
+      if (resultat.source === 'ECHEC' || !resultat.reponseTexte) { res.json({ success: true, data: FALLBACK }); return; }
 
-      const groqData = await groqRes.json() as any;
-      const rawText: string = groqData?.choices?.[0]?.message?.content ?? '';
-      const cleanJson = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      const cleanJson = resultat.reponseTexte.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
       let parsed: any;
       try { parsed = JSON.parse(cleanJson); } catch { res.json({ success: true, data: FALLBACK }); return; }
