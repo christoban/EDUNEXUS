@@ -128,6 +128,24 @@ export class CreerActionSuiviEleveUseCase {
         if (!cmd.assignedToId) {
           throw new Error('Un signalement au conseiller doit désigner un destinataire précis');
         }
+        // Le destinataire vient du corps de la requête — jamais fait confiance sans vérification :
+        // doit être un membre du personnel de LA MÊME école, porteur d'une des deux permissions
+        // "conseiller". Sans ce contrôle, un appelant pourrait désigner n'importe quel utilisateur
+        // (même d'une autre école) comme destinataire, qui hériterait alors de la capacité
+        // "conseiller escaladé" (CONVOCATION_ELEVE, ENTRETIEN_PARENT, OBSERVATION via
+        // casEscaladeVersMoi) et recevrait une notification contenant le nom de l'élève —
+        // escalade de privilège + fuite de données inter-établissements (trouvé en revue de code).
+        const destinataireValide = await this.prisma.staffProfile.findFirst({
+          where: {
+            userId: cmd.assignedToId,
+            schoolId: cmd.appelant.schoolId,
+            permissions: { some: { permission: { in: [...PERMISSIONS_CONSEILLER] } } },
+          },
+          select: { id: true },
+        });
+        if (!destinataireValide) {
+          throw new Error('Le destinataire choisi n\'est pas un conseiller pédagogique valide de votre établissement');
+        }
         break;
       }
 
@@ -165,9 +183,13 @@ export class CreerActionSuiviEleveUseCase {
       subjectId: subjectIdPersiste,
       type: cmd.type,
       createdById: cmd.appelant.userId,
-      // Sans destinataire explicite, l'action reste assignée à son créateur — toujours
-      // rattachable à quelqu'un pour "Mes actions de suivi" (B.5.2), jamais orpheline.
-      assignedToId: cmd.assignedToId ?? cmd.appelant.userId,
+      // assignedToId n'est un destinataire choisi par le client que pour SIGNALEMENT_CONSEILLER
+      // (vérifié ci-dessus) — pour tout autre type, un assignedToId envoyé quand même dans le
+      // corps de la requête est ignoré, pas persisté tel quel (défense en profondeur : même sans
+      // capacité déverrouillée pour ce type, on ne veut pas notifier/exposer le nom de l'élève à
+      // un tiers non vérifié). Sans destinataire explicite, l'action reste assignée à son créateur
+      // — toujours rattachable à quelqu'un pour "Mes actions de suivi" (B.5.2), jamais orpheline.
+      assignedToId: (cmd.type === 'SIGNALEMENT_CONSEILLER' ? cmd.assignedToId : undefined) ?? cmd.appelant.userId,
       targetDate: cmd.targetDate,
       interviewMode: cmd.type === 'ENTRETIEN_PARENT' ? cmd.interviewMode : undefined,
       note: cmd.note,

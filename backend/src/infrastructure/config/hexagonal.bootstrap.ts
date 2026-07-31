@@ -1281,7 +1281,7 @@ export function bootstrapHexagonal(app: Application): void {
     new CreerActionSuiviEleveUseCase(studentFollowUpRepo, prisma),
     new ClorreActionSuiviUseCase(studentFollowUpRepo),
     new ListerActionsEnCoursUseCase(studentFollowUpRepo),
-    new AssignerActionSuiviUseCase(studentFollowUpRepo),
+    new AssignerActionSuiviUseCase(studentFollowUpRepo, prisma),
     new ListerHistoriqueSuiviEleveUseCase(studentFollowUpRepo, prisma),
     prisma,
   );

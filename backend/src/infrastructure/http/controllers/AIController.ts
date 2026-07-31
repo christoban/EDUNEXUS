@@ -377,24 +377,48 @@ export class AIController {
       const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
 
       const studentIds = cibles.map((c) => c.studentId);
-      const [scores, recommendations] = await Promise.all([
+      // contextType explicitement restreint aux conseils santé — sans ce filtre, une convocation
+      // élève (StudentRecommendation contextType CONVOCATION, recipientRole STUDENT, voir
+      // StudentFollowUpController.creer) plus récente qu'une vraie alerte santé écrasait le
+      // "dernier conseil" affiché ici, masquant le conseil pédagogique tant qu'aucune nouvelle
+      // alerte santé n'était générée (trouvé en revue de code). La convocation a désormais son
+      // propre champ ci-dessous, distinct, jamais mélangé au conseil santé.
+      const CONTEXT_TYPES_CONSEIL_SANTE = ['HEALTH_CRITICAL', 'HEALTH_WARNING', 'HEALTH_POSITIVE'];
+      const depuisConvocation = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [scores, recommendations, convocations] = await Promise.all([
         this.prisma.studentProfile.findMany({
           where: { userId: { in: studentIds } },
           select: { userId: true, healthScore: true },
         }),
         this.prisma.studentRecommendation.findMany({
-          where: { studentId: { in: studentIds }, recipientRole: role === 'STUDENT' ? 'STUDENT' : 'PARENT' },
+          where: {
+            studentId: { in: studentIds },
+            recipientRole: role === 'STUDENT' ? 'STUDENT' : 'PARENT',
+            contextType: { in: CONTEXT_TYPES_CONSEIL_SANTE },
+          },
           orderBy: { createdAt: 'desc' },
         }),
+        // Convocations — élève uniquement, jamais destinées au parent (voir
+        // StudentFollowUpController.creer). Fenêtre de 30 jours pour éviter d'afficher
+        // indéfiniment une convocation dont la date est probablement déjà passée.
+        role === 'STUDENT'
+          ? this.prisma.studentRecommendation.findMany({
+              where: { studentId: { in: studentIds }, recipientRole: 'STUDENT', contextType: 'CONVOCATION', createdAt: { gte: depuisConvocation } },
+              orderBy: { createdAt: 'desc' },
+            })
+          : Promise.resolve([]),
       ]);
       const scoreParEleve = new Map(scores.map((s) => [s.userId, s.healthScore ?? 75]));
       const dernierConseilParEleve = new Map<string, (typeof recommendations)[number]>();
       for (const r of recommendations) if (!dernierConseilParEleve.has(r.studentId)) dernierConseilParEleve.set(r.studentId, r);
+      const derniereConvocationParEleve = new Map<string, (typeof convocations)[number]>();
+      for (const c of convocations) if (!derniereConvocationParEleve.has(c.studentId)) derniereConvocationParEleve.set(c.studentId, c);
 
       const enfants = cibles.map((c) => {
         const score = scoreParEleve.get(c.studentId) ?? 75;
         const alertLevel = score <= criticalThreshold ? 'critical' : score <= warningThreshold ? 'warning' : 'good';
         const conseil = dernierConseilParEleve.get(c.studentId);
+        const convocation = derniereConvocationParEleve.get(c.studentId);
         return {
           studentId: c.studentId,
           name: c.name,
@@ -403,6 +427,7 @@ export class AIController {
           alertLevel,
           conseil: conseil?.content ?? null,
           conseilDate: conseil?.createdAt ?? null,
+          convocation: convocation ? { message: convocation.content, date: convocation.createdAt } : null,
         };
       });
 

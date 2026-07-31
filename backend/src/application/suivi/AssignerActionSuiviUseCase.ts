@@ -1,5 +1,7 @@
+import type { PrismaClient } from '@prisma/client';
 import type { StudentFollowUpRepository, FollowUpActionDetail } from '@domain/ports/repositories/StudentFollowUpRepository';
 import type { AppelantSuivi } from './CreerActionSuiviEleveUseCase';
+import { PERMISSIONS_CONSEILLER } from './CreerActionSuiviEleveUseCase';
 
 export interface AssignerActionSuiviCommande {
   appelant: AppelantSuivi;
@@ -18,7 +20,10 @@ export interface AssignerActionSuiviCommande {
  * changé.
  */
 export class AssignerActionSuiviUseCase {
-  constructor(private readonly repo: StudentFollowUpRepository) {}
+  constructor(
+    private readonly repo: StudentFollowUpRepository,
+    private readonly prisma: PrismaClient,
+  ) {}
 
   async execute(cmd: AssignerActionSuiviCommande): Promise<FollowUpActionDetail> {
     const role = cmd.appelant.role.toUpperCase();
@@ -30,6 +35,23 @@ export class AssignerActionSuiviUseCase {
     const action = await this.repo.findById(cmd.actionId, cmd.appelant.schoolId);
     if (!action) throw new Error('Action de suivi introuvable');
     if (action.status === 'CLOS') throw new Error('Impossible de réassigner une action déjà clôturée');
+
+    // nouvelAssigneId vient du corps de la requête — jamais fait confiance sans vérification :
+    // même contrôle que CreerActionSuiviEleveUseCase (SIGNALEMENT_CONSEILLER) pour éviter de
+    // réattribuer un cas à un utilisateur non-conseiller ou d'une autre école, qui hériterait
+    // alors de la capacité "conseiller escaladé" et recevrait une notification exposant le nom de
+    // l'élève (trouvé en revue de code — même classe de vulnérabilité que la création).
+    const destinataireValide = await this.prisma.staffProfile.findFirst({
+      where: {
+        userId: cmd.nouvelAssigneId,
+        schoolId: cmd.appelant.schoolId,
+        permissions: { some: { permission: { in: [...PERMISSIONS_CONSEILLER] } } },
+      },
+      select: { id: true },
+    });
+    if (!destinataireValide) {
+      throw new Error('Le nouveau destinataire n\'est pas un conseiller pédagogique valide de votre établissement');
+    }
 
     return this.repo.reassign(cmd.actionId, cmd.nouvelAssigneId);
   }

@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
-import { HeartPulse, Sparkles, Package } from 'lucide-react'
+import { HeartPulse, Sparkles, Package, UserCheck } from 'lucide-react'
 import type { UserInfo } from '../_types'
 
 interface Props {
@@ -16,6 +16,10 @@ interface HealthTrackingChild {
   alertLevel: 'critical' | 'warning' | 'good'
   conseil: string | null
   conseilDate: string | null
+  // Convocation par le conseiller pédagogique — distincte du conseil santé (contextType séparé
+  // côté backend), jamais mélangée : une convocation ne doit jamais masquer le dernier vrai
+  // conseil pédagogique (bug trouvé en revue de code, corrigé côté AIController.getHealthTracking).
+  convocation: { message: string; date: string } | null
 }
 
 export default function SectionStudentHealthTracking({ user }: Props) {
@@ -84,6 +88,15 @@ export default function SectionStudentHealthTracking({ user }: Props) {
           </div>
         )}
       </div>
+
+      {data.convocation && (
+        <div style={{ background: 'var(--blue-light)', border: '1.5px solid var(--blue)', borderRadius: 14, padding: '16px 20px', marginBottom: 20, maxWidth: 520 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 800, color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+            <UserCheck size={14} strokeWidth={2} /> {t('health_tracking.convocation_title')}
+          </div>
+          <div style={{ fontSize: 15, color: 'var(--text)', fontWeight: 600, lineHeight: 1.5 }}>{data.convocation.message}</div>
+        </div>
+      )}
 
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: `1.5px solid ${data.alertLevel === 'critical' ? 'var(--red)' : 'var(--border)'}`, padding: 28, maxWidth: 520 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: data.conseil ? 22 : 0 }}>

@@ -125,6 +125,7 @@
     "level_warning": "To monitor",
     "level_good": "Satisfactory",
     "advice_title": "Personalized advice",
+    "convocation_title": "Someone wants to see you",
     "no_advice": "No advice generated yet. Check back after the next calculation.",
     "loading": "Loading...",
     "load_error": "Loading error",

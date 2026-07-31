@@ -125,6 +125,7 @@
     "level_warning": "À surveiller",
     "level_good": "Satisfaisant",
     "advice_title": "Conseil personnalisé",
+    "convocation_title": "On souhaite te voir",
     "no_advice": "Aucun conseil généré pour le moment. Revenez après le prochain calcul.",
     "loading": "Chargement...",
     "load_error": "Erreur de chargement",
