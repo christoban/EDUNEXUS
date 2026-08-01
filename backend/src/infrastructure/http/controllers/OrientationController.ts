@@ -15,6 +15,7 @@ import type { ListerElevesAOrienterUseCase } from '@application/orientation/List
 import type { ConfigurerCheckpointOrientationUseCase } from '@application/orientation/ConfigurerCheckpointOrientationUseCase';
 import type { IOrientationRepository } from '@domain/ports/repositories/IOrientationRepository';
 import type { PrismaClient } from '@prisma/client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class OrientationController {
   constructor(
@@ -266,8 +267,20 @@ export class OrientationController {
         prochainRdv: prochainRdv ? new Date(prochainRdv) : undefined,
         notes,
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'ajouter_suivi_orientation', targetType: 'OrientationFiche', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { ficheId: req.params.id, riskLevel, mainConcern },
+      });
       res.status(201).json({ success: true, data: suivi });
     } catch (err) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'ajouter_suivi_orientation', targetType: 'OrientationFiche', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
       if (err instanceof Error && err.message.includes('introuvable')) {
         res.status(404).json({ success: false, message: err.message });
         return;

@@ -4,6 +4,8 @@ import type { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAcc
 import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
 import type { FactureRepository } from '@domain/ports/repositories/FactureRepository';
 import type { PaymentMethod } from '@domain/types/enums';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class ParentController {
   constructor(
@@ -21,8 +23,18 @@ export class ParentController {
         parentUserId: user.userId,
         schoolId: user.schoolId,
       });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'mes_enfants', origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: {},
+      });
       res.json({ success: true, data: enfants });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'mes_enfants', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: {},
+      });
       next(error);
     }
   };
@@ -75,8 +87,19 @@ export class ParentController {
         method: method as PaymentMethod,
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'initier_paiement_enfant', targetType: 'Invoice', targetId: factureId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { factureId, studentId: facture.studentId, method },
+      });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'initier_paiement_enfant', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       next(error);
     }
   };

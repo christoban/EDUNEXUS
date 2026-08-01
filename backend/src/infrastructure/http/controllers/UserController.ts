@@ -23,6 +23,7 @@ import type { TokenService } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import * as XLSX from 'xlsx';
 
 const COOKIE_OPTIONS = {
@@ -507,6 +508,11 @@ export class UserController {
         passwordHash,
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'creer_eleve', targetType: 'User', targetId: (resultat as any)?.userId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: resultat });
 
       // Envoi du lien d'invitation (prod uniquement, tout rôle avec email — le garde-fou
@@ -572,6 +578,12 @@ export class UserController {
         })();
       }
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'creer_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -917,8 +929,20 @@ export class UserController {
         passwordHash,
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.json({ success: true, message: 'Utilisateur mis à jour' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -957,8 +981,20 @@ export class UserController {
         demandeurId: user.userId,
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { fromClasseId, toClasseId },
+      });
       res.json({ success: true, message: 'Élève transféré avec succès' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };

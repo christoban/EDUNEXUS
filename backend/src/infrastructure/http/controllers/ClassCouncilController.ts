@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import PDFDocument from 'pdfkit';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { logActivity } from '../../../utils/activitieslog';
 import { notifyBulletinSms } from '../../services/SmsNotificationService';
 
@@ -98,8 +99,19 @@ export class ClassCouncilController {
         details: `Classe ${schoolClass.name} — période ${academicPeriodId} — ${students.length} élève(s) pré-peuplé(s)`,
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'ouvrir_conseil_classe', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId },
+      });
       res.status(201).json({ session });
     } catch (error) {
+      const user = this.user(req);
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'ouvrir_conseil_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       next(error);
     }
   };

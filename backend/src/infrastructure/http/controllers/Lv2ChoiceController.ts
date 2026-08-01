@@ -6,6 +6,7 @@ import { SaisirChoixLV2ManuelUseCase } from '@application/lv2Choice/SaisirChoixL
 import { AppliquerChoixLV2UseCase } from '@application/lv2Choice/AppliquerChoixLV2UseCase';
 import { SuivreFenetreChoixLV2UseCase } from '@application/lv2Choice/SuivreFenetreChoixLV2UseCase';
 import { notifyLv2WindowOpenSms } from '@infrastructure/services/SmsNotificationService';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class Lv2ChoiceController {
   constructor(
@@ -32,13 +33,25 @@ export class Lv2ChoiceController {
         schoolId, level, academicYearId,
         openDate: new Date(openDate), closeDate: new Date(closeDate),
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'ouvrir_fenetre_choix_lv2', targetType: 'Lv2ChoiceWindow', targetId: (result as any)?.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: result });
       for (const e of result.eleves) {
         void notifyLv2WindowOpenSms({
           schoolId, studentUserId: e.studentUserId, studentName: e.studentName, level: result.level, closeDate: result.closeDate,
         });
       }
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'ouvrir_fenetre_choix_lv2', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   };
 
   // GET /api/v2/lv2-choice-windows/:id/tracking

@@ -5,6 +5,7 @@ import type { IAService } from '@domain/ports/services/IAService';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import type { BulletinTemplate } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { notifyBulletinSms } from '@infrastructure/services/SmsNotificationService';
 import { resolveLanguage } from '../../../utils/languageHelper';
 import { generateBulletinPdf } from '../../../utils/reportCards/index';
@@ -69,6 +70,11 @@ export class ReportCardController {
         demandeurId: user.userId,
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'generer_bulletins_classe', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId, academicYearId, template },
+      });
       res.json({ success: true, data: resultat });
 
       // Fire-and-forget SMS bulletin disponible — hors du try principal
@@ -101,6 +107,12 @@ export class ReportCardController {
         })()
       }
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'generer_bulletins_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       if (error instanceof BulletinBloqueError) {
         res.status(422).json({ success: false, code: 'NOTES_NON_VALIDEES', message: error.message, notesBloquantes: error.notesBloquantes });
         return;
@@ -137,8 +149,19 @@ export class ReportCardController {
       const langue = resolveLanguage(ecole?.subsystem, sectionCode);
 
       const resultat = await this.envoyer.execute({ schoolId: user.schoolId, classId, academicPeriodId, nomEtablissement, nomPeriode, langue });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'envoyer_bulletins_parents', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId },
+      });
       res.json({ success: true, data: resultat });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'envoyer_bulletins_parents', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       next(error);
     }
   };

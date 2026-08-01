@@ -4,6 +4,8 @@ import type { ModifierMatiereUseCase } from '@application/subject/ModifierMatier
 import type { AssignerEnseignantMatiereUseCase } from '@application/subject/AssignerEnseignantMatiereUseCase';
 import type { DefinirCoefficientUseCase } from '@application/subject/DefinirCoefficientUseCase';
 import type { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUseCase';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class SubjectController {
   constructor(
@@ -22,8 +24,19 @@ export class SubjectController {
         demandeurRole: user.role,
         ...req.body,
       });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'creer_matiere', targetType: 'Subject', targetId: (resultat as any)?.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'creer_matiere', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -37,8 +50,20 @@ export class SubjectController {
         demandeurRole: user.role,
         ...req.body,
       });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'modifier_matiere', targetType: 'Subject', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.json({ success: true, message: 'Matière mise à jour' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'modifier_matiere', targetType: 'Subject', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -61,11 +86,23 @@ export class SubjectController {
         action,
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'assigner_enseignant_matiere', targetType: 'Subject', targetId: subjectId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { teacherUserId: req.params.teacherId, subjectId, action },
+      });
       res.json({
         success: true,
         message: `Enseignant ${action === 'ASSIGNER' ? 'assigné' : 'retiré'}`,
       });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'assigner_enseignant_matiere', targetType: 'Subject', targetId: req.body?.subjectId,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: { teacherUserId: req.params.teacherId, ...req.body },
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -101,8 +138,20 @@ export class SubjectController {
         schoolId: user.schoolId,
         demandeurRole: user.role,
       });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'supprimer_matiere', targetType: 'Subject', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.json({ success: true, message: 'Matière supprimée' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'supprimer_matiere', targetType: 'Subject', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };

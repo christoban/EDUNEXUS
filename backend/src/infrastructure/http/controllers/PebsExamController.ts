@@ -8,6 +8,7 @@ import { ResumeSessionPebsUseCase } from '@application/pebsExam/ResumeSessionPeb
 import { ScannerListeCandidatsPebsUseCase } from '@application/pebsExam/ScannerListeCandidatsPebsUseCase';
 import { DetecterAnomaliesPebsUseCase } from '@application/pebsExam/DetecterAnomaliesPebsUseCase';
 import { notifyPebsSelectionSms } from '@infrastructure/services/SmsNotificationService';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class PebsExamController {
@@ -48,8 +49,20 @@ export class PebsExamController {
         availableSeats: availableSeats ?? undefined,
         targetClassId,
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'creer_session_selection_pebs', targetType: 'PebsExamSession', targetId: (result as any)?.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'creer_session_selection_pebs', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   };
 
   ajouterCandidats = async (req: Request, res: Response, next: NextFunction) => {
@@ -90,8 +103,21 @@ export class PebsExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._calculerSelection.execute({ schoolId, sessionId });
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'calculer_selection_pebs', targetType: 'PebsExamSession', targetId: sessionId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
+      });
       res.json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'calculer_selection_pebs', targetType: 'PebsExamSession', targetId: String(req.params['id']),
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   };
 
   appliquerTransfert = async (req: Request, res: Response, next: NextFunction) => {
@@ -151,7 +177,20 @@ export class PebsExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._resumeSession.execute(schoolId, sessionId);
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'resume_session_pebs', targetType: 'PebsExamSession', targetId: sessionId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
+      });
       res.json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'resume_session_pebs', targetType: 'PebsExamSession', targetId: String(req.params['id']),
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   };
 }

@@ -4,6 +4,7 @@ import path from 'path';
 import type { PrismaClient } from '@prisma/client';
 import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
 import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { generateRapportAPEEPdf } from '../../../utils/apeeDocuments';
 
 const JUSTIFICATIFS_DIR = path.resolve(process.cwd(), 'storage', 'apee-justificatifs');
@@ -48,8 +49,18 @@ export class APEEController {
         date: body.date ? new Date(body.date) : undefined,
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'enregistrer_transaction_apee', targetType: 'APEETransaction', targetId: (transaction as any)?.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: body,
+      });
       res.status(201).json({ success: true, data: transaction });
     } catch (error) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'enregistrer_transaction_apee', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       next(error);
     }
   };
@@ -129,8 +140,19 @@ export class APEEController {
         valideParId: req.user!.userId,
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'valider_depense_apee', targetType: 'APEETransaction', targetId: transactionId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { transactionId },
+      });
       res.json({ success: true, data: transaction });
     } catch (error) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'valider_depense_apee', targetType: 'APEETransaction', targetId: String(req.params['id']),
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.params,
+      });
       if (error instanceof Error) {
         res.status(400).json({ success: false, message: error.message });
         return;
@@ -153,6 +175,10 @@ export class APEEController {
       const totalCollectes = collectes._sum.montant ?? 0;
       const totalDepenses = depensesValidees._sum.montant ?? 0;
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'solde_apee', origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: {},
+      });
       res.json({
         success: true,
         data: {
@@ -163,6 +189,11 @@ export class APEEController {
         },
       });
     } catch (error) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'solde_apee', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: {},
+      });
       next(error);
     }
   };

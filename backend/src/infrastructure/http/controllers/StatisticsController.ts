@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 const GRADE_STATUSES_VALIDES = ['VALIDATED', 'LOCKED'] as const;
 
@@ -70,8 +71,19 @@ export class StatisticsController {
         }))
         .sort((a, b) => a.orderIndex - b.orderIndex);
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'evolution_moyenne_generale', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { classId, subjectId, studentId },
+      });
       res.json({ success: true, data });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'evolution_moyenne_generale', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.query,
+      });
       next(error);
     }
   };
@@ -133,8 +145,19 @@ export class StatisticsController {
         };
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'classement_classes', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { level },
+      });
       res.json({ success: true, data });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'classement_classes', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.query,
+      });
       next(error);
     }
   };

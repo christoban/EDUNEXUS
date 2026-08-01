@@ -10,6 +10,7 @@ import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/Dete
 import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/SmsNotificationService';
 import { notifierOnboardingLienCree } from '../../../utils/onboardingNotifications';
 import { parseDateFR } from '../../../utils/dateParsing';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class EntranceExamController {
@@ -50,8 +51,20 @@ export class EntranceExamController {
         admissionThreshold: admissionThreshold ?? undefined,
         availableSeats: availableSeats ?? undefined,
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'creer_session_concours_entree', targetType: 'EntranceExamSession', targetId: (result as any)?.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'creer_session_concours_entree', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   };
 
   // POST /api/v2/entrance-exams/:id/candidates
@@ -104,13 +117,26 @@ export class EntranceExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._calculerAdmission.execute({ schoolId, sessionId });
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'calculer_admission_concours', targetType: 'EntranceExamSession', targetId: sessionId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
+      });
       res.json({ success: true, data: result });
       for (const c of result.admisCandidats) {
         void notifyAdmissionProvisoireSms({
           schoolId, candidateName: `${c.firstName} ${c.lastName}`, parentPhone: c.parentPhone,
         });
       }
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'calculer_admission_concours', targetType: 'EntranceExamSession', targetId: String(req.params['id']),
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   };
 
   // POST /api/v2/entrance-exams/:id/candidates/scan
@@ -169,7 +195,20 @@ export class EntranceExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._resumeSession.execute(schoolId, sessionId);
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'resume_session_concours', targetType: 'EntranceExamSession', targetId: sessionId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
+      });
       res.json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'resume_session_concours', targetType: 'EntranceExamSession', targetId: String(req.params['id']),
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   };
 }

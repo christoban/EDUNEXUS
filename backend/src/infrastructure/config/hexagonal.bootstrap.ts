@@ -126,6 +126,7 @@ import { creerPublicRoutes } from '@infrastructure/http/routes/public.routes';
 import { creerSMSRoutes } from '@infrastructure/http/routes/sms.routes';
 import { creerOrientationRoutes } from '@infrastructure/http/routes/orientation.routes';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import { LoginMasterUseCase } from '@application/masterAdmin/LoginMasterUseCase';
 import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
@@ -1951,8 +1952,20 @@ export function bootstrapHexagonal(app: Application): void {
           take: limitNum,
         }),
       ]);
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'sanctions_recentes_eleve', targetType: 'DisciplineRecord', targetId: studentId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { studentId, type, status },
+      });
       res.json({ success: true, data: records, pagination: { total, page: pageNum, pages: Math.ceil(total / limitNum) } });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'sanctions_recentes_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   });
 
   // POST /api/v2/discipline — créer une sanction (ADMIN, STAFF)
@@ -1992,6 +2005,11 @@ export function bootstrapHexagonal(app: Application): void {
           student: { select: { id: true, firstName: true, lastName: true } },
           decidedBy: { select: { id: true, firstName: true, lastName: true } },
         },
+      });
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'enregistrer_sanction', targetType: 'DisciplineRecord', targetId: record.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { studentId, type, reason, startDate, endDate },
       });
       res.status(201).json({ success: true, data: record });
 
@@ -2036,7 +2054,14 @@ export function bootstrapHexagonal(app: Application): void {
           console.error('[Notification discipline fire-and-forget]', err);
         }
       })();
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'enregistrer_sanction', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   });
 
   // PATCH /api/v2/discipline/:id/lift — lever une sanction
@@ -2050,8 +2075,21 @@ export function bootstrapHexagonal(app: Application): void {
         data: { status: 'LIFTED' },
         include: { student: { select: { id: true, firstName: true, lastName: true } } },
       });
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'lever_sanction', targetType: 'DisciplineRecord', targetId: record.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { disciplineRecordId: record.id },
+      });
       res.json({ success: true, data: updated });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'lever_sanction', targetType: 'DisciplineRecord', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   });
 
   // ── Bibliothèque ─────────────────────────────────────────────────────────────
@@ -2082,8 +2120,20 @@ export function bootstrapHexagonal(app: Application): void {
           take: limitNum,
         }),
       ]);
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'livres_disponibles', targetType: 'Book', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { search, category },
+      });
       res.json({ success: true, data: books, pagination: { total, page: pageNum, pages: Math.ceil(total / limitNum) } });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'livres_disponibles', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   });
 
   // POST /api/v2/library/books — ajouter un ouvrage
@@ -2184,8 +2234,20 @@ export function bootstrapHexagonal(app: Application): void {
         }),
         prisma.book.update({ where: { id: bookId }, data: { available: { decrement: 1 } } }),
       ]);
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'emprunter_livre', targetType: 'BookLoan', targetId: loan.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { bookId, studentId, dueDate },
+      });
       res.status(201).json({ success: true, data: loan });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'emprunter_livre', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   });
 
   // PATCH /api/v2/library/loans/:id/return — retour d'un livre
@@ -2203,8 +2265,21 @@ export function bootstrapHexagonal(app: Application): void {
         }),
         prisma.book.update({ where: { id: loan.bookId }, data: { available: { increment: 1 } } }),
       ]);
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'retourner_livre', targetType: 'BookLoan', targetId: loan.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { loanId: loan.id },
+      });
       res.json({ success: true, data: updated });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'retourner_livre', targetType: 'BookLoan', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined,
+      });
+      next(err);
+    }
   });
 
   // PATCH /api/v2/library/loans/:id/renew — prolonger la date limite d'un emprunt actif
@@ -2408,8 +2483,21 @@ export function bootstrapHexagonal(app: Application): void {
         where: { id: profile.id },
         data: { lv2SubjectId: lv2SubjectId ?? null },
       });
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'affecter_lv2_eleve', targetType: 'User', targetId: studentUserId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { studentUserId, lv2SubjectId },
+      });
       res.json({ success: true, message: 'LV2 affectée' });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'affecter_lv2_eleve', targetType: 'User', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   });
 
   // POST /api/v2/students/lv2/bulk — affecter la même LV2 à une liste d'élèves
@@ -2435,8 +2523,20 @@ export function bootstrapHexagonal(app: Application): void {
         data: { lv2SubjectId: lv2SubjectId ?? null },
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'affecter_lv2_masse', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { studentUserIds, lv2SubjectId, modifies: result.count },
+      });
       res.json({ success: true, data: { modifies: result.count } });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'affecter_lv2_masse', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   });
 
   // GET /api/v2/classes/:id/lv2-overview — répartition LV2 d'une classe
@@ -2471,6 +2571,11 @@ export function bootstrapHexagonal(app: Application): void {
         }
       }
 
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'compter_eleves_par_lv2', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId },
+      });
       res.json({
         success: true,
         data: {
@@ -2480,7 +2585,15 @@ export function bootstrapHexagonal(app: Application): void {
           total: students.length,
         },
       });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'compter_eleves_par_lv2', targetType: 'Class', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: { classId: req.params['id'] },
+      });
+      next(err);
+    }
   });
 
   // ── Module PEBS — gestion Programme d'Éducation Bilingue Spécial par élève ──
@@ -2506,8 +2619,21 @@ export function bootstrapHexagonal(app: Application): void {
         where: { id: profile.id },
         data: { pebsFiliere: pebsFiliere ?? null },
       });
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'affecter_pebs_eleve', targetType: 'User', targetId: studentUserId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { studentUserId, pebsFiliere },
+      });
       res.json({ success: true, message: 'PEBS affecté' });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'affecter_pebs_eleve', targetType: 'User', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   });
 
   // POST /api/v2/students/pebs/bulk — affecter PEBS en masse
@@ -2533,8 +2659,20 @@ export function bootstrapHexagonal(app: Application): void {
         data: { pebsFiliere: pebsFiliere ?? null },
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'affecter_pebs_masse', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { studentUserIds, pebsFiliere, modifies: result.count },
+      });
       res.json({ success: true, data: { modifies: result.count } });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'affecter_pebs_masse', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
+      next(err);
+    }
   });
 
   // GET /api/v2/classes/:id/pebs-overview — répartition PEBS d'une classe
@@ -2565,6 +2703,11 @@ export function bootstrapHexagonal(app: Application): void {
       const pebsCount = eleves.filter((e: any) => e.pebsFiliere !== null).length;
       const nonPEBSCount = eleves.filter((e: any) => e.pebsFiliere === null).length;
 
+      journaliserActionIA(prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'repartition_pebs_classe', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId },
+      });
       res.json({
         success: true,
         data: {
@@ -2575,7 +2718,15 @@ export function bootstrapHexagonal(app: Application): void {
           eleves,
         },
       });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'repartition_pebs_classe', targetType: 'Class', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: { classId: req.params['id'] },
+      });
+      next(err);
+    }
   });
 
   // GET /api/v2/timetable-slots/:id/students — élèves d'un créneau (filtre LV2 si isLV2Slot)

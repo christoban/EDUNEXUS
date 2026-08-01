@@ -237,8 +237,19 @@ export class AttendanceController {
         },
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'justifier_absence', targetType: 'Attendance', targetId: attendanceId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { attendanceId, justification },
+      });
       res.json({ success: true, message: 'Absence justifiée', record: updated });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'justifier_absence', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       next(error);
     }
   };

@@ -76,8 +76,20 @@ export class TimetableController {
         timetableId: req.params['id'] as string,
         schoolId: user.schoolId,
       });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'publier_emploi_du_temps', targetType: 'Timetable', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { timetableId: req.params['id'] },
+      });
       res.json({ success: true, message: 'Emploi du temps publié' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'publier_emploi_du_temps', targetType: 'Timetable', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };

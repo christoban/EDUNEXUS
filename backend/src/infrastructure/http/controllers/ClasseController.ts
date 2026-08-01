@@ -8,6 +8,7 @@ import type { AssignerProfesseurPrincipalUseCase } from '@application/class/Assi
 import type { CreerSousGroupeTPUseCase } from '@application/class/CreerSousGroupeTPUseCase';
 import type { AssignerElevesAuSousGroupeUseCase } from '@application/class/AssignerElevesAuSousGroupeUseCase';
 import { CYCLE2_LEVELS, NIVEAU_MAP, parseSerie } from '@application/school/SubjectAssignmentHelper';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class ClasseController {
   constructor(
@@ -49,8 +50,19 @@ export class ClasseController {
         schoolId: user.schoolId,
         ...req.body,
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'creer_classe', targetType: 'Class', targetId: (resultat as any)?.id,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'creer_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -76,8 +88,20 @@ export class ClasseController {
         classeId: req.params.id as string,
         schoolId: user.schoolId,
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'supprimer_classe', targetType: 'Class', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.json({ success: true, message: 'Classe supprimée' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'supprimer_classe', targetType: 'Class', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -115,8 +139,20 @@ export class ClasseController {
         schoolId: user.schoolId,
         demandeurRole: user.role,
       });
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'assigner_professeur_principal', targetType: 'Class', targetId: classeId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classeId, teacherUserId },
+      });
       res.json({ success: true, message: 'Professeur Principal assigné' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'assigner_professeur_principal', targetType: 'Class', targetId: req.params.id as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };

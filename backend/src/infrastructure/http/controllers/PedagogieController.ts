@@ -496,8 +496,21 @@ export class PedagogieController {
       const { academicYearId, seuilPct } = req.query as Record<string, string>;
       const seuil = seuilPct ? parseInt(seuilPct, 10) : 15;
       const alertes = await calculerAlertesRetardProgramme(this.prisma, user.schoolId, academicYearId, seuil);
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'alertes_retard_programme', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { academicYearId, seuilPct: seuil },
+      });
       res.json({ success: true, data: alertes });
-    } catch (e) { next(e); }
+    } catch (e) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'alertes_retard_programme', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: e instanceof Error ? e.message : undefined, parametersSummary: req.query,
+      });
+      next(e);
+    }
   };
 
   // ─── Vérification programme par matière ────────────────────────────────────

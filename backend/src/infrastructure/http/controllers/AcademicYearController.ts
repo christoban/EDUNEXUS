@@ -4,6 +4,8 @@ import type { DefinirPeriodeCouranteUseCase } from '@application/academicYear/De
 import type { VerifierPrerequisClotureUseCase } from '@application/academicYear/VerifierPrerequisClotureUseCase';
 import type { CloturerAnneeUseCase } from '@application/academicYear/CloturerAnneeUseCase';
 import type { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJourCalendrierUseCase';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class AcademicYearController {
   constructor(
@@ -40,9 +42,22 @@ export class AcademicYearController {
 
   definirPeriodeCourante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = (req as any).user;
       await this.definirPeriode.definirPeriode(req.params['id'] as string);
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'definir_periode_courante', targetType: 'AcademicPeriod', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { academicPeriodId: req.params['id'] },
+      });
       res.json({ success: true, message: 'Période courante définie' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'definir_periode_courante', targetType: 'AcademicPeriod', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.params,
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -58,9 +73,22 @@ export class AcademicYearController {
 
   verifierAvantCloture = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const user = (req as any).user;
       const resultat = await this.verifierPrerequis.execute(req.params['id'] as string);
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'verifier_cloture_annee', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { academicYearId: req.params['id'] },
+      });
       res.json({ success: true, data: resultat });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'verifier_cloture_annee', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.params,
+      });
       next(error);
     }
   };

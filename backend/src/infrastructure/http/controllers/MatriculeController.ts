@@ -7,6 +7,7 @@ import { VerifierRecuUseCase } from '@application/matricule/VerifierRecuUseCase'
 import { ConfirmerCorrespondanceFuzzyUseCase } from '@application/matricule/ConfirmerCorrespondanceFuzzyUseCase';
 import { SignalerErreurCarteScolaireUseCase } from '@application/matricule/SignalerErreurCarteScolaireUseCase';
 import { parseMatriculeExcel } from '@application/matricule/parserMatriculeExcel';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class MatriculeController {
@@ -155,8 +156,20 @@ export class MatriculeController {
       const schoolId = req.user!.schoolId;
       const studentId = String(req.params['studentId']);
       const result = await this._verifierMatricule.execute(schoolId, studentId);
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
+        actionName: 'verifier_matricule_eleve', targetType: 'User', targetId: studentId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { studentId },
+      });
       res.json({ success: true, data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+      journaliserActionIA(this.prisma, {
+        actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
+        actionName: 'verifier_matricule_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.params,
+      });
+      next(err);
+    }
   };
 
   // POST /api/v2/paiements-minesec/sync/:schoolId

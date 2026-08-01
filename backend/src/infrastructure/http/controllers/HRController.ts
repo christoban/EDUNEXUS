@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import ExcelJS from 'exceljs';
 import {
   generateAttestationTravailPdf,
@@ -561,11 +562,22 @@ export class HRController {
       try {
         updated = await traiterDemandeConge(this.prisma, schoolId, String(id), body.statut as 'APPROVED' | 'REJECTED', currentUser?.id);
       } catch (err) {
+        journaliserActionIA(this.prisma, {
+          actorUserId: currentUser?.userId, actorRole: currentUser?.role, schoolId,
+          actionName: 'traiter_demande_conge', targetType: 'LeaveRequest', targetId: String(id),
+          origin: 'UI_DIRECT', outcome: 'ERREUR',
+          refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: body,
+        });
         const message = err instanceof Error ? err.message : 'Erreur serveur';
         res.status(message === 'Demande de congé introuvable' ? 404 : 409).json({ success: false, message });
         return;
       }
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: currentUser?.id ?? currentUser?.userId, actorRole: currentUser?.role, schoolId,
+        actionName: 'traiter_demande_conge', targetType: 'LeaveRequest', targetId: String(id),
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: body,
+      });
       res.json({ success: true, data: updated });
     } catch (error) {
       next(error);

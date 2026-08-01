@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { sendSMS, isSmsConfigured } from '../../../services/smsService';
 import { sendTransactionalEmail, isEmailConfigured } from '../../../services/emailService';
 
@@ -331,6 +332,11 @@ export class CommunicationsController {
       }
 
       const resultat = await executerBroadcast(this.prisma, schoolId, createdById, target, channel, message);
+      journaliserActionIA(this.prisma, {
+        actorUserId: createdById, actorRole: (req as any).user?.role, schoolId,
+        actionName: 'diffuser_message', origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { target, channel },
+      });
       if (resultat.total === 0) {
         res.json({ success: true, data: { ...resultat, message: 'Aucun destinataire trouvé.' } });
         return;
@@ -338,6 +344,12 @@ export class CommunicationsController {
 
       res.json({ success: true, data: resultat });
     } catch (err) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'diffuser_message', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
+      });
       next(err);
     }
   };
