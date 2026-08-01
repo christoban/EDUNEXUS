@@ -30,6 +30,12 @@ interface Props {
   // conseiller" plutôt que d'offrir une option qui ne mène nulle part (calculé côté backend,
   // jamais côté client).
   conseillerDisponible?: boolean
+  // Identité réelle de l'utilisateur connecté — l'historique peut afficher des actions créées par
+  // un collègue (ex. un PP voit l'observation d'un enseignant de matière sur le même élève), mais
+  // seuls le créateur ou l'assigné peuvent la clôturer (ClorreActionSuiviUseCase). Sans cette
+  // identité, le bouton "Clôturer" était affiché pour tout le monde et échouait systématiquement
+  // côté serveur pour qui n'y avait pas droit — corrigé ici en le masquant côté client aussi.
+  currentUserId: string
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
 }
 
@@ -65,7 +71,7 @@ const btnAction: React.CSSProperties = {
  * (professeur principal, enseignant de matière) et `SectionSuiviElevesStaff.tsx` (conseiller
  * pédagogique).
  */
-export default function StudentFollowUpButtons({ studentId, triggeringRecommendationId, role, mesMatieres = [], conseillerDisponible = false, onToast }: Props) {
+export default function StudentFollowUpButtons({ studentId, triggeringRecommendationId, role, mesMatieres = [], conseillerDisponible = false, currentUserId, onToast }: Props) {
   const t = useT('teacher')
   const [openForm, setOpenForm] = useState<ActionType | null>(null)
   const [targetDate, setTargetDate] = useState('')
@@ -322,7 +328,7 @@ export default function StudentFollowUpButtons({ studentId, triggeringRecommenda
                       {t('suivi.note_cloture_label')} {a.closingNote}
                     </div>
                   )
-                ) : closingId === a.id ? (
+                ) : (a.createdById !== currentUserId && a.assignedToId !== currentUserId) ? null : closingId === a.id ? (
                   <div style={{ marginTop: 8 }}>
                     <textarea value={closingNote} onChange={(e) => setClosingNote(e.target.value)} rows={2}
                       placeholder={t('suivi.note_cloture_placeholder')}

@@ -185,11 +185,12 @@ export default function SectionSuiviElevesStaff({ sessionUser, onToast }: Props)
                   </div>
 
                   {/* Conseiller uniquement — le Censeur consulte, n'agit jamais (voir doc de tête). */}
-                  {estConseiller && (
+                  {estConseiller && sessionUser && (
                     <StudentFollowUpButtons
                       studentId={a.studentId}
                       triggeringRecommendationId={a.triggeringRecommendationId}
                       role="CONSEILLER"
+                      currentUserId={sessionUser.userId}
                       onToast={(msg, type) => { onToast(msg, type); refetch() }}
                     />
                   )}

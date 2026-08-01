@@ -125,19 +125,38 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
     return found ? versDetail(found) : null;
   }
 
+  // updateMany({where: {id, status: {not: 'CLOS'}}}) plutôt que update({where: {id}}) : le use
+  // case lit déjà le statut avant d'appeler close()/reassign(), mais entre cette lecture et
+  // l'écriture, une autre requête concurrente (le créateur ET l'assigné qui cliquent "Clôturer"
+  // à quelques millisecondes d'écart) peut avoir déjà clôturé l'action — sans cette condition sur
+  // l'écriture elle-même, la seconde clôture écraserait silencieusement closingNote/closedById de
+  // la première. count===0 signale que la course a été perdue, sans quoi update() aurait de toute
+  // façon réussi silencieusement.
   async close(id: string, closedById: string, closingNote: string): Promise<FollowUpActionDetail> {
-    const updated = await (this.prisma as any).studentFollowUpAction.update({
-      where: { id },
+    const result = await (this.prisma as any).studentFollowUpAction.updateMany({
+      where: { id, status: { not: 'CLOS' } },
       data: { status: 'CLOS', closedAt: new Date(), closedById, closingNote },
+    });
+    if (result.count === 0) {
+      throw new Error('Cette action est déjà clôturée');
+    }
+    const updated = await (this.prisma as any).studentFollowUpAction.findUniqueOrThrow({
+      where: { id },
       select: SELECT_DETAIL,
     });
     return versDetail(updated);
   }
 
   async reassign(id: string, assignedToId: string): Promise<FollowUpActionDetail> {
-    const updated = await (this.prisma as any).studentFollowUpAction.update({
-      where: { id },
+    const result = await (this.prisma as any).studentFollowUpAction.updateMany({
+      where: { id, status: { not: 'CLOS' } },
       data: { assignedToId, status: 'EN_COURS' },
+    });
+    if (result.count === 0) {
+      throw new Error('Impossible de réassigner une action déjà clôturée');
+    }
+    const updated = await (this.prisma as any).studentFollowUpAction.findUniqueOrThrow({
+      where: { id },
       select: SELECT_DETAIL,
     });
     return versDetail(updated);

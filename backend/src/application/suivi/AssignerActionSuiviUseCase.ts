@@ -10,7 +10,14 @@ export interface AssignerActionSuiviCommande {
 }
 
 /**
- * Rôle autorisé (B.4) : Censeur uniquement — cas secondaire de réattribution.
+ * Rôle autorisé (B.4) : quiconque porte la permission VALIDATE_GRADES — PAS un contrôle par
+ * titre "Censeur" (cohérent avec le principe du code : jamais de vérification par titre, voir
+ * StaffPermissionRules.ts). En pratique, VALIDATE_GRADES est aussi portée par Directeur Adjoint
+ * (primaire FR), Vice-Principal (secondaire EN) et Deputy Head Teacher (primaire EN) — n'importe
+ * lequel de ces titres peut donc réassigner une action, pas seulement le Censeur. Le nom de
+ * variable `estCenseur` ci-dessous est un raccourci pour "le cas le plus fréquent", pas une
+ * description exacte de la règle — ne pas s'y fier pour deviner qui a réellement le droit.
+ *
  * Revérifié contre la spec exacte et définitive (relecture juillet 2026) qui retire au Censeur
  * toute capacité de CRÉATION d'action (observation/entretien/convocation/signalement, voir
  * CreerActionSuiviEleveUseCase) : réassigner n'est pas créer une nouvelle action, c'est une
@@ -29,7 +36,7 @@ export class AssignerActionSuiviUseCase {
     const role = cmd.appelant.role.toUpperCase();
     const estCenseur = role === 'STAFF' && (cmd.appelant.permissions ?? []).includes('VALIDATE_GRADES');
     if (!estCenseur) {
-      throw new Error('Seul le censeur peut réassigner une action de suivi');
+      throw new Error('Seul un membre du personnel habilité à valider les notes peut réassigner une action de suivi');
     }
 
     const action = await this.repo.findById(cmd.actionId, cmd.appelant.schoolId);

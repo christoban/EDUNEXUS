@@ -132,7 +132,7 @@ export default function SectionMesActionsSuivi({ onToast }: Props) {
                   {a.targetDate && ` · ${new Date(a.targetDate).toLocaleDateString()}`}
                 </div>
 
-                {closingId === a.id ? (
+                {a.status === 'CLOS' ? null : closingId === a.id ? (
                   <div style={{ marginTop: 12 }}>
                     <textarea value={closingNote} onChange={(e) => setClosingNote(e.target.value)} rows={2}
                       placeholder={t('suivi.note_cloture_placeholder')}

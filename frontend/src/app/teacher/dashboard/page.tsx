@@ -161,7 +161,7 @@ export default function TeacherDashboard() {
             return dept ? <SectionDepartementAP user={user!} departementId={dept.id} departementNom={dept.name} /> : null
           })()}
           {section === 'cahier-de-texte' && <SectionCahierDeTexte user={user} onToast={showToast} />}
-          {section === 'at-risk' && <SectionTeacherAtRisk onToast={showToast} />}
+          {section === 'at-risk' && user && <SectionTeacherAtRisk currentUserId={user.id} onToast={showToast} />}
           {section === 'mon-suivi' && <SectionMesActionsSuivi onToast={showToast} />}
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}

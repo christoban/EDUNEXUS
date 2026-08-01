@@ -34,10 +34,11 @@ interface AtRiskResponse {
 }
 
 interface Props {
+  currentUserId: string
   onToast: (msg: string, type?: 'success' | 'error' | 'info') => void
 }
 
-export default function SectionTeacherAtRisk({ onToast }: Props) {
+export default function SectionTeacherAtRisk({ currentUserId, onToast }: Props) {
   const t = useT('teacher')
   const tcommon = useT('common')
 
@@ -151,6 +152,7 @@ export default function SectionTeacherAtRisk({ onToast }: Props) {
                   role={s.isProfesseurPrincipal ? 'PROF_PRINCIPAL' : 'ENSEIGNANT_MATIERE'}
                   mesMatieres={s.mesMatieres}
                   conseillerDisponible={conseillerDisponible}
+                  currentUserId={currentUserId}
                   onToast={onToast}
                 />
               </div>
