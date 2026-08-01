@@ -252,7 +252,7 @@ export function creerContainer() {
 
   // 4. Use Cases — Notes
   const saisirNoteUseCase = new SaisirNoteUseCase(
-    noteRepository, matiereRepository, userRepository
+    noteRepository, matiereRepository, userRepository, prisma
   );
   const soumettreNoteUseCase = new SoumettreNoteUseCase(noteRepository);
   const validerNoteUseCase = new ValiderNoteUseCase(noteRepository, userRepository);
@@ -268,7 +268,7 @@ export function creerContainer() {
 
   // 6. Use Cases — Présences
   const enregistrerPresenceUseCase = new EnregistrerPresenceUseCase(
-    presenceRepository, userRepository, notificationService
+    presenceRepository, userRepository, notificationService, prisma
   );
 
   // 6. Use Cases — School
@@ -374,6 +374,7 @@ export function creerContainer() {
   const demanderRattrapageUseCase = new DemanderRattrapageUseCase(
     userRepository,
     notificationService,
+    prisma,
   );
 
   // 13. Use Cases — AnneeAcademique

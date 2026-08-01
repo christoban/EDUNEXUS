@@ -1715,6 +1715,69 @@ export const checkOrientationCheckpoints = inngest.createFunction(
   },
 );
 
+// ── Sécurité de l'assistant IA — Section 5 : alerte sur pattern de refus répétés ───────────────
+// Fenêtre glissante de 10 minutes, 3 refus ou plus du même actorUserId → notifie l'opérateur
+// plateforme (aujourd'hui, uniquement le fondateur — masterUser.isSuperAdmin). Cooldown de 10
+// minutes par actorUserId (AISecurityAlert) pour ne pas ré-alerter à chaque exécution du cron
+// tant que le même utilisateur reste dans la fenêtre. Ne notifie JAMAIS l'admin de
+// l'établissement concerné automatiquement — l'opérateur plateforme décide ensuite si besoin.
+const FENETRE_ALERTE_MS = 10 * 60 * 1000;
+const SEUIL_REFUS = 3;
+
+export const checkSuspiciousAiActionPattern = inngest.createFunction(
+  { id: "check-suspicious-ai-action-pattern", name: "Détection de refus répétés — sécurité assistant IA", triggers: [{ cron: "*/5 * * * *" }] },
+  async ({ step }) => {
+    await step.run("detect-and-alert", async () => {
+      const depuis = new Date(Date.now() - FENETRE_ALERTE_MS);
+
+      const groupes = await prisma.aIActionAuditLog.groupBy({
+        by: ["actorUserId"],
+        where: { outcome: "REFUSE", timestamp: { gte: depuis } },
+        _count: { actorUserId: true },
+        having: { actorUserId: { _count: { gte: SEUIL_REFUS } } },
+      });
+      if (groupes.length === 0) return;
+
+      const operateurs = await prisma.masterUser.findMany({ where: { isSuperAdmin: true }, select: { id: true, email: true, name: true } });
+      if (operateurs.length === 0) return;
+
+      for (const groupe of groupes) {
+        const dejaAlerte = await prisma.aISecurityAlert.findFirst({
+          where: { actorUserId: groupe.actorUserId, notifiedAt: { gte: depuis } },
+        });
+        if (dejaAlerte) continue; // cooldown déjà couvert par une alerte récente pour cet utilisateur
+
+        const dernieresEntrees = await prisma.aIActionAuditLog.findMany({
+          where: { actorUserId: groupe.actorUserId, outcome: "REFUSE", timestamp: { gte: depuis } },
+          orderBy: { timestamp: "desc" },
+          take: 5,
+        });
+        const actorRole = dernieresEntrees[0]?.actorRole ?? "INCONNU";
+        const schoolId = dernieresEntrees[0]?.schoolId ?? null;
+        const refuseCount = groupe._count.actorUserId;
+
+        await prisma.aISecurityAlert.create({
+          data: { actorUserId: groupe.actorUserId, actorRole, schoolId, refuseCount },
+        });
+
+        const detail = dernieresEntrees.map((e) => `- ${e.actionName} (${e.origin}) — ${e.refusalReason ?? "sans motif"}`).join("<br>");
+        for (const operateur of operateurs) {
+          if (!operateur.email) continue;
+          await sendTransactionalEmail({
+            recipientEmail: operateur.email,
+            subject: `[Sécurité IA] ${refuseCount} actions refusées en 10 min — utilisateur ${groupe.actorUserId}`,
+            html: `<p>Bonjour ${operateur.name ?? ""},<br><br>L'utilisateur <b>${groupe.actorUserId}</b> (rôle ${actorRole}${schoolId ? `, établissement ${schoolId}` : ""}) a déclenché <b>${refuseCount} refus</b> en moins de 10 minutes.</p><p>${detail}</p><p>Consultez la vue Sécurité plateforme pour le détail complet.</p>`,
+            text: `${refuseCount} actions refusées en 10 min pour l'utilisateur ${groupe.actorUserId} (rôle ${actorRole}).`,
+            template: "ai_security_alert",
+            eventType: "ai_security_suspicious_pattern",
+          });
+        }
+      }
+    });
+    return { checked: true };
+  },
+);
+
 export const BackupSchoolDataJob = inngest.createFunction(
   {
     id: "Backup-School-Data",

@@ -8,6 +8,7 @@ import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../utils/languageHelper';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 export class TimetableController {
   constructor(
@@ -105,8 +106,19 @@ export class TimetableController {
         lang,
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'demander_rattrapage', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.json({ success: true, statut: 'pending' });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'demander_rattrapage', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };

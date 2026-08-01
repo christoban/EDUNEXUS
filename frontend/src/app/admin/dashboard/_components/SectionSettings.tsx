@@ -16,6 +16,11 @@ interface Props {
 interface ActivityLog { id: string; createdAt: string; action: string; description: string; user?: { firstName?: string; lastName?: string } | null }
 interface EmailLog { id: string; createdAt: string; to: string; subject: string; status: string }
 interface AuditLog  { id: string; createdAt: string; action: string; description: string | null; user: { id: string; firstName: string; lastName: string } | null }
+interface AIActionAuditEntry {
+  id: string; timestamp: string; actorUserId: string; actorRole: string
+  actionName: string; origin: 'UI_DIRECT' | 'AI_ASSISTANT'; outcome: 'SUCCES' | 'REFUSE' | 'ERREUR'
+  refusalReason: string | null
+}
 interface BackupInfo { lastBackupAt: string | null; lastBackupFile: string | null; latestFileExists?: boolean }
 interface NotifSettings { smsAbsences: boolean; smsPayments: boolean; smsBulletins: boolean; emailDigestAdmin: boolean; smsLowBalance: boolean }
 interface SecSettings   { passwordMinLength: number; passwordRequireUpper: boolean; passwordRequireDigit: boolean; sessionTimeoutMin: number }
@@ -105,6 +110,11 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [actSearch, setActSearch]           = useState('')
   const [actData, setActData]               = useState<{ logs: ActivityLog[]; page: number; pages: number; total: number } | null>(null)
   const [actLoading, setActLoading]         = useState(false)
+
+  // ── Journal Sécurité IA ─────────────────────────────────────────────────
+  const [aiAuditData, setAiAuditData]       = useState<{ entries: AIActionAuditEntry[]; total: number } | null>(null)
+  const [aiAuditLoading, setAiAuditLoading] = useState(false)
+  const [aiAuditOutcome, setAiAuditOutcome] = useState<'' | 'SUCCES' | 'REFUSE' | 'ERREUR'>('')
 
   // ── Structure ────────────────────────────────────────────────────────────
   const [structConfig, setStructConfig] = useState<{
@@ -341,6 +351,19 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       .catch(() => onToast('Erreur chargement activités', 'error'))
       .finally(() => setActLoading(false))
   }, [activeTab, actPage, actSearch]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Journal Sécurité IA (copilot + équivalents UI) — scopé à cet établissement ─────────────
+  useEffect(() => {
+    if (activeTab !== 5) return
+    setAiAuditLoading(true)
+    const params = new URLSearchParams({ page: '1', limit: '20' })
+    if (aiAuditOutcome) params.set('outcome', aiAuditOutcome)
+    fetchApi(`/api/v2/security/audit-log?${params}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setAiAuditData({ entries: d.data ?? [], total: d.pagination?.total ?? 0 }))
+      .catch(() => onToast('Erreur chargement du journal Sécurité IA', 'error'))
+      .finally(() => setAiAuditLoading(false))
+  }, [activeTab, aiAuditOutcome]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Email logs load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1026,6 +1049,59 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
                   <button className={btnSecCls} style={{ ...btnSec, opacity: actData.page <= 1 ? 0.45 : 1 }} disabled={actData.page <= 1} onClick={() => setActPage(p => p - 1)}>{t('settings.activities.btn_prev')}</button>
                   <button className={btnSecCls} style={{ ...btnSec, opacity: actData.page >= actData.pages ? 0.45 : 1 }} disabled={actData.page >= actData.pages} onClick={() => setActPage(p => p + 1)}>{t('settings.activities.btn_next')}</button>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Journal Sécurité IA — actions du copilot et de leurs équivalents en interface classique ── */}
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div className={cardHeaderCls} style={{ ...cardHeader, flexWrap: 'wrap', gap: 10 }}>
+              <span className="text-[14px] md:text-[17px]" style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><ClipboardList size={16} /> Journal Sécurité IA</span>
+              <select value={aiAuditOutcome} onChange={e => setAiAuditOutcome(e.target.value as typeof aiAuditOutcome)}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1.5px solid var(--border2)', fontSize: 13, fontWeight: 700, color: 'var(--text)', fontFamily: 'inherit', background: 'var(--bg2)' }}>
+                <option value="">Tous les résultats</option>
+                <option value="REFUSE">Refusées</option>
+                <option value="ERREUR">Erreurs</option>
+                <option value="SUCCES">Réussies</option>
+              </select>
+            </div>
+            <div className="px-[14px] py-[10px] md:px-[20px]" style={{ fontSize: 13, color: 'var(--text3)' }}>
+              Actions sensibles exécutées via le copilot IA ou leur équivalent en interface classique, pour cet établissement uniquement.
+            </div>
+            {aiAuditLoading && (<div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div style={{ width: 32, height: 32, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} /></div>)}
+            {!aiAuditLoading && aiAuditData && aiAuditData.entries.length === 0 && (<div className="text-[13.5px] md:text-[16px]" style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>Aucune entrée pour ce filtre</div>)}
+            {!aiAuditLoading && aiAuditData && aiAuditData.entries.length > 0 && (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead><tr>
+                    <th className={thLogCls} style={thLog}>Date</th>
+                    <th className={thLogCls} style={thLog}>Action</th>
+                    <th className={thLogCls} style={thLog}>Origine</th>
+                    <th className={thLogCls} style={thLog}>Résultat</th>
+                    <th className={thLogCls} style={thLog}>Rôle</th>
+                    <th className={thLogCls} style={thLog}>Motif</th>
+                  </tr></thead>
+                  <tbody>
+                    {aiAuditData.entries.map((log, i) => (
+                      <tr key={log.id} style={{ background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
+                        <td className={tdLogCls} style={{ ...tdLog, whiteSpace: 'nowrap' }}>{fmtDate(log.timestamp)}</td>
+                        <td className={tdLogCls} style={tdLog}><span style={{ fontWeight: 700, color: 'var(--text)' }}>{log.actionName}</span></td>
+                        <td className={tdLogCls} style={tdLog}>{log.origin === 'AI_ASSISTANT' ? 'Copilot IA' : 'Interface classique'}</td>
+                        <td className={tdLogCls} style={tdLog}>
+                          <span style={{
+                            padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800,
+                            background: log.outcome === 'SUCCES' ? 'var(--green-light)' : log.outcome === 'REFUSE' ? 'var(--red-light)' : 'var(--orange-light)',
+                            color: log.outcome === 'SUCCES' ? 'var(--green)' : log.outcome === 'REFUSE' ? 'var(--red)' : 'var(--orange)',
+                          }}>
+                            {log.outcome === 'SUCCES' ? 'Réussie' : log.outcome === 'REFUSE' ? 'Refusée' : 'Erreur'}
+                          </span>
+                        </td>
+                        <td className={tdLogCls} style={tdLog}>{log.actorRole}</td>
+                        <td className={tdLogCls} style={{ ...tdLog, maxWidth: 260, wordBreak: 'break-word', color: 'var(--text3)', fontSize: 13 }}>{log.refusalReason ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

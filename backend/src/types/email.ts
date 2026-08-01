@@ -23,7 +23,8 @@ export type EmailEventType =
   | "password_reset"
   | "payment_receipt"
   | "discipline_notification"
-  | "absence_alert";
+  | "absence_alert"
+  | "ai_security_suspicious_pattern";
 
 export type EmailStatus = "sent" | "failed";
 

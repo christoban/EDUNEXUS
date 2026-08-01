@@ -1,12 +1,14 @@
 /**
  * APPLICATION LAYER — Use Case : Saisir une note
  * Un enseignant saisit une note pour un élève. Statut initial : DRAFT.
- * Vérifie que l'enseignant est bien assigné à la matière.
+ * Vérifie que l'enseignant est bien assigné à la matière ET à la classe.
  */
+import type { PrismaClient } from '@prisma/client';
 import { Note } from '@domain/entities/Note';
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
 
 export interface SaisirNoteCommande {
   schoolId: string;
@@ -42,6 +44,7 @@ export class SaisirNoteUseCase {
     private readonly noteRepository: NoteRepository,
     private readonly matiereRepository: MatiereRepository,
     private readonly userRepository: UserRepository,
+    private readonly prisma: PrismaClient,
   ) {}
 
   async execute(commande: SaisirNoteCommande): Promise<SaisirNoteResultat> {
@@ -60,6 +63,24 @@ export class SaisirNoteUseCase {
       throw new Error(
         `L'enseignant "${enseignant.nomComplet}" n'est pas assigné à cette matière`
       );
+    }
+
+    // 2bis. estEnseignantAssigne ci-dessus ne porte que sur la matière (TeacherSubject),
+    // jamais sur la classe — un enseignant assigné à cette matière dans UNE classe pourrait
+    // sinon saisir des notes pour n'importe QUELLE AUTRE classe de l'école sur cette même
+    // matière. Vérifie donc en plus l'assignation classe+matière réelle (TeachingAssignment).
+    // Pas de bypass "professeur principal" ici : une note est toujours liée à UNE matière
+    // précise, être PP de la classe ne rend pas légitime d'y noter une matière non enseignée.
+    if (!enseignant.estAdmin()) {
+      const rattache = await estRattacheALaClasse(
+        this.prisma, commande.recordedById, commande.classId, commande.subjectId,
+        { autoriserProfesseurPrincipal: false },
+      );
+      if (!rattache) {
+        throw new Error(
+          `L'enseignant "${enseignant.nomComplet}" n'est pas assigné à l'enseignement de cette matière pour cette classe`
+        );
+      }
     }
 
     // 3. Vérifier qu'une note n'existe pas déjà pour cet élève/matière/séquence

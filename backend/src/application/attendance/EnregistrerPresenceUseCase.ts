@@ -3,11 +3,13 @@
  * Enregistre la présence de tous les élèves d'une classe en une opération.
  * Déclenche les alertes si le seuil d'absences est dépassé.
  */
+import type { PrismaClient } from '@prisma/client';
 import { Presence } from '@domain/entities/Presence';
 import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
 import type { AttendanceStatus, AttendancePeriod } from '@domain/types/enums';
+import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
 
 export interface PresenceEleve {
   studentId: string;
@@ -38,6 +40,7 @@ export class EnregistrerPresenceUseCase {
     private readonly presenceRepository: PresenceRepository,
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
+    private readonly prisma: PrismaClient,
   ) {}
 
   async execute(commande: EnregistrerPresenceCommande): Promise<EnregistrerPresenceResultat> {
@@ -45,6 +48,23 @@ export class EnregistrerPresenceUseCase {
     const enseignant = await this.userRepository.findById(commande.teacherId);
     if (!enseignant || !enseignant.isActive) {
       throw new Error('Enseignant introuvable ou inactif');
+    }
+
+    // 1bis. Vérifier que l'enseignant est réellement rattaché à cette classe — soit comme
+    // professeur principal (habilité à prendre les présences quelle que soit la matière), soit
+    // via une assignation classe+matière (TeachingAssignment) pour la matière précisée. Sans ce
+    // contrôle, n'importe quel enseignant de l'école pouvait marquer présent/absent/en retard
+    // n'importe quel élève d'une classe qu'il n'enseigne pas.
+    if (!enseignant.estAdmin()) {
+      const rattache = await estRattacheALaClasse(
+        this.prisma, commande.teacherId, commande.classId, commande.subjectId,
+        { autoriserProfesseurPrincipal: true },
+      );
+      if (!rattache) {
+        throw new Error(
+          `L'enseignant "${enseignant.nomComplet}" n'est pas rattaché à cette classe`
+        );
+      }
     }
 
     // 2. Vérifier qu'une présence n'existe pas déjà pour ce créneau

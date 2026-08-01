@@ -10,6 +10,7 @@ import {
   type ActionDefinition,
 } from '@application/assistant/catalogShared';
 import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 /** Fenêtre pendant laquelle une action non-destructive reste annulable (5 minutes). */
 const UNDO_WINDOW_MS = 5 * 60 * 1000;
@@ -307,6 +308,11 @@ export class AssistantController {
         if (!candidateAction) continue;
         const champManquant = detecterParametreHallucine(candidateAction, tc.input as Record<string, unknown>);
         if (champManquant) {
+          journaliserActionIA(this.prisma, {
+            actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+            actionName: candidateAction.name, origin: 'AI_ASSISTANT', outcome: 'REFUSE',
+            refusalReason: 'parametre_hallucine', parametersSummary: tc.input, triggeringMessage: message,
+          });
           const clarification = `Il me manque une information pour continuer : ${champManquant}. Peux-tu préciser ?`;
           this.saveTurn(conversationId, user.schoolId, user.userId, 'assistant', clarification);
           res.json({ success: true, type: 'message', response: clarification, conversationId });
@@ -322,6 +328,11 @@ export class AssistantController {
         // DOUBLE-VÉRIFICATION SERVEUR : l'action doit figurer dans le catalogue autorisé.
         const action = allowed.find((a) => a.name === tc.toolName);
         if (!action) {
+          journaliserActionIA(this.prisma, {
+            actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+            actionName: tc.toolName, origin: 'AI_ASSISTANT', outcome: 'REFUSE',
+            refusalReason: 'action_hors_catalogue_autorise', parametersSummary: tc.input, triggeringMessage: message,
+          });
           executed.push({ error: `Action « ${tc.toolName} » non autorisée pour votre rôle.`, actionType: tc.toolName });
           continue;
         }
@@ -364,6 +375,11 @@ export class AssistantController {
                 resultLabel: r.resultLabel,
               },
             });
+            journaliserActionIA(this.prisma, {
+              actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+              actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'SUCCES',
+              parametersSummary: input, triggeringMessage: message,
+            });
             executed.push({
               actionLogId: log.id,
               actionType: action.name,
@@ -373,6 +389,11 @@ export class AssistantController {
               undoable: true,
             });
           } catch (e: any) {
+            journaliserActionIA(this.prisma, {
+              actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+              actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'ERREUR',
+              refusalReason: e?.message, parametersSummary: input, triggeringMessage: message,
+            });
             executed.push({ error: e?.message ?? 'Échec de l\'action.', actionType: action.name });
           }
         }
@@ -433,6 +454,11 @@ export class AssistantController {
       const allowed = filterCatalogForUser(this.catalog, user);
       const action = allowed.find((a) => a.name === log.actionType);
       if (!action || !action.destructive) {
+        journaliserActionIA(this.prisma, {
+          actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+          actionName: log.actionType, origin: 'AI_ASSISTANT', outcome: 'REFUSE',
+          refusalReason: 'action_hors_catalogue_autorise', parametersSummary: log.parameters,
+        });
         res.status(403).json({ success: false, message: 'Action non autorisée.' });
         return;
       }
@@ -443,11 +469,20 @@ export class AssistantController {
           where: { id: log.id },
           data: { status: 'EXECUTED', resultLabel: r.resultLabel, executedAt: new Date() },
         });
+        journaliserActionIA(this.prisma, {
+          actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+          actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'SUCCES', parametersSummary: log.parameters,
+        });
         res.json({
           success: true,
           executed: { actionLogId: log.id, label: r.resultLabel, section: r.section ?? null, entity: r.entity ?? null },
         });
       } catch (e: any) {
+        journaliserActionIA(this.prisma, {
+          actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+          actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'ERREUR',
+          refusalReason: e?.message, parametersSummary: log.parameters,
+        });
         res.status(400).json({ success: false, message: e?.message ?? 'Échec de la suppression.' });
       }
     } catch (error) {

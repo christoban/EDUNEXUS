@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { extraireDocument } from '@infrastructure/services/DocumentAiOrchestrator';
+import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
 
 // ─── Alertes de retard programme (extrait pour être réutilisable hors HTTP —
 // ex. catalogue copilot) ────────────────────────────────────────────────────
@@ -315,6 +316,17 @@ export class PedagogieController {
         return;
       }
 
+      if (user.role === 'TEACHER') {
+        const rattache = await estRattacheALaClasse(
+          this.prisma, user.userId, classId, subjectId,
+          { autoriserProfesseurPrincipal: false },
+        );
+        if (!rattache) {
+          res.status(403).json({ success: false, message: "Vous n'êtes pas assigné à l'enseignement de cette matière pour cette classe" });
+          return;
+        }
+      }
+
       const anneeId = academicYearId ?? (
         await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
       )?.id;
@@ -327,7 +339,7 @@ export class PedagogieController {
       const entry = await (this.prisma as any).cahierDeTexte.create({
         data: {
           schoolId: user.schoolId,
-          teacherId: user.id,
+          teacherId: user.userId,
           classId,
           subjectId,
           academicYearId: anneeId,
@@ -344,8 +356,21 @@ export class PedagogieController {
         },
       });
 
+      journaliserActionIA(this.prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'ajouter_cahier_texte', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
+      });
       res.status(201).json({ success: true, data: entry });
-    } catch (e) { next(e); }
+    } catch (e) {
+      const user = (req as any).user;
+      journaliserActionIA(this.prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'ajouter_cahier_texte', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: e instanceof Error ? e.message : undefined, parametersSummary: req.body,
+      });
+      next(e);
+    }
   };
 
   listCahierDeTexte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -363,7 +388,7 @@ export class PedagogieController {
           ...(anneeId ? { academicYearId: anneeId } : {}),
           ...(classId ? { classId } : {}),
           ...(subjectId ? { subjectId } : {}),
-          ...(teacherId ? { teacherId } : (user.role === 'TEACHER' ? { teacherId: user.id } : {})),
+          ...(teacherId ? { teacherId } : (user.role === 'TEACHER' ? { teacherId: user.userId } : {})),
         },
         include: {
           teacher: { select: { id: true, firstName: true, lastName: true } },
@@ -536,7 +561,7 @@ export class PedagogieController {
 
       const slots = await (this.prisma as any).timetableSlot.findMany({
         where: {
-          teacherId: user.id,
+          teacherId: user.userId,
           dayOfWeek,
           kind: 'CLASS',
           timetable: {
@@ -654,7 +679,7 @@ ${consignes}`,
       const where: any = {
         schoolId: user.schoolId,
         ...(anneeId ? { academicYearId: anneeId } : {}),
-        ...(teacherId ? { teacherId } : user.role === 'TEACHER' ? { teacherId: user.id } : {}),
+        ...(teacherId ? { teacherId } : user.role === 'TEACHER' ? { teacherId: user.userId } : {}),
         ...(classId ? { classId } : {}),
         ...(subjectIds ? { subjectId: { in: subjectIds } } : {}),
       };

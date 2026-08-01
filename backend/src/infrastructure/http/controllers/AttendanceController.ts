@@ -4,6 +4,7 @@ import type { AttendancePeriod, AttendanceStatus } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { notifyAbsenceSms } from '@infrastructure/services/SmsNotificationService';
 import { notifierParentsPushDabord } from '@infrastructure/services/PushFirstNotifier';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 const startOfDayUtc = (dateString: string) => {
   const [y = 0, m = 1, d = 1] = dateString.split('-').map(Number);
@@ -54,6 +55,14 @@ export class AttendanceController {
         isOfflineSync: isOfflineSync ?? false,
       });
     } catch (error) {
+      journaliserActionIA(prisma, {
+        // Route bulk (toute une classe en un appel) — pas un miroir exact de l'action copilot
+        // `marquer_absence_eleve` (un seul élève), donc son propre actionName, pas partagé.
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'enregistrer_presences_classe', targetType: 'Class', targetId: classId,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       if (error instanceof Error) {
         if (error.message.includes('déjà été enregistrées')) {
           res.status(409).json({ success: false, message: error.message });
@@ -67,6 +76,11 @@ export class AttendanceController {
       next(error);
       return;
     }
+    journaliserActionIA(prisma, {
+      actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+      actionName: 'enregistrer_presences_classe', targetType: 'Class', targetId: classId,
+      origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, date, period, count: presences.length },
+    });
 
     res.status(201).json({ success: true, data: resultat });
 

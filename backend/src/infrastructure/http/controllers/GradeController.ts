@@ -10,6 +10,7 @@ import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import type { GradeValidationStatus } from '@domain/types/enums';
 import { resolveLanguage } from '../../../utils/languageHelper';
 import { inngest } from '../../../inngest/index.ts';
@@ -37,8 +38,19 @@ export class GradeController {
         ...dto,
       });
 
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'saisir_note', targetType: 'StudentProfile', targetId: dto.studentId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: dto,
+      });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
+      const user = (req as any).user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'saisir_note', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
       this.gererErreur(error, res, next);
     }
   };

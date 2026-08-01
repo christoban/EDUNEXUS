@@ -47,6 +47,36 @@ function commandeBase() {
   };
 }
 
+// Fausse résolution du rattachement classe (professeur principal OU TeachingAssignment) — le
+// use case vérifie désormais que l'enseignant est réellement rattaché à la classe où il prend
+// les présences, pas seulement qu'il existe et soit actif.
+function creerPrismaFake(options: {
+  classesAvecPP?: { classId: string; professorPrincipalId: string }[];
+  assignations?: { teacherId: string; classId: string; subjectId?: string }[];
+} = {}) {
+  const classesAvecPP = options.classesAvecPP ?? [];
+  const assignations = options.assignations ?? [];
+  return {
+    class: {
+      findFirst: async ({ where }: any) =>
+        classesAvecPP.some((c) => c.classId === where.id && c.professorPrincipalId === where.professorPrincipalId)
+          ? { id: where.id }
+          : null,
+    },
+    teachingAssignment: {
+      findFirst: async ({ where }: any) =>
+        assignations.some(
+          (a) =>
+            a.teacherId === where.teacherId &&
+            a.classId === where.classId &&
+            (where.subjectId === undefined || a.subjectId === where.subjectId)
+        )
+          ? { id: 'ta-1' }
+          : null,
+    },
+  } as any;
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('EnregistrerPresenceUseCase', () => {
@@ -59,7 +89,12 @@ describe('EnregistrerPresenceUseCase', () => {
     presenceRepo = new InMemoryPresenceRepository();
     userRepo = new InMemoryUserRepository();
     notifService = new InMemoryNotificationService();
-    useCase = new EnregistrerPresenceUseCase(presenceRepo, userRepo, notifService);
+    // teacher-1 = professeur principal de CLASS_ID par défaut, pour que les tests nominaux
+    // existants (qui ne portent pas sur le rattachement) restent inchangés.
+    useCase = new EnregistrerPresenceUseCase(
+      presenceRepo, userRepo, notifService,
+      creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: 'teacher-1' }] }),
+    );
     userRepo.ajouter(creerEnseignant());
   });
 
@@ -125,6 +160,34 @@ describe('EnregistrerPresenceUseCase', () => {
       await expect(
         useCase.execute({ ...commandeBase(), teacherId: 'teacher-inactif' })
       ).rejects.toThrow('Enseignant introuvable ou inactif');
+    });
+
+    it('rejette si l\'enseignant n\'est ni professeur principal ni assigné à cette classe (régression)', async () => {
+      const autreUseCase = new EnregistrerPresenceUseCase(
+        presenceRepo, userRepo, notifService,
+        creerPrismaFake(), // aucune classe PP, aucune assignation
+      );
+      userRepo.ajouter(creerEnseignant('teacher-etranger'));
+
+      await expect(
+        autreUseCase.execute({ ...commandeBase(), teacherId: 'teacher-etranger', recordedById: 'teacher-etranger' })
+      ).rejects.toThrow('n\'est pas rattaché à cette classe');
+    });
+
+    it('autorise un enseignant de matière assigné à cette classe (TeachingAssignment) sans être professeur principal', async () => {
+      const useCaseAssigne = new EnregistrerPresenceUseCase(
+        presenceRepo, userRepo, notifService,
+        creerPrismaFake({ assignations: [{ teacherId: 'teacher-matiere', classId: CLASS_ID, subjectId: 'maths-1' }] }),
+      );
+      userRepo.ajouter(creerEnseignant('teacher-matiere'));
+
+      const resultat = await useCaseAssigne.execute({
+        ...commandeBase(),
+        teacherId: 'teacher-matiere',
+        recordedById: 'teacher-matiere',
+        subjectId: 'maths-1',
+      });
+      expect(resultat.enregistrees).toBe(3);
     });
   });
 

@@ -32,6 +32,7 @@ import {
   checkAbsenceThreshold,
   checkAcademicEvents,
   checkOrientationCheckpoints,
+  checkSuspiciousAiActionPattern,
   BackupSchoolDataJob,
 } from "./inngest/functions.ts";
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
@@ -158,6 +159,7 @@ app.use(
       checkAbsenceThreshold,
       checkAcademicEvents,
       checkOrientationCheckpoints,
+      checkSuspiciousAiActionPattern,
       BackupSchoolDataJob,
       syncCarteScolaire,
       relancePaiements,

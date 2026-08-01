@@ -2583,6 +2583,66 @@ model AssistantConversationTurn {
   @@index([schoolId, userId])
 }
 
+/// Origine réelle d'une action journalisée — vient de la route HTTP classique, ou d'un tool-call
+/// choisi par le copilot IA. Ne change jamais la source d'autorisation (toujours la session
+/// serveur, voir AssistantController) : sert uniquement à distinguer les deux dans le journal.
+enum AIActionOrigin {
+  UI_DIRECT
+  AI_ASSISTANT
+}
+
+enum AIActionOutcome {
+  SUCCES
+  REFUSE
+  ERREUR
+}
+
+/// Journal d'audit des actions sensibles (règle métier / RBAC / cible), UI classique et copilot
+/// IA confondus — chantier "Sécurité de l'assistant IA". Écrit à CHAQUE exécution, réussie ou
+/// refusée, jamais seulement pour l'assistant : un admin qui contourne une règle métier via
+/// l'écran classique doit être aussi traçable qu'une tentative via le copilot. `triggeringMessage`
+/// contient potentiellement du contenu personnel — mêmes principes de protection/rétention que le
+/// reste des données personnelles du projet, pas un journal technique exempté des règles
+/// habituelles.
+model AIActionAuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+
+  actorUserId String // identité réelle de la session authentifiée, jamais déduite de la conversation
+  actorRole   String // rôle réel au moment de l'action
+  schoolId    String? // établissement concerné, pour le scoping de la vue admin d'établissement
+
+  actionName String // nom de l'action/outil du catalogue, ou de la route HTTP classique
+  targetType String? // type de la cible (ex. "StudentProfile", "User")
+  targetId   String? // identifiant de la cible
+
+  origin        AIActionOrigin
+  outcome       AIActionOutcome
+  refusalReason String? // ex. "role_insuffisant", "hors_perimetre_classe", "cible_hors_perimetre"
+
+  parametersSummary Json? // paramètres sanitisés — jamais de mot de passe/secret en clair, même refusé
+  triggeringMessage String? // pour origin=AI_ASSISTANT uniquement : message ayant déclenché l'appel
+
+  @@index([actorUserId, timestamp])
+  @@index([schoolId, timestamp])
+  @@index([outcome, timestamp])
+}
+
+/// Trace des alertes déjà envoyées à l'opérateur plateforme pour un pattern de refus répétés
+/// (section 5 du chantier) — sert UNIQUEMENT à éviter de ré-alerter en boucle tant qu'un même
+/// utilisateur reste dans la fenêtre glissante de 10 minutes ; le détail des refus reste dans
+/// AIActionAuditLog, cette table ne duplique rien.
+model AISecurityAlert {
+  id           String   @id @default(cuid())
+  actorUserId  String
+  actorRole    String
+  schoolId     String?
+  refuseCount  Int
+  notifiedAt   DateTime @default(now())
+
+  @@index([actorUserId, notifiedAt])
+}
+
 // ─── Module Examens & Admissions : Sous-module C — Choix LV2 ──────────────
 
 model Lv2ChoiceWindow {

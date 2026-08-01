@@ -59,17 +59,34 @@ function commandeBase(recordedById = 'teacher-1') {
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
+// Fausse assignation classe+matière (TeachingAssignment) — le use case vérifie désormais que
+// l'enseignant est assigné à CETTE classe précise, pas seulement à la matière en général.
+function creerPrismaFake(assignations: { teacherId: string; classId: string; subjectId: string }[]) {
+  return {
+    teachingAssignment: {
+      findFirst: async ({ where }: any) => {
+        const trouve = assignations.find(
+          (a) => a.teacherId === where.teacherId && a.classId === where.classId && a.subjectId === where.subjectId
+        );
+        return trouve ? { id: 'ta-1' } : null;
+      },
+    },
+  } as any;
+}
+
 describe('SaisirNoteUseCase', () => {
   let noteRepo: InMemoryNoteRepository;
   let userRepo: InMemoryUserRepository;
   let matiereRepo: InMemoryMatiereRepository;
+  let assignations: { teacherId: string; classId: string; subjectId: string }[];
   let useCase: SaisirNoteUseCase;
 
   beforeEach(() => {
     noteRepo = new InMemoryNoteRepository();
     userRepo = new InMemoryUserRepository();
     matiereRepo = new InMemoryMatiereRepository();
-    useCase = new SaisirNoteUseCase(noteRepo, matiereRepo, userRepo);
+    assignations = [];
+    useCase = new SaisirNoteUseCase(noteRepo, matiereRepo, userRepo, creerPrismaFake(assignations));
 
     // Matière disponible dans l'établissement
     matiereRepo.ajouter({
@@ -82,11 +99,17 @@ describe('SaisirNoteUseCase', () => {
     });
   });
 
+  /** Enregistre à la fois l'assignation matière (legacy) ET l'assignation classe+matière (TeachingAssignment). */
+  async function assignerEnseignantALaClasse(teacherId = 'teacher-1', classId = CLASS_ID, subjectId = SUBJECT_ID) {
+    await matiereRepo.assignerEnseignant(teacherId, subjectId);
+    assignations.push({ teacherId, classId, subjectId });
+  }
+
   describe('Cas nominal', () => {
     it('crée une note en statut DRAFT quand l\'enseignant est assigné à la matière', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       const resultat = await useCase.execute(commandeBase());
 
@@ -99,7 +122,7 @@ describe('SaisirNoteUseCase', () => {
     it('retourne un noteId unique à chaque appel', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       const r1 = await useCase.execute(commandeBase());
       // Deuxième note pour un autre élève
@@ -112,7 +135,7 @@ describe('SaisirNoteUseCase', () => {
     it('accepte n\'importe quel score entre 0 et 20', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       const resultat = await useCase.execute({ ...commandeBase(), sequenceScore: 0 });
       expect(resultat.statut).toBe('DRAFT');
@@ -160,13 +183,24 @@ describe('SaisirNoteUseCase', () => {
         'n\'est pas assigné à cette matière'
       );
     });
+
+    it('rejette si l\'enseignant est assigné à la matière mais PAS à cette classe (régression)', async () => {
+      const teacher = creerEnseignantActif();
+      userRepo.ajouter(teacher);
+      // Assigné à la matière en général (TeacherSubject), mais dans une AUTRE classe que CLASS_ID
+      await assignerEnseignantALaClasse('teacher-1', 'autre-classe', SUBJECT_ID);
+
+      await expect(useCase.execute(commandeBase())).rejects.toThrow(
+        'n\'est pas assigné à l\'enseignement de cette matière pour cette classe'
+      );
+    });
   });
 
   describe('Erreurs — doublon', () => {
     it('rejette si une note existe déjà pour le même élève / matière / séquence', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       // Première saisie
       await useCase.execute(commandeBase());
@@ -180,7 +214,7 @@ describe('SaisirNoteUseCase', () => {
     it('autorise deux notes si les séquences sont différentes', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       await useCase.execute(commandeBase());
       const r2 = await useCase.execute({ ...commandeBase(), sequenceId: 'seq-2' });
@@ -194,7 +228,7 @@ describe('SaisirNoteUseCase', () => {
     it('rejette un score supérieur à maxValue (défaut 20)', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       await expect(
         useCase.execute({ ...commandeBase(), sequenceScore: 25 })
@@ -204,7 +238,7 @@ describe('SaisirNoteUseCase', () => {
     it('rejette un score négatif', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       await expect(
         useCase.execute({ ...commandeBase(), sequenceScore: -1 })
@@ -214,7 +248,7 @@ describe('SaisirNoteUseCase', () => {
     it('accepte un score de 100 quand maxValue est 100', async () => {
       const teacher = creerEnseignantActif();
       userRepo.ajouter(teacher);
-      await matiereRepo.assignerEnseignant('teacher-1', SUBJECT_ID);
+      await assignerEnseignantALaClasse();
 
       const r = await useCase.execute({
         ...commandeBase(),

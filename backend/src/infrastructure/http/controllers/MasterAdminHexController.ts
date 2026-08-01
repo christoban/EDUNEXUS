@@ -590,6 +590,38 @@ export class MasterAdminHexController {
     }
   };
 
+  // GET /api/v2/master/security-audit-log — vue "Sécurité plateforme" (chantier Sécurité de
+  // l'assistant IA). Transversale à tous les établissements, mais concentrée par défaut sur les
+  // refus (outcome=REFUSE) — la redevabilité métier détaillée de chaque école reste la vue
+  // "Journal d'établissement" côté admin d'école, jamais fusionnée avec celle-ci.
+  listerJournalSecuriteIA = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { schoolId, outcome, actorRole, origin, actionName, page = '1', limit = '50' } = req.query as Record<string, string>;
+      const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+      const take = parseInt(limit, 10);
+
+      const where: any = {};
+      if (schoolId) where.schoolId = schoolId;
+      if (outcome) where.outcome = outcome;
+      if (actorRole) where.actorRole = actorRole;
+      if (origin) where.origin = origin;
+      if (actionName) where.actionName = actionName;
+
+      const [entries, total] = await Promise.all([
+        (this.prisma as any).aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } }),
+        (this.prisma as any).aIActionAuditLog.count({ where }),
+      ]);
+
+      res.json({
+        success: true,
+        data: entries,
+        pagination: { page: parseInt(page, 10), limit: take, total, pages: Math.ceil(total / take) },
+      });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
   private gererErreur(error: unknown, res: Response, next: NextFunction): void {
     if (error instanceof Error) {
       if (error.message.includes('introuvable')) {

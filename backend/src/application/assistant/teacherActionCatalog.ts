@@ -291,6 +291,7 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const subject = await resolveSubject(ctx, input.subjectName);
+        await verifierAssignation(ctx, classe.id, subject.id, classe.name, subject.name);
         const year = await resolveCurrentAcademicYear(ctx);
         const entry = await ctx.prisma.cahierDeTexte.create({
           data: {

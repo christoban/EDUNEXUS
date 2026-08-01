@@ -86,6 +86,7 @@ import { CommunicationsController, executerBroadcast } from '@infrastructure/htt
 import { creerCommunicationsRoutes } from '@infrastructure/http/routes/communications.routes';
 import { TimetableAutoController } from '@infrastructure/http/controllers/TimetableAutoController';
 import { PedagogieController, calculerAlertesRetardProgramme } from '@infrastructure/http/controllers/PedagogieController';
+import { AIActionAuditController } from '@infrastructure/http/controllers/AIActionAuditController';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { HRController, traiterDemandeConge } from '@infrastructure/http/controllers/HRController';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
@@ -1221,6 +1222,10 @@ export function bootstrapHexagonal(app: Application): void {
   // ── Module Pédagogie (C.1) ────────────────────────────────────────────────
   const pedagogieController = new PedagogieController(prisma);
   app.use('/api/v2/pedagogie', requireAuth, creerPedagogieRoutes(pedagogieController));
+
+  // ── Sécurité de l'assistant IA — Journal d'établissement ───────────────────
+  const aiActionAuditController = new AIActionAuditController(prisma);
+  app.get('/api/v2/security/audit-log', requireAuth, requireRole('ADMIN'), aiActionAuditController.journalEtablissement);
 
   // ── Module RH (C.2) ───────────────────────────────────────────────────────
   const hrController = new HRController(prisma);

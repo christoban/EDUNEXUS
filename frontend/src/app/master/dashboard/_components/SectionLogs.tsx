@@ -2,13 +2,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   CheckCircle2, XCircle, Ban, Trash2, Mail, RotateCw, KeyRound, Smartphone,
-  AlertTriangle, EyeOff, Eye, ArrowLeft, Download, Search, Shield, Zap, Info, Globe,
+  AlertTriangle, EyeOff, Eye, ArrowLeft, Download, Search, Shield, Zap, Info, Globe, Bot,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Badge from './Badge'
 import type { AuditLogDto } from '../_types'
-import type { EmailLogDto } from '../_api'
-import { fetchLogs, fetchEmailLogs, mfaSetup, mfaEnable, mfaDisable, mfaRegenCodes, resetUserMfa } from '../_api'
+import type { EmailLogDto, AIActionAuditLogDto } from '../_api'
+import { fetchLogs, fetchEmailLogs, fetchAIActionAuditLog, mfaSetup, mfaEnable, mfaDisable, mfaRegenCodes, resetUserMfa } from '../_api'
 
 interface Props {
   logs: AuditLogDto[]
@@ -17,7 +17,21 @@ interface Props {
   mfaEnabled: boolean
 }
 
-type LogTab = 'auth' | 'actions' | 'emails' | 'security'
+type LogTab = 'auth' | 'actions' | 'emails' | 'security' | 'ai-security'
+
+// ── Labels & badges pour le journal Sécurité IA ─────────────────────────────
+
+const AI_OUTCOME_BADGE: Record<AIActionAuditLogDto['outcome'], 'event-success' | 'event-warning' | 'event-error'> = {
+  SUCCES: 'event-success',
+  REFUSE: 'event-error',
+  ERREUR: 'event-warning',
+}
+
+const AI_OUTCOME_LABEL: Record<AIActionAuditLogDto['outcome'], string> = {
+  SUCCES: 'Réussie',
+  REFUSE: 'Refusée',
+  ERREUR: 'Erreur',
+}
 
 // ── Labels & badges pour les événements auth ────────────────────────────────
 
@@ -578,6 +592,21 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailSearch, setEmailSearch] = useState('')
 
+  // Sécurité IA — journal transversal des actions du copilot / équivalents UI
+  const [aiLogs, setAiLogs] = useState<AIActionAuditLogDto[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiOutcomeFilter, setAiOutcomeFilter] = useState<'' | AIActionAuditLogDto['outcome']>('REFUSE')
+  const [aiOriginFilter, setAiOriginFilter] = useState<'' | AIActionAuditLogDto['origin']>('')
+
+  const loadAiLogs = useCallback(async (outcome: '' | AIActionAuditLogDto['outcome'], origin: '' | AIActionAuditLogDto['origin']) => {
+    setAiLoading(true)
+    try {
+      const res = await fetchAIActionAuditLog({ outcome: outcome || undefined, origin: origin || undefined, limit: 100 })
+      setAiLogs(res.data)
+    } catch { /* silencieux */ }
+    finally { setAiLoading(false) }
+  }, [])
+
   const loadActionLogs = useCallback(async () => {
     setActionLoading(true)
     try {
@@ -599,7 +628,8 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
   useEffect(() => {
     if (tab === 'actions' && actionLogs.length === 0) loadActionLogs()
     if (tab === 'emails' && emailLogs.length === 0) loadEmailLogs()
-  }, [tab, actionLogs.length, emailLogs.length, loadActionLogs, loadEmailLogs])
+    if (tab === 'ai-security' && aiLogs.length === 0) loadAiLogs(aiOutcomeFilter, aiOriginFilter)
+  }, [tab, actionLogs.length, emailLogs.length, aiLogs.length, loadActionLogs, loadEmailLogs, loadAiLogs, aiOutcomeFilter, aiOriginFilter])
 
   // Auth logs viennent du parent (déjà chargés)
   const authLogs = initialLogs.filter(l => !l.action.startsWith('action:'))
@@ -618,10 +648,11 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, background: '#f0ebe3', padding: 4, borderRadius: 10, marginBottom: 20, width: 'fit-content' }}>
         {([
-          { id: 'auth'     as const, label: 'Authentification', icon: KeyRound },
-          { id: 'actions'  as const, label: 'Actions admin', icon: Zap },
-          { id: 'emails'   as const, label: 'Logs emails', icon: Mail },
-          { id: 'security' as const, label: 'Sécurité du compte', icon: Shield },
+          { id: 'auth'        as const, label: 'Authentification', icon: KeyRound },
+          { id: 'actions'     as const, label: 'Actions admin', icon: Zap },
+          { id: 'emails'      as const, label: 'Logs emails', icon: Mail },
+          { id: 'ai-security' as const, label: 'Sécurité IA', icon: Bot },
+          { id: 'security'    as const, label: 'Sécurité du compte', icon: Shield },
         ] as { id: LogTab; label: string; icon: LucideIcon }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '9px 20px', borderRadius: 8, fontSize: 17, fontWeight: 700,
@@ -784,6 +815,73 @@ export default function SectionLogs({ logs: initialLogs, loading: initialLoading
           </div>
         </div>
       )}
+      {/* ── ONGLET SÉCURITÉ IA ──────────────────────────────────────────────── */}
+      {tab === 'ai-security' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ padding: '12px 16px', background: '#eff6ff', border: '1px solid rgba(37,99,235,0.2)', borderRadius: 10, fontSize: 14, color: '#1e40af', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Info size={16} style={{ flexShrink: 0 }} /> Toutes écoles confondues. Concentré par défaut sur les tentatives <strong>refusées</strong> — le détail métier de chaque école reste dans son propre journal (« Journal d&apos;établissement », côté admin).
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <select value={aiOutcomeFilter} onChange={e => { const v = e.target.value as typeof aiOutcomeFilter; setAiOutcomeFilter(v); loadAiLogs(v, aiOriginFilter) }}
+              style={{ padding: '9px 14px', borderRadius: 9, border: '1.5px solid #e8e0d4', fontSize: 14, fontWeight: 700, color: '#1a1209', fontFamily: 'inherit', background: 'white' }}>
+              <option value="">Tous les résultats</option>
+              <option value="REFUSE">Refusées</option>
+              <option value="ERREUR">Erreurs</option>
+              <option value="SUCCES">Réussies</option>
+            </select>
+            <select value={aiOriginFilter} onChange={e => { const v = e.target.value as typeof aiOriginFilter; setAiOriginFilter(v); loadAiLogs(aiOutcomeFilter, v) }}
+              style={{ padding: '9px 14px', borderRadius: 9, border: '1.5px solid #e8e0d4', fontSize: 14, fontWeight: 700, color: '#1a1209', fontFamily: 'inherit', background: 'white' }}>
+              <option value="">Toute origine</option>
+              <option value="AI_ASSISTANT">Copilot IA</option>
+              <option value="UI_DIRECT">Interface classique</option>
+            </select>
+          </div>
+
+          <div style={{ background: 'white', borderRadius: 14, border: '1.5px solid #e8e0d4', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #e8e0d4', fontSize: 14, color: '#a89478', fontWeight: 600 }}>
+              Actions sensibles exécutées via le copilot IA ou leur équivalent en interface classique
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+                <thead>
+                  <tr>
+                    {['Date / Heure', 'Action', 'Origine', 'Résultat', 'Rôle', 'École', 'Motif'].map(h => (
+                      <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: 13, fontWeight: 800, color: '#a89478', background: '#f0ebe3', borderBottom: '1px solid #e8e0d4', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiLoading
+                    ? <EmptyRow cols={7} msg="Chargement..." />
+                    : aiLogs.length === 0
+                      ? <EmptyRow cols={7} msg="Aucune entrée pour ce filtre" />
+                      : aiLogs.map((log, i) => (
+                        <tr key={log.id} style={{ borderBottom: i < aiLogs.length - 1 ? '1px solid #faf7f2' : 'none' }}>
+                          <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{new Date(log.timestamp).toLocaleString('fr-CM')}</td>
+                          <td style={{ ...tdStyle, fontWeight: 700, color: '#1a1209' }}>{log.actionName}</td>
+                          <td style={tdStyle}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              {log.origin === 'AI_ASSISTANT' ? <Bot size={14} /> : <Zap size={14} />}
+                              {log.origin === 'AI_ASSISTANT' ? 'Copilot IA' : 'Interface classique'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                            <Badge type={AI_OUTCOME_BADGE[log.outcome]}>{AI_OUTCOME_LABEL[log.outcome]}</Badge>
+                          </td>
+                          <td style={tdStyle}>{log.actorRole}</td>
+                          <td style={tdStyle}>{log.schoolId ?? '—'}</td>
+                          <td style={{ ...tdStyle, maxWidth: 280, wordBreak: 'break-word', color: '#a89478', fontSize: 13 }}>{log.refusalReason ?? '—'}</td>
+                        </tr>
+                      ))
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── ONGLET SÉCURITÉ DU COMPTE ───────────────────────────────────────── */}
       {tab === 'security' && (
         <>

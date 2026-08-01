@@ -14,6 +14,7 @@ export function creerMasterAdminHexRoutes(controller: MasterAdminHexController):
   router.get('/auth/logs',    controller.listerLogs);
   router.get('/email-logs',   controller.listerEmailLogs);
   router.get('/backup/list',  controller.listerSauvegardes);
+  router.get('/security-audit-log', controller.listerJournalSecuriteIA);
   router.patch('/schools/:id/plan', controller.changerPlanEcole);
 
   // ── Actions décisives — vérification identité obligatoire ──────────────
