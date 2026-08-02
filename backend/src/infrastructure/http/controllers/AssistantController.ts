@@ -185,8 +185,21 @@ export class AssistantController {
         ? `\n\n── Aide contextuelle ──\nAucune fiche d'aide n'existe pour l'écran actuel (${screenKey}). Si la question porte sur le fonctionnement précis de ZekoulABia et que tu n'es pas certain de la réponse, utilise l'outil ${ESCALATE_TOOL_NAME} plutôt que d'inventer.`
         : '';
 
+    // `role` ne servait auparavant qu'à filtrer les fiches d'aide — l'accroche du prompt système
+    // était figée sur "administrateur scolaire" quel que soit l'utilisateur réel, ce qui aurait
+    // fait que l'assistant se décrive comme un outil d'administrateur même face à un enseignant,
+    // un parent ou un élève.
+    const descriptionParRole: Record<string, string> = {
+      ADMIN: "un copilot intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC)",
+      STAFF: "un copilot intégré au tableau de bord d'un membre du personnel administratif d'un établissement scolaire camerounais (système MINESEC)",
+      TEACHER: "un copilot intégré au tableau de bord d'un enseignant d'un établissement scolaire camerounais (système MINESEC)",
+      PARENT: "un copilot intégré à l'espace parent d'un établissement scolaire camerounais (système MINESEC), pour suivre la scolarité de son ou ses enfant(s)",
+      STUDENT: "un copilot intégré à l'espace élève d'un établissement scolaire camerounais (système MINESEC)",
+    };
+    const descriptionRole = descriptionParRole[role.toUpperCase()] ?? descriptionParRole.ADMIN;
+
     const system =
-      `Tu es l'Assistant ZekoulABia, un copilot intégré au tableau de bord d'un administrateur scolaire camerounais (système MINESEC). ` +
+      `Tu es l'Assistant ZekoulABia, ${descriptionRole}. ` +
       `Tu peux EXÉCUTER des actions dans l'interface via les outils (tools) qui te sont fournis, ou simplement RÉPONDRE aux questions.\n\n` +
       `Règles :\n` +
       `- Si la demande correspond clairement à une action parmi les tools fournis, appelle le ou les tools appropriés. Pour une demande composée, appelle plusieurs tools dans l'ordre logique.\n` +
@@ -195,6 +208,7 @@ export class AssistantController {
       `- N'appelle un tool QUE si tous les paramètres requis sont identifiables avec certitude (nom exact de l'élève/classe/matière, absence d'ambiguïté). Si un élément manque ou qu'un nom correspond à plusieurs résultats possibles, pose la question de clarification au lieu d'appeler le tool avec une supposition.\n` +
       `- Utilise les NOMS exacts des classes, matières et enseignants tels qu'ils apparaissent dans le contexte.\n` +
       `- Ne fabrique jamais de données. Si une information manque, dis-le.\n` +
+      `- Ton périmètre est la gestion scolaire de cet établissement. Pour une demande clairement hors sujet (écriture créative, culture générale, code, aide personnelle sans rapport avec l'école...), décline poliment en rappelant en une phrase ce que tu peux faire, sans y répondre sur le fond.\n` +
       `- ${instructionLangue(langue)} Sois concis.\n\n` +
       `── Contexte de l'établissement ──\n` +
       `Établissement : ${school?.name ?? 'N/A'} (${school?.subsystem ?? 'N/A'}, ${school?.educationType ?? 'N/A'}, template ${school?.templateCode ?? 'N/A'}).\n` +
