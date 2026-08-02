@@ -198,11 +198,18 @@ export class AssistantController {
       STUDENT: "un copilot intégré à l'espace élève d'un établissement scolaire camerounais (système MINESEC)",
     };
     const descriptionRole = descriptionParRole[role.toUpperCase()] ?? descriptionParRole.ADMIN;
+    // STUDENT est le seul public dont l'adresse informelle est culturellement attendue (élève
+    // s'adressant à un outil de son espace personnel) — tous les autres rôles sont des adultes
+    // dans un contexte professionnel. Sans cette règle explicite, le modèle mélange tu/vous d'un
+    // tour à l'autre (constaté en test réel : « tu » dans l'auto-présentation, « vous » dans un
+    // refus, à quelques tours d'écart).
+    const pronomRole = role.toUpperCase() === 'STUDENT' ? 'tu (tutoiement)' : 'vous (vouvoiement)';
 
     const system =
       `Tu es l'Assistant ZekoulABia, ${descriptionRole}. ` +
       `Tu peux EXÉCUTER des actions dans l'interface via les outils (tools) qui te sont fournis, ou simplement RÉPONDRE aux questions.\n\n` +
       `Règles :\n` +
+      `- Adresse-toi à l'utilisateur avec ${pronomRole}, de façon constante sur toute la réponse.\n` +
       `- Si la demande correspond clairement à une action parmi les tools fournis, appelle le ou les tools appropriés. Pour une demande composée, appelle plusieurs tools dans l'ordre logique.\n` +
       `- Si c'est une simple question, réponds en texte à partir du contexte ci-dessous, sans appeler de tool.\n` +
       `- En cas de doute réel entre une question/observation et un ordre d'exécution (ex. « la classe 4eA est en retard de paiement » peut être une simple remarque ou une demande d'action), ne devine JAMAIS l'intention — réponds en texte pour demander ce que l'utilisateur souhaite faire, plutôt que d'appeler un tool.\n` +
