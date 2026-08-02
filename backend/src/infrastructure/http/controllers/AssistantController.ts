@@ -87,28 +87,39 @@ export class AssistantController {
   }
 
   /**
-   * Charge l'historique persisté d'un fil de conversation et le sérialise en texte,
-   * même principe que le fix déjà validé pour l'onboarding PEBS conversationnel :
-   * pas de résumé, l'historique COMPLET est réinjecté à chaque appel avec instruction
-   * explicite de cumuler l'information de tous les tours précédents.
+   * Charge l'historique persisté d'un fil de conversation et le sérialise en texte.
+   * Fenêtré (derniers tours seulement) et tronqué par tour plutôt que réinjecté en
+   * intégralité : sur une conversation longue, réinjecter TOUT l'historique brut à
+   * chaque appel fait croître le coût en tokens avec la longueur du fil, jusqu'à
+   * épuiser le plafond TPM Groq en quelques échanges seulement (constaté en test réel :
+   * ~7500/8000 tokens/minute consommés après 7 tours sur un même fil). Une clarification
+   * ne porte quasiment toujours que sur le dernier tour assistant — cette fenêtre reste
+   * largement suffisante pour ce cas d'usage sans faire exploser le budget de tokens.
    */
   private async loadHistoryBlock(conversationId: string | null, schoolId: string, userId: string): Promise<string> {
     if (!conversationId) return '';
-    const turns = await this.conversationRepo.findMany({
+    const MAX_TOURS = 10; // ~5 échanges — au-delà, coût en tokens disproportionné pour un gain de contexte marginal
+    const MAX_CARACTERES_PAR_TOUR = 600;
+
+    const tournsDesc = await this.conversationRepo.findMany({
       where: { conversationId, schoolId, userId },
-      orderBy: { createdAt: 'asc' },
-      take: 40, // borne raisonnable — évite un prompt système illimité sur une très longue session
+      orderBy: { createdAt: 'desc' },
+      take: MAX_TOURS,
     });
-    if (turns.length === 0) return '';
+    if (tournsDesc.length === 0) return '';
+    const turns = tournsDesc.reverse();
+
+    const tronquer = (texte: string) =>
+      texte.length > MAX_CARACTERES_PAR_TOUR ? `${texte.slice(0, MAX_CARACTERES_PAR_TOUR)}…` : texte;
 
     const historyBlock = turns
-      .map((t: any, i: number) => `[${t.role === 'user' ? 'UTILISATEUR' : 'ASSISTANT'}, tour ${i + 1}] : "${t.content}"`)
+      .map((t: any, i: number) => `[${t.role === 'user' ? 'UTILISATEUR' : 'ASSISTANT'}, tour ${i + 1}] : "${tronquer(t.content)}"`)
       .join('\n');
 
     return (
       `\n\n── Historique de cette conversation ──\n` +
-      `Tu reçois ci-dessous l'HISTORIQUE COMPLET des échanges précédents avec cet utilisateur, dans ce fil de conversation.\n` +
-      `Ne te base PAS uniquement sur le dernier message : intègre TOUTE l'information déjà donnée dans les tours précédents.\n` +
+      `Tu reçois ci-dessous les derniers échanges avec cet utilisateur, dans ce fil de conversation.\n` +
+      `Ne te base PAS uniquement sur le dernier message : intègre l'information déjà donnée dans ces tours précédents.\n` +
       `Si l'utilisateur répond à une question de clarification que TU as posée, comprends sa réponse à la lumière de CETTE question précise.\n` +
       `${historyBlock}`
     );
