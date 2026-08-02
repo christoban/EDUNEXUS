@@ -14,6 +14,7 @@ import SectionStudentTimetable from './_components/SectionStudentTimetable'
 import SectionStudentAttendance from './_components/SectionStudentAttendance'
 import SectionStudentLibrary from './_components/SectionStudentLibrary'
 import SectionStudentHealthTracking from './_components/SectionStudentHealthTracking'
+import HealthAlertBanner from './_components/HealthAlertBanner'
 import type { StudentSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
@@ -135,6 +136,7 @@ export default function StudentDashboard() {
           </div>
         </header>
         <EventCenterWidget />
+        <HealthAlertBanner onNav={s => setSection(s as StudentSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
           {section === 'dashboard'  && <SectionStudentDashboard onNav={s => setSection(s as StudentSection)} {...sProps} />}

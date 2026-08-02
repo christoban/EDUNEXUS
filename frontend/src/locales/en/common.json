@@ -275,6 +275,12 @@
     "action": "View payments",
     "dismiss": "Dismiss"
   },
+  "healthAlert": {
+    "messageWarning": "Your school health score is in the warning zone ({score}/100).",
+    "messageCritical": "Your school health score is in the critical zone ({score}/100).",
+    "action": "View tracking",
+    "dismiss": "Dismiss"
+  },
   "notificationCenter": {
     "title": "Notification Center",
     "subtitle": "Full, filterable history of all your notifications",

@@ -275,6 +275,12 @@
     "action": "Voir les paiements",
     "dismiss": "Masquer"
   },
+  "healthAlert": {
+    "messageWarning": "Ton indice de santé scolaire est en zone d'avertissement ({score}/100).",
+    "messageCritical": "Ton indice de santé scolaire est en zone critique ({score}/100).",
+    "action": "Voir le suivi",
+    "dismiss": "Masquer"
+  },
   "notificationCenter": {
     "title": "Centre de notifications",
     "subtitle": "Historique complet, filtrable, de toutes vos notifications",
