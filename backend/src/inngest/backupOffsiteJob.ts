@@ -23,6 +23,19 @@ import { televerserObjet, listerObjets, supprimerObjet } from '../infrastructure
 const execFileAsync = promisify(execFile);
 const PREFIXE_R2 = 'db-exports/';
 
+/**
+ * `DATABASE_URL` (format Prisma) porte `?schema=public` dans la query string — un paramètre
+ * propre à Prisma, pas un paramètre de connexion libpq standard. `pg_dump` le reçoit tel quel et
+ * le rejette ("paramètre de la requête URI invalide"). On l'extrait pour le repasser comme
+ * option `--schema` séparée, et on nettoie l'URI du reste.
+ */
+function preparerConnexionPgDump(databaseUrl: string): { uri: string; args: string[] } {
+  const url = new URL(databaseUrl);
+  const schema = url.searchParams.get('schema');
+  url.searchParams.delete('schema');
+  return { uri: url.toString(), args: schema ? ['--schema', schema] : [] };
+}
+
 export const exporterOffsiteNocturne = inngest.createFunction(
   { id: 'export-offsite-nocturne', name: 'Export offsite chiffré (Couche 3)', triggers: [{ cron: '0 1 * * *' }] },
   async ({ step }) => {
@@ -30,10 +43,11 @@ export const exporterOffsiteNocturne = inngest.createFunction(
       const databaseUrl = process.env.DATABASE_URL;
       if (!databaseUrl) throw new Error('DATABASE_URL non configurée — export offsite impossible.');
       const chemin = join(tmpdir(), `zekoulabia-export-${Date.now()}.dump`);
+      const { uri, args: argsSchema } = preparerConnexionPgDump(databaseUrl);
       // Format custom (-Fc) : déjà compressé par pg_dump lui-même, restorable via pg_restore,
       // pas besoin d'une étape de compression manuelle séparée.
       await execFileAsync('pg_dump', [
-        databaseUrl, '--format=custom', '--no-owner', '--no-privileges', '--file', chemin,
+        uri, ...argsSchema, '--format=custom', '--no-owner', '--no-privileges', '--file', chemin,
       ]);
       return chemin;
     });
