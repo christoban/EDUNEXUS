@@ -1247,6 +1247,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.parent.verifierAcces,
     container.finance.initierPaiement,
     container.finance.factureRepository,
+    container.parent.obtenirAlertesSolde,
   );
 
   const schoolSettingsController = new SchoolSettingsController(

@@ -270,6 +270,11 @@
     "markAllRead": "Tout marquer comme lu",
     "viewAll": "Voir tout"
   },
+  "balanceAlert": {
+    "message": "Solde impayé : {total} — {detail}",
+    "action": "Voir les paiements",
+    "dismiss": "Masquer"
+  },
   "notificationCenter": {
     "title": "Centre de notifications",
     "subtitle": "Historique complet, filtrable, de toutes vos notifications",

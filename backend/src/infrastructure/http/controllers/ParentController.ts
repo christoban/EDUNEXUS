@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ObtenirEnfantsUseCase } from '@application/parent/ObtenirEnfantsUseCase';
 import type { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAccesEnfantUseCase';
+import type { ObtenirAlertesSoldeUseCase } from '@application/parent/ObtenirAlertesSoldeUseCase';
 import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
 import type { FactureRepository } from '@domain/ports/repositories/FactureRepository';
 import type { PaymentMethod } from '@domain/types/enums';
@@ -13,6 +14,7 @@ export class ParentController {
     private readonly verifierAcces: VerifierAccesEnfantUseCase,
     private readonly initierPaiement: InitierPaiementMobileMoneyUseCase,
     private readonly factureRepository: FactureRepository,
+    private readonly obtenirAlertesSolde: ObtenirAlertesSoldeUseCase,
   ) {}
 
   // GET /api/v2/parent/children
@@ -35,6 +37,22 @@ export class ParentController {
         actionName: 'mes_enfants', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: {},
       });
+      next(error);
+    }
+  };
+
+  // GET /api/v2/parent/alerts/balance
+  // Assistant proactif (Section 6.3) : bannière affichée à la connexion, pas de demande
+  // de l'utilisateur — indépendant du copilot conversationnel.
+  getAlertesSolde = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = (req as any).user;
+      const alertes = await this.obtenirAlertesSolde.execute({
+        parentUserId: user.userId,
+        schoolId: user.schoolId,
+      });
+      res.json({ success: true, data: alertes });
+    } catch (error) {
       next(error);
     }
   };

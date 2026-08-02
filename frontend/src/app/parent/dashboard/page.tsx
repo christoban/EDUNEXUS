@@ -6,6 +6,7 @@ import NotificationBell from '@/components/NotificationBell'
 import MobileMenuButton from '@/components/MobileMenuButton'
 import ParentSidebar from './_components/ParentSidebar'
 import ParentToast from './_components/ParentToast'
+import SoldeAlertBanner from './_components/SoldeAlertBanner'
 import SectionParentChildren from './_components/SectionParentChildren'
 import SectionParentGrades from './_components/SectionParentGrades'
 import SectionParentAttendance from './_components/SectionParentAttendance'
@@ -118,6 +119,7 @@ export default function ParentDashboard() {
           </div>
         </header>
         <EventCenterWidget />
+        <SoldeAlertBanner onNav={s => setSection(s as ParentSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
           {section === 'children'   && <SectionParentChildren onNav={s => setSection(s as ParentSection)} {...sProps} userId={user?.id} />}

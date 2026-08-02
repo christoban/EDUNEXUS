@@ -167,6 +167,7 @@ import { PrismaSchoolSettingsRepository } from '@infrastructure/persistence/pris
 
 // --- Use Cases : Parent ---
 import { ObtenirEnfantsUseCase } from '@application/parent/ObtenirEnfantsUseCase';
+import { ObtenirAlertesSoldeUseCase } from '@application/parent/ObtenirAlertesSoldeUseCase';
 import { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAccesEnfantUseCase';
 
 // --- Use Cases : SchoolSettings ---
@@ -411,6 +412,7 @@ export function creerContainer() {
 
   const obtenirEnfantsUseCase = new ObtenirEnfantsUseCase(parentRepository);
   const verifierAccesUseCase = new VerifierAccesEnfantUseCase(parentRepository);
+  const obtenirAlertesSoldeUseCase = new ObtenirAlertesSoldeUseCase(parentRepository, factureRepository);
   const obtenirParametresUseCase = new ObtenirParametresEcoleUseCase(schoolSettingsRepository);
   const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository);
 
@@ -535,6 +537,7 @@ export function creerContainer() {
     parent: {
       obtenirEnfants: obtenirEnfantsUseCase,
       verifierAcces: verifierAccesUseCase,
+      obtenirAlertesSolde: obtenirAlertesSoldeUseCase,
     },
     schoolSettings: {
       obtenir: obtenirParametresUseCase,

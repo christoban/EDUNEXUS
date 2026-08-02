@@ -270,6 +270,11 @@
     "markAllRead": "Mark all as read",
     "viewAll": "View all"
   },
+  "balanceAlert": {
+    "message": "Outstanding balance: {total} — {detail}",
+    "action": "View payments",
+    "dismiss": "Dismiss"
+  },
   "notificationCenter": {
     "title": "Notification Center",
     "subtitle": "Full, filterable history of all your notifications",
