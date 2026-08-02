@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, School, BookOpen, ClipboardCheck, FileText,
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
-  Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X, ArrowRightLeft,
+  Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X, ArrowRightLeft, Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -125,6 +125,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         // Retiré de la sidebar — redondant avec la cloche (permanente sur tous les écrans),
         // qui offre désormais un lien « Voir tout » vers cette même page.
         { id: 'settings',      icon: Settings, label: tnav('sidebar.settings') },
+        { id: 'corbeille',     icon: Trash2, label: tnav('sidebar.corbeille') },
       ]
     }
   ]

@@ -9,11 +9,12 @@
  */
 import { inngest } from './index';
 import { PrismaClient } from '@prisma/client';
+import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
 import { sendTransactionalEmail } from '../services/emailService';
 import { buildOnboardingLinkTemplate } from '../utils/emailTemplates';
 import { notifyOnboardingReminderSms } from '../infrastructure/services/SmsNotificationService';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 
 export const relanceOnboarding = inngest.createFunction(
   { id: 'relance-onboarding-eleve-quotidien', name: 'Relances onboarding élève', triggers: [{ cron: '0 8 * * *' }] },

@@ -759,6 +759,14 @@ export default function SectionUsers({ onToast }: Props) {
   const [activeTab, setActiveTab] = useState(0)
   const [openDD, setOpenDD] = useState<string | null>(null)
   const [inviteOpen, setInviteOpen] = useState(false)
+  // Fenêtre de grâce de ré-authentification (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md §1.5) —
+  // la suppression d'un utilisateur exige mot de passe + MFA avant exécution. Si le serveur
+  // répond REAUTH_REQUIRED, on demande la ré-authentification puis on rejoue la suppression.
+  const [reauthPourUserId, setReauthPourUserId] = useState<string | null>(null)
+  const [reauthPassword, setReauthPassword] = useState('')
+  const [reauthCode, setReauthCode] = useState('')
+  const [reauthLoading, setReauthLoading] = useState(false)
+  const [reauthError, setReauthError] = useState('')
   // Mobile — menu "..." de l'entete (Inviter / Import Excel), reproduction maquette drawer.
   const [userActionsOpen, setUserActionsOpen] = useState(false)
   const userActionsRef = useRef<HTMLDivElement>(null)
@@ -1000,11 +1008,50 @@ export default function SectionUsers({ onToast }: Props) {
     try {
       const res = await fetchApi(`/api/v2/users/${userId}`, { method: 'DELETE', credentials: 'include' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Erreur')
+      if (!res.ok) {
+        if (data.code === 'REAUTH_REQUIRED') {
+          setReauthPourUserId(userId)
+          setReauthPassword('')
+          setReauthCode('')
+          setReauthError('')
+          return
+        }
+        throw new Error(data.message || 'Erreur')
+      }
       onToast(t('users.i18n_ext.toast.userDeleted'), 'success')
       fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
     } catch (err) {
       onToast(err instanceof Error ? err.message : 'Erreur', 'error')
+    }
+  }
+
+  const handleReauthEtSupprimer = async () => {
+    if (!reauthPourUserId) return
+    if (!reauthPassword.trim()) { setReauthError(t('users.reauth.password_required')); return }
+    setReauthLoading(true)
+    setReauthError('')
+    try {
+      const reauthRes = await fetchApi('/api/v2/users/auth/reauth', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: reauthPassword, code: reauthCode }),
+      })
+      const reauthData = await reauthRes.json()
+      if (!reauthRes.ok || !reauthData.success) {
+        setReauthError(reauthData.message || t('users.reauth.error'))
+        return
+      }
+
+      const res = await fetchApi(`/api/v2/users/${reauthPourUserId}`, { method: 'DELETE', credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) { setReauthError(data.message || t('users.reauth.error')); return }
+
+      onToast(t('users.i18n_ext.toast.userDeleted'), 'success')
+      setReauthPourUserId(null)
+      fetchUsers(ROLE_TABS[activeTab]?.role ?? '')
+    } catch {
+      setReauthError(t('users.reauth.error'))
+    } finally {
+      setReauthLoading(false)
     }
   }
 
@@ -1525,6 +1572,42 @@ export default function SectionUsers({ onToast }: Props) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Ré-authentification avant suppression (Couche 1, §1.5) ── */}
+      {reauthPourUserId && (
+        <>
+          <div onClick={() => !reauthLoading && setReauthPourUserId(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(26,18,9,0.5)', backdropFilter: 'blur(3px)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: '92%', maxWidth: 420, borderRadius: 20 }}>
+            <div className="px-5 py-6 md:px-8 md:py-8" style={{ background: 'var(--surface)', borderRadius: 20, boxShadow: '0 32px 80px rgba(0,0,0,0.22)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <KeyRound size={20} color="var(--text)" />
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{t('users.reauth.title')}</span>
+              </div>
+              <p style={{ fontSize: 13.5, color: 'var(--text3)', marginTop: 0, marginBottom: 16 }}>{t('users.reauth.subtitle')}</p>
+
+              <label className={sLbCls} style={sLb}>{t('users.reauth.password_label')}</label>
+              <input type="password" autoFocus value={reauthPassword} onChange={e => setReauthPassword(e.target.value)}
+                className={sInCls} style={sIn} onKeyDown={e => e.key === 'Enter' && handleReauthEtSupprimer()} />
+
+              <label className={sLbCls} style={sLb}>{t('users.reauth.code_label')}</label>
+              <input type="text" inputMode="numeric" value={reauthCode} onChange={e => setReauthCode(e.target.value)}
+                className={sInCls} style={sIn} placeholder={t('users.reauth.code_placeholder')}
+                onKeyDown={e => e.key === 'Enter' && handleReauthEtSupprimer()} />
+
+              {reauthError && <div style={sErr}>{reauthError}</div>}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 700, background: 'var(--surface)', color: 'var(--text2)', border: '1.5px solid var(--border)', cursor: 'pointer', fontFamily: 'inherit' }}
+                  onClick={() => setReauthPourUserId(null)} disabled={reauthLoading}>{t('users.i18n_ext.actions.cancel')}</button>
+                <button style={{ flex: 1, padding: '10px', borderRadius: 11, fontSize: 15, fontWeight: 800, background: '#dc2626', color: 'white', border: 'none', cursor: reauthLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: reauthLoading ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                  onClick={handleReauthEtSupprimer} disabled={reauthLoading}>
+                  {reauthLoading ? <Loader2 size={15} strokeWidth={2} className="animate-spin" /> : t('users.reauth.btn_confirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

@@ -88,31 +88,29 @@ export class PrismaClasseRepository implements ClasseRepository {
     return data ? this.toDomain(data) : null;
   }
 
-  async supprimerAvecCascade(classeId: string): Promise<void> {
-    const classe = await this.prisma.class.findUnique({
-      where: { id: classeId },
-      select: { schoolId: true },
-    });
+  /**
+   * Nom historique conservé ("avecCascade"), comportement changé (Couche 1,
+   * PLAN_IMPLEMENTATION_BACKUP.md) : pose deletedAt sur la classe elle-même, ne supprime plus
+   * rien — élèves rattachés, notes, présences, emploi du temps, conseils de classe restent
+   * intacts. Une restauration remet tout en état sans rien à reconstruire. Limite connue et
+   * acceptée : une classe supprimée reste visible via un `include: { class: true }` depuis un
+   * autre modèle (le filtre automatique de softDeleteExtension.ts ne s'applique qu'aux lectures
+   * directes sur `class`, pas aux relations imbriquées) — sans conséquence pratique tant que
+   * l'écran qui liste les classes elles-mêmes (l'usage principal concerné) est bien filtré.
+   */
+  async supprimerAvecCascade(classeId: string, deletedById?: string): Promise<void> {
+    const classe = await this.prisma.class.findUnique({ where: { id: classeId }, select: { id: true } });
     if (!classe) return;
-    const { schoolId } = classe;
+    await this.prisma.class.update({
+      where: { id: classeId },
+      data: { deletedAt: new Date(), deletedById: deletedById ?? null },
+    });
+  }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.attendance.deleteMany({ where: { schoolId, classId: classeId } });
-      await tx.grade.deleteMany({ where: { schoolId, classId: classeId } });
-
-      await tx.classCouncilSession.deleteMany({ where: { schoolId, classId: classeId } });
-      await tx.timetable.deleteMany({ where: { schoolId, classId: classeId } });
-      await tx.classPromotion.deleteMany({
-        where: { schoolId, OR: [{ fromClassId: classeId }, { toClassId: classeId }] },
-      });
-      await tx.studentPromotion.deleteMany({
-        where: { schoolId, OR: [{ fromClassId: classeId }, { toClassId: classeId }] },
-      });
-      await tx.studentProfile.updateMany({
-        where: { classId: classeId, user: { schoolId } },
-        data: { classId: null },
-      });
-      await tx.class.delete({ where: { id: classeId } });
+  async restaurer(classeId: string): Promise<void> {
+    await this.prisma.class.update({
+      where: { id: classeId, deletedAt: { not: null } },
+      data: { deletedAt: null, deletedById: null },
     });
   }
 

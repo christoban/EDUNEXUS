@@ -1,7 +1,9 @@
 /**
  * APPLICATION LAYER — Use Case : Supprimer un utilisateur
  * Logique extraite de controllers/user.ts → deleteUser handler
- * Suppression complète en transaction (9 opérations selon l'analyse).
+ * Suppression douce (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md) — pose deletedAt sur la ligne User,
+ * ne touche plus à ses données liées (notes/présences/bulletins/liens parent-élève restent
+ * intacts, invisibles seulement via le filtre automatique deletedAt:null sur l'utilisateur).
  */
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 
@@ -12,6 +14,7 @@ export class SupprimerUtilisateurUseCase {
     userId: string;
     schoolId: string;
     demandeurRole: string;
+    demandeurId: string;
   }): Promise<void> {
     if (params.demandeurRole !== 'ADMIN') {
       throw new Error('Seul un Admin peut supprimer un utilisateur');
@@ -24,8 +27,6 @@ export class SupprimerUtilisateurUseCase {
       throw new Error('Accès refusé : utilisateur hors de votre établissement');
     }
 
-    // La suppression en cascade (attendance, grades, etc.)
-    // est gérée dans l'adapter Prisma via une transaction
-    await this.userRepository.supprimerAvecCascade(params.userId);
+    await this.userRepository.supprimerAvecCascade(params.userId, params.demandeurId);
   }
 }

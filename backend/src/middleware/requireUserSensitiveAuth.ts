@@ -45,6 +45,72 @@ const verifyRecoveryCode = async (
   return { matched: false, updatedHashes: hashes };
 };
 
+export type ResultatVerificationSensible =
+  | { ok: true }
+  | { ok: false; statusCode: number; message: string };
+
+/**
+ * Cœur de la vérification mot de passe + MFA/récupération — extrait pour être réutilisé à la
+ * fois par le middleware `requireUserSensitiveAuth` (ré-authentification à chaque appel, MFA
+ * reconfigure/regen-codes) et par le flux `POST /auth/reauth` (Couche 1, PLAN_IMPLEMENTATION_
+ * BACKUP.md §1.5 — délivre un jeton de fenêtre de grâce après une vérification réussie, pour ne
+ * pas re-demander mot de passe+MFA à chaque action destructive enchaînée). Même logique, deux
+ * façons de la déclencher.
+ */
+export const verifierMotDePasseEtMfa = async (
+  userId: string,
+  password: string,
+  code: string
+): Promise<ResultatVerificationSensible> => {
+  if (!password) {
+    return { ok: false, statusCode: 400, message: "Mot de passe requis" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      passwordHash: true,
+      mfaEnabled: true,
+      mfaSecret: true,
+      mfaRecoveryCodeHashes: true,
+    },
+  });
+
+  if (!user || !user.passwordHash) {
+    return { ok: false, statusCode: 401, message: "Non autorisé" };
+  }
+
+  const passwordOk = await bcrypt.compare(password, user.passwordHash);
+  if (!passwordOk) {
+    return { ok: false, statusCode: 401, message: "Mot de passe incorrect" };
+  }
+
+  if (user.mfaEnabled && user.mfaSecret) {
+    if (!code) {
+      return { ok: false, statusCode: 400, message: "Mot de passe et code MFA/récupération requis" };
+    }
+
+    const totpValid = verifyTotpCode(code, user.mfaSecret);
+    if (totpValid) return { ok: true };
+
+    if (user.mfaRecoveryCodeHashes.length > 0) {
+      const { matched, updatedHashes } = await verifyRecoveryCode(code, user.mfaRecoveryCodeHashes);
+      if (matched) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { mfaRecoveryCodeHashes: updatedHashes },
+        });
+        return { ok: true };
+      }
+    }
+
+    return { ok: false, statusCode: 401, message: "Code MFA invalide" };
+  }
+
+  return { ok: true };
+};
+
 export const requireUserSensitiveAuth = async (
   req: Request,
   res: Response,
@@ -56,53 +122,11 @@ export const requireUserSensitiveAuth = async (
     }
 
     const { password, code } = extractSensitiveAuthPayload(req);
-
-    if (!password) {
-      return res.status(400).json({ success: false, message: "Mot de passe requis" });
+    const resultat = await verifierMotDePasseEtMfa(req.user.userId, password, code);
+    if (!resultat.ok) {
+      const echec = resultat as { ok: false; statusCode: number; message: string };
+      return res.status(echec.statusCode).json({ success: false, message: echec.message });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      select: {
-        id: true,
-        passwordHash: true,
-        mfaEnabled: true,
-        mfaSecret: true,
-        mfaRecoveryCodeHashes: true,
-      },
-    });
-
-    if (!user || !user.passwordHash) {
-      return res.status(401).json({ success: false, message: "Non autorisé" });
-    }
-
-    const passwordOk = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordOk) {
-      return res.status(401).json({ success: false, message: "Mot de passe incorrect" });
-    }
-
-    if (user.mfaEnabled && user.mfaSecret) {
-      if (!code) {
-        return res.status(400).json({ success: false, message: "Mot de passe et code MFA/récupération requis" });
-      }
-
-      const totpValid = verifyTotpCode(code, user.mfaSecret);
-      if (totpValid) return next();
-
-      if (user.mfaRecoveryCodeHashes.length > 0) {
-        const { matched, updatedHashes } = await verifyRecoveryCode(code, user.mfaRecoveryCodeHashes);
-        if (matched) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { mfaRecoveryCodeHashes: updatedHashes },
-          });
-          return next();
-        }
-      }
-
-      return res.status(401).json({ success: false, message: "Code MFA invalide" });
-    }
-
     return next();
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message || "Erreur serveur" });

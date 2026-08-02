@@ -78,19 +78,25 @@ export class PrismaMatiereRepository implements MatiereRepository {
     });
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.classSubjectOverride.deleteMany({ where: { subjectId: id } }),
-      this.prisma.subjectCoefficient.deleteMany({ where: { subjectId: id } }),
-      this.prisma.teacherSubject.deleteMany({ where: { subjectId: id } }),
-      this.prisma.teachingAssignment.deleteMany({ where: { subjectId: id } }),
-      this.prisma.timetableSlot.deleteMany({ where: { subjectId: id } }),
-      this.prisma.exam.deleteMany({ where: { subjectId: id } }),
-      this.prisma.grade.deleteMany({ where: { subjectId: id } }),
-      this.prisma.reportCardSubjectLine.deleteMany({ where: { subjectId: id } }),
-      this.prisma.attendance.updateMany({ where: { subjectId: id }, data: { subjectId: null } }),
-      this.prisma.subject.delete({ where: { id } }),
-    ]);
+  /**
+   * Suppression douce (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md) — pose deletedAt sur la matière
+   * elle-même, ne supprime plus rien : les notes/présences/emplois du temps qui la référencent
+   * restent intacts (l'ancienne cascade effaçait `grade`/`reportCardSubjectLine`, donc perdait
+   * réellement des notes d'élèves — ce n'est plus le cas). Restauration = tout redevient visible
+   * sans rien à reconstruire.
+   */
+  async delete(id: string, deletedById?: string): Promise<void> {
+    await this.prisma.subject.update({
+      where: { id },
+      data: { deletedAt: new Date(), deletedById: deletedById ?? null },
+    });
+  }
+
+  async restaurer(id: string): Promise<void> {
+    await this.prisma.subject.update({
+      where: { id, deletedAt: { not: null } },
+      data: { deletedAt: null, deletedById: null },
+    });
   }
 
   async assignerEnseignant(teacherProfileId: string, subjectId: string): Promise<void> {

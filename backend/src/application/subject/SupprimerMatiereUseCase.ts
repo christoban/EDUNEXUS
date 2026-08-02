@@ -3,7 +3,7 @@ import type { MatiereRepository } from '@domain/ports/repositories/MatiereReposi
 export class SupprimerMatiereUseCase {
   constructor(private readonly matiereRepository: MatiereRepository) {}
 
-  async execute(params: { matiereId: string; schoolId: string; demandeurRole: string }): Promise<void> {
+  async execute(params: { matiereId: string; schoolId: string; demandeurRole: string; demandeurId?: string }): Promise<void> {
     if (params.demandeurRole !== 'ADMIN') {
       throw new Error('Seul un Admin peut supprimer une matière');
     }
@@ -15,6 +15,6 @@ export class SupprimerMatiereUseCase {
       throw new Error('Accès refusé : matière hors de votre établissement');
     }
 
-    await this.matiereRepository.delete(params.matiereId);
+    await this.matiereRepository.delete(params.matiereId, params.demandeurId);
   }
 }

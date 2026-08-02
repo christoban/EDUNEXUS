@@ -1778,6 +1778,132 @@ export const checkSuspiciousAiActionPattern = inngest.createFunction(
   },
 );
 
+// ── Couche 1 (Corbeille) — purge planifiée après le délai de grâce ────────────────────────────
+// PLAN_IMPLEMENTATION_BACKUP.md §1.4 : traitement différent selon le type de donnée.
+// - User (élève/parent/enseignant/staff) = donnée personnelle → JAMAIS de vrai DELETE : capturée
+//   intégralement dans UserArchive.snapshot AVANT que la ligne active (et ses données liées) ne
+//   soit réellement supprimée — "déplacée vers une table d'archive", pas perdue.
+// - Class/Subject = donnée structurelle → vrai DELETE accepté, cascade identique à celle qui
+//   existait avant la Couche 1 (juste repoussée de 30 jours au lieu d'immédiate).
+const PURGE_GRACE_PERIOD_DAYS = parseInt(process.env.PURGE_GRACE_PERIOD_DAYS || "30", 10);
+
+export const purgerCorbeille = inngest.createFunction(
+  { id: "purge-corbeille", name: "Purge planifiée de la corbeille (Couche 1)", triggers: [{ cron: "0 4 * * *" }] },
+  async ({ step }) => {
+    const cutoff = new Date(Date.now() - PURGE_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+
+    await step.run("purge-users-vers-archive", async () => {
+      const users = await prisma.user.findMany({
+        where: { deletedAt: { not: null, lt: cutoff } },
+        select: {
+          id: true, schoolId: true, role: true, firstName: true, lastName: true,
+          email: true, phone: true, deletedAt: true, deletedById: true,
+        },
+      });
+
+      for (const u of users) {
+        try {
+          const [
+            studentProfile, parentProfile, teacherProfile, staffProfile,
+            grades, attendances, reportCards,
+            parentLinksAsStudent, parentLinksAsParent, teacherSubjects, staffPermissions,
+          ] = await Promise.all([
+            (prisma as any).studentProfile.findUnique({ where: { userId: u.id } }),
+            (prisma as any).parentProfile.findUnique({ where: { userId: u.id } }),
+            (prisma as any).teacherProfile.findUnique({ where: { userId: u.id } }),
+            (prisma as any).staffProfile.findUnique({ where: { userId: u.id }, include: { permissions: true } }),
+            prisma.grade.findMany({ where: { studentId: u.id } }),
+            prisma.attendance.findMany({ where: { studentId: u.id } }),
+            (prisma as any).reportCard.findMany({ where: { studentId: u.id } }),
+            (prisma as any).parentStudent.findMany({ where: { studentProfile: { userId: u.id } } }),
+            (prisma as any).parentStudent.findMany({ where: { parentProfile: { userId: u.id } } }),
+            (prisma as any).teacherSubject.findMany({ where: { teacherProfile: { userId: u.id } } }),
+            (prisma as any).staffPermission.findMany({ where: { staffProfile: { userId: u.id } } }),
+          ]);
+
+          const snapshot = JSON.parse(JSON.stringify({
+            user: u, studentProfile, parentProfile, teacherProfile, staffProfile,
+            grades, attendances, reportCards,
+            parentLinksAsStudent, parentLinksAsParent, teacherSubjects, staffPermissions,
+          }));
+
+          await (prisma as any).userArchive.create({
+            data: {
+              originalUserId: u.id, schoolId: u.schoolId, role: u.role,
+              firstName: u.firstName, lastName: u.lastName, email: u.email, phone: u.phone,
+              deletedAt: u.deletedAt!, deletedById: u.deletedById, snapshot,
+            },
+          });
+
+          await prisma.$transaction([
+            prisma.attendance.deleteMany({ where: { studentId: u.id } }),
+            prisma.grade.deleteMany({ where: { studentId: u.id } }),
+            (prisma as any).reportCard.deleteMany({ where: { studentId: u.id } }),
+            (prisma as any).parentStudent.deleteMany({
+              where: { OR: [{ studentProfile: { userId: u.id } }, { parentProfile: { userId: u.id } }] },
+            }),
+            (prisma as any).teacherSubject.deleteMany({ where: { teacherProfile: { userId: u.id } } }),
+            (prisma as any).staffPermission.deleteMany({ where: { staffProfile: { userId: u.id } } }),
+            prisma.user.delete({ where: { id: u.id } }),
+          ]);
+        } catch (err: any) {
+          console.error(`[PurgeCorbeille] utilisateur ${u.id}:`, err?.message);
+        }
+      }
+    });
+
+    await step.run("purge-classes", async () => {
+      const classes = await prisma.class.findMany({
+        where: { deletedAt: { not: null, lt: cutoff } },
+        select: { id: true, schoolId: true },
+      });
+      for (const c of classes) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            await tx.attendance.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
+            await tx.grade.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
+            await (tx as any).classCouncilSession.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
+            await tx.timetable.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
+            await (tx as any).classPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
+            await (tx as any).studentPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
+            await (tx as any).studentProfile.updateMany({ where: { classId: c.id, user: { schoolId: c.schoolId } }, data: { classId: null } });
+            await tx.class.delete({ where: { id: c.id } });
+          });
+        } catch (err: any) {
+          console.error(`[PurgeCorbeille] classe ${c.id}:`, err?.message);
+        }
+      }
+    });
+
+    await step.run("purge-subjects", async () => {
+      const subjects = await prisma.subject.findMany({
+        where: { deletedAt: { not: null, lt: cutoff } },
+        select: { id: true },
+      });
+      for (const s of subjects) {
+        try {
+          await prisma.$transaction([
+            (prisma as any).classSubjectOverride.deleteMany({ where: { subjectId: s.id } }),
+            (prisma as any).subjectCoefficient.deleteMany({ where: { subjectId: s.id } }),
+            (prisma as any).teacherSubject.deleteMany({ where: { subjectId: s.id } }),
+            (prisma as any).teachingAssignment.deleteMany({ where: { subjectId: s.id } }),
+            (prisma as any).timetableSlot.deleteMany({ where: { subjectId: s.id } }),
+            (prisma as any).exam.deleteMany({ where: { subjectId: s.id } }),
+            prisma.grade.deleteMany({ where: { subjectId: s.id } }),
+            (prisma as any).reportCardSubjectLine.deleteMany({ where: { subjectId: s.id } }),
+            prisma.attendance.updateMany({ where: { subjectId: s.id }, data: { subjectId: null } }),
+            prisma.subject.delete({ where: { id: s.id } }),
+          ]);
+        } catch (err: any) {
+          console.error(`[PurgeCorbeille] matière ${s.id}:`, err?.message);
+        }
+      }
+    });
+
+    return { purged: true };
+  },
+);
+
 export const BackupSchoolDataJob = inngest.createFunction(
   {
     id: "Backup-School-Data",

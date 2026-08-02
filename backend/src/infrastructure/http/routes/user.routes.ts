@@ -4,6 +4,7 @@ import type { UserController } from '@infrastructure/http/controllers/UserContro
 import { requireAuth, requireRole } from '../../../middleware/auth';
 import { authLimiter, userEmailOtpLimiter, userMfaLimiter } from '../../../middleware/rateLimit';
 import { requireUserSensitiveAuth } from '../../../middleware/requireUserSensitiveAuth';
+import { requireReauthToken } from '../../../middleware/requireReauthToken';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -38,6 +39,11 @@ export function creerUserRoutes(controller: UserController): Router {
   router.post('/mfa/reconfigure/confirm',requireAuth,                                controller.mfaReconfigureConfirm);
   router.post('/mfa/regen-codes',        requireAuth, requireUserSensitiveAuth,       controller.mfaRegenCodes);
 
+  // Fenêtre de grâce de ré-authentification (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md §1.5) —
+  // ouvre un jeton court terme réutilisable par les actions destructives de gravité complète
+  // (suppression d'utilisateur), quel que soit le chemin d'exécution (écran ou assistant IA).
+  router.post('/auth/reauth', requireAuth, userMfaLimiter, controller.reauth);
+
   // Récupération de mot de passe — publique
   router.post('/auth/forgot-password', controller.forgotPassword);
   router.post('/auth/reset-password', controller.resetPassword);
@@ -52,7 +58,9 @@ export function creerUserRoutes(controller: UserController): Router {
   // Gestion utilisateurs
   router.post('/', requireAuth, requireRole('ADMIN'), controller.register);
   router.put('/:id', requireAuth, controller.update);
-  router.delete('/:id', requireAuth, requireRole('ADMIN'), controller.delete);
+  // Ré-authentification complète obligatoire (§1.5) — suppression d'un compte élève/parent/
+  // enseignant, jamais une simple confirmation classique (contrairement à classe/matière).
+  router.delete('/:id', requireAuth, requireRole('ADMIN'), requireReauthToken, controller.delete);
 
   // Import Excel
   router.post('/import', requireAuth, requireRole('ADMIN'), upload.single('file'), controller.importUsers);

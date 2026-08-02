@@ -9,6 +9,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { softDeleteExtension } from '@infrastructure/persistence/prisma/softDeleteExtension';
 
 // --- Adapters Persistence ---
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
@@ -232,8 +233,10 @@ import { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/ChangerPl
 // ─────────────────────────────────────────────
 
 export function creerContainer() {
-  // 1. Client Prisma (singleton)
-  const prisma = new PrismaClient();
+  // 1. Client Prisma (singleton) — connexion séparée de celle de prisma.client.ts (dette
+  // architecturale préexistante, pas corrigée ici), mais l'extension de soft-delete doit couvrir
+  // les DEUX pour que le filtre deletedAt:null soit vraiment universel (voir softDeleteExtension.ts).
+  const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 
   // 2. Repositories
   const userRepository = new PrismaUserRepository(prisma);

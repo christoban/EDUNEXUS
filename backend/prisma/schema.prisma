@@ -540,6 +540,16 @@ model User {
   lastLogin                       DateTime?
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
+  // Suppression douce (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md) — jamais de vrai DELETE sur un
+  // compte utilisateur. null = actif. Filtré automatiquement sur toute lecture standard par
+  // softDeleteExtension.ts ; un appelant qui a besoin de voir tous les statuts (corbeille, purge)
+  // passe explicitement deletedAt dans son where pour contourner le filtre.
+  // Limite connue et acceptée : @@unique([schoolId, email/phone]) ci-dessous reste global (actif
+  // + corbeille confondus) — un email/téléphone d'un compte à la corbeille reste indisponible
+  // pour un nouveau compte pendant les 30 jours de délai de grâce. Contournement si besoin réel :
+  // purger l'ancien compte plus tôt depuis l'écran Corbeille plutôt qu'attendre.
+  deletedAt                       DateTime?
+  deletedById                     String?
   announcements                   Announcement[]             @relation("AnnouncementAuthor")
   attendancesRecorded             Attendance[]               @relation("RecordedAttendances")
   attendancesAsTeacher            Attendance[]               @relation("TeacherAttendances")
@@ -607,6 +617,33 @@ model User {
   @@unique([schoolId, phone])
   @@index([schoolId, role])
   @@index([loginEmailOtpExpiresAt])
+  @@index([deletedAt])
+}
+
+/// Archive définitive d'un compte "personne réelle" (élève/parent/enseignant/staff) purgé de la
+/// corbeille après le délai de grâce — Couche 1 §1.4 du plan de sauvegarde. JAMAIS de vrai DELETE
+/// sur une personne identifiable : la ligne User active est réellement supprimée par le job de
+/// purge SEULEMENT après avoir été capturée ici (snapshot JSON — compte + profils + notes/
+/// présences/bulletins liés au moment de l'archivage), pour deux raisons combinées : obligations
+/// de conservation de dossiers scolaires sur plusieurs années, et capacité à répondre à une future
+/// demande légale d'accès/effacement. Rétention volontairement longue par défaut, aucune purge
+/// automatique programmée de cette table (voir définition de done du plan) — à confirmer un jour
+/// auprès du MINESEC ou d'un juriste, mais le coût de stockage de lignes archivées est négligeable.
+model UserArchive {
+  id             String   @id @default(cuid())
+  originalUserId String   @unique
+  schoolId       String
+  role           UserRole
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  snapshot       Json
+  deletedAt      DateTime
+  deletedById    String?
+  archivedAt     DateTime @default(now())
+
+  @@index([schoolId])
 }
 
 model StudentProfile {
@@ -927,6 +964,8 @@ model Class {
   sectionId             String?
   capacity              Int                    @default(40)
   createdAt             DateTime               @default(now())
+  deletedAt             DateTime?
+  deletedById           String?
   filiere               String?
   pebsMixte             Boolean                @default(false)
   serie                 String?
@@ -952,6 +991,7 @@ model Class {
   studentOnboardings    StudentOnboarding[]
 
   @@index([schoolId])
+  @@index([deletedAt])
 }
 
 model Subject {
@@ -962,6 +1002,8 @@ model Subject {
   coefficient            Float                   @default(1)
   hoursPerWeek           Int                     @default(2)
   createdAt              DateTime                @default(now())
+  deletedAt              DateTime?
+  deletedById            String?
   subjectType            SubjectType             @default(THEORETICAL)
   departmentId           String?
   isLV2                  Boolean                 @default(false)
@@ -984,6 +1026,7 @@ model Subject {
   followUpActions        StudentFollowUpAction[]
 
   @@index([schoolId])
+  @@index([deletedAt])
 }
 
 model Department {

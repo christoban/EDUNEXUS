@@ -7,11 +7,12 @@
  */
 import { inngest } from './index';
 import { PrismaClient } from '@prisma/client';
+import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
 import { CarteScolaireScrapingAdapter } from '../infrastructure/services/CarteScolaireScrapingAdapter';
 import { SyncFromCarteScolaireUseCase } from '../application/matricule/SyncFromCarteScolaireUseCase';
 import { notifyMinesecOverdueSms } from '../infrastructure/services/SmsNotificationService';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 const carteScolaire = new CarteScolaireScrapingAdapter();
 const syncUseCase = new SyncFromCarteScolaireUseCase(prisma, carteScolaire);
 

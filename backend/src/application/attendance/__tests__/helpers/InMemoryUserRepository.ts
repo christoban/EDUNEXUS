@@ -63,6 +63,10 @@ export class InMemoryUserRepository implements UserRepository {
     this.store.delete(userId);
   }
 
+  async restaurer(_userId: string): Promise<void> {
+    // stub
+  }
+
   async transfererEleve(_params: any): Promise<void> {
     // stub
   }

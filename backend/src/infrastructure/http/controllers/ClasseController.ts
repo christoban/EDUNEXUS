@@ -87,13 +87,14 @@ export class ClasseController {
       await this.supprimer.execute({
         classeId: req.params.id as string,
         schoolId: user.schoolId,
+        demandeurId: user.userId,
       });
       journaliserActionIA(this.prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'supprimer_classe', targetType: 'Class', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
-      res.json({ success: true, message: 'Classe supprimée' });
+      res.json({ success: true, message: 'Classe mise à la corbeille' });
     } catch (error) {
       const user = (req as any).user;
       journaliserActionIA(this.prisma, {

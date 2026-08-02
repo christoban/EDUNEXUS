@@ -420,7 +420,17 @@
         "required": "First name and last name required"
       }
     },
-    "delete_confirm": "Delete this user? This action is irreversible.",
+    "delete_confirm": "Delete this user? They will be moved to Trash, recoverable for 30 days.",
+    "reauth": {
+      "title": "Confirm your identity",
+      "subtitle": "Deleting an account requires your password (and MFA code if enabled).",
+      "password_label": "Password",
+      "code_label": "MFA code (if enabled)",
+      "code_placeholder": "123456",
+      "btn_confirm": "Confirm and delete",
+      "password_required": "Password required",
+      "error": "Re-authentication failed"
+    },
     "last_login": {
       "never": "Never logged in",
       "today": "Today",
@@ -559,7 +569,7 @@
     },
     "delete_modal": {
       "title": "Delete Class",
-      "confirm": "Delete class <strong>{name}</strong> ?<br /><span style=\"color: #dc2626; font-weight: 600;\">This action is irreversible.</span>",
+      "confirm": "Delete class <strong>{name}</strong> ?<br /><span style=\"color: #6b7280; font-weight: 600;\">It will be moved to Trash, recoverable for 30 days.</span>",
       "btn_cancel": "Cancel",
       "btn_confirm": "Confirm Deletion",
       "deleting": "Deleting…"
@@ -792,11 +802,27 @@
       "all_covered": "All subjects have at least one teacher",
       "remove_confirm": "Remove {subject} from {teacher} ?"
     },
-    "delete_confirm": "Delete subject \"{name}\"? This action is irreversible.",
+    "delete_confirm": "Delete subject \"{name}\"? It will be moved to Trash, recoverable for 30 days.",
     "toast_deleted": "\"{name}\" deleted",
     "error": {
       "load": "Server error"
     }
+  },
+  "corbeille": {
+    "titre": "Trash",
+    "sous_titre": "Deleted students, parents, teachers, classes and subjects — recoverable for 30 days",
+    "vide_titre": "Trash is empty",
+    "vide_sous_titre": "Deleted items will appear here for 30 days before permanent purge.",
+    "col_element": "Item",
+    "col_supprime_par": "Deleted by",
+    "col_purge_le": "Purged on",
+    "type_utilisateur": "Account",
+    "type_classe": "Class",
+    "type_matiere": "Subject",
+    "btn_restaurer": "Restore",
+    "restaure": "\"{nom}\" restored",
+    "erreur_restauration": "Error while restoring",
+    "retry": "Retry"
   },
   "settings": {
     "title": "Settings",

@@ -87,6 +87,7 @@ import { creerCommunicationsRoutes } from '@infrastructure/http/routes/communica
 import { TimetableAutoController } from '@infrastructure/http/controllers/TimetableAutoController';
 import { PedagogieController, calculerAlertesRetardProgramme } from '@infrastructure/http/controllers/PedagogieController';
 import { AIActionAuditController } from '@infrastructure/http/controllers/AIActionAuditController';
+import { CorbeilleController } from '@infrastructure/http/controllers/CorbeilleController';
 import { creerPedagogieRoutes } from '@infrastructure/http/routes/pedagogie.routes';
 import { HRController, traiterDemandeConge } from '@infrastructure/http/controllers/HRController';
 import { creerHrRoutes } from '@infrastructure/http/routes/hr.routes';
@@ -1227,6 +1228,11 @@ export function bootstrapHexagonal(app: Application): void {
   // ── Sécurité de l'assistant IA — Journal d'établissement ───────────────────
   const aiActionAuditController = new AIActionAuditController(prisma);
   app.get('/api/v2/security/audit-log', requireAuth, requireRole('ADMIN'), aiActionAuditController.journalEtablissement);
+
+  // ── Couche 1 — Écran Corbeille ───────────────────────────────────────────
+  const corbeilleController = new CorbeilleController(prisma);
+  app.get('/api/v2/corbeille', requireAuth, requireRole('ADMIN'), corbeilleController.lister);
+  app.post('/api/v2/corbeille/:type/:id/restore', requireAuth, requireRole('ADMIN'), corbeilleController.restaurer);
 
   // ── Module RH (C.2) ───────────────────────────────────────────────────────
   const hrController = new HRController(prisma);

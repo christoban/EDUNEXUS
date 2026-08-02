@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { extraireDocument } from '@infrastructure/services/DocumentAiOrchestrator';
 import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
+import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
 // ─── Alertes de retard programme (extrait pour être réutilisable hors HTTP —
 // ex. catalogue copilot) ────────────────────────────────────────────────────

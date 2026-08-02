@@ -26,5 +26,6 @@ export class InMemoryClasseRepository implements ClasseRepository {
   async update(c: Classe): Promise<void> { this.store.set(c.id, c); }
   async delete(id: string): Promise<void> { this.store.delete(id); }
   async supprimerAvecCascade(id: string): Promise<void> { this.store.delete(id); }
+  async restaurer(_id: string): Promise<void> {}
   async findClasseDeProfPrincipal(_teacherUserId: string): Promise<Classe | null> { return null; }
 }

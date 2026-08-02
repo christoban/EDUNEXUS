@@ -65,5 +65,7 @@ export interface MatiereRepository {
   // Écriture
   save(matiere: MatiereProps): Promise<void>;
   update(matiere: MatiereProps): Promise<void>;
-  delete(id: string): Promise<void>;
+  // Suppression douce (Couche 1) — pose deletedAt, ne touche plus aux données liées.
+  delete(id: string, deletedById?: string): Promise<void>;
+  restaurer(id: string): Promise<void>;
 }

@@ -31,5 +31,6 @@ export class InMemoryClasseRepository implements ClasseRepository {
     this.supprimerAppels.push(classeId);
     this.store.delete(classeId);
   }
+  async restaurer(_classeId: string) {}
   async findClasseDeProfPrincipal(_teacherUserId: string) { return null; }
 }

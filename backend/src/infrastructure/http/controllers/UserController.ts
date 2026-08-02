@@ -7,6 +7,8 @@ import { passwordError } from '../../../utils/passwordValidator';
 import { parseDateFR } from '../../../utils/dateParsing';
 import { sendTransactionalEmail } from '../../../services/emailService';
 import { genererCodesRecuperation } from '../../../utils/mfaRecoveryCodes';
+import { verifierMotDePasseEtMfa } from '../../../middleware/requireUserSensitiveAuth';
+import { emettreJetonReauth } from '../../../middleware/requireReauthToken';
 import { createHash, randomBytes } from 'crypto';
 import type { ConnecterUtilisateurUseCase } from '@application/user/ConnecterUtilisateurUseCase';
 import type { InscrireUtilisateurUseCase } from '@application/user/InscrireUtilisateurUseCase';
@@ -405,6 +407,26 @@ export class UserController {
       });
 
       res.json({ success: true, data: { recoveryCodes: formatted } });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
+  // POST /api/v2/users/auth/reauth — ouvre une fenêtre de grâce de ré-authentification
+  // (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md §1.5) : mot de passe + MFA vérifiés une fois,
+  // jeton court terme réutilisable ensuite pour les actions destructives de gravité complète.
+  reauth = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = (req as any).user?.userId;
+      const { password, code } = req.body as { password?: string; code?: string };
+      const resultat = await verifierMotDePasseEtMfa(userId, String(password ?? '').trim(), String(code ?? '').trim());
+      if (!resultat.ok) {
+        const echec = resultat as { ok: false; statusCode: number; message: string };
+        res.status(echec.statusCode).json({ success: false, message: echec.message });
+        return;
+      }
+      emettreJetonReauth(res, userId);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message || 'Erreur' });
     }
@@ -955,8 +977,9 @@ export class UserController {
         userId: req.params.id as string,
         schoolId: user.schoolId,
         demandeurRole: user.role,
+        demandeurId: user.userId,
       });
-      res.json({ success: true, message: 'Utilisateur supprimé' });
+      res.json({ success: true, message: 'Utilisateur mis à la corbeille' });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

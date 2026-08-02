@@ -57,4 +57,5 @@ export class InMemoryMatiereRepository implements MatiereRepository {
   async save(m: MatiereProps) { this.store.set(m.id, m); }
   async update(m: MatiereProps) { this.store.set(m.id, m); }
   async delete(id: string) { this.store.delete(id); }
+  async restaurer(_id: string) {}
 }

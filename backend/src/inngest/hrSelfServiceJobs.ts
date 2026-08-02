@@ -13,9 +13,10 @@
  */
 import { inngest } from './index';
 import { PrismaClient } from '@prisma/client';
+import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
 import { sendTransactionalEmail } from '../services/emailService';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 
 const REMINDER_DELAY_DAYS = [7, 14];
 const ESCALATION_DELAY_DAYS = 21;

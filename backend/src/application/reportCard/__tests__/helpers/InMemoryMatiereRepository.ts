@@ -48,6 +48,7 @@ export class InMemoryMatiereRepository implements MatiereRepository {
   async save(matiere: MatiereProps): Promise<void> { this.store.set(matiere.id, matiere); }
   async update(matiere: MatiereProps): Promise<void> { this.store.set(matiere.id, matiere); }
   async delete(id: string): Promise<void> { this.store.delete(id); }
+  async restaurer(_id: string): Promise<void> {}
   async assignerEnseignant(teacherProfileId: string, subjectId: string): Promise<void> {
     this.assignments.add(`${teacherProfileId}:${subjectId}`);
   }

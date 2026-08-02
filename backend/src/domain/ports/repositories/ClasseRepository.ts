@@ -28,10 +28,9 @@ export interface ClasseRepository {
   update(classe: Classe): Promise<void>;
 
   /**
-   * Suppression en cascade — 9 étapes transactionnelles :
-   * attendance, grades, exams+submissions, classCouncilSessions,
-   * timetables, classPromotions, studentPromotions,
-   * détachement élèves (classId → null), suppression classe.
+   * Suppression douce (Couche 1) — pose deletedAt, ne touche plus aux données liées.
+   * Nom historique conservé ("avecCascade"), comportement changé — voir PrismaClasseRepository.
    */
-  supprimerAvecCascade(classeId: string): Promise<void>;
+  supprimerAvecCascade(classeId: string, deletedById?: string): Promise<void>;
+  restaurer(classeId: string): Promise<void>;
 }

@@ -137,13 +137,14 @@ export class SubjectController {
         matiereId: req.params.id as string,
         schoolId: user.schoolId,
         demandeurRole: user.role,
+        demandeurId: user.userId,
       });
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'supprimer_matiere', targetType: 'Subject', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
-      res.json({ success: true, message: 'Matière supprimée' });
+      res.json({ success: true, message: 'Matière mise à la corbeille' });
     } catch (error) {
       const user = (req as any).user;
       journaliserActionIA(prisma, {

@@ -15,6 +15,7 @@ import SectionBulletins from './_components/SectionBulletins'
 import SectionTimetable from './_components/SectionTimetable'
 import SectionAcademicYear from './_components/SectionAcademicYear'
 import SectionSettings from './_components/SectionSettings'
+import SectionCorbeille from './_components/SectionCorbeille'
 import NotificationCenter from '@/components/NotificationCenter'
 import SectionFinance from './_components/SectionFinance'
 import SectionPlaceholder from './_components/SectionPlaceholder'
@@ -49,7 +50,7 @@ let toastId = 0
 const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
-  'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'settings',
+  'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'settings', 'corbeille',
   'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats', 'group-transfers',
 ]
 
@@ -211,6 +212,7 @@ export default function AdminDashboard() {
           {section === 'group-transfers' && <SectionAdminGroupTransfers onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
+          {section === 'corbeille'     && <SectionCorbeille     onToast={showToast} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <SectionPlaceholder

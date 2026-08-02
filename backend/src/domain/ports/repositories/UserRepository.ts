@@ -60,8 +60,10 @@ export interface UserRepository {
     gender?: string;
   }): Promise<void>;
 
-  // Suppression en cascade (profiles + données liées)
-  supprimerAvecCascade(userId: string): Promise<void>;
+  // Suppression douce (Couche 1) — pose deletedAt, ne touche plus aux données liées.
+  // Nom historique conservé ("avecCascade"), comportement changé — voir PrismaUserRepository.
+  supprimerAvecCascade(userId: string, deletedById?: string): Promise<void>;
+  restaurer(userId: string): Promise<void>;
 
   // Transfert d'élève vers une autre classe
   transfererEleve(params: {

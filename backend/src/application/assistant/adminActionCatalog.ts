@@ -222,7 +222,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         };
       },
       async undo(_params, undoData, ctx) {
-        await deps.supprimerClasse.execute({ classeId: String(undoData.classeId), schoolId: ctx.schoolId });
+        await deps.supprimerClasse.execute({ classeId: String(undoData.classeId), schoolId: ctx.schoolId, demandeurId: ctx.userId });
       },
     },
 
@@ -257,6 +257,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
           matiereId: String(undoData.matiereId),
           schoolId: ctx.schoolId,
           demandeurRole: ctx.role,
+          demandeurId: ctx.userId,
         });
       },
     },
@@ -347,10 +348,11 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       },
     },
 
-    // 5. Supprimer une classe — DESTRUCTIF (confirmation obligatoire)
+    // 5. Supprimer une classe — DESTRUCTIF (confirmation obligatoire — élément structurel isolé,
+    // pas de ré-authentification complète requise, voir PLAN_IMPLEMENTATION_BACKUP.md §1.5)
     {
       name: 'supprimer_classe',
-      description: 'Supprime définitivement une classe et toutes ses données associées.',
+      description: 'Met une classe à la corbeille (récupérable pendant 30 jours).',
       destructive: true,
       requiredPermission: null,
       inputSchema: z.object({
@@ -366,24 +368,25 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         if (grades > 0) parts.push(`${grades} note(s)`);
         parts.push('leur historique de présence et de paiement');
         return (
-          `Cette action va supprimer définitivement la classe « ${classe.name} » et TOUTES les données associées : ` +
-          `${parts.join(', ')}. Cette action est irréversible.`
+          `Cette action va mettre à la corbeille la classe « ${classe.name} » — restent rattachés : ` +
+          `${parts.join(', ')}. Récupérable depuis la Corbeille pendant 30 jours, purgée définitivement ensuite.`
         );
       },
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
-        await deps.supprimerClasse.execute({ classeId: classe.id, schoolId: ctx.schoolId });
-        return { resultLabel: `Classe « ${classe.name} » supprimée`, section: 'classes', entity: 'class' };
+        await deps.supprimerClasse.execute({ classeId: classe.id, schoolId: ctx.schoolId, demandeurId: ctx.userId });
+        return { resultLabel: `Classe « ${classe.name} » mise à la corbeille`, section: 'classes', entity: 'class' };
       },
       async undo() {
-        throw new Error('La suppression de classe est irréversible et ne peut pas être annulée.');
+        throw new Error('Restaurez cette classe depuis l\'écran Corbeille plutôt que depuis cette conversation.');
       },
     },
 
-    // 6. Supprimer une matière — DESTRUCTIF (confirmation obligatoire)
+    // 6. Supprimer une matière — DESTRUCTIF (confirmation obligatoire — élément structurel isolé,
+    // pas de ré-authentification complète requise, voir PLAN_IMPLEMENTATION_BACKUP.md §1.5)
     {
       name: 'supprimer_matiere',
-      description: 'Supprime définitivement une matière et ses données associées.',
+      description: 'Met une matière à la corbeille (récupérable pendant 30 jours).',
       destructive: true,
       requiredPermission: null,
       inputSchema: z.object({
@@ -392,19 +395,19 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async summarizeDestructive(input, ctx) {
         const subject = await resolveSubject(ctx, input.subjectName);
         const grades = await ctx.prisma.grade.count({ where: { subjectId: subject.id } });
-        const suffix = grades > 0 ? ` ainsi que ${grades} note(s) rattachée(s)` : '';
+        const suffix = grades > 0 ? ` — ${grades} note(s) rattachée(s) restent intactes` : '';
         return (
-          `Cette action va supprimer définitivement la matière « ${subject.name} »${suffix}, ` +
-          `ses coefficients et ses assignations enseignant. Cette action est irréversible.`
+          `Cette action va mettre à la corbeille la matière « ${subject.name} »${suffix}. ` +
+          `Récupérable depuis la Corbeille pendant 30 jours, purgée définitivement ensuite.`
         );
       },
       async execute(input, ctx) {
         const subject = await resolveSubject(ctx, input.subjectName);
-        await deps.supprimerMatiere.execute({ matiereId: subject.id, schoolId: ctx.schoolId, demandeurRole: ctx.role });
-        return { resultLabel: `Matière « ${subject.name} » supprimée`, section: 'subjects', entity: 'subject' };
+        await deps.supprimerMatiere.execute({ matiereId: subject.id, schoolId: ctx.schoolId, demandeurRole: ctx.role, demandeurId: ctx.userId });
+        return { resultLabel: `Matière « ${subject.name} » mise à la corbeille`, section: 'subjects', entity: 'subject' };
       },
       async undo() {
-        throw new Error('La suppression de matière est irréversible et ne peut pas être annulée.');
+        throw new Error('Restaurez cette matière depuis l\'écran Corbeille plutôt que depuis cette conversation.');
       },
     },
 
@@ -587,6 +590,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
           userId: String(undoData.userId),
           schoolId: ctx.schoolId,
           demandeurRole: ctx.role,
+          demandeurId: ctx.userId,
         });
       },
     },

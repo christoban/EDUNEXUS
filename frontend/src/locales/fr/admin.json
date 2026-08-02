@@ -420,7 +420,17 @@
         "required": "Prénom et nom obligatoires"
       }
     },
-    "delete_confirm": "Supprimer cet utilisateur ? Cette action est irréversible.",
+    "delete_confirm": "Supprimer cet utilisateur ? Il sera mis à la corbeille, récupérable pendant 30 jours.",
+    "reauth": {
+      "title": "Confirmez votre identité",
+      "subtitle": "La suppression d'un compte exige votre mot de passe (et votre code MFA si activé).",
+      "password_label": "Mot de passe",
+      "code_label": "Code MFA (si activé)",
+      "code_placeholder": "123456",
+      "btn_confirm": "Confirmer et supprimer",
+      "password_required": "Mot de passe requis",
+      "error": "Échec de la ré-authentification"
+    },
     "last_login": {
       "never": "Jamais connecté",
       "today": "Aujourd'hui",
@@ -559,7 +569,7 @@
     },
     "delete_modal": {
       "title": "Supprimer la classe",
-      "confirm": "Supprimer la classe <strong>{name}</strong> ?<br /><span style=\"color: #dc2626; font-weight: 600;\">Cette action est irréversible.</span>",
+      "confirm": "Supprimer la classe <strong>{name}</strong> ?<br /><span style=\"color: #6b7280; font-weight: 600;\">Elle sera mise à la corbeille, récupérable pendant 30 jours.</span>",
       "btn_cancel": "Annuler",
       "btn_confirm": "Confirmer la suppression",
       "deleting": "Suppression…"
@@ -792,11 +802,27 @@
       "all_covered": "Toutes les matières ont au moins un enseignant",
       "remove_confirm": "Retirer {subject} de {teacher} ?"
     },
-    "delete_confirm": "Supprimer la matière \"{name}\" ? Cette action est irréversible.",
+    "delete_confirm": "Supprimer la matière \"{name}\" ? Elle sera mise à la corbeille, récupérable pendant 30 jours.",
     "toast_deleted": "\"{name}\" supprimée",
     "error": {
       "load": "Erreur serveur"
     }
+  },
+  "corbeille": {
+    "titre": "Corbeille",
+    "sous_titre": "Élèves, parents, enseignants, classes et matières supprimés — récupérables pendant 30 jours",
+    "vide_titre": "La corbeille est vide",
+    "vide_sous_titre": "Les éléments supprimés apparaîtront ici pendant 30 jours avant purge définitive.",
+    "col_element": "Élément",
+    "col_supprime_par": "Supprimé par",
+    "col_purge_le": "Purgé le",
+    "type_utilisateur": "Compte",
+    "type_classe": "Classe",
+    "type_matiere": "Matière",
+    "btn_restaurer": "Restaurer",
+    "restaure": "« {nom} » restauré",
+    "erreur_restauration": "Erreur lors de la restauration",
+    "retry": "Réessayer"
   },
   "settings": {
     "title": "Paramètres",

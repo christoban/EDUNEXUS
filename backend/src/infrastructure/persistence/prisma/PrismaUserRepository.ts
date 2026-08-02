@@ -323,60 +323,33 @@ export class PrismaUserRepository implements UserRepository {
     }
   }
 
-  async supprimerAvecCascade(userId: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        select: { role: true },
-      });
-      if (!user) throw new Error('Utilisateur introuvable');
+  /**
+   * Nom historique ("avecCascade") conservé pour ne pas devoir renommer l'interface du port et
+   * ses ~8 doublures InMemory de test — le comportement, lui, a changé du tout au tout (Couche 1,
+   * PLAN_IMPLEMENTATION_BACKUP.md) : ceci ne supprime plus RIEN en cascade. `deletedAt` est
+   * simplement posé sur la ligne User elle-même ; toutes ses données liées (notes, présences,
+   * bulletins, liens parent-élève...) restent intactes et inchangées, invisibles seulement parce
+   * que l'écran qui les affiche résout déjà l'élève/enseignant via `user.findUnique` (filtré par
+   * softDeleteExtension.ts). Une restauration remet donc tout en état sans rien à reconstruire.
+   *
+   * Changement de comportement assumé par rapport à l'ancienne cascade : un parent dont c'était
+   * le dernier enfant rattaché n'est plus supprimé automatiquement avec l'élève — cet effet de
+   * bord n'a plus sa place dans un mécanisme pensé pour être réversible (le geste de l'admin
+   * porte sur l'élève, pas sur le compte du parent).
+   */
+  async supprimerAvecCascade(userId: string, deletedById?: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new Error('Utilisateur introuvable');
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: new Date(), deletedById: deletedById ?? null },
+    });
+  }
 
-      let parentProfileIds: string[] = [];
-
-      if (user.role === 'STUDENT') {
-        const studentProfile = await tx.studentProfile.findUnique({
-          where: { userId },
-          select: {
-            parents: { select: { parentProfileId: true } },
-          },
-        });
-        parentProfileIds = studentProfile?.parents.map(p => p.parentProfileId) ?? [];
-      }
-
-      await tx.attendance.deleteMany({ where: { studentId: userId } });
-      await tx.grade.deleteMany({ where: { studentId: userId } });
-      await tx.reportCard.deleteMany({ where: { studentId: userId } });
-      await tx.parentStudent.deleteMany({
-        where: {
-          OR: [
-            { studentProfile: { userId } },
-            { parentProfile: { userId } },
-          ],
-        },
-      });
-      await tx.teacherSubject.deleteMany({
-        where: { teacherProfile: { userId } },
-      });
-      await tx.staffPermission.deleteMany({
-        where: { staffProfile: { userId } },
-      });
-      await tx.user.delete({ where: { id: userId } });
-
-      for (const parentProfileId of parentProfileIds) {
-        const remaining = await tx.parentStudent.count({
-          where: { parentProfileId },
-        });
-        if (remaining === 0) {
-          const parentProfile = await tx.parentProfile.findUnique({
-            where: { id: parentProfileId },
-            select: { userId: true },
-          });
-          if (parentProfile) {
-            await tx.parentProfile.delete({ where: { id: parentProfileId } });
-            await tx.user.delete({ where: { id: parentProfile.userId } });
-          }
-        }
-      }
+  async restaurer(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId, deletedAt: { not: null } },
+      data: { deletedAt: null, deletedById: null },
     });
   }
 
