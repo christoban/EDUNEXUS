@@ -196,6 +196,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 1. Créer une classe — NON destructif
     {
       name: 'creer_classe',
+      domain: 'classes',
       description:
         "Crée une nouvelle classe dans l'établissement. Utilise le nom complet tel que dit par l'utilisateur (ex. « 4e D », « Terminale C »).",
       destructive: false,
@@ -229,6 +230,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 2. Créer une matière — NON destructif
     {
       name: 'creer_matiere',
+      domain: 'matieres',
       description: "Crée une nouvelle matière dans l'établissement.",
       destructive: false,
       requiredPermission: null,
@@ -265,6 +267,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 3. Assigner un enseignant à une matière — NON destructif
     {
       name: 'assigner_enseignant_matiere',
+      domain: 'matieres',
       description: "Assigne un enseignant à une matière (l'enseignant pourra y saisir des notes).",
       destructive: false,
       requiredPermission: null,
@@ -303,6 +306,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 4. Nommer un professeur principal — NON destructif (réversible)
     {
       name: 'assigner_professeur_principal',
+      domain: 'classes',
       description: "Nomme un enseignant professeur principal d'une classe.",
       destructive: false,
       requiredPermission: null,
@@ -352,6 +356,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // pas de ré-authentification complète requise, voir PLAN_IMPLEMENTATION_BACKUP.md §1.5)
     {
       name: 'supprimer_classe',
+      domain: 'classes',
       description: 'Met une classe à la corbeille (récupérable pendant 30 jours).',
       destructive: true,
       requiredPermission: null,
@@ -386,6 +391,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // pas de ré-authentification complète requise, voir PLAN_IMPLEMENTATION_BACKUP.md §1.5)
     {
       name: 'supprimer_matiere',
+      domain: 'matieres',
       description: 'Met une matière à la corbeille (récupérable pendant 30 jours).',
       destructive: true,
       requiredPermission: null,
@@ -414,6 +420,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 7. Créer une session de concours d'entrée en 6e — NON destructif
     {
       name: 'creer_session_concours_entree',
+      domain: 'concours',
       description:
         "Crée une nouvelle session de concours d'entrée en 6e, pour l'année scolaire courante. " +
         "Ne calcule PAS l'admission — cela reste une action volontaire distincte de l'admin.",
@@ -450,6 +457,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 8. Créer une session de sélection PEBS — NON destructif
     {
       name: 'creer_session_selection_pebs',
+      domain: 'lv2_pebs',
       description:
         "Crée une nouvelle session de sélection PEBS pour un niveau donné, avec la classe cible où " +
         "seront transférés les élèves sélectionnés. Ne calcule PAS la sélection ni le transfert.",
@@ -491,6 +499,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 9. Ouvrir une fenêtre de choix LV2 — NON destructif (envoie un SMS aux parents concernés)
     {
       name: 'ouvrir_fenetre_choix_lv2',
+      domain: 'lv2_pebs',
       description:
         "Ouvre une fenêtre de choix de LV2 pour un niveau, pendant laquelle les élèves peuvent choisir " +
         "leur langue depuis leur compte. Envoie automatiquement un SMS aux parents des élèves concernés.",
@@ -525,6 +534,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 10. Lister les candidats en attente de résultat CEP — LECTURE SEULE
     {
       name: 'lister_candidats_cep_en_attente',
+      domain: 'concours',
       description:
         "Affiche la liste des candidats admis provisoirement au concours d'entrée, en attente de leur résultat CEP.",
       destructive: false,
@@ -551,6 +561,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 11. Inscrire un élève — NON destructif
     {
       name: 'creer_eleve',
+      domain: 'eleves',
       description: "Inscrit un nouvel élève dans une classe existante de l'établissement.",
       destructive: false,
       requiredPermission: null,
@@ -598,6 +609,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 12. Modifier un élève — NON destructif
     {
       name: 'modifier_eleve',
+      domain: 'eleves',
       description: "Modifie les informations d'un élève déjà inscrit (prénom, nom, téléphone).",
       destructive: false,
       requiredPermission: null,
@@ -646,6 +658,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 13. Transférer un élève vers une autre classe — NON destructif (réversible)
     {
       name: 'transferer_eleve',
+      domain: 'eleves',
       description: "Transfère un élève de sa classe actuelle vers une autre classe.",
       destructive: false,
       requiredPermission: null,
@@ -686,6 +699,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 14. Modifier une matière — NON destructif
     {
       name: 'modifier_matiere',
+      domain: 'matieres',
       description: "Modifie une matière existante (nom, coefficient, heures par semaine).",
       destructive: false,
       requiredPermission: null,
@@ -731,6 +745,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 15. Affecter la LV2 d'un élève — NON destructif (réversible)
     {
       name: 'affecter_lv2_eleve',
+      domain: 'lv2_pebs',
       description: "Affecte (ou retire, si subjectName omis) la LV2 (deuxième langue vivante) d'UN élève précis.",
       destructive: false,
       requiredPermission: null,
@@ -763,6 +778,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 16. Affecter la LV2 en masse à toute une classe — NON destructif (réversible)
     {
       name: 'affecter_lv2_masse',
+      domain: 'lv2_pebs',
       description: "Affecte (ou retire, si subjectName omis) la même LV2 à TOUS les élèves d'une classe en une fois.",
       destructive: false,
       requiredPermission: null,
@@ -797,6 +813,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 17. Affecter la filière PEBS d'un élève — NON destructif (réversible)
     {
       name: 'affecter_pebs_eleve',
+      domain: 'lv2_pebs',
       description: "Affecte (ou retire, si filiere omis) la filière PEBS (Programme Spécial Bilingue) d'UN élève précis.",
       destructive: false,
       requiredPermission: null,
@@ -828,6 +845,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 18. Affecter la filière PEBS en masse à toute une classe — NON destructif (réversible)
     {
       name: 'affecter_pebs_masse',
+      domain: 'lv2_pebs',
       description: "Affecte (ou retire, si filiere omis) la même filière PEBS à TOUS les élèves d'une classe en une fois.",
       destructive: false,
       requiredPermission: null,
@@ -861,6 +879,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 19. Compter les élèves d'une classe par LV2 — LECTURE SEULE
     {
       name: 'compter_eleves_par_lv2',
+      domain: 'lv2_pebs',
       description: "Compte combien d'élèves d'une classe ont chaque LV2 affectée, et combien n'en ont aucune.",
       destructive: false,
       requiredPermission: null,
@@ -888,6 +907,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 20. Lister les élèves sans LV2 dans une classe — LECTURE SEULE
     {
       name: 'lister_eleves_sans_lv2',
+      domain: 'lv2_pebs',
       description: "Liste les élèves d'une classe qui n'ont pas encore de LV2 affectée.",
       destructive: false,
       requiredPermission: null,
@@ -912,6 +932,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 21. Répartition PEBS d'une classe — LECTURE SEULE
     {
       name: 'repartition_pebs_classe',
+      domain: 'lv2_pebs',
       description: "Donne la répartition des élèves d'une classe entre filière PEBS francophone, anglophone, et non-PEBS.",
       destructive: false,
       requiredPermission: null,
@@ -938,6 +959,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 22. Générer les bulletins d'une classe — NON destructif (mais non annulable via le copilot)
     {
       name: 'generer_bulletins_classe',
+      domain: 'notes_bulletins',
       description:
         "Déclenche la génération des bulletins pour une classe, sur la période académique courante. " +
         "Échoue si les notes ne sont pas toutes validées ou si le conseil de classe n'est pas verrouillé — " +
@@ -974,6 +996,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 23. Envoyer les bulletins aux parents — NON destructif (mais non annulable — des emails partent réellement)
     {
       name: 'envoyer_bulletins_parents',
+      domain: 'notes_bulletins',
       description: "Envoie par email les bulletins déjà générés d'une classe aux parents, pour la période courante.",
       destructive: false,
       requiredPermission: null,
@@ -1005,6 +1028,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 24. Valider toutes les notes en attente d'une classe — NON destructif
     {
       name: 'valider_notes_en_masse',
+      domain: 'notes_bulletins',
       description:
         "Valide en une fois toutes les notes au statut « Soumis » d'une classe, pour la séquence courante " +
         "(ou la matière si précisée). Équivalent au bouton « Valider tout » de l'écran Notes.",
@@ -1033,6 +1057,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 25. Orienter vers l'import Excel de notes — LECTURE (navigation uniquement, aucune exécution à l'aveugle)
     {
       name: 'guider_import_excel_notes',
+      domain: 'notes_bulletins',
       description:
         "L'utilisateur veut importer des notes depuis un fichier Excel. Le copilot n'exécute PAS l'import " +
         "à l'aveugle (aucun fichier n'est fourni dans la conversation) — cette action navigue simplement " +
@@ -1054,6 +1079,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 26. Moyenne d'une classe dans une matière — LECTURE SEULE
     {
       name: 'moyenne_classe_matiere',
+      domain: 'notes_bulletins',
       description: "Donne la moyenne d'une classe dans une matière donnée, pour la séquence courante.",
       destructive: false,
       requiredPermission: null,
@@ -1084,6 +1110,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 27. Élèves sous la moyenne dans une classe — LECTURE SEULE
     {
       name: 'compter_eleves_sous_moyenne',
+      domain: 'notes_bulletins',
       description: "Compte combien d'élèves d'une classe ont une moyenne générale inférieure à 10/20, pour la séquence courante.",
       destructive: false,
       requiredPermission: null,
@@ -1107,6 +1134,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 28. Le conseil de classe d'une classe a-t-il déjà eu lieu ? — LECTURE SEULE
     {
       name: 'conseil_classe_tenu',
+      domain: 'conseil_classe',
       description: "Indique si le conseil de classe d'une classe a déjà été tenu (et verrouillé) pour la période courante.",
       destructive: false,
       requiredPermission: null,
@@ -1135,6 +1163,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 29. Publier l'emploi du temps d'une classe — NON destructif (réversible)
     {
       name: 'publier_emploi_du_temps',
+      domain: 'classes',
       description: "Publie l'emploi du temps d'une classe (le rend visible aux enseignants et élèves), pour l'année scolaire courante.",
       destructive: false,
       requiredPermission: null,
@@ -1166,6 +1195,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 30. Ouvrir un conseil de classe — NON destructif (n'ajoute pas de décisions, ne verrouille pas)
     {
       name: 'ouvrir_conseil_classe',
+      domain: 'conseil_classe',
       description:
         "Ouvre une session de Conseil de Classe pour une classe, sur la période courante. Bloque si des notes " +
         "ne sont pas encore validées (Loi MINESEC). N'ajoute PAS les décisions individuelles ni ne verrouille " +
@@ -1192,6 +1222,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 31. Classes sans emploi du temps publié — LECTURE SEULE
     {
       name: 'classes_sans_edt_publie',
+      domain: 'classes',
       description: "Liste les classes qui n'ont pas encore d'emploi du temps publié, pour l'année scolaire courante.",
       destructive: false,
       requiredPermission: null,
@@ -1218,6 +1249,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 32. Classes sans conseil de classe verrouillé — LECTURE SEULE
     {
       name: 'classes_sans_conseil_tenu',
+      domain: 'conseil_classe',
       description: "Liste les classes qui n'ont pas encore tenu (ni verrouillé) leur conseil de classe pour la période courante.",
       destructive: false,
       requiredPermission: null,
@@ -1246,6 +1278,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 33. Définir la période académique courante — NON destructif (réversible)
     {
       name: 'definir_periode_courante',
+      domain: 'periode_annee',
       description: "Change la période académique courante de l'établissement (ex. passer du Trimestre 1 au Trimestre 2). Affecte toute la saisie de notes en cours.",
       destructive: false,
       requiredPermission: null,
@@ -1275,6 +1308,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 34. Vérifier si l'année scolaire peut être clôturée — LECTURE SEULE
     {
       name: 'verifier_cloture_annee',
+      domain: 'periode_annee',
       description:
         "Vérifie si l'année scolaire courante peut être clôturée et liste les blocages éventuels. " +
         "N'exécute JAMAIS la clôture elle-même — action trop sensible (promotions, archivage) pour être " +
@@ -1305,6 +1339,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 35. Créer un plan de frais — NON destructif (réversible tant qu'aucune facture n'est émise)
     {
       name: 'creer_plan_frais',
+      domain: 'paiements',
       description:
         "Crée un plan de frais (ex. scolarité, examen, tenue) pour l'établissement. Vérifie le seuil légal " +
         "MINESEC (Art. 48) si le type est TUITION — bloque si le montant le dépasse.",
@@ -1344,6 +1379,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 36. Générer les factures d'une classe pour un plan de frais — NON annulable (factures réelles émises)
     {
       name: 'generer_factures_masse',
+      domain: 'paiements',
       description: "Génère les factures d'un plan de frais pour tous les élèves d'une classe (ignore les élèves déjà facturés pour ce plan).",
       destructive: false,
       requiredPermission: 'MANAGE_FINANCE',
@@ -1372,6 +1408,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 37. Enregistrer un paiement en espèces — NON annulable (encaissement réel)
     {
       name: 'enregistrer_paiement_cash',
+      domain: 'paiements',
       description: "Enregistre un paiement en espèces (guichet) reçu d'un élève, contre une facture impayée ou partiellement payée.",
       destructive: false,
       requiredPermission: 'MANAGE_FINANCE',
@@ -1419,6 +1456,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 38. Élèves avec factures impayées — LECTURE SEULE
     {
       name: 'eleves_factures_impayees',
+      domain: 'paiements',
       description: "Liste les factures impayées ou partiellement payées (toute une classe, ou tout l'établissement si aucune classe n'est précisée) et le total restant dû.",
       destructive: false,
       requiredPermission: null,
@@ -1462,6 +1500,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 39. Résumé d'une session de concours d'entrée — LECTURE SEULE
     {
       name: 'resume_session_concours',
+      domain: 'concours',
       description: "Affiche le résumé d'une session de concours d'entrée en 6e : nombre de candidats, admis provisoires, confirmés, en attente de CEP.",
       destructive: false,
       requiredPermission: null,
@@ -1483,6 +1522,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 40. Calculer l'admission d'une session de concours — NON annulable (statuts réels appliqués)
     {
       name: 'calculer_admission_concours',
+      domain: 'concours',
       description:
         "Calcule l'admission des candidats d'une session de concours d'entrée, selon le seuil de notes et " +
         "le nombre de places disponibles configurés sur la session. Met à jour le statut de chaque candidat.",
@@ -1506,6 +1546,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 41. Résumé d'une session PEBS — LECTURE SEULE
     {
       name: 'resume_session_pebs',
+      domain: 'lv2_pebs',
       description: "Affiche le résumé d'une session de sélection PEBS : nombre de candidats, en attente, sélectionnés, non sélectionnés.",
       destructive: false,
       requiredPermission: null,
@@ -1526,6 +1567,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 42. Calculer la sélection d'une session PEBS — NON annulable (résultats réels appliqués)
     {
       name: 'calculer_selection_pebs',
+      domain: 'lv2_pebs',
       description:
         "Calcule la sélection des candidats d'une session PEBS, selon le seuil de notes et le nombre de places " +
         "disponibles configurés sur la session. Ne transfère PAS encore les élèves sélectionnés vers la classe cible.",
@@ -1549,6 +1591,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 43. Vérifier le matricule d'un élève sur cartescolaire.cm — LECTURE SEULE (ne modifie jamais le profil)
     {
       name: 'verifier_matricule_eleve',
+      domain: 'eleves',
       description:
         "Recherche le matricule officiel d'un élève sur cartescolaire.cm (MINESEC). N'associe JAMAIS le " +
         "résultat automatiquement au profil — l'admin doit confirmer manuellement depuis l'écran Matricules.",
@@ -1576,6 +1619,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 44. Justifier une absence — NON destructif (réversible)
     {
       name: 'justifier_absence',
+      domain: 'absences',
       description: "Marque comme justifiée la dernière absence enregistrée d'un élève (ou celle d'une date précise si fournie).",
       destructive: false,
       requiredPermission: 'MANAGE_ATTENDANCE',
@@ -1613,6 +1657,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 45. Élèves avec absences non justifiées au-delà d'un seuil — LECTURE SEULE
     {
       name: 'eleves_absences_non_justifiees',
+      domain: 'absences',
       description: "Liste les élèves ayant plus d'un certain nombre d'absences non justifiées depuis une date donnée (ce mois-ci par défaut).",
       destructive: false,
       requiredPermission: null,
@@ -1666,6 +1711,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 46. Évolution de la moyenne générale sur l'année courante — LECTURE SEULE
     {
       name: 'evolution_moyenne_generale',
+      domain: 'notes_bulletins',
       description: "Affiche l'évolution de la moyenne générale sur les séquences déjà passées de l'année scolaire courante, pour toute l'école ou une classe précise.",
       destructive: false,
       requiredPermission: null,
@@ -1714,6 +1760,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 47. Classement des classes par moyenne générale — LECTURE SEULE
     {
       name: 'classement_classes',
+      domain: 'notes_bulletins',
       description: "Classe les classes de l'établissement par moyenne générale (notes validées, année scolaire courante), du meilleur au moins bon résultat.",
       destructive: false,
       requiredPermission: null,
@@ -1771,6 +1818,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 48. Traiter (approuver/rejeter) une demande de congé — NON annulable (déduit le solde si approuvée)
     {
       name: 'traiter_demande_conge',
+      domain: 'enseignants_rh',
       description: "Approuve ou rejette la demande de congé la plus récente en attente d'un employé (enseignant ou staff). Déduit le solde de congé si approuvée.",
       destructive: false,
       requiredPermission: null,
@@ -1798,6 +1846,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 49. Enseignants sans diplôme renseigné — LECTURE SEULE
     {
       name: 'enseignants_sans_diplome',
+      domain: 'enseignants_rh',
       description: "Liste les enseignants dont aucun diplôme n'est renseigné dans leur dossier RH.",
       destructive: false,
       requiredPermission: null,
@@ -1825,6 +1874,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 50. Professeur principal d'une classe — LECTURE SEULE
     {
       name: 'professeur_principal_classe',
+      domain: 'classes',
       description: "Indique qui est le professeur principal d'une classe donnée.",
       destructive: false,
       requiredPermission: null,
@@ -1853,6 +1903,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 51. Alertes de retard sur les programmes — LECTURE SEULE
     {
       name: 'alertes_retard_programme',
+      domain: 'enseignants_rh',
       description: "Liste les classes/matières en retard sur leur programme pédagogique par rapport à l'avancement attendu de l'année scolaire courante.",
       destructive: false,
       requiredPermission: null,
@@ -1875,6 +1926,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 52. Diffuser un message SMS/email à un groupe ciblé — NON annulable (messages réels envoyés)
     {
       name: 'diffuser_message',
+      domain: 'communication',
       description:
         "Envoie un message (SMS, email, ou les deux) à un groupe ciblé — par rôle, par classe, par niveau, " +
         "et/ou par statut de paiement. Au moins un critère de ciblage est obligatoire — aucune diffusion à " +
@@ -1922,6 +1974,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 53. Lister les élèves à risque — LECTURE SEULE
     {
       name: 'lister_eleves_a_risque',
+      domain: 'sante_risque',
       description:
         "Liste les élèves dont l'indice de santé scolaire est en zone critique ou d'avertissement, " +
         "sur tout l'établissement ou une classe précise si indiquée.",
@@ -1975,6 +2028,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
     // 54. Résumé du risque d'un élève précis — LECTURE SEULE
     {
       name: 'resume_risque_eleve',
+      domain: 'sante_risque',
       description:
         "Donne l'indice de santé scolaire d'un élève précis et le dernier conseil personnalisé " +
         "déjà généré par l'IA à son sujet, si disponible.",

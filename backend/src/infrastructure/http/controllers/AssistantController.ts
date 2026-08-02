@@ -6,6 +6,7 @@ import { groqModel } from '../../../services/groq';
 import {
   buildTools,
   filterCatalogForUser,
+  selectRelevantActions,
   type ActionContext,
   type ActionDefinition,
 } from '@application/assistant/catalogShared';
@@ -237,8 +238,11 @@ export class AssistantController {
       }
 
       // Catalogue filtré selon les permissions réelles — jamais plus que le rôle n'autorise.
+      // `allowed` reste la référence complète pour toute résolution ultérieure d'un tool par
+      // nom (confirmation d'action, relecture d'un log) : seul ce qui est OFFERT au modèle via
+      // `tools` est réduit par domaine, jamais ce qu'il a le DROIT d'exécuter.
       const allowed = filterCatalogForUser(this.catalog, user);
-      const tools = buildTools(allowed);
+      const tools = buildTools(selectRelevantActions(allowed, message));
       const { system: baseSystem, helpArticles } = await this.buildSystemPrompt(user.schoolId, user.role, screenKey);
       const historyBlock = await this.loadHistoryBlock(conversationId, user.schoolId, user.userId);
       const system = baseSystem + historyBlock;

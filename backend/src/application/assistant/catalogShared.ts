@@ -56,6 +56,14 @@ export interface ActionDefinition {
    * consultant les données de quelqu'un d'autre).
    */
   allowedRoles?: string[];
+  /**
+   * Regroupement thématique optionnel (ex. 'paiements', 'notes_bulletins') — sert
+   * UNIQUEMENT à `selectRelevantActions` pour réduire le nombre d'outils transmis à
+   * Groq sur un catalogue volumineux (voir ce helper). Une action sans `domain` est
+   * toujours incluse, quel que soit le message — c'est le comportement par défaut
+   * pour les catalogues déjà assez petits pour ne pas avoir besoin de ce filtrage.
+   */
+  domain?: string;
   inputSchema: z.ZodTypeAny;
   /** Résumé de ce qui sera perdu — obligatoire pour toute action destructive. */
   summarizeDestructive?: (input: any, ctx: ActionContext) => Promise<string>;
@@ -247,6 +255,57 @@ export function filterCatalogForUser(
     if (role === 'ADMIN') return true;
     return a.requiredPermission !== null && perms.has(a.requiredPermission);
   });
+}
+
+const normaliserMessage = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, ''); // retire les accents pour un matching robuste (é/è/ê → e)
+
+/** Mots-clés déclenchant chaque domaine — un domaine matche dès qu'un seul de ses mots-clés apparaît dans le message. */
+const MOTS_CLES_PAR_DOMAINE: Record<string, string[]> = {
+  classes: ['classe', 'emploi du temps', 'edt', 'professeur principal'],
+  matieres: ['matiere', 'matières', 'coefficient'],
+  eleves: ['eleve', 'élève', 'inscri', 'transfer', 'matricule'],
+  lv2_pebs: ['lv2', 'langue vivante', 'pebs', 'bilingue'],
+  concours: ['concours', 'cep', 'candidat'],
+  notes_bulletins: ['note', 'bulletin', 'moyenne', 'classement', 'excel'],
+  conseil_classe: ['conseil de classe', 'conseil'],
+  periode_annee: ['periode', 'période', 'trimestre', 'sequence', 'séquence', 'cloture', 'clôture', "fin d'annee", "fin d'année"],
+  paiements: ['paiement', 'facture', 'frais', 'impaye', 'impayé', 'retard de paiement', 'cash'],
+  absences: ['absence', 'absent', 'justifi'],
+  enseignants_rh: ['enseignant', 'professeur', 'diplome', 'diplôme', 'conge', 'congé', 'programme'],
+  communication: ['message', 'sms', 'email', 'diffus', 'notifier', 'notification'],
+  sante_risque: ['risque', 'sante', 'santé', 'decrochage', 'décrochage'],
+};
+
+/**
+ * Réduit un catalogue au sous-ensemble d'actions pertinentes pour le message reçu, en se basant
+ * sur le `domain` de chaque action (voir `ActionDefinition.domain`). Existe parce qu'un gros
+ * catalogue (54 actions pour ADMIN) retransmis en entier à Groq à CHAQUE tour, même pour un
+ * simple « bonjour », coûte à lui seul l'essentiel du plafond de tokens/minute du compte
+ * (~5800 tokens mesurés pour une conversation vide) — constaté en test réel, cause directe de
+ * réponses lentes (~20s) voire d'échecs par rate-limit.
+ *
+ * Heuristique volontairement simple (mots-clés, pas d'appel IA supplémentaire) : moins précise
+ * qu'un vrai classifieur, mais gratuite et quasi instantanée. Filet de sécurité : si AUCUN
+ * domaine ne matche (formulation inattendue), on retransmet le catalogue COMPLET plutôt que de
+ * risquer de priver le modèle d'un outil dont il aurait besoin — on dégrade uniquement le coût,
+ * jamais la capacité à agir.
+ */
+export function selectRelevantActions(catalog: ActionDefinition[], message: string): ActionDefinition[] {
+  const texte = normaliserMessage(message);
+  const domainesTouches = new Set(
+    Object.entries(MOTS_CLES_PAR_DOMAINE)
+      .filter(([, motsCles]) => motsCles.some((mot) => texte.includes(normaliserMessage(mot))))
+      .map(([domaine]) => domaine),
+  );
+
+  const sansDomaine = catalog.filter((a) => !a.domain);
+  if (domainesTouches.size === 0) return catalog;
+
+  return [...sansDomaine, ...catalog.filter((a) => a.domain && domainesTouches.has(a.domain))];
 }
 
 /** Construit les tools AI SDK (inputSchema uniquement, SANS execute → le modèle propose, le serveur décide). */
