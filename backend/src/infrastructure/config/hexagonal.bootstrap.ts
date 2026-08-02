@@ -156,7 +156,7 @@ import { creerAdminGroupTransferRoutes } from '@infrastructure/http/routes/admin
 import { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
 import { sendTransactionalEmail } from '../../services/emailService';
-import { notifyDisciplineSms } from '../services/SmsNotificationService';
+import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../services/SmsNotificationService';
 import { notifierParentsPushDabord } from '../services/PushFirstNotifier';
 import { requireAuth, requireRole } from '../../middleware/auth';
 import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
@@ -1526,12 +1526,13 @@ export function bootstrapHexagonal(app: Application): void {
         include: { parentProfile: { include: { user: { select: { email: true } } } } },
       });
       const parentEmails = [...new Set(parentLinks.map((l) => l.parentProfile?.user?.email).filter((e): e is string => Boolean(e)))];
+      const typeLabel = DISCIPLINE_TYPE_LABELS[type]?.fr ?? type;
       for (const email of parentEmails) {
         await sendTransactionalEmail({
           recipientEmail: email,
           subject: `Notification disciplinaire — ${studentName}`,
-          html: `<p>Bonjour,</p><p><b>${studentName}</b> a fait l'objet d'une sanction disciplinaire.</p><p><b>Type :</b> ${type}</p><p><b>Motif :</b> ${reason}</p><p>Merci de contacter l'établissement pour plus d'informations.</p>`,
-          text: `Sanction disciplinaire pour ${studentName} : ${type} — ${reason}`,
+          html: `<p>Bonjour,</p><p><b>${studentName}</b> a fait l'objet d'une sanction disciplinaire.</p><p><b>Type :</b> ${typeLabel}</p><p><b>Motif :</b> ${reason}</p><p>Merci de contacter l'établissement pour plus d'informations.</p>`,
+          text: `Sanction disciplinaire pour ${studentName} : ${typeLabel} — ${reason}`,
           template: 'discipline_notification',
           eventType: 'discipline_notification',
           metadata: { schoolId },

@@ -47,6 +47,27 @@ export interface StaffActionDeps {
   ) => Promise<void>;
 }
 
+/**
+ * Libellés français des codes de sanction (DisciplineType) — évite d'exposer le code technique
+ * brut dans le chat. Couvre les 5 valeurs de l'enum Prisma, pas seulement les 3 que ce catalogue
+ * peut créer : `lever_sanction` peut lire un enregistrement créé depuis l'écran Discipline
+ * classique (ex. COUNCIL_DECISION), hors du périmètre du copilot mais pas de sa lecture.
+ */
+const LABEL_TYPE_SANCTION: Record<string, string> = {
+  WARNING_ORAL: 'Avertissement oral',
+  WARNING_WRITTEN: 'Avertissement écrit',
+  TEMP_EXCLUSION: 'Exclusion temporaire',
+  COUNCIL_DECISION: 'Décision du conseil de discipline',
+  PERMANENT_EXCLUSION: 'Exclusion définitive',
+};
+
+/** Libellés français des statuts de sanction (DisciplineStatus) — même raison que ci-dessus. */
+const LABEL_STATUT_SANCTION: Record<string, string> = {
+  ACTIVE: 'active',
+  LIFTED: 'levée',
+  APPEALED: 'contestée',
+};
+
 export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition[] {
   return [
     // ═══ Discipline ═══
@@ -68,7 +89,9 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
       inputSchema: z.object({
         studentName: z.string().min(1),
         className: z.string().optional().describe('Précisez si plusieurs élèves portent ce nom'),
-        type: z.enum(['WARNING_ORAL', 'WARNING_WRITTEN', 'TEMP_EXCLUSION']),
+        type: z
+          .enum(['WARNING_ORAL', 'WARNING_WRITTEN', 'TEMP_EXCLUSION'])
+          .describe('Type de sanction : oral, écrit, ou exclusion temporaire.'),
         reason: z.string().min(1).describe('Motif de la sanction'),
         startDate: z.string().optional().describe('Date de début au format YYYY-MM-DD, pour une exclusion temporaire'),
         endDate: z.string().optional().describe('Date de fin au format YYYY-MM-DD, pour une exclusion temporaire'),
@@ -89,7 +112,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
         });
         await deps.notifierSanctionDisciplinaire(ctx.schoolId, student.id, student.name, input.type, input.reason).catch(() => {});
         return {
-          resultLabel: `Sanction « ${input.type} » enregistrée pour ${student.name} — parents notifiés`,
+          resultLabel: `Sanction (${LABEL_TYPE_SANCTION[input.type] ?? input.type}) enregistrée pour ${student.name} — parents notifiés`,
           undoData: { recordId: record.id },
           section: 'discipline',
           entity: 'disciplineRecord',
@@ -118,7 +141,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
         if (!record) throw new Error(`Aucune sanction active trouvée pour ${student.name}.`);
         await ctx.prisma.disciplineRecord.update({ where: { id: record.id }, data: { status: 'LIFTED' } });
         return {
-          resultLabel: `Sanction « ${record.type} » levée pour ${student.name}`,
+          resultLabel: `Sanction (${LABEL_TYPE_SANCTION[record.type] ?? record.type}) levée pour ${student.name}`,
           section: 'discipline',
           entity: 'disciplineRecord',
         };
@@ -146,7 +169,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
         });
         const resultLabel = records.length === 0
           ? `Aucune sanction enregistrée pour ${student.name}.`
-          : `Sanctions de ${student.name} : ` + records.map((r) => `${r.type} (${r.status}, ${r.createdAt.toLocaleDateString('fr-FR')}) — ${r.reason}`).join(' ; ');
+          : `Sanctions de ${student.name} : ` + records.map((r) => `${LABEL_TYPE_SANCTION[r.type] ?? r.type} (${LABEL_STATUT_SANCTION[r.status] ?? r.status}, ${r.createdAt.toLocaleDateString('fr-FR')}) — ${r.reason}`).join(' ; ');
         return { resultLabel, section: 'discipline', entity: 'disciplineRecord' };
       },
       async undo() {

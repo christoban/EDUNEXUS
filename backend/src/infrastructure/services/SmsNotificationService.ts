@@ -11,7 +11,7 @@ import { resolveLanguage, type Language } from '../../utils/languageHelper'
 
 type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2' | 'ONBOARDING' | 'LIBRARY'
 
-const DISCIPLINE_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
+export const DISCIPLINE_TYPE_LABELS: Record<string, { fr: string; en: string }> = {
   WARNING_ORAL:        { fr: 'Avertissement oral',                 en: 'Verbal warning' },
   WARNING_WRITTEN:     { fr: 'Avertissement écrit',                en: 'Written warning' },
   TEMP_EXCLUSION:      { fr: 'Exclusion temporaire',               en: 'Temporary exclusion' },
