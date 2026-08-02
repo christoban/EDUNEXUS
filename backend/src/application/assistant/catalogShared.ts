@@ -250,12 +250,37 @@ export function filterCatalogForUser(
 }
 
 /** Construit les tools AI SDK (inputSchema uniquement, SANS execute → le modèle propose, le serveur décide). */
+/**
+ * Groq (et les modèles de function-calling en général) envoie très souvent `null` pour un champ
+ * optionnel qu'il ne renseigne pas, plutôt que d'omettre la clé — comportement observé
+ * concrètement (`lister_eleves_a_risque` sans classe précisée → `{className: null}`), alors que
+ * `z.string().optional()` n'accepte QUE `undefined`, jamais `null`. Résultat sans ce correctif :
+ * échec de validation AVANT même que `execute()` ne soit atteint, tout le tour de conversation
+ * s'effondre sur le message générique "service momentanément indisponible" — pour une question
+ * parfaitement légitime et courante ("quels sont les élèves à risque ?", sans filtre de classe).
+ *
+ * Corrigé une seule fois ici plutôt que sur chacun des ~75 champs `.optional()` à travers les 5
+ * catalogues : chaque champ optionnel de premier niveau devient aussi tolérant à `null`. Aucun
+ * changement de comportement côté `execute()` — tous les sites d'utilisation traitent déjà
+ * `input.champ` par test de vérité (`input.x ? ... : ...`) ou `??`, qui traitent `null` et
+ * `undefined` de façon identique.
+ */
+function rendreOptionnelsNullTolerants(schema: z.ZodTypeAny): z.ZodTypeAny {
+  if (!(schema instanceof z.ZodObject)) return schema;
+  const shape = schema.shape as Record<string, z.ZodTypeAny>;
+  const nouveauShape: Record<string, z.ZodTypeAny> = {};
+  for (const [cle, champ] of Object.entries(shape)) {
+    nouveauShape[cle] = champ instanceof z.ZodOptional ? champ.unwrap().nullable().optional() : champ;
+  }
+  return z.object(nouveauShape);
+}
+
 export function buildTools(catalog: ActionDefinition[]): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   for (const action of catalog) {
     tools[action.name] = tool({
       description: action.description,
-      inputSchema: action.inputSchema,
+      inputSchema: rendreOptionnelsNullTolerants(action.inputSchema),
     });
   }
   return tools;
