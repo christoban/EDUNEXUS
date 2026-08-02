@@ -1,5 +1,10 @@
 {
   "offlineQueued": "mis en file d'attente hors-ligne",
+  "apeeAlert": {
+    "message": "{count} dépense(s) APEE en attente de justificatif ou de validation.",
+    "action": "Voir l'APEE",
+    "dismiss": "Masquer"
+  },
   "dashboard": {
     "title": "Espace Staff",
     "greeting": "Bonjour",

@@ -1,5 +1,10 @@
 {
   "offlineQueued": "queued offline",
+  "apeeAlert": {
+    "message": "{count} PTA expense(s) awaiting a receipt or approval.",
+    "action": "View PTA fund",
+    "dismiss": "Dismiss"
+  },
   "dashboard": {
     "title": "Staff Portal",
     "greeting": "Hello",

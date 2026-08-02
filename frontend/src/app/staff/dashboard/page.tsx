@@ -22,6 +22,7 @@ import SectionLibrary          from './_components/SectionLibrary'
 import SectionOrientation      from './_components/SectionOrientation'
 import SectionDepartementsStaff from './_components/SectionDepartementsStaff'
 import SectionSuiviElevesStaff from './_components/SectionSuiviElevesStaff'
+import APEEAlertBanner from './_components/APEEAlertBanner'
 import SectionMonProfilRH from '@/components/SectionMonProfilRH'
 import NotificationCenter from '@/components/NotificationCenter'
 import { fetchApi } from '@/lib/fetchApi'
@@ -111,6 +112,7 @@ export default function StaffDashboard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <StaffTopbar section={section} onChangePassword={() => setChangePwdOpen(true)} onNav={s => navTo(s as StaffSection)} onMenuClick={() => setMobileNavOpen(true)} />
         <EventCenterWidget />
+        <APEEAlertBanner visible={can('apee')} onNav={s => navTo(s as StaffSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden', background: 'var(--bg)' }}>
 
