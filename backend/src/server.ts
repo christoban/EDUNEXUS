@@ -39,6 +39,7 @@ import {
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
 import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
 import { relanceProfilRH } from "./inngest/hrSelfServiceJobs.ts";
+import { exporterOffsiteNocturne } from "./inngest/backupOffsiteJob.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 import { checkLibreOfficeAvailable } from '@application/statisticalCampaign/xlsEngine';
@@ -168,6 +169,7 @@ app.use(
       auditMatricules,
       relanceOnboarding,
       relanceProfilRH,
+      exporterOffsiteNocturne,
     ],
   })
 );
