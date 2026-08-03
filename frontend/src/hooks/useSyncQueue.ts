@@ -17,11 +17,12 @@ export function useSyncQueue() {
   }, [])
 
   const addToQueue = useCallback(
-    async (action: Omit<PendingAction, 'id' | 'status' | 'createdAt'>) => {
+    async (action: Omit<PendingAction, 'id' | 'status' | 'createdAt' | 'idempotencyKey'>) => {
       await db.pendingActions.add({
         ...action,
         status: 'PENDING',
         createdAt: Date.now(),
+        idempotencyKey: crypto.randomUUID(),
       })
       await updateCount()
     },
@@ -34,14 +35,17 @@ export function useSyncQueue() {
     syncingRef.current = true
     setSyncing(true)
 
-    const pending = await db.pendingActions.where('status').equals('PENDING').toArray()
+    // Ordre de création garanti (Plan offline-first V1 §4) : un where().equals() sur un index
+    // Dexie ne garantit pas l'ordre — sortBy le rend explicite plutôt que de compter sur un
+    // ordre incident de l'index auto-incrémenté.
+    const pending = await db.pendingActions.where('status').equals('PENDING').sortBy('createdAt')
     let synced = 0
 
     for (const action of pending) {
       try {
         const res = await fetchApi(action.endpoint, {
           method: action.method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': action.idempotencyKey },
           body: JSON.stringify(action.payload),
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)

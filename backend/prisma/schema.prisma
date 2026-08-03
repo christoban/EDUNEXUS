@@ -2686,6 +2686,26 @@ model AISecurityAlert {
   @@index([actorUserId, notifiedAt])
 }
 
+/// Idempotence des requêtes rejouées par la file de synchronisation offline (Plan
+/// offline-first V1 §4, pattern Outbox) — `key` est l'UUID v4 généré côté client à la
+/// création de l'action en attente (`PendingAction.idempotencyKey`, frontend). Une entrée
+/// n'est enregistrée qu'après un traitement RÉUSSI (2xx) : un échec ne "empoisonne" jamais
+/// la clé, une vraie retentative doit pouvoir réessayer normalement. `responseBody`/
+/// `statusCode` permettent de rejouer exactement la même réponse au client si la même clé
+/// revient (synchronisation interrompue puis retentée) sans ré-exécuter l'action.
+model IdempotencyRecord {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  userId       String
+  method       String
+  path         String
+  statusCode   Int
+  responseBody Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // ─── Module Examens & Admissions : Sous-module C — Choix LV2 ──────────────
 
 model Lv2ChoiceWindow {

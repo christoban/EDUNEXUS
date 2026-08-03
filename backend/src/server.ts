@@ -42,6 +42,8 @@ import { relanceProfilRH } from "./inngest/hrSelfServiceJobs.ts";
 import { exporterOffsiteNocturne } from "./inngest/backupOffsiteJob.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { idempotency } from './middleware/idempotency';
 import { checkLibreOfficeAvailable } from '@application/statisticalCampaign/xlsEngine';
 
 // Load environment variables from .env file
@@ -93,9 +95,16 @@ app.use(cors({
     return callback(new Error(`Origin not allowed by CORS: ${origin}`));
   },
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  // Idempotency-Key : en-tête envoyé par la file de synchronisation offline (Plan
+  // offline-first V1) lors du rejeu d'une action — voir middleware/idempotency.ts.
+  allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 }));
+
+// Idempotence de la file de synchronisation offline (Plan offline-first V1 §4) — no-op pour
+// toute requête sans en-tête Idempotency-Key, donc monté globalement une seule fois plutôt que
+// sur chacun des 9+ endpoints concernés individuellement. Voir middleware/idempotency.ts.
+app.use(idempotency(prisma));
 
 // LibreOffice health check — vérifié une fois au démarrage (pas seulement découvert en échec
 // au moment où un admin génère une déclaration statistique MINESEC), puis exposé ci-dessous.

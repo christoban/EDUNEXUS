@@ -8,6 +8,14 @@ export interface PendingAction {
   method: 'POST' | 'PATCH'
   createdAt: number
   status: 'PENDING' | 'SYNCING' | 'FAILED'
+  /**
+   * Clé d'idempotence générée côté client (UUID v4) — Plan offline-first V1 §4 (pattern
+   * Outbox). Envoyée au serveur dans l'en-tête `Idempotency-Key` à la synchronisation ;
+   * permet au serveur de détecter une action déjà traitée (synchronisation interrompue puis
+   * retentée) sans la ré-exécuter une seconde fois. Générée une fois à la création de
+   * l'entrée, jamais régénérée sur retry — c'est précisément ce qui rend le retry sûr.
+   */
+  idempotencyKey: string
 }
 
 export interface CachedData {
