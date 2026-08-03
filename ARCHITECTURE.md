@@ -172,7 +172,7 @@ Autres flux importants :
 
 - **Vérif TS** : `cd backend && ./node_modules/.bin/tsc --noEmit` (idem `frontend/`). Jamais `npx tsc`.
 - **Migrations** : `npx prisma migrate dev --name X --skip-generate` depuis `backend/`.
-- **`prisma generate` échoue** (EPERM verrou DLL) — attendu. Pour un **nouveau modèle**, utiliser `(prisma as any).monModele` au runtime.
+- **`prisma generate` échoue** (EPERM verrou DLL) **si le serveur backend tourne** (il garde le fichier `.dll.node` ouvert) — **arrêter le serveur d'abord**, `generate` réussit alors normalement (vérifié 2026-08-03). Si vraiment impossible d'arrêter le serveur (cas rare), utiliser `(prisma as any).monModele` au runtime comme repli temporaire, puis régénérer et retirer le cast dès que possible.
 - **Smoke tests** : `bun _smoke.ts` **dans** `backend/` (jamais `/tmp`), puis supprimer le fichier.
 - **Backend sans build** : `bun run dev` / `bun run start`. **Build = frontend uniquement** (`bun run build`).
 
