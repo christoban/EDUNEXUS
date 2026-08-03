@@ -1,4 +1,10 @@
 {
+  "anomaliesAlert": {
+    "edt": "{count} classe(s) sans emploi du temps publié",
+    "conseil": "{count} classe(s) sans conseil de classe verrouillé",
+    "action": "Voir",
+    "dismiss": "Masquer"
+  },
   "common": {
     "loading": "Chargement...",
     "close": "Fermer",

@@ -1,4 +1,10 @@
 {
+  "anomaliesAlert": {
+    "edt": "{count} class(es) without a published timetable",
+    "conseil": "{count} class(es) without a locked class council",
+    "action": "View",
+    "dismiss": "Dismiss"
+  },
   "common": {
     "loading": "Loading...",
     "close": "Close",

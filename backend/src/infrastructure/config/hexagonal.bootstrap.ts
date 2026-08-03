@@ -95,6 +95,7 @@ import { HRSelfServiceController } from '@infrastructure/http/controllers/HRSelf
 import { creerHrSelfServiceRoutes } from '@infrastructure/http/routes/hrSelfService.routes';
 import { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
 import { ConfigurerEtablissementUseCase } from '@application/school/ConfigurerEtablissementUseCase';
+import { ObtenirAnomaliesEtablissementUseCase } from '@application/school/ObtenirAnomaliesEtablissementUseCase';
 import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
 import { AffecterMatieresALevelEleveUseCase } from '@application/student/AffecterMatieresALevelEleveUseCase';
 import { PreremplirDepuisCombinaisonUseCase } from '@application/student/PreremplirDepuisCombinaisonUseCase';
@@ -277,6 +278,18 @@ export function bootstrapHexagonal(app: Application): void {
         ? getTemplateMeta(school.templateCode).isPrimaire
         : null;
       res.json({ success: true, data: { ...school, isPrimaire } });
+    } catch (err) { next(err); }
+  });
+
+  // Assistant proactif (Section 6.3) — bannière ADMIN, anomalies d'établissement.
+  const obtenirAnomaliesEtablissementUseCase = new ObtenirAnomaliesEtablissementUseCase(prisma);
+  app.get('/api/v2/school/anomalies', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+    try {
+      const anomalies = await obtenirAnomaliesEtablissementUseCase.execute({
+        schoolId: req.user!.schoolId,
+        userId: req.user!.userId,
+      });
+      res.json({ success: true, data: anomalies });
     } catch (err) { next(err); }
   });
 

@@ -25,6 +25,7 @@ import SectionAdminAI from './_components/SectionAdminAI'
 import SectionStatistics from './_components/SectionStatistics'
 import SectionCommunications from './_components/SectionCommunications'
 import SectionPedagogie from './_components/SectionPedagogie'
+import AnomaliesAlertBanner from './_components/AnomaliesAlertBanner'
 import SectionRH from './_components/SectionRH'
 import SectionMatricules from './_components/SectionMatricules'
 import SectionSchoolPayments from './_components/SectionSchoolPayments'
@@ -176,6 +177,7 @@ export default function AdminDashboard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <AdminTopbar title={t(`page.section_titles.${section}`)} onNavigate={s => setSection(s as AdminSection)} onChangePassword={() => setChangePwdOpen(true)} onMenuClick={() => setMobileNavOpen(true)} sessionUser={sessionUser} onLogout={logoutUser} />
         <EventCenterWidget onNav={s => setSection(s as AdminSection)} />
+        <AnomaliesAlertBanner onNav={s => setSection(s as AdminSection)} />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {section === 'dashboard' && (
