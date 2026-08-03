@@ -383,7 +383,7 @@ Pas d'ESLint/Prettier/Biome. Le code a des incohérences de style (points-virgul
 | **📋 Basse** | m2 → Remplacer `(err as any)` par des classes d'erreur typées | 1 jour | Qualité |
 | **📋 Basse** | m4 → Extraire discipline/bibliothèque/roster en handlers | 1 jour | Architecture |
 | **📋 Basse** | s3 → Route assistant/chat mal positionnée → recâbler | 30 min | Architecture |
-| **📋 Future** | Capacitor empaquetage mobile | 2-3 sem | Feature |
+| **📋 Future** | Capacitor empaquetage mobile — plan détaillé : [Plan_Capacitor_Mobile_ZekoulABia.md](Plan_Capacitor_Mobile_ZekoulABia.md) | 2-3 sem (à revalider — voir Phase 0 du plan) | Feature |
 
 ---
 
