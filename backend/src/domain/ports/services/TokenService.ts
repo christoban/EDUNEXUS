@@ -14,8 +14,8 @@ export interface PayloadToken {
 }
 
 export interface TokensGeneres {
-  accessToken: string;  // 15 minutes
-  refreshToken: string; // 7 jours
+  accessToken: string;  // 15 minutes, fixe
+  refreshToken: string; // 7 ou 30 jours selon le rôle — voir JwtTokenService
 }
 
 export interface TokenService {

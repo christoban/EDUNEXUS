@@ -35,6 +35,28 @@ const COOKIE_OPTIONS = {
   path: '/',
 };
 
+const ACCESS_COOKIE_MAX_AGE_MS = 15 * 60 * 1000; // 15 min — doit rester synchronisé avec JwtTokenService
+
+/**
+ * Durée du cookie refresh_token, graduée par rôle — doit rester synchronisée avec
+ * REFRESH_EXPIRY_PAR_ROLE dans JwtTokenService.ts. Un cookie plus long que le JWT qu'il
+ * transporte ne serait pas dangereux en soi (le JWT expiré serait rejeté à la vérification),
+ * mais un cookie plus COURT couperait la session avant l'expiration réelle du token — les
+ * deux durées doivent donc correspondre exactement.
+ */
+const REFRESH_COOKIE_MAX_AGE_MS_PAR_ROLE: Record<string, number> = {
+  ADMIN: 7 * 24 * 60 * 60 * 1000,
+  STAFF: 7 * 24 * 60 * 60 * 1000,
+  TEACHER: 30 * 24 * 60 * 60 * 1000,
+  STUDENT: 30 * 24 * 60 * 60 * 1000,
+  PARENT: 30 * 24 * 60 * 60 * 1000,
+};
+const REFRESH_COOKIE_MAX_AGE_MS_DEFAUT = 7 * 24 * 60 * 60 * 1000;
+
+function dureeCookieRefreshMs(role: string): number {
+  return REFRESH_COOKIE_MAX_AGE_MS_PAR_ROLE[role.toUpperCase()] ?? REFRESH_COOKIE_MAX_AGE_MS_DEFAUT;
+}
+
 // Rôles dont la connexion exige une double authentification (MFA/TOTP) en plus du code email.
 // Parent/Élève n'en font pas partie — mot de passe + code email seulement.
 const MFA_REQUIRED_ROLES = ['ADMIN', 'STAFF', 'TEACHER'];
@@ -106,8 +128,8 @@ export class UserController {
       permissions: payload.permissions as any,
       tokenType: 'access',
     });
-    res.cookie('access_token', tokens.accessToken, { ...COOKIE_OPTIONS, maxAge: 8 * 60 * 60 * 1000 });
-    res.cookie('refresh_token', tokens.refreshToken, { ...COOKIE_OPTIONS, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie('access_token', tokens.accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_COOKIE_MAX_AGE_MS });
+    res.cookie('refresh_token', tokens.refreshToken, { ...COOKIE_OPTIONS, maxAge: dureeCookieRefreshMs(payload.role) });
     res.clearCookie('pending_login_token', { path: '/' });
     return {
       userId: payload.userId,
@@ -461,11 +483,11 @@ export class UserController {
 
       res.cookie('access_token', tokens.accessToken, {
         ...COOKIE_OPTIONS,
-        maxAge: 8 * 60 * 60 * 1000,
+        maxAge: ACCESS_COOKIE_MAX_AGE_MS,
       });
       res.cookie('refresh_token', tokens.refreshToken, {
         ...COOKIE_OPTIONS,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
+        maxAge: dureeCookieRefreshMs(payload.role),
       });
 
       res.json({ success: true, message: 'Tokens rafraîchis' });
