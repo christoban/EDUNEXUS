@@ -1,21 +1,30 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, HeartPulse, X, Megaphone } from 'lucide-react'
+import { LogOut, LayoutDashboard, FileText, ScrollText, Calendar, ClipboardCheck, BookOpen, HeartPulse, X, Megaphone, MessageCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useUnreadMessagesCount } from '@/hooks/useUnreadMessagesCount'
 import type { StudentSection, UserInfo } from '../_types'
 
 interface NavItem {
   id: StudentSection
   icon: LucideIcon
   label: string
+  badge?: string
+  badgeColor?: 'red' | 'green' | 'amber'
 }
 
 interface NavGroup {
   label?: string
   items: NavItem[]
+}
+
+const BADGE_STYLES = {
+  red:   'bg-red-500/25 text-red-300',
+  green: 'bg-green-500/20 text-green-300',
+  amber: 'bg-amber-500/20 text-amber-300',
 }
 
 export default function StudentSidebar({ current, onChange, schoolName, logoUrl, onLogout, user, mobileOpen = false, onMobileClose }: {
@@ -30,6 +39,7 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
 }) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
+  const messagesNonLus = useUnreadMessagesCount()
 
   const NAV: NavGroup[] = [
     {
@@ -59,6 +69,7 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
       items: [
         { id: 'library', icon: BookOpen, label: tnav('sidebar.myLibrary') },
         { id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') },
+        { id: 'messagerie', icon: MessageCircle, label: tnav('sidebar.messagerie'), ...(messagesNonLus > 0 ? { badge: String(messagesNonLus), badgeColor: 'red' as const } : {}) },
       ]
     },
   ]
@@ -123,6 +134,11 @@ export default function StudentSidebar({ current, onChange, schoolName, logoUrl,
                     <item.icon size={20} strokeWidth={2} />
                   </span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
+                  {item.badge && (
+                    <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES[item.badgeColor ?? 'red'])} style={{ padding: '3px 6px' }}>
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

@@ -1,4 +1,4 @@
-export type ParentSection = 'children' | 'grades' | 'attendance' | 'payments' | 'timetable' | 'settings' | 'library' | 'apee' | 'notifications' | 'babillard'
+export type ParentSection = 'children' | 'grades' | 'attendance' | 'payments' | 'timetable' | 'settings' | 'library' | 'apee' | 'notifications' | 'babillard' | 'messagerie'
 
 export interface Toast {
   id: number

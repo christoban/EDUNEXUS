@@ -3,11 +3,12 @@ import { motion } from 'framer-motion'
 import {
   LogOut, LayoutDashboard, School, ClipboardCheck, FileText, Calendar,
   NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw,
-  AlertTriangle, X, ListChecks, Megaphone,
+  AlertTriangle, X, ListChecks, Megaphone, MessageCircle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useUnreadMessagesCount } from '@/hooks/useUnreadMessagesCount'
 import type { TeacherSection, UserInfo } from '../_types'
 
 interface NavItem {
@@ -23,7 +24,7 @@ interface NavGroup {
   items: NavItem[]
 }
 
-function buildNav(user: UserInfo | null | undefined, pendingGrades: number | undefined, tnav: ReturnType<typeof useT>, tcommon: ReturnType<typeof useT>): NavGroup[] {
+function buildNav(user: UserInfo | null | undefined, pendingGrades: number | undefined, messagesNonLus: number, tnav: ReturnType<typeof useT>, tcommon: ReturnType<typeof useT>): NavGroup[] {
   const groups: NavGroup[] = [
     {
       items: [{ id: 'dashboard', icon: LayoutDashboard, label: tnav('sidebar.dashboard') }],
@@ -51,7 +52,10 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
     },
     {
       label: tnav('group.communication'),
-      items: [{ id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') }],
+      items: [
+        { id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') },
+        { id: 'messagerie', icon: MessageCircle, label: tnav('sidebar.messagerie'), ...(messagesNonLus > 0 ? { badge: String(messagesNonLus), badgeColor: 'red' as const } : {}) },
+      ],
     },
     // notifications retiré de la sidebar — redondant avec la cloche (permanente sur tous les
     // écrans), qui offre désormais un lien « Voir tout » vers cette même page.
@@ -108,9 +112,10 @@ export default function TeacherSidebar({
 }) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
+  const messagesNonLus = useUnreadMessagesCount()
   const displayName = schoolName || tcommon('brand.fallbackSchool')
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0].toUpperCase()).join('')
-  const nav = buildNav(user, pendingGrades, tnav, tcommon)
+  const nav = buildNav(user, pendingGrades, messagesNonLus, tnav, tcommon)
   const handleChange = (id: TeacherSection) => { onChange(id); onMobileClose?.() }
 
   const sidebarBody = (

@@ -3,6 +3,8 @@ import { Server, type Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { parse as parseCookie } from "cookie";
 import type { AuthPayload } from "../middleware/auth";
+import { prisma } from "@infrastructure/persistence/prisma/prisma.client";
+import { verifierAppartenanceConversation } from "@application/messagerie/MessagerieAccessHelpers";
 
 let io: Server | null = null;
 
@@ -43,6 +45,30 @@ export const initSocket = (httpServer: HttpServer, origin?: string) => {
       socket.join(`user:${auth.userId}`);
       socket.join(`school:${auth.schoolId}:role:${auth.role}`);
     }
+
+    // Room jointe à la demande (pas à la connexion) — pas de coût de room pour des
+    // conversations jamais ouvertes. Vérification d'appartenance AVANT le join : sans ça,
+    // n'importe quel client connecté pourrait rejoindre n'importe quelle conversation en
+    // devinant un ID et écouter les messages d'autrui.
+    socket.on("conversation:join", async (conversationId: string, callback?: (ok: boolean) => void) => {
+      if (!auth || typeof conversationId !== "string") { callback?.(false); return; }
+      try {
+        await verifierAppartenanceConversation(prisma, {
+          conversationId,
+          schoolId: auth.schoolId,
+          userId: auth.userId,
+          role: auth.role,
+        });
+        socket.join(`conversation:${conversationId}`);
+        callback?.(true);
+      } catch {
+        callback?.(false);
+      }
+    });
+
+    socket.on("conversation:leave", (conversationId: string) => {
+      if (typeof conversationId === "string") socket.leave(`conversation:${conversationId}`);
+    });
   });
 
   return io;

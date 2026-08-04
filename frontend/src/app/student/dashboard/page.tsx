@@ -24,6 +24,7 @@ import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 import { useRouter } from 'next/navigation'
 import Babillard from '@/components/Babillard'
+import Messagerie from '@/components/Messagerie'
 
 interface SessionUser {
   userId: string
@@ -33,7 +34,7 @@ interface SessionUser {
   permissions?: string[]
 }
 
-const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications', 'babillard']
+const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications', 'babillard', 'messagerie']
 const STUDENT_ASSISTANT_SUGGESTIONS = [
   'Quelles sont mes dernières notes ?',
   'Quel est mon taux de présence ce mois-ci ?',
@@ -55,6 +56,7 @@ export default function StudentDashboard() {
     'health-tracking': tnav('pageTitle.student_healthTracking'),
     notifications: tnav('pageTitle.student_notifications'),
     babillard:  tnav('sidebar.babillard'),
+    messagerie: tnav('sidebar.messagerie'),
   }
   const [section, setSection] = useState<StudentSection>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -175,6 +177,7 @@ export default function StudentDashboard() {
           {section === 'health-tracking' && <SectionStudentHealthTracking user={user} />}
           {section === 'notifications' && <NotificationCenter />}
           {section === 'babillard' && <Babillard role={user?.role ?? 'STUDENT'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
+          {section === 'messagerie' && <Messagerie />}
         </main>
       </div>
 

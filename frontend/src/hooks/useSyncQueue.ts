@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { addPendingAction, getPendingActions, countPendingActions, deletePendingAction, updatePendingActionStatus, setConflictData } from '@/lib/offline/db'
+import { addPendingAction, getPendingActions, countPendingActions, deletePendingAction, updatePendingActionStatus, setConflictData, updateCachedMessageStatus } from '@/lib/offline/db'
 import { useOnlineStatus } from './useOnlineStatus'
 import { fetchApi } from '@/lib/fetchApi'
 
@@ -60,9 +60,21 @@ export function useSyncQueue() {
           throw new Error(`HTTP ${res.status}`)
         }
         await deletePendingAction(action.id!)
+        // Le fil de conversation affiche son propre statut (horloge/coche) sur l'entrée
+        // optimiste de db.messages, distincte de la file générique — la synchro réussie doit la
+        // faire passer de PENDING à SENT, sinon le message reste affiché comme "en cours" alors
+        // qu'il est bien parti.
+        if (action.type === 'MESSAGE_SEND') {
+          const clientMessageId = (action.payload as { clientMessageId?: string })?.clientMessageId
+          if (clientMessageId) await updateCachedMessageStatus(clientMessageId, 'SENT')
+        }
         synced++
       } catch {
         await updatePendingActionStatus(action.id!, 'FAILED')
+        if (action.type === 'MESSAGE_SEND') {
+          const clientMessageId = (action.payload as { clientMessageId?: string })?.clientMessageId
+          if (clientMessageId) await updateCachedMessageStatus(clientMessageId, 'FAILED')
+        }
       }
     }
 

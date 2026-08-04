@@ -190,6 +190,8 @@ import { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJ
 
 // --- Use Cases : Classe ---
 import { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';
+import { CreerCanalClasseUseCase } from '@application/messagerie/CreerCanalClasseUseCase';
+import { CreerCanalParentsUseCase } from '@application/messagerie/CreerCanalParentsUseCase';
 import { ModifierClasseUseCase } from '@application/class/ModifierClasseUseCase';
 import { SupprimerClasseUseCase } from '@application/class/SupprimerClasseUseCase';
 import { AssignerProfesseurPrincipalUseCase } from '@application/class/AssignerProfesseurPrincipalUseCase';
@@ -349,7 +351,11 @@ export function creerContainer() {
   // 11. Use Cases — Classe + Matière
   const sousGroupeRepository = new PrismaSousGroupeRepository(prisma);
 
-  const creerClasseUseCase = new CreerClasseUseCase(classeRepository);
+  const creerClasseUseCase = new CreerClasseUseCase(
+    classeRepository,
+    new CreerCanalClasseUseCase(prisma),
+    new CreerCanalParentsUseCase(prisma),
+  );
   const modifierClasseUseCase = new ModifierClasseUseCase(classeRepository);
   const supprimerClasseUseCase = new SupprimerClasseUseCase(classeRepository);
   const assignerProfesseurUseCase = new AssignerProfesseurPrincipalUseCase(

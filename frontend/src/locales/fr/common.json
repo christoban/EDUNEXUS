@@ -336,5 +336,40 @@
       "parent": "Parents d'élèves",
       "student": "Élèves"
     }
+  },
+  "messagerie": {
+    "title": "Messagerie",
+    "new_message": "Nouveau message",
+    "loading": "Chargement...",
+    "empty_list": "Aucune conversation pour le moment.",
+    "no_message_yet": "Aucun message",
+    "select_conversation": "Sélectionnez une conversation",
+    "write_message": "Écrire un message...",
+    "search_contact": "Rechercher un contact...",
+    "no_contact": "Aucun contact disponible.",
+    "change_contact": "Changer",
+    "send": "Envoyer",
+    "sending": "Envoi...",
+    "generic_error": "Une erreur est survenue.",
+    "rejected": "Refusé par la modération",
+    "pending_moderation": "En attente de modération",
+    "moderation_title": "Modération des messages",
+    "moderation_subtitle": "Messages des canaux de classe et parents en attente de validation",
+    "moderation_empty": "Aucun message en attente de modération.",
+    "moderation_approved": "Message approuvé.",
+    "moderation_rejected": "Message refusé.",
+    "class_channel": "Canal de classe",
+    "parent_channel": "Canal parents",
+    "rejection_reason_placeholder": "Motif du refus (optionnel)",
+    "approve": "Approuver",
+    "reject": "Refuser",
+    "confirm_reject": "Confirmer le refus",
+    "role_options": {
+      "admin": "Admin",
+      "staff": "Personnel administratif",
+      "teacher": "Enseignant",
+      "parent": "Parent",
+      "student": "Élève"
+    }
   }
 }

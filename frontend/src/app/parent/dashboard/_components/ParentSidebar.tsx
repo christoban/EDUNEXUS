@@ -1,21 +1,30 @@
 'use client'
 import { motion } from 'framer-motion'
-import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins, X, Megaphone } from 'lucide-react'
+import { LogOut, Users, FileText, ClipboardCheck, Calendar, Smartphone, BookOpen, Settings, HandCoins, X, Megaphone, MessageCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useUnreadMessagesCount } from '@/hooks/useUnreadMessagesCount'
 import type { ParentSection } from '../_types'
 
 interface NavItem {
   id: ParentSection
   icon: LucideIcon
   label: string
+  badge?: string
+  badgeColor?: 'red' | 'green' | 'amber'
 }
 
 interface NavGroup {
   label?: string
   items: NavItem[]
+}
+
+const BADGE_STYLES = {
+  red:   'bg-red-500/25 text-red-300',
+  green: 'bg-green-500/20 text-green-300',
+  amber: 'bg-amber-500/20 text-amber-300',
 }
 
 interface UserInfo { id: string; firstName: string; lastName: string; role: string }
@@ -32,6 +41,7 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
 }) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
+  const messagesNonLus = useUnreadMessagesCount()
 
   const NAV_GROUPS: NavGroup[] = [
     {
@@ -54,6 +64,7 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
         { id: 'apee',     icon: HandCoins, label: tnav('sidebar.apee') },
         { id: 'library',  icon: BookOpen, label: tnav('sidebar.readings') },
         { id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') },
+        { id: 'messagerie', icon: MessageCircle, label: tnav('sidebar.messagerie'), ...(messagesNonLus > 0 ? { badge: String(messagesNonLus), badgeColor: 'red' as const } : {}) },
         // notifications retiré — redondant avec la cloche (permanente sur tous les écrans),
         // qui offre désormais un lien « Voir tout » vers cette même page.
         { id: 'settings', icon: Settings, label: tnav('sidebar.settings') },
@@ -122,6 +133,11 @@ export default function ParentSidebar({ current, onChange, onLogout, user, schoo
                     <item.icon size={20} strokeWidth={2} />
                   </span>
                   <span className="relative z-10 truncate flex-1">{item.label}</span>
+                  {item.badge && (
+                    <span className={cn('relative z-10 ml-auto text-[13px] font-black rounded-lg', BADGE_STYLES[item.badgeColor ?? 'red'])} style={{ padding: '3px 6px' }}>
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>

@@ -3,12 +3,13 @@ import {
   LogOut, LayoutDashboard, GraduationCap, FileText, ClipboardCheck, Clock,
   Link2, Calendar, Landmark, Smartphone, Lock, AlertTriangle, BookOpen,
   Compass, IdCard, HandCoins, X, ShieldAlert,
-  RefreshCw, Megaphone,
+  RefreshCw, Megaphone, MessageCircle, ShieldCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { logoutUser } from '@/lib/userAuth'
+import { useUnreadMessagesCount } from '@/hooks/useUnreadMessagesCount'
 import type { StaffSection, SessionUser } from '../_types'
 
 interface NavItem {
@@ -45,6 +46,7 @@ const BADGE_STYLES = {
 export default function StaffSidebar({ current, onChange, allowedSections, sessionUser, schoolName, logoUrl, badges = {}, mobileOpen = false, onMobileClose }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
+  const messagesNonLus = useUnreadMessagesCount()
   const can = (s: StaffSection) => allowedSections.has(s)
 
   const supervisionItems: NavItem[] = []
@@ -56,6 +58,7 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
   if (can('affectations'))     supervisionItems.push({ id: 'affectations',     icon: Link2, label: tnav('sidebar.assignments') })
   if (can('timetable'))        supervisionItems.push({ id: 'timetable',        icon: Calendar, label: tnav('sidebar.timetable') })
   if (can('departements'))     supervisionItems.push({ id: 'departements',     icon: Landmark, label: tnav('sidebar.departments') })
+  if (can('moderation-messagerie')) supervisionItems.push({ id: 'moderation-messagerie', icon: ShieldCheck, label: tnav('sidebar.moderationMessagerie') })
 
   const servicesItems: NavItem[] = []
   if (can('finance'))     servicesItems.push({ id: 'finance',     icon: Smartphone, label: tnav('sidebar.finance'),    badge: badges.finance,  badgeColor: 'red' })
@@ -74,6 +77,7 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
     { label: tnav('group.moncompte'), items: [
       { id: 'sync-offline', icon: RefreshCw, label: tnav('sidebar.syncOffline') },
       { id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') },
+      { id: 'messagerie', icon: MessageCircle, label: tnav('sidebar.messagerie'), ...(messagesNonLus > 0 ? { badge: String(messagesNonLus), badgeColor: 'red' as const } : {}) },
       { id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') },
     ] },
   ]

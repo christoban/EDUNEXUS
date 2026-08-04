@@ -31,6 +31,7 @@ import EventCenterWidget from '@/components/EventCenterWidget'
 import { useT } from '@/lib/i18n'
 import { useRouter } from 'next/navigation'
 import Babillard from '@/components/Babillard'
+import Messagerie from '@/components/Messagerie'
 import SectionOfflineStatus from '@/components/SectionOfflineStatus'
 
 interface SessionUser {
@@ -44,7 +45,7 @@ interface SessionUser {
 const TEACHER_SECTIONS: TeacherSection[] = [
   'dashboard', 'classes', 'attendance', 'grades', 'bulletins', 'timetable', 'resources', 'sync',
   'pp-classe', 'pp-appreciations', 'ap-departement', 'cahier-de-texte', 'at-risk', 'mon-suivi',
-  'mon-profil-rh', 'notifications', 'babillard',
+  'mon-profil-rh', 'notifications', 'babillard', 'messagerie',
 ]
 const TEACHER_ASSISTANT_SUGGESTIONS = [
   'Donne 15 à Jean Dupont en maths pour la 4eA',
@@ -81,6 +82,7 @@ export default function TeacherDashboard() {
     'mon-profil-rh':     tnav('sidebar.monProfilRH'),
     notifications:       tnav('pageTitle.teacher_notifications'),
     babillard:           tnav('sidebar.babillard'),
+    messagerie:          tnav('sidebar.messagerie'),
   }
   const [section, setSection] = useState<TeacherSection>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -194,6 +196,7 @@ export default function TeacherDashboard() {
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
           {section === 'babillard' && <Babillard role={user?.role ?? 'TEACHER'} title={tnav('sidebar.babillard')} subtitle={tcommon('brand.roleTeacher')} />}
+          {section === 'messagerie' && <Messagerie />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>

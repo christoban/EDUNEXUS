@@ -336,5 +336,40 @@
       "parent": "Parents",
       "student": "Students"
     }
+  },
+  "messagerie": {
+    "title": "Messaging",
+    "new_message": "New message",
+    "loading": "Loading...",
+    "empty_list": "No conversations yet.",
+    "no_message_yet": "No messages",
+    "select_conversation": "Select a conversation",
+    "write_message": "Write a message...",
+    "search_contact": "Search a contact...",
+    "no_contact": "No contact available.",
+    "change_contact": "Change",
+    "send": "Send",
+    "sending": "Sending...",
+    "generic_error": "An error occurred.",
+    "rejected": "Rejected by moderation",
+    "pending_moderation": "Pending moderation",
+    "moderation_title": "Message moderation",
+    "moderation_subtitle": "Class and parent channel messages awaiting review",
+    "moderation_empty": "No messages awaiting moderation.",
+    "moderation_approved": "Message approved.",
+    "moderation_rejected": "Message rejected.",
+    "class_channel": "Class channel",
+    "parent_channel": "Parent channel",
+    "rejection_reason_placeholder": "Rejection reason (optional)",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirm_reject": "Confirm rejection",
+    "role_options": {
+      "admin": "Admin",
+      "staff": "Administrative staff",
+      "teacher": "Teacher",
+      "parent": "Parent",
+      "student": "Student"
+    }
   }
 }

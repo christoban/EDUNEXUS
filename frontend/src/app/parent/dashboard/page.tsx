@@ -25,6 +25,7 @@ import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 import { useRouter } from 'next/navigation'
 import Babillard from '@/components/Babillard'
+import Messagerie from '@/components/Messagerie'
 
 interface SessionUser {
   userId: string
@@ -34,7 +35,7 @@ interface SessionUser {
   permissions?: string[]
 }
 
-const PARENT_SECTIONS: ParentSection[] = ['children', 'grades', 'attendance', 'payments', 'timetable', 'settings', 'library', 'apee', 'notifications', 'babillard']
+const PARENT_SECTIONS: ParentSection[] = ['children', 'grades', 'attendance', 'payments', 'timetable', 'settings', 'library', 'apee', 'notifications', 'babillard', 'messagerie']
 const PARENT_ASSISTANT_SUGGESTIONS = [
   'Quelles sont les dernières notes de mon enfant ?',
   'Mon enfant a-t-il des factures impayées ?',
@@ -59,6 +60,7 @@ export default function ParentDashboard() {
     settings:   tnav('pageTitle.parent_settings'),
     library:    tnav('pageTitle.parent_library'),
     babillard:  tnav('sidebar.babillard'),
+    messagerie: tnav('sidebar.messagerie'),
   }
   const [section, setSection] = useState<ParentSection>('children')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -157,6 +159,7 @@ export default function ParentDashboard() {
           {section === 'settings'   && <SectionParentSettings />}
           {section === 'library'    && <SectionParentLibrary userId={user?.id} />}
           {section === 'babillard' && <Babillard role={user?.role ?? 'PARENT'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
+          {section === 'messagerie' && <Messagerie />}
         </main>
       </div>
 

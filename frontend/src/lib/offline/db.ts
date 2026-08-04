@@ -3,7 +3,7 @@ import { chiffrer, dechiffrer } from './crypto'
 
 export interface PendingAction {
   id?: number
-  type: 'ATTENDANCE' | 'GRADE' | 'GRADE_DRAFT_SAVE' | 'CAHIER_DE_TEXTE_CREATE' | 'APPRECIATION_PP' | 'DISCIPLINE_SANCTION' | 'DISCIPLINE_SANCTION_LIFT' | 'APEE_TRANSACTION' | 'LIBRARY_BOOK_CREATE' | 'LIBRARY_BOOK_UPDATE' | 'TEACHER_ASSIGNMENT' | 'TIMETABLE_GRID_CONFIG' | 'PEDAGOGY_PROGRAM' | 'ORIENTATION_RECORD'
+  type: 'ATTENDANCE' | 'GRADE' | 'GRADE_DRAFT_SAVE' | 'CAHIER_DE_TEXTE_CREATE' | 'APPRECIATION_PP' | 'DISCIPLINE_SANCTION' | 'DISCIPLINE_SANCTION_LIFT' | 'APEE_TRANSACTION' | 'LIBRARY_BOOK_CREATE' | 'LIBRARY_BOOK_UPDATE' | 'TEACHER_ASSIGNMENT' | 'TIMETABLE_GRID_CONFIG' | 'PEDAGOGY_PROGRAM' | 'ORIENTATION_RECORD' | 'MESSAGE_SEND'
   payload: unknown
   endpoint: string
   method: 'POST' | 'PATCH'
@@ -31,9 +31,30 @@ export interface CachedData {
   cachedAt: number
 }
 
+/**
+ * Fil de conversation en cache local — distinct de `cachedData` (générique, invisible tant
+ * qu'on ne le consulte pas) : un message envoyé doit apparaître IMMÉDIATEMENT dans le fil,
+ * avant même confirmation serveur (affichage optimiste), avec un statut visible (horloge / coche
+ * / alerte). `id` = `clientMessageId`, l'UUID généré au clic (Plan Messagerie §3.1) — c'est aussi
+ * l'identifiant définitif côté serveur, donc aucune réconciliation d'ID nécessaire après sync.
+ */
+export interface CachedMessage {
+  id: string
+  conversationId: string
+  senderId: string
+  content: string
+  createdAt: number
+  status: 'PENDING' | 'SENT' | 'FAILED'
+}
+
+interface CachedMessageChiffre extends Omit<CachedMessage, 'content'> {
+  content: { iv: number[]; data: number[] }
+}
+
 class ZekoulABiaDB extends Dexie {
   pendingActions!: Table<PendingAction>
   cachedData!: Table<CachedData>
+  messages!: Table<CachedMessageChiffre>
 
   constructor() {
     super('ZekoulABiaDB')
@@ -68,6 +89,14 @@ class ZekoulABiaDB extends Dexie {
           }
         }
       })
+    // v3 — table dédiée aux fils de conversation (Plan Messagerie §3.4), séparée de la file
+    // générique `pendingActions` : un message a besoin d'un affichage optimiste immédiat dans le
+    // fil, pas juste d'être en attente dans une file invisible.
+    this.version(3).stores({
+      pendingActions: '++id, type, status, createdAt',
+      cachedData: 'key, cachedAt',
+      messages: 'id, conversationId, createdAt, status',
+    })
   }
 }
 
@@ -134,4 +163,21 @@ export async function updatePendingActionStatus(id: number, status: PendingActio
 export async function setConflictData(id: number, conflictData: unknown): Promise<void> {
   const chiffre = await chiffrer(conflictData)
   await db.pendingActions.update(id, { conflictData: chiffre as any })
+}
+
+/** Écrit (ou met à jour) un message dans le fil local — affichage optimiste immédiat. */
+export async function putCachedMessage(message: CachedMessage): Promise<void> {
+  const chiffre = await chiffrer(message.content)
+  await db.messages.put({ ...message, content: chiffre })
+}
+
+/** Lit le fil de conversation en cache, du plus ancien au plus récent. */
+export async function getCachedMessages(conversationId: string): Promise<CachedMessage[]> {
+  const rows = await db.messages.where('conversationId').equals(conversationId).sortBy('createdAt')
+  return Promise.all(rows.map(async (r) => ({ ...r, content: await dechiffrer<string>(r.content) })))
+}
+
+/** Met à jour le statut d'envoi d'un message en cache (horloge → coche / alerte). */
+export async function updateCachedMessageStatus(id: string, status: CachedMessage['status']): Promise<void> {
+  await db.messages.update(id, { status })
 }

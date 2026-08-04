@@ -32,6 +32,8 @@ import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 import SectionOfflineStatus from '@/components/SectionOfflineStatus'
 import Babillard from '@/components/Babillard'
+import Messagerie from '@/components/Messagerie'
+import SectionModerationMessagerie from './_components/SectionModerationMessagerie'
 import { useRouter } from 'next/navigation'
 import { useT } from '@/lib/i18n'
 
@@ -50,7 +52,7 @@ export default function StaffDashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts]             = useState<Toast[]>([])
   const [sessionUser, setSessionUser]   = useState<SessionUser | null>(null)
-  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh', 'notifications', 'babillard']))
+  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh', 'notifications', 'babillard', 'messagerie', 'moderation-messagerie']))
   const [schoolName, setSchoolName]     = useState<string | undefined>(undefined)
   const [logoUrl,    setLogoUrl]        = useState<string | null>(null)
   const [changePwdOpen, setChangePwdOpen] = useState(false)
@@ -194,6 +196,8 @@ export default function StaffDashboard() {
           {section === 'notifications' && <NotificationCenter />}
           {section === 'sync-offline' && <SectionOfflineStatus onToast={showToast} namespace="staff" />}
           {section === 'babillard' && <Babillard role={sessionUser?.role ?? 'STAFF'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
+          {section === 'messagerie' && <Messagerie />}
+          {section === 'moderation-messagerie' && <SectionModerationMessagerie onToast={showToast} />}
 
         </main>
       </div>

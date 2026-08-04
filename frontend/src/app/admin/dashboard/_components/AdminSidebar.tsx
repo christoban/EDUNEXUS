@@ -5,11 +5,12 @@ import {
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
   Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X, ArrowRightLeft, Trash2,
-  RefreshCw,
+  RefreshCw, MessageCircle,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { useUnreadMessagesCount } from '@/hooks/useUnreadMessagesCount'
 import type { AdminSection } from '../_types'
 
 interface NavItem {
@@ -68,6 +69,7 @@ interface Props {
 export default function AdminSidebar({ current, onChange, schoolName, logoUrl, badges = {}, sessionUser, onLogout, activeEventTypes = [], hasActiveEntranceExam = false, hasActivePebs = false, hasPendingGroupTransfers = false, isPrimaire, mobileOpen = false, onMobileClose }: Props) {
   const tnav = useT('navigation')
   const tcommon = useT('common')
+  const messagesNonLus = useUnreadMessagesCount()
   const displayName = schoolName || tcommon('brand.fallbackSchool')
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('')
 
@@ -123,6 +125,7 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         { id: 'ai',            icon: Bot, label: tnav('sidebar.ai') },
         { id: 'statistics',    icon: BarChart3, label: tnav('sidebar.statistics') },
         { id: 'babillard',     icon: Megaphone, label: tnav('sidebar.babillard') },
+        { id: 'messagerie',    icon: MessageCircle, label: tnav('sidebar.messagerie'), ...(messagesNonLus > 0 ? { badge: String(messagesNonLus), badgeColor: 'red' as const } : {}) },
         { id: 'communications', icon: Megaphone, label: tnav('sidebar.communications') },
         { id: 'sync-offline', icon: RefreshCw, label: tnav('sidebar.syncOffline') },
         // Retiré de la sidebar — redondant avec la cloche (permanente sur tous les écrans),
