@@ -7,7 +7,7 @@ import { useT } from '@/lib/i18n'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { getNotificationSocket } from '@/lib/notificationSocket'
-import { putCachedMessage, getCachedMessages } from '@/lib/offline/db'
+import { putCachedMessage, getCachedMessages, putCachedData, getCachedData } from '@/lib/offline/db'
 import { EVENEMENT_MESSAGERIE_NON_LUS_CHANGE } from '@/hooks/useUnreadMessagesCount'
 import type { ConversationSummary, CurrentUser, DisplayMessage } from './types'
 
@@ -62,6 +62,11 @@ export default function FilConversation({ conversationId, conversation, currentU
     } catch { /* silencieux — se resynchronisera au prochain passage en ligne */ }
   }, [])
 
+  // Clé du cache de lecture générique (db.cachedData, le même mécanisme que useCachedFetch
+  // utilise pour grades/attendance/etc.) — distincte de db.messages, qui est l'outbox des
+  // envois optimistes et n'est JAMAIS alimentée par l'historique reçu du serveur.
+  const cleCacheHistorique = `messagerie:messages:${conversationId}`
+
   const chargerMessages = useCallback(async () => {
     setLoading(true)
     try {
@@ -72,19 +77,28 @@ export default function FilConversation({ conversationId, conversation, currentU
       const serveur: DisplayMessage[] = res.success ? res.data : []
       const locauxEnCours = locaux.filter((m) => m.status !== 'SENT')
       setMessages(fusionner(serveur, locauxEnCours as DisplayMessage[]))
+      await putCachedData(cleCacheHistorique, serveur)
     } catch {
-      const locaux = await getCachedMessages(conversationId)
-      setMessages(fusionner([], locaux as DisplayMessage[]))
+      // Hors-ligne ou serveur injoignable : on retombe sur le dernier historique mis en cache
+      // (dernière consultation en ligne de cette conversation), pas sur une liste vide — même
+      // garantie que useCachedFetch offre déjà au reste de l'app.
+      const [cache, locaux] = await Promise.all([
+        getCachedData<DisplayMessage[]>(cleCacheHistorique),
+        getCachedMessages(conversationId),
+      ])
+      setMessages(fusionner(cache?.data ?? [], locaux as DisplayMessage[]))
     } finally {
       setLoading(false)
     }
-  }, [conversationId])
+  }, [conversationId, cleCacheHistorique])
 
   useEffect(() => { chargerMessages() }, [chargerMessages])
 
   // Curseur mis à jour à chaque changement de la liste affichée — seuls les messages CONFIRMÉS
   // (chargés depuis le serveur, ou reçus en direct via socket) font avancer le curseur ; un
   // message local encore PENDING/FAILED n'a pas de `createdAt` serveur fiable pour `since=`.
+  // Réécrit aussi le cache de lecture à chaque évolution — un message reçu en direct par socket
+  // (jamais passé par chargerMessages) doit quand même survivre à un futur passage hors-ligne.
   useEffect(() => {
     const confirmes = messages.filter((m) => m.status !== 'PENDING' && m.status !== 'FAILED')
     if (confirmes.length === 0) return
@@ -92,7 +106,8 @@ export default function FilConversation({ conversationId, conversation, currentU
     dernierTimestampConfirmeRef.current = typeof dernier.createdAt === 'number'
       ? new Date(dernier.createdAt).toISOString()
       : dernier.createdAt
-  }, [messages])
+    putCachedData(cleCacheHistorique, confirmes).catch(() => {})
+  }, [messages, cleCacheHistorique])
 
   // Rattrapage fin à la reconnexion : `since=` ne redemande que ce qui a été manqué plutôt que
   // de recharger toute la page courante — fusionné dans les messages déjà affichés (les entrées

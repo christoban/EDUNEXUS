@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { fetchApi } from '@/lib/fetchApi'
+import { putCachedData, getCachedData } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
 import ListeConversations from './ListeConversations'
 import FilConversation from './FilConversation'
@@ -35,14 +36,24 @@ export default function Messagerie() {
   }, [])
 
   const chargerConversations = useCallback(async () => {
+    if (!currentUser) return
+    const cleCache = `messagerie:conversations:${currentUser.id}`
     try {
       const res = await fetchApi('/api/v2/messagerie/conversations')
       const payload = await res.json()
-      if (payload.success) setConversations(payload.data ?? [])
-    } catch { /* silencieux */ } finally {
+      if (payload.success) {
+        setConversations(payload.data ?? [])
+        await putCachedData(cleCache, payload.data ?? [])
+      }
+    } catch {
+      // Hors-ligne ou serveur injoignable — dernière liste connue plutôt qu'un écran vide,
+      // même garantie que le reste de l'app via useCachedFetch.
+      const cache = await getCachedData<ConversationSummary[]>(cleCache)
+      if (cache) setConversations(cache.data)
+    } finally {
       setLoading(false)
     }
-  }, [])
+  }, [currentUser])
 
   useEffect(() => { if (currentUser) chargerConversations() }, [currentUser, chargerConversations])
 
