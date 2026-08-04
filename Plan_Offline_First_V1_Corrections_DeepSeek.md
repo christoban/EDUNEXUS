@@ -466,6 +466,80 @@ Le document corrigé doit contenir, pour chaque ligne du tableau §1, une citati
 
 ---
 
+## ADDENDUM (2026-08-04) — CORRECTION C n'est que partiellement corrigée : "Garder ma version" ne restaure toujours pas la valeur locale
+
+**Vérifié en direct après exécution des corrections A–H ci-dessus.** Séquence rejouée réellement (curl + vérification base de données, pas une lecture de code) :
+1. Note locale hors ligne = 12 (baseUpdatedAt capturé).
+2. Un tiers modifie la même note à 18 pendant la coupure réseau.
+3. Rejeu de la soumission hors ligne → `409` correctement renvoyé avec les deux vraies valeurs (`versionServeur.sequenceScore: 18`, `versionLocale.value: 12`) — **ce point est bien corrigé**.
+4. Rejeu de "Garder ma version" (`forcerEcrasement: true` vers `/api/v2/grades/submit`, exactement ce que fait le bouton) → succès HTTP 200.
+5. **Valeur finale en base : `sequenceScore: 18`, pas 12.** Le bouton ne restaure pas la valeur locale — il force juste le passage du statut `SUBMITTED` sur ce qui est déjà en base côté serveur (la valeur du TIERS), parce que `POST /api/v2/grades/submit` (`soumettreEnMasse`) **n'a jamais écrit de valeur de note, seulement le statut** — voir CORRECTION A plus haut dans ce même document, qui l'établit déjà. La valeur du tiers se retrouve verrouillée en `SUBMITTED` sous couvert d'un message qui annonce à l'enseignant que SA version a été gardée.
+
+**Cause précise** : l'instruction originale de CORRECTION C demandait de "renvoyer la requête en forçant l'écrasement" vers `action.endpoint` — mais pour une action de type `GRADE`, `action.endpoint` vaut `/api/v2/grades/submit`, qui n'écrit jamais de valeur. Il fallait d'abord réécrire la valeur via `/api/v2/grades/draft` (qui n'a AUCUNE vérification de version — il écrase toujours sans condition), PUIS forcer la soumission. Cette étape manquait dans la spécification d'origine.
+
+### Correctif exact
+
+Fichier : `frontend/src/components/SectionOfflineStatus.tsx`, fonction `handleResolveConflict`. Remplacer la branche `if (keepLocal) { ... }` en entier :
+
+```typescript
+if (keepLocal) {
+  try {
+    // Cas spécifique GRADE : l'endpoint où le conflit est détecté (/grades/submit) n'écrit
+    // JAMAIS la valeur de la note — il ne fait que basculer le statut sur la ligne déjà en
+    // base. La valeur est écrite par /grades/draft, qui n'a aucune vérification de version et
+    // écrase donc toujours sans risque. Sans cet appel préalable, "Garder ma version" soumettait
+    // la valeur du TIERS déjà en base, pas la valeur locale — confirmé par un test bout en bout
+    // réel (voir ADDENDUM du document de corrections).
+    if (action.type === 'GRADE') {
+      const payload = action.payload as {
+        classId: string
+        subjectId: string
+        sequenceId: string
+        grades: { studentId: string; value: number; observation?: string }[]
+      }
+      const draftRes = await fetchApi('/api/v2/grades/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          classId: payload.classId,
+          subjectId: payload.subjectId,
+          sequenceId: payload.sequenceId,
+          grades: payload.grades.map(g => ({ studentId: g.studentId, value: g.value, observation: g.observation })),
+        }),
+      })
+      if (!draftRes.ok) throw new Error(`HTTP ${draftRes.status}`)
+    }
+
+    const res = await fetchApi(action.endpoint, {
+      method: action.method,
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify({ ...(action.payload as object), forcerEcrasement: true }),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    await deletePendingAction(action.id!)
+    setActions(prev => prev.filter(a => a.id !== action.id))
+    onToast(t('sync.conflict_kept_local'), 'success')
+  } catch {
+    onToast(t('sync.conflict_resolve_error'), 'error')
+  }
+  return
+}
+```
+(Seul changement vs la version actuelle : le bloc `if (action.type === 'GRADE') { ... }` ajouté au tout début du `try`, avant l'appel existant à `action.endpoint`. Rien d'autre ne change dans cette fonction.)
+
+### Vérification obligatoire — reproduire EXACTEMENT le test qui a trouvé ce bug
+
+1. Typecheck frontend, doit rester vide.
+2. Sauvegarder une note en brouillon pour un élève (`POST /api/v2/grades/draft`, valeur = 12) sur une séquence sans note existante — noter le `updatedAt` renvoyé.
+3. Modifier la même note directement en base (script ponctuel, ou un second `POST /api/v2/grades/draft` avec valeur = 18) pour simuler une modification tierce pendant la coupure réseau.
+4. Rejouer la soumission avec l'ancien `baseUpdatedAt` (`POST /api/v2/grades/submit`) → confirmer un `409` avec les deux valeurs.
+5. Cliquer "Garder ma version" dans l'UI (ou reproduire l'appel exact que ce bouton fait maintenant : `/grades/draft` avec valeur=12, PUIS `/grades/submit` avec `forcerEcrasement: true`).
+6. **Vérifier en base** (script ponctuel) : `sequenceScore` doit être **12** (la valeur locale), pas 18. `validationStatus` doit être `SUBMITTED`.
+7. Refaire le scénario en cliquant "Garder version serveur" cette fois — vérifier que `sequenceScore` reste à la valeur serveur (18) et que le statut ne change pas (puisque l'action est juste supprimée localement, jamais soumise).
+8. Nettoyer toute donnée de test créée.
+
+---
+
 ## Ordre d'exécution final
 
 1. **CORRECTION B** en premier (rien d'autre ne peut être vérifié tant que le backend ne compile pas).
@@ -476,8 +550,9 @@ Le document corrigé doit contenir, pour chaque ligne du tableau §1, une citati
 6. **CORRECTION D** (indépendante, peut être faite à tout moment).
 7. **CORRECTION E** (rapide, indépendante).
 8. **CORRECTION H** (peut être faite en dernier, ne bloque rien d'autre).
+9. **ADDENDUM** (à faire APRÈS toutes les corrections ci-dessus, déjà toutes exécutées à ce stade) — corrige un bug résiduel trouvé en testant CORRECTION C bout en bout après coup : "Garder ma version" ne restaurait pas réellement la valeur locale. Voir la section ADDENDUM juste avant ce paragraphe pour le correctif exact et son test de vérification obligatoire.
 
-Un commit par correction. Après la dernière, relancer l'intégralité des scénarios de vérification listés dans `Plan_Offline_First_V1_Suite_DeepSeek.md` §9.2 (tests bout-en-bout) — plusieurs d'entre eux étaient impossibles à valider correctement tant que CORRECTION A et B n'étaient pas faites.
+Un commit par correction (y compris l'ADDENDUM séparément). Après la dernière, relancer l'intégralité des scénarios de vérification listés dans `Plan_Offline_First_V1_Suite_DeepSeek.md` §9.2 (tests bout-en-bout) — plusieurs d'entre eux étaient impossibles à valider correctement tant que CORRECTION A et B n'étaient pas faites.
 
 ---
 
