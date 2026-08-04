@@ -2,11 +2,17 @@
  * INFRASTRUCTURE LAYER — Adapter JWT Token Service
  * Implémente TokenService en wrappant la logique JWT existante.
  */
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import type { TokenService, PayloadToken, TokensGeneres } from '@domain/ports/services/TokenService';
 
+// Type exact attendu par jwt.sign({ expiresIn }) — @types/jsonwebtoken 9.0.10 l'a resserré à un
+// format de durée précis (ex. "7d"), un `string` générique ne suffit plus. Repris depuis la
+// bibliothèque elle-même plutôt qu'un `as any` : si le format accepté change encore, l'erreur de
+// type réapparaît ici plutôt que de se taire.
+type Duree = NonNullable<SignOptions['expiresIn']>;
+
 const JWT_SECRET = process.env.JWT_SECRET || 'zekoulabia-secret-change-in-production';
-const ACCESS_EXPIRY = '15m';
+const ACCESS_EXPIRY: Duree = '15m';
 
 /**
  * Durée du refresh token graduée par sensibilité du rôle (Plan offline-first V1, §2) : un
@@ -15,16 +21,16 @@ const ACCESS_EXPIRY = '15m';
  * session offline plus courte pour les deux premiers. Passé cette durée sans connexion, la
  * prochaine ouverture en ligne redemande un login complet.
  */
-const REFRESH_EXPIRY_PAR_ROLE: Record<string, string> = {
+const REFRESH_EXPIRY_PAR_ROLE: Record<string, Duree> = {
   ADMIN: '7d',
   STAFF: '7d',
   TEACHER: '30d',
   STUDENT: '30d',
   PARENT: '30d',
 };
-const REFRESH_EXPIRY_DEFAUT = '7d'; // repli prudent si un rôle futur n'est pas dans la table ci-dessus
+const REFRESH_EXPIRY_DEFAUT: Duree = '7d'; // repli prudent si un rôle futur n'est pas dans la table ci-dessus
 
-function dureeRefreshPourRole(role: string): string {
+function dureeRefreshPourRole(role: string): Duree {
   return REFRESH_EXPIRY_PAR_ROLE[role.toUpperCase()] ?? REFRESH_EXPIRY_DEFAUT;
 }
 

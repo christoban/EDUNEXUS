@@ -1,9 +1,17 @@
-export type ParentSection = 'children' | 'grades' | 'attendance' | 'payments' | 'timetable' | 'settings' | 'library' | 'apee' | 'notifications'
+export type ParentSection = 'children' | 'grades' | 'attendance' | 'payments' | 'timetable' | 'settings' | 'library' | 'apee' | 'notifications' | 'babillard'
 
 export interface Toast {
   id: number
   msg: string
   type: 'success' | 'error' | 'info' | 'warning'
+}
+
+export interface UserInfo {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  role: string
 }
 
 export interface ChildWithStats {

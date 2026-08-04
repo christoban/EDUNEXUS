@@ -18,12 +18,22 @@ import HealthAlertBanner from './_components/HealthAlertBanner'
 import type { StudentSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
-import { db } from '@/lib/offline/db'
+import { putCachedData } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
 import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+import { useRouter } from 'next/navigation'
+import Babillard from '@/components/Babillard'
 
-const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications']
+interface SessionUser {
+  userId: string
+  role: string
+  nomComplet?: string
+  firstName?: string
+  permissions?: string[]
+}
+
+const STUDENT_SECTIONS: StudentSection[] = ['dashboard', 'grades', 'bulletins', 'timetable', 'attendance', 'library', 'health-tracking', 'notifications', 'babillard']
 const STUDENT_ASSISTANT_SUGGESTIONS = [
   'Quelles sont mes dernières notes ?',
   'Quel est mon taux de présence ce mois-ci ?',
@@ -34,6 +44,7 @@ let toastId = 0
 
 export default function StudentDashboard() {
   const tnav = useT('navigation')
+  const router = useRouter()
   const TITLES: Record<StudentSection, string> = {
     dashboard:  tnav('pageTitle.student_dashboard'),
     grades:     tnav('pageTitle.student_grades'),
@@ -43,6 +54,7 @@ export default function StudentDashboard() {
     library:    tnav('pageTitle.student_library'),
     'health-tracking': tnav('pageTitle.student_healthTracking'),
     notifications: tnav('pageTitle.student_notifications'),
+    babillard:  tnav('sidebar.babillard'),
   }
   const [section, setSection] = useState<StudentSection>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -50,16 +62,31 @@ export default function StudentDashboard() {
   const [schoolInfo, setSchoolInfo] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
 
+  // Lecture session depuis localStorage (stockée au login) — identique à admin/staff/teacher/parent
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('zekoulabia_user')
+      if (raw) {
+        const sessionUser = JSON.parse(raw) as SessionUser
+        setUser({ id: sessionUser.userId, firstName: sessionUser.firstName ?? '', lastName: sessionUser.nomComplet?.split(' ').slice(1).join(' ') ?? '', email: '', role: sessionUser.role })
+      }
+    } catch { /* silencieux — données absentes ou corrompues */ }
+  }, [])
+
+  // Infos école + utilisateur — fetch en arrière-plan
   useEffect(() => {
     fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setSchoolInfo(d.data) })
       .catch(() => {})
     fetchApi('/api/v2/users/me', { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => {
+        if (r.status === 401) { router.replace('/login'); return Promise.reject('auth') }
+        return r.json()
+      })
       .then(d => { if (d.success) setUser(d.data) })
-      .catch(() => {})
-  }, [])
+      .catch(err => { if (err !== 'auth') console.warn('[student-dashboard] Erreur réseau:', err) })
+  }, [router])
 
   useEffect(() => {
     if (!user || !navigator.onLine) return
@@ -68,7 +95,7 @@ export default function StudentDashboard() {
       try {
         const now = Date.now()
         const rcRes = await fetchApi('/api/v2/report-cards/my', { credentials: 'include' }).then(r => r.json())
-        if (rcRes.reportCards) await db.cachedData.put({ key: `student:bulletins:${uid}`, data: rcRes.reportCards, cachedAt: now })
+        if (rcRes.reportCards) await putCachedData(`student:bulletins:${uid}`, rcRes.reportCards)
         const [statsRes, recordsRes] = await Promise.all([
           fetchApi('/api/v2/attendance/stats', { credentials: 'include' }).then(r => r.json()),
           fetchApi('/api/v2/attendance?limit=100', { credentials: 'include' }).then(r => r.json()),
@@ -91,7 +118,7 @@ export default function StudentDashboard() {
         })
         const fmt = (s: string) => { const d = new Date(s + 'T00:00:00'), e = new Date(d); e.setDate(d.getDate() + 4); return `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` }
         const weekly = Object.values(weeks).sort((a, b) => a.week.localeCompare(b.week)).map(w => ({ ...w, week: fmt(w.week) }))
-        await db.cachedData.put({ key: `student:attendance:${uid}`, data: { stats, weekly }, cachedAt: now })
+        await putCachedData(`student:attendance:${uid}`, { stats, weekly })
       } catch { /* silent */ }
     })()
   }, [user])
@@ -147,6 +174,7 @@ export default function StudentDashboard() {
           {section === 'library'    && <SectionStudentLibrary />}
           {section === 'health-tracking' && <SectionStudentHealthTracking user={user} />}
           {section === 'notifications' && <NotificationCenter />}
+          {section === 'babillard' && <Babillard role={user?.role ?? 'STUDENT'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
         </main>
       </div>
 

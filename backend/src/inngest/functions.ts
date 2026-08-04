@@ -18,6 +18,7 @@ import { GenererRecommandationOrientationUseCase } from "../application/orientat
 import { RelancerElevesEnAttenteUseCase } from "../application/orientation/RelancerElevesEnAttenteUseCase";
 import { FinaliserParDefautUseCase } from "../application/orientation/FinaliserParDefautUseCase";
 import { ListerElevesAOrienterUseCase } from "../application/orientation/ListerElevesAOrienterUseCase";
+import { PurgerAnnoncesExpireesUseCase } from "../application/announcement/PurgerAnnoncesExpireesUseCase";
 
 const iaService = new GroqIAService();
 const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
@@ -1428,6 +1429,16 @@ export const purgeSchoolLogs = inngest.createFunction(
       }
 
       return { schoolsProcessed: schools.length, results };
+    });
+  }
+);
+
+export const purgeAnnoncesExpirees = inngest.createFunction(
+  { id: "purge-annonces-expirees", name: "Purge quotidienne babillard", triggers: [{ cron: "0 1 * * *" }] },
+  async ({ step }) => {
+    return await step.run("purge-annonces-expirees", async () => {
+      const useCase = new PurgerAnnoncesExpireesUseCase(prisma);
+      return await useCase.execute();
     });
   }
 );

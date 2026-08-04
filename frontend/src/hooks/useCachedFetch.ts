@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useOnlineStatus } from './useOnlineStatus'
-import { db } from '@/lib/offline/db'
+import { putCachedData, getCachedData } from '@/lib/offline/db'
 
 export function useCachedFetch<T>(cacheKey: string, fetchFn: () => Promise<T>) {
   const isOnline = useOnlineStatus()
@@ -29,11 +29,11 @@ export function useCachedFetch<T>(cacheKey: string, fetchFn: () => Promise<T>) {
           setData(result)
           setFromCache(false)
           setCachedAt(null)
-          await db.cachedData.put({ key: cacheKey, data: result, cachedAt: Date.now() })
+          await putCachedData(cacheKey, result)
         } catch {
-          const cached = await db.cachedData.get(cacheKey)
+          const cached = await getCachedData<T>(cacheKey)
           if (cached && mounted) {
-            setData(cached.data as T)
+            setData(cached.data)
             setFromCache(true)
             setCachedAt(cached.cachedAt)
           } else if (mounted) {
@@ -41,9 +41,9 @@ export function useCachedFetch<T>(cacheKey: string, fetchFn: () => Promise<T>) {
           }
         }
       } else {
-        const cached = await db.cachedData.get(cacheKey)
+        const cached = await getCachedData<T>(cacheKey)
         if (cached && mounted) {
-          setData(cached.data as T)
+          setData(cached.data)
           setFromCache(true)
           setCachedAt(cached.cachedAt)
         } else if (mounted) {

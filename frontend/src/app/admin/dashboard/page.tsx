@@ -45,13 +45,15 @@ import type { AdminSection, Toast } from './_types'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
 import { useT } from '@/lib/i18n'
+import Babillard from '@/components/Babillard'
+import SectionOfflineStatus from '@/components/SectionOfflineStatus'
 
 let toastId = 0
 
 const ADMIN_SECTIONS: AdminSection[] = [
   'dashboard', 'users', 'classes', 'subjects',
   'attendance', 'grades', 'bulletins', 'timetable',
-  'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'settings', 'corbeille',
+  'council', 'academic-year', 'academic-events', 'finance', 'ai', 'statistics', 'communications', 'babillard', 'settings', 'corbeille', 'sync-offline',
   'pedagogie', 'rh', 'lv2-choice', 'entrance-exams', 'pebs-exams', 'matricules', 'school-payments', 'eleve-onboarding', 'minesec-stats', 'minedub-stats', 'group-transfers',
 ]
 
@@ -201,6 +203,7 @@ export default function AdminDashboard() {
           {section === 'ai'            && <SectionAdminAI       onToast={showToast} />}
           {section === 'statistics'    && <SectionStatistics    onToast={showToast} />}
           {section === 'communications' && <SectionCommunications onToast={showToast} />}
+          {section === 'babillard' && <Babillard role={sessionUser?.role ?? 'ADMIN'} title={t('page.section_titles.babillard')} subtitle={t('page.section_titles.babillard_subtitle')} />}
           {section === 'pedagogie'     && <SectionPedagogie     onToast={showToast} />}
           {section === 'rh'            && <SectionRH            onToast={showToast} />}
           {section === 'matricules'    && <SectionMatricules    onToast={showToast} />}
@@ -215,6 +218,7 @@ export default function AdminDashboard() {
           {section === 'notifications' && <NotificationCenter />}
           {section === 'settings'      && <SectionSettings      onToast={showToast} schoolInfo={schoolInfo} onLogoUpdate={url => setSchoolInfo(s => s ? { ...s, logoUrl: url } : null)} />}
           {section === 'corbeille'     && <SectionCorbeille     onToast={showToast} />}
+          {section === 'sync-offline' && <SectionOfflineStatus onToast={showToast} namespace="admin" />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <SectionPlaceholder

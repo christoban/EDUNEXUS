@@ -4,7 +4,7 @@ import { RefreshCw, WifiOff, Target, Check, X, CheckCircle2, Save, ClipboardList
 import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
-import { db } from '@/lib/offline/db'
+import { getCachedData, putCachedData } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
 
 interface Props {
@@ -57,20 +57,20 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
       ]).then(async ([clsRes, subRes]) => {
         if (clsRes.success) {
           setClasses(clsRes.data)
-          await db.cachedData.put({ key: 'teacher:classes', data: clsRes.data, cachedAt: Date.now() })
+          await putCachedData('teacher:classes', clsRes.data)
         }
         if (subRes.success) {
           setSubjects(subRes.data)
-          await db.cachedData.put({ key: 'teacher:subjects', data: subRes.data, cachedAt: Date.now() })
+          await putCachedData('teacher:subjects', subRes.data)
         }
       }).catch(() => {}).finally(() => setLoading(false))
     } else {
       Promise.all([
-        db.cachedData.get('teacher:classes'),
-        db.cachedData.get('teacher:subjects'),
+        getCachedData<any[]>('teacher:classes'),
+        getCachedData<any[]>('teacher:subjects'),
       ]).then(([clsCache, subCache]) => {
-        if (clsCache) setClasses(clsCache.data as any[])
-        if (subCache) setSubjects(subCache.data as any[])
+        if (clsCache) setClasses(clsCache.data)
+        if (subCache) setSubjects(subCache.data)
       }).catch(() => {}).finally(() => setLoading(false))
     }
   }, [])
@@ -91,9 +91,9 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
     setRosterLabel(null)
     try {
       if (!isOnline) {
-        const cached = await db.cachedData.get(`teacher:students:${selectedClass}`)
+        const cached = await getCachedData<any[]>(`teacher:students:${selectedClass}`)
         if (cached) {
-          setStudents(cached.data as any[])
+          setStudents(cached.data)
           setStatuses({})
           onToast(t('attendance.toast_offline_cache'), 'info')
         } else {
@@ -137,7 +137,7 @@ export default function SectionTeacherAttendance({ onToast, user }: Props) {
       if (studentList.length === 0) onToast(t('attendance.toast_no_students'), 'info')
       // Ne pas écraser le cache classe complète avec une liste élective filtrée
       if (!filteredRoster) {
-        await db.cachedData.put({ key: `teacher:students:${selectedClass}`, data: studentList, cachedAt: Date.now() })
+        await putCachedData(`teacher:students:${selectedClass}`, studentList)
       }
     } catch (err: any) {
       setError(err.message || tcommon('status.error'))

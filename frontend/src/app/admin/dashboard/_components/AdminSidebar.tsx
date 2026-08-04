@@ -5,6 +5,7 @@ import {
   ScrollText, Calendar, GraduationCap, NotebookPen, Briefcase, CalendarDays,
   Smartphone, IdCard, Wallet, ClipboardEdit, UserPlus, BarChart3, ClipboardList,
   Globe, Languages, Bot, Megaphone, Settings, CalendarClock, X, ArrowRightLeft, Trash2,
+  RefreshCw,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -121,7 +122,9 @@ export default function AdminSidebar({ current, onChange, schoolName, logoUrl, b
         ...(activeEventTypes.includes('CHOIX_LV2') ? [{ id: 'lv2-choice' as const, icon: Languages, label: tnav('sidebar.lv2Choice') }] : []),
         { id: 'ai',            icon: Bot, label: tnav('sidebar.ai') },
         { id: 'statistics',    icon: BarChart3, label: tnav('sidebar.statistics') },
+        { id: 'babillard',     icon: Megaphone, label: tnav('sidebar.babillard') },
         { id: 'communications', icon: Megaphone, label: tnav('sidebar.communications') },
+        { id: 'sync-offline', icon: RefreshCw, label: tnav('sidebar.syncOffline') },
         // Retiré de la sidebar — redondant avec la cloche (permanente sur tous les écrans),
         // qui offre désormais un lien « Voir tout » vers cette même page.
         { id: 'settings',      icon: Settings, label: tnav('sidebar.settings') },

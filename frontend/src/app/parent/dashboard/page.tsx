@@ -16,15 +16,25 @@ import NotificationCenter from '@/components/NotificationCenter'
 import SectionParentTimetable from './_components/SectionParentTimetable'
 import SectionParentSettings from './_components/SectionParentSettings'
 import SectionParentLibrary from './_components/SectionParentLibrary'
-import type { ParentSection, Toast } from './_types'
+import type { ParentSection, Toast, UserInfo } from './_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
-import { db } from '@/lib/offline/db'
+import { putCachedData } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
 import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+import { useRouter } from 'next/navigation'
+import Babillard from '@/components/Babillard'
 
-const PARENT_SECTIONS: ParentSection[] = ['children', 'grades', 'attendance', 'payments', 'timetable', 'settings', 'library', 'apee', 'notifications']
+interface SessionUser {
+  userId: string
+  role: string
+  nomComplet?: string
+  firstName?: string
+  permissions?: string[]
+}
+
+const PARENT_SECTIONS: ParentSection[] = ['children', 'grades', 'attendance', 'payments', 'timetable', 'settings', 'library', 'apee', 'notifications', 'babillard']
 const PARENT_ASSISTANT_SUGGESTIONS = [
   'Quelles sont les dernières notes de mon enfant ?',
   'Mon enfant a-t-il des factures impayées ?',
@@ -33,14 +43,11 @@ const PARENT_ASSISTANT_SUGGESTIONS = [
 
 let toastId = 0
 
-interface UserInfo { id: string; firstName: string; lastName: string; role: string }
-interface SchoolInfo { name: string; logoUrl: string | null }
-
-interface UserInfo { id: string; firstName: string; lastName: string; role: string }
 interface SchoolInfo { name: string; logoUrl: string | null }
 
 export default function ParentDashboard() {
   const tnav = useT('navigation')
+  const router = useRouter()
   const TITLES: Record<ParentSection, string> = {
     children:   tnav('pageTitle.parent_children'),
     grades:     tnav('pageTitle.parent_grades'),
@@ -51,6 +58,7 @@ export default function ParentDashboard() {
     timetable:  tnav('pageTitle.parent_timetable'),
     settings:   tnav('pageTitle.parent_settings'),
     library:    tnav('pageTitle.parent_library'),
+    babillard:  tnav('sidebar.babillard'),
   }
   const [section, setSection] = useState<ParentSection>('children')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -58,12 +66,29 @@ export default function ParentDashboard() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [school, setSchool] = useState<SchoolInfo | null>(null)
 
+  // Lecture session depuis localStorage (stockée au login) — identique à admin/staff/teacher
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('zekoulabia_user')
+      if (raw) {
+        const sessionUser = JSON.parse(raw) as SessionUser
+        setUser({ id: sessionUser.userId, firstName: sessionUser.firstName ?? '', lastName: sessionUser.nomComplet?.split(' ').slice(1).join(' ') ?? '', email: '', role: sessionUser.role })
+      }
+    } catch { /* silencieux — données absentes ou corrompues */ }
+  }, [])
+
+  // Infos école + utilisateur — fetch en arrière-plan
   useEffect(() => {
     fetchApi('/api/v2/users/me', { credentials: 'include' })
-      .then(r => r.json()).then(d => { if (d.success) setUser(d.data) }).catch(() => {})
+      .then(r => {
+        if (r.status === 401) { router.replace('/login'); return Promise.reject('auth') }
+        return r.json()
+      })
+      .then(d => { if (d.success) setUser(d.data) })
+      .catch(err => { if (err !== 'auth') console.warn('[parent-dashboard] Erreur réseau:', err) })
     fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.success) setSchool(d.data) }).catch(() => {})
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (!user || !navigator.onLine) return
@@ -74,10 +99,10 @@ export default function ParentDashboard() {
         if (!childrenRes.success) return
         const children = childrenRes.data
         const now = Date.now()
-        await db.cachedData.put({ key: `parent:children:${uid}`, data: children, cachedAt: now })
-        await db.cachedData.put({ key: `parent:attendance:${uid}`, data: children, cachedAt: now })
+        await putCachedData(`parent:children:${uid}`, children)
+        await putCachedData(`parent:attendance:${uid}`, children)
         const rcRes = await fetchApi('/api/v2/report-cards', { credentials: 'include' }).then(r => r.json())
-        await db.cachedData.put({ key: `parent:grades:${uid}`, data: { children, bulletins: rcRes.reportCards ?? [] }, cachedAt: now })
+        await putCachedData(`parent:grades:${uid}`, { children, bulletins: rcRes.reportCards ?? [] })
       } catch { /* silent */ }
     })()
   }, [user])
@@ -131,6 +156,7 @@ export default function ParentDashboard() {
           {section === 'timetable'  && <SectionParentTimetable {...sProps} userId={user?.id} />}
           {section === 'settings'   && <SectionParentSettings />}
           {section === 'library'    && <SectionParentLibrary userId={user?.id} />}
+          {section === 'babillard' && <Babillard role={user?.role ?? 'PARENT'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
         </main>
       </div>
 

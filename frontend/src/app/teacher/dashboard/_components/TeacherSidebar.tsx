@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import {
   LogOut, LayoutDashboard, School, ClipboardCheck, FileText, Calendar,
   NotebookPen, FolderOpen, IdCard, ClipboardList, PenLine, Target, RefreshCw,
-  AlertTriangle, X, ListChecks,
+  AlertTriangle, X, ListChecks, Megaphone,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -48,6 +48,10 @@ function buildNav(user: UserInfo | null | undefined, pendingGrades: number | und
     {
       label: tnav('group.ressources'),
       items: [{ id: 'resources', icon: FolderOpen, label: tnav('sidebar.pedagogicalResources') }],
+    },
+    {
+      label: tnav('group.communication'),
+      items: [{ id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') }],
     },
     // notifications retiré de la sidebar — redondant avec la cloche (permanente sur tous les
     // écrans), qui offre désormais un lien « Voir tout » vers cette même page.

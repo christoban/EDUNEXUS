@@ -306,5 +306,35 @@
     "widgetOpensIn": "\"{title}\" opens in {days} day(s)",
     "widgetOpenUntil": "\"{title}\" is open until {date}",
     "widgetSeeMore": "View"
+  },
+  "babillard": {
+    "publish_title": "Publish an announcement",
+    "edit_title": "Edit the announcement",
+    "title_placeholder": "Announcement title",
+    "content_placeholder": "Announcement content",
+    "pin": "Pin",
+    "editing_mode": "Edit mode active",
+    "editing_mode_hint": "Changes will apply to the selected announcement.",
+    "cancel": "Cancel",
+    "cancel_edit": "Close editing",
+    "no_expiration": "No expiration",
+    "expire_in_days": "Expire in N days",
+    "publish": "Publish",
+    "save": "Save",
+    "sending": "Publishing...",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "edit": "Edit",
+    "empty": "No announcements yet.",
+    "create_success": "Announcement published successfully.",
+    "update_success": "Announcement updated successfully.",
+    "generic_error": "An error occurred.",
+    "role_options": {
+      "admin": "Admin",
+      "staff": "Administrative staff",
+      "teacher": "Teachers",
+      "parent": "Parents",
+      "student": "Students"
+    }
   }
 }

@@ -35,6 +35,7 @@ import {
   checkSuspiciousAiActionPattern,
   purgerCorbeille,
   BackupSchoolDataJob,
+  purgeAnnoncesExpirees,
 } from "./inngest/functions.ts";
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
 import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
@@ -173,6 +174,7 @@ app.use(
       checkSuspiciousAiActionPattern,
       purgerCorbeille,
       BackupSchoolDataJob,
+      purgeAnnoncesExpirees,
       syncCarteScolaire,
       relancePaiements,
       auditMatricules,

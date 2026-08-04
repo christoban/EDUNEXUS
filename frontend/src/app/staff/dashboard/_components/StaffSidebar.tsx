@@ -3,6 +3,7 @@ import {
   LogOut, LayoutDashboard, GraduationCap, FileText, ClipboardCheck, Clock,
   Link2, Calendar, Landmark, Smartphone, Lock, AlertTriangle, BookOpen,
   Compass, IdCard, HandCoins, X, ShieldAlert,
+  RefreshCw, Megaphone,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -71,6 +72,8 @@ export default function StaffSidebar({ current, onChange, allowedSections, sessi
     // notifications retiré de la sidebar — redondant avec la cloche (permanente sur tous les
     // écrans), qui offre désormais un lien « Voir tout » vers cette même page.
     { label: tnav('group.moncompte'), items: [
+      { id: 'sync-offline', icon: RefreshCw, label: tnav('sidebar.syncOffline') },
+      { id: 'babillard', icon: Megaphone, label: tnav('sidebar.babillard') },
       { id: 'mon-profil-rh', icon: IdCard, label: tnav('sidebar.monProfilRH') },
     ] },
   ]

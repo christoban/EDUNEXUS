@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { db, type PendingAction } from '@/lib/offline/db'
+import { addPendingAction, getPendingActions, countPendingActions, deletePendingAction, updatePendingActionStatus, setConflictData } from '@/lib/offline/db'
 import { useOnlineStatus } from './useOnlineStatus'
 import { fetchApi } from '@/lib/fetchApi'
 
@@ -12,18 +12,13 @@ export function useSyncQueue() {
   const syncingRef = useRef(false)
 
   const updateCount = useCallback(async () => {
-    const count = await db.pendingActions.where('status').equals('PENDING').count()
+    const count = await countPendingActions()
     setPendingCount(count)
   }, [])
 
   const addToQueue = useCallback(
-    async (action: Omit<PendingAction, 'id' | 'status' | 'createdAt' | 'idempotencyKey'>) => {
-      await db.pendingActions.add({
-        ...action,
-        status: 'PENDING',
-        createdAt: Date.now(),
-        idempotencyKey: crypto.randomUUID(),
-      })
+    async (action: Omit<Parameters<typeof addPendingAction>[0], 'status'>) => {
+      await addPendingAction(action)
       await updateCount()
     },
     [updateCount]
@@ -38,7 +33,9 @@ export function useSyncQueue() {
     // Ordre de création garanti (Plan offline-first V1 §4) : un where().equals() sur un index
     // Dexie ne garantit pas l'ordre — sortBy le rend explicite plutôt que de compter sur un
     // ordre incident de l'index auto-incrémenté.
-    const pending = await db.pendingActions.where('status').equals('PENDING').sortBy('createdAt')
+    const pending = (await getPendingActions())
+      .filter(a => a.status === 'PENDING')
+      .sort((a, b) => a.createdAt - b.createdAt)
     let synced = 0
 
     for (const action of pending) {
@@ -48,11 +45,24 @@ export function useSyncQueue() {
           headers: { 'Content-Type': 'application/json', 'Idempotency-Key': action.idempotencyKey },
           body: JSON.stringify(action.payload),
         })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        await db.pendingActions.delete(action.id!)
+        if (!res.ok) {
+          // Conflit de version (409) — marquer CONFLICT avec les données de conflit
+          if (res.status === 409) {
+            const body = await res.json().catch(() => null)
+            await updatePendingActionStatus(action.id!, 'CONFLICT')
+            if (body?.conflicts) {
+              // setConflictData (pas db.pendingActions.update direct) — ce champ doit
+              // passer par le wrapper chiffrant comme le reste des données sensibles.
+              await setConflictData(action.id!, body.conflicts)
+            }
+            continue
+          }
+          throw new Error(`HTTP ${res.status}`)
+        }
+        await deletePendingAction(action.id!)
         synced++
       } catch {
-        await db.pendingActions.update(action.id!, { status: 'FAILED' })
+        await updatePendingActionStatus(action.id!, 'FAILED')
       }
     }
 

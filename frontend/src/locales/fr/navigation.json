@@ -18,6 +18,7 @@
     "ai": "IA Santé scolaire",
     "statistics": "Statistiques",
     "communications": "Communications",
+    "babillard": "Babillard",
     "settings": "Paramètres",
     "corbeille": "Corbeille",
     "myClasses": "Mes classes",
@@ -54,7 +55,8 @@
     "atRiskStudents": "Élèves à risque",
     "monSuivi": "Mes actions de suivi",
     "myHealthTracking": "Mon suivi scolaire",
-    "academicEvents": "Événements académiques"
+    "academicEvents": "Événements académiques",
+    "syncOffline": "Synchronisation hors ligne"
   },
   "group": {
     "academic": "Académique",
@@ -66,7 +68,8 @@
     "supervision": "Supervision",
     "results": "Résultats",
     "schoolAgenda": "Agenda scolaire",
-    "moncompte": "Mon compte"
+    "moncompte": "Mon compte",
+    "communication": "Communication"
   },
   "topbar": {
     "adminTitle": "Administration",
@@ -89,6 +92,7 @@
     "admin_ai": "IA Santé scolaire",
     "admin_statistics": "Statistiques",
     "admin_communications": "Communications",
+    "admin_babillard": "Babillard",
     "admin_settings": "Paramètres",
     "admin_rh": "Ressources Humaines",
     "teacher_dashboard": "Tableau de bord",
@@ -105,6 +109,7 @@
     "teacher_cahierDeTexte": "Cahier de texte",
     "teacher_atRisk": "Élèves à risque",
     "teacher_monSuivi": "Mes actions de suivi",
+    "teacher_babillard": "Babillard",
     "staff_dashboard": "Tableau de bord",
     "staff_council": "Conseil de classe",
     "staff_grades": "Validation des notes",

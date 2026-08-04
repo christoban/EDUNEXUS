@@ -551,6 +551,7 @@ model User {
   deletedAt                       DateTime?
   deletedById                     String?
   announcements                   Announcement[]             @relation("AnnouncementAuthor")
+  conversationParticipants        ConversationParticipant[]
   attendancesRecorded             Attendance[]               @relation("RecordedAttendances")
   attendancesAsTeacher            Attendance[]               @relation("TeacherAttendances")
   attendancesAsStudent            Attendance[]               @relation("StudentAttendances")
@@ -1122,6 +1123,7 @@ model Grade {
   isOfflineSync        Boolean               @default(false)
   syncedAt             DateTime?
   createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   recordedById         String?
   academicYear         AcademicYear          @relation(fields: [academicYearId], references: [id])
   class                Class                 @relation(fields: [classId], references: [id])
@@ -1419,8 +1421,20 @@ model Conversation {
   createdAt DateTime         @default(now())
   school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   messages  Message[]
+  participants ConversationParticipant[]
 
   @@index([schoolId])
+}
+
+model ConversationParticipant {
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
 }
 
 model Message {
@@ -1437,6 +1451,8 @@ model Message {
   moderatedBy      User?               @relation("ModeratedMessages", fields: [moderatedById], references: [id])
   sender           User                @relation("SentMessages", fields: [senderId], references: [id])
   readStatuses     MessageReadStatus[]
+
+  @@index([conversationId, createdAt])
 }
 
 model MessageReadStatus {
@@ -1667,6 +1683,7 @@ model Announcement {
 
   @@index([schoolId])
   @@index([schoolId, isPinned])
+  @@index([schoolId, expiresAt])
 }
 
 model EmailLog {

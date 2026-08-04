@@ -1,8 +1,24 @@
+import { db } from '@/lib/offline/db'
+import { purgerCle } from '@/lib/offline/crypto'
+
 /**
  * Déconnecte l'utilisateur : appelle POST /api/v2/users/auth/logout (efface les cookies
- * httpOnly côté serveur) puis redirige vers /login.
+ * httpOnly côté serveur), purge le stockage local complet, puis redirige vers /login.
+ * Avertit si des actions non synchronisées existent (perte de données si confirmée).
  */
 export async function logoutUser(): Promise<void> {
+  // Avertir si des actions ne sont pas encore synchronisées — les perdre silencieusement sur
+  // une déconnexion explicite serait une vraie perte de données (note/absence saisie hors ligne,
+  // jamais envoyée au serveur). Recommandé fortement, pas dans le plan d'origine mot pour mot,
+  // mais découle directement de son esprit ("ne jamais perdre de données").
+  const pendingCount = await db.pendingActions.where('status').anyOf(['PENDING', 'FAILED', 'CONFLICT']).count()
+  if (pendingCount > 0) {
+    const confirme = window.confirm(
+      `${pendingCount} action(s) non synchronisée(s) seront perdues si vous vous déconnectez maintenant. Continuer quand même ?`
+    )
+    if (!confirme) return
+  }
+
   try {
     await fetch('/api/v2/users/auth/logout', {
       method: 'POST',
@@ -10,7 +26,15 @@ export async function logoutUser(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch {
-    // Même si le serveur est inaccessible, on redirige quand même
+    // Même si le serveur est inaccessible, on purge et redirige quand même
   }
+
+  // Purge immédiate et complète du cache local — cas de sécurité réel (appareil partagé),
+  // aucun délai de grâce (Plan offline-first V1 §3).
+  await db.cachedData.clear()
+  await db.pendingActions.clear()
+  localStorage.removeItem('zekoulabia_user')
+  purgerCle() // clé de chiffrement — voir tâche 4
+
   window.location.href = '/login'
 }

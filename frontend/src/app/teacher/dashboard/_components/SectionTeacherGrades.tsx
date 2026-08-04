@@ -5,7 +5,7 @@ import type { UserInfo } from '../_types'
 import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
-import { db } from '@/lib/offline/db'
+import { getCachedData, putCachedData, deleteCachedData } from '@/lib/offline/db'
 
 interface Props {
   onToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning') => void
@@ -46,11 +46,11 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       ]).then(async ([clsRes, subRes, ayRes, rejRes]) => {
         if (clsRes.success) {
           setClasses(clsRes.data)
-          await db.cachedData.put({ key: 'teacher:classes', data: clsRes.data, cachedAt: Date.now() })
+          await putCachedData('teacher:classes', clsRes.data)
         }
         if (subRes.success) {
           setSubjects(subRes.data)
-          await db.cachedData.put({ key: 'teacher:subjects', data: subRes.data, cachedAt: Date.now() })
+          await putCachedData('teacher:subjects', subRes.data)
         }
         if (ayRes.success) {
           const seqs = ayRes.data.flatMap((ay: any) =>
@@ -59,19 +59,19 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
             ) || []
           )
           setSequences(seqs)
-          await db.cachedData.put({ key: 'teacher:sequences', data: seqs, cachedAt: Date.now() })
+          await putCachedData('teacher:sequences', seqs)
         }
         if (rejRes.grades) setRejectedGrades(rejRes.grades)
       }).catch(() => {}).finally(() => setLoading(false))
     } else {
       Promise.all([
-        db.cachedData.get('teacher:classes'),
-        db.cachedData.get('teacher:subjects'),
-        db.cachedData.get('teacher:sequences'),
+        getCachedData<any[]>('teacher:classes'),
+        getCachedData<any[]>('teacher:subjects'),
+        getCachedData<any[]>('teacher:sequences'),
       ]).then(([clsCache, subCache, seqCache]) => {
-        if (clsCache) setClasses(clsCache.data as any[])
-        if (subCache) setSubjects(subCache.data as any[])
-        if (seqCache) setSequences(seqCache.data as any[])
+        if (clsCache) setClasses(clsCache.data)
+        if (subCache) setSubjects(subCache.data)
+        if (seqCache) setSequences(seqCache.data)
       }).catch(() => {}).finally(() => setLoading(false))
     }
   }, [])
@@ -96,10 +96,10 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
     try {
       if (!isOnline) {
-        const cached = await db.cachedData.get(`teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`)
-        const draft = await db.cachedData.get(draftKey)
+        const cached = await getCachedData<any[]>(`teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`)
+        const draft = await getCachedData<{ notes: Record<string, number>; observations: Record<string, string> }>(draftKey)
         if (cached) {
-          setGrades(cached.data as any[])
+          setGrades(cached.data)
           if (draft) {
             setLocalDraft(draft.data as { notes: Record<string, number>; observations: Record<string, string> })
             setShowDraftPrompt(true)
@@ -125,7 +125,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       let baseRows: any[] = []
       if (res.grades?.length) {
         baseRows = res.grades
-        const draft = await db.cachedData.get(draftKey)
+        const draft = await getCachedData<{ notes: Record<string, number>; observations: Record<string, string> }>(draftKey)
         if (draft) {
           setLocalDraft(draft.data as { notes: Record<string, number>; observations: Record<string, string> })
           setShowDraftPrompt(true)
@@ -174,7 +174,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       }
 
       setGrades(baseRows)
-      await db.cachedData.put({ key: `teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, data: baseRows, cachedAt: Date.now() })
+      await putCachedData(`teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`, baseRows)
     } catch (err: any) {
       setError(err.message || t('grades_section.toast_error'))
     } finally {
@@ -190,7 +190,16 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     const draftKey = `draft:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`
 
     if (!isOnline) {
-      await db.cachedData.put({ key: draftKey, data: { notes, observations }, cachedAt: Date.now() })
+      await putCachedData(draftKey, { notes, observations }) // affichage optimiste immédiat, inchangé
+      // Correctif critique : sans cette ligne, les valeurs saisies hors ligne n'étaient JAMAIS mises
+      // en file d'attente réelle — seulement mises en cache de lecture (disposable, effacé à la
+      // déconnexion). Voir CORRECTION A du document de revue.
+      await addToQueue({
+        type: 'GRADE_DRAFT_SAVE',
+        endpoint: '/api/v2/grades/draft',
+        method: 'POST',
+        payload: { classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload },
+      })
       onToast(t('grades_section.toast_draft_saved_local'), 'info')
       return
     }
@@ -205,7 +214,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       }).then(r => r.json())
       if (res.success) {
         onToast(t('grades_section.toast_draft_saved'), 'info')
-        await db.cachedData.delete(draftKey)
+        await deleteCachedData(draftKey)
       } else {
         onToast(res.message || t('grades_section.toast_error'), 'error')
       }
@@ -224,13 +233,43 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
     }))
 
     if (!isOnline) {
+      const baseUpdatedAtMap: Record<string, string | null> = {}
+      for (const g of gradesPayload) {
+        const cached = await getCachedData<any[]>(`teacher:grades:${selectedClass}:${selectedSubject}:${selectedSequence}`)
+        const existing = cached?.data?.find((gg: any) => gg.studentId === g.studentId)
+        baseUpdatedAtMap[g.studentId] = existing?.updatedAt ?? null
+      }
+      // 1. Met en file d'attente la SAUVEGARDE RÉELLE des valeurs (voir CORRECTION A) — sans cette
+      // étape, l'action de soumission ci-dessous ne trouverait aucune ligne à soumettre au retour
+      // réseau. L'ordre createdAt garanti par syncQueue() assure que cette action est rejouée AVANT
+      // la soumission ci-dessous.
+      await addToQueue({
+        type: 'GRADE_DRAFT_SAVE',
+        endpoint: '/api/v2/grades/draft',
+        method: 'POST',
+        payload: { classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence, grades: gradesPayload },
+      })
+      // 2. Met en file d'attente la soumission — le payload inclut désormais `value`/`observation`
+      // en plus de `baseUpdatedAt`, UNIQUEMENT pour permettre l'affichage des deux versions en cas
+      // de conflit (CORRECTION C ci-dessous) — l'écriture réelle de la valeur se fait par l'action
+      // ci-dessus, pas par celle-ci.
       await addToQueue({
         type: 'GRADE',
         endpoint: '/api/v2/grades/submit',
         method: 'POST',
-        payload: { classId: selectedClass, subjectId: selectedSubject, sequenceId: selectedSequence },
+        payload: {
+          classId: selectedClass,
+          subjectId: selectedSubject,
+          sequenceId: selectedSequence,
+          grades: gradesPayload.map(g => ({
+            studentId: g.studentId,
+            baseUpdatedAt: baseUpdatedAtMap[g.studentId],
+            value: g.value,
+            observation: g.observation,
+          })),
+        },
       })
-      await db.cachedData.delete(draftKey)
+      await deleteCachedData(draftKey)
       onToast(t('grades_section.toast_submit_queued'), 'warning')
       return
     }
@@ -256,7 +295,7 @@ export default function SectionTeacherGrades({ onToast, user }: Props) {
       }).then(r => r.json())
       if (res.success) {
         onToast(t('grades_section.toast_submitted').replace('{count}', String(res.data?.count ?? '?')), 'success')
-        await db.cachedData.delete(draftKey)
+        await deleteCachedData(draftKey)
         loadGrades()
       } else {
         onToast(res.message || t('grades_section.toast_error'), 'error')

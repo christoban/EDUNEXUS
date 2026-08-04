@@ -11,9 +11,7 @@ import SectionTeacherDashboard from './_components/SectionTeacherDashboard'
 import SectionTeacherClasses from './_components/SectionTeacherClasses'
 import SectionTeacherAttendance from './_components/SectionTeacherAttendance'
 import SectionTeacherGrades from './_components/SectionTeacherGrades'
-
 import SectionTeacherTimetable from './_components/SectionTeacherTimetable'
-import SectionOfflineStatus from './_components/SectionOfflineStatus'
 import SectionProfesseurPrincipal from './_components/SectionProfesseurPrincipal'
 import SectionAppreciationsPP from './_components/SectionAppreciationsPP'
 import SectionDepartementAP from './_components/SectionDepartementAP'
@@ -31,11 +29,22 @@ import NotificationCenter from '@/components/NotificationCenter'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 import EventCenterWidget from '@/components/EventCenterWidget'
 import { useT } from '@/lib/i18n'
+import { useRouter } from 'next/navigation'
+import Babillard from '@/components/Babillard'
+import SectionOfflineStatus from '@/components/SectionOfflineStatus'
+
+interface SessionUser {
+  userId: string
+  role: string
+  nomComplet?: string
+  firstName?: string
+  permissions?: string[]
+}
 
 const TEACHER_SECTIONS: TeacherSection[] = [
   'dashboard', 'classes', 'attendance', 'grades', 'bulletins', 'timetable', 'resources', 'sync',
   'pp-classe', 'pp-appreciations', 'ap-departement', 'cahier-de-texte', 'at-risk', 'mon-suivi',
-  'mon-profil-rh', 'notifications',
+  'mon-profil-rh', 'notifications', 'babillard',
 ]
 const TEACHER_ASSISTANT_SUGGESTIONS = [
   'Donne 15 à Jean Dupont en maths pour la 4eA',
@@ -53,6 +62,7 @@ const PLACEHOLDERS: Partial<Record<TeacherSection, { icon: LucideIcon }>> = {
 export default function TeacherDashboard() {
   const tnav = useT('navigation')
   const tcommon = useT('common')
+  const router = useRouter()
   const TITLES: Record<TeacherSection, string> = {
     dashboard:           tnav('pageTitle.teacher_dashboard'),
     classes:             tnav('pageTitle.teacher_classes'),
@@ -70,6 +80,7 @@ export default function TeacherDashboard() {
     'mon-suivi':         tnav('pageTitle.teacher_monSuivi'),
     'mon-profil-rh':     tnav('sidebar.monProfilRH'),
     notifications:       tnav('pageTitle.teacher_notifications'),
+    babillard:           tnav('sidebar.babillard'),
   }
   const [section, setSection] = useState<TeacherSection>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -80,14 +91,31 @@ export default function TeacherDashboard() {
   const [changePwdOpen, setChangePwdOpen] = useState(false)
   const { pendingCount } = useSyncQueue()
 
+  // Lecture session depuis localStorage (stockée au login) — identique à admin/staff
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('zekoulabia_user')
+      if (raw) {
+        const sessionUser = JSON.parse(raw) as SessionUser
+        setUser({ id: sessionUser.userId, firstName: sessionUser.firstName ?? '', lastName: sessionUser.nomComplet?.split(' ').slice(1).join(' ') ?? '', email: '', role: sessionUser.role })
+      }
+    } catch { /* silencieux — données absentes ou corrompues */ }
+  }, [])
+
+  // Infos école + utilisateur + compteur notes en attente — fetch en arrière-plan
   useEffect(() => {
     fetchApi('/api/v2/school/me', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.success) setSchoolInfo(d.data) }).catch(() => {})
     fetchApi('/api/v2/users/me', { credentials: 'include' })
-      .then(r => r.json()).then(d => { if (d.success) setUser(d.data) }).catch(() => {})
+      .then(r => {
+        if (r.status === 401) { router.replace('/login'); return Promise.reject('auth') }
+        return r.json()
+      })
+      .then(d => { if (d.success) setUser(d.data) })
+      .catch(err => { if (err !== 'auth') console.warn('[teacher-dashboard] Erreur réseau:', err) })
     fetchApi('/api/v2/grades?validationStatus=SUBMITTED&limit=1', { credentials: 'include' })
       .then(r => r.json()).then(d => { if (d.pagination) setPendingGrades(d.pagination.total ?? 0) }).catch(() => {})
-  }, [])
+  }, [router])
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -147,7 +175,7 @@ export default function TeacherDashboard() {
           {section === 'grades'     && <SectionTeacherGrades {...sProps} />}
 
           {section === 'timetable'  && <SectionTeacherTimetable {...sProps} />}
-          {section === 'sync'       && <SectionOfflineStatus onToast={showToast} />}
+          {section === 'sync'       && <SectionOfflineStatus onToast={showToast} namespace="teacher" />}
           {section === 'pp-classe' && (() => {
             const cls = user?.classesProfessorPrincipal?.[0]
             return cls ? <SectionProfesseurPrincipal user={user!} classeId={cls.id} classeNom={cls.name} /> : null
@@ -165,6 +193,7 @@ export default function TeacherDashboard() {
           {section === 'mon-suivi' && <SectionMesActionsSuivi onToast={showToast} />}
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
+          {section === 'babillard' && <Babillard role={user?.role ?? 'TEACHER'} title={tnav('sidebar.babillard')} subtitle={tcommon('brand.roleTeacher')} />}
           {Object.entries(PLACEHOLDERS).map(([key, val]) =>
             section === key ? (
               <div key={key} style={{ padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>

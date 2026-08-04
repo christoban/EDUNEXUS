@@ -1356,10 +1356,10 @@
     "payment_label": "Payment status",
     "role_options": {
       "empty": "— Choose a role —",
-      "parent": "Parents",
-      "student": "Students",
+      "staff": "Administrative staff",
       "teacher": "Teachers",
-      "staff": "Administrative staff"
+      "parent": "Parents",
+      "student": "Students"
     },
     "all_classes": "— All classes —",
     "all_levels": "— All levels —",
@@ -1914,5 +1914,39 @@
     "toastCreated": "Event created",
     "toastTriggered": "Event triggered — target roles have been notified",
     "toastAdjusted": "Closing date adjusted"
+  },
+  "sync": {
+    "title": "Synchronization",
+    "subtitle": "Actions pending synchronization",
+    "online": "Connected to internet",
+    "offline": "Offline",
+    "count_pending": "{count} action(s) pending",
+    "sync_now": "Sync now",
+    "syncing": "Syncing...",
+    "all_synced_title": "Everything synced",
+    "all_synced_sub": "No pending actions",
+    "table_type": "Type",
+    "table_endpoint": "Endpoint",
+    "table_date": "Date",
+    "table_status": "Status",
+    "table_action": "Action",
+    "status_pending": "Pending",
+    "status_syncing": "Syncing...",
+    "status_failed": "Failed",
+    "status_conflict": "Conflict",
+    "btn_delete": "Delete",
+    "toast_no_internet": "No internet connection",
+    "toast_sync_complete": "Synchronization complete",
+    "toast_action_deleted": "Action deleted",
+    "conflict_keep_local": "Keep my version",
+    "conflict_keep_server": "Keep server version",
+    "conflict_kept_local": "Local version kept — re-enter grades",
+    "conflict_kept_server": "Server version kept — local changes lost",
+    "conflict_resolve_error": "Error while sending — try again",
+    "conflict_server_value": "Server grade",
+    "conflict_local_value": "Your grade",
+    "type_attendance": "Attendance",
+    "type_grade": "Grades",
+    "action_count": "{count} action(s) pending"
   }
 }

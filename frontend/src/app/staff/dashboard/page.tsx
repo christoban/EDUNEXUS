@@ -30,21 +30,27 @@ import { OfflineIndicator } from '@/components/OfflineIndicator'
 import ChangePasswordModal from '@/components/ChangePasswordModal'
 import EventCenterWidget from '@/components/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
+import SectionOfflineStatus from '@/components/SectionOfflineStatus'
+import Babillard from '@/components/Babillard'
+import { useRouter } from 'next/navigation'
+import { useT } from '@/lib/i18n'
 
 const STAFF_ASSISTANT_SUGGESTIONS = [
   'Enregistre un avertissement écrit à Paul pour bavardage',
-  'Quel est le solde de l’APEE ?',
+  "Quel est le solde de l'APEE ?",
   'Quels livres sont disponibles sur la géographie ?',
 ]
 
 let toastId = 0
 
 export default function StaffDashboard() {
+  const router = useRouter()
+  const tnav = useT('navigation')
   const [section, setSection]           = useState<StaffSection>('dashboard')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [toasts, setToasts]             = useState<Toast[]>([])
   const [sessionUser, setSessionUser]   = useState<SessionUser | null>(null)
-  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh', 'notifications']))
+  const [allowedSections, setAllowedSections] = useState<Set<StaffSection>>(new Set(['dashboard', 'mon-profil-rh', 'notifications', 'babillard']))
   const [schoolName, setSchoolName]     = useState<string | undefined>(undefined)
   const [logoUrl,    setLogoUrl]        = useState<string | null>(null)
   const [changePwdOpen, setChangePwdOpen] = useState(false)
@@ -64,10 +70,13 @@ export default function StaffDashboard() {
   // Infos école depuis l'API
   useEffect(() => {
     fetchApi('/api/v2/school/me', { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => {
+        if (r.status === 401) { router.replace('/login'); return Promise.reject('auth') }
+        return r.json()
+      })
       .then(d => { if (d.success) { setSchoolName(d.data.name); setLogoUrl(d.data.logoUrl ?? null) } })
-      .catch(() => {})
-  }, [])
+      .catch(err => { if (err !== 'auth') console.warn('[staff-dashboard] Erreur réseau:', err) })
+  }, [router])
 
   const showToast = useCallback((msg: string, type: Toast['type'] = 'success') => {
     const id = ++toastId
@@ -183,6 +192,8 @@ export default function StaffDashboard() {
 
           {section === 'mon-profil-rh' && <SectionMonProfilRH onToast={showToast} />}
           {section === 'notifications' && <NotificationCenter />}
+          {section === 'sync-offline' && <SectionOfflineStatus onToast={showToast} namespace="staff" />}
+          {section === 'babillard' && <Babillard role={sessionUser?.role ?? 'STAFF'} title={tnav('sidebar.babillard')} subtitle={tnav('group.communication')} />}
 
         </main>
       </div>

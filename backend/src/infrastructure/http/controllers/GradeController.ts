@@ -280,7 +280,7 @@ export class GradeController {
   soumettreEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = (req as any).user;
-      const { classId, subjectId, sequenceId } = req.body;
+      const { classId, subjectId, sequenceId, grades: gradesWithVersion, forcerEcrasement } = req.body;
 
       if (!classId || !subjectId || !sequenceId) {
         res.status(400).json({ success: false, message: 'classId, subjectId et sequenceId sont requis' });
@@ -291,6 +291,55 @@ export class GradeController {
         const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
         if (!assigned) {
           res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
+          return;
+        }
+      }
+
+      // Si gradesWithVersion est fourni (sync offline avec détection de conflit V1 §12),
+      // vérifier les conflits de version avant de soumettre — SAUF si forcerEcrasement est vrai
+      // (l'utilisateur a explicitement choisi "Garder ma version" après un conflit déjà affiché).
+      if (Array.isArray(gradesWithVersion) && gradesWithVersion.length > 0 && !forcerEcrasement) {
+        const conflicts: {
+          studentId: string;
+          versionServeur: { updatedAt: string; sequenceScore: number | null };
+          versionLocale: { updatedAt: string | null; value: number | null; observation: string | null };
+        }[] = [];
+
+        const existingGrades = await prisma.grade.findMany({
+          where: {
+            schoolId: user.schoolId,
+            classId,
+            subjectId,
+            sequenceId,
+            validationStatus: { in: ['DRAFT', 'REJECTED'] },
+            recordedById: user.userId,
+          },
+          select: { id: true, studentId: true, updatedAt: true, sequenceScore: true },
+        });
+
+        const existingByStudent = new Map(existingGrades.map(g => [g.studentId, g]));
+
+        for (const gwv of gradesWithVersion) {
+          if (!gwv.studentId) continue;
+          const existing = existingByStudent.get(gwv.studentId);
+          const baseUpdatedAt = gwv.baseUpdatedAt ? new Date(gwv.baseUpdatedAt).getTime() : null;
+
+          if (existing && baseUpdatedAt !== null && existing.updatedAt.getTime() !== baseUpdatedAt) {
+            conflicts.push({
+              studentId: gwv.studentId,
+              versionServeur: { updatedAt: existing.updatedAt.toISOString(), sequenceScore: existing.sequenceScore },
+              versionLocale: { updatedAt: gwv.baseUpdatedAt, value: gwv.value ?? null, observation: gwv.observation ?? null },
+            });
+          }
+        }
+
+        if (conflicts.length > 0) {
+          res.status(409).json({
+            success: false,
+            code: 'CONFLIT_VERSION',
+            message: 'Conflit de version détecté — une tierce personne a modifié ces notes',
+            conflicts,
+          });
           return;
         }
       }

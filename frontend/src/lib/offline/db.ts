@@ -1,13 +1,14 @@
 import Dexie, { type Table } from 'dexie'
+import { chiffrer, dechiffrer } from './crypto'
 
 export interface PendingAction {
   id?: number
-  type: 'ATTENDANCE' | 'GRADE' | 'CAHIER_DE_TEXTE_CREATE' | 'APPRECIATION_PP' | 'DISCIPLINE_SANCTION' | 'DISCIPLINE_SANCTION_LIFT' | 'APEE_TRANSACTION' | 'LIBRARY_BOOK_CREATE' | 'LIBRARY_BOOK_UPDATE' | 'TEACHER_ASSIGNMENT' | 'TIMETABLE_GRID_CONFIG' | 'PEDAGOGY_PROGRAM' | 'ORIENTATION_RECORD'
+  type: 'ATTENDANCE' | 'GRADE' | 'GRADE_DRAFT_SAVE' | 'CAHIER_DE_TEXTE_CREATE' | 'APPRECIATION_PP' | 'DISCIPLINE_SANCTION' | 'DISCIPLINE_SANCTION_LIFT' | 'APEE_TRANSACTION' | 'LIBRARY_BOOK_CREATE' | 'LIBRARY_BOOK_UPDATE' | 'TEACHER_ASSIGNMENT' | 'TIMETABLE_GRID_CONFIG' | 'PEDAGOGY_PROGRAM' | 'ORIENTATION_RECORD'
   payload: unknown
   endpoint: string
   method: 'POST' | 'PATCH'
   createdAt: number
-  status: 'PENDING' | 'SYNCING' | 'FAILED'
+  status: 'PENDING' | 'SYNCING' | 'FAILED' | 'CONFLICT'
   /**
    * Clé d'idempotence générée côté client (UUID v4) — Plan offline-first V1 §4 (pattern
    * Outbox). Envoyée au serveur dans l'en-tête `Idempotency-Key` à la synchronisation ;
@@ -16,6 +17,12 @@ export interface PendingAction {
    * l'entrée, jamais régénérée sur retry — c'est précisément ce qui rend le retry sûr.
    */
   idempotencyKey: string
+  /** Données de conflit (si status === 'CONFLICT') — un conflit par élève concerné. */
+  conflictData?: {
+    studentId: string;
+    versionServeur: { updatedAt: string; sequenceScore: number | null };
+    versionLocale: { updatedAt: string | null; value: number | null; observation: string | null };
+  }[]
 }
 
 export interface CachedData {
@@ -30,11 +37,101 @@ class ZekoulABiaDB extends Dexie {
 
   constructor() {
     super('ZekoulABiaDB')
+    // v2 — Chiffrement au repos (Plan offline-first V1 §1) : les champs opaques (`data` dans
+    // `cachedData`, `payload` dans `pendingActions`) sont désormais stockés sous la forme
+    // chiffrée `{ iv, data }`. Les champs indexés (`key`, `type`, `status`, `createdAt`) restent
+    // en clair — chiffrer un champ sur lequel Dexie fait un `where().equals()` casserait les
+    // requêtes (AES-GCM inclut un nonce aléatoire par chiffrement, jamais égal à lui-même).
+    // Migration : les entrées `cachedData` (cache de lecture reconstructible sans perte) sont
+    // purgées ; les `pendingActions` en attente sont CONVERTIES au format chiffré au lieu d'être
+    // supprimées — une action non synchronisée est une vraie donnée, jamais jetée silencieusement.
     this.version(1).stores({
       pendingActions: '++id, type, status, createdAt',
       cachedData: 'key, cachedAt',
     })
+    this.version(2)
+      .stores({
+        pendingActions: '++id, type, status, createdAt',
+        cachedData: 'key, cachedAt',
+      })
+      .upgrade(async (trans) => {
+        await trans.table('cachedData').clear()
+        const pending = await trans.table('pendingActions').toArray()
+        for (const action of pending) {
+          if (
+            !action.payload
+            || !(action.payload as { iv?: unknown; data?: unknown }).iv
+            || !(action.payload as { iv?: unknown; data?: unknown }).data
+          ) {
+            const chiffre = await chiffrer(action.payload)
+            await trans.table('pendingActions').put({ ...action, payload: chiffre })
+          }
+        }
+      })
   }
 }
 
 export const db = new ZekoulABiaDB()
+
+/** Écrit une entrée de cache de lecture avec sa donnée chiffrée. */
+export async function putCachedData(key: string, data: unknown): Promise<void> {
+  const chiffre = await chiffrer(data)
+  await db.cachedData.put({ key, data: chiffre, cachedAt: Date.now() })
+}
+
+/** Lit une entrée de cache de lecture et déchiffre sa donnée. */
+export async function getCachedData<T>(key: string): Promise<{ data: T; cachedAt: number } | undefined> {
+  const row = await db.cachedData.get(key)
+  if (!row) return undefined
+  return { data: await dechiffrer<T>(row.data), cachedAt: row.cachedAt }
+}
+
+/** Supprime une entrée de cache de lecture. */
+export async function deleteCachedData(key: string): Promise<void> {
+  await db.cachedData.delete(key)
+}
+
+/** Ajoute une action hors ligne à la file d'attente, payload chiffré. */
+export async function addPendingAction(
+  action: Omit<PendingAction, 'id' | 'status' | 'createdAt' | 'idempotencyKey' | 'payload'> & { payload: unknown }
+): Promise<void> {
+  const payloadChiffre = await chiffrer(action.payload)
+  await db.pendingActions.add({
+    ...action,
+    payload: payloadChiffre,
+    status: 'PENDING',
+    createdAt: Date.now(),
+    idempotencyKey: crypto.randomUUID(),
+  })
+}
+
+/** Liste toutes les actions en attente avec leur payload déchiffré. */
+export async function getPendingActions(): Promise<PendingAction[]> {
+  const rows = await db.pendingActions.toArray()
+  return Promise.all(rows.map(async (r) => ({
+    ...r,
+    payload: await dechiffrer(r.payload),
+    conflictData: r.conflictData ? await dechiffrer(r.conflictData as any) : undefined,
+  })))
+}
+
+/** Compte les actions en attente (PENDING). */
+export async function countPendingActions(): Promise<number> {
+  return db.pendingActions.where('status').equals('PENDING').count()
+}
+
+/** Supprime une action de la file d'attente. */
+export async function deletePendingAction(id: number): Promise<void> {
+  await db.pendingActions.delete(id)
+}
+
+/** Met à jour le statut d'une action de la file d'attente. */
+export async function updatePendingActionStatus(id: number, status: PendingAction['status']): Promise<void> {
+  await db.pendingActions.update(id, { status })
+}
+
+/** Enregistre les données de conflit d'une action — chiffre conflictData comme payload. */
+export async function setConflictData(id: number, conflictData: unknown): Promise<void> {
+  const chiffre = await chiffrer(conflictData)
+  await db.pendingActions.update(id, { conflictData: chiffre as any })
+}

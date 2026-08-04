@@ -183,6 +183,8 @@ import { PushNotificationController } from '@infrastructure/http/controllers/Pus
 import { creerPushNotificationRoutes } from '@infrastructure/http/routes/pushNotification.routes';
 import { NotificationController } from '@infrastructure/http/controllers/NotificationController';
 import { creerNotificationRoutes } from '@infrastructure/http/routes/notification.routes';
+import { AnnouncementController } from '@infrastructure/http/controllers/AnnouncementController';
+import { creerAnnouncementRoutes } from '@infrastructure/http/routes/announcement.routes';
 import { APEEController } from '@infrastructure/http/controllers/APEEController';
 import { creerApeeRoutes } from '@infrastructure/http/routes/apee.routes';
 import { DisciplineCouncilController } from '@infrastructure/http/controllers/DisciplineCouncilController';
@@ -1449,6 +1451,10 @@ export function bootstrapHexagonal(app: Application): void {
   // ── Notifications IN_APP (cloche) ────────────────────────────────────────────
   const notificationController = new NotificationController(container.notification.service);
   app.use('/api/v2/notifications', creerNotificationRoutes(notificationController));
+
+  // ── Babillard numérique ─────────────────────────────────────────────────────
+  const announcementController = new AnnouncementController(prisma);
+  app.use('/api/v2/announcements', creerAnnouncementRoutes(announcementController));
 
   // ── Transparence financière APEE ─────────────────────────────────────────────
   const apeeController = new APEEController(prisma);

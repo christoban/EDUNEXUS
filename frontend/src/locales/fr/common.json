@@ -306,5 +306,35 @@
     "widgetOpensIn": "« {title} » ouvre dans {days} jour(s)",
     "widgetOpenUntil": "« {title} » est ouvert jusqu'au {date}",
     "widgetSeeMore": "Voir"
+  },
+  "babillard": {
+    "publish_title": "Publier un communiqué",
+    "edit_title": "Modifier le communiqué",
+    "title_placeholder": "Titre du communiqué",
+    "content_placeholder": "Contenu du communiqué",
+    "pin": "Épingler",
+    "editing_mode": "Mode édition actif",
+    "editing_mode_hint": "Les changements s'appliqueront au communiqué sélectionné.",
+    "cancel": "Annuler",
+    "cancel_edit": "Fermer l'édition",
+    "no_expiration": "Sans expiration",
+    "expire_in_days": "Expirer dans N jours",
+    "publish": "Publier",
+    "save": "Enregistrer",
+    "sending": "Publication...",
+    "delete": "Supprimer",
+    "deleting": "Suppression...",
+    "edit": "Modifier",
+    "empty": "Aucun communiqué pour le moment.",
+    "create_success": "Communiqué publié avec succès.",
+    "update_success": "Communiqué modifié avec succès.",
+    "generic_error": "Une erreur est survenue.",
+    "role_options": {
+      "admin": "Admin",
+      "staff": "Personnel administratif",
+      "teacher": "Enseignants",
+      "parent": "Parents d'élèves",
+      "student": "Élèves"
+    }
   }
 }
