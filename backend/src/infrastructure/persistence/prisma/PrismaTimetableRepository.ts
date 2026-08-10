@@ -95,7 +95,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
         dayOfWeek: data.dayOfWeek,
         startTime: data.startTime,
         endTime: data.endTime,
-        room: data.room,
+        roomId: data.roomId,
         kind: data.kind,
         subGroupId: data.subGroupId,
         isLV2Slot: data.isLV2Slot ?? false,
@@ -114,7 +114,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
         dayOfWeek: data.dayOfWeek,
         startTime: data.startTime,
         endTime: data.endTime,
-        room: data.room ?? null,
+        roomId: data.roomId ?? null,
         kind: data.kind,
         subGroupId: data.subGroupId ?? null,
         isLV2Slot: data.isLV2Slot ?? false,
@@ -138,6 +138,33 @@ export class PrismaTimetableRepository implements TimetableRepository {
     const slots = await this.prisma.timetableSlot.findMany({
       where: {
         teacherId,
+        dayOfWeek,
+        kind: 'CLASS',
+        timetable: { schoolId },
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+      include: {
+        timetable: { include: { class: { select: { name: true } } } },
+      },
+    });
+
+    return slots.map(s => ({
+      id: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      classeNom: s.timetable.class.name,
+    }));
+  }
+
+  async findCreneauxSalleParJour(
+    roomId: string,
+    dayOfWeek: number,
+    schoolId: string,
+    excludeId?: string
+  ): Promise<CreneauConflitInfo[]> {
+    const slots = await this.prisma.timetableSlot.findMany({
+      where: {
+        roomId,
         dayOfWeek,
         kind: 'CLASS',
         timetable: { schoolId },
@@ -205,6 +232,14 @@ export class PrismaTimetableRepository implements TimetableRepository {
     return { nom, estAP };
   }
 
+  // --- Infos salle ---
+
+  async getInfosSalle(roomId: string): Promise<{ nom: string } | null> {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId }, select: { name: true } });
+    if (!room) return null;
+    return { nom: room.name };
+  }
+
   // --- Validation sous-groupe ---
 
   async sousGroupeAppartientAClasse(subGroupId: string, classId: string): Promise<boolean> {
@@ -225,7 +260,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
       dayOfWeek: data.dayOfWeek,
       startTime: data.startTime,
       endTime: data.endTime,
-      room: data.room ?? undefined,
+      roomId: data.roomId ?? undefined,
       kind: data.kind as SlotKind,
       subGroupId: data.subGroupId ?? undefined,
       isLV2Slot: data.isLV2Slot ?? false,

@@ -12,7 +12,7 @@ export interface ModifierCreneauCommande {
   dayOfWeek?: number;
   startTime?: string;
   endTime?: string;
-  room?: string;
+  roomId?: string;
   kind?: SlotKind;
   subGroupId?: string;
   isLV2Slot?: boolean;
@@ -44,7 +44,7 @@ export class ModifierCreneauUseCase {
       ...(commande.dayOfWeek !== undefined && { dayOfWeek: commande.dayOfWeek }),
       ...(commande.startTime !== undefined && { startTime: commande.startTime }),
       ...(commande.endTime !== undefined && { endTime: commande.endTime }),
-      ...(commande.room !== undefined && { room: commande.room }),
+      ...(commande.roomId !== undefined && { roomId: commande.roomId }),
       ...(commande.kind !== undefined && { kind: commande.kind }),
       ...(commande.subGroupId !== undefined && { subGroupId: commande.subGroupId }),
       ...(commande.isLV2Slot !== undefined && { isLV2Slot: commande.isLV2Slot }),
@@ -52,6 +52,7 @@ export class ModifierCreneauUseCase {
     });
 
     const teacherId = creneauModifie.teacherId;
+    const roomId = creneauModifie.roomId;
     const kind = creneauModifie.kind;
 
     // 4. Vérifier conflit (avec excludeId pour exclure le créneau actuel)
@@ -63,6 +64,17 @@ export class ModifierCreneauUseCase {
         commande.creneauId
       );
       creneauModifie.verifierConflitEnseignant(creneauxEnseignant, commande.creneauId);
+    }
+
+    // 4b. Détection de conflit de salle (même principe — voir V2.3)
+    if (roomId && kind === 'CLASS') {
+      const creneauxSalle = await this.timetableRepository.findCreneauxSalleParJour(
+        roomId,
+        creneauModifie.dayOfWeek,
+        commande.schoolId,
+        commande.creneauId
+      );
+      creneauModifie.verifierConflitSalle(creneauxSalle, commande.creneauId);
     }
 
     // 5. Vérification volume AP (correction : maintenant aussi vérifié au updateSlot)

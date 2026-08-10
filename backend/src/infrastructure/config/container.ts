@@ -19,6 +19,7 @@ import { PrismaNoteRepository } from '@infrastructure/persistence/prisma/PrismaN
 import { PrismaPresenceRepository } from '@infrastructure/persistence/prisma/PrismaPresenceRepository';
 import { PrismaBulletinRepository } from '@infrastructure/persistence/prisma/PrismaBulletinRepository';
 import { PrismaMatiereRepository } from '@infrastructure/persistence/prisma/PrismaMatiereRepository';
+import { PrismaRoomRepository } from '@infrastructure/persistence/prisma/PrismaRoomRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 
 // --- Use Cases : Notes ---
@@ -208,6 +209,11 @@ import { AssignerEnseignantMatiereUseCase } from '@application/subject/AssignerE
 import { DefinirCoefficientUseCase } from '@application/subject/DefinirCoefficientUseCase';
 import { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUseCase';
 
+// --- Use Cases : Room (Salle) ---
+import { CreerSalleUseCase } from '@application/room/CreerSalleUseCase';
+import { ModifierSalleUseCase } from '@application/room/ModifierSalleUseCase';
+import { SupprimerSalleUseCase } from '@application/room/SupprimerSalleUseCase';
+
 // --- Adapter Persistence Orientation ---
 import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
 
@@ -253,6 +259,7 @@ export function creerContainer() {
   const bulletinRepository = new PrismaBulletinRepository(prisma);
   const matiereRepository = new PrismaMatiereRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
+  const roomRepository = new PrismaRoomRepository(prisma);
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
@@ -376,6 +383,10 @@ export function creerContainer() {
   );
   const definirCoefficientUseCase = new DefinirCoefficientUseCase(matiereRepository);
   const supprimerMatiereUseCase = new SupprimerMatiereUseCase(matiereRepository);
+
+  const creerSalleUseCase = new CreerSalleUseCase(roomRepository);
+  const modifierSalleUseCase = new ModifierSalleUseCase(roomRepository);
+  const supprimerSalleUseCase = new SupprimerSalleUseCase(roomRepository);
 
   // 12. Use Cases — Timetable
   const timetableRepository = new PrismaTimetableRepository(prisma);
@@ -513,6 +524,11 @@ export function creerContainer() {
       assignerEnseignant: assignerEnseignantUseCase,
       definirCoefficient: definirCoefficientUseCase,
       supprimer: supprimerMatiereUseCase,
+    },
+    room: {
+      creer: creerSalleUseCase,
+      modifier: modifierSalleUseCase,
+      supprimer: supprimerSalleUseCase,
     },
     timetable: {
       creer: creerEmploiDuTempsUseCase,

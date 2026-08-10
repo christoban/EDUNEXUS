@@ -11,7 +11,7 @@ export interface AjouterCreneauCommande {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
-  room?: string;
+  roomId?: string;
   kind?: SlotKind;
   subGroupId?: string;
   isLV2Slot?: boolean;
@@ -60,6 +60,14 @@ export class AjouterCreneauUseCase {
       estAP = infos.estAP;
     }
 
+    // 3b. Récupérer infos salle si fournie
+    let roomNom: string | undefined;
+    if (commande.roomId && commande.kind !== 'BREAK') {
+      const infosSalle = await this.timetableRepository.getInfosSalle(commande.roomId);
+      if (!infosSalle) throw new Error(`Salle introuvable : ${commande.roomId}`);
+      roomNom = infosSalle.nom;
+    }
+
     // 4. Créer l'entité créneau (validation des formats dans l'entité)
     const creneau = CreneauHoraire.create({
       timetableId: commande.timetableId,
@@ -69,7 +77,8 @@ export class AjouterCreneauUseCase {
       dayOfWeek: commande.dayOfWeek,
       startTime: commande.startTime,
       endTime: commande.endTime,
-      room: commande.room,
+      roomId: commande.roomId,
+      roomNom,
       kind: commande.kind,
       subGroupId: commande.subGroupId,
       isLV2Slot: commande.isLV2Slot,
@@ -84,6 +93,16 @@ export class AjouterCreneauUseCase {
         commande.schoolId
       );
       creneau.verifierConflitEnseignant(creneauxExistants);
+    }
+
+    // 5b. Détection de conflit de salle (même principe — voir V2.3, API réutilisée par Scheduling V2.5)
+    if (commande.roomId && commande.kind === 'CLASS') {
+      const creneauxSalle = await this.timetableRepository.findCreneauxSalleParJour(
+        commande.roomId,
+        commande.dayOfWeek,
+        commande.schoolId
+      );
+      creneau.verifierConflitSalle(creneauxSalle);
     }
 
     // 6. Vérification volume horaire AP (Loi 7)

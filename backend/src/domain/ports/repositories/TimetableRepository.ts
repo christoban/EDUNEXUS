@@ -53,6 +53,25 @@ export interface TimetableRepository {
   ): Promise<{ nom: string; estAP: boolean } | null>;
 
   /**
+   * Retourne le nom d'une salle pour les messages d'erreur de conflit — même raisonnement que
+   * getInfosEnseignant : le TimetableRepository résout un nom d'affichage plutôt que d'imposer
+   * une dépendance RoomRepository aux use cases Ajouter/ModifierCreneauUseCase.
+   */
+  getInfosSalle(roomId: string): Promise<{ nom: string } | null>;
+
+  /**
+   * Retourne les créneaux existants d'une salle pour un jour donné — même contrat que
+   * findCreneauxEnseignantParJour. C'est la requête que le futur Scheduling Engine (V2.5)
+   * consommera comme hard constraint "conflit de salle".
+   */
+  findCreneauxSalleParJour(
+    roomId: string,
+    dayOfWeek: number,
+    schoolId: string,
+    excludeId?: string
+  ): Promise<CreneauConflitInfo[]>;
+
+  /**
    * Vérifie qu'un sous-groupe appartient bien à la classe de l'EDT.
    */
   sousGroupeAppartientAClasse(

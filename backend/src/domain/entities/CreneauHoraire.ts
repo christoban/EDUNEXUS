@@ -1,5 +1,6 @@
 import type { SlotKind } from '@domain/types/enums';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
+import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 
 export interface CreneauHoraireProps {
   id: string;
@@ -10,7 +11,8 @@ export interface CreneauHoraireProps {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
-  room?: string;
+  roomId?: string;
+  roomNom?: string;
   kind: SlotKind;
   subGroupId?: string;
   isLV2Slot?: boolean;
@@ -25,7 +27,8 @@ export interface CreerCreneauProps {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
-  room?: string;
+  roomId?: string;
+  roomNom?: string;
   kind?: SlotKind;
   subGroupId?: string;
   isLV2Slot?: boolean;
@@ -74,7 +77,8 @@ export class CreneauHoraire {
   get endTime(): string { return this.props.endTime; }
   get kind(): SlotKind { return this.props.kind; }
   get subGroupId(): string | undefined { return this.props.subGroupId; }
-  get room(): string | undefined { return this.props.room; }
+  get roomId(): string | undefined { return this.props.roomId; }
+  get roomNom(): string | undefined { return this.props.roomNom; }
   get isLV2Slot(): boolean { return this.props.isLV2Slot ?? false; }
   get isElectiveSlot(): boolean { return this.props.isElectiveSlot ?? false; }
 
@@ -103,6 +107,33 @@ export class CreneauHoraire {
       if (debutMinutes < existantFin && finMinutes > existantDebut) {
         throw new ConflitHoraireError(
           this.props.teacherNom ?? this.props.teacherId!,
+          this.props.dayOfWeek,
+          this.props.startTime,
+          this.props.endTime,
+          existant.classeNom
+        );
+      }
+    }
+  }
+
+  verifierConflitSalle(
+    creneauxExistants: { id: string; startTime: string; endTime: string; classeNom: string }[],
+    excludeId?: string
+  ): void {
+    if (!this.props.roomId) return;
+
+    const debutMinutes = CreneauHoraire.heureEnMinutes(this.props.startTime);
+    const finMinutes = CreneauHoraire.heureEnMinutes(this.props.endTime);
+
+    for (const existant of creneauxExistants) {
+      if (existant.id === excludeId) continue;
+
+      const existantDebut = CreneauHoraire.heureEnMinutes(existant.startTime);
+      const existantFin = CreneauHoraire.heureEnMinutes(existant.endTime);
+
+      if (debutMinutes < existantFin && finMinutes > existantDebut) {
+        throw new ConflitSalleError(
+          this.props.roomNom ?? this.props.roomId!,
           this.props.dayOfWeek,
           this.props.startTime,
           this.props.endTime,

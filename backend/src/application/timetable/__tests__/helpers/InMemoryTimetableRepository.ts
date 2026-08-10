@@ -10,12 +10,16 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   private creneaux = new Map<string, CreneauHoraire>();
 
   private enseignantsInfos = new Map<string, { nom: string; estAP: boolean }>();
+  private sallesInfos = new Map<string, { nom: string }>();
   private sousGroupesValides = new Set<string>(); // "subGroupId:classId"
 
   ajouterEDT(edt: EmploiDuTemps): void { this.edts.set(edt.id, edt); }
   ajouterCreneau(c: CreneauHoraire): void { this.creneaux.set(c.id, c); }
   definirEnseignant(id: string, nom: string, estAP: boolean): void {
     this.enseignantsInfos.set(id, { nom, estAP });
+  }
+  definirSalle(id: string, nom: string): void {
+    this.sallesInfos.set(id, { nom });
   }
   ajouterSousGroupeValide(subGroupId: string, classId: string): void {
     this.sousGroupesValides.add(`${subGroupId}:${classId}`);
@@ -90,6 +94,32 @@ export class InMemoryTimetableRepository implements TimetableRepository {
 
   async getInfosEnseignant(id: string): Promise<{ nom: string; estAP: boolean } | null> {
     return this.enseignantsInfos.get(id) ?? null;
+  }
+
+  async getInfosSalle(id: string): Promise<{ nom: string } | null> {
+    return this.sallesInfos.get(id) ?? null;
+  }
+
+  async findCreneauxSalleParJour(
+    roomId: string,
+    dayOfWeek: number,
+    _schoolId: string,
+    excludeId?: string
+  ): Promise<CreneauConflitInfo[]> {
+    return [...this.creneaux.values()]
+      .filter(
+        c =>
+          c.roomId === roomId &&
+          c.dayOfWeek === dayOfWeek &&
+          c.kind === 'CLASS' &&
+          c.id !== excludeId
+      )
+      .map(c => ({
+        id: c.id,
+        startTime: c.startTime,
+        endTime: c.endTime,
+        classeNom: 'Classe Test',
+      }));
   }
 
   async sousGroupeAppartientAClasse(subGroupId: string, classId: string): Promise<boolean> {

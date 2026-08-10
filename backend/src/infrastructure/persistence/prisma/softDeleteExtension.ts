@@ -15,7 +15,7 @@
  */
 import { Prisma } from '@prisma/client';
 
-const MODELES_AVEC_SOFT_DELETE = new Set(['User', 'Class', 'Subject']);
+const MODELES_AVEC_SOFT_DELETE = new Set(['User', 'Class', 'Subject', 'Room']);
 
 function injecterFiltre(model: string, args: any) {
   if (!MODELES_AVEC_SOFT_DELETE.has(model)) return args;

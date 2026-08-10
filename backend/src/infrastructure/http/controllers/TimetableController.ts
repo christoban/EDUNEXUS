@@ -5,6 +5,7 @@ import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCren
 import type { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import type { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
+import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../utils/languageHelper';
@@ -138,6 +139,10 @@ export class TimetableController {
   private gererErreur(error: unknown, res: Response, next: NextFunction): void {
     if (error instanceof ConflitHoraireError) {
       res.status(409).json({ success: false, code: 'CONFLIT_HORAIRE', message: error.message });
+      return;
+    }
+    if (error instanceof ConflitSalleError) {
+      res.status(409).json({ success: false, code: 'CONFLIT_SALLE', message: error.message });
       return;
     }
     if (error instanceof VolumeHoraireAPError) {

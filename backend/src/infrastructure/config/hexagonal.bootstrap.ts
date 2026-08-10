@@ -34,6 +34,7 @@ import { FinanceController } from '@infrastructure/http/controllers/FinanceContr
 import { creerFinanceRoutes } from '@infrastructure/http/routes/finance.routes';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
+import { RoomController } from '@infrastructure/http/controllers/RoomController';
 import { AcademicYearController } from '@infrastructure/http/controllers/AcademicYearController';
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
@@ -41,6 +42,7 @@ import { SchoolSettingsController } from '@infrastructure/http/controllers/Schoo
 import { buildPayload, getLatestSchoolBackup } from '../../utils/schoolBackup';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
+import { creerRoomRoutes } from '@infrastructure/http/routes/room.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerTimetableRoutes } from '@infrastructure/http/routes/timetable.routes';
 import { creerParentRoutes } from '@infrastructure/http/routes/parent.routes';
@@ -1050,8 +1052,16 @@ export function bootstrapHexagonal(app: Application): void {
     container.subject.supprimer,
   );
 
+  const roomController = new RoomController(
+    container.room.creer,
+    container.room.modifier,
+    container.room.supprimer,
+    prisma,
+  );
+
   app.use('/api/v2/classes', creerClasseRoutes(classeController));
   app.use('/api/v2/subjects', creerSubjectRoutes(subjectController));
+  app.use('/api/v2/rooms', creerRoomRoutes(roomController));
 
   const departmentController = new DepartmentController(prisma);
   app.use('/api/v2/departments', creerDepartmentRoutes(departmentController));
@@ -1877,6 +1887,19 @@ export function bootstrapHexagonal(app: Application): void {
     } catch (err) { next(err); }
   });
 
+  // GET /api/v2/rooms — catalogue des salles de l'établissement (aucun filtrage par rôle : une
+  // salle est une donnée de référence, pas une donnée sensible par utilisateur).
+  app.get('/api/v2/rooms', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const rooms = await prisma.room.findMany({
+        where: { schoolId },
+        orderBy: { name: 'asc' },
+      });
+      res.json({ success: true, data: rooms });
+    } catch (err) { next(err); }
+  });
+
   // GET /api/v2/academic-years — liste des années scolaires avec périodes et séquences
   app.get('/api/v2/academic-years', requireAuth, async (req, res, next) => {
     try {
@@ -1908,13 +1931,21 @@ export function bootstrapHexagonal(app: Application): void {
             include: {
               subject: { select: { id: true, name: true } },
               teacher: { select: { id: true, firstName: true, lastName: true } },
+              room: { select: { id: true, name: true } },
             },
             orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
           },
         },
         orderBy: { createdAt: 'desc' },
       });
-      res.json({ success: true, data: timetables });
+      // roomId (relation) → conserve le champ `room: string | null` attendu par le frontend
+      // (dashboards élève/enseignant) — room était un texte libre avant migration V2.3, aucun
+      // changement de contrat côté client.
+      const data = timetables.map(tt => ({
+        ...tt,
+        slots: tt.slots.map(s => ({ ...s, room: s.room?.name ?? null })),
+      }));
+      res.json({ success: true, data });
     } catch (err) { next(err); }
   });
 

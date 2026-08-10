@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { CreneauHoraire } from '../CreneauHoraire';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
+import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 
 describe('CreneauHoraire — logique domaine', () => {
 
@@ -141,6 +142,76 @@ describe('CreneauHoraire — logique domaine', () => {
       });
       expect(() =>
         sansProfesseur.verifierConflitEnseignant([{
+          id: 'slot-old', startTime: '10:00', endTime: '11:00', classeNom: 'Test',
+        }])
+      ).not.toThrow();
+    });
+  });
+
+  describe('verifierConflitSalle()', () => {
+    const creneauBase = CreneauHoraire.create({
+      timetableId: 't1',
+      roomId: 'salle-1',
+      roomNom: 'Labo Physique',
+      dayOfWeek: 0,
+      startTime: '10:00',
+      endTime: '11:00',
+    });
+
+    it('devrait passer si aucun créneau existant', () => {
+      expect(() => creneauBase.verifierConflitSalle([])).not.toThrow();
+    });
+
+    it('devrait lancer ConflitSalleError si chevauchement exact', () => {
+      expect(() =>
+        creneauBase.verifierConflitSalle([{
+          id: 'slot-old',
+          startTime: '10:00',
+          endTime: '11:00',
+          classeNom: '2nde C',
+        }])
+      ).toThrow(ConflitSalleError);
+    });
+
+    it('devrait lancer ConflitSalleError si chevauchement partiel', () => {
+      expect(() =>
+        creneauBase.verifierConflitSalle([{
+          id: 'slot-old',
+          startTime: '10:30',
+          endTime: '11:30',
+          classeNom: 'Tle D',
+        }])
+      ).toThrow(ConflitSalleError);
+    });
+
+    it('devrait passer si créneaux adjacents (sans chevauchement)', () => {
+      expect(() =>
+        creneauBase.verifierConflitSalle([{
+          id: 'slot-before',
+          startTime: '09:00',
+          endTime: '10:00',
+          classeNom: '3e A',
+        }])
+      ).not.toThrow();
+    });
+
+    it("devrait ignorer l'excludeId", () => {
+      expect(() =>
+        creneauBase.verifierConflitSalle([{
+          id: 'slot-to-exclude',
+          startTime: '10:00',
+          endTime: '11:00',
+          classeNom: '2nde C',
+        }], 'slot-to-exclude')
+      ).not.toThrow();
+    });
+
+    it("ne devrait pas vérifier si pas de salle", () => {
+      const sansSalle = CreneauHoraire.create({
+        timetableId: 't1', dayOfWeek: 0, startTime: '10:00', endTime: '11:00',
+      });
+      expect(() =>
+        sansSalle.verifierConflitSalle([{
           id: 'slot-old', startTime: '10:00', endTime: '11:00', classeNom: 'Test',
         }])
       ).not.toThrow();

@@ -4,6 +4,7 @@ import { InMemoryTimetableRepository } from './helpers/InMemoryTimetableReposito
 import { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
+import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
 
 describe('AjouterCreneauUseCase', () => {
@@ -37,6 +38,7 @@ describe('AjouterCreneauUseCase', () => {
     repo.ajouterEDT(creerEdtDraft());
     repo.definirEnseignant('teacher-1', 'M. Dupont', false);
     repo.definirEnseignant('ap-1', 'Mme. Martin (AP)', true);
+    repo.definirSalle('salle-1', 'Labo Physique');
   });
 
   it('devrait ajouter un créneau valide', async () => {
@@ -56,6 +58,46 @@ describe('AjouterCreneauUseCase', () => {
     repo.ajouterCreneau(existant);
 
     await expect(useCase.execute(commandeBase)).rejects.toThrow(ConflitHoraireError);
+  });
+
+  it('devrait lancer ConflitSalleError si la salle est déjà occupée sur le créneau', async () => {
+    const existant = CreneauHoraire.create({
+      timetableId: 'edt-1',
+      teacherId: 'autre-teacher',
+      roomId: 'salle-1',
+      dayOfWeek: 0,
+      startTime: '08:00',
+      endTime: '09:00',
+      kind: 'CLASS',
+    });
+    repo.ajouterCreneau(existant);
+
+    await expect(
+      useCase.execute({ ...commandeBase, teacherId: 'teacher-1', roomId: 'salle-1' })
+    ).rejects.toThrow(ConflitSalleError);
+  });
+
+  it('devrait accepter deux créneaux dans des salles différentes au même horaire', async () => {
+    repo.definirSalle('salle-2', 'Salle 12');
+    const existant = CreneauHoraire.create({
+      timetableId: 'edt-1',
+      teacherId: 'autre-teacher',
+      roomId: 'salle-1',
+      dayOfWeek: 0,
+      startTime: '08:00',
+      endTime: '09:00',
+      kind: 'CLASS',
+    });
+    repo.ajouterCreneau(existant);
+
+    const resultat = await useCase.execute({ ...commandeBase, teacherId: 'teacher-1', roomId: 'salle-2' });
+    expect(resultat.creneauId).toBeDefined();
+  });
+
+  it('devrait rejeter si la salle est introuvable', async () => {
+    await expect(
+      useCase.execute({ ...commandeBase, roomId: 'salle-inconnue' })
+    ).rejects.toThrow('Salle introuvable');
   });
 
   it('devrait Loi 7 : bloquer un AP qui dépasse 14h', async () => {
