@@ -57,6 +57,18 @@ describe('ValiderStructureAnneeSuivanteUseCase', () => {
       .rejects.toThrow('aucune classe proposée');
   });
 
+  it('refuse un 2e appel sur une structure déjà validée (idempotence, pas de no-op silencieux)', async () => {
+    classeRepo.ajouter(Classe.reconstituer({
+      id: 'classe-1', schoolId: 'school-1', academicYearId: 'annee-suivante',
+      name: '4e A', capacity: 40, status: 'DRAFT', createdAt: new Date(),
+    }));
+
+    await useCase.execute({ schoolId: 'school-1', anneeSuivanteId: 'annee-suivante' });
+
+    await expect(useCase.execute({ schoolId: 'school-1', anneeSuivanteId: 'annee-suivante' }))
+      .rejects.toThrow('déjà été validée');
+  });
+
   it('refuse un accès inter-établissement', async () => {
     await expect(useCase.execute({ schoolId: 'autre-ecole', anneeSuivanteId: 'annee-suivante' }))
       .rejects.toThrow('Accès refusé');

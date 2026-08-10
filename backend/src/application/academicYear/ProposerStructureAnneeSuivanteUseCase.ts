@@ -62,12 +62,13 @@ export class ProposerStructureAnneeSuivanteUseCase {
       throw new Error("Proposition de structure impossible : aucune classe active sur l'année en cours");
     }
 
-    // Idempotence : évite de dupliquer si l'admin relance la proposition (ex. rechargement de
-    // page) sans avoir d'abord supprimé/validé la proposition précédente.
-    const dejaProposees = await this.classeRepository.findBySchoolAndYear(commande.schoolId, commande.anneeSuivanteId);
-    if (dejaProposees.length > 0) {
+    // Idempotence : jamais de no-op silencieux ni de reclonage par-dessus une proposition (ou
+    // une structure déjà validée) existante — rejet explicite (409) pour que l'appelant sache
+    // que l'état réel diffère de ce qu'il croyait déclencher.
+    const classesExistantes = await this.classeRepository.findBySchoolAndYear(commande.schoolId, commande.anneeSuivanteId);
+    if (classesExistantes.length > 0) {
       throw new Error(
-        'Proposition de structure impossible : une proposition existe déjà pour cette année — supprimez les classes DRAFT existantes ou validez-les avant d\'en reproposer une'
+        'Une structure est déjà proposée pour cette année. Validez-la ou annulez-la avant d\'en proposer une nouvelle.'
       );
     }
 

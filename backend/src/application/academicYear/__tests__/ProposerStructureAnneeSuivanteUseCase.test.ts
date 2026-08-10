@@ -86,7 +86,7 @@ describe('ProposerStructureAnneeSuivanteUseCase', () => {
 
     await expect(useCase.execute({
       schoolId: 'school-1', anneeActuelleId: 'annee-actuelle', anneeSuivanteId: 'annee-suivante',
-    })).rejects.toThrow('existe déjà');
+    })).rejects.toThrow('déjà proposée');
   });
 
   it('refuse si l\'année en cours est déjà archivée', async () => {

@@ -208,7 +208,7 @@ export class AcademicYearController {
         res.status(422).json({ success: false, message: error.message });
         return;
       }
-      if (error.message.includes('existe déjà')) {
+      if (error.message.includes('existe déjà') || error.message.includes('déjà proposée') || error.message.includes('déjà été validée')) {
         res.status(409).json({ success: false, message: error.message });
         return;
       }
