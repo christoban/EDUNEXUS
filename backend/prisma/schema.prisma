@@ -70,13 +70,13 @@ model SchoolGroupOwner {
 // planTier reste un texte libre pour l'instant (tarif négocié manuellement, "sur devis") —
 // pas de moteur de facturation groupée automatisé dans ce premier jet (voir plan, Section 12).
 model SchoolGroup {
-  id        String            @id @default(cuid())
+  id        String           @id @default(cuid())
   name      String
-  ownerId   String            @unique
-  owner     SchoolGroupOwner  @relation(fields: [ownerId], references: [id])
+  ownerId   String           @unique
+  owner     SchoolGroupOwner @relation(fields: [ownerId], references: [id])
   schools   School[]
-  planTier  String            @default("ETABLISSEMENT_PLUS")
-  createdAt DateTime          @default(now())
+  planTier  String           @default("ETABLISSEMENT_PLUS")
+  createdAt DateTime         @default(now())
 }
 
 // Transfert d'élève/enseignant entre deux écoles du même groupe — jamais une mutation directe
@@ -85,17 +85,17 @@ model SchoolGroup {
 // Voir Plan_Groupe_Scolaire_ZekoulABia.md Section 5. Champs volontairement sans relation Prisma
 // (simples ids) — cette table n'est interrogée que par ces ids directement, jamais par jointure.
 model GroupTransferRequest {
-  id                  String              @id @default(cuid())
-  groupId             String
-  type                GroupTransferType
-  sourceSchoolId      String
-  targetSchoolId      String
-  sourceUserId        String
-  status              GroupTransferStatus @default(PENDING_TARGET_ADMIN)
-  onboardingId        String?
-  requestedByOwnerId  String
-  createdAt           DateTime            @default(now())
-  decidedAt           DateTime?
+  id                 String              @id @default(cuid())
+  groupId            String
+  type               GroupTransferType
+  sourceSchoolId     String
+  targetSchoolId     String
+  sourceUserId       String
+  status             GroupTransferStatus @default(PENDING_TARGET_ADMIN)
+  onboardingId       String?
+  requestedByOwnerId String
+  createdAt          DateTime            @default(now())
+  decidedAt          DateTime?
 
   @@index([groupId])
   @@index([targetSchoolId, status])
@@ -113,110 +113,110 @@ enum GroupTransferStatus {
 }
 
 model School {
-  id                         String                       @id @default(cuid())
-  name                       String
-  subdomain                  String                       @unique
-  type                       SchoolType                   @default(SECONDARY)
-  plan                       PlanType                     @default(DISCOVERY)
-  status                     SchoolStatus                 @default(PENDING)
-  city                       String?
-  region                     String?
-  address                    String?
-  phone                      String?
-  email                      String?
-  logoUrl                    String?
+  id                           String                        @id @default(cuid())
+  name                         String
+  subdomain                    String                        @unique
+  type                         SchoolType                    @default(SECONDARY)
+  plan                         PlanType                      @default(DISCOVERY)
+  status                       SchoolStatus                  @default(PENDING)
+  city                         String?
+  region                       String?
+  address                      String?
+  phone                        String?
+  email                        String?
+  logoUrl                      String?
   // Code officiel MINESEC de l'établissement sur cartescolaire.cm (ex. "NO02140H27") — nécessaire
   // pour interroger la recherche publique de matricule (nom+établissement → matricule). Configuré
   // une fois par l'admin, pas deviné automatiquement (la liste des établissements y est trop longue
   // et instable pour un matching fiable).
-  minesecSchoolCode          String?
+  minesecSchoolCode            String?
   // Groupe scolaire multi-établissements (nullable — la quasi-totalité des écoles restent
   // des clients individuels hors groupe). Voir Plan_Groupe_Scolaire_ZekoulABia.md.
-  groupId                    String?
-  group                      SchoolGroup?                 @relation(fields: [groupId], references: [id])
-  subsystem                  SchoolSubsystem              @default(FRANCOPHONE)
-  educationType              EducationType                @default(GENERAL)
-  ownership                  SchoolOwnership              @default(PRIVATE_SECULAR)
+  groupId                      String?
+  group                        SchoolGroup?                  @relation(fields: [groupId], references: [id])
+  subsystem                    SchoolSubsystem               @default(FRANCOPHONE)
+  educationType                EducationType                 @default(GENERAL)
+  ownership                    SchoolOwnership               @default(PRIVATE_SECULAR)
   // Restriction d'admission par genre — pertinent surtout pour le technique (GGTC/CETIF
   // partagent exactement le programme GTC/CETIC, seule l'admission diffère). Proposé dans
   // l'onboarding uniquement pour educationType=TECHNICAL, jamais imposé ailleurs.
-  admissionType              AdmissionType                @default(MIXTE)
-  features                   Json                         @default("{}")
-  saturdaySchedule           Boolean                      @default(true)
-  contractEnd                DateTime?
-  hasPEBSFrancophone         Boolean                      @default(false)
-  hasPEBSAnglophone          Boolean                      @default(false)
-  createdAt                  DateTime                     @default(now())
-  updatedAt                  DateTime                     @updatedAt
-  templateCode               String?
-  onboardingConfig           Json?
-  sequences                  AcademicSequence[]
-  academicYears              AcademicYear[]
-  activitiesLogs             ActivitiesLog[]
-  announcements              Announcement[]
-  attendances                Attendance[]
-  classes                    Class[]
-  classCouncilSessions       ClassCouncilSession[]
-  classPromotions            ClassPromotion[]
-  conversations              Conversation[]
-  disciplineRecords          DisciplineRecord[]
-  apeeTransactions           APEETransaction[]
-  disciplineCouncilSessions  DisciplineCouncilSession[]
-  emailLogs                  EmailLog[]
-  exams                      Exam[]
-  expenses                   Expense[]
-  feePlans                   FeePlan[]
-  grades                     Grade[]
-  gradeFormulas              GradeFormula[]
-  invoices                   Invoice[]
-  mentionRules               MentionRule[]
-  notifications              Notification[]
-  offlineQueue               OfflineQueue[]
-  payments                   Payment[]
-  reportCards                ReportCard[]
-  template                   SchoolTemplate?              @relation(fields: [templateCode], references: [code])
-  schoolConfig               SchoolConfig?
-  invites                    SchoolInvite[]
-  schoolSettings             SchoolSettings?
-  schoolNotificationSettings SchoolNotificationSettings?
-  configurationForm          SchoolConfigurationForm?
-  sections                   Section[]
-  smsLogs                    SmsLog[]
-  staffProfiles              StaffProfile[]
-  studentPromotions          StudentPromotion[]
-  subjects                   Subject[]
-  departments                Department[]
-  subjectCoefficients        SubjectCoefficient[]
-  classSubjectOverrides      ClassSubjectOverride[]
-  timetables                 Timetable[]
-  timetableGridConfig        TimetableGridConfig?
-  users                      User[]
-  submissions                Submission[]
-  books                      Book[]
-  bookLoans                  BookLoan[]
-  ficheOrientations          FicheOrientation[]
+  admissionType                AdmissionType                 @default(MIXTE)
+  features                     Json                          @default("{}")
+  saturdaySchedule             Boolean                       @default(true)
+  contractEnd                  DateTime?
+  hasPEBSFrancophone           Boolean                       @default(false)
+  hasPEBSAnglophone            Boolean                       @default(false)
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  templateCode                 String?
+  onboardingConfig             Json?
+  sequences                    AcademicSequence[]
+  academicYears                AcademicYear[]
+  activitiesLogs               ActivitiesLog[]
+  announcements                Announcement[]
+  attendances                  Attendance[]
+  classes                      Class[]
+  classCouncilSessions         ClassCouncilSession[]
+  classPromotions              ClassPromotion[]
+  conversations                Conversation[]
+  disciplineRecords            DisciplineRecord[]
+  apeeTransactions             APEETransaction[]
+  disciplineCouncilSessions    DisciplineCouncilSession[]
+  emailLogs                    EmailLog[]
+  exams                        Exam[]
+  expenses                     Expense[]
+  feePlans                     FeePlan[]
+  grades                       Grade[]
+  gradeFormulas                GradeFormula[]
+  invoices                     Invoice[]
+  mentionRules                 MentionRule[]
+  notifications                Notification[]
+  offlineQueue                 OfflineQueue[]
+  payments                     Payment[]
+  reportCards                  ReportCard[]
+  template                     SchoolTemplate?               @relation(fields: [templateCode], references: [code])
+  schoolConfig                 SchoolConfig?
+  invites                      SchoolInvite[]
+  schoolSettings               SchoolSettings?
+  schoolNotificationSettings   SchoolNotificationSettings?
+  configurationForm            SchoolConfigurationForm?
+  sections                     Section[]
+  smsLogs                      SmsLog[]
+  staffProfiles                StaffProfile[]
+  studentPromotions            StudentPromotion[]
+  subjects                     Subject[]
+  departments                  Department[]
+  subjectCoefficients          SubjectCoefficient[]
+  classSubjectOverrides        ClassSubjectOverride[]
+  timetables                   Timetable[]
+  timetableGridConfig          TimetableGridConfig?
+  users                        User[]
+  submissions                  Submission[]
+  books                        Book[]
+  bookLoans                    BookLoan[]
+  ficheOrientations            FicheOrientation[]
   orientationCheckpointConfigs OrientationCheckpointConfig[]
-  studentRecommendations     StudentRecommendation[]
-  academicEvents             AcademicEvent[]
-  calendarExceptions         SchoolCalendarException[]
-  verifiableDocuments        VerifiableDocument[]
-  broadcastLogs              BroadcastLog[]
-  programmes                 Programme[]
-  cahierDeTexte              CahierDeTexte[]
-  employeeFiles              EmployeeFile[]
-  careerEvents               CareerEvent[]
-  staffAttendances           StaffAttendance[]
-  leaveRequests              LeaveRequest[]
-  leaveBalances              LeaveBalance[]
-  missionOrders              MissionOrder[]
-  enrollments                Enrollment[]
-  studentOnboardings         StudentOnboarding[]
-  schoolOnboardingSettings   SchoolOnboardingSettings?
-  statisticalSubmissions     StatisticalSubmission[]
-  statisticalSupplement      SchoolStatisticalSupplement?
-  minedubSupplement          MinedubSchoolSupplement?
-  minedubReports             MinedubStatisticalReport[]
-  studentFollowUpActions     StudentFollowUpAction[]
+  studentRecommendations       StudentRecommendation[]
+  academicEvents               AcademicEvent[]
+  calendarExceptions           SchoolCalendarException[]
+  verifiableDocuments          VerifiableDocument[]
+  broadcastLogs                BroadcastLog[]
+  programmes                   Programme[]
+  cahierDeTexte                CahierDeTexte[]
+  employeeFiles                EmployeeFile[]
+  careerEvents                 CareerEvent[]
+  staffAttendances             StaffAttendance[]
+  leaveRequests                LeaveRequest[]
+  leaveBalances                LeaveBalance[]
+  missionOrders                MissionOrder[]
+  enrollments                  InscriptionMinesec[]
+  studentOnboardings           StudentOnboarding[]
+  schoolOnboardingSettings     SchoolOnboardingSettings?
+  statisticalSubmissions       StatisticalSubmission[]
+  statisticalSupplement        SchoolStatisticalSupplement?
+  minedubSupplement            MinedubSchoolSupplement?
+  minedubReports               MinedubStatisticalReport[]
+  studentFollowUpActions       StudentFollowUpAction[]
 }
 
 model SchoolInvite {
@@ -236,53 +236,53 @@ model SchoolInvite {
 }
 
 model SchoolConfig {
-  id                              String           @id @default(cuid())
-  schoolId                        String           @unique
-  ds1Weight                       Float            @default(1)
-  ds2Weight                       Float            @default(1)
-  compositionWeight               Float            @default(2)
-  classTestWeight                 Float            @default(30)
-  terminalExamWeight              Float            @default(70)
-  moderatorUserId                 String?
-  moderator                       User?            @relation("SchoolModerator", fields: [moderatorUserId], references: [id])
-  aiRiskThreshold                 Int              @default(50)
-  aiRiskThresholdCritical         Int              @default(30)
-  subjectDropThreshold            Float            @default(3)
-  bulletinTemplate                BulletinTemplate @default(FR_SECONDARY)
-  gradesPerTerm                   Int              @default(2)
-  sequenceCalculationMode         String           @default("single")
-  legalMaxContributionFirstCycle  Int              @default(7500)
-  legalMaxContributionSecondCycle Int              @default(10000)
-  termsPerYear                    Int              @default(3)
-  maxAbsences                     Int              @default(10)
-  smsEnabled                      Boolean          @default(false)
-  offlineModeEnabled              Boolean          @default(true)
-  aiAlertsEnabled                 Boolean          @default(true)
-  messageModeration               Boolean          @default(false)
+  id                               String           @id @default(cuid())
+  schoolId                         String           @unique
+  ds1Weight                        Float            @default(1)
+  ds2Weight                        Float            @default(1)
+  compositionWeight                Float            @default(2)
+  classTestWeight                  Float            @default(30)
+  terminalExamWeight               Float            @default(70)
+  moderatorUserId                  String?
+  moderator                        User?            @relation("SchoolModerator", fields: [moderatorUserId], references: [id])
+  aiRiskThreshold                  Int              @default(50)
+  aiRiskThresholdCritical          Int              @default(30)
+  subjectDropThreshold             Float            @default(3)
+  bulletinTemplate                 BulletinTemplate @default(FR_SECONDARY)
+  gradesPerTerm                    Int              @default(2)
+  sequenceCalculationMode          String           @default("single")
+  legalMaxContributionFirstCycle   Int              @default(7500)
+  legalMaxContributionSecondCycle  Int              @default(10000)
+  termsPerYear                     Int              @default(3)
+  maxAbsences                      Int              @default(10)
+  smsEnabled                       Boolean          @default(false)
+  offlineModeEnabled               Boolean          @default(true)
+  aiAlertsEnabled                  Boolean          @default(true)
+  messageModeration                Boolean          @default(false)
   /// Échappatoire explicite et traçable : true par défaut (l'école a un vrai conseiller
   /// d'orientation dédié). Réglé à false uniquement si un établissement précis n'a
   /// effectivement personne dans ce rôle — jamais le comportement par défaut.
-  hasDedicatedOrientationCounselor Boolean         @default(true)
+  hasDedicatedOrientationCounselor Boolean          @default(true)
   /// Redondant avec School.subsystem. Utilisé par l'API SchoolSettings (frontend + locale auto-dérivation).
   /// La résolution de langue RUNTIME utilise School.subsystem via resolveLanguage() — NE PAS utiliser pour la langue.
-  schoolLanguageMode              String           @default("francophone")
-  attendanceLateAsAbsence         Boolean          @default(false)
-  bulletinBlockOnUnpaidFees       Boolean          @default(false)
-  councilPassMark                 Float            @default(10)
-  passMark                        Float            @default(10)
-  passwordMinLength               Int              @default(8)
-  passwordRequireUpper            Boolean          @default(false)
-  passwordRequireDigit            Boolean          @default(true)
-  sessionTimeoutMin               Int              @default(60)
-  updatedAt                       DateTime         @updatedAt
-  absenceAlertThreshold           Int              @default(3)
-  christmasBreakEnd               DateTime?
-  christmasBreakStart             DateTime?
-  easterBreakEnd                  DateTime?
-  easterBreakStart                DateTime?
-  schoolYearStartDate             DateTime?
-  yearEndDate                     DateTime?
-  school                          School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolLanguageMode               String           @default("francophone")
+  attendanceLateAsAbsence          Boolean          @default(false)
+  bulletinBlockOnUnpaidFees        Boolean          @default(false)
+  councilPassMark                  Float            @default(10)
+  passMark                         Float            @default(10)
+  passwordMinLength                Int              @default(8)
+  passwordRequireUpper             Boolean          @default(false)
+  passwordRequireDigit             Boolean          @default(true)
+  sessionTimeoutMin                Int              @default(60)
+  updatedAt                        DateTime         @updatedAt
+  absenceAlertThreshold            Int              @default(3)
+  christmasBreakEnd                DateTime?
+  christmasBreakStart              DateTime?
+  easterBreakEnd                   DateTime?
+  easterBreakStart                 DateTime?
+  schoolYearStartDate              DateTime?
+  yearEndDate                      DateTime?
+  school                           School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 // Conseil IA personnalisé, généré et persisté par destinataire (Phase 4 du chantier
@@ -299,8 +299,8 @@ model StudentRecommendation {
   content       String   @db.Text
   createdAt     DateTime @default(now())
 
-  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student User   @relation("StudentRecommendationTarget", fields: [studentId], references: [id], onDelete: Cascade)
+  school          School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student         User                    @relation("StudentRecommendationTarget", fields: [studentId], references: [id], onDelete: Cascade)
   followUpActions StudentFollowUpAction[]
 
   @@index([schoolId, studentId])
@@ -312,7 +312,7 @@ model StudentRecommendation {
 // pour cette première version — pas de workflow complexe tant que l'usage réel n'en montre pas
 // le besoin.
 model StudentFollowUpAction {
-  id               String   @id @default(cuid())
+  id               String @id @default(cuid())
   schoolId         String
   studentProfileId String
 
@@ -337,10 +337,10 @@ model StudentFollowUpAction {
   // envoyée au parent (date déjà fixée à confirmer, ou demande de disponibilité en amont).
   interviewMode InterviewMode?
 
-  createdAt DateTime @default(now())
-  closedAt  DateTime?
-  closedById String?
-  closingNote String? @db.Text // obligatoire à la clôture (imposé au niveau use case, pas ici)
+  createdAt   DateTime  @default(now())
+  closedAt    DateTime?
+  closedById  String?
+  closingNote String?   @db.Text // obligatoire à la clôture (imposé au niveau use case, pas ici)
 
   school                   School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   studentProfile           StudentProfile         @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
@@ -588,8 +588,8 @@ model User {
   bookLoans                       BookLoan[]                 @relation("StudentBookLoans")
   ficheOrientations               FicheOrientation[]         @relation("studentFiches")
   ficheOrientationsConseille      FicheOrientation[]         @relation("conseillerFiches")
-  studentAspirations               StudentAspiration[]        @relation("studentAspirations")
-  testsAptitudeAdministres         TestAptitude[]              @relation("testAdministeredBy")
+  studentAspirations              StudentAspiration[]        @relation("studentAspirations")
+  testsAptitudeAdministres        TestAptitude[]             @relation("testAdministeredBy")
   teachingAssignments             TeachingAssignment[]       @relation("TeacherAssignments")
   headedDepartments               Department[]               @relation("DepartmentHead")
   cahierDeTexte                   CahierDeTexte[]            @relation("TeacherCahierDeTexte")
@@ -673,7 +673,7 @@ model StudentProfile {
   subGroupAssignments StudentSubGroupAssignment[]
   alevelSubjects      StudentALevelSubject[]
   verifiableDocuments VerifiableDocument[]
-  enrollments         Enrollment[]
+  enrollments         InscriptionMinesec[]
   paiementsMinesec    PaiementMinesec[]
   paiementsEtab       PaiementEtablissement[]
   examRegistrations   ExamRegistration[]
@@ -900,25 +900,27 @@ model ALevelGrade {
 }
 
 model AcademicYear {
-  id                String             @id @default(cuid())
-  schoolId          String
-  name              String
-  startDate         DateTime
-  endDate           DateTime
-  isCurrent         Boolean            @default(false)
-  status            AcademicYearStatus @default(ACTIVE)
-  createdAt         DateTime           @default(now())
-  periods           AcademicPeriod[]
-  school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  exams             Exam[]
-  grades            Grade[]
-  reportCards       ReportCard[]
-  timetables        Timetable[]
-  studentPromotions StudentPromotion[]
-  classPromotions   ClassPromotion[]
-  programmes        Programme[]
-  cahierDeTexte     CahierDeTexte[]
-  feePlans          FeePlan[]
+  id                  String               @id @default(cuid())
+  schoolId            String
+  name                String
+  startDate           DateTime
+  endDate             DateTime
+  isCurrent           Boolean              @default(false)
+  status              AcademicYearStatus   @default(ACTIVE)
+  createdAt           DateTime             @default(now())
+  periods             AcademicPeriod[]
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  exams               Exam[]
+  grades              Grade[]
+  reportCards         ReportCard[]
+  timetables          Timetable[]
+  studentPromotions   StudentPromotion[]
+  classPromotions     ClassPromotion[]
+  programmes          Programme[]
+  cahierDeTexte       CahierDeTexte[]
+  feePlans            FeePlan[]
+  classes             Class[]
+  teachingAssignments TeachingAssignment[]
 
   @@index([schoolId])
 }
@@ -957,9 +959,21 @@ model AcademicSequence {
   @@index([schoolId])
 }
 
+// Statut de provisionnement d'une classe pour son année scolaire :
+// DRAFT  : proposée automatiquement par CloturerAnneeUseCase (clonée des classes actives de
+//          l'année qui se termine), en attente de revue/ajustement par l'admin — jamais utilisée
+//          ailleurs dans le système tant qu'elle n'est pas validée.
+// ACTIVE : classe confirmée, utilisable normalement (affectations, notes, emploi du temps...).
+enum ClassStatus {
+  DRAFT
+  ACTIVE
+}
+
 model Class {
   id                    String                 @id @default(cuid())
   schoolId              String
+  academicYearId        String
+  status                ClassStatus            @default(ACTIVE)
   name                  String
   level                 String?
   sectionId             String?
@@ -973,6 +987,7 @@ model Class {
   professorPrincipalId  String?                @unique
   attendances           Attendance[]
   school                School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicYear          AcademicYear           @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   section               Section?               @relation(fields: [sectionId], references: [id])
   professorPrincipal    User?                  @relation("ClassProfessorPrincipal", fields: [professorPrincipalId], references: [id])
   classCouncilSessions  ClassCouncilSession[]
@@ -993,6 +1008,8 @@ model Class {
 
   @@index([schoolId])
   @@index([deletedAt])
+  @@index([academicYearId])
+  @@index([schoolId, academicYearId])
 }
 
 model Subject {
@@ -1055,18 +1072,23 @@ model TeacherSubject {
 }
 
 model TeachingAssignment {
-  id        String @id @default(cuid())
-  classId   String
-  subjectId String
-  teacherId String
-  schoolId  String
+  id             String @id @default(cuid())
+  classId        String
+  subjectId      String
+  teacherId      String
+  schoolId       String
+  // Explicitement redondant avec classId → Class.academicYearId : conservé pour la clarté des
+  // requêtes (filtrer par année sans jointure) et la résilience si le rôle de classId évolue.
+  academicYearId String
 
-  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  teacher User    @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  class        Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("TeacherAssignments", fields: [teacherId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
 
   @@unique([classId, subjectId])
   @@index([schoolId])
+  @@index([academicYearId])
 }
 
 model Attendance {
@@ -1413,14 +1435,14 @@ model APEETransaction {
 }
 
 model Conversation {
-  id        String           @id @default(cuid())
-  schoolId  String
-  type      ConversationType @default(PRIVATE)
-  name      String?
-  classId   String?
-  createdAt DateTime         @default(now())
-  school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  messages  Message[]
+  id           String                    @id @default(cuid())
+  schoolId     String
+  type         ConversationType          @default(PRIVATE)
+  name         String?
+  classId      String?
+  createdAt    DateTime                  @default(now())
+  school       School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  messages     Message[]
   participants ConversationParticipant[]
 
   @@index([schoolId])
@@ -2293,22 +2315,22 @@ enum ConfidenceLevel {
 // matières comptent, et si le test psychotechnique est utilisé à ce checkpoint dans cet
 // établissement précis (pas un indicateur de donnée manquante — un vrai réglage par école).
 model OrientationCheckpointConfig {
-  id                           String                    @id @default(cuid())
-  schoolId                     String
-  school                       School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  type                         OrientationCheckpointType
-  possibleTracks               Json // ex. ["A", "SES", "C"] ou ["C", "D", "TI"]
-  relevantSubjects             Json // matières déterminantes et poids pour ce checkpoint
-  psychotechnicalTestRequired  Boolean                   @default(false)
+  id                          String                    @id @default(cuid())
+  schoolId                    String
+  school                      School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  type                        OrientationCheckpointType
+  possibleTracks              Json // ex. ["A", "SES", "C"] ou ["C", "D", "TI"]
+  relevantSubjects            Json // matières déterminantes et poids pour ce checkpoint
+  psychotechnicalTestRequired Boolean                   @default(false)
   // Fenêtre d'orientation annuelle récurrente (ex. mars-mai) — mois/jour seulement, pas d'année
   // fixe puisqu'elle se répète chaque année scolaire.
-  windowStartMonth             Int                       @default(3)
-  windowStartDay               Int                       @default(1)
-  windowEndMonth               Int                       @default(5)
-  windowEndDay                 Int                       @default(31)
-  responseDeadlineDays         Int                       @default(15)
-  createdAt                    DateTime                  @default(now())
-  updatedAt                    DateTime                  @updatedAt
+  windowStartMonth            Int                       @default(3)
+  windowStartDay              Int                       @default(1)
+  windowEndMonth              Int                       @default(5)
+  windowEndDay                Int                       @default(31)
+  responseDeadlineDays        Int                       @default(15)
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
 
   @@unique([schoolId, type])
 }
@@ -2316,14 +2338,14 @@ model OrientationCheckpointConfig {
 // Aspirations déclarées par l'élève lui-même — indépendant de l'existence d'une FicheOrientation
 // (l'élève peut la soumettre avant même qu'un dossier ne soit ouvert pour lui).
 model StudentAspiration {
-  id                String                    @id @default(cuid())
-  studentId         String
-  student           User                      @relation("studentAspirations", fields: [studentId], references: [id], onDelete: Cascade)
-  schoolId          String
-  checkpointType    OrientationCheckpointType
-  desiredTrack      String?
-  careerInterest    String?
-  submittedAt       DateTime                  @default(now())
+  id             String                    @id @default(cuid())
+  studentId      String
+  student        User                      @relation("studentAspirations", fields: [studentId], references: [id], onDelete: Cascade)
+  schoolId       String
+  checkpointType OrientationCheckpointType
+  desiredTrack   String?
+  careerInterest String?
+  submittedAt    DateTime                  @default(now())
 
   @@unique([studentId, checkpointType])
   @@index([schoolId, checkpointType])
@@ -2372,7 +2394,7 @@ model EntretienOrientation {
 }
 
 model TestAptitude {
-  id                 String           @id @default(cuid())
+  id                 String                     @id @default(cuid())
   ficheOrientationId String
   type               TypeTest
   datePassage        DateTime
@@ -2386,9 +2408,9 @@ model TestAptitude {
   literaryAptitude   Int?
   technicalAptitude  Int?
   administeredById   String?
-  administeredBy     User?            @relation("testAdministeredBy", fields: [administeredById], references: [id])
-  createdAt          DateTime         @default(now())
-  fiche              FicheOrientation @relation(fields: [ficheOrientationId], references: [id], onDelete: Cascade)
+  administeredBy     User?                      @relation("testAdministeredBy", fields: [administeredById], references: [id])
+  createdAt          DateTime                   @default(now())
+  fiche              FicheOrientation           @relation(fields: [ficheOrientationId], references: [id], onDelete: Cascade)
 
   @@index([ficheOrientationId])
   @@index([ficheOrientationId, checkpointType])
@@ -2408,15 +2430,15 @@ model RecommandationSerie {
   fiche              FicheOrientation     @relation(fields: [ficheOrientationId], references: [id], onDelete: Cascade)
 
   // ── Champs du moteur de checkpoints (null pour une recommandation manuelle classique) ──
-  checkpointType      OrientationCheckpointType?
-  suggestedTracks     Json? // [{ track: "C", score: 82, justification: "..." }, ...]
-  confidenceLevel     ConfidenceLevel?
-  dataDepthMonths     Int?
-  responseDeadline    DateTime?
-  remindersSentAt     Json? // liste de timestamps des rappels déjà envoyés
-  studentChosenTrack  String?
-  finalizedAt         DateTime?
-  finalTrack          String? // piste réellement retenue — celle que le passage de classe utilise
+  checkpointType     OrientationCheckpointType?
+  suggestedTracks    Json? // [{ track: "C", score: 82, justification: "..." }, ...]
+  confidenceLevel    ConfidenceLevel?
+  dataDepthMonths    Int?
+  responseDeadline   DateTime?
+  remindersSentAt    Json? // liste de timestamps des rappels déjà envoyés
+  studentChosenTrack String?
+  finalizedAt        DateTime?
+  finalTrack         String? // piste réellement retenue — celle que le passage de classe utilise
 }
 
 model SuiviOrientation {
@@ -2693,12 +2715,12 @@ model AIActionAuditLog {
 /// utilisateur reste dans la fenêtre glissante de 10 minutes ; le détail des refus reste dans
 /// AIActionAuditLog, cette table ne duplique rien.
 model AISecurityAlert {
-  id           String   @id @default(cuid())
-  actorUserId  String
-  actorRole    String
-  schoolId     String?
-  refuseCount  Int
-  notifiedAt   DateTime @default(now())
+  id          String   @id @default(cuid())
+  actorUserId String
+  actorRole   String
+  schoolId    String?
+  refuseCount Int
+  notifiedAt  DateTime @default(now())
 
   @@index([actorUserId, notifiedAt])
 }
@@ -2882,17 +2904,22 @@ enum SelectionResult {
 
 // ─── Module Matricule National & Paiements MINESEC ────────────────────────
 
-model Enrollment {
-  id             String           @id @default(cuid())
+// Registre administratif périphérique MINESEC (dossiers d'examen, paiements officiels) —
+// PAS la source de vérité classe/élève de l'année en cours (voir StudentProfile.classId et
+// Class.academicYearId pour ça). anneeScolaire/classe restent volontairement des champs texte
+// libres : ce modèle n'a pas vocation à être absorbé dans le nouveau modèle year-scoped, décision
+// actée (renommé depuis "Enrollment" pour lever l'ambiguïté).
+model InscriptionMinesec {
+  id             String                   @id @default(cuid())
   studentId      String
   schoolId       String
   anneeScolaire  String
   classe         String
-  status         EnrollmentStatus @default(ACTIVE)
+  status         InscriptionMinesecStatus @default(ACTIVE)
   transferOrigin String?
   transferDate   DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   student          StudentProfile          @relation(fields: [studentId], references: [id])
   school           School                  @relation(fields: [schoolId], references: [id])
@@ -2904,7 +2931,7 @@ model Enrollment {
   @@index([status])
 }
 
-enum EnrollmentStatus {
+enum InscriptionMinesecStatus {
   ACTIVE
   SUSPENDED
   TRANSFERRED_OUT
@@ -2930,8 +2957,8 @@ model PaiementMinesec {
   dataSource     DataSource            @default(MANUAL)
   notes          String?
 
-  student    StudentProfile @relation(fields: [studentId], references: [id])
-  enrollment Enrollment     @relation(fields: [enrollmentId], references: [id])
+  student    StudentProfile     @relation(fields: [studentId], references: [id])
+  enrollment InscriptionMinesec @relation(fields: [enrollmentId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2990,8 +3017,8 @@ model PaiementEtablissement {
   recu                 String?
   datePaiement         DateTime?
 
-  student    StudentProfile @relation(fields: [studentId], references: [id])
-  enrollment Enrollment     @relation(fields: [enrollmentId], references: [id])
+  student    StudentProfile     @relation(fields: [studentId], references: [id])
+  enrollment InscriptionMinesec @relation(fields: [enrollmentId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

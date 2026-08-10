@@ -39,8 +39,9 @@ async function main() {
 
   const allClasses = await prisma.class.findMany({
     where: { schoolId: SCHOOL_ID },
-    select: { id: true, name: true, level: true, serie: true, filiere: true } as const,
+    select: { id: true, name: true, level: true, serie: true, filiere: true, academicYearId: true } as const,
   });
+  const academicYearByClass = new Map(allClasses.map((c) => [c.id, c.academicYearId]));
 
   const coeffs = await prisma.subjectCoefficient.findMany({
     where: { schoolId: SCHOOL_ID },
@@ -117,7 +118,7 @@ async function main() {
   const teacherLoad = new Map<string, number>();
   for (const t of teachers) teacherLoad.set(t.id, 0);
 
-  const toCreate: Array<{ classId: string; subjectId: string; teacherId: string; schoolId: string }> = [];
+  const toCreate: Array<{ classId: string; subjectId: string; teacherId: string; schoolId: string; academicYearId: string }> = [];
   let qualifHits = 0;
   let fallbackHits = 0;
 
@@ -151,7 +152,13 @@ async function main() {
         fallbackHits++;
       }
 
-      toCreate.push({ classId: pair.classId, subjectId, teacherId: chosenTeacher, schoolId: SCHOOL_ID });
+      toCreate.push({
+        classId: pair.classId,
+        subjectId,
+        teacherId: chosenTeacher,
+        schoolId: SCHOOL_ID,
+        academicYearId: academicYearByClass.get(pair.classId)!,
+      });
       teacherLoad.set(chosenTeacher, (teacherLoad.get(chosenTeacher) ?? 0) + 1);
     }
   }
