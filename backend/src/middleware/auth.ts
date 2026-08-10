@@ -45,6 +45,20 @@ export const requireRole = (...args: (string | string[])[]) =>
     next()
   }
 
+// Autorise par role OU par permission portée par un titre STAFF (ex. Censeur via
+// VALIDATE_GRADES) — même principe que estAdmin() || aPermission(perm) côté domaine
+// (TenirConseilClasseUseCase, ValiderNoteUseCase) : jamais de vérification par titre.
+export const requireRoleOrPermission = (roles: string[], permission: string) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    const upperRoles = roles.map((r) => r.toUpperCase())
+    const roleMatch = !!req.user && upperRoles.includes(req.user.role.toUpperCase())
+    const permissionMatch = !!req.user?.permissions?.includes(permission)
+    if (!roleMatch && !permissionMatch) {
+      return res.status(403).json({ error: 'Accès refusé' })
+    }
+    next()
+  }
+
 export const requireSchool = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user?.schoolId) {
     return res.status(403).json({ error: 'Aucun établissement associé' })
