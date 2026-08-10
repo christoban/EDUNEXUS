@@ -188,7 +188,7 @@ import { VerifierPrerequisClotureUseCase } from '@application/academicYear/Verif
 import { CloturerAnneeUseCase } from '@application/academicYear/CloturerAnneeUseCase';
 import { ProposerStructureAnneeSuivanteUseCase } from '@application/academicYear/ProposerStructureAnneeSuivanteUseCase';
 import { ValiderStructureAnneeSuivanteUseCase } from '@application/academicYear/ValiderStructureAnneeSuivanteUseCase';
-import { AnnulerStructureAnneeSuivanteUseCase } from '@application/academicYear/AnnulerStructureAnneeSuivanteUseCase';
+import { AnnulerStructureProposeeUseCase } from '@application/academicYear/AnnulerStructureProposeeUseCase';
 import { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJourCalendrierUseCase';
 
 // --- Use Cases : Classe ---
@@ -402,9 +402,7 @@ export function creerContainer() {
     anneeRepository, classeRepository, promotionRepository,
   );
   const validerStructureAnneeSuivanteUseCase = new ValiderStructureAnneeSuivanteUseCase(anneeRepository, classeRepository);
-  const annulerStructureAnneeSuivanteUseCase = new AnnulerStructureAnneeSuivanteUseCase(
-    anneeRepository, classeRepository, promotionRepository,
-  );
+  const annulerStructureAnneeSuivanteUseCase = new AnnulerStructureProposeeUseCase(anneeRepository, classeRepository);
 
   // 14. Use Cases — AI
   const santeEleveRepository = new PrismaSanteEleveRepository(prisma);

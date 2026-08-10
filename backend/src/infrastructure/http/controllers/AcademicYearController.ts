@@ -6,7 +6,7 @@ import type { CloturerAnneeUseCase } from '@application/academicYear/CloturerAnn
 import type { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJourCalendrierUseCase';
 import type { ProposerStructureAnneeSuivanteUseCase } from '@application/academicYear/ProposerStructureAnneeSuivanteUseCase';
 import type { ValiderStructureAnneeSuivanteUseCase } from '@application/academicYear/ValiderStructureAnneeSuivanteUseCase';
-import type { AnnulerStructureAnneeSuivanteUseCase } from '@application/academicYear/AnnulerStructureAnneeSuivanteUseCase';
+import type { AnnulerStructureProposeeUseCase } from '@application/academicYear/AnnulerStructureProposeeUseCase';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
@@ -19,7 +19,7 @@ export class AcademicYearController {
     private readonly mettreAJourCalendrier: MettreAJourCalendrierUseCase,
     private readonly proposerStructure: ProposerStructureAnneeSuivanteUseCase,
     private readonly validerStructure: ValiderStructureAnneeSuivanteUseCase,
-    private readonly annulerStructure: AnnulerStructureAnneeSuivanteUseCase,
+    private readonly annulerStructure: AnnulerStructureProposeeUseCase,
   ) {}
 
   creerAnnee = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

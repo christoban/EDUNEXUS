@@ -1,21 +1,27 @@
+/**
+ * Note sur la couverture : ClasseRepository.annulerPropositionAnnee() garantit la suppression
+ * atomique des classes DRAFT ET de leurs mappings ClassPromotion en une seule transaction
+ * Prisma (voir PrismaClasseRepository) — une vraie transaction DB n'est pas simulable avec des
+ * doubles en mémoire (InMemoryClasseRepository/InMemoryPromotionRepository sont deux stores
+ * indépendants). Ce fichier teste donc l'orchestration du use case (précondition, refus,
+ * comptage) ; le nettoyage réel DRAFT+ClassPromotion en une transaction est vérifié par le test
+ * e2e (academicYearStructureCancel.integration.test.ts, contre la vraie base de test).
+ */
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { AnnulerStructureAnneeSuivanteUseCase } from '../AnnulerStructureAnneeSuivanteUseCase';
+import { AnnulerStructureProposeeUseCase } from '../AnnulerStructureProposeeUseCase';
 import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository';
 import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository';
-import { InMemoryPromotionRepository } from './helpers/InMemoryPromotionRepository';
 import { Classe } from '@domain/entities/Classe';
 
-describe('AnnulerStructureAnneeSuivanteUseCase', () => {
+describe('AnnulerStructureProposeeUseCase', () => {
   let anneeRepo: InMemoryAnneeAcademiqueRepository;
   let classeRepo: InMemoryClasseRepository;
-  let promotionRepo: InMemoryPromotionRepository;
-  let useCase: AnnulerStructureAnneeSuivanteUseCase;
+  let useCase: AnnulerStructureProposeeUseCase;
 
   beforeEach(() => {
     anneeRepo = new InMemoryAnneeAcademiqueRepository();
     classeRepo = new InMemoryClasseRepository();
-    promotionRepo = new InMemoryPromotionRepository();
-    useCase = new AnnulerStructureAnneeSuivanteUseCase(anneeRepo, classeRepo, promotionRepo);
+    useCase = new AnnulerStructureProposeeUseCase(anneeRepo, classeRepo);
 
     anneeRepo.ajouterAnnee({
       id: 'annee-suivante', schoolId: 'school-1', name: '2026-2027',
@@ -23,7 +29,7 @@ describe('AnnulerStructureAnneeSuivanteUseCase', () => {
     });
   });
 
-  it('supprime toutes les classes DRAFT de l\'année et leurs mappings ClassPromotion', async () => {
+  it('supprime toutes les classes DRAFT de l\'année', async () => {
     classeRepo.ajouter(Classe.reconstituer({
       id: 'classe-1', schoolId: 'school-1', academicYearId: 'annee-suivante',
       name: '4e A', capacity: 40, status: 'DRAFT', createdAt: new Date(),
@@ -32,51 +38,36 @@ describe('AnnulerStructureAnneeSuivanteUseCase', () => {
       id: 'classe-2', schoolId: 'school-1', academicYearId: 'annee-suivante',
       name: '4e B', capacity: 40, status: 'DRAFT', createdAt: new Date(),
     }));
-    promotionRepo.definirMappings([
-      { fromClassId: 'classe-source-1', toClassId: 'classe-1' },
-      { fromClassId: 'classe-source-2', toClassId: 'classe-2' },
-    ]);
 
     const resultat = await useCase.execute({ schoolId: 'school-1', anneeSuivanteId: 'annee-suivante' });
 
     expect(resultat.classesSupprimees).toBe(2);
     const classesRestantes = await classeRepo.findBySchoolAndYear('school-1', 'annee-suivante');
     expect(classesRestantes).toHaveLength(0);
-    const mappingsRestants = await promotionRepo.findMappingsPromotion('school-1', 'peu-importe');
-    expect(mappingsRestants).toHaveLength(0);
-  });
-
-  it('ne touche pas les classes déjà ACTIVE', async () => {
-    classeRepo.ajouter(Classe.reconstituer({
-      id: 'classe-draft', schoolId: 'school-1', academicYearId: 'annee-suivante',
-      name: 'Draft', capacity: 40, status: 'DRAFT', createdAt: new Date(),
-    }));
-    classeRepo.ajouter(Classe.reconstituer({
-      id: 'classe-active', schoolId: 'school-1', academicYearId: 'annee-suivante',
-      name: 'Déjà active', capacity: 40, status: 'ACTIVE', createdAt: new Date(),
-    }));
-
-    const resultat = await useCase.execute({ schoolId: 'school-1', anneeSuivanteId: 'annee-suivante' });
-
-    expect(resultat.classesSupprimees).toBe(1);
-    const classesRestantes = await classeRepo.findBySchoolAndYear('school-1', 'annee-suivante');
-    expect(classesRestantes).toHaveLength(1);
-    expect(classesRestantes[0]?.id).toBe('classe-active');
   });
 
   it('refuse si aucune classe DRAFT n\'existe pour cette année (rien à annuler)', async () => {
     await expect(useCase.execute({ schoolId: 'school-1', anneeSuivanteId: 'annee-suivante' }))
-      .rejects.toThrow('aucune structure proposée');
+      .rejects.toThrow('rien à annuler');
   });
 
-  it('refuse d\'annuler une structure déjà validée (plus de DRAFT, des classes ACTIVE existent)', async () => {
+  it('refuse d\'annuler une structure déjà validée (une classe ACTIVE suffit, même avec des DRAFT restants)', async () => {
     classeRepo.ajouter(Classe.reconstituer({
       id: 'classe-active', schoolId: 'school-1', academicYearId: 'annee-suivante',
       name: 'Déjà active', capacity: 40, status: 'ACTIVE', createdAt: new Date(),
     }));
+    // État mixte volontaire : une classe DRAFT traîne aussi, ne doit PAS déclencher une
+    // annulation partielle automatique — le refus doit primer dès qu'une classe ACTIVE existe.
+    classeRepo.ajouter(Classe.reconstituer({
+      id: 'classe-draft', schoolId: 'school-1', academicYearId: 'annee-suivante',
+      name: 'Draft résiduelle', capacity: 40, status: 'DRAFT', createdAt: new Date(),
+    }));
 
     await expect(useCase.execute({ schoolId: 'school-1', anneeSuivanteId: 'annee-suivante' }))
       .rejects.toThrow('déjà été validée');
+
+    const classesInchangees = await classeRepo.findBySchoolAndYear('school-1', 'annee-suivante');
+    expect(classesInchangees).toHaveLength(2);
   });
 
   it('refuse un accès inter-établissement', async () => {

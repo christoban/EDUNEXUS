@@ -28,7 +28,7 @@ export class InMemoryClasseRepository implements ClasseRepository {
     for (const c of draftClasses) c.activer();
     return draftClasses.length;
   }
-  async supprimerToutesDraft(schoolId: string, academicYearId: string) {
+  async annulerPropositionAnnee(schoolId: string, academicYearId: string) {
     const draftClasses = [...this.store.values()].filter(
       c => c.schoolId === schoolId && c.academicYearId === academicYearId && c.status === 'DRAFT'
     );
