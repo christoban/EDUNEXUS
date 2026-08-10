@@ -24,6 +24,15 @@ export class InMemoryClasseRepository implements ClasseRepository {
     return [...this.store.values()].filter(c => c.schoolId === schoolId && c.academicYearId === academicYearId);
   }
 
+  async supprimerToutesDraft(schoolId: string, academicYearId: string): Promise<string[]> {
+    const draftClasses = [...this.store.values()].filter(
+      c => c.schoolId === schoolId && c.academicYearId === academicYearId && c.status === 'DRAFT'
+    );
+    const ids = draftClasses.map(c => c.id);
+    for (const id of ids) this.store.delete(id);
+    return ids;
+  }
+
   async activerToutesDraft(schoolId: string, academicYearId: string): Promise<number> {
     const draftClasses = [...this.store.values()].filter(
       c => c.schoolId === schoolId && c.academicYearId === academicYearId && c.status === 'DRAFT'

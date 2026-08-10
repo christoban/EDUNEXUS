@@ -1076,6 +1076,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.academicYear.mettreAJourCalendrier,
     container.academicYear.proposerStructureSuivante,
     container.academicYear.validerStructureSuivante,
+    container.academicYear.annulerStructureSuivante,
   );
 
   app.use('/api/v2/academic-years', creerAcademicYearRoutes(academicYearController));

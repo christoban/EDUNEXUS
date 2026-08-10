@@ -6,6 +6,7 @@ import type { CloturerAnneeUseCase } from '@application/academicYear/CloturerAnn
 import type { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJourCalendrierUseCase';
 import type { ProposerStructureAnneeSuivanteUseCase } from '@application/academicYear/ProposerStructureAnneeSuivanteUseCase';
 import type { ValiderStructureAnneeSuivanteUseCase } from '@application/academicYear/ValiderStructureAnneeSuivanteUseCase';
+import type { AnnulerStructureAnneeSuivanteUseCase } from '@application/academicYear/AnnulerStructureAnneeSuivanteUseCase';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
@@ -18,6 +19,7 @@ export class AcademicYearController {
     private readonly mettreAJourCalendrier: MettreAJourCalendrierUseCase,
     private readonly proposerStructure: ProposerStructureAnneeSuivanteUseCase,
     private readonly validerStructure: ValiderStructureAnneeSuivanteUseCase,
+    private readonly annulerStructure: AnnulerStructureAnneeSuivanteUseCase,
   ) {}
 
   creerAnnee = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -168,6 +170,32 @@ export class AcademicYearController {
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'valider_structure_annee_suivante', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.params,
+      });
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/academic-years/:id/cancel-proposed-structure — :id = année suivante (celle avec les classes DRAFT)
+  annulerStructureAnneeSuivante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const resultat = await this.annulerStructure.execute({
+        schoolId: user.schoolId,
+        anneeSuivanteId: req.params['id'] as string,
+      });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'annuler_structure_annee_suivante', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classesSupprimees: resultat.classesSupprimees },
+      });
+      res.json({ success: true, data: resultat });
+    } catch (error) {
+      const user = req.user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'annuler_structure_annee_suivante', targetType: 'AcademicYear', targetId: req.params['id'] as string,
         origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.params,
       });

@@ -39,6 +39,18 @@ export class PrismaClasseRepository implements ClasseRepository {
     return count;
   }
 
+  async supprimerToutesDraft(schoolId: string, academicYearId: string): Promise<string[]> {
+    const draftClasses = await this.prisma.class.findMany({
+      where: { schoolId, academicYearId, status: 'DRAFT' },
+      select: { id: true },
+    });
+    const ids = draftClasses.map(c => c.id);
+    if (ids.length > 0) {
+      await this.prisma.class.deleteMany({ where: { id: { in: ids } } });
+    }
+    return ids;
+  }
+
   async countEleves(classeId: string): Promise<number> {
     return this.prisma.studentProfile.count({
       where: { classId: classeId },

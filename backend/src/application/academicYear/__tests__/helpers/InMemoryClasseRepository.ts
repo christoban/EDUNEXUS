@@ -28,6 +28,14 @@ export class InMemoryClasseRepository implements ClasseRepository {
     for (const c of draftClasses) c.activer();
     return draftClasses.length;
   }
+  async supprimerToutesDraft(schoolId: string, academicYearId: string) {
+    const draftClasses = [...this.store.values()].filter(
+      c => c.schoolId === schoolId && c.academicYearId === academicYearId && c.status === 'DRAFT'
+    );
+    const ids = draftClasses.map(c => c.id);
+    for (const id of ids) this.store.delete(id);
+    return ids;
+  }
   async countEleves(_classeId: string) { return 0; }
   async existsByName(schoolId: string, name: string, excludeId?: string) {
     return [...this.store.values()].some(

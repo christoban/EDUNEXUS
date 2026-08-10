@@ -145,4 +145,9 @@ export class PrismaPromotionRepository implements PromotionRepository {
     classes.sort((a, b) => a._count.students - b._count.students);
     return classes[0]!.id;
   }
+
+  async supprimerMappingsVersClasses(toClassIds: string[]): Promise<void> {
+    if (toClassIds.length === 0) return;
+    await this.prisma.classPromotion.deleteMany({ where: { toClassId: { in: toClassIds } } });
+  }
 }

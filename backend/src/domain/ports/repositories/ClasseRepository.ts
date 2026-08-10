@@ -16,6 +16,14 @@ export interface ClasseRepository {
   activerToutesDraft(schoolId: string, academicYearId: string): Promise<number>;
 
   /**
+   * Suppression définitive (pas la corbeille — supprimerAvecCascade) de toutes les classes DRAFT
+   * d'une année : une proposition jamais validée n'a aucune donnée liée à préserver (aucun
+   * élève, aucune note). AnnulerStructureAnneeSuivanteUseCase. Retourne les ids supprimés, pour
+   * que l'appelant purge aussi les mappings ClassPromotion qui pointent dessus.
+   */
+  supprimerToutesDraft(schoolId: string, academicYearId: string): Promise<string[]>;
+
+  /**
    * Vérifie l'unicité du nom dans une école.
    * excludeId : exclut la classe courante lors d'une modification.
    */

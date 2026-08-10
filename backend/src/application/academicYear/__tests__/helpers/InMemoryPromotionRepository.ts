@@ -36,4 +36,8 @@ export class InMemoryPromotionRepository implements PromotionRepository {
   async findClasseCibleOrientation(_schoolId: string, studentId: string, _yearId: string) {
     return this.classesCibleOrientation.get(studentId) ?? null;
   }
+
+  async supprimerMappingsVersClasses(toClassIds: string[]) {
+    this.mappings = this.mappings.filter(m => !toClassIds.includes(m.toClassId));
+  }
 }

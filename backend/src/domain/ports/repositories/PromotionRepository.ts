@@ -81,4 +81,11 @@ export interface PromotionRepository {
     studentId: string,
     academicYearId: string
   ): Promise<string | null>;
+
+  /**
+   * Supprime les mappings dont la classe destination (toClassId) est dans la liste — purge
+   * ceux écrits par ProposerStructureAnneeSuivanteUseCase quand la proposition est annulée
+   * (AnnulerStructureAnneeSuivanteUseCase), avant suppression définitive des classes DRAFT.
+   */
+  supprimerMappingsVersClasses(toClassIds: string[]): Promise<void>;
 }
