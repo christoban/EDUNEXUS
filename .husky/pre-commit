@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+# Garde-fou backend : tsc --noEmit (projet complet) + détection de `as any`/@ts-ignore/
+# @ts-expect-error réintroduits, sur tout commit touchant backend/**/*.ts.
+#
+# N'utilise PAS `eslint --max-warnings 0` sur le fichier entier : la règle
+# @typescript-eslint/no-explicit-any flague aussi bien les casts `as any` que les annotations
+# `: any` (paramètres/variables) — et 306 annotations `: any` préexistantes traînent encore
+# dans le code (hors périmètre du nettoyage `as any` déjà fait, 2026-08-10). Avec
+# --max-warnings 0 sur le fichier entier, toucher un vieux fichier pour une raison sans
+# rapport suffirait à bloquer le commit. On vérifie donc précisément ce qu'on veut empêcher —
+# la RÉINTRODUCTION d'un cast/suppression de type — via les lignes AJOUTÉES du diff stagé,
+# jamais la dette déjà présente ailleurs dans le fichier.
+#
+# Ne bloque PAS `as unknown as TypePrécis` : ce double-cast est un idiome légitime et déjà
+# largement utilisé dans le code (JSON Prisma, enums) pour typer précisément une valeur sans
+# `any` — seul `as any` lui-même (et @ts-ignore/@ts-expect-error) est un vrai garde-fou.
+
+STAGED_BACKEND_TS=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^backend/.*\.tsx?$' || true)
+
+if [ -z "$STAGED_BACKEND_TS" ]; then
+  exit 0
+fi
+
+echo "🔍 Pré-commit backend : tsc --noEmit + détection as any/@ts-ignore réintroduits..."
+
+cd backend || exit 1
+
+echo "  → tsc --noEmit (projet complet — la résolution de types ne se limite pas aux fichiers stagés)"
+bunx tsc --noEmit -p . || {
+  echo "❌ tsc a échoué. Corrigez les erreurs de type avant de committer."
+  exit 1
+}
+
+echo "  → recherche de as any / @ts-ignore / @ts-expect-error sur les lignes ajoutées"
+RELATIVE_FILES=$(echo "$STAGED_BACKEND_TS" | sed 's|^backend/||')
+CULPRITS=$(git diff --cached -- $RELATIVE_FILES \
+  | grep -E '^\+[^+]' \
+  | grep -E '\bas any\b|@ts-ignore|@ts-expect-error' || true)
+
+if [ -n "$CULPRITS" ]; then
+  echo "❌ Nouveau \`as any\` (ou @ts-ignore/@ts-expect-error) détecté dans les lignes ajoutées :"
+  echo "$CULPRITS"
+  echo "   Utilisez un type précis (voir CONVENTIONS.md) — \`as unknown as TypePrécis\` reste autorisé."
+  exit 1
+fi
+
+echo "✅ Pré-commit backend OK"

@@ -2,6 +2,9 @@ node_modules
 # Keep environment variables out of version control
 .env
 
+# Cache incrémental tsc (accélère les tsc --noEmit répétés, notamment le hook pre-commit)
+*.tsbuildinfo
+
 /src/generated/prisma
 
 # Déclarations statistiques générées (par école) — artefacts runtime, jamais versionnés

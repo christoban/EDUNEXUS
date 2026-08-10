@@ -10,8 +10,9 @@
     "migrate:phase8": "bun src/scripts/migrate-phase8.ts",
     "test": "bun test",
     "test:rules": "bun test src/tests",
-    "test:integration": "bun test --env-file .env.test src/infrastructure/persistence/prisma/__tests__/",
-    "reset:master": "bun src/scripts/reset-master.ts"
+    "test:integration": "bun test --env-file .env.test src/infrastructure/persistence/prisma/__tests__/ src/infrastructure/http/__tests__/",
+    "reset:master": "bun src/scripts/reset-master.ts",
+    "lint": "eslint ."
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -30,6 +31,9 @@
     "@types/pdfkit": "^0.17.5",
     "@types/qrcode": "^1.5.6",
     "@types/web-push": "^3.6.4",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
+    "eslint": "^10.8.1",
     "inngest-cli": "^1.17.9",
     "nodemon": "^3.1.14",
     "playwright": "^1.61.1",
