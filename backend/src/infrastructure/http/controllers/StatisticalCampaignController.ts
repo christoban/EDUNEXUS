@@ -24,7 +24,7 @@ export class StatisticalCampaignController {
   getSupplement = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const supplement = await (this.prisma as any).schoolStatisticalSupplement.findUnique({ where: { schoolId } });
+      const supplement = await this.prisma.schoolStatisticalSupplement.findUnique({ where: { schoolId } });
       res.json({ success: true, data: supplement });
     } catch (err) { next(err); }
   };
@@ -46,7 +46,7 @@ export class StatisticalCampaignController {
         if (key in body) data[key] = body[key];
       }
 
-      const supplement = await (this.prisma as any).schoolStatisticalSupplement.upsert({
+      const supplement = await this.prisma.schoolStatisticalSupplement.upsert({
         where: { schoolId },
         create: { schoolId, ...data, lastUpdatedBy: userId },
         update: { ...data, lastUpdatedBy: userId },
@@ -75,7 +75,7 @@ export class StatisticalCampaignController {
   getMeta = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const school = await (this.prisma as any).school.findUnique({
+      const school = await this.prisma.school.findUnique({
         where: { id: schoolId },
         select: { subsystem: true, educationType: true },
       });
@@ -118,7 +118,7 @@ export class StatisticalCampaignController {
     try {
       const schoolId = req.user!.schoolId;
       const id = String(req.params['id']);
-      const submission = await (this.prisma as any).statisticalSubmission.findUnique({ where: { id } });
+      const submission = await this.prisma.statisticalSubmission.findUnique({ where: { id } });
       if (!submission || submission.schoolId !== schoolId || !submission.filePath) {
         res.status(404).json({ success: false, message: 'Déclaration introuvable' });
         return;
@@ -137,7 +137,7 @@ export class StatisticalCampaignController {
   listSubmissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const submissions = await (this.prisma as any).statisticalSubmission.findMany({
+      const submissions = await this.prisma.statisticalSubmission.findMany({
         where: { schoolId },
         orderBy: { generatedAt: 'desc' },
         take: 20,

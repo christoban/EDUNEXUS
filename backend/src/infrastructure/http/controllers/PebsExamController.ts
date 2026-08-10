@@ -27,7 +27,7 @@ export class PebsExamController {
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const sessions = await (this.prisma as any).pebsExamSession.findMany({
+      const sessions = await this.prisma.pebsExamSession.findMany({
         where: { schoolId },
         orderBy: { createdAt: 'desc' },
       });
@@ -38,7 +38,7 @@ export class PebsExamController {
   creer = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const { name, examDate, level, academicYearId, selectionThreshold, availableSeats, targetClassId } = req.body as any;
+      const { name, examDate, level, academicYearId, selectionThreshold, availableSeats, targetClassId } = req.body;
       if (!name || !examDate || !level || !academicYearId || !targetClassId) {
         res.status(400).json({ success: false, message: 'name, examDate, level, academicYearId, targetClassId requis' });
         return;
@@ -51,7 +51,9 @@ export class PebsExamController {
       });
       journaliserActionIA(this.prisma, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
-        actionName: 'creer_session_selection_pebs', targetType: 'PebsExamSession', targetId: (result as any)?.id,
+        // Bug indépendant : execute() retourne { sessionId }, jamais `id` — le cast `as any`
+        // masquait un ciblage d'audit toujours undefined pour cette action.
+        actionName: 'creer_session_selection_pebs', targetType: 'PebsExamSession', targetId: result.sessionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: result });
@@ -83,7 +85,7 @@ export class PebsExamController {
     try {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
-      const file = (req as any).file as Express.Multer.File;
+      const file = req.file as Express.Multer.File;
       if (!file) { res.status(400).json({ success: false, message: 'Fichier requis' }); return; }
 
       const wb = XLSX.read(file.buffer, { type: 'buffer' });

@@ -17,18 +17,18 @@ export class GetSchoolPaymentOverviewUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(schoolId: string, anneeScolaire: string): Promise<SchoolPaymentOverview> {
-    const totalEleves = await (this.prisma as any).enrollment.count({
+    const totalEleves = await this.prisma.inscriptionMinesec.count({
       where: { schoolId, anneeScolaire, status: 'ACTIVE' },
     });
 
-    const minesec = await (this.prisma as any).paiementMinesec.groupBy({
+    const minesec = await this.prisma.paiementMinesec.groupBy({
       by: ['status'],
       where: { schoolId, anneeScolaire },
       _count: { _all: true },
       _sum: { montantAttendu: true, montantPaye: true },
     });
 
-    const etablissement = await (this.prisma as any).paiementEtablissement.groupBy({
+    const etablissement = await this.prisma.paiementEtablissement.groupBy({
       by: ['status'],
       where: { schoolId, anneeScolaire },
       _count: { _all: true },

@@ -99,7 +99,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
         kind: data.kind,
         subGroupId: data.subGroupId,
         isLV2Slot: data.isLV2Slot ?? false,
-        ...({ isElectiveSlot: data.isElectiveSlot ?? false } as any),
+        isElectiveSlot: data.isElectiveSlot ?? false,
       },
     });
   }
@@ -118,7 +118,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
         kind: data.kind,
         subGroupId: data.subGroupId ?? null,
         isLV2Slot: data.isLV2Slot ?? false,
-        ...({ isElectiveSlot: data.isElectiveSlot ?? false } as any),
+        isElectiveSlot: data.isElectiveSlot ?? false,
       },
     });
   }
@@ -229,7 +229,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
       kind: data.kind as SlotKind,
       subGroupId: data.subGroupId ?? undefined,
       isLV2Slot: data.isLV2Slot ?? false,
-      isElectiveSlot: (data as any).isElectiveSlot ?? false,
+      isElectiveSlot: data.isElectiveSlot ?? false,
     });
   }
 }

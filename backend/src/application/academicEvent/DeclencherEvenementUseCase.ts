@@ -22,7 +22,7 @@ export class DeclencherEvenementUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: DeclencherEvenementCommande): Promise<{ id: string }> {
-    const evenement = await (this.prisma as any).academicEvent.findFirst({
+    const evenement = await this.prisma.academicEvent.findFirst({
       where: { id: cmd.eventId, schoolId: cmd.schoolId },
     });
     if (!evenement) throw new Error('Événement introuvable');
@@ -43,7 +43,7 @@ export class DeclencherEvenementUseCase {
       level: evenement.level, openDate: maintenant, closeDate,
     });
 
-    await (this.prisma as any).academicEvent.update({
+    await this.prisma.academicEvent.update({
       where: { id: cmd.eventId },
       data: {
         status: 'ACTIVE',

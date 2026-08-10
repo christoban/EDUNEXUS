@@ -11,14 +11,14 @@ export class DetecterAnomaliesPebsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(schoolId: string, sessionId: string): Promise<{ anomalies: Anomalie[] }> {
-    const session = await (this.prisma as any).pebsExamSession.findUnique({
+    const session = await this.prisma.pebsExamSession.findUnique({
       where: { id: sessionId },
     });
     if (!session) throw new Error('Session PEBS introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 
     // Récupérer les candidats avec noms
-    const rawCandidates: any[] = await (this.prisma as any).pebsExamCandidate.findMany({
+    const rawCandidates: any[] = await this.prisma.pebsExamCandidate.findMany({
       where: { sessionId },
       include: { studentProfile: { include: { user: { select: { firstName: true, lastName: true } } } } },
     });

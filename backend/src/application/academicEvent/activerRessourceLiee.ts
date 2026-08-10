@@ -87,7 +87,7 @@ export async function synchroniserClotureRessourceLiee(
   nouvelleCloture: Date,
 ): Promise<void> {
   if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
-  await (prisma as any).lv2ChoiceWindow.update({
+  await prisma.lv2ChoiceWindow.update({
     where: { id: linkedResourceId },
     data: { closeDate: nouvelleCloture },
   }).catch((err: any) => console.error('[AcademicEvent] sync clôture Lv2ChoiceWindow:', err?.message));
@@ -100,7 +100,7 @@ export async function cloturerRessourceLiee(
   linkedResourceId: string | null,
 ): Promise<void> {
   if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
-  await (prisma as any).lv2ChoiceWindow.update({
+  await prisma.lv2ChoiceWindow.update({
     where: { id: linkedResourceId },
     data: { status: 'CLOSED' },
   }).catch((err: any) => console.error('[AcademicEvent] clôture Lv2ChoiceWindow:', err?.message));

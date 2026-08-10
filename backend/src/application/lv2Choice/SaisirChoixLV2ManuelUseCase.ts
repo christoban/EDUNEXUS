@@ -6,7 +6,7 @@ export class SaisirChoixLV2ManuelUseCase {
 
   async execute(cmd: SaisirChoixManuelCommande): Promise<void> {
     // Vérifier que la fenêtre existe et est ouverte
-    const window = await (this.prisma as any).lv2ChoiceWindow.findUnique({
+    const window = await this.prisma.lv2ChoiceWindow.findUnique({
       where: { id: cmd.windowId },
     });
     if (!window) throw new Error('Fenêtre de choix introuvable');
@@ -14,7 +14,7 @@ export class SaisirChoixLV2ManuelUseCase {
     if (window.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
 
     // Vérifier que l'élève existe et appartient à l'école
-    const profile = await (this.prisma as any).studentProfile.findUnique({
+    const profile = await this.prisma.studentProfile.findUnique({
       where: { id: cmd.studentProfileId },
       include: { user: { select: { schoolId: true } } },
     });
@@ -29,7 +29,7 @@ export class SaisirChoixLV2ManuelUseCase {
     if (!subject) throw new Error('Matière introuvable');
 
     // Upsert avec ADMIN_MANUAL
-    await (this.prisma as any).lv2ChoiceSubmission.upsert({
+    await this.prisma.lv2ChoiceSubmission.upsert({
       where: {
         windowId_studentProfileId: { windowId: cmd.windowId, studentProfileId: cmd.studentProfileId },
       },

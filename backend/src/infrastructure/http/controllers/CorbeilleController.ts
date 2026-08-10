@@ -11,6 +11,17 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
+/**
+ * Dispatch dynamique par nom de modèle (User/Class/Subject uniquement — les 3 seules valeurs
+ * possibles de `modele` ci-dessous), sur le sous-ensemble de méthodes réellement utilisé ici.
+ * Un `as any` masquerait une vraie faute de frappe sur le nom du modèle ; cette interface
+ * ciblée garde au moins la forme des appels (where/data) type-checkée.
+ */
+interface DelegateCorbeille {
+  findFirst(args: { where: { id: string; schoolId: string; deletedAt: { not: null } }; select: { schoolId: true } }): Promise<{ schoolId: string } | null>;
+  update(args: { where: { id: string; deletedAt: { not: null } }; data: { deletedAt: null; deletedById: null } }): Promise<unknown>;
+}
+
 type TypeCorbeille = 'utilisateur' | 'classe' | 'matiere';
 
 export class CorbeilleController {
@@ -19,26 +30,26 @@ export class CorbeilleController {
   // GET /api/v2/corbeille
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { type } = req.query as { type?: TypeCorbeille };
 
       const [utilisateurs, classes, matieres] = await Promise.all([
         (!type || type === 'utilisateur')
-          ? (this.prisma as any).user.findMany({
+          ? this.prisma.user.findMany({
               where: { schoolId: user.schoolId, deletedAt: { not: null } },
               select: { id: true, role: true, firstName: true, lastName: true, email: true, deletedAt: true, deletedById: true },
               orderBy: { deletedAt: 'desc' },
             })
           : [],
         (!type || type === 'classe')
-          ? (this.prisma as any).class.findMany({
+          ? this.prisma.class.findMany({
               where: { schoolId: user.schoolId, deletedAt: { not: null } },
               select: { id: true, name: true, level: true, deletedAt: true, deletedById: true },
               orderBy: { deletedAt: 'desc' },
             })
           : [],
         (!type || type === 'matiere')
-          ? (this.prisma as any).subject.findMany({
+          ? this.prisma.subject.findMany({
               where: { schoolId: user.schoolId, deletedAt: { not: null } },
               select: { id: true, name: true, code: true, deletedAt: true, deletedById: true },
               orderBy: { deletedAt: 'desc' },
@@ -48,7 +59,7 @@ export class CorbeilleController {
 
       const deletedByIds = [...new Set([...utilisateurs, ...classes, ...matieres].map((r: any) => r.deletedById).filter(Boolean))];
       const auteurs = deletedByIds.length > 0
-        ? await (this.prisma as any).user.findMany({ where: { id: { in: deletedByIds }, deletedAt: undefined }, select: { id: true, firstName: true, lastName: true } })
+        ? await this.prisma.user.findMany({ where: { id: { in: deletedByIds }, deletedAt: undefined }, select: { id: true, firstName: true, lastName: true } })
         : [];
       const nomAuteur = (id: string | null) => {
         if (!id) return null;
@@ -84,7 +95,7 @@ export class CorbeilleController {
   // POST /api/v2/corbeille/:type/:id/restore
   restaurer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { type, id } = req.params as { type: TypeCorbeille; id: string };
 
       let cible: { schoolId: string } | null = null;
@@ -94,7 +105,8 @@ export class CorbeilleController {
         return;
       }
 
-      cible = await (this.prisma as any)[modele].findFirst({
+      const delegate = this.prisma[modele] as unknown as DelegateCorbeille;
+      cible = await delegate.findFirst({
         where: { id, schoolId: user.schoolId, deletedAt: { not: null } },
         select: { schoolId: true },
       });
@@ -103,7 +115,7 @@ export class CorbeilleController {
         return;
       }
 
-      await (this.prisma as any)[modele].update({
+      await delegate.update({
         where: { id, deletedAt: { not: null } },
         data: { deletedAt: null, deletedById: null },
       });

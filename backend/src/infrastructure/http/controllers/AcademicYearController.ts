@@ -4,6 +4,8 @@ import type { DefinirPeriodeCouranteUseCase } from '@application/academicYear/De
 import type { VerifierPrerequisClotureUseCase } from '@application/academicYear/VerifierPrerequisClotureUseCase';
 import type { CloturerAnneeUseCase } from '@application/academicYear/CloturerAnneeUseCase';
 import type { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJourCalendrierUseCase';
+import type { ProposerStructureAnneeSuivanteUseCase } from '@application/academicYear/ProposerStructureAnneeSuivanteUseCase';
+import type { ValiderStructureAnneeSuivanteUseCase } from '@application/academicYear/ValiderStructureAnneeSuivanteUseCase';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
@@ -14,11 +16,13 @@ export class AcademicYearController {
     private readonly verifierPrerequis: VerifierPrerequisClotureUseCase,
     private readonly cloturer: CloturerAnneeUseCase,
     private readonly mettreAJourCalendrier: MettreAJourCalendrierUseCase,
+    private readonly proposerStructure: ProposerStructureAnneeSuivanteUseCase,
+    private readonly validerStructure: ValiderStructureAnneeSuivanteUseCase,
   ) {}
 
   creerAnnee = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { name, startDate, endDate, isCurrent, creerPeriodesAutomatiquement } = req.body;
 
       if (!name || !startDate || !endDate) {
@@ -42,7 +46,7 @@ export class AcademicYearController {
 
   definirPeriodeCourante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.definirPeriode.definirPeriode(req.params['id'] as string);
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
@@ -51,7 +55,7 @@ export class AcademicYearController {
       });
       res.json({ success: true, message: 'Période courante définie' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'definir_periode_courante', targetType: 'AcademicPeriod', targetId: req.params['id'] as string,
@@ -73,7 +77,7 @@ export class AcademicYearController {
 
   verifierAvantCloture = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const resultat = await this.verifierPrerequis.execute(req.params['id'] as string);
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
@@ -82,7 +86,7 @@ export class AcademicYearController {
       });
       res.json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'verifier_cloture_annee', targetType: 'AcademicYear', targetId: req.params['id'] as string,
@@ -95,7 +99,7 @@ export class AcademicYearController {
 
   cloturerAnnee = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { force } = req.body;
 
       const resultat = await this.cloturer.execute({
@@ -110,11 +114,72 @@ export class AcademicYearController {
     }
   };
 
+  // POST /api/v2/academic-years/:id/propose-next-structure
+  // :id = année en cours de clôture ; body.anneeSuivanteId = année cible (déjà créée séparément).
+  proposerStructureAnneeSuivante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const { anneeSuivanteId } = req.body as { anneeSuivanteId?: string };
+      if (!anneeSuivanteId) {
+        res.status(400).json({ success: false, message: 'anneeSuivanteId requis' });
+        return;
+      }
+
+      const resultat = await this.proposerStructure.execute({
+        schoolId: user.schoolId,
+        anneeActuelleId: req.params['id'] as string,
+        anneeSuivanteId,
+      });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'proposer_structure_annee_suivante', targetType: 'AcademicYear', targetId: anneeSuivanteId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { anneeActuelleId: req.params['id'], anneeSuivanteId, nbClasses: resultat.classesProposees.length },
+      });
+      res.status(201).json({ success: true, data: resultat });
+    } catch (error) {
+      const user = req.user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'proposer_structure_annee_suivante', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /api/v2/academic-years/:id/validate-structure — :id = année suivante (celle avec les classes DRAFT)
+  validerStructureAnneeSuivante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const resultat = await this.validerStructure.execute({
+        schoolId: user.schoolId,
+        anneeSuivanteId: req.params['id'] as string,
+      });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'valider_structure_annee_suivante', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classesActivees: resultat.classesActivees },
+      });
+      res.json({ success: true, data: resultat });
+    } catch (error) {
+      const user = req.user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'valider_structure_annee_suivante', targetType: 'AcademicYear', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.params,
+      });
+      this.gererErreur(error, res, next);
+    }
+  };
+
   mettreAJourCalendrierScolaire = async (
     req: Request, res: Response, next: NextFunction
   ): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { periodes } = req.body;
 
       if (!Array.isArray(periodes)) {

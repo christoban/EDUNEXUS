@@ -11,7 +11,7 @@ export class GetStudentPaymentDashboardUseCase {
 
   async execute(schoolId: string, studentUserId: string): Promise<StudentPaymentDashboard> {
     // Récupérer le profil élève
-    const profile = await (this.prisma as any).studentProfile.findFirst({
+    const profile = await this.prisma.studentProfile.findFirst({
       where: { user: { id: studentUserId, schoolId } },
       include: {
         user: { select: { firstName: true, lastName: true } },
@@ -21,14 +21,14 @@ export class GetStudentPaymentDashboardUseCase {
     if (!profile) throw new Error('Élève introuvable');
 
     // Récupérer l'enrollment actif
-    const enrollment = await (this.prisma as any).enrollment.findFirst({
+    const enrollment = await this.prisma.inscriptionMinesec.findFirst({
       where: { studentId: profile.id, schoolId, status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
     });
 
     // Paiements MINESEC
     const paiementsMinesec = enrollment
-      ? await (this.prisma as any).paiementMinesec.findMany({
+      ? await this.prisma.paiementMinesec.findMany({
           where: { enrollmentId: enrollment.id },
           orderBy: { typeFrais: 'asc' },
         })
@@ -36,7 +36,7 @@ export class GetStudentPaymentDashboardUseCase {
 
     // Paiements établissement
     const paiementsEtablissement = enrollment
-      ? await (this.prisma as any).paiementEtablissement.findMany({
+      ? await this.prisma.paiementEtablissement.findMany({
           where: { enrollmentId: enrollment.id },
           orderBy: { typeFrais: 'asc' },
         })

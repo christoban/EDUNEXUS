@@ -186,6 +186,8 @@ import { CreerAnneeAcademiqueUseCase } from '@application/academicYear/CreerAnne
 import { DefinirPeriodeCouranteUseCase } from '@application/academicYear/DefinirPeriodeCouranteUseCase';
 import { VerifierPrerequisClotureUseCase } from '@application/academicYear/VerifierPrerequisClotureUseCase';
 import { CloturerAnneeUseCase } from '@application/academicYear/CloturerAnneeUseCase';
+import { ProposerStructureAnneeSuivanteUseCase } from '@application/academicYear/ProposerStructureAnneeSuivanteUseCase';
+import { ValiderStructureAnneeSuivanteUseCase } from '@application/academicYear/ValiderStructureAnneeSuivanteUseCase';
 import { MettreAJourCalendrierUseCase } from '@application/academicYear/MettreAJourCalendrierUseCase';
 
 // --- Use Cases : Classe ---
@@ -395,6 +397,10 @@ export function creerContainer() {
   const verifierPrerequisUseCase = new VerifierPrerequisClotureUseCase(anneeRepository);
   const cloturerAnneeUseCase = new CloturerAnneeUseCase(anneeRepository, promotionRepository);
   const mettreAJourCalendrierUseCase = new MettreAJourCalendrierUseCase(anneeRepository);
+  const proposerStructureAnneeSuivanteUseCase = new ProposerStructureAnneeSuivanteUseCase(
+    anneeRepository, classeRepository, promotionRepository,
+  );
+  const validerStructureAnneeSuivanteUseCase = new ValiderStructureAnneeSuivanteUseCase(anneeRepository, classeRepository);
 
   // 14. Use Cases — AI
   const santeEleveRepository = new PrismaSanteEleveRepository(prisma);
@@ -519,6 +525,8 @@ export function creerContainer() {
       verifierPrerequis: verifierPrerequisUseCase,
       cloturer: cloturerAnneeUseCase,
       mettreAJourCalendrier: mettreAJourCalendrierUseCase,
+      proposerStructureSuivante: proposerStructureAnneeSuivanteUseCase,
+      validerStructureSuivante: validerStructureAnneeSuivanteUseCase,
     },
     finance: {
       creerPlanFrais: creerPlanFraisUseCase,

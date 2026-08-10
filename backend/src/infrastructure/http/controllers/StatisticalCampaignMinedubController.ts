@@ -18,7 +18,7 @@ export class StatisticalCampaignMinedubController {
   getSupplement = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const supplement = await (this.prisma as any).minedubSchoolSupplement.findUnique({ where: { schoolId } });
+      const supplement = await this.prisma.minedubSchoolSupplement.findUnique({ where: { schoolId } });
       res.json({ success: true, data: supplement });
     } catch (err) { next(err); }
   };
@@ -33,7 +33,7 @@ export class StatisticalCampaignMinedubController {
       const data: Record<string, unknown> = {};
       for (const key of allowedKeys) if (key in body) data[key] = body[key];
 
-      const supplement = await (this.prisma as any).minedubSchoolSupplement.upsert({
+      const supplement = await this.prisma.minedubSchoolSupplement.upsert({
         where: { schoolId },
         create: { schoolId, ...data, lastUpdatedBy: userId },
         update: { ...data, lastUpdatedBy: userId },
@@ -56,7 +56,7 @@ export class StatisticalCampaignMinedubController {
   listReports = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const reports = await (this.prisma as any).minedubStatisticalReport.findMany({
+      const reports = await this.prisma.minedubStatisticalReport.findMany({
         where: { schoolId }, orderBy: { generatedAt: 'desc' }, take: 20,
       });
       res.json({ success: true, data: reports });
@@ -68,7 +68,7 @@ export class StatisticalCampaignMinedubController {
     try {
       const schoolId = req.user!.schoolId;
       const id = String(req.params['id']);
-      const report = await (this.prisma as any).minedubStatisticalReport.findUnique({ where: { id } });
+      const report = await this.prisma.minedubStatisticalReport.findUnique({ where: { id } });
       if (!report || report.schoolId !== schoolId) {
         res.status(404).json({ success: false, message: 'Rapport introuvable' });
         return;

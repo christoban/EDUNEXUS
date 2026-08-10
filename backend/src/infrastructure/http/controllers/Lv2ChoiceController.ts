@@ -35,7 +35,8 @@ export class Lv2ChoiceController {
       });
       journaliserActionIA(this.prisma, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
-        actionName: 'ouvrir_fenetre_choix_lv2', targetType: 'Lv2ChoiceWindow', targetId: (result as any)?.id,
+        // Bug indépendant : execute() retourne { windowId }, jamais `id`.
+        actionName: 'ouvrir_fenetre_choix_lv2', targetType: 'Lv2ChoiceWindow', targetId: result.windowId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: result });
@@ -86,7 +87,7 @@ export class Lv2ChoiceController {
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const windows = await (this.prisma as any).lv2ChoiceWindow.findMany({
+      const windows = await this.prisma.lv2ChoiceWindow.findMany({
         where: { schoolId },
         orderBy: { createdAt: 'desc' },
       });
@@ -111,7 +112,7 @@ export class Lv2ChoiceController {
       const userId = req.user!.userId;
 
       // Récupérer le profil élève
-      const profile = await (this.prisma as any).studentProfile.findFirst({
+      const profile = await this.prisma.studentProfile.findFirst({
         where: { user: { id: userId, schoolId } },
       });
       if (!profile) {
@@ -126,7 +127,7 @@ export class Lv2ChoiceController {
       }
 
       // Fenêtre ouverte pour le niveau
-      const window = await (this.prisma as any).lv2ChoiceWindow.findFirst({
+      const window = await this.prisma.lv2ChoiceWindow.findFirst({
         where: {
           schoolId,
           level: classe.level,
@@ -142,7 +143,7 @@ export class Lv2ChoiceController {
       }
 
       // Soumission existante
-      const submission = await (this.prisma as any).lv2ChoiceSubmission.findUnique({
+      const submission = await this.prisma.lv2ChoiceSubmission.findUnique({
         where: {
           windowId_studentProfileId: { windowId: window.id, studentProfileId: profile.id },
         },

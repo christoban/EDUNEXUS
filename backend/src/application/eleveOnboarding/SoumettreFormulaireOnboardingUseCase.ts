@@ -21,13 +21,13 @@ export class SoumettreFormulaireOnboardingUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: SoumettreFormulaireOnboardingCommande): Promise<SoumettreFormulaireOnboardingResultat> {
-    const onboarding = await (this.prisma as any).studentOnboarding.findUnique({ where: { token: cmd.token } });
+    const onboarding = await this.prisma.studentOnboarding.findUnique({ where: { token: cmd.token } });
     if (!onboarding) throw new Error('Lien invalide');
     if (onboarding.tokenUsedAt) throw new Error('Ce lien a déjà été utilisé');
 
     if (onboarding.tokenExpiresAt.getTime() < Date.now()) {
       if (onboarding.status !== 'EXPIRED') {
-        await (this.prisma as any).studentOnboarding.update({ where: { id: onboarding.id }, data: { status: 'EXPIRED' } });
+        await this.prisma.studentOnboarding.update({ where: { id: onboarding.id }, data: { status: 'EXPIRED' } });
       }
       throw new Error('Ce lien a expiré — demandez à votre établissement de le renvoyer');
     }
@@ -42,7 +42,7 @@ export class SoumettreFormulaireOnboardingUseCase {
 
     const dateNaissance = cmd.dateNaissance ? parseDateFR(cmd.dateNaissance) : null;
     if (dateNaissance) {
-      const profiles: any[] = await (this.prisma as any).studentProfile.findMany({
+      const profiles: any[] = await this.prisma.studentProfile.findMany({
         where: { user: { schoolId: onboarding.schoolId }, dateOfBirth: dateNaissance },
         include: { user: { select: { firstName: true, lastName: true } } },
       });
@@ -66,7 +66,7 @@ export class SoumettreFormulaireOnboardingUseCase {
       ...(cmd.donneesComplementaires ?? {}),
     };
 
-    const updated = await (this.prisma as any).studentOnboarding.update({
+    const updated = await this.prisma.studentOnboarding.update({
       where: { id: onboarding.id },
       data: {
         submittedData,

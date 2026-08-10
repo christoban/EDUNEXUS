@@ -45,7 +45,7 @@ export class AnnouncementController {
 
       const rolesCibles = Array.from(new Set((annonce.targetRoles ?? targetRoles ?? []) as UserRole[]));
       const destinataires = rolesCibles.length > 0
-        ? await (this.prisma as any).user.findMany({
+        ? await this.prisma.user.findMany({
             where: { schoolId: user.schoolId, role: { in: rolesCibles }, isActive: true },
             select: { id: true },
           })

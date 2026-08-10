@@ -20,6 +20,21 @@ export class PrismaPromotionRepository implements PromotionRepository {
     return data;
   }
 
+  async creerMappingsPromotion(
+    mappings: (ClassPromotionMapping & { schoolId: string; academicYearId: string })[]
+  ): Promise<void> {
+    if (mappings.length === 0) return;
+    await this.prisma.classPromotion.createMany({
+      data: mappings.map(m => ({
+        schoolId: m.schoolId,
+        fromClassId: m.fromClassId,
+        toClassId: m.toClassId,
+        academicYearId: m.academicYearId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   async findDecisionsEleves(
     schoolId: string,
     academicYearId: string

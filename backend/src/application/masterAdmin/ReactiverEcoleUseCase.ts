@@ -16,7 +16,7 @@ export class ReactiverEcoleUseCase {
       school.reactiver();
     } else if (school.status === 'REJECTED') {
       // Second chance : repasse en PENDING pour réexamen
-      (school as any).props.status = 'PENDING';
+      school.redonnerUneChanceApresRejet();
     } else {
       throw new Error(
         `Impossible de réactiver une école avec le statut "${school.status}"`

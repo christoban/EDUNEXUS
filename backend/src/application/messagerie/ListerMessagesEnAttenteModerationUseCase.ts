@@ -14,7 +14,7 @@ export class ListerMessagesEnAttenteModerationUseCase {
       throw new Error('Seuls Admin et Staff peuvent consulter la file de modération.');
     }
 
-    return (this.prisma as any).message.findMany({
+    return this.prisma.message.findMany({
       where: { moderationStatus: 'PENDING', conversation: { schoolId: cmd.schoolId } },
       orderBy: { createdAt: 'asc' },
       include: {

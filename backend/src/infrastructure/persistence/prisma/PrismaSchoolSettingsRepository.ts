@@ -28,12 +28,10 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
       timezone: settings?.timezone ?? MINESEC_DEFAULTS.TIMEZONE,
       locale: settings?.locale ?? MINESEC_DEFAULTS.LOCALE_FR,
       currency: settings?.currency ?? MINESEC_DEFAULTS.CURRENCY,
-      logRetentionDays: (settings as any)?.logRetentionDays ?? 90,
+      logRetentionDays: settings?.logRetentionDays ?? 90,
 
       // Champs lus depuis DB (corrige le bug des valeurs hardcodées)
-      schoolLanguageMode: (
-        (config as any)?.schoolLanguageMode ?? 'francophone'
-      ) as SchoolLanguageMode,
+      schoolLanguageMode: (config?.schoolLanguageMode ?? 'francophone') as SchoolLanguageMode,
       academicCalendarType: 'trimester',
       preferredLanguage: settings?.locale?.startsWith('en') ? 'en' : 'fr',
       cycles: ['secondaire_1', 'secondaire_2'] as SchoolCycle[],
@@ -41,17 +39,17 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
 
       gradesPerTerm: config?.gradesPerTerm ?? MINESEC_DEFAULTS.SEQUENCES_PAR_TRIMESTRE,
       termsPerYear: config?.termsPerYear ?? MINESEC_DEFAULTS.TRIMESTRES_PAR_AN,
-      passMark: (config as any)?.passMark ?? MINESEC_DEFAULTS.SEUIL_PASSAGE_FR,
-      councilPassMark: (config as any)?.councilPassMark ?? MINESEC_DEFAULTS.SEUIL_PASSAGE_FR,
+      passMark: config?.passMark ?? MINESEC_DEFAULTS.SEUIL_PASSAGE_FR,
+      councilPassMark: config?.councilPassMark ?? MINESEC_DEFAULTS.SEUIL_PASSAGE_FR,
 
       maxAbsences: config?.maxAbsences ?? 10,
-      attendanceLateAsAbsence: (config as any)?.attendanceLateAsAbsence ?? false,
+      attendanceLateAsAbsence: config?.attendanceLateAsAbsence ?? false,
 
       legalMaxContributionFirstCycle:
         config?.legalMaxContributionFirstCycle ?? MINESEC_DEFAULTS.SEUIL_LEGAL_PREMIER_CYCLE,
       legalMaxContributionSecondCycle:
         config?.legalMaxContributionSecondCycle ?? MINESEC_DEFAULTS.SEUIL_LEGAL_SECOND_CYCLE,
-      bulletinBlockOnUnpaidFees: (config as any)?.bulletinBlockOnUnpaidFees ?? false,
+      bulletinBlockOnUnpaidFees: config?.bulletinBlockOnUnpaidFees ?? false,
 
       smsEnabled: config?.smsEnabled ?? false,
       offlineModeEnabled: config?.offlineModeEnabled ?? true,
@@ -83,13 +81,13 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
           locale: updates.locale ?? MINESEC_DEFAULTS.LOCALE_FR,
           currency: updates.currency ?? MINESEC_DEFAULTS.CURRENCY,
           logRetentionDays: updates.logRetentionDays ?? 90,
-        } as any,
+        },
         update: {
           ...(updates.timezone && { timezone: updates.timezone }),
           ...(updates.locale && { locale: updates.locale }),
           ...(updates.currency && { currency: updates.currency }),
           ...(updates.logRetentionDays !== undefined && { logRetentionDays: updates.logRetentionDays }),
-        } as any,
+        },
       });
 
       await tx.schoolConfig.upsert({

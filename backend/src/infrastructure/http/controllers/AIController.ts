@@ -140,7 +140,7 @@ export class AIController {
         where: { user: { schoolId }, ...(classId ? { classId } : {}) },
         include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
         orderBy: { healthScore: 'asc' },
-      }) as any[];
+      });
 
       const categorized = students.map((s) => {
         const score = s.healthScore ?? 75;
@@ -222,7 +222,7 @@ export class AIController {
             where: { classId: { in: ppClassIdList }, healthScore: { lte: warningThreshold } },
             include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
             orderBy: { healthScore: 'asc' },
-          }) as any[]
+          })
         : [];
 
       const studentIds = studentsComposite.map((s) => s.user.id);

@@ -47,7 +47,7 @@ export class StudentDocumentController {
   // ─── GET /api/v2/students/:id/certificat ─────────────────────
   getCertificat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const studentUserId = req.params.id as string;
 
       const student = await fetchStudent(this.prisma, studentUserId, user.schoolId);
@@ -117,7 +117,7 @@ export class StudentDocumentController {
   // ─── GET /api/v2/students/:id/carte ──────────────────────────
   getCarte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const studentUserId = req.params.id as string;
 
       const student = await fetchStudent(this.prisma, studentUserId, user.schoolId);
@@ -181,7 +181,7 @@ export class StudentDocumentController {
   // ─── GET /api/v2/students/:id/lettre-transfert ───────────────
   getLettreTransfert = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const studentUserId = req.params.id as string;
       const motif = (req.query.motif as string | undefined) ?? '';
 

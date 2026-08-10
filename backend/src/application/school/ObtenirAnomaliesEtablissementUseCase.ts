@@ -43,7 +43,7 @@ export class ObtenirAnomaliesEtablissementUseCase {
   private async sansConseilTenu(ctx: ActionContext, classes: { id: string; name: string }[]): Promise<string[]> {
     const period = await resolveCurrentPeriod(ctx).catch(() => null);
     if (!period) return [];
-    const sessions = await (this.prisma as any).classCouncilSession.findMany({
+    const sessions = await this.prisma.classCouncilSession.findMany({
       where: { schoolId: ctx.schoolId, academicPeriodId: period.id, status: 'LOCKED' },
       select: { classId: true },
     });

@@ -20,6 +20,18 @@ export class InMemoryClasseRepository implements ClasseRepository {
     return [...this.store.values()].filter(c => c.schoolId === schoolId && c.level === level);
   }
 
+  async findBySchoolAndYear(schoolId: string, academicYearId: string): Promise<Classe[]> {
+    return [...this.store.values()].filter(c => c.schoolId === schoolId && c.academicYearId === academicYearId);
+  }
+
+  async activerToutesDraft(schoolId: string, academicYearId: string): Promise<number> {
+    const draftClasses = [...this.store.values()].filter(
+      c => c.schoolId === schoolId && c.academicYearId === academicYearId && c.status === 'DRAFT'
+    );
+    for (const c of draftClasses) c.activer();
+    return draftClasses.length;
+  }
+
   async countEleves(_classeId: string): Promise<number> { return 0; }
   async existsByName(_schoolId: string, _name: string, _excludeId?: string): Promise<boolean> { return false; }
   async save(c: Classe): Promise<void> { this.store.set(c.id, c); }

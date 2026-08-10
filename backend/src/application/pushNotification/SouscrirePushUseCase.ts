@@ -10,12 +10,12 @@ export class SouscrirePushUseCase {
   constructor(private readonly prisma: any) {}
 
   async execute(commande: SouscrirePushCommande): Promise<{ id: string }> {
-    const existing = await (this.prisma as any).pushSubscription.findFirst({
+    const existing = await this.prisma.pushSubscription.findFirst({
       where: { userId: commande.userId, endpoint: commande.endpoint },
     });
 
     if (existing) {
-      const updated = await (this.prisma as any).pushSubscription.update({
+      const updated = await this.prisma.pushSubscription.update({
         where: { id: existing.id },
         data: {
           p256dh: commande.p256dh,
@@ -27,7 +27,7 @@ export class SouscrirePushUseCase {
       return { id: updated.id };
     }
 
-    const created = await (this.prisma as any).pushSubscription.create({
+    const created = await this.prisma.pushSubscription.create({
       data: {
         userId: commande.userId,
         endpoint: commande.endpoint,

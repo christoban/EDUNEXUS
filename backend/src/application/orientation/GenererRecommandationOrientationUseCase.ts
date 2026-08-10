@@ -84,7 +84,7 @@ export class GenererRecommandationOrientationUseCase {
     const entries = Object.entries(raw as Record<string, unknown>);
     if (entries.length === 0) return null;
     // Validation minimale — retombe sur les défauts si la forme est manifestement invalide.
-    const valid = entries.every(([, v]) => v && typeof v === 'object' && Array.isArray((v as any).subjects));
+    const valid = entries.every(([, v]) => v && typeof v === 'object' && Array.isArray((v as { subjects?: unknown }).subjects));
     return valid ? (raw as CheckpointScoringConfig) : null;
   }
 

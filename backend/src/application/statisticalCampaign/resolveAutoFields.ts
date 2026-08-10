@@ -41,7 +41,7 @@ interface StudentRow {
 }
 
 async function fetchEsgStudents(prisma: PrismaClient, schoolId: string): Promise<StudentRow[]> {
-  const students = await (prisma as any).studentProfile.findMany({
+  const students = await prisma.studentProfile.findMany({
     where: {
       studentStatus: 'ACTIVE',
       user: { schoolId },
@@ -195,7 +195,7 @@ export async function resolveIdentificationAutoFields(
   prisma: PrismaClient,
   schoolId: string,
 ): Promise<ResolvedCell[]> {
-  const school = await (prisma as any).school.findUnique({ where: { id: schoolId } });
+  const school = await prisma.school.findUnique({ where: { id: schoolId } });
   if (!school) return [];
   const cells: ResolvedCell[] = [
     { sheetName: 'Identification', cellReference: 'C3', value: school.name ?? '', dataType: 'TEXT' },
@@ -215,11 +215,11 @@ export async function resolveIdentificationAutoFields(
  * fréquent ; en cas d'égalité, le plus élevé — signalé dans le rapport si ambigu.
  */
 export async function resolveFeeAutoFields(prisma: PrismaClient, schoolId: string): Promise<ResolvedCell[]> {
-  const school = await (prisma as any).school.findUnique({ where: { id: schoolId } });
+  const school = await prisma.school.findUnique({ where: { id: schoolId } });
   if (!school) return [];
   const isPublic = school.ownership === 'PUBLIC';
 
-  const feePlans: any[] = await (prisma as any).feePlan.findMany({
+  const feePlans: any[] = await prisma.feePlan.findMany({
     where: { schoolId, feeType: { in: ['APEE_PTA', 'INSCRIPTION'] } },
   });
 
@@ -241,8 +241,8 @@ export async function resolveFeeAutoFields(prisma: PrismaClient, schoolId: strin
   const inscCycle2 = representativeAmount('INSCRIPTION', SECOND_CYCLE_LEVELS);
 
   const prefix = isPublic ? 'public' : 'private';
-  if (apeCycle1 !== null) cells.push({ sheetName: 'Financement-Funding', cellReference: (FEE_AUTO_FIELDS as any)[`${prefix}General1erCycle`], value: apeCycle1, dataType: 'NUMBER' });
-  if (apeCycle2 !== null) cells.push({ sheetName: 'Financement-Funding', cellReference: (FEE_AUTO_FIELDS as any)[`${prefix}General2ndCycle`], value: apeCycle2, dataType: 'NUMBER' });
+  if (apeCycle1 !== null) cells.push({ sheetName: 'Financement-Funding', cellReference: FEE_AUTO_FIELDS[`${prefix}General1erCycle`], value: apeCycle1, dataType: 'NUMBER' });
+  if (apeCycle2 !== null) cells.push({ sheetName: 'Financement-Funding', cellReference: FEE_AUTO_FIELDS[`${prefix}General2ndCycle`], value: apeCycle2, dataType: 'NUMBER' });
   void inscCycle1;
   void inscCycle2;
 

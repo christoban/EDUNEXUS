@@ -38,7 +38,7 @@ export async function resolvePersonnelFields(
   prisma: PrismaClient,
   schoolId: string,
 ): Promise<{ cells: ResolvedCell[]; nonCouverts: ChampNonResolu[] }> {
-  const staff: any[] = await (prisma as any).user.findMany({
+  const staff: any[] = await prisma.user.findMany({
     where: { schoolId, isActive: true, role: { in: ['TEACHER', 'STAFF', 'ADMIN'] } },
     select: {
       firstName: true,

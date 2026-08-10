@@ -23,7 +23,7 @@ export class AttendanceController {
 
   // POST /api/v2/attendance
   enregistrer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const user = (req as any).user;
+    const user = req.user;
     const { classId, academicPeriodId, subjectId, date, period, presences, isOfflineSync } = req.body;
 
     if (!classId || !date || !period || !presences?.length) {
@@ -127,7 +127,7 @@ export class AttendanceController {
   // GET /api/v2/attendance
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const schoolId: string = user.schoolId;
       const role: string = (user.role as string).toUpperCase();
       const userId: string = user.userId;
@@ -207,7 +207,7 @@ export class AttendanceController {
   // PATCH /api/v2/attendance/:id/justify
   justifierAbsence = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const role: string = (user.role as string).toUpperCase();
       const schoolId: string = user.schoolId;
       const attendanceId = req.params.id as string;
@@ -244,7 +244,7 @@ export class AttendanceController {
       });
       res.json({ success: true, message: 'Absence justifiée', record: updated });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'justifier_absence', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -257,7 +257,7 @@ export class AttendanceController {
   // GET /api/v2/attendance/stats
   statistiques = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const schoolId: string = user.schoolId;
       const role: string = (user.role as string).toUpperCase();
       const userId: string = user.userId;

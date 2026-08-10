@@ -6,6 +6,8 @@
  *   bootstrapHexagonal(app);
  */
 import type { Application } from 'express';
+import type { Prisma, DisciplineType } from '@prisma/client';
+import type { PaymentMethod } from '@domain/types/enums';
 import { creerContainer } from '@infrastructure/config/container';
 import { GradeController } from '@infrastructure/http/controllers/GradeController';
 import { AttendanceController } from '@infrastructure/http/controllers/AttendanceController';
@@ -300,7 +302,7 @@ export function bootstrapHexagonal(app: Application): void {
   app.get('/api/v2/school/last-backup', requireAuth, async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
-      const settings = await (prisma as any).schoolSettings.findUnique({
+      const settings = await prisma.schoolSettings.findUnique({
         where: { schoolId },
         select: { lastBackupAt: true, lastBackupFile: true },
       });
@@ -355,8 +357,9 @@ export function bootstrapHexagonal(app: Application): void {
         where: { id: req.user!.schoolId },
         select: { templateCode: true, onboardingConfig: true },
       });
+      const onboardingConfig = school?.onboardingConfig as Record<string, unknown> | null | undefined;
       const templateCode = school?.templateCode
-        ?? (school?.onboardingConfig as any)?.templateCode
+        ?? (onboardingConfig?.templateCode as string | undefined)
         ?? undefined;
       const meta = getTemplateMeta(templateCode);
       const titles = getStaffTitlesForTemplate(meta, templateCode);
@@ -402,27 +405,33 @@ export function bootstrapHexagonal(app: Application): void {
       const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { onboardingConfig: true } });
       if (!school) { res.status(404).json({ success: false, message: 'École introuvable' }); return; }
 
-      const cfg = (school.onboardingConfig ?? {}) as any;
+      const cfg = (school.onboardingConfig ?? {}) as Record<string, unknown>;
       const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       const classes: { name: string; level: string }[] = [];
 
-      if (cfg.niveaux1erCycle) {
-        const conv = cfg.conventionNommage ?? 'LETTRES';
-        for (const n of cfg.niveaux1erCycle) {
-          const c = cfg.classesParNiveau?.[n] ?? 2;
+      const niveaux1erCycle = cfg.niveaux1erCycle as string[] | undefined;
+      const classesParNiveau = cfg.classesParNiveau as Record<string, number> | undefined;
+      if (niveaux1erCycle) {
+        const conv = (cfg.conventionNommage as string | undefined) ?? 'LETTRES';
+        for (const n of niveaux1erCycle) {
+          const c = classesParNiveau?.[n] ?? 2;
           for (let i = 0; i < Math.min(c, 26); i++) {
             const s = conv === 'LETTRES' ? L[i] : conv === 'CHIFFRES' ? `${i + 1}` : `${L[i]}1`;
             classes.push({ name: `${n} ${s}`, level: n });
           }
         }
       }
-      if (cfg.niveaux2eCycle && cfg.filieres) {
-        const nb = cfg.classesParFiliere === '3+' ? 3 : parseInt(cfg.classesParFiliere ?? '1');
-        for (const n of cfg.niveaux2eCycle) {
-          for (const f of cfg.filieres) {
+      const niveaux2eCycle = cfg.niveaux2eCycle as string[] | undefined;
+      const filieres = cfg.filieres as string[] | undefined;
+      const classesParFiliere = cfg.classesParFiliere as string | undefined;
+      const a4Languages = cfg.a4Languages as string[] | undefined;
+      if (niveaux2eCycle && filieres) {
+        const nb = classesParFiliere === '3+' ? 3 : parseInt(classesParFiliere ?? '1');
+        for (const n of niveaux2eCycle) {
+          for (const f of filieres) {
             if (n === '2nde' && (/^TI/.test(f) || /F\s*·\s*G\s*·\s*H/.test(f) || /technique/i.test(f))) continue;
             if (f.startsWith('A4') || f.includes('A4')) {
-              for (const lang of (cfg.a4Languages?.length ? cfg.a4Languages : ['LV'])) {
+              for (const lang of (a4Languages?.length ? a4Languages : ['LV'])) {
                 classes.push({ name: `${n} A4-${lang}`, level: n });
               }
             } else {
@@ -432,9 +441,11 @@ export function bootstrapHexagonal(app: Application): void {
           }
         }
       }
-      if (cfg.niveauxPrimaire) {
-        for (const n of cfg.niveauxPrimaire) {
-          const c = cfg.classesParNiveauPrimaire?.[n] ?? 1;
+      const niveauxPrimaire = cfg.niveauxPrimaire as string[] | undefined;
+      const classesParNiveauPrimaire = cfg.classesParNiveauPrimaire as Record<string, number> | undefined;
+      if (niveauxPrimaire) {
+        for (const n of niveauxPrimaire) {
+          const c = classesParNiveauPrimaire?.[n] ?? 1;
           for (let i = 0; i < Math.min(c, 26); i++) classes.push({ name: `${n} ${L[i]}`, level: n });
         }
       }
@@ -661,6 +672,15 @@ export function bootstrapHexagonal(app: Application): void {
         return;
       }
 
+      const anneeCourante = await prisma.academicYear.findFirst({
+        where: { schoolId, isCurrent: true },
+        select: { id: true },
+      });
+      if (!anneeCourante) {
+        res.status(400).json({ success: false, message: 'Aucune année académique courante — impossible de créer une classe.' });
+        return;
+      }
+
       const currentConfig = (school.onboardingConfig ?? {}) as Record<string, unknown>;
       const body = req.body as {
         classesParNiveau?: Record<string, number>;
@@ -687,7 +707,7 @@ export function bootstrapHexagonal(app: Application): void {
         };
       }
 
-      await prisma.school.update({ where: { id: schoolId }, data: { onboardingConfig: newConfig as any } });
+      await prisma.school.update({ where: { id: schoolId }, data: { onboardingConfig: newConfig as Prisma.InputJsonValue } });
 
       // Calculer la liste complète des classes attendues depuis la config mise à jour
       const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -726,7 +746,7 @@ export function bootstrapHexagonal(app: Application): void {
         const subjectCountRef = { value: 0 };
 
         for (const cls of toCreate) {
-          await prisma.class.create({ data: { schoolId, name: cls.name, level: cls.level } });
+          await prisma.class.create({ data: { schoolId, academicYearId: anneeCourante.id, name: cls.name, level: cls.level } });
           created.push(cls.name);
 
           // Si aucun SubjectCoefficient n'existe encore pour ce niveau, bootstrapper depuis le template.
@@ -756,7 +776,7 @@ export function bootstrapHexagonal(app: Application): void {
     try {
       const schoolId = req.params['id'] as string;
       if (req.user!.schoolId !== schoolId) { res.status(403).json({ success: false, message: 'Accès refusé' }); return; }
-      const settings = await (prisma as any).schoolNotificationSettings.upsert({
+      const settings = await prisma.schoolNotificationSettings.upsert({
         where: { schoolId },
         create: { schoolId },
         update: {},
@@ -777,7 +797,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (smsBulletins     !== undefined) data['smsBulletins']     = Boolean(smsBulletins);
       if (emailDigestAdmin !== undefined) data['emailDigestAdmin'] = Boolean(emailDigestAdmin);
       if (smsLowBalance    !== undefined) data['smsLowBalance']    = Boolean(smsLowBalance);
-      const updated = await (prisma as any).schoolNotificationSettings.upsert({
+      const updated = await prisma.schoolNotificationSettings.upsert({
         where: { schoolId },
         create: { schoolId, ...data },
         update: data,
@@ -791,7 +811,7 @@ export function bootstrapHexagonal(app: Application): void {
     try {
       const schoolId = req.params['id'] as string;
       if (req.user!.schoolId !== schoolId) { res.status(403).json({ success: false, message: 'Accès refusé' }); return; }
-      const config = await prisma.schoolConfig.findUnique({ where: { schoolId } }) as any;
+      const config = await prisma.schoolConfig.findUnique({ where: { schoolId } });
       res.json({ success: true, data: {
         passwordMinLength:    config?.passwordMinLength    ?? 8,
         passwordRequireUpper: config?.passwordRequireUpper ?? false,
@@ -820,7 +840,7 @@ export function bootstrapHexagonal(app: Application): void {
         if (isNaN(v) || v < 15 || v > 480) { res.status(400).json({ success: false, message: 'Timeout doit être entre 15 et 480 minutes' }); return; }
         data['sessionTimeoutMin'] = v;
       }
-      const updated = await (prisma as any).schoolConfig.upsert({
+      const updated = await prisma.schoolConfig.upsert({
         where: { schoolId },
         create: { schoolId, ...data },
         update: data,
@@ -1054,6 +1074,8 @@ export function bootstrapHexagonal(app: Application): void {
     container.academicYear.verifierPrerequis,
     container.academicYear.cloturer,
     container.academicYear.mettreAJourCalendrier,
+    container.academicYear.proposerStructureSuivante,
+    container.academicYear.validerStructureSuivante,
   );
 
   app.use('/api/v2/academic-years', creerAcademicYearRoutes(academicYearController));
@@ -1728,7 +1750,7 @@ export function bootstrapHexagonal(app: Application): void {
       const data = classes.map(cls => {
         const total = cls._count.students;
         const pebsN = pebsCountByClass.get(cls.id) ?? 0;
-        const pebsMixte = (cls as any).pebsMixte === true;
+        const pebsMixte = cls.pebsMixte === true;
         let pebsBadge: 'PEBS' | 'MIXTE' | 'GENERAL' | null = null;
         if (cls.filiere === 'FR_PEBS' || cls.filiere === 'EN_PEBS') {
           pebsBadge = 'PEBS';
@@ -2029,7 +2051,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (!student) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
       const record = await prisma.disciplineRecord.create({
         data: {
-          schoolId, studentId, type: type as any, reason,
+          schoolId, studentId, type: type as DisciplineType, reason,
           decidedById: req.user!.userId,
           ...(startDate ? { startDate: new Date(startDate) } : {}),
           ...(endDate ? { endDate: new Date(endDate) } : {}),
@@ -2466,7 +2488,7 @@ export function bootstrapHexagonal(app: Application): void {
       const result = await container.finance.initierPaiement.execute({
         factureId: invoiceId,
         studentId: invoice.studentId,
-        method: method as any,
+        method: method as PaymentMethod,
         phoneNumber,
         schoolId,
       });
@@ -2501,7 +2523,7 @@ export function bootstrapHexagonal(app: Application): void {
       const studentUserId = req.params['id'] as string;
       const { lv2SubjectId } = req.body as { lv2SubjectId?: string | null };
 
-      const profile = await (prisma as any).studentProfile.findFirst({
+      const profile = await prisma.studentProfile.findFirst({
         where: { userId: studentUserId, user: { schoolId } },
         select: { id: true },
       });
@@ -2512,7 +2534,7 @@ export function bootstrapHexagonal(app: Application): void {
         if (!subj) { res.status(404).json({ success: false, message: 'Matière introuvable' }); return; }
       }
 
-      await (prisma as any).studentProfile.update({
+      await prisma.studentProfile.update({
         where: { id: profile.id },
         data: { lv2SubjectId: lv2SubjectId ?? null },
       });
@@ -2547,11 +2569,11 @@ export function bootstrapHexagonal(app: Application): void {
         if (!subj) { res.status(404).json({ success: false, message: 'Matière introuvable' }); return; }
       }
 
-      const profiles = await (prisma as any).studentProfile.findMany({
+      const profiles = await prisma.studentProfile.findMany({
         where: { userId: { in: studentUserIds }, user: { schoolId } },
         select: { id: true },
       });
-      const result = await (prisma as any).studentProfile.updateMany({
+      const result = await prisma.studentProfile.updateMany({
         where: { id: { in: profiles.map((p: any) => p.id) } },
         data: { lv2SubjectId: lv2SubjectId ?? null },
       });
@@ -2581,7 +2603,7 @@ export function bootstrapHexagonal(app: Application): void {
       const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
-      const students = await (prisma as any).user.findMany({
+      const students = await prisma.user.findMany({
         where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
         select: {
           id: true, firstName: true, lastName: true,
@@ -2638,7 +2660,7 @@ export function bootstrapHexagonal(app: Application): void {
       const studentUserId = req.params['id'] as string;
       const { pebsFiliere } = req.body as { pebsFiliere?: string | null };
 
-      const profile = await (prisma as any).studentProfile.findFirst({
+      const profile = await prisma.studentProfile.findFirst({
         where: { userId: studentUserId, user: { schoolId } },
         select: { id: true },
       });
@@ -2648,7 +2670,7 @@ export function bootstrapHexagonal(app: Application): void {
         res.status(400).json({ success: false, message: 'Valeur pebsFiliere invalide' }); return;
       }
 
-      await (prisma as any).studentProfile.update({
+      await prisma.studentProfile.update({
         where: { id: profile.id },
         data: { pebsFiliere: pebsFiliere ?? null },
       });
@@ -2683,11 +2705,11 @@ export function bootstrapHexagonal(app: Application): void {
         res.status(400).json({ success: false, message: 'Valeur pebsFiliere invalide' }); return;
       }
 
-      const profiles = await (prisma as any).studentProfile.findMany({
+      const profiles = await prisma.studentProfile.findMany({
         where: { userId: { in: studentUserIds }, user: { schoolId } },
         select: { id: true },
       });
-      const result = await (prisma as any).studentProfile.updateMany({
+      const result = await prisma.studentProfile.updateMany({
         where: { id: { in: profiles.map((p: any) => p.id) } },
         data: { pebsFiliere: pebsFiliere ?? null },
       });
@@ -2717,7 +2739,7 @@ export function bootstrapHexagonal(app: Application): void {
       const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
-      const students = await (prisma as any).user.findMany({
+      const students = await prisma.user.findMany({
         where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
         select: {
           id: true, firstName: true, lastName: true,
@@ -2777,10 +2799,10 @@ export function bootstrapHexagonal(app: Application): void {
       }
 
       const classId = slot.timetable.classId;
-      const isLV2 = (slot as any).isLV2Slot ?? false;
-      const isElective = (slot as any).isElectiveSlot ?? false;
+      const isLV2 = slot.isLV2Slot ?? false;
+      const isElective = slot.isElectiveSlot ?? false;
 
-      const allStudents: any[] = await (prisma as any).user.findMany({
+      const allStudents: any[] = await prisma.user.findMany({
         where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
         select: {
           id: true, firstName: true, lastName: true,
@@ -2866,13 +2888,13 @@ export function bootstrapHexagonal(app: Application): void {
     try {
       const schoolId = req.user!.schoolId;
       const studentUserId = req.params['id'] as string;
-      const profile = await (prisma as any).studentProfile.findFirst({
+      const profile = await prisma.studentProfile.findFirst({
         where: { userId: studentUserId, user: { schoolId } },
         select: { id: true },
       });
       if (!profile) { res.status(404).json({ success: false, message: 'Élève introuvable' }); return; }
 
-      const links = await (prisma as any).studentALevelSubject.findMany({
+      const links = await prisma.studentALevelSubject.findMany({
         where: { studentId: profile.id },
         select: { subject: { select: { id: true, name: true } } },
         orderBy: { subject: { name: 'asc' } },
@@ -2892,7 +2914,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
       // Matières A-Level disponibles de l'établissement (matières de l'école dont le nom est un sujet A-Level officiel)
-      const officialALevel = await (prisma as any).aLevelSubject.findMany({ select: { subjectName: true } });
+      const officialALevel = await prisma.aLevelSubject.findMany({ select: { subjectName: true } });
       const officialNames: string[] = officialALevel.map((a: any) => a.subjectName);
       const availableSubjects = await prisma.subject.findMany({
         where: { schoolId, name: { in: officialNames } },
@@ -2900,7 +2922,7 @@ export function bootstrapHexagonal(app: Application): void {
         orderBy: { name: 'asc' },
       });
 
-      const students = await (prisma as any).user.findMany({
+      const students = await prisma.user.findMany({
         where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
         select: {
           id: true, firstName: true, lastName: true,
@@ -2947,7 +2969,7 @@ export function bootstrapHexagonal(app: Application): void {
       const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true } });
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
-      const students = await (prisma as any).user.findMany({
+      const students = await prisma.user.findMany({
         where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
         select: { id: true },
       });
@@ -2975,7 +2997,7 @@ export function bootstrapHexagonal(app: Application): void {
       const classe = await prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true, name: true } });
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
-      const allStudents: any[] = await (prisma as any).user.findMany({
+      const allStudents: any[] = await prisma.user.findMany({
         where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
         select: {
           id: true, firstName: true, lastName: true,
@@ -2990,9 +3012,9 @@ export function bootstrapHexagonal(app: Application): void {
       let lv2Fallback = false; // matière LV2 uniforme sans affectation individuelle → toute la classe
 
       if (subjectId) {
-        const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId }, select: { id: true, name: true, isLV2: true } as any });
+        const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId }, select: { id: true, name: true, isLV2: true } });
         if (subject) {
-          if ((subject as any).isLV2) {
+          if (subject.isLV2) {
             mode = 'LV2';
             const assigned = allStudents.filter(s => s.studentProfile?.lv2SubjectId === subjectId);
             const anyLv2InClass = allStudents.some(s => s.studentProfile?.lv2SubjectId);
@@ -3006,7 +3028,7 @@ export function bootstrapHexagonal(app: Application): void {
               filtered = assigned;
             }
           } else {
-            const isOfficialALevel = await (prisma as any).aLevelSubject.findUnique({ where: { subjectName: subject.name }, select: { subjectName: true } });
+            const isOfficialALevel = await prisma.aLevelSubject.findUnique({ where: { subjectName: subject.name }, select: { subjectName: true } });
             if (isOfficialALevel) {
               mode = 'ALEVEL';
               filtered = allStudents.filter(s => (s.studentProfile?.alevelSubjects ?? []).some((a: any) => a.subjectId === subjectId));

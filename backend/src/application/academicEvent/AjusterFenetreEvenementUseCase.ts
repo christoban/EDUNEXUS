@@ -16,7 +16,7 @@ export class AjusterFenetreEvenementUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: AjusterFenetreCommande): Promise<{ id: string }> {
-    const evenement = await (this.prisma as any).academicEvent.findFirst({
+    const evenement = await this.prisma.academicEvent.findFirst({
       where: { id: cmd.eventId, schoolId: cmd.schoolId },
     });
     if (!evenement) throw new Error('Événement introuvable');
@@ -30,7 +30,7 @@ export class AjusterFenetreEvenementUseCase {
       throw new Error('La date de clôture doit être postérieure à la date d\'ouverture.');
     }
 
-    await (this.prisma as any).academicEvent.update({
+    await this.prisma.academicEvent.update({
       where: { id: cmd.eventId },
       data: { closeDate: cmd.nouvelleCloture, reminderSentAt: null },
     });

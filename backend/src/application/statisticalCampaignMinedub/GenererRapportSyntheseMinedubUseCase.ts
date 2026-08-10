@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { resolveEffectifsParNiveau, resolveEffectifsParAge, resolvePersonnelPrimaire } from './resolvePrimaryAutoFields';
 import type { ChampNonResoluMinedub, GenererRapportMinedubCommande, GenererRapportMinedubResultat } from './types';
 
@@ -37,9 +37,9 @@ export class GenererRapportSyntheseMinedubUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: GenererRapportMinedubCommande): Promise<GenererRapportMinedubResultat> {
-    const school = await (this.prisma as any).school.findUnique({ where: { id: cmd.schoolId } });
+    const school = await this.prisma.school.findUnique({ where: { id: cmd.schoolId } });
     if (!school) throw new Error('École introuvable');
-    const supplement = await (this.prisma as any).minedubSchoolSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
+    const supplement = await this.prisma.minedubSchoolSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
 
     const champsNonResolus: ChampNonResoluMinedub[] = [];
     const effectifsNiveau = await resolveEffectifsParNiveau(this.prisma, cmd.schoolId);
@@ -66,8 +66,8 @@ export class GenererRapportSyntheseMinedubUseCase {
     const outputPath = path.join(outDir, fileName);
     fs.writeFileSync(outputPath, buffer);
 
-    const report = await (this.prisma as any).minedubStatisticalReport.create({
-      data: { schoolId: cmd.schoolId, generatedBy: cmd.generatedByUserId, filePath: outputPath, champsNonResolus: champsNonResolus as any },
+    const report = await this.prisma.minedubStatisticalReport.create({
+      data: { schoolId: cmd.schoolId, generatedBy: cmd.generatedByUserId, filePath: outputPath, champsNonResolus: champsNonResolus as unknown as Prisma.InputJsonValue },
     });
 
     return { reportId: report.id, filePath: outputPath, champsNonResolus };

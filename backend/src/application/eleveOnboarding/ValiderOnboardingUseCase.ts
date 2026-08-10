@@ -63,7 +63,7 @@ export class ValiderOnboardingUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: ValiderOnboardingCommande): Promise<ValiderOnboardingResultat> {
-    const onboarding = await (this.prisma as any).studentOnboarding.findFirst({
+    const onboarding = await this.prisma.studentOnboarding.findFirst({
       where: { id: cmd.onboardingId, schoolId: cmd.schoolId },
     });
     if (!onboarding) throw new Error('Dossier introuvable');
@@ -71,7 +71,7 @@ export class ValiderOnboardingUseCase {
       throw new Error(`Ce dossier ne peut pas être validé depuis son statut actuel (${onboarding.status}) — seul PENDING_VALIDATION peut passer à VALIDATED`);
     }
 
-    const settings = await (this.prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
+    const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
     const responsableRole = settings?.responsableRole ?? 'ADMIN';
     if (cmd.validatorRole !== responsableRole) {
       throw new Error(`Seul un utilisateur avec le rôle ${responsableRole} peut valider ce dossier`);
@@ -115,7 +115,7 @@ export class ValiderOnboardingUseCase {
     const studentReset = eleveRecoitContact && eleveAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
 
     const { studentProfile, comptesCrees } = await this.prisma.$transaction(async (tx) => {
-      const studentUser = await (tx as any).user.create({
+      const studentUser = await tx.user.create({
         data: {
           schoolId: cmd.schoolId,
           role: 'STUDENT',
@@ -131,7 +131,7 @@ export class ValiderOnboardingUseCase {
         },
       });
 
-      const studentProfile = await (tx as any).studentProfile.create({
+      const studentProfile = await tx.studentProfile.create({
         data: {
           userId: studentUser.id,
           classId,
@@ -158,7 +158,7 @@ export class ValiderOnboardingUseCase {
         ].filter(Boolean) as Record<string, string>[];
 
         const existingParentUser = contactFilters.length > 0
-          ? await (tx as any).user.findFirst({ where: { schoolId: cmd.schoolId, role: 'PARENT', OR: contactFilters } })
+          ? await tx.user.findFirst({ where: { schoolId: cmd.schoolId, role: 'PARENT', OR: contactFilters } })
           : null;
 
         let parentProfileId: string;
@@ -167,7 +167,7 @@ export class ValiderOnboardingUseCase {
         let compteExistant: boolean;
 
         if (existingParentUser) {
-          const existingProfile = await (tx as any).parentProfile.findUnique({ where: { userId: existingParentUser.id } });
+          const existingProfile = await tx.parentProfile.findUnique({ where: { userId: existingParentUser.id } });
           parentProfileId = existingProfile.id;
           parentUserId = existingParentUser.id;
           parentReset = null;
@@ -175,7 +175,7 @@ export class ValiderOnboardingUseCase {
         } else {
           parentReset = parentAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
           const parentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
-          const parentUser = await (tx as any).user.create({
+          const parentUser = await tx.user.create({
             data: {
               schoolId: cmd.schoolId,
               role: 'PARENT',
@@ -190,13 +190,13 @@ export class ValiderOnboardingUseCase {
               isActive: true,
             },
           });
-          const parentProfile = await (tx as any).parentProfile.create({ data: { userId: parentUser.id } });
+          const parentProfile = await tx.parentProfile.create({ data: { userId: parentUser.id } });
           parentProfileId = parentProfile.id;
           parentUserId = parentUser.id;
           compteExistant = false;
         }
 
-        await (tx as any).parentStudent.create({
+        await tx.parentStudent.create({
           data: { parentProfileId, studentProfileId: studentProfile.id },
         });
 
@@ -211,7 +211,7 @@ export class ValiderOnboardingUseCase {
         });
       }
 
-      await (tx as any).studentOnboarding.update({
+      await tx.studentOnboarding.update({
         where: { id: onboarding.id },
         data: {
           status: 'ACTIVATED',
@@ -223,7 +223,7 @@ export class ValiderOnboardingUseCase {
       });
 
       if (onboarding.examCandidateId) {
-        await (tx as any).entranceExamCandidate.update({
+        await tx.entranceExamCandidate.update({
           where: { id: onboarding.examCandidateId },
           data: { studentProfileId: studentProfile.id },
         });

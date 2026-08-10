@@ -55,5 +55,10 @@ export const getEffectiveSchoolSettings = async (schoolId?: string | null) => {
     locale: settings?.locale || "fr-CM",
     currency: settings?.currency || "XAF",
     maxAbsences: schoolConfig?.maxAbsences,
+    // Bug indépendant trouvé en retirant `(settings as any)?.bulletinTemplate` chez les deux
+    // appelants (ReportCardController.ts, adminActionCatalog.ts) : ce champ n'a jamais existé
+    // sur l'objet retourné ici, alors qu'il vit sur SchoolConfig — le fallback FR_SECONDARY
+    // était donc TOUJOURS utilisé, quelle que soit la config réelle de l'établissement.
+    bulletinTemplate: schoolConfig?.bulletinTemplate,
   };
 };

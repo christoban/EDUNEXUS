@@ -5,6 +5,7 @@ import type { CreerCanalParentsUseCase } from '@application/messagerie/CreerCana
 
 export interface CreerClasseCommande {
   schoolId: string;
+  academicYearId: string;
   name: string;
   level?: string;
   serie?: string;
@@ -42,6 +43,7 @@ export class CreerClasseUseCase {
 
     const classe = Classe.create({
       schoolId: commande.schoolId,
+      academicYearId: commande.academicYearId,
       name: commande.name,
       level: commande.level,
       serie: commande.serie,

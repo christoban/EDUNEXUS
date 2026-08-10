@@ -25,7 +25,7 @@ export class AffecterLV2EnMasseUseCase {
     }
 
     // Vérifier que tous les élèves appartiennent à cette école
-    const profiles = await (this.prisma as any).studentProfile.findMany({
+    const profiles = await this.prisma.studentProfile.findMany({
       where: {
         userId: { in: cmd.studentUserIds },
         user: { schoolId: cmd.schoolId },
@@ -36,7 +36,7 @@ export class AffecterLV2EnMasseUseCase {
     if (profiles.length === 0) return { modifies: 0 };
 
     const profileIds = profiles.map((p: any) => p.id);
-    const result = await (this.prisma as any).studentProfile.updateMany({
+    const result = await this.prisma.studentProfile.updateMany({
       where: { id: { in: profileIds } },
       data: { lv2SubjectId: cmd.lv2SubjectId },
     });

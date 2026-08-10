@@ -24,7 +24,7 @@ export interface NotifierUtilisateurPushOptions {
 
 async function isPushEnabledForUser(userId: string): Promise<boolean> {
   try {
-    const pref = await (prisma as any).notificationPreference.findUnique({ where: { userId } })
+    const pref = await prisma.notificationPreference.findUnique({ where: { userId } })
     // Pas encore de préférence enregistrée → défaut du schéma (activé)
     return pref ? pref.push : true
   } catch {
@@ -52,7 +52,7 @@ async function envoyerEtRapporter(opts: NotifierUtilisateurPushOptions): Promise
       return { delivered: false }
     }
 
-    const subscriptions = await (prisma as any).pushSubscription.findMany({ where: { userId: opts.userId } })
+    const subscriptions = await prisma.pushSubscription.findMany({ where: { userId: opts.userId } })
     if (subscriptions.length === 0) return { delivered: false }
 
     const results = await Promise.all(
@@ -65,14 +65,14 @@ async function envoyerEtRapporter(opts: NotifierUtilisateurPushOptions): Promise
         })
 
         if (result.status === 'expired') {
-          await (prisma as any).pushSubscription.delete({ where: { id: sub.id } }).catch(() => {
+          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {
             // Déjà supprimée entre-temps (double envoi concurrent) — sans conséquence.
           })
           return false
         }
 
         if (result.status === 'sent') {
-          await (prisma as any).pushSubscription
+          await prisma.pushSubscription
             .update({ where: { id: sub.id }, data: { lastSeenAt: new Date() } })
             .catch(() => {})
           return true

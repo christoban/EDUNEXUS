@@ -30,7 +30,7 @@ export class TransfererEleveUseCase {
       throw new Error('Classe de destination introuvable');
     }
     if (classeDestination.schoolId !== commande.schoolId) {
-      throw new Error("La classe de destination n'appartient pas à votre établissement");
+      throw new Error("Accès refusé : la classe de destination n'appartient pas à votre établissement");
     }
 
     const eleve = await this.userRepository.findById(commande.studentId);
@@ -38,7 +38,7 @@ export class TransfererEleveUseCase {
       throw new Error('Élève introuvable');
     }
     if (eleve.schoolId !== commande.schoolId) {
-      throw new Error('Élève hors de votre établissement');
+      throw new Error('Accès refusé : élève hors de votre établissement');
     }
 
     // Transfert + log dans StudentPromotion

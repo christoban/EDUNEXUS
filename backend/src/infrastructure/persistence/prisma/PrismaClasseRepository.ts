@@ -26,6 +26,19 @@ export class PrismaClasseRepository implements ClasseRepository {
     return data.map(d => this.toDomain(d));
   }
 
+  async findBySchoolAndYear(schoolId: string, academicYearId: string): Promise<Classe[]> {
+    const data = await this.prisma.class.findMany({ where: { schoolId, academicYearId } });
+    return data.map(d => this.toDomain(d));
+  }
+
+  async activerToutesDraft(schoolId: string, academicYearId: string): Promise<number> {
+    const { count } = await this.prisma.class.updateMany({
+      where: { schoolId, academicYearId, status: 'DRAFT' },
+      data: { status: 'ACTIVE' },
+    });
+    return count;
+  }
+
   async countEleves(classeId: string): Promise<number> {
     return this.prisma.studentProfile.count({
       where: { classId: classeId },
@@ -38,6 +51,7 @@ export class PrismaClasseRepository implements ClasseRepository {
       data: {
         id: data.id,
         schoolId: data.schoolId,
+        academicYearId: data.academicYearId,
         name: data.name,
         level: data.level,
         serie: data.serie,
@@ -45,6 +59,7 @@ export class PrismaClasseRepository implements ClasseRepository {
         sectionId: data.sectionId,
         capacity: data.capacity,
         professorPrincipalId: data.professorPrincipalId,
+        status: data.status,
         createdAt: data.createdAt,
       },
     });
@@ -62,6 +77,7 @@ export class PrismaClasseRepository implements ClasseRepository {
         sectionId: data.sectionId,
         capacity: data.capacity,
         professorPrincipalId: data.professorPrincipalId ?? null,
+        status: data.status,
       },
     });
   }
@@ -118,6 +134,7 @@ export class PrismaClasseRepository implements ClasseRepository {
     return Classe.reconstituer({
       id: data.id,
       schoolId: data.schoolId,
+      academicYearId: data.academicYearId,
       name: data.name,
       level: data.level ?? undefined,
       serie: data.serie ?? undefined,
@@ -125,6 +142,7 @@ export class PrismaClasseRepository implements ClasseRepository {
       sectionId: data.sectionId ?? undefined,
       capacity: data.capacity,
       professorPrincipalId: data.professorPrincipalId ?? undefined,
+      status: data.status,
       createdAt: data.createdAt,
     });
   }

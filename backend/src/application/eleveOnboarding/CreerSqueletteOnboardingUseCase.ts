@@ -21,7 +21,7 @@ export class CreerSqueletteOnboardingUseCase {
   async execute(cmd: CreerSqueletteOnboardingCommande): Promise<CreerSqueletteOnboardingResultat> {
     const sourceType = cmd.sourceType ?? 'AUTOSERVICE';
 
-    const settings = await (this.prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
+    const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
 
     // L'auto-service classique peut être désactivé par établissement, mais JAMAIS les flux
     // CONCOURS ou GROUPE_TRANSFERT — dans les deux cas, c'est un Admin (pas une famille) qui
@@ -79,7 +79,7 @@ export class CreerSqueletteOnboardingUseCase {
     const tokenExpiryDays = settings?.tokenExpiryDays ?? 14;
     const tokenExpiresAt = new Date(Date.now() + tokenExpiryDays * 24 * 60 * 60 * 1000);
 
-    const onboarding = await (this.prisma as any).studentOnboarding.create({
+    const onboarding = await this.prisma.studentOnboarding.create({
       data: {
         schoolId: cmd.schoolId,
         nomProvisoire: cmd.nomProvisoire,

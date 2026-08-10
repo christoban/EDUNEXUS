@@ -22,7 +22,7 @@ export class SuivreFenetreChoixLV2UseCase {
     pending: number;
     students: EleveSuivi[];
   }> {
-    const window = await (this.prisma as any).lv2ChoiceWindow.findUnique({
+    const window = await this.prisma.lv2ChoiceWindow.findUnique({
       where: { id: cmd.windowId },
     });
     if (!window) throw new Error('Fenêtre de choix introuvable');
@@ -36,7 +36,7 @@ export class SuivreFenetreChoixLV2UseCase {
     const classIds = classes.map(c => c.id);
     const classByName = new Map(classes.map(c => [c.id, c.name]));
 
-    const profiles = await (this.prisma as any).studentProfile.findMany({
+    const profiles = await this.prisma.studentProfile.findMany({
       where: { classId: { in: classIds }, studentStatus: 'ACTIVE' },
       select: {
         id: true,
@@ -47,7 +47,7 @@ export class SuivreFenetreChoixLV2UseCase {
     });
 
     // Récupérer les soumissions existantes
-    const submissions: any[] = await (this.prisma as any).lv2ChoiceSubmission.findMany({
+    const submissions: any[] = await this.prisma.lv2ChoiceSubmission.findMany({
       where: { windowId: cmd.windowId },
       include: { chosenSubject: { select: { name: true } } },
     });

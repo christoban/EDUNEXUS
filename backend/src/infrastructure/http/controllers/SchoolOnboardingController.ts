@@ -58,7 +58,7 @@ export class SchoolOnboardingController {
   // POST /api/master/schools/:id/approve
   approuverEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).masterUser;
+      const user = req.masterUser;
       const resultat = await this.approuver.execute({
         schoolId: req.params.id as string,
         masterAdminId: user.id,

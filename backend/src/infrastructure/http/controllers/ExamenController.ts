@@ -30,7 +30,7 @@ export class ExamenController {
       const schoolId = req.user!.schoolId;
       const studentId = String(req.params['studentId']);
 
-      const profile = await (this.prisma as any).studentProfile.findFirst({
+      const profile = await this.prisma.studentProfile.findFirst({
         where: { id: studentId, user: { schoolId } },
       });
       if (!profile) {
@@ -38,7 +38,7 @@ export class ExamenController {
         return;
       }
 
-      const registrations = await (this.prisma as any).examRegistration.findMany({
+      const registrations = await this.prisma.examRegistration.findMany({
         where: { studentId },
         orderBy: { createdAt: 'desc' },
       });
@@ -57,7 +57,7 @@ export class ExamenController {
         return;
       }
 
-      await (this.prisma as any).examRegistration.update({
+      await this.prisma.examRegistration.update({
         where: { id: examId },
         data: { numeroCandidatExamen, status: 'CONFIRMED' },
       });
@@ -78,7 +78,7 @@ export class ExamenController {
         return;
       }
 
-      await (this.prisma as any).examRegistration.update({
+      await this.prisma.examRegistration.update({
         where: { id: examId },
         data: {
           resultatStatus,

@@ -21,7 +21,7 @@ export class TimetableController {
 
   creerManuel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, academicYearId } = req.body;
 
       if (!classId || !academicYearId) {
@@ -42,7 +42,7 @@ export class TimetableController {
 
   ajouterSlot = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const resultat = await this.ajouterCreneau.execute({
         timetableId: req.params['id'] as string,
         schoolId: user.schoolId,
@@ -56,7 +56,7 @@ export class TimetableController {
 
   modifierSlot = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.modifierCreneau.execute({
         creneauId: req.params['slotId'] as string,
         timetableId: req.params['id'] as string,
@@ -71,7 +71,7 @@ export class TimetableController {
 
   publierEDT = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.publier.execute({
         timetableId: req.params['id'] as string,
         schoolId: user.schoolId,
@@ -83,7 +83,7 @@ export class TimetableController {
       });
       res.json({ success: true, message: 'Emploi du temps publié' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'publier_emploi_du_temps', targetType: 'Timetable', targetId: req.params['id'] as string,
@@ -96,7 +96,7 @@ export class TimetableController {
 
   demanderCours = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, proposedDate, proposedStartTime, proposedEndTime, reason } = req.body;
 
       if (!classId || !proposedDate) {
@@ -125,7 +125,7 @@ export class TimetableController {
       });
       res.json({ success: true, statut: 'pending' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'demander_rattrapage', origin: 'UI_DIRECT', outcome: 'ERREUR',

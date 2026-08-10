@@ -34,7 +34,7 @@ export class ListerAnnoncesUseCase {
           ],
     };
 
-    return (this.prisma as any).announcement.findMany({
+    return this.prisma.announcement.findMany({
       where,
       orderBy: [
         { isPinned: 'desc' },

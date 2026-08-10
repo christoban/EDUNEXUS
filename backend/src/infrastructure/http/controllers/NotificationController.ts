@@ -28,14 +28,14 @@ export class NotificationController {
       else if (isReadParam === 'false') where.isRead = false;
 
       const [notifications, total, unreadCount] = await Promise.all([
-        (prisma as any).notification.findMany({
+        prisma.notification.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           skip: (page - 1) * limit,
           take: limit,
         }),
-        (prisma as any).notification.count({ where }),
-        (prisma as any).notification.count({ where: { userId, schoolId, isRead: false } }),
+        prisma.notification.count({ where }),
+        prisma.notification.count({ where: { userId, schoolId, isRead: false } }),
       ]);
 
       res.json({
@@ -56,7 +56,7 @@ export class NotificationController {
       const id = String(req.params['id']);
 
       // Vérifie l'appartenance avant mutation (défense multi-tenant, voir CONVENTIONS.md §4.4)
-      const notif = await (prisma as any).notification.findUnique({ where: { id } });
+      const notif = await prisma.notification.findUnique({ where: { id } });
       if (!notif || notif.userId !== userId) {
         res.status(404).json({ success: false, message: 'Notification introuvable' });
         return;
@@ -72,7 +72,7 @@ export class NotificationController {
     try {
       const userId = req.user!.userId;
       const schoolId = req.user!.schoolId;
-      await (prisma as any).notification.updateMany({
+      await prisma.notification.updateMany({
         where: { userId, schoolId, isRead: false },
         data: { isRead: true },
       });

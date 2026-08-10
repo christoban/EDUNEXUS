@@ -164,7 +164,7 @@ async function resolvePlanFrais(ctx: ActionContext, name: string): Promise<{ id:
 }
 
 async function resolveEntranceExamSession(ctx: ActionContext, name: string): Promise<{ id: string; name: string }> {
-  const sessions = await (ctx.prisma as any).entranceExamSession.findMany({
+  const sessions = await ctx.prisma.entranceExamSession.findMany({
     where: { schoolId: ctx.schoolId },
     select: { id: true, name: true },
   });
@@ -177,7 +177,7 @@ async function resolveEntranceExamSession(ctx: ActionContext, name: string): Pro
 }
 
 async function resolvePebsSession(ctx: ActionContext, name: string): Promise<{ id: string; name: string }> {
-  const sessions = await (ctx.prisma as any).pebsExamSession.findMany({
+  const sessions = await ctx.prisma.pebsExamSession.findMany({
     where: { schoolId: ctx.schoolId },
     select: { id: true, name: true },
   });
@@ -208,8 +208,14 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         capacity: z.number().int().positive().optional().describe('Effectif maximum'),
       }),
       async execute(input, ctx) {
+        const anneeCourante = await ctx.prisma.academicYear.findFirst({
+          where: { schoolId: ctx.schoolId, isCurrent: true },
+          select: { id: true },
+        });
+        if (!anneeCourante) throw new Error('Aucune année académique courante — impossible de créer une classe.');
         const r = await deps.creerClasse.execute({
           schoolId: ctx.schoolId,
+          academicYearId: anneeCourante.id,
           name: input.name,
           level: input.level,
           serie: input.serie,
@@ -450,7 +456,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         };
       },
       async undo(_params, undoData, ctx) {
-        await (ctx.prisma as any).entranceExamSession.delete({ where: { id: String(undoData.sessionId) } });
+        await ctx.prisma.entranceExamSession.delete({ where: { id: String(undoData.sessionId) } });
       },
     },
 
@@ -492,7 +498,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         };
       },
       async undo(_params, undoData, ctx) {
-        await (ctx.prisma as any).pebsExamSession.delete({ where: { id: String(undoData.sessionId) } });
+        await ctx.prisma.pebsExamSession.delete({ where: { id: String(undoData.sessionId) } });
       },
     },
 
@@ -527,7 +533,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         };
       },
       async undo(_params, undoData, ctx) {
-        await (ctx.prisma as any).lv2ChoiceWindow.update({ where: { id: String(undoData.windowId) }, data: { status: 'CLOSED' } });
+        await ctx.prisma.lv2ChoiceWindow.update({ where: { id: String(undoData.windowId) }, data: { status: 'CLOSED' } });
       },
     },
 
@@ -541,7 +547,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       requiredPermission: null,
       inputSchema: z.object({}),
       async execute(_input, ctx) {
-        const candidats = await (ctx.prisma as any).entranceExamCandidate.findMany({
+        const candidats = await ctx.prisma.entranceExamCandidate.findMany({
           where: { admissionStatus: 'ADMIS_PROVISOIRE', session: { schoolId: ctx.schoolId } },
           select: { firstName: true, lastName: true, session: { select: { name: true } } },
         });
@@ -978,12 +984,12 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
           classId: classe.id,
           academicPeriodId: period.id,
           academicYearId: year.id,
-          template: (settings as any)?.bulletinTemplate ?? 'FR_SECONDARY',
+          template: settings.bulletinTemplate ?? 'FR_SECONDARY',
           nomEtablissement: school?.name ?? 'Établissement',
           demandeurId: ctx.userId,
         });
         return {
-          resultLabel: `Bulletins générés pour ${classe.name} (${(r as any).bulletinsGeneres ?? '—'} bulletin(s)), période ${period.name}`,
+          resultLabel: `Bulletins générés pour ${classe.name} (${r.bulletinsGeneres} bulletin(s)), période ${period.name}`,
           section: 'bulletins',
           entity: 'reportCard',
         };
@@ -1142,7 +1148,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const period = await resolveCurrentPeriod(ctx);
-        const session = await (ctx.prisma as any).classCouncilSession.findFirst({
+        const session = await ctx.prisma.classCouncilSession.findFirst({
           where: { classId: classe.id, academicPeriodId: period.id },
           select: { status: true },
         });
@@ -1257,7 +1263,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async execute(_input, ctx) {
         const period = await resolveCurrentPeriod(ctx);
         const classes = await ctx.prisma.class.findMany({ where: { schoolId: ctx.schoolId }, select: { id: true, name: true } });
-        const sessions = await (ctx.prisma as any).classCouncilSession.findMany({
+        const sessions = await ctx.prisma.classCouncilSession.findMany({
           where: { schoolId: ctx.schoolId, academicPeriodId: period.id, status: 'LOCKED' },
           select: { classId: true },
         });
@@ -1985,7 +1991,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       }),
       async execute(input, ctx) {
         const classe = input.className ? await resolveClass(ctx, input.className) : null;
-        const config = await (ctx.prisma as any).schoolConfig
+        const config = await ctx.prisma.schoolConfig
           .findUnique({ where: { schoolId: ctx.schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
           .catch(() => null);
         const warningThreshold = config?.aiRiskThreshold ?? 50;
@@ -2046,7 +2052,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         });
         const score = profile?.healthScore ?? 75;
 
-        const conseil = await (ctx.prisma as any).studentRecommendation.findFirst({
+        const conseil = await ctx.prisma.studentRecommendation.findFirst({
           where: { studentId: student.id, recipientRole: 'TEACHER' },
           orderBy: { createdAt: 'desc' },
           select: { content: true, contextType: true, createdAt: true },

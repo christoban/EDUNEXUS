@@ -16,7 +16,7 @@ export class ModifierAnnonceUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: ModifierAnnonceCommande) {
-    const annonce = await (this.prisma as any).announcement.findFirst({
+    const annonce = await this.prisma.announcement.findFirst({
       where: { id: cmd.announcementId, schoolId: cmd.schoolId },
       select: { id: true, authorId: true },
     });
@@ -48,7 +48,7 @@ export class ModifierAnnonceUseCase {
       throw new Error('La date d\'expiration doit être future ou absente.');
     }
 
-    return (this.prisma as any).announcement.update({
+    return this.prisma.announcement.update({
       where: { id: annonce.id },
       data: {
         title,

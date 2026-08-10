@@ -83,7 +83,7 @@ async function appelerGroqTexte(prompt: string, maxTokens: number): Promise<stri
     signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as any;
+  const data = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
   const contenu = data?.choices?.[0]?.message?.content;
   return typeof contenu === 'string' ? retirerBalisesReflexion(contenu) : null;
 }
@@ -109,7 +109,7 @@ async function appelerGroqVision(prompt: string, imageBase64: string, mimeType: 
     signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as any;
+  const data = (await res.json()) as { choices?: { message?: { content?: unknown } }[] };
   const contenu = data?.choices?.[0]?.message?.content;
   return typeof contenu === 'string' ? retirerBalisesReflexion(contenu) : null;
 }

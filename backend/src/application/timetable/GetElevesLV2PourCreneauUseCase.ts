@@ -29,7 +29,7 @@ export class GetElevesLV2PourCreneauUseCase {
 
     const classId = slot.timetable.classId;
 
-    const tousLesEleves: EleveLV2[] = await (this.prisma as any).user.findMany({
+    const tousLesEleves: EleveLV2[] = await this.prisma.user.findMany({
       where: {
         schoolId,
         role: 'STUDENT',
@@ -50,7 +50,7 @@ export class GetElevesLV2PourCreneauUseCase {
       lv2SubjectId: u.studentProfile?.lv2SubjectId ?? null,
     })));
 
-    const isLV2 = (slot as any).isLV2Slot ?? false;
+    const isLV2 = slot.isLV2Slot ?? false;
 
     // Si slot LV2 : ne retourner que les élèves dont lv2SubjectId = slot.subjectId
     const eleves = isLV2 && slot.subjectId

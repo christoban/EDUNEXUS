@@ -26,7 +26,7 @@ export class MatriculeController {
     try {
       const schoolId = req.user!.schoolId;
       const uploadedBy = req.user!.userId;
-      const file = (req as any).file as Express.Multer.File;
+      const file = req.file as Express.Multer.File;
       if (!file) {
         res.status(400).json({ success: false, message: 'Fichier requis' });
         return;
@@ -51,7 +51,7 @@ export class MatriculeController {
   listJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const jobs = await (this.prisma as any).matriculeImportJob.findMany({
+      const jobs = await this.prisma.matriculeImportJob.findMany({
         where: { schoolId },
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -64,7 +64,7 @@ export class MatriculeController {
   getJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const jobId = String(req.params['id']);
-      const job = await (this.prisma as any).matriculeImportJob.findUnique({ where: { id: jobId } });
+      const job = await this.prisma.matriculeImportJob.findUnique({ where: { id: jobId } });
       if (!job) {
         res.status(404).json({ success: false, message: 'Job introuvable' });
         return;
@@ -84,7 +84,7 @@ export class MatriculeController {
         return;
       }
 
-      const profile = await (this.prisma as any).studentProfile.findFirst({
+      const profile = await this.prisma.studentProfile.findFirst({
         where: { id: studentId, user: { schoolId } },
       });
       if (!profile) {
@@ -92,7 +92,7 @@ export class MatriculeController {
         return;
       }
 
-      await (this.prisma as any).studentProfile.update({
+      await this.prisma.studentProfile.update({
         where: { id: studentId },
         data: { matricule, matriculeSource: 'MANUAL' },
       });
@@ -111,7 +111,7 @@ export class MatriculeController {
         return;
       }
 
-      const profile = await (this.prisma as any).studentProfile.findFirst({
+      const profile = await this.prisma.studentProfile.findFirst({
         where: { id: studentProfileId, user: { schoolId } },
       });
       if (!profile) {
@@ -119,7 +119,7 @@ export class MatriculeController {
         return;
       }
 
-      await (this.prisma as any).studentProfile.update({
+      await this.prisma.studentProfile.update({
         where: { id: studentProfileId },
         data: { matricule, matriculeSource: 'MANUAL' },
       });

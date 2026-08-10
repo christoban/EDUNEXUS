@@ -19,20 +19,20 @@ export const validate = (schemas: SchemaBundle) => {
       }
 
       if (schemas.query) {
-        const parsedQuery = schemas.query.parse(req.query) as any;
+        const parsedQuery = schemas.query.parse(req.query);
 
         // In Express 5, req.query can be implemented as a getter-only property
         // depending on runtime internals, so direct assignment may throw.
         try {
           req.query = parsedQuery;
         } catch {
-          (req as any).validatedQuery = parsedQuery;
+          req.validatedQuery = parsedQuery;
         }
       }
 
       return next();
     } catch (error) {
-      if (error instanceof ZodError || (error as any)?.name === "ZodError") {
+      if (error instanceof ZodError || (error as Error)?.name === "ZodError") {
         const issues = (error as ZodError).issues || [];
         return res.status(400).json({
           message: "Validation failed",

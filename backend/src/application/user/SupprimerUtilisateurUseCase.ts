@@ -17,7 +17,7 @@ export class SupprimerUtilisateurUseCase {
     demandeurId: string;
   }): Promise<void> {
     if (params.demandeurRole !== 'ADMIN') {
-      throw new Error('Seul un Admin peut supprimer un utilisateur');
+      throw new Error('Accès refusé : seul un Admin peut supprimer un utilisateur');
     }
 
     const user = await this.userRepository.findById(params.userId);

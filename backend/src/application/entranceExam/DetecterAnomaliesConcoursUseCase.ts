@@ -11,13 +11,13 @@ export class DetecterAnomaliesConcoursUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(schoolId: string, sessionId: string): Promise<{ anomalies: Anomalie[] }> {
-    const session = await (this.prisma as any).entranceExamSession.findUnique({
+    const session = await this.prisma.entranceExamSession.findUnique({
       where: { id: sessionId },
     });
     if (!session) throw new Error('Session de concours introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 
-    const candidates: any[] = await (this.prisma as any).entranceExamCandidate.findMany({
+    const candidates: any[] = await this.prisma.entranceExamCandidate.findMany({
       where: { sessionId },
       orderBy: { lastName: 'asc' },
     });

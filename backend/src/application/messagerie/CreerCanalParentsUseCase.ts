@@ -11,12 +11,12 @@ export class CreerCanalParentsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: CreerCanalParentsCommande) {
-    const existant = await (this.prisma as any).conversation.findFirst({
+    const existant = await this.prisma.conversation.findFirst({
       where: { schoolId: cmd.schoolId, classId: cmd.classId, type: 'PARENT_CHANNEL' },
     });
     if (existant) return existant;
 
-    return (this.prisma as any).conversation.create({
+    return this.prisma.conversation.create({
       data: {
         schoolId: cmd.schoolId,
         classId: cmd.classId,

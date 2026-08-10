@@ -11,7 +11,7 @@ export class SchoolSettingsController {
   // GET /api/v2/school-settings
   getSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const settings = await this.obtenir.execute(user.schoolId);
       res.json({ success: true, data: settings });
     } catch (error) {
@@ -22,7 +22,7 @@ export class SchoolSettingsController {
   // PUT /api/v2/school-settings
   updateSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.mettreAJour.execute({
         schoolId: user.schoolId,
         demandeurRole: user.role,

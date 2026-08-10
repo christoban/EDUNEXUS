@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { ZipArchive } from 'archiver';
 import type { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinUseCase';
 import type { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
 import type { IAService } from '@domain/ports/services/IAService';
@@ -22,7 +23,7 @@ export class ReportCardController {
   // POST /api/v2/report-cards/generate
   genererBulletins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       let { classId, academicPeriodId, academicYearId, template, nomEtablissement, logoUrl } = req.body;
 
       if (!classId) {
@@ -49,7 +50,7 @@ export class ReportCardController {
       }
       if (!template) {
         const settings = await getEffectiveSchoolSettings(user.schoolId);
-        template = (settings as any)?.bulletinTemplate ?? 'FR_SECONDARY';
+        template = settings.bulletinTemplate ?? 'FR_SECONDARY';
       }
       if (!nomEtablissement) {
         const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { name: true } });
@@ -107,7 +108,7 @@ export class ReportCardController {
         })()
       }
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'generer_bulletins_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -128,7 +129,7 @@ export class ReportCardController {
   // POST /api/v2/report-cards/send
   envoyerBulletins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, academicPeriodId, nomEtablissement, nomPeriode } = req.body;
 
       if (!classId || !academicPeriodId || !nomEtablissement || !nomPeriode) {
@@ -156,7 +157,7 @@ export class ReportCardController {
       });
       res.json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'envoyer_bulletins_parents', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -169,7 +170,7 @@ export class ReportCardController {
   // GET /api/v2/report-cards/check/:classId
   verifierDisponibilite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const classId = req.params.classId as string;
       let periodId = req.query.periodId as string | undefined;
 
@@ -237,7 +238,7 @@ export class ReportCardController {
   // POST /api/v2/report-cards/export/:classId
   exporterZip = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId } = req.params;
       const { academicPeriodId } = req.body;
 
@@ -251,7 +252,12 @@ export class ReportCardController {
         include: {
           academicYear: true,
           academicPeriod: true,
-          student: { select: { id: true, firstName: true, lastName: true } },
+          student: {
+            select: {
+              id: true, firstName: true, lastName: true,
+              studentProfile: { select: { class: { select: { name: true } } } },
+            },
+          },
           subjectLines: { orderBy: { subjectName: 'asc' } },
           school: { include: { schoolConfig: true } },
           section: { select: { code: true } },
@@ -268,23 +274,29 @@ export class ReportCardController {
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="bulletins-${classId}-${academicPeriodId}.zip"`);
 
-      // CommonJS interop — archiver ne dispose pas d'exports ESM
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const archiver = require('archiver');
-      const archive = archiver('zip', { zlib: { level: 6 } });
+      // Bug indépendant trouvé en écrivant le test de cette route : archiver@8 (package.json)
+      // est ESM-only et n'exporte plus de fonction factory callable (`archiver('zip', ...)`) —
+      // seulement des classes nommées (ZipArchive, TarArchive...). Le `require('archiver')`
+      // ci-dessus retournait l'objet Module entier, jamais une fonction — cette route n'a donc
+      // jamais produit le moindre ZIP, dans aucun environnement (le cast `as any` d'origine sur
+      // reportCard masquait ce fait, mais n'en était pas la cause : TypeError à l'exécution).
+      const archive = new ZipArchive({ zlib: { level: 6 } });
       archive.pipe(res);
 
       for (const reportCard of reportCards) {
         const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`.trim();
         const template = (reportCard.template ?? 'FR_SECONDARY') as BulletinTemplate;
-        const langue = resolveLanguage((reportCard as any).school?.subsystem, (reportCard as any).section?.code ?? null);
+        const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.section?.code ?? null);
 
         const pdfBuffer = await generateBulletinPdf(template, {
           schoolName: settings.schoolName ?? 'École',
           schoolMotto: settings.schoolMotto ?? '',
           logoUrl: settings.schoolLogoUrl ?? undefined,
           studentName,
-          className: (reportCard as any).class?.name ?? '—',
+          // Bug indépendant : ReportCard n'a pas de relation `class` directe (uniquement via
+          // student.studentProfile.class) — `(reportCard as any).class` était toujours
+          // undefined, chaque PDF exporté affichait "—" au lieu du vrai nom de classe.
+          className: reportCard.student.studentProfile?.class?.name ?? '—',
           periodName: reportCard.academicPeriod?.name ?? '—',
           yearName: reportCard.academicYear?.name ?? '—',
           generalAverage: reportCard.generalAverage ?? 0,
@@ -332,7 +344,7 @@ export class ReportCardController {
   // Un Admin peut aussi corriger un commentaire.
   ajouterCommentaire = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const role: string = (user.role as string).toUpperCase();
       const { classMasterComment } = req.body;
 
@@ -346,7 +358,7 @@ export class ReportCardController {
         include: {
           student: { include: { studentProfile: { include: { class: { select: { professorPrincipalId: true } } } } } },
         },
-      }) as any;
+      });
 
       if (!reportCard) {
         res.status(404).json({ success: false, message: 'Bulletin introuvable' });
@@ -382,7 +394,7 @@ export class ReportCardController {
   // Réservé au Professeur Principal de la classe ou à un Admin (même règle que /comment).
   genererCommentaireIA = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const role: string = (user.role as string).toUpperCase();
 
       const reportCard = await prisma.reportCard.findFirst({
@@ -400,7 +412,7 @@ export class ReportCardController {
             },
           },
         },
-      }) as any;
+      });
 
       if (!reportCard) {
         res.status(404).json({ success: false, message: 'Bulletin introuvable' });
@@ -460,7 +472,7 @@ export class ReportCardController {
   // GET /api/v2/report-cards/my
   mesBulletins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const yearId = req.query.yearId as string | undefined;
 
       const reportCards = await prisma.reportCard.findMany({
@@ -482,7 +494,7 @@ export class ReportCardController {
   // GET /api/v2/report-cards
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const role: string = (user.role as string).toUpperCase();
       const page = Math.max(1, Number(req.query.page) || 1);
       const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
@@ -535,7 +547,7 @@ export class ReportCardController {
   // GET /api/v2/report-cards/:id/pdf
   telechargerPdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const role: string = (user.role as string).toUpperCase();
 
       const reportCard = await prisma.reportCard.findFirst({
@@ -547,7 +559,7 @@ export class ReportCardController {
           subjectLines: { orderBy: { subjectName: 'asc' } },
           school: { include: { schoolConfig: true, schoolSettings: true } },
         },
-      }) as any;
+      });
 
       if (!reportCard) {
         res.status(404).json({ success: false, message: 'Bulletin introuvable' });

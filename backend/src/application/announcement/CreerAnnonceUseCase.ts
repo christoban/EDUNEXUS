@@ -35,7 +35,7 @@ export class CreerAnnonceUseCase {
       throw new Error('La date d\'expiration doit être future ou absente.');
     }
 
-    return (this.prisma as any).announcement.create({
+    return this.prisma.announcement.create({
       data: {
         schoolId: cmd.schoolId,
         authorId: cmd.authorId,

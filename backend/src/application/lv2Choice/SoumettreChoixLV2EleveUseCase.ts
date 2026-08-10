@@ -6,7 +6,7 @@ export class SoumettreChoixLV2EleveUseCase {
 
   async execute(cmd: SoumettreChoixCommande): Promise<void> {
     // Récupérer le profil élève
-    const profile = await (this.prisma as any).studentProfile.findFirst({
+    const profile = await this.prisma.studentProfile.findFirst({
       where: { user: { id: cmd.studentUserId, schoolId: cmd.schoolId } },
       include: { user: { select: { schoolId: true } } },
     });
@@ -16,7 +16,7 @@ export class SoumettreChoixLV2EleveUseCase {
     const classe = await this.prisma.class.findUnique({ where: { id: profile.classId } });
     if (!classe) throw new Error('Classe introuvable');
 
-    const window = await (this.prisma as any).lv2ChoiceWindow.findFirst({
+    const window = await this.prisma.lv2ChoiceWindow.findFirst({
       where: {
         schoolId: cmd.schoolId,
         level: classe.level,
@@ -34,7 +34,7 @@ export class SoumettreChoixLV2EleveUseCase {
     if (!subject) throw new Error('Matière introuvable');
 
     // Upsert : si déjà soumis, mettre à jour le choix
-    await (this.prisma as any).lv2ChoiceSubmission.upsert({
+    await this.prisma.lv2ChoiceSubmission.upsert({
       where: {
         windowId_studentProfileId: { windowId: window.id, studentProfileId: profile.id },
       },

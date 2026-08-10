@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IOrientationRepository, FicheListItem, FicheDetail, EntretienDetail, TestDetail, RecommandationDetail, SuiviDetail, OrientationStats, ListeFichesFilters, CheckpointConfigDetail, AspirationDetail } from '@domain/ports/repositories/IOrientationRepository';
 import { FicheOrientation } from '@domain/entities/FicheOrientation';
 import type { NiveauRisque, TypePreoccupation, TypeEntretien, MotifEntretien, StatutEntretien, TypeTest, StatutRecommandation, OrientationCheckpointType, ConfidenceLevel } from '@domain/entities/FicheOrientation';
@@ -254,7 +254,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       serieRecommandee: topTrack,
       justification: data.justification,
       checkpointType: data.checkpointType,
-      suggestedTracks: data.suggestedTracks as any,
+      suggestedTracks: data.suggestedTracks as Prisma.InputJsonValue,
       confidenceLevel: data.confidenceLevel,
       dataDepthMonths: data.dataDepthMonths,
       status: 'CALCULEE' as StatutRecommandation,
@@ -316,7 +316,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     const existing = Array.isArray(reco?.remindersSentAt) ? (reco!.remindersSentAt as string[]) : [];
     await this.prisma.recommandationSerie.update({
       where: { id: recommandationId },
-      data: { remindersSentAt: [...existing, new Date().toISOString()] as any },
+      data: { remindersSentAt: [...existing, new Date().toISOString()] as Prisma.InputJsonValue },
     });
   }
 
@@ -347,8 +347,8 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     const config = await this.prisma.orientationCheckpointConfig.upsert({
       where: { schoolId_type: { schoolId, type } },
       update: {
-        possibleTracks: data.possibleTracks as any,
-        relevantSubjects: data.relevantSubjects as any,
+        possibleTracks: data.possibleTracks as Prisma.InputJsonValue,
+        relevantSubjects: data.relevantSubjects as Prisma.InputJsonValue,
         psychotechnicalTestRequired: data.psychotechnicalTestRequired,
         windowStartMonth: data.windowStartMonth,
         windowStartDay: data.windowStartDay,
@@ -358,8 +358,8 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       },
       create: {
         schoolId, type,
-        possibleTracks: data.possibleTracks as any,
-        relevantSubjects: data.relevantSubjects as any,
+        possibleTracks: data.possibleTracks as Prisma.InputJsonValue,
+        relevantSubjects: data.relevantSubjects as Prisma.InputJsonValue,
         psychotechnicalTestRequired: data.psychotechnicalTestRequired,
         windowStartMonth: data.windowStartMonth,
         windowStartDay: data.windowStartDay,

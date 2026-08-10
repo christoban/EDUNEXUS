@@ -51,7 +51,7 @@ export class PaiementMinesecController {
       const anneeScolaire = String(req.params['anneeScolaire']);
 
       // Vérifier que l'élève appartient à l'école
-      const profile = await (this.prisma as any).studentProfile.findFirst({
+      const profile = await this.prisma.studentProfile.findFirst({
         where: { id: studentId, user: { schoolId } },
       });
       if (!profile) {
@@ -59,7 +59,7 @@ export class PaiementMinesecController {
         return;
       }
 
-      const paiements = await (this.prisma as any).paiementMinesec.findMany({
+      const paiements = await this.prisma.paiementMinesec.findMany({
         where: { studentId, anneeScolaire },
         orderBy: { typeFrais: 'asc' },
       });
@@ -98,13 +98,13 @@ export class PaiementMinesecController {
       const schoolId = req.user!.schoolId;
       const now = new Date();
 
-      const impayesMinesec = await (this.prisma as any).paiementMinesec.findMany({
+      const impayesMinesec = await this.prisma.paiementMinesec.findMany({
         where: { schoolId, status: 'IMPAYE', dateEcheance: { lt: now } },
         include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
         orderBy: { dateEcheance: 'asc' },
       });
 
-      const impayesEtab = await (this.prisma as any).paiementEtablissement.findMany({
+      const impayesEtab = await this.prisma.paiementEtablissement.findMany({
         where: { schoolId, status: 'IMPAYE' },
         include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
       });

@@ -140,6 +140,29 @@ describe('SaisirNoteUseCase', () => {
       const resultat = await useCase.execute({ ...commandeBase(), sequenceScore: 0 });
       expect(resultat.statut).toBe('DRAFT');
     });
+
+    it('stampe automatiquement le coefficient de la matière sur la note (scénario B)', async () => {
+      const teacher = creerEnseignantActif();
+      userRepo.ajouter(teacher);
+      await assignerEnseignantALaClasse();
+      // Fixture : matière SUBJECT_ID a coefficient: 4 (voir beforeEach)
+
+      await useCase.execute(commandeBase());
+      const note = await noteRepo.findByEleveEtMatiere(STUDENT_ID, SUBJECT_ID, SEQ_ID);
+
+      expect(note?.coefficient).toBe(4);
+    });
+
+    it('un coefficient explicite dans la commande reste prioritaire sur celui de la matière', async () => {
+      const teacher = creerEnseignantActif();
+      userRepo.ajouter(teacher);
+      await assignerEnseignantALaClasse();
+
+      await useCase.execute({ ...commandeBase(), coefficient: 2 });
+      const note = await noteRepo.findByEleveEtMatiere(STUDENT_ID, SUBJECT_ID, SEQ_ID);
+
+      expect(note?.coefficient).toBe(2);
+    });
   });
 
   describe('Admin — bypass assignation', () => {

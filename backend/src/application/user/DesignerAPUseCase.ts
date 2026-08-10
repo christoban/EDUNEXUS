@@ -20,7 +20,7 @@ export class DesignerAPUseCase {
 
   async execute(commande: DesignerAPCommande): Promise<void> {
     if (commande.demandeurRole !== 'ADMIN') {
-      throw new Error('Seul un Admin peut désigner un Animateur Pédagogique');
+      throw new Error('Accès refusé : seul un Admin peut désigner un Animateur Pédagogique');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -30,7 +30,7 @@ export class DesignerAPUseCase {
 
     if (!user) throw new Error('Utilisateur introuvable');
     if (user.schoolId !== commande.schoolId) {
-      throw new Error("Cet utilisateur n'appartient pas à votre établissement");
+      throw new Error("Accès refusé : cet utilisateur n'appartient pas à votre établissement");
     }
     if (user.role !== 'TEACHER') {
       throw new Error(

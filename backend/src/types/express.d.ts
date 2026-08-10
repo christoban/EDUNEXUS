@@ -10,6 +10,10 @@ declare global {
         role: string;
         [key: string]: any;
       } | null;
+
+      // Fallback set by middleware/validate.ts when req.query is a getter-only property
+      // (observed on some Express 5 runtime internals) and direct assignment throws.
+      validatedQuery?: any;
     }
   }
 }

@@ -5,7 +5,7 @@
  * Transaction atomique : crée l'année scolaire, les périodes, séquences, classes,
  * et copie les formules/mentions du template dans l'école.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, SubjectType, FeeType, Prisma } from '@prisma/client';
 import {
   assignerMatieresPourClasse,
   parseSerie,
@@ -46,13 +46,16 @@ export class ActiverEtablissementUseCase {
       throw new Error(`L'établissement doit être approuvé avant d'être activé (statut actuel : ${school.status})`);
     }
 
-    const config = school.onboardingConfig as any;
+    // Blob JSON libre saisi via le formulaire d'onboarding, jamais formellement schématisé
+    // (aucun schéma zod dédié) — Record<string, unknown> plutôt que any pour forcer un
+    // contrôle explicite (Array.isArray, typeof, cast ciblé) à chaque site de lecture.
+    const config = (school.onboardingConfig ?? {}) as Record<string, unknown>;
 
     // Derive SchoolConfig overrides from new onboarding fields
-    const enGradingSystem: string | undefined = config?.enGradingSystem;
-    const bulletinFrequency: string | undefined = config?.bulletinFrequency;
-    const evalSystemPrimaire: string | undefined = config?.evalSystemPrimaire;
-    const templateCode: string | undefined = config?.templateCode;
+    const enGradingSystem = config.enGradingSystem as string | undefined;
+    const bulletinFrequency = config.bulletinFrequency as string | undefined;
+    const evalSystemPrimaire = config.evalSystemPrimaire as string | undefined;
+    const templateCode = config.templateCode as string | undefined;
 
     // passMark: 50 for /100 grading, 10 otherwise
     const passMark = enGradingSystem === 'OVER_100' ? 50 : 10;
@@ -106,9 +109,9 @@ export class ActiverEtablissementUseCase {
       // Calendrier configurable (onboarding conversationnel) avec repli sur les valeurs par défaut
       // pour l'ancien chemin d'activation (config sans champs calendrier).
       const now = new Date();
-      const yStart = config?.academicYearStart ? new Date(config.academicYearStart) : new Date(`${now.getFullYear()}-09-01`);
+      const yStart = config.academicYearStart ? new Date(config.academicYearStart as string) : new Date(`${now.getFullYear()}-09-01`);
       const startYear = yStart.getFullYear();
-      const yEnd = config?.academicYearEnd ? new Date(config.academicYearEnd) : new Date(`${startYear + 1}-06-30`);
+      const yEnd = config.academicYearEnd ? new Date(config.academicYearEnd as string) : new Date(`${startYear + 1}-06-30`);
       academicYearName = `${startYear}-${yEnd.getFullYear()}`;
       const academicYear = await tx.academicYear.create({
         data: {
@@ -214,10 +217,11 @@ export class ActiverEtablissementUseCase {
       if (config) {
 
         // 4a. 1er cycle (filière technique propre OU filière PEBS/GENERAL)
-        if (config.niveaux1erCycle?.length > 0) {
-          const conv = config.conventionNommage ?? 'LETTRES';
-          const filieresTech: string[] = config.filieresTechniques ?? [];
-          for (const niveau of config.niveaux1erCycle) {
+        const niveaux1erCycle = (config.niveaux1erCycle as string[] | undefined) ?? [];
+        if (niveaux1erCycle.length > 0) {
+          const conv = (config.conventionNommage as string | undefined) ?? 'LETTRES';
+          const filieresTech: string[] = (config.filieresTechniques as string[] | undefined) ?? [];
+          for (const niveau of niveaux1erCycle) {
             if (isTechnique && filieresTech.length > 0) {
               // Lycées techniques / CETIC : une classe par combinaison (niveau × filière)
               // La filière (ex: 'F1', 'G2' FR ou 'STT', 'IND' EN) doit correspondre aux
@@ -281,15 +285,18 @@ export class ActiverEtablissementUseCase {
         }
 
         // Auto-ajouter ABI si PEBS Francophone activé et ABI pas déjà sélectionnée
+        let filieres = (config.filieres as string[] | undefined) ?? [];
         if (hasPEBSFrancophone) {
-          const hasABI = config.filieres?.some((f: string) => /^ABI/.test(f));
+          const hasABI = filieres.some((f: string) => /^ABI/.test(f));
           if (!hasABI) {
-            config.filieres = [...(config.filieres ?? []), 'ABI — A Bilingue (Intensive English)'];
+            filieres = [...filieres, 'ABI — A Bilingue (Intensive English)'];
           }
         }
 
-        if (config.niveaux2eCycle?.length > 0 && config.filieres?.length > 0) {
-          const nbClasses = config.classesParFiliere === '3+' ? 3 : parseInt(config.classesParFiliere ?? '1');
+        const niveaux2eCycle = (config.niveaux2eCycle as string[] | undefined) ?? [];
+        const classesParFiliere = config.classesParFiliere as string | undefined;
+        if (niveaux2eCycle.length > 0 && filieres.length > 0) {
+          const nbClasses = classesParFiliere === '3+' ? 3 : parseInt(classesParFiliere ?? '1');
 
           // Pré-charger les combinaisons (niveauBac, serie) valides — source de vérité MINESEC
           const bacCombosRaw = await tx.bacCoefficient.findMany({
@@ -305,7 +312,7 @@ export class ActiverEtablissementUseCase {
             ? (streamStartMap[config.enStreamStartLevel as string] ?? null)
             : null;
 
-          for (const niveau of config.niveaux2eCycle) {
+          for (const niveau of niveaux2eCycle) {
             const niveauBac = NIVEAU_MAP[niveau];
             // Anglophone : level sans espaces pour matcher AnglophoneSubjectLoad
             const levelNorm2 = isAnglophone ? niveau.replace(/\s+/g, '') : niveau;
@@ -320,13 +327,14 @@ export class ActiverEtablissementUseCase {
               }
             }
 
-            for (const filiere of config.filieres) {
+            for (const filiere of filieres) {
               if (niveau === '2nde' && estFiliereTechnique(filiere)) continue;
 
               if (filiere.startsWith('A4') || filiere.includes('A4')) {
                 // Vérifie que A4 existe à ce niveau avant de créer
                 if (niveauBac && !validBacCombos.has(`${niveauBac}|A4`)) continue;
-                const langs = config.a4Languages?.length ? config.a4Languages : ['LV'];
+                const a4Languages = config.a4Languages as string[] | undefined;
+                const langs = a4Languages?.length ? a4Languages : ['LV'];
                 for (const lang of langs) {
                   classesACreer.push({ name: `${niveau} A4-${lang}`, level: levelNorm2, schoolId, serie: `A4-${lang}` });
                 }
@@ -346,9 +354,9 @@ export class ActiverEtablissementUseCase {
         // 4b-bis. GTC_GTHS_EN — 2e cycle technique anglophone (LowerSixth/UpperSixth × STT/IND).
         // Miroir du 1er cycle technique (4a) mais pour niveaux2eCycle : les coefficients
         // viennent d'AnglophoneSubjectLoad (filiere STT/IND), jamais de BacCoefficient (francophone).
-        if (templateCode === 'GTC_GTHS_EN' && config.niveaux2eCycle?.length > 0) {
-          const filieresTechGths: string[] = config.filieresTechniques ?? [];
-          for (const niveau of config.niveaux2eCycle as string[]) {
+        if (templateCode === 'GTC_GTHS_EN' && niveaux2eCycle.length > 0) {
+          const filieresTechGths: string[] = (config.filieresTechniques as string[] | undefined) ?? [];
+          for (const niveau of niveaux2eCycle) {
             const levelNormTech2 = niveau.replace(/\s+/g, '');
             for (const fil of filieresTechGths) {
               classesACreer.push({ name: `${niveau} ${fil}`, level: levelNormTech2, schoolId, filiere: fil });
@@ -357,9 +365,10 @@ export class ActiverEtablissementUseCase {
         }
 
         // 4c. LYCEE_BILINGUE — EN section classes
-        if (config.templateCode === 'LYCEE_BILINGUE' && config.bilingualEnLevels?.length > 0) {
-          const enFilieres: string[] = config.bilingualEnFilieres ?? [];
-          for (const niveau of config.bilingualEnLevels as string[]) {
+        const bilingualEnLevels = (config.bilingualEnLevels as string[] | undefined) ?? [];
+        if (templateCode === 'LYCEE_BILINGUE' && bilingualEnLevels.length > 0) {
+          const enFilieres: string[] = (config.bilingualEnFilieres as string[] | undefined) ?? [];
+          for (const niveau of bilingualEnLevels) {
             const levelNormEn = niveau.replace(/\s+/g, '');
             if (enFilieres.length === 0) {
               classesACreer.push({ name: `${niveau} EN`, level: levelNormEn, schoolId });
@@ -373,16 +382,18 @@ export class ActiverEtablissementUseCase {
         }
 
         // 4d. PRIMARY_BILINGUAL — EN section classes
-        if (config.templateCode === 'PRIMARY_BILINGUAL' && config.bilingualEnLevels?.length > 0) {
-          for (const niveau of config.bilingualEnLevels as string[]) {
+        if (templateCode === 'PRIMARY_BILINGUAL' && bilingualEnLevels.length > 0) {
+          for (const niveau of bilingualEnLevels) {
             classesACreer.push({ name: `${niveau} EN`, level: niveau.replace(/\s+/g, ''), schoolId });
           }
         }
 
         // 4e. Primaire
-        if (config.niveauxPrimaire?.length > 0) {
-          for (const niveau of config.niveauxPrimaire) {
-            const count = config.classesParNiveauPrimaire?.[niveau] ?? 1;
+        const niveauxPrimaire = (config.niveauxPrimaire as string[] | undefined) ?? [];
+        const classesParNiveauPrimaire = (config.classesParNiveauPrimaire as Record<string, number> | undefined) ?? {};
+        if (niveauxPrimaire.length > 0) {
+          for (const niveau of niveauxPrimaire) {
+            const count = classesParNiveauPrimaire[niveau] ?? 1;
             for (let i = 0; i < Math.min(count, 26); i++) {
               classesACreer.push({ name: `${niveau} ${LETTRES[i]}`, level: niveau, schoolId });
             }
@@ -399,7 +410,7 @@ export class ActiverEtablissementUseCase {
         if (templateCode === 'CFM') {
           // cfmFilieres = noms libres soumis par l'admin ; fallback vers les filières seeded
           const cfmFils: string[] = (config.cfmFilieres as string[] | undefined)?.length
-            ? config.cfmFilieres
+            ? (config.cfmFilieres as string[])
             : ['SAR', 'SM', 'COUTURE'];
           for (const fil of cfmFils) {
             classesACreer.push({ name: `Année1 ${fil}`, level: 'Année1', schoolId, filiere: fil });
@@ -440,7 +451,15 @@ export class ActiverEtablissementUseCase {
         // Sauvegarder toutes les classes (avec serie pour le 2e cycle, filiere pour le 1er cycle/PEBS)
         for (const c of classesACreer) {
           await tx.class.create({
-            data: { name: c.name, level: c.level, schoolId: c.schoolId, serie: c.serie ?? null, filiere: c.filiere ?? null, pebsMixte: c.pebsMixte ?? false } as any,
+            data: {
+              name: c.name,
+              level: c.level,
+              schoolId: c.schoolId,
+              academicYearId: academicYear.id,
+              serie: c.serie ?? null,
+              filiere: c.filiere ?? null,
+              pebsMixte: c.pebsMixte ?? false,
+            },
           });
         }
         classCount = classesACreer.length;
@@ -481,9 +500,11 @@ export class ActiverEtablissementUseCase {
       const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE', 'COMPLEXE_SCOLAIRE'];
       const hasReferenceData = templateCode && TEMPLATES_WITH_REFERENCE_DATA.includes(templateCode);
       if (effectiveTemplate && !hasReferenceData && !isPrimaire) {
-        const tCfg = effectiveTemplate.config as any;
-        const frSubjects: any[] = tCfg.defaultSubjects   ?? [];
-        const enSubjects: any[] = tCfg.defaultSubjectsEN ?? [];
+        // Blob JSON libre (SchoolTemplate.config), mêmes garde-fous que onboardingConfig ci-dessus.
+        const tCfg = (effectiveTemplate.config ?? {}) as Record<string, unknown>;
+        interface TemplateSubjectDef { name: string; code: string; coefficient: number; hoursPerWeek?: number; subjectType?: string }
+        const frSubjects = (tCfg.defaultSubjects as TemplateSubjectDef[] | undefined) ?? [];
+        const enSubjects = (tCfg.defaultSubjectsEN as TemplateSubjectDef[] | undefined) ?? [];
 
         for (const s of frSubjects) {
           await tx.subject.create({
@@ -493,7 +514,7 @@ export class ActiverEtablissementUseCase {
               code:        s.code,
               coefficient: s.coefficient,
               hoursPerWeek: s.hoursPerWeek ?? 2,
-              subjectType: (s.subjectType ?? 'THEORETICAL') as any,
+              subjectType: (s.subjectType ?? 'THEORETICAL') as SubjectType,
             },
           });
         }
@@ -506,7 +527,7 @@ export class ActiverEtablissementUseCase {
               code:        frSubjects.length > 0 ? `${s.code}_EN`   : s.code,
               coefficient: s.coefficient,
               hoursPerWeek: s.hoursPerWeek ?? 2,
-              subjectType: (s.subjectType ?? 'THEORETICAL') as any,
+              subjectType: (s.subjectType ?? 'THEORETICAL') as SubjectType,
             },
           });
         }
@@ -805,12 +826,12 @@ export class ActiverEtablissementUseCase {
                   subjectType: 'THEORETICAL',
                   departmentId: langDept?.id ?? null,
                   isLV2: true,
-                } as any,
+                },
               });
               if (existing) {
                 await tx.subject.update({
                   where: { id: langSubject.id },
-                  data: { isLV2: true, ...(langDept ? { departmentId: langDept.id } : {}) } as any,
+                  data: { isLV2: true, ...(langDept ? { departmentId: langDept.id } : {}) },
                 });
               }
             }
@@ -1005,14 +1026,14 @@ export class ActiverEtablissementUseCase {
         for (const t of config.feesTypes as string[]) {
           const def = FEE_MAP[t];
           if (!def) continue;
-          const exists = await tx.feePlan.findFirst({ where: { schoolId, feeType: def.feeType as any }, select: { id: true } });
+          const exists = await tx.feePlan.findFirst({ where: { schoolId, feeType: def.feeType as FeeType }, select: { id: true } });
           if (exists) continue;
           await tx.feePlan.create({
             data: {
               schoolId,
               name: def.name,
               amount: 0,
-              feeType: def.feeType as any,
+              feeType: def.feeType as FeeType,
               isRefundable: def.refundable ?? false,
               description: 'Créé à la configuration — montant à définir',
             },
@@ -1023,7 +1044,7 @@ export class ActiverEtablissementUseCase {
       // Services + rôles de direction → School.features (Json)
       const featuresPatch: Record<string, unknown> = {};
       const hasServiceFlags = ['hasCanteen', 'hasTransport', 'hasLibrary', 'hasBoarding']
-        .some((k) => typeof (config as any)?.[k] === 'boolean');
+        .some((k) => typeof config[k] === 'boolean');
       if (hasServiceFlags) {
         featuresPatch['services'] = {
           canteen: !!config?.hasCanteen,
@@ -1049,7 +1070,7 @@ export class ActiverEtablissementUseCase {
           status: 'ACTIVE',
           hasPEBSFrancophone,
           hasPEBSAnglophone,
-          ...(mergedFeatures ? { features: mergedFeatures as any } : {}),
+          ...(mergedFeatures ? { features: mergedFeatures as Prisma.InputJsonValue } : {}),
         },
       });
 

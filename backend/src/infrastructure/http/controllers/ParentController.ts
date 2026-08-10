@@ -20,7 +20,7 @@ export class ParentController {
   // GET /api/v2/parent/children
   getEnfants = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const enfants = await this.obtenirEnfants.execute({
         parentUserId: user.userId,
         schoolId: user.schoolId,
@@ -31,7 +31,7 @@ export class ParentController {
       });
       res.json({ success: true, data: enfants });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'mes_enfants', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -46,7 +46,7 @@ export class ParentController {
   // de l'utilisateur — indépendant du copilot conversationnel.
   getAlertesSolde = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const alertes = await this.obtenirAlertesSolde.execute({
         parentUserId: user.userId,
         schoolId: user.schoolId,
@@ -61,7 +61,7 @@ export class ParentController {
   // Le parent initie lui-même son paiement MTN/Orange — son studentId est vérifié ici.
   initierPaiementMobile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { factureId, phoneNumber, method } = req.body;
 
       if (!factureId || !phoneNumber || !method) {
@@ -112,7 +112,7 @@ export class ParentController {
       });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'initier_paiement_enfant', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -129,7 +129,7 @@ export class ParentController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const studentId = req.params.studentId as string;
       await this.verifierAcces.execute(user.userId, studentId);
       next();

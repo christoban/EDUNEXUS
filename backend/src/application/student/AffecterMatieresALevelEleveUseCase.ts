@@ -29,7 +29,7 @@ export class AffecterMatieresALevelEleveUseCase {
     }
 
     // L'élève doit appartenir à cet établissement
-    const profile = await (this.prisma as any).studentProfile.findFirst({
+    const profile = await this.prisma.studentProfile.findFirst({
       where: { userId: cmd.studentUserId, user: { schoolId: cmd.schoolId } },
       select: { id: true },
     });
@@ -44,7 +44,7 @@ export class AffecterMatieresALevelEleveUseCase {
       throw new Error('Une ou plusieurs matières sont introuvables dans cet établissement');
     }
 
-    const officialALevel = await (this.prisma as any).aLevelSubject.findMany({ select: { subjectName: true } });
+    const officialALevel = await this.prisma.aLevelSubject.findMany({ select: { subjectName: true } });
     const officialNames = new Set<string>(officialALevel.map((a: any) => a.subjectName));
     const invalides = schoolSubjects.filter((s) => !officialNames.has(s.name));
     if (invalides.length > 0) {
@@ -53,8 +53,8 @@ export class AffecterMatieresALevelEleveUseCase {
 
     // Remplacement idempotent de la sélection
     await this.prisma.$transaction(async (tx) => {
-      await (tx as any).studentALevelSubject.deleteMany({ where: { studentId: profile.id } });
-      await (tx as any).studentALevelSubject.createMany({
+      await tx.studentALevelSubject.deleteMany({ where: { studentId: profile.id } });
+      await tx.studentALevelSubject.createMany({
         data: subjectIds.map((subjectId) => ({ studentId: profile.id, subjectId })),
       });
     });

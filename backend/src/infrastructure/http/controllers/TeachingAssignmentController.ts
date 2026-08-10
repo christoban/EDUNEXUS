@@ -139,7 +139,7 @@ export class TeachingAssignmentController {
       // Vérifier que la classe appartient à cette école
       const cls = await this.prisma.class.findFirst({
         where: { id: classId, schoolId },
-        select: { id: true },
+        select: { id: true, academicYearId: true },
       });
       if (!cls) {
         res.status(404).json({ success: false, message: 'Classe introuvable' });
@@ -167,7 +167,10 @@ export class TeachingAssignmentController {
 
       await this.prisma.teachingAssignment.upsert({
         where: { classId_subjectId: { classId, subjectId } },
-        create: { classId, subjectId, teacherId, schoolId },
+        // academicYearId repris de la classe elle-même (source de vérité year-scoped) plutôt que
+        // d'une résolution séparée de "l'année courante" — l'affectation est pour CETTE classe,
+        // qui porte déjà son année.
+        create: { classId, subjectId, teacherId, schoolId, academicYearId: cls.academicYearId },
         update: { teacherId },
       });
 

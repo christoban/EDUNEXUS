@@ -22,13 +22,13 @@ export class PreremplirDepuisCombinaisonUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: PreremplirCombinaisonCommande): Promise<PreremplirResultat> {
-    const profile = await (this.prisma as any).studentProfile.findFirst({
+    const profile = await this.prisma.studentProfile.findFirst({
       where: { userId: cmd.studentUserId, user: { schoolId: cmd.schoolId } },
       select: { id: true },
     });
     if (!profile) throw new Error('Élève introuvable dans cet établissement');
 
-    const combo = await (this.prisma as any).anglophoneStreamCombination.findUnique({
+    const combo = await this.prisma.anglophoneStreamCombination.findUnique({
       where: { filiere: cmd.combinationCode },
     });
     if (!combo) throw new Error(`Combinaison "${cmd.combinationCode}" introuvable`);
@@ -54,9 +54,9 @@ export class PreremplirDepuisCombinaisonUseCase {
 
     // Remplacer la sélection actuelle par le préréglage
     await this.prisma.$transaction(async (tx) => {
-      await (tx as any).studentALevelSubject.deleteMany({ where: { studentId: profile.id } });
+      await tx.studentALevelSubject.deleteMany({ where: { studentId: profile.id } });
       if (applied.length > 0) {
-        await (tx as any).studentALevelSubject.createMany({
+        await tx.studentALevelSubject.createMany({
           data: applied.map((s) => ({ studentId: profile.id, subjectId: s.id })),
         });
       }

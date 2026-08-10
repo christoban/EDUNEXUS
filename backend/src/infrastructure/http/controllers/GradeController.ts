@@ -11,6 +11,7 @@ import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { calculateAverageScoreOn20, scoreOn20ToPercentage } from '@domain/rules/GradingEngine';
 import type { GradeValidationStatus } from '@domain/types/enums';
 import { resolveLanguage } from '../../../utils/languageHelper';
 import { inngest } from '../../../inngest/index.ts';
@@ -29,7 +30,7 @@ export class GradeController {
   saisir = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const dto = validerSaisirNoteDto(req.body);
-      const user = (req as any).user;
+      const user = req.user;
 
       const resultat = await this.saisirNote.execute({
         schoolId: user.schoolId,
@@ -45,7 +46,7 @@ export class GradeController {
       });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'saisir_note', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -58,7 +59,7 @@ export class GradeController {
   // PATCH /api/v2/grades/:id/submit
   soumettre = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.soumettreNote.execute({
         noteId: req.params.id as string,
         demandeurId: user.userId,
@@ -72,7 +73,7 @@ export class GradeController {
   // PATCH /api/v2/grades/:id/validate
   valider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const resultat = await this.validerNote.execute({
         noteId: req.params.id as string,
         validateurId: user.userId,
@@ -105,7 +106,7 @@ export class GradeController {
         res.status(400).json({ success: false, message: 'Le motif de rejet est obligatoire' });
         return;
       }
-      const user = (req as any).user;
+      const user = req.user;
       const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { subsystem: true } })
       const lang = resolveLanguage(school?.subsystem)
       await this.rejeterNote.execute({
@@ -128,7 +129,7 @@ export class GradeController {
         res.status(400).json({ success: false, message: 'classId et sequenceId requis' });
         return;
       }
-      const user = (req as any).user;
+      const user = req.user;
       const resultat = await this.validerEnBloc.execute({
         classId,
         sequenceId,
@@ -157,7 +158,7 @@ export class GradeController {
       });
       res.json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'valider_notes_en_masse', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -170,7 +171,7 @@ export class GradeController {
   // POST /api/v2/grades/draft — sauvegarde en masse (upsert)
   draftEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, sequenceId, grades } = req.body;
 
       if (!classId || !subjectId || !sequenceId || !grades?.length) {
@@ -191,6 +192,12 @@ export class GradeController {
         include: { academicPeriod: { select: { academicYearId: true } } },
       });
       const academicYearId = sequence?.academicPeriod?.academicYearId;
+
+      // Coefficient de la matière — même règle que saisir/modifier (scénario B) : reflète la
+      // valeur en vigueur au moment de la saisie, jamais recalculée après verrouillage.
+      const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { coefficient: true } });
+      const coefficient = subject?.coefficient ?? 1;
+
       if (!academicYearId) {
         res.status(400).json({
           success: false,
@@ -242,11 +249,12 @@ export class GradeController {
               sequenceScore: Number(g.value),
               sequenceAverage: Number(g.value),
               maxValue: 20,
+              coefficient,
               rejectionReason: null,
               observation: g.observation || null,
               validationStatus: 'DRAFT',
               recordedById: user.userId,
-            } as any,
+            },
           });
           results.push(updated);
         } else {
@@ -261,10 +269,11 @@ export class GradeController {
               sequenceScore: Number(g.value),
               sequenceAverage: Number(g.value),
               maxValue: 20,
+              coefficient,
               observation: g.observation || null,
               validationStatus: 'DRAFT',
               recordedById: user.userId,
-            } as any,
+            },
           });
           results.push(created);
         }
@@ -279,7 +288,7 @@ export class GradeController {
   // POST /api/v2/grades/submit — soumettre en masse les brouillons
   soumettreEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, sequenceId, grades: gradesWithVersion, forcerEcrasement } = req.body;
 
       if (!classId || !subjectId || !sequenceId) {
@@ -368,7 +377,7 @@ export class GradeController {
       });
       res.json({ success: true, data: { count: result.count } });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'soumettre_mes_notes_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -381,7 +390,7 @@ export class GradeController {
   // GET /api/v2/grades
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { schoolId, userId, role } = { schoolId: user.schoolId, userId: user.userId, role: user.role };
       const { classId, subjectId, sequenceId, studentId, validationStatus, page = '1', limit = '50' } =
         req.query as Record<string, string>;
@@ -460,7 +469,7 @@ export class GradeController {
   // GET /api/v2/grades/pending
   listerEnAttente = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const permissions: string[] = user.permissions ?? [];
 
       if (user.role !== 'ADMIN' && !permissions.includes('VALIDATE_GRADES')) {
@@ -505,7 +514,7 @@ export class GradeController {
   // GET /api/v2/grades/status/:classId
   statutParClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId } = req.params;
       const { sequenceId } = req.query as { sequenceId?: string };
 
@@ -558,7 +567,7 @@ export class GradeController {
   // GET /api/v2/grades/average/:studentId
   moyenneEleve = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const studentId = req.params.studentId as string;
       const classId = req.query.classId as string | undefined;
       const sequenceId = req.query.sequenceId as string | undefined;
@@ -578,10 +587,11 @@ export class GradeController {
   // PUT /api/v2/grades/:id
   modifier = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
 
       const grade = await prisma.grade.findFirst({
         where: { id: req.params.id as string, schoolId: user.schoolId },
+        include: { subject: { select: { coefficient: true } } },
       });
 
       if (!grade) {
@@ -633,9 +643,16 @@ export class GradeController {
         calcMode,
       );
 
+      // Re-stampe le coefficient depuis la matière tant que la note est DRAFT/REJECTED (donc
+      // encore modifiable par construction : ce bloc n'est atteint que passé le garde-fou de
+      // statut ci-dessus). Volontairement DIFFÉRENT du comportement une fois VALIDATED/LOCKED :
+      // Note.ts (Loi 6) verrouille alors la note dans son intégralité, coefficient inclus — à
+      // partir de ce moment le coefficient reflète définitivement la valeur en vigueur au
+      // dernier instant de saisie, et un changement ultérieur du coefficient de la matière ne
+      // doit jamais être répercuté rétroactivement sur une note déjà validée.
       const updated = await prisma.grade.update({
         where: { id: grade.id },
-        data: { ...gradeData, sequenceAverage, validationStatus: 'DRAFT', rejectionReason: null, recordedById: user.userId },
+        data: { ...gradeData, sequenceAverage, coefficient: grade.subject.coefficient, validationStatus: 'DRAFT', rejectionReason: null, recordedById: user.userId },
         include: {
           subject: { select: { id: true, name: true } },
           student: { select: { id: true, firstName: true, lastName: true } },
@@ -651,7 +668,7 @@ export class GradeController {
   // GET /api/v2/grades/template?classId=&subjectId=&sequenceId=
   genererTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, sequenceId } = req.query as Record<string, string>;
 
       if (!classId || !subjectId || !sequenceId) {
@@ -718,7 +735,7 @@ export class GradeController {
   // POST /api/v2/grades/import (multipart/form-data)
   importerDepuisExcel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, sequenceId } = req.body;
 
       if (!classId || !subjectId || !sequenceId) {
@@ -726,7 +743,7 @@ export class GradeController {
         return;
       }
 
-      const file = (req as any).file as Express.Multer.File | undefined;
+      const file = req.file as Express.Multer.File | undefined;
       if (!file) {
         res.status(400).json({ success: false, message: 'Fichier Excel requis (champ "file")' });
         return;
@@ -772,6 +789,11 @@ export class GradeController {
       }
       const academicYearId = sequence.academicPeriod.academicYearId;
 
+      // Coefficient de la matière — même règle que saisir/modifier/draftEnMasse (scénario B) :
+      // troisième voie de saisie de notes qui ne le stampait pas encore.
+      const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { coefficient: true } });
+      const coefficient = subject?.coefficient ?? 1;
+
       const studentProfiles = await prisma.studentProfile.findMany({
         where: { classId, user: { schoolId: user.schoolId } },
         select: { matricule: true, userId: true },
@@ -796,7 +818,7 @@ export class GradeController {
       const errors: { line: number; matricule: string; error: string }[] = [];
 
       for (let i = 1; i < rows.length; i++) {
-        const row = rows[i] as any[];
+        const row = rows[i];
         const matricule = row[matriculeIdx]?.toString().trim() ?? '';
         const noteRaw = row[noteIdx];
         const observation = obsIdx >= 0 ? (row[obsIdx]?.toString().trim() ?? '') : '';
@@ -872,11 +894,12 @@ export class GradeController {
               sequenceScore: g.value,
               sequenceAverage: g.value,
               maxValue: 20,
+              coefficient,
               rejectionReason: null,
               observation: g.observation || null,
               validationStatus: 'DRAFT',
               recordedById: user.userId,
-            } as any,
+            },
           });
         } else {
           await prisma.grade.create({
@@ -890,10 +913,11 @@ export class GradeController {
               sequenceScore: g.value,
               sequenceAverage: g.value,
               maxValue: 20,
+              coefficient,
               observation: g.observation || null,
               validationStatus: 'DRAFT',
               recordedById: user.userId,
-            } as any,
+            },
           });
         }
         imported++;
@@ -974,12 +998,20 @@ export class GradeController {
 
     if (!grades.length) return { average: 0, rank: 0, totalStudents: 0 };
 
-    const totalWeighted = grades.reduce(
-      (sum, g) => sum + (g.sequenceAverage ?? 0) * (g.coefficient ?? g.subject.coefficient ?? 1),
-      0,
+    // Résolution du coefficient (override par note, sinon coefficient de la matière) : logique
+    // propre à ce schéma Prisma, donc faite ici avant de passer au moteur de calcul du domaine
+    // (qui reste générique et ignore d'où vient le coefficient).
+    const average = calculateAverageScoreOn20(
+      grades.map((g) => {
+        const scoreOn20 = g.sequenceAverage ?? 0;
+        return {
+          scoreOn20,
+          percentage: scoreOn20ToPercentage(scoreOn20),
+          coefficient: g.coefficient ?? g.subject.coefficient ?? 1,
+        };
+      }),
+      true,
     );
-    const totalCoeff = grades.reduce((sum, g) => sum + (g.coefficient ?? g.subject.coefficient ?? 1), 0);
-    const average = totalCoeff > 0 ? totalWeighted / totalCoeff : 0;
 
     const classmatesAverages = await prisma.grade.groupBy({
       by: ['studentId'],
@@ -990,7 +1022,7 @@ export class GradeController {
 
     const rank = classmatesAverages.findIndex((c) => c.studentId === studentId) + 1;
 
-    return { average: Math.round(average * 100) / 100, rank: rank || 0, totalStudents: classmatesAverages.length };
+    return { average, rank: rank || 0, totalStudents: classmatesAverages.length };
   }
 
   private gererErreur(error: unknown, res: Response, next: NextFunction): void {

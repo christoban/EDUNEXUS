@@ -4,7 +4,7 @@
  * Pour tous les élèves avec matricule dans l'établissement,
  * vérifie le statut de paiement sur cartescolaire.cm et met à jour les PaiementMinesec.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, OperateurMinesec } from '@prisma/client';
 import type { CarteScolaireService } from '@domain/ports/services/CarteScolaireService';
 
 export interface SyncReport {
@@ -39,7 +39,7 @@ export class SyncFromCarteScolaireUseCase {
     };
 
     // Récupérer tous les élèves actifs avec matricule
-    const profiles = await (this.prisma as any).studentProfile.findMany({
+    const profiles = await this.prisma.studentProfile.findMany({
       where: {
         user: { schoolId },
         matricule: { not: null },
@@ -48,7 +48,7 @@ export class SyncFromCarteScolaireUseCase {
       select: { id: true, matricule: true },
     });
 
-    report.totalEleves = await (this.prisma as any).studentProfile.count({
+    report.totalEleves = await this.prisma.studentProfile.count({
       where: { user: { schoolId }, studentStatus: 'ACTIVE' },
     });
     report.elevesAvecMatricule = profiles.length;
@@ -67,7 +67,7 @@ export class SyncFromCarteScolaireUseCase {
 
           if (paymentStatus.paye) {
             // Chercher les PaiementMinesec IMPAYE pour cet élève
-            const impayes = await (this.prisma as any).paiementMinesec.findMany({
+            const impayes = await this.prisma.paiementMinesec.findMany({
               where: {
                 studentId: profile.id,
                 anneeScolaire,
@@ -77,7 +77,7 @@ export class SyncFromCarteScolaireUseCase {
 
             for (const impaye of impayes) {
               // Vérifier si le type de frais correspond
-              await (this.prisma as any).paiementMinesec.update({
+              await this.prisma.paiementMinesec.update({
                 where: { id: impaye.id },
                 data: {
                   status: 'VERIFIE',
@@ -85,7 +85,11 @@ export class SyncFromCarteScolaireUseCase {
                   recuVerifieAt: new Date(),
                   datePaiement: paymentStatus.datePaiement ?? new Date(),
                   montantPaye: paymentStatus.montant ?? impaye.montantAttendu,
-                  operateur: paymentStatus.operateur ?? null,
+                  // L'adaptateur cartescolaire.cm ne renseigne jamais ce champ à ce jour (opérateur
+                  // affiché en logo image côté source, non extrait avec fiabilité — voir
+                  // CarteScolaireScrapingAdapter). Cast conservé strictement informatif : ne
+                  // valide rien de plus que ce que le port autorisait déjà avant le retrait du cast.
+                  operateur: (paymentStatus.operateur as OperateurMinesec | undefined) ?? null,
                   dataSource: 'SYNC_NIGHTLY',
                 },
               });

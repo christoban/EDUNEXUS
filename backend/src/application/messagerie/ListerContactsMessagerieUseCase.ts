@@ -25,7 +25,7 @@ export class ListerContactsMessagerieUseCase {
       id: { not: cmd.appelantId, ...(autorises ? { in: Array.from(autorises) } : {}) },
     };
 
-    return (this.prisma as any).user.findMany({
+    return this.prisma.user.findMany({
       where,
       select: { id: true, firstName: true, lastName: true, role: true },
       orderBy: [{ role: 'asc' }, { firstName: 'asc' }],

@@ -18,7 +18,7 @@ export class SubjectController {
 
   creerMatiere = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const resultat = await this.creer.execute({
         schoolId: user.schoolId,
         demandeurRole: user.role,
@@ -26,12 +26,14 @@ export class SubjectController {
       });
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'creer_matiere', targetType: 'Subject', targetId: (resultat as any)?.id,
+        // Bug indépendant : CreerMatiereResultat expose `matiereId`, jamais `id` — le cast
+        // masquait un ciblage d'audit toujours undefined pour cette action.
+        actionName: 'creer_matiere', targetType: 'Subject', targetId: resultat.matiereId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_matiere', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -43,7 +45,7 @@ export class SubjectController {
 
   modifierMatiere = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.modifier.execute({
         matiereId: req.params.id as string,
         schoolId: user.schoolId,
@@ -57,7 +59,7 @@ export class SubjectController {
       });
       res.json({ success: true, message: 'Matière mise à jour' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'modifier_matiere', targetType: 'Subject', targetId: req.params.id as string,
@@ -70,7 +72,7 @@ export class SubjectController {
 
   assignerOuRetirer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { subjectId, action } = req.body;
 
       if (!subjectId || !action) {
@@ -96,7 +98,7 @@ export class SubjectController {
         message: `Enseignant ${action === 'ASSIGNER' ? 'assigné' : 'retiré'}`,
       });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'assigner_enseignant_matiere', targetType: 'Subject', targetId: req.body?.subjectId,
@@ -109,7 +111,7 @@ export class SubjectController {
 
   definirCoefficients = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { coefficients } = req.body;
 
       if (!Array.isArray(coefficients) || coefficients.length === 0) {
@@ -132,7 +134,7 @@ export class SubjectController {
 
   supprimerMatiere = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.supprimer.execute({
         matiereId: req.params.id as string,
         schoolId: user.schoolId,
@@ -146,7 +148,7 @@ export class SubjectController {
       });
       res.json({ success: true, message: 'Matière mise à la corbeille' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'supprimer_matiere', targetType: 'Subject', targetId: req.params.id as string,

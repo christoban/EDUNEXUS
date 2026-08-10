@@ -48,7 +48,7 @@ async function main() {
     const schoolName = school?.name ?? `(école ${schoolId})`;
 
     // Des matières-langues réelles existent-elles déjà pour cette école ?
-    const realLv2Count = await (prisma as any).subject.count({
+    const realLv2Count = await prisma.subject.count({
       where: { schoolId, isLV2: true },
     });
 

@@ -9,7 +9,11 @@ export interface ClasseRepository {
   findBySchool(schoolId: string): Promise<Classe[]>;
   findBySection(sectionId: string): Promise<Classe[]>;
   findByLevel(schoolId: string, level: string): Promise<Classe[]>;
+  findBySchoolAndYear(schoolId: string, academicYearId: string): Promise<Classe[]>;
   countEleves(classeId: string): Promise<number>;
+
+  /** Bascule DRAFT→ACTIVE toutes les classes proposées d'une année — ValiderStructureAnneeSuivanteUseCase. */
+  activerToutesDraft(schoolId: string, academicYearId: string): Promise<number>;
 
   /**
    * Vérifie l'unicité du nom dans une école.

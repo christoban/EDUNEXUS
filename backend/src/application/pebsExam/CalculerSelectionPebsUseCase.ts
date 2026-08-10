@@ -5,7 +5,7 @@ export class CalculerSelectionPebsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: CalculerSelectionPebsCommande): Promise<{ selectionnes: number; nonSelectionnes: number }> {
-    const session = await (this.prisma as any).pebsExamSession.findUnique({
+    const session = await this.prisma.pebsExamSession.findUnique({
       where: { id: cmd.sessionId },
     });
     if (!session) throw new Error('Session PEBS introuvable');
@@ -14,7 +14,7 @@ export class CalculerSelectionPebsUseCase {
     const threshold = session.selectionThreshold;
     const seats = session.availableSeats;
 
-    const candidates: any[] = await (this.prisma as any).pebsExamCandidate.findMany({
+    const candidates: any[] = await this.prisma.pebsExamCandidate.findMany({
       where: { sessionId: cmd.sessionId, examScore: { not: null } },
       orderBy: { examScore: 'desc' },
     });
@@ -42,7 +42,7 @@ export class CalculerSelectionPebsUseCase {
 
       const newResult = qualifies ? 'SELECTIONNE' : 'NON_SELECTIONNE';
 
-      await (this.prisma as any).pebsExamCandidate.update({
+      await this.prisma.pebsExamCandidate.update({
         where: { id: c.id },
         data: { selectionResult: newResult },
       });

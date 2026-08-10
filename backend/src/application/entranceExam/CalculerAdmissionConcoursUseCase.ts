@@ -5,7 +5,7 @@ export class CalculerAdmissionConcoursUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: CalculerAdmissionCommande): Promise<{ admis: number; nonAdmis: number; admisCandidats: { id: string; firstName: string; lastName: string; parentPhone: string | null }[] }> {
-    const session = await (this.prisma as any).entranceExamSession.findUnique({
+    const session = await this.prisma.entranceExamSession.findUnique({
       where: { id: cmd.sessionId },
     });
     if (!session) throw new Error('Session de concours introuvable');
@@ -15,7 +15,7 @@ export class CalculerAdmissionConcoursUseCase {
     const seats = session.availableSeats;
 
     // Récupérer tous les candidats avec une note
-    const candidates: any[] = await (this.prisma as any).entranceExamCandidate.findMany({
+    const candidates: any[] = await this.prisma.entranceExamCandidate.findMany({
       where: { sessionId: cmd.sessionId, examScore: { not: null } },
       orderBy: { examScore: 'desc' },
     });
@@ -46,7 +46,7 @@ export class CalculerAdmissionConcoursUseCase {
 
       const newStatus = qualifies ? 'ADMIS_PROVISOIRE' : 'PENDING';
 
-      await (this.prisma as any).entranceExamCandidate.update({
+      await this.prisma.entranceExamCandidate.update({
         where: { id: c.id },
         data: { admissionStatus: newStatus },
       });

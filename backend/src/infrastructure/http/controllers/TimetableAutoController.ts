@@ -78,7 +78,7 @@ export class TimetableAutoController {
 
   autoGenerate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const schoolId = (req as any).user.schoolId as string;
+      const schoolId = req.user.schoolId as string;
       const { classIds } = req.body as { classIds?: string[] };
 
       // 1. Grille horaire
@@ -364,7 +364,7 @@ export class TimetableAutoController {
 
   adjust = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const schoolId = (req as any).user.schoolId as string;
+      const schoolId = req.user.schoolId as string;
       const timetableId = req.params['id'] as string;
       const { instruction } = req.body as { instruction?: string };
 

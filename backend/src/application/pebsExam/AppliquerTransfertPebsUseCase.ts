@@ -10,7 +10,7 @@ export class AppliquerTransfertPebsUseCase {
   async execute(cmd: AppliquerTransfertPebsCommande): Promise<{
     transferred: number; confirmed: boolean; selectionnes: NotifieCandidat[]; nonSelectionnes: NotifieCandidat[];
   }> {
-    const session = await (this.prisma as any).pebsExamSession.findUnique({
+    const session = await this.prisma.pebsExamSession.findUnique({
       where: { id: cmd.sessionId },
     });
     if (!session) throw new Error('Session PEBS introuvable');
@@ -18,7 +18,7 @@ export class AppliquerTransfertPebsUseCase {
     if (session.status === 'APPLIED') throw new Error('Le transfert a déjà été appliqué');
 
     // Récupérer tous les candidats traités (sélectionnés + non sélectionnés) avec leur nom
-    const allCandidates: any[] = await (this.prisma as any).pebsExamCandidate.findMany({
+    const allCandidates: any[] = await this.prisma.pebsExamCandidate.findMany({
       where: { sessionId: cmd.sessionId, selectionResult: { in: ['SELECTIONNE', 'NON_SELECTIONNE'] } },
       include: { studentProfile: { include: { user: { select: { id: true, firstName: true, lastName: true } } } } },
     });
@@ -42,7 +42,7 @@ export class AppliquerTransfertPebsUseCase {
     const selectionnes: NotifieCandidat[] = [];
     for (const c of selected) {
       try {
-        await (this.prisma as any).studentProfile.update({
+        await this.prisma.studentProfile.update({
           where: { id: c.studentProfileId },
           data: { classId: session.targetClassId, pebsFiliere },
         });
@@ -60,7 +60,7 @@ export class AppliquerTransfertPebsUseCase {
       .map(c => ({ studentUserId: c.studentProfile.user.id, studentName: `${c.studentProfile.user.firstName} ${c.studentProfile.user.lastName}` }));
 
     // Marquer la session comme appliquée
-    await (this.prisma as any).pebsExamSession.update({
+    await this.prisma.pebsExamSession.update({
       where: { id: cmd.sessionId },
       data: { status: 'APPLIED' },
     });

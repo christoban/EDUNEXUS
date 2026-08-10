@@ -27,7 +27,7 @@ export class VerifierRecuUseCase {
     verifyOnline: boolean = false,
   ): Promise<VerifierRecuResult> {
     // Récupérer le paiement
-    const paiement = await (this.prisma as any).paiementMinesec.findUnique({
+    const paiement = await this.prisma.paiementMinesec.findUnique({
       where: { id: paiementId },
       include: { student: { select: { matricule: true } } },
     });
@@ -54,7 +54,7 @@ export class VerifierRecuUseCase {
       }
     }
 
-    await (this.prisma as any).paiementMinesec.update({
+    await this.prisma.paiementMinesec.update({
       where: { id: paiementId },
       data: {
         numeroRecu,

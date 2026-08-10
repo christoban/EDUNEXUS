@@ -206,13 +206,13 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
         const label = input.type === 'COLLECTE' ? 'Collecte' : 'Dépense';
         return {
           resultLabel: `${label} APEE de ${input.montant} FCFA enregistrée` + (input.type === 'DEPENSE' ? ' — joignez un justificatif depuis l\'écran APEE avant validation' : ''),
-          undoData: { transactionId: (r as any).id },
+          undoData: { transactionId: r.id },
           section: 'apee',
           entity: 'apeeTransaction',
         };
       },
       async undo(_params, undoData, ctx) {
-        await (ctx.prisma as any).aPEETransaction.delete({ where: { id: String(undoData.transactionId) } });
+        await ctx.prisma.aPEETransaction.delete({ where: { id: String(undoData.transactionId) } });
       },
     },
 
@@ -225,7 +225,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
       allowedRoles: ['STAFF'],
       inputSchema: z.object({ description: z.string().min(1).describe('Description ou catégorie permettant de retrouver la dépense') }),
       async execute(input, ctx) {
-        const target = await (ctx.prisma as any).aPEETransaction.findFirst({
+        const target = await ctx.prisma.aPEETransaction.findFirst({
           where: { schoolId: ctx.schoolId, type: 'DEPENSE', valide: false, description: { contains: input.description, mode: 'insensitive' } },
           orderBy: { createdAt: 'desc' },
           select: { id: true, montant: true },
@@ -253,9 +253,9 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
       inputSchema: z.object({}),
       async execute(_input, ctx) {
         const [collectes, depenses, enAttente] = await Promise.all([
-          (ctx.prisma as any).aPEETransaction.aggregate({ where: { schoolId: ctx.schoolId, type: 'COLLECTE' }, _sum: { montant: true } }),
-          (ctx.prisma as any).aPEETransaction.aggregate({ where: { schoolId: ctx.schoolId, type: 'DEPENSE', valide: true }, _sum: { montant: true } }),
-          (ctx.prisma as any).aPEETransaction.count({ where: { schoolId: ctx.schoolId, type: 'DEPENSE', valide: false } }),
+          ctx.prisma.aPEETransaction.aggregate({ where: { schoolId: ctx.schoolId, type: 'COLLECTE' }, _sum: { montant: true } }),
+          ctx.prisma.aPEETransaction.aggregate({ where: { schoolId: ctx.schoolId, type: 'DEPENSE', valide: true }, _sum: { montant: true } }),
+          ctx.prisma.aPEETransaction.count({ where: { schoolId: ctx.schoolId, type: 'DEPENSE', valide: false } }),
         ]);
         const totalCollectes = collectes._sum.montant ?? 0;
         const totalDepenses = depenses._sum.montant ?? 0;
@@ -407,7 +407,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
       async execute(input, ctx) {
         const student = await resolveStudent(ctx, input.studentName, input.className);
         const year = await resolveCurrentAcademicYear(ctx);
-        const fiche = await (ctx.prisma as any).ficheOrientation.findFirst({
+        const fiche = await ctx.prisma.ficheOrientation.findFirst({
           where: { schoolId: ctx.schoolId, studentId: student.id, academicYearId: year.id, status: { in: ['OUVERTE', 'EN_COURS'] } },
           select: { id: true },
         });
@@ -448,7 +448,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
           classId = classe.id;
           label = classe.name;
         }
-        const fiches = await (ctx.prisma as any).ficheOrientation.findMany({
+        const fiches = await ctx.prisma.ficheOrientation.findMany({
           where: {
             schoolId: ctx.schoolId,
             academicYearId: year.id,

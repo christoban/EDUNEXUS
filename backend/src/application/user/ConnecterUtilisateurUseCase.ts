@@ -21,6 +21,16 @@ export interface ConnecterUtilisateurCommande {
   role?: string;    // Rôle sélectionné par l'utilisateur sur le formulaire
 }
 
+/** Error('ROLE_MISMATCH_MULTIPLE') enrichie d'une liste de rôles candidats. */
+export interface RoleMismatchError extends Error {
+  availableRoles: string[];
+}
+
+/** Error('SCHOOL_SUSPENDED') enrichie d'un code stable pour le contrôleur HTTP. */
+export interface SchoolSuspendedError extends Error {
+  code: 'SCHOOL_SUSPENDED';
+}
+
 export interface ConnecterUtilisateurResultat {
   userId: string;
   schoolId: string;
@@ -67,8 +77,8 @@ export class ConnecterUtilisateurUseCase {
       }
 
       if (rolesDisponibles.length > 1) {
-        const err = new Error('ROLE_MISMATCH_MULTIPLE');
-        (err as any).availableRoles = rolesDisponibles;
+        const err = new Error('ROLE_MISMATCH_MULTIPLE') as RoleMismatchError;
+        err.availableRoles = rolesDisponibles;
         throw err;
       }
 
@@ -87,8 +97,8 @@ export class ConnecterUtilisateurUseCase {
 
     // 3. Vérifier le statut de l'école SEULEMENT après validation des credentials
     if (school.estSuspendue()) {
-      const err = new Error('SCHOOL_SUSPENDED');
-      (err as any).code = 'SCHOOL_SUSPENDED';
+      const err = new Error('SCHOOL_SUSPENDED') as SchoolSuspendedError;
+      err.code = 'SCHOOL_SUSPENDED';
       throw err;
     }
     if (school.status !== 'ACTIVE' && school.status !== 'APPROVED') {

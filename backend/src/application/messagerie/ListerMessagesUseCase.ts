@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, ModerationStatus } from '@prisma/client';
 import { verifierAppartenanceConversation } from './MessagerieAccessHelpers';
 
 const TAILLE_PAGE = 30;
@@ -33,10 +33,10 @@ export class ListerMessagesUseCase {
     // le motif, affiché côté frontend), invisible pour tout le monde d'autre.
     const filtreModeration = estSupervision
       ? {}
-      : { OR: [{ moderationStatus: 'APPROVED' }, { senderId: cmd.appelantId }] };
+      : { OR: [{ moderationStatus: 'APPROVED' as ModerationStatus }, { senderId: cmd.appelantId }] };
 
     if (cmd.since) {
-      const messages = await (this.prisma as any).message.findMany({
+      const messages = await this.prisma.message.findMany({
         where: { conversationId: cmd.conversationId, createdAt: { gt: cmd.since }, ...filtreModeration },
         orderBy: { createdAt: 'asc' },
         take: TAILLE_RATTRAPAGE_MAX,
@@ -46,7 +46,7 @@ export class ListerMessagesUseCase {
     }
 
     const page = Math.max(1, cmd.page ?? 1);
-    const messagesDesc = await (this.prisma as any).message.findMany({
+    const messagesDesc = await this.prisma.message.findMany({
       where: { conversationId: cmd.conversationId, ...filtreModeration },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * TAILLE_PAGE,

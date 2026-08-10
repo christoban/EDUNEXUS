@@ -134,6 +134,15 @@ export class School {
     this.props.updatedAt = new Date();
   }
 
+  /** Seconde chance après un rejet : repasse en PENDING pour réexamen (ReactiverEcoleUseCase). */
+  redonnerUneChanceApresRejet(): void {
+    if (this.props.status !== 'REJECTED') {
+      throw new Error(`Seul un établissement rejeté peut être repassé en attente de réexamen`);
+    }
+    this.props.status = 'PENDING';
+    this.props.updatedAt = new Date();
+  }
+
   changerPlan(nouveauPlan: PlanType): void {
     if (!this.estActive() && this.props.status !== 'APPROVED') {
       throw new Error('Le plan ne peut être changé que pour une école active ou approuvée');

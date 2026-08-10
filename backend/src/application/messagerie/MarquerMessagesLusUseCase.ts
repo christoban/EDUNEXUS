@@ -22,7 +22,7 @@ export class MarquerMessagesLusUseCase {
 
     let seuilDate: Date;
     if (cmd.jusquAMessageId) {
-      const message = await (this.prisma as any).message.findUnique({
+      const message = await this.prisma.message.findUnique({
         where: { id: cmd.jusquAMessageId },
         select: { createdAt: true, conversationId: true },
       });
@@ -34,7 +34,7 @@ export class MarquerMessagesLusUseCase {
       seuilDate = new Date();
     }
 
-    const nonLus = await (this.prisma as any).message.findMany({
+    const nonLus = await this.prisma.message.findMany({
       where: {
         conversationId: cmd.conversationId,
         createdAt: { lte: seuilDate },
@@ -46,7 +46,7 @@ export class MarquerMessagesLusUseCase {
 
     if (nonLus.length === 0) return { count: 0 };
 
-    const resultat = await (this.prisma as any).messageReadStatus.createMany({
+    const resultat = await this.prisma.messageReadStatus.createMany({
       data: nonLus.map((m: { id: string }) => ({ messageId: m.id, userId: cmd.appelantId })),
       skipDuplicates: true,
     });

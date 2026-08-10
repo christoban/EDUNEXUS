@@ -53,11 +53,26 @@ async function main() {
     console.log("Teacher exists:", teacher.id);
   }
 
+  // Année académique courante (nécessaire pour year-scoper la classe créée ci-dessous)
+  let anneeScolaire = await prisma.academicYear.findFirst({ where: { schoolId: school.id, isCurrent: true } });
+  if (!anneeScolaire) {
+    anneeScolaire = await prisma.academicYear.create({
+      data: {
+        schoolId: school.id,
+        name: "2025-2026",
+        startDate: new Date("2025-09-01"),
+        endDate: new Date("2026-06-30"),
+        isCurrent: true,
+      },
+    });
+    console.log("Created academic year:", anneeScolaire.id);
+  }
+
   // Create class 6e A
   const className = "6e A";
   let cls = await prisma.class.findFirst({ where: { schoolId: school.id, name: className } });
   if (!cls) {
-    cls = await prisma.class.create({ data: { schoolId: school.id, name: className } });
+    cls = await prisma.class.create({ data: { schoolId: school.id, name: className, academicYearId: anneeScolaire.id } });
     console.log("Created class:", cls.id);
   } else {
     console.log("Class exists:", cls.id);

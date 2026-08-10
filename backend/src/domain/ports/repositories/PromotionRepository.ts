@@ -26,12 +26,21 @@ export interface DecisionConseil {
 export interface PromotionRepository {
   /**
    * Retourne le mapping classe source → classe destination pour une école.
-   * Configuré par l'Admin avant la clôture.
+   * Créé par ProposerStructureAnneeSuivanteUseCase, revu par l'Admin avant la clôture.
    */
   findMappingsPromotion(
     schoolId: string,
     academicYearId: string
   ): Promise<ClassPromotionMapping[]>;
+
+  /**
+   * Enregistre les mappings classe source → classe (DRAFT) proposée pour l'année suivante.
+   * `academicYearId` est l'année COURANTE (celle qu'on s'apprête à clôturer), cohérent avec
+   * findMappingsPromotion. Appelé une seule fois par ProposerStructureAnneeSuivanteUseCase.
+   */
+  creerMappingsPromotion(
+    mappings: (ClassPromotionMapping & { schoolId: string; academicYearId: string })[]
+  ): Promise<void>;
 
   /**
    * Retourne toutes les décisions de conseil pour une année.

@@ -36,11 +36,11 @@ function isGarcon(gender: string | null): boolean {
 }
 
 async function fetchPrimaryStudents(prisma: PrismaClient, schoolId: string): Promise<PrimaryStudentRow[]> {
-  const students = await (prisma as any).studentProfile.findMany({
+  const students = await prisma.studentProfile.findMany({
     where: {
       studentStatus: 'ACTIVE',
       user: { schoolId },
-      class: { level: { in: ALL_PRIMARY_LEVELS as unknown as string[] } },
+      class: { level: { in: ALL_PRIMARY_LEVELS } },
     },
     select: { gender: true, dateOfBirth: true, class: { select: { level: true } } },
   });
@@ -110,7 +110,7 @@ export interface PersonnelPrimaireRow {
 }
 
 export async function resolvePersonnelPrimaire(prisma: PrismaClient, schoolId: string): Promise<{ rows: PersonnelPrimaireRow[]; champsNonResolus: string[] }> {
-  const staff: any[] = await (prisma as any).user.findMany({
+  const staff: any[] = await prisma.user.findMany({
     where: { schoolId, isActive: true, role: { in: ['TEACHER', 'STAFF', 'ADMIN'] } },
     select: {
       firstName: true,

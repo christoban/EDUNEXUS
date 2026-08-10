@@ -5,7 +5,7 @@ import {
   normalizePassThresholdOn20,
   normalizeScoreOn20,
   scoreOn20ToPercentage,
-} from "../utils/gradingEngine.ts";
+} from "../domain/rules/GradingEngine.ts";
 
 describe("gradingEngine", () => {
   test("normalizeScoreOn20 converts and clamps correctly", () => {
@@ -40,5 +40,31 @@ describe("gradingEngine", () => {
 
     expect(calculateAverageScoreOn20(grades, false)).toBe(12);
     expect(calculateAverageScoreOn20(grades, true)).toBe(11.33);
+  });
+
+  test("calculateAverageScoreOn20 treats an explicit coefficient of 0 as a real zero, not a missing value", () => {
+    // Une matière à coefficient 0 (ex. non comptée dans la moyenne) doit être totalement
+    // exclue du calcul — ne doit jamais être silencieusement remplacée par coefficient 1.
+    const gradesAvecMatiereExclue = [
+      { scoreOn20: 14, percentage: 70, coefficient: 0 },
+      { scoreOn20: 10, percentage: 50, coefficient: 2 },
+    ];
+    // Seule la 2e note (coefficient 2) doit compter : moyenne = 10, pas une pondération de 14 et 10.
+    expect(calculateAverageScoreOn20(gradesAvecMatiereExclue, true)).toBe(10);
+
+    // Si TOUTES les matières ont coefficient 0, la moyenne doit être 0 (pas NaN, pas 1-par-défaut).
+    const toutesLesMatieresExclues = [
+      { scoreOn20: 14, percentage: 70, coefficient: 0 },
+      { scoreOn20: 9, percentage: 45, coefficient: 0 },
+    ];
+    expect(calculateAverageScoreOn20(toutesLesMatieresExclues, true)).toBe(0);
+
+    // Un coefficient réellement absent (undefined), lui, doit toujours retomber sur le défaut 1 —
+    // à ne pas confondre avec un coefficient explicitement mis à 0.
+    const coefficientAbsent = [
+      { scoreOn20: 10, percentage: 50 },
+      { scoreOn20: 14, percentage: 70, coefficient: 1 },
+    ];
+    expect(calculateAverageScoreOn20(coefficientAbsent, true)).toBe(12);
   });
 });

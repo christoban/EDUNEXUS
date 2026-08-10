@@ -49,10 +49,10 @@ export class ModifierUtilisateurUseCase {
     // Champs réservés à l'Admin
     if (!estAdmin) {
       if (commande.email !== undefined) {
-        throw new Error("Seul un Admin peut modifier l'email");
+        throw new Error("Accès refusé : seul un Admin peut modifier l'email");
       }
       if (commande.isActive !== undefined) {
-        throw new Error('Seul un Admin peut activer/désactiver un compte');
+        throw new Error('Accès refusé : seul un Admin peut activer/désactiver un compte');
       }
       if (commande.passwordHash !== undefined) {
         throw new Error('Utilisez la route dédiée pour changer votre mot de passe');

@@ -26,7 +26,7 @@ export class EnvoyerMessageUseCase {
     // Défense en profondeur en plus de l'idempotence HTTP générique (Idempotency-Key) déjà en
     // place — un retry ou un bug frontend qui rejoue le même clientMessageId ne doit jamais créer
     // de doublon : on renvoie simplement le message déjà persisté.
-    const existant = await (this.prisma as any).message.findUnique({
+    const existant = await this.prisma.message.findUnique({
       where: { id: cmd.clientMessageId },
       include: { sender: { select: { id: true, firstName: true, lastName: true, role: true } } },
     });
@@ -43,14 +43,14 @@ export class EnvoyerMessageUseCase {
 
     let moderationStatus: 'APPROVED' | 'PENDING' = 'APPROVED';
     if (conversation.type === 'CLASS_CHANNEL' || conversation.type === 'PARENT_CHANNEL') {
-      const config = await (this.prisma as any).schoolConfig.findUnique({
+      const config = await this.prisma.schoolConfig.findUnique({
         where: { schoolId: cmd.schoolId },
         select: { messageModeration: true },
       });
       if (config?.messageModeration) moderationStatus = 'PENDING';
     }
 
-    const message = await (this.prisma as any).message.create({
+    const message = await this.prisma.message.create({
       data: {
         id: cmd.clientMessageId,
         conversationId: conversation.id,
@@ -83,13 +83,13 @@ export class EnvoyerMessageUseCase {
       throw new Error("Vous ne pouvez pas écrire à ce destinataire.");
     }
 
-    const destinataire = await (this.prisma as any).user.findFirst({
+    const destinataire = await this.prisma.user.findFirst({
       where: { id: cmd.destinataireId, schoolId: cmd.schoolId, isActive: true },
       select: { id: true },
     });
     if (!destinataire) throw new Error('Destinataire introuvable.');
 
-    const existante = await (this.prisma as any).conversation.findFirst({
+    const existante = await this.prisma.conversation.findFirst({
       where: {
         schoolId: cmd.schoolId,
         type: 'PRIVATE',
@@ -103,7 +103,7 @@ export class EnvoyerMessageUseCase {
     if (existante) return existante;
 
     return this.prisma.$transaction(async (tx) => {
-      const conversation = await (tx as any).conversation.create({
+      const conversation = await tx.conversation.create({
         data: {
           schoolId: cmd.schoolId,
           type: 'PRIVATE',
@@ -127,20 +127,20 @@ export class EnvoyerMessageUseCase {
     let destinataireIds: string[] = [];
 
     if (conversation.type === 'PRIVATE') {
-      const participants = await (this.prisma as any).conversationParticipant.findMany({
+      const participants = await this.prisma.conversationParticipant.findMany({
         where: { conversationId: conversation.id, userId: { not: expediteurId } },
         select: { userId: true },
       });
       destinataireIds = participants.map((p: any) => p.userId);
     } else if (conversation.classId) {
       const [assignments, classe, students, parentsLinks] = await Promise.all([
-        (this.prisma as any).teachingAssignment.findMany({ where: { classId: conversation.classId }, select: { teacherId: true } }),
-        (this.prisma as any).class.findUnique({ where: { id: conversation.classId }, select: { professorPrincipalId: true } }),
+        this.prisma.teachingAssignment.findMany({ where: { classId: conversation.classId }, select: { teacherId: true } }),
+        this.prisma.class.findUnique({ where: { id: conversation.classId }, select: { professorPrincipalId: true } }),
         conversation.type === 'CLASS_CHANNEL'
-          ? (this.prisma as any).studentProfile.findMany({ where: { classId: conversation.classId }, select: { userId: true } })
+          ? this.prisma.studentProfile.findMany({ where: { classId: conversation.classId }, select: { userId: true } })
           : Promise.resolve([]),
         conversation.type === 'PARENT_CHANNEL'
-          ? (this.prisma as any).parentStudent.findMany({
+          ? this.prisma.parentStudent.findMany({
               where: { studentProfile: { classId: conversation.classId } },
               select: { parentProfile: { select: { userId: true } } },
             })

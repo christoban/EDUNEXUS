@@ -8,7 +8,7 @@
  * notifiées directement depuis EleveOnboardingController, voir son en-tête).
  */
 import { inngest } from './index';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type UserRole } from '@prisma/client';
 import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
 import { sendTransactionalEmail } from '../services/emailService';
 import { buildOnboardingLinkTemplate } from '../utils/emailTemplates';
@@ -19,7 +19,7 @@ const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as Pr
 export const relanceOnboarding = inngest.createFunction(
   { id: 'relance-onboarding-eleve-quotidien', name: 'Relances onboarding élève', triggers: [{ cron: '0 8 * * *' }] },
   async ({ step }) => {
-    const dossiers = await (prisma as any).studentOnboarding.findMany({
+    const dossiers = await prisma.studentOnboarding.findMany({
       where: { status: 'LINK_SENT' },
       include: { school: { select: { name: true } } },
     });
@@ -30,17 +30,17 @@ export const relanceOnboarding = inngest.createFunction(
     const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
 
     for (const dossier of dossiers) {
-      const settings = await (prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId: dossier.schoolId } });
+      const settings = await prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: dossier.schoolId } });
       const reminderDelayDays: number[] = settings?.reminderDelayDays ?? [3, 7];
       const escalationDelayDays: number = settings?.escalationDelayDays ?? 10;
-      const responsableRole: string = settings?.responsableRole ?? 'ADMIN';
+      const responsableRole: UserRole = settings?.responsableRole ?? 'ADMIN';
       const schoolName = dossier.school?.name ?? 'votre établissement';
 
       const daysSinceCreated = Math.floor((Date.now() - new Date(dossier.createdAt).getTime()) / (24 * 60 * 60 * 1000));
 
       // ── Expiration : verrou du token ou dépassement du délai configuré ──
       if (dossier.tokenExpiresAt.getTime() < Date.now()) {
-        await (prisma as any).studentOnboarding.update({ where: { id: dossier.id }, data: { status: 'EXPIRED' } });
+        await prisma.studentOnboarding.update({ where: { id: dossier.id }, data: { status: 'EXPIRED' } });
         expired++;
         continue;
       }
@@ -83,7 +83,7 @@ export const relanceOnboarding = inngest.createFunction(
           if (dossier.parentContactTelephone) {
             await notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.parentContactTelephone, formUrl });
           }
-          await (prisma as any).studentOnboarding.update({
+          await prisma.studentOnboarding.update({
             where: { id: dossier.id },
             data: { remindersSentCount: { increment: 1 }, lastReminderAt: new Date() },
           });
@@ -95,7 +95,7 @@ export const relanceOnboarding = inngest.createFunction(
       if (daysSinceCreated >= escalationDelayDays && !dossier.escalatedAt) {
         await step.run(`escalade-${dossier.id}`, async () => {
           const responsables = await prisma.user.findMany({
-            where: { schoolId: dossier.schoolId, role: responsableRole as any },
+            where: { schoolId: dossier.schoolId, role: responsableRole },
             select: { email: true, firstName: true },
           });
           for (const responsable of responsables) {
@@ -110,7 +110,7 @@ export const relanceOnboarding = inngest.createFunction(
               metadata: { schoolId: dossier.schoolId },
             }).catch(err => console.error('[Email] Échec escalade onboarding:', err?.message));
           }
-          await (prisma as any).studentOnboarding.update({ where: { id: dossier.id }, data: { escalatedAt: new Date() } });
+          await prisma.studentOnboarding.update({ where: { id: dossier.id }, data: { escalatedAt: new Date() } });
         });
         escalated++;
       }

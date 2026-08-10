@@ -66,18 +66,18 @@ export class JwtTokenService implements TokenService {
   }
 
   verifierAccessToken(token: string): PayloadToken {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS512'] }) as any;
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS512'] }) as unknown as PayloadToken;
     if (decoded.tokenType !== 'access') {
       throw new Error('Token invalide : type incorrect');
     }
-    return decoded as PayloadToken;
+    return decoded;
   }
 
   verifierRefreshToken(token: string): PayloadToken {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS512'] }) as any;
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS512'] }) as unknown as PayloadToken;
     if (decoded.tokenType !== 'refresh') {
       throw new Error('Token invalide : type incorrect');
     }
-    return decoded as PayloadToken;
+    return decoded;
   }
 }

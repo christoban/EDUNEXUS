@@ -25,7 +25,7 @@ export class EnregistrerResultatCepUseCase {
     status: string; onboardingCreated: boolean; candidateName: string; parentPhone: string | null;
     onboarding?: { id: string; token: string; tokenExpiresAt: Date; contactEmail: string | null; contactTelephone: string | null };
   }> {
-    const candidate = await (this.prisma as any).entranceExamCandidate.findUnique({
+    const candidate = await this.prisma.entranceExamCandidate.findUnique({
       where: { id: cmd.candidateId },
       include: { session: true },
     });
@@ -40,7 +40,7 @@ export class EnregistrerResultatCepUseCase {
     const parentPhone: string | null = candidate.parentPhone ?? null;
 
     if (cmd.cepResult === 'REUSSI') {
-      await (this.prisma as any).entranceExamCandidate.update({
+      await this.prisma.entranceExamCandidate.update({
         where: { id: cmd.candidateId },
         data: {
           cepResult: 'REUSSI',
@@ -90,7 +90,7 @@ export class EnregistrerResultatCepUseCase {
       await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session.schoolId);
       return { status: 'CONFIRME', onboardingCreated: Boolean(onboarding), candidateName, parentPhone, onboarding };
     } else {
-      await (this.prisma as any).entranceExamCandidate.update({
+      await this.prisma.entranceExamCandidate.update({
         where: { id: cmd.candidateId },
         data: {
           cepResult: 'ECHOUE',
@@ -111,11 +111,11 @@ export class EnregistrerResultatCepUseCase {
    * de source de vérité pour la visibilité du menu « Concours d'entrée » côté Admin.
    */
   private async cloturerSessionSiTousTraites(sessionId: string, schoolId: string): Promise<void> {
-    const enAttente = await (this.prisma as any).entranceExamCandidate.count({
+    const enAttente = await this.prisma.entranceExamCandidate.count({
       where: { sessionId, admissionStatus: { in: ['PENDING', 'ADMIS_PROVISOIRE'] } },
     });
     if (enAttente === 0) {
-      await (this.prisma as any).entranceExamSession.update({
+      await this.prisma.entranceExamSession.update({
         where: { id: sessionId },
         data: { status: 'CLOSED' },
       });

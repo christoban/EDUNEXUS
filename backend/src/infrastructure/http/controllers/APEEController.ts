@@ -51,7 +51,7 @@ export class APEEController {
 
       journaliserActionIA(this.prisma, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
-        actionName: 'enregistrer_transaction_apee', targetType: 'APEETransaction', targetId: (transaction as any)?.id,
+        actionName: 'enregistrer_transaction_apee', targetType: 'APEETransaction', targetId: transaction.id,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: body,
       });
       res.status(201).json({ success: true, data: transaction });
@@ -71,7 +71,7 @@ export class APEEController {
       const schoolId = req.user!.schoolId;
       const isParent = req.user!.role === 'PARENT';
 
-      const transactions = await (this.prisma as any).aPEETransaction.findMany({
+      const transactions = await this.prisma.aPEETransaction.findMany({
         where: { schoolId },
         orderBy: { date: 'desc' },
         include: isParent ? undefined : {
@@ -99,11 +99,11 @@ export class APEEController {
     try {
       const schoolId = req.user!.schoolId;
       const transactionId = String(req.params['id']);
-      const file = (req as any).file as Express.Multer.File | undefined;
+      const file = req.file as Express.Multer.File | undefined;
 
       if (!file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return; }
 
-      const transaction = await (this.prisma as any).aPEETransaction.findFirst({ where: { id: transactionId, schoolId } });
+      const transaction = await this.prisma.aPEETransaction.findFirst({ where: { id: transactionId, schoolId } });
       if (!transaction) { res.status(404).json({ success: false, message: 'Transaction introuvable' }); return; }
       if (transaction.type !== 'DEPENSE') {
         res.status(400).json({ success: false, message: 'Seule une dépense peut recevoir un justificatif' });
@@ -117,7 +117,7 @@ export class APEEController {
       const filePath = path.join(schoolDir, fileName);
       fs.writeFileSync(filePath, file.buffer);
 
-      const updated = await (this.prisma as any).aPEETransaction.update({
+      const updated = await this.prisma.aPEETransaction.update({
         where: { id: transactionId },
         data: { justificatifUrl: filePath },
       });
@@ -167,9 +167,9 @@ export class APEEController {
       const schoolId = req.user!.schoolId;
 
       const [collectes, depensesValidees, depensesEnAttente] = await Promise.all([
-        (this.prisma as any).aPEETransaction.aggregate({ where: { schoolId, type: 'COLLECTE' }, _sum: { montant: true } }),
-        (this.prisma as any).aPEETransaction.aggregate({ where: { schoolId, type: 'DEPENSE', valide: true }, _sum: { montant: true } }),
-        (this.prisma as any).aPEETransaction.count({ where: { schoolId, type: 'DEPENSE', valide: false } }),
+        this.prisma.aPEETransaction.aggregate({ where: { schoolId, type: 'COLLECTE' }, _sum: { montant: true } }),
+        this.prisma.aPEETransaction.aggregate({ where: { schoolId, type: 'DEPENSE', valide: true }, _sum: { montant: true } }),
+        this.prisma.aPEETransaction.count({ where: { schoolId, type: 'DEPENSE', valide: false } }),
       ]);
 
       const totalCollectes = collectes._sum.montant ?? 0;
@@ -204,7 +204,7 @@ export class APEEController {
       const schoolId = req.user!.schoolId;
       const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
 
-      const transactions = await (this.prisma as any).aPEETransaction.findMany({
+      const transactions = await this.prisma.aPEETransaction.findMany({
         where: { schoolId },
         orderBy: { date: 'asc' },
       });

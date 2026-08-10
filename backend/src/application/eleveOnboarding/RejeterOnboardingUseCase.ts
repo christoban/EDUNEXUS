@@ -12,7 +12,7 @@ export class RejeterOnboardingUseCase {
   async execute(cmd: RejeterOnboardingCommande): Promise<RejeterOnboardingResultat> {
     if (!cmd.rejectionReason?.trim()) throw new Error('Un motif de rejet est requis');
 
-    const onboarding = await (this.prisma as any).studentOnboarding.findFirst({
+    const onboarding = await this.prisma.studentOnboarding.findFirst({
       where: { id: cmd.onboardingId, schoolId: cmd.schoolId },
     });
     if (!onboarding) throw new Error('Dossier introuvable');
@@ -20,13 +20,13 @@ export class RejeterOnboardingUseCase {
       throw new Error(`Ce dossier ne peut pas être rejeté depuis son statut actuel (${onboarding.status}) — seul PENDING_VALIDATION peut être rejeté`);
     }
 
-    const settings = await (this.prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
+    const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
     const responsableRole = settings?.responsableRole ?? 'ADMIN';
     if (cmd.validatorRole !== responsableRole) {
       throw new Error(`Seul un utilisateur avec le rôle ${responsableRole} peut rejeter ce dossier`);
     }
 
-    await (this.prisma as any).studentOnboarding.update({
+    await this.prisma.studentOnboarding.update({
       where: { id: onboarding.id },
       data: {
         status: 'REJECTED',

@@ -10,7 +10,7 @@ export class StatisticsController {
   // GET /grades-evolution?classId=&subjectId=&studentId= — moyenne par séquence de l'année en cours
   gradesEvolution = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, studentId } = req.query as {
         classId?: string; subjectId?: string; studentId?: string;
       };
@@ -78,7 +78,7 @@ export class StatisticsController {
       });
       res.json({ success: true, data });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'evolution_moyenne_generale', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -91,7 +91,7 @@ export class StatisticsController {
   // GET /classes-comparison?level= — moyenne générale par classe (année en cours)
   classesComparison = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { level } = req.query as { level?: string };
 
       const annee = await this.prisma.academicYear.findFirst({
@@ -152,7 +152,7 @@ export class StatisticsController {
       });
       res.json({ success: true, data });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'classement_classes', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -165,7 +165,7 @@ export class StatisticsController {
   // GET /students-distribution?criteria=gender|level|paymentStatus
   studentsDistribution = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const criteria = (req.query.criteria as string) || 'gender';
 
       if (criteria === 'gender') {
@@ -229,7 +229,7 @@ export class StatisticsController {
   // GET /teacher-performance/:teacherId — généralisation de DepartmentController.performance par enseignant
   teacherPerformance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const teacherId = req.params.teacherId as string;
 
       const teacher = await this.prisma.user.findFirst({

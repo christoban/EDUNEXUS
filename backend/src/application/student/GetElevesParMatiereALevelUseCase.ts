@@ -28,7 +28,7 @@ export class GetElevesParMatiereALevelUseCase {
     });
     if (!subject) throw new Error('Matière introuvable dans cet établissement');
 
-    const links = await (this.prisma as any).studentALevelSubject.findMany({
+    const links = await this.prisma.studentALevelSubject.findMany({
       where: {
         subjectId,
         student: {

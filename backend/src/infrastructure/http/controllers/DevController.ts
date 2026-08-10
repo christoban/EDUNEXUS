@@ -55,7 +55,7 @@ export class DevController {
         }),
         this.prisma.class.findMany({
           where: { schoolId },
-          select: { id: true, level: true, serie: true, filiere: true },
+          select: { id: true, level: true, serie: true, filiere: true, academicYearId: true },
         }),
         this.prisma.subjectCoefficient.findMany({
           where: { schoolId },
@@ -99,7 +99,7 @@ export class DevController {
       // Supprimer les affectations existantes
       await this.prisma.teachingAssignment.deleteMany({ where: { schoolId } });
 
-      const toCreate: { classId: string; subjectId: string; teacherId: string; schoolId: string }[] = [];
+      const toCreate: { classId: string; subjectId: string; teacherId: string; schoolId: string; academicYearId: string }[] = [];
       let tIdx = 0;
 
       for (const cls of allClasses) {
@@ -112,13 +112,13 @@ export class DevController {
         // Matières du niveau+série (en excluant celles déjà en override)
         for (const subjectId of subjectIds) {
           if (overrides.has(subjectId)) continue;
-          toCreate.push({ classId: cls.id, subjectId, teacherId: teachers[tIdx % teachers.length].id, schoolId });
+          toCreate.push({ classId: cls.id, subjectId, teacherId: teachers[tIdx % teachers.length].id, schoolId, academicYearId: cls.academicYearId });
           tIdx++;
         }
 
         // Matières spécifiques à cette classe (ClassSubjectOverride)
         for (const subjectId of overrides) {
-          toCreate.push({ classId: cls.id, subjectId, teacherId: teachers[tIdx % teachers.length].id, schoolId });
+          toCreate.push({ classId: cls.id, subjectId, teacherId: teachers[tIdx % teachers.length].id, schoolId, academicYearId: cls.academicYearId });
           tIdx++;
         }
       }

@@ -154,10 +154,17 @@ const cleanupExpiredBackups = async (schoolId: string) => {
   }));
 };
 
-const readBackupMeta = async (filePath: string) => {
+interface BackupMeta {
+  schoolId: string;
+  requestedByMasterId?: string | null;
+  source?: BackupSource;
+  createdAt: string;
+}
+
+const readBackupMeta = async (filePath: string): Promise<BackupMeta | null> => {
   try {
     const raw = await readFile(filePath, 'utf-8');
-    const parsed = JSON.parse(raw) as any;
+    const parsed = JSON.parse(raw) as { meta?: BackupMeta };
     return parsed?.meta ?? null;
   } catch {
     return null;
@@ -184,7 +191,7 @@ export const createSchoolBackup = async (prisma: PrismaClient, request: SchoolBa
 
   await writeFile(filePath, JSON.stringify(document, null, 2), 'utf-8');
 
-  await (prisma as any).schoolSettings.upsert({
+  await prisma.schoolSettings.upsert({
     where: { schoolId: request.schoolId },
     update: { lastBackupAt: createdAt, lastBackupFile: filePath },
     create: { schoolId: request.schoolId, lastBackupAt: createdAt, lastBackupFile: filePath },
@@ -235,9 +242,13 @@ export const getLatestSchoolBackup = async (schoolId: string) => {
   return backups[0] ?? null;
 };
 
+// ActivitiesLog (audit trail) est délibérément exclu de cette purge : avec seulement
+// 5 points d'écriture dans tout le backend à ce jour, une politique de rétention serait
+// prématurée. Décision : tout conserver, ne rien purger, tant que ce log ne gagne pas
+// significativement plus de points d'écriture.
 export const purgeSchoolLogsByRetention = async (prisma: PrismaClient, schoolId: string) => {
   const db = getPrisma(prisma);
-  const settings = await (prisma as any).schoolSettings.findUnique({
+  const settings = await prisma.schoolSettings.findUnique({
     where: { schoolId },
     select: { logRetentionDays: true },
   });
@@ -245,8 +256,7 @@ export const purgeSchoolLogsByRetention = async (prisma: PrismaClient, schoolId:
   const logRetentionDays = (settings?.logRetentionDays as number | null) ?? 90;
   const cutoff = new Date(Date.now() - logRetentionDays * 24 * 60 * 60 * 1000);
 
-  const [activitiesDeleted, emailDeleted, smsDeleted] = await Promise.all([
-    db.activitiesLog.deleteMany({ where: { schoolId, createdAt: { lt: cutoff } } }),
+  const [emailDeleted, smsDeleted] = await Promise.all([
     db.emailLog.deleteMany({ where: { schoolId, createdAt: { lt: cutoff } } }),
     db.smsLog.deleteMany({ where: { schoolId, createdAt: { lt: cutoff } } }),
   ]);
@@ -255,7 +265,6 @@ export const purgeSchoolLogsByRetention = async (prisma: PrismaClient, schoolId:
     schoolId,
     logRetentionDays,
     cutoff: cutoff.toISOString(),
-    activitiesDeleted: activitiesDeleted.count,
     emailDeleted: emailDeleted.count,
     smsDeleted: smsDeleted.count,
   };

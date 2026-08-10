@@ -24,7 +24,7 @@ export class ScannerListeCandidatsPebsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(schoolId: string, sessionId: string, imageBase64: string, mimeType?: string): Promise<{ candidats: ScannedCandidate[]; warnings: string[] }> {
-    const session = await (this.prisma as any).pebsExamSession.findUnique({
+    const session = await this.prisma.pebsExamSession.findUnique({
       where: { id: sessionId },
     });
     if (!session) throw new Error('Session PEBS introuvable');

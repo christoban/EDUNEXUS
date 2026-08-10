@@ -96,7 +96,13 @@ export class SaisirNoteUseCase {
       );
     }
 
-    // 4. Créer la note (la validation des bornes est dans l'entité)
+    // 4. Coefficient : reflète la valeur en vigueur au moment de la saisie — ne sera plus jamais
+    // recalculé une fois la note VALIDATED/LOCKED (Loi 6, verrouillage total). Un override
+    // explicite (ex. saisi via l'assistant IA) reste prioritaire sur celui de la matière.
+    const matiere = await this.matiereRepository.findById(commande.subjectId);
+    const coefficient = commande.coefficient ?? matiere?.coefficient ?? 1;
+
+    // 5. Créer la note (la validation des bornes est dans l'entité)
     const note = Note.create({
       schoolId: commande.schoolId,
       studentId: commande.studentId,
@@ -113,11 +119,11 @@ export class SaisirNoteUseCase {
       professionalAttitude: commande.professionalAttitude,
       oralScore: commande.oralScore,
       selfDevelopmentScore: commande.selfDevelopmentScore,
-      coefficient: commande.coefficient,
+      coefficient,
       maxValue: commande.maxValue,
     });
 
-    // 5. Sauvegarder
+    // 6. Sauvegarder
     await this.noteRepository.save(note);
 
     return {

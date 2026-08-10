@@ -6,7 +6,7 @@ export class CreerSessionConcoursUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: CreerSessionConcoursCommande): Promise<{ sessionId: string }> {
-    const session = await (this.prisma as any).entranceExamSession.create({
+    const session = await this.prisma.entranceExamSession.create({
       data: {
         schoolId: cmd.schoolId,
         name: cmd.name,

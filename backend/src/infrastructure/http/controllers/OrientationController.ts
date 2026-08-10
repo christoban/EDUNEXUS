@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { TypePreoccupation, OrientationCheckpointType } from '@domain/entities/FicheOrientation';
 import type { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
 import type { AjouterEntretienUseCase } from '@application/orientation/AjouterEntretienUseCase';
 import type { AjouterTestAptitudeUseCase } from '@application/orientation/AjouterTestAptitudeUseCase';
@@ -16,6 +17,8 @@ import type { ConfigurerCheckpointOrientationUseCase } from '@application/orient
 import type { IOrientationRepository } from '@domain/ports/repositories/IOrientationRepository';
 import type { PrismaClient } from '@prisma/client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+
+const TYPES_PREOCCUPATION: TypePreoccupation[] = ['SCOLAIRE', 'COMPORTEMENTAL', 'FAMILIAL', 'PROFESSIONNEL', 'SANTE', 'AUTRE'];
 
 export class OrientationController {
   constructor(
@@ -50,7 +53,7 @@ export class OrientationController {
   // GET /api/v2/orientation/stats
   obtenirStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { academicYearId } = req.query as Record<string, string>;
       const stats = await this.getStats.execute({ schoolId: user.schoolId, academicYearId });
@@ -61,7 +64,7 @@ export class OrientationController {
   // GET /api/v2/orientation/fiches
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { classId, riskLevel, status, academicYearId, page, limit } = req.query as Record<string, string>;
       const resultat = await this.listerFiches.execute({
@@ -80,7 +83,7 @@ export class OrientationController {
   // POST /api/v2/orientation/fiches
   creer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { studentId, mainConcern, academicYearId } = req.body as {
         studentId: string; mainConcern?: string; academicYearId: string;
@@ -89,14 +92,40 @@ export class OrientationController {
         res.status(400).json({ success: false, message: 'studentId et academicYearId requis' });
         return;
       }
+      // mainConcern circulait vers Prisma sans validation (cast `as any`) — une valeur hors
+      // énumération levait une PrismaClientValidationError (500) plutôt qu'un 400 propre.
+      if (mainConcern !== undefined && !TYPES_PREOCCUPATION.includes(mainConcern as TypePreoccupation)) {
+        res.status(400).json({ success: false, message: `mainConcern doit être : ${TYPES_PREOCCUPATION.join(', ')}` });
+        return;
+      }
       const fiche = await this.creerFiche.execute({
         studentId,
         schoolId: user.schoolId,
         academicYearId,
         conseillerId: user.userId,
-        mainConcern: mainConcern as any,
+        mainConcern: mainConcern as TypePreoccupation | undefined,
       });
-      res.status(201).json({ success: true, data: fiche });
+      // Bug indépendant trouvé en écrivant le test de ce site : FicheOrientation est une entité
+      // de domaine (champs exposés via des getters, non énumérables) — la sérialiser telle
+      // quelle avec res.json() ne renvoie QUE son champ privé `props` (JSON.stringify() énumère
+      // les propriétés propres, pas les getters de prototype), jamais fiche.id directement.
+      // Tout consommateur de cette réponse (frontend inclus) recevait data.props.id au lieu de
+      // data.id — jamais data.id lui-même, cassant la navigation post-création.
+      res.status(201).json({
+        success: true,
+        data: {
+          id: fiche.id,
+          studentId: fiche.studentId,
+          schoolId: fiche.schoolId,
+          academicYearId: fiche.academicYearId,
+          conseillerId: fiche.conseillerId,
+          status: fiche.status,
+          riskLevel: fiche.riskLevel,
+          mainConcern: fiche.mainConcern,
+          createdAt: fiche.createdAt,
+          updatedAt: fiche.updatedAt,
+        },
+      });
     } catch (err) {
       if (err instanceof Error && err.message.includes('existe déjà')) {
         res.status(409).json({ success: false, message: err.message });
@@ -109,7 +138,7 @@ export class OrientationController {
   // GET /api/v2/orientation/fiches/:id
   detail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const fiche = await this.repo.findFicheDetailById(req.params.id as string, user.schoolId);
       if (!fiche) {
@@ -123,7 +152,7 @@ export class OrientationController {
   // POST /api/v2/orientation/fiches/:id/entretiens
   ajouterEntretienHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { date, type, motif, notes, recommendations, nextActions, parentNotified, followUpDate, status } = req.body;
       if (!date || !type || !motif) {
@@ -160,7 +189,7 @@ export class OrientationController {
   // PATCH /api/v2/orientation/entretiens/:id
   modifierEntretien = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { notes, recommendations, nextActions, parentNotified, followUpDate, status } = req.body;
       const updated = await this.repo.updateEntretien(req.params.id as string, {
@@ -178,7 +207,7 @@ export class OrientationController {
   // POST /api/v2/orientation/fiches/:id/tests
   ajouterTestHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { type, datePassage, resultats, interpretation, scoreGlobal } = req.body;
       if (!type || !datePassage || !resultats) {
@@ -207,7 +236,7 @@ export class OrientationController {
   // POST /api/v2/orientation/fiches/:id/recommandation-serie
   creerRecommandationHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { serieActuelle, serieRecommandee, justification } = req.body;
       if (!serieActuelle || !serieRecommandee || !justification) {
@@ -238,7 +267,7 @@ export class OrientationController {
   // PATCH /api/v2/orientation/recommandations/:id/valider
   validerRecommandation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user.role !== 'ADMIN') {
         res.status(403).json({ success: false, message: 'Seul un ADMIN peut valider une recommandation de série' });
         return;
@@ -251,7 +280,7 @@ export class OrientationController {
   // POST /api/v2/orientation/fiches/:id/suivis
   ajouterSuiviHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { riskLevel, mainConcern, interventions, prochainRdv, notes } = req.body;
       if (!riskLevel || !mainConcern) {
@@ -274,7 +303,7 @@ export class OrientationController {
       });
       res.status(201).json({ success: true, data: suivi });
     } catch (err) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'ajouter_suivi_orientation', targetType: 'OrientationFiche', targetId: req.params.id as string,
@@ -303,7 +332,7 @@ export class OrientationController {
   // POST /api/v2/orientation/aspirations — élève
   saisirAspirationHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user.role !== 'STUDENT') {
         res.status(403).json({ success: false, message: 'Réservé aux élèves' });
         return;
@@ -323,12 +352,12 @@ export class OrientationController {
   // GET /api/v2/orientation/aspirations/:checkpointType — élève consulte la sienne
   obtenirAspiration = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user.role !== 'STUDENT') {
         res.status(403).json({ success: false, message: 'Réservé aux élèves' });
         return;
       }
-      const aspiration = await this.repo.findAspiration(user.userId, req.params.checkpointType as any);
+      const aspiration = await this.repo.findAspiration(user.userId, req.params.checkpointType as OrientationCheckpointType);
       res.json({ success: true, data: aspiration });
     } catch (err) { next(err); }
   };
@@ -336,7 +365,7 @@ export class OrientationController {
   // POST /api/v2/orientation/checkpoints/:type/generer — conseiller déclenche manuellement
   genererRecommandationHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { studentId } = req.body;
       if (!studentId) {
@@ -349,7 +378,7 @@ export class OrientationController {
         return;
       }
       const reco = await this.genererRecommandation.execute({
-        schoolId: user.schoolId, studentId, checkpointType: req.params.type as any,
+        schoolId: user.schoolId, studentId, checkpointType: req.params.type as OrientationCheckpointType,
         academicYearId, conseillerId: user.userId,
       });
       res.status(201).json({ success: true, data: reco });
@@ -359,7 +388,7 @@ export class OrientationController {
   // PATCH /api/v2/orientation/recommandations/:id/valider-conseiller
   validerRecommandationConseillerHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { serieRecommandee } = req.body;
       if (!serieRecommandee) {
@@ -379,7 +408,7 @@ export class OrientationController {
   // PATCH /api/v2/orientation/recommandations/:id/proposer-eleve
   proposerRecommandationEleveHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const reco = await this.proposerRecommandationEleve.execute({
         recommandationId: req.params.id as string, schoolId: user.schoolId,
@@ -394,7 +423,7 @@ export class OrientationController {
   // PATCH /api/v2/orientation/recommandations/:id/choisir-piste — élève
   choisirPisteEleveHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user.role !== 'STUDENT') {
         res.status(403).json({ success: false, message: 'Réservé aux élèves' });
         return;
@@ -417,7 +446,7 @@ export class OrientationController {
   // GET /api/v2/orientation/ma-recommandation/:checkpointType — élève consulte SA proposition en cours
   maRecommandation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user.role !== 'STUDENT' && user.role !== 'PARENT') {
         res.status(403).json({ success: false, message: 'Réservé aux élèves et parents' });
         return;
@@ -450,7 +479,7 @@ export class OrientationController {
   // GET /api/v2/orientation/eleves-a-orienter — filet de sécurité conseiller
   elevesAOrienterHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { checkpointType } = req.query as Record<string, string>;
       if (!checkpointType) {
@@ -460,7 +489,7 @@ export class OrientationController {
       const academicYearId = await this.anneeCouranteId(user.schoolId);
       if (!academicYearId) { res.json({ success: true, data: [] }); return; }
       const eleves = await this.listerElevesAOrienter.execute({
-        schoolId: user.schoolId, checkpointType: checkpointType as any, academicYearId,
+        schoolId: user.schoolId, checkpointType: checkpointType as OrientationCheckpointType, academicYearId,
       });
       res.json({ success: true, data: eleves });
     } catch (err) { next(err); }
@@ -469,9 +498,9 @@ export class OrientationController {
   // GET /api/v2/orientation/checkpoints/:type/config
   obtenirConfigCheckpoint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkPermission(user, res)) return;
-      const config = await this.repo.findCheckpointConfig(user.schoolId, req.params.type as any);
+      const config = await this.repo.findCheckpointConfig(user.schoolId, req.params.type as OrientationCheckpointType);
       res.json({ success: true, data: config });
     } catch (err) { next(err); }
   };
@@ -479,14 +508,14 @@ export class OrientationController {
   // PUT /api/v2/orientation/checkpoints/:type/config — ADMIN uniquement
   configurerCheckpointHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user.role !== 'ADMIN') {
         res.status(403).json({ success: false, message: 'Seul un ADMIN peut configurer les checkpoints d\'orientation' });
         return;
       }
       const { possibleTracks, relevantSubjects, psychotechnicalTestRequired, windowStartMonth, windowStartDay, windowEndMonth, windowEndDay, responseDeadlineDays } = req.body;
       const config = await this.configurerCheckpoint.execute({
-        schoolId: user.schoolId, type: req.params.type as any,
+        schoolId: user.schoolId, type: req.params.type as OrientationCheckpointType,
         possibleTracks, relevantSubjects,
         psychotechnicalTestRequired: psychotechnicalTestRequired === true || psychotechnicalTestRequired === 'true',
         windowStartMonth, windowStartDay, windowEndMonth, windowEndDay, responseDeadlineDays,

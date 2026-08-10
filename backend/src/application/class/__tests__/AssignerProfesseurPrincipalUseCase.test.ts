@@ -18,8 +18,10 @@ describe('AssignerProfesseurPrincipalUseCase', () => {
     classeRepo.ajouter(Classe.reconstituer({
       id: 'classe-1',
       schoolId: 'school-1',
+      academicYearId: 'annee-1',
       name: '2nde C',
       capacity: 40,
+      status: 'ACTIVE',
       createdAt: new Date(),
     }));
 

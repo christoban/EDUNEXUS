@@ -1,5 +1,5 @@
 import { type Request, type Response, type NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 /**
  * Idempotence des requêtes rejouées par la file de synchronisation offline (Plan offline-first
@@ -40,7 +40,9 @@ export function idempotency(prisma: PrismaClient) {
               method: req.method,
               path: req.path,
               statusCode: res.statusCode,
-              responseBody: body as any,
+              // body est ce qui vient d'être passé à res.json() juste après — déjà JSON-safe
+              // par construction, ce n'est qu'une réécriture du même objet vers Prisma.
+              responseBody: body as Prisma.InputJsonValue,
             },
           })
           .catch((e: any) => console.error('[Idempotency] Échec enregistrement:', e?.message));

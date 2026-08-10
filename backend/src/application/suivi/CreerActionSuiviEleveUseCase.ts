@@ -226,7 +226,7 @@ export class CreerActionSuiviEleveUseCase {
    * réel de l'escalade, pas de porter telle ou telle permission.
    */
   private async casEscaladeVersMoi(studentProfileId: string, userId: string): Promise<boolean> {
-    const signalement = await (this.prisma as any).studentFollowUpAction.findFirst({
+    const signalement = await this.prisma.studentFollowUpAction.findFirst({
       where: { studentProfileId, type: 'SIGNALEMENT_CONSEILLER', assignedToId: userId, status: { in: ['OUVERT', 'EN_COURS'] } },
       select: { id: true },
     });

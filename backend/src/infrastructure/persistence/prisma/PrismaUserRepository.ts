@@ -236,8 +236,13 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async authentifier(email: string, schoolId: string, plainPassword: string, role?: string): Promise<User | null> {
+    const ROLES_CONNUS: UserRole[] = ['ADMIN', 'STAFF', 'TEACHER', 'PARENT', 'STUDENT'];
+    // Un rôle hors énumération levait une PrismaClientValidationError (500) au lieu d'un échec
+    // d'authentification normal — même traitement qu'un email/mot de passe incorrect, pour ne
+    // jamais distinguer "rôle invalide" de "identifiants invalides" (pas d'info leakage).
+    if (role !== undefined && !ROLES_CONNUS.includes(role as UserRole)) return null;
     const data = await this.prisma.user.findFirst({
-      where: { email, schoolId, ...(role ? { role: role as any } : {}) },
+      where: { email, schoolId, ...(role ? { role: role as UserRole } : {}) },
       include: { staffProfile: { include: { permissions: true } } },
     });
     if (!data || !data.passwordHash) return null;

@@ -33,8 +33,11 @@ bunx tsc --noEmit -p . || {
 
 echo "  → recherche de as any / @ts-ignore / @ts-expect-error sur les lignes ajoutées"
 RELATIVE_FILES=$(echo "$STAGED_BACKEND_TS" | sed 's|^backend/||')
+# Exclut les lignes de commentaire (JSDoc ` * ...` et `// ...`) : elles ne peuvent pas
+# réintroduire un vrai cast, seulement en parler en prose (ex. documenter un bug corrigé).
 CULPRITS=$(git diff --cached -- $RELATIVE_FILES \
   | grep -E '^\+[^+]' \
+  | grep -vE '^\+\s*(\*|//)' \
   | grep -E '\bas any\b|@ts-ignore|@ts-expect-error' || true)
 
 if [ -n "$CULPRITS" ]; then

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, OnboardingStatus } from '@prisma/client';
+import type { DispositifOS } from '@application/eleveOnboarding/types';
 import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/CreerSqueletteOnboardingUseCase';
 import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboarding/SoumettreFormulaireOnboardingUseCase';
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
@@ -86,7 +87,7 @@ export class EleveOnboardingController {
   getByToken = async (req: Request, res: Response, _next: NextFunction) => {
     try {
       const token = String(req.params['token']);
-      const onboarding = await (this.prisma as any).studentOnboarding.findUnique({
+      const onboarding = await this.prisma.studentOnboarding.findUnique({
         where: { token },
         include: { classe: { select: { name: true, level: true } } },
       });
@@ -101,7 +102,7 @@ export class EleveOnboardingController {
       }
       if (onboarding.tokenExpiresAt.getTime() < Date.now()) {
         if (onboarding.status !== 'EXPIRED') {
-          await (this.prisma as any).studentOnboarding.update({ where: { id: onboarding.id }, data: { status: 'EXPIRED' } });
+          await this.prisma.studentOnboarding.update({ where: { id: onboarding.id }, data: { status: 'EXPIRED' } });
         }
         res.status(410).json({ success: false, message: 'Ce lien a expiré — demandez à votre établissement de le renvoyer' });
         return;
@@ -155,8 +156,8 @@ export class EleveOnboardingController {
       if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const status = req.query['status'] as string | undefined;
-      const dossiers = await (this.prisma as any).studentOnboarding.findMany({
-        where: { schoolId, ...(status ? { status } : {}) },
+      const dossiers = await this.prisma.studentOnboarding.findMany({
+        where: { schoolId, ...(status ? { status: status as OnboardingStatus } : {}) },
         include: { classe: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
         take: 100,
@@ -205,7 +206,7 @@ export class EleveOnboardingController {
     try {
       if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
-      const settings = await (this.prisma as any).schoolOnboardingSettings.findUnique({ where: { schoolId } });
+      const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId } });
       res.json({
         success: true,
         data: settings ?? {
@@ -235,7 +236,7 @@ export class EleveOnboardingController {
         ...(responsableRole !== undefined && { responsableRole }),
       };
 
-      const settings = await (this.prisma as any).schoolOnboardingSettings.upsert({
+      const settings = await this.prisma.schoolOnboardingSettings.upsert({
         where: { schoolId },
         create: { schoolId, ...data },
         update: data,
@@ -252,7 +253,7 @@ export class EleveOnboardingController {
       const createdById = req.user!.userId;
       const onboardingId = String(req.params['id']);
 
-      const existing = await (this.prisma as any).studentOnboarding.findFirst({ where: { id: onboardingId, schoolId } });
+      const existing = await this.prisma.studentOnboarding.findFirst({ where: { id: onboardingId, schoolId } });
       if (!existing) {
         res.status(404).json({ success: false, message: 'Dossier introuvable' });
         return;
@@ -264,7 +265,7 @@ export class EleveOnboardingController {
 
       // Invalide l'ancien dossier et en recrée un neuf avec un nouveau token (même
       // squelette) — plus simple et plus sûr qu'une mutation en place du token existant.
-      await (this.prisma as any).studentOnboarding.update({ where: { id: existing.id }, data: { status: 'EXPIRED' } });
+      await this.prisma.studentOnboarding.update({ where: { id: existing.id }, data: { status: 'EXPIRED' } });
       const result = await this._creerSquelette.execute({
         schoolId, createdById,
         nomProvisoire: existing.nomProvisoire,
@@ -277,9 +278,9 @@ export class EleveOnboardingController {
         sourceType: existing.sourceType,
         examCandidateId: existing.examCandidateId,
         eleveADispositif: existing.eleveADispositif,
-        eleveDispositifOS: existing.eleveDispositifOS,
+        eleveDispositifOS: existing.eleveDispositifOS as DispositifOS | null,
         parentADispositif: existing.parentADispositif,
-        parentDispositifOS: existing.parentDispositifOS,
+        parentDispositifOS: existing.parentDispositifOS as DispositifOS | null,
         aucunContactDisponible: !existing.contactEmail && !existing.contactTelephone && !existing.parentContactEmail && !existing.parentContactTelephone,
       });
       res.json({ success: true, data: result });
@@ -296,7 +297,7 @@ export class EleveOnboardingController {
       const schoolId = req.user!.schoolId;
       const onboardingId = String(req.params['id']);
 
-      const onboarding = await (this.prisma as any).studentOnboarding.findFirst({
+      const onboarding = await this.prisma.studentOnboarding.findFirst({
         where: { id: onboardingId, schoolId },
         include: { classe: { select: { name: true } }, school: { select: { name: true } } },
       });

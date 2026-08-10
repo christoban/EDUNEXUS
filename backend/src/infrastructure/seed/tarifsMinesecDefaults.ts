@@ -46,7 +46,7 @@ export const GCE_VARIABLES = {
 
 export async function seedTarifsMinesec(prisma: PrismaClient): Promise<void> {
   for (const tarif of TARIFS_2025_2026) {
-    await (prisma as any).tarifMinesecReference.upsert({
+    await prisma.tarifMinesecReference.upsert({
       where: {
         typeFrais_anneeScolaire_niveau: {
           typeFrais: tarif.typeFrais,

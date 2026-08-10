@@ -1,8 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { AnalyserDiplomeUseCase } from '@application/hr/AnalyserDiplomeUseCase';
+
+interface EmployeeDocumentEntry {
+  type: string;
+  label: string;
+  url: string;
+  uploadedAt: string;
+}
 
 /**
  * Préfixe /api/v2/hr-self-service. Contrairement à HRController (/api/v2/hr, réservé
@@ -27,7 +34,7 @@ export class HRSelfServiceController {
   getMyFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.userId;
-      const file = await (this.prisma as any).employeeFile.findUnique({ where: { userId } });
+      const file = await this.prisma.employeeFile.findUnique({ where: { userId } });
       res.json({ success: true, data: file });
     } catch (err) { next(err); }
   };
@@ -48,7 +55,7 @@ export class HRSelfServiceController {
 
       if (body['confirmComplete'] === true) data.selfServiceCompletedAt = new Date();
 
-      const file = await (this.prisma as any).employeeFile.upsert({
+      const file = await this.prisma.employeeFile.upsert({
         where: { userId },
         create: { userId, schoolId, ...data },
         update: data,
@@ -62,11 +69,11 @@ export class HRSelfServiceController {
     try {
       const userId = req.user!.userId;
       const schoolId = req.user!.schoolId;
-      const file = (req as any).file as Express.Multer.File | undefined;
+      const file = req.file as Express.Multer.File | undefined;
       const { type, label } = req.body as { type?: string; label?: string };
 
       if (!file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return; }
-      if (!type || !ALLOWED_DOCUMENT_TYPES.includes(type as any)) {
+      if (!type || !(ALLOWED_DOCUMENT_TYPES as readonly string[]).includes(type)) {
         res.status(400).json({ success: false, message: 'Type de document invalide' }); return;
       }
 
@@ -77,14 +84,16 @@ export class HRSelfServiceController {
       const filePath = path.join(userDir, fileName);
       fs.writeFileSync(filePath, file.buffer);
 
-      const existing = await (this.prisma as any).employeeFile.findUnique({ where: { userId } });
-      const documents = Array.isArray(existing?.documentsUrls) ? existing.documentsUrls : [];
+      const existing = await this.prisma.employeeFile.findUnique({ where: { userId } });
+      const documents: EmployeeDocumentEntry[] = Array.isArray(existing?.documentsUrls)
+        ? (existing.documentsUrls as unknown as EmployeeDocumentEntry[])
+        : [];
       documents.push({ type, label: label || type, url: filePath, uploadedAt: new Date().toISOString() });
 
-      const updated = await (this.prisma as any).employeeFile.upsert({
+      const updated = await this.prisma.employeeFile.upsert({
         where: { userId },
-        create: { userId, schoolId, documentsUrls: documents },
-        update: { documentsUrls: documents },
+        create: { userId, schoolId, documentsUrls: documents as unknown as Prisma.InputJsonValue },
+        update: { documentsUrls: documents as unknown as Prisma.InputJsonValue },
       });
       res.json({ success: true, data: updated });
     } catch (err) { next(err); }
@@ -95,7 +104,7 @@ export class HRSelfServiceController {
   // en base elle-même, se contente de suggérer (voir AnalyserDiplomeUseCase).
   analyserDiplomeDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const file = (req as any).file as Express.Multer.File | undefined;
+      const file = req.file as Express.Multer.File | undefined;
       if (!file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return; }
       if (!file.mimetype.startsWith('image/')) {
         res.status(400).json({ success: false, message: "L'analyse IA ne fonctionne que sur une image (JPG/PNG) — pas sur un PDF. Vous pouvez toujours saisir le diplôme manuellement." });
@@ -113,8 +122,10 @@ export class HRSelfServiceController {
     try {
       const userId = req.user!.userId;
       const index = Number(req.params['index']);
-      const file = await (this.prisma as any).employeeFile.findUnique({ where: { userId } });
-      const documents = Array.isArray(file?.documentsUrls) ? file.documentsUrls : [];
+      const file = await this.prisma.employeeFile.findUnique({ where: { userId } });
+      const documents: EmployeeDocumentEntry[] = Array.isArray(file?.documentsUrls)
+        ? (file.documentsUrls as unknown as EmployeeDocumentEntry[])
+        : [];
       const doc = documents[index];
       if (!doc || !fs.existsSync(doc.url)) {
         res.status(404).json({ success: false, message: 'Document introuvable' }); return;

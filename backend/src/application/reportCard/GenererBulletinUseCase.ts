@@ -179,7 +179,7 @@ export class GenererBulletinUseCase {
     const lv2SubjectIds = new Set<string>();          // subjectId des matières taggées isLV2
     const alevelMap = new Map<string, Set<string>>(); // userId → set des subjectId A-Level choisis
     if (this.prisma) {
-      const profiles = await (this.prisma as any).studentProfile.findMany({
+      const profiles = await this.prisma.studentProfile.findMany({
         where: { userId: { in: elevesClasse.map(e => e.id) } },
         select: { userId: true, lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } },
       });
@@ -189,7 +189,7 @@ export class GenererBulletinUseCase {
         if (sel.length > 0) alevelMap.set(p.userId, new Set(sel));
       }
 
-      const lv2Subjects = await (this.prisma as any).subject.findMany({
+      const lv2Subjects = await this.prisma.subject.findMany({
         where: { schoolId: commande.schoolId, isLV2: true },
         select: { id: true },
       });

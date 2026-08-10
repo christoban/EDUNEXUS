@@ -35,7 +35,7 @@ export class CompterMessagesNonLusUseCase {
       ],
     };
 
-    const count = await (this.prisma as any).message.count({
+    const count = await this.prisma.message.count({
       where: {
         senderId: { not: cmd.appelantId },
         moderationStatus: 'APPROVED',

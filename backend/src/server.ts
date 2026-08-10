@@ -17,7 +17,6 @@ import cors from "cors";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest/index.ts";
 import {
-  generateTimeTable,
   generateReportCards,
   handleGradeSubmitted,
   sendPaymentReminders,
@@ -36,6 +35,7 @@ import {
   purgerCorbeille,
   BackupSchoolDataJob,
   purgeAnnoncesExpirees,
+  purgeSchoolLogs,
 } from "./inngest/functions.ts";
 import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
 import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
@@ -156,7 +156,6 @@ app.use(
   serve({
     client: inngest,
     functions: [
-      generateTimeTable,
       generateReportCards,
       handleGradeSubmitted,
       sendPaymentReminders,
@@ -175,6 +174,7 @@ app.use(
       purgerCorbeille,
       BackupSchoolDataJob,
       purgeAnnoncesExpirees,
+      purgeSchoolLogs,
       syncCarteScolaire,
       relancePaiements,
       auditMatricules,

@@ -84,10 +84,13 @@ export const calculateAverageScoreOn20 = (
     return Number(clamp(simpleAverage, 0, 20).toFixed(2));
   }
 
+  // `?? 1` et non `|| 1` : un coefficient explicitement à 0 (matière exclue du calcul) doit
+  // rester 0, pas être silencieusement remplacé par 1 — seul un coefficient absent
+  // (null/undefined) doit retomber sur la valeur par défaut 1.
   const weightedTotal = grades.reduce(
-    (sum, grade) => sum + Number(grade.scoreOn20 || 0) * Number(grade.coefficient || 1),
+    (sum, grade) => sum + Number(grade.scoreOn20 || 0) * Number(grade.coefficient ?? 1),
     0
   );
-  const coefficientTotal = grades.reduce((sum, grade) => sum + Number(grade.coefficient || 1), 0) || 1;
+  const coefficientTotal = grades.reduce((sum, grade) => sum + Number(grade.coefficient ?? 1), 0) || 1;
   return Number(clamp(weightedTotal / coefficientTotal, 0, 20).toFixed(2));
 };

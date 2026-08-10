@@ -186,7 +186,7 @@ export class ImporterUtilisateursUseCase {
       if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {
         throw new Error(`Valeur PEBS invalide : "${row.pebs?.trim()}" (attendu FR_PEBS ou EN_PEBS)`)
       }
-      await (this.prisma as any).studentProfile.updateMany({
+      await this.prisma.studentProfile.updateMany({
         where: { userId: studentUser.id },
         data: { pebsFiliere: pebsVal },
       })
@@ -199,7 +199,7 @@ export class ImporterUtilisateursUseCase {
       if (!subjectId) {
         throw new Error(`Langue LV2 introuvable : "${lv2Val}" — consultez la liste des langues disponibles dans votre établissement`)
       }
-      await (this.prisma as any).studentProfile.updateMany({
+      await this.prisma.studentProfile.updateMany({
         where: { userId: studentUser.id },
         data: { lv2SubjectId: subjectId },
       })
@@ -306,7 +306,7 @@ export class ImporterUtilisateursUseCase {
     if (ppAssigned && subjectIds.length > 0 && row.classePrincipale?.trim()) {
       const classe = await this.prisma.class.findFirst({
         where: { schoolId, name: row.classePrincipale.trim() },
-        select: { id: true, level: true, serie: true, filiere: true },
+        select: { id: true, level: true, serie: true, filiere: true, academicYearId: true },
       })
       if (classe) {
         // Matières du programme de cette classe (serie pour 2nd cycle, filiere pour 1er cycle)
@@ -336,6 +336,7 @@ export class ImporterUtilisateursUseCase {
           const result = await this.prisma.teachingAssignment.createMany({
             data: subjectsInProgramme.map(subjectId => ({
               classId: classe.id, subjectId, teacherId: teacherUser.id, schoolId,
+              academicYearId: classe.academicYearId,
             })),
             skipDuplicates: true, // ignore si matière déjà affectée à quelqu'un d'autre
           })

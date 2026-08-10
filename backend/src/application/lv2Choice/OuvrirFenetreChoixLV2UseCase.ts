@@ -8,7 +8,7 @@ export class OuvrirFenetreChoixLV2UseCase {
 
   async execute(cmd: OuvrirFenetreCommande): Promise<{ windowId: string; level: string; closeDate: Date; eleves: EleveConcerne[] }> {
     // Vérifier qu'aucune fenêtre OPEN n'existe déjà pour ce niveau + année
-    const existing = await (this.prisma as any).lv2ChoiceWindow.findFirst({
+    const existing = await this.prisma.lv2ChoiceWindow.findFirst({
       where: {
         schoolId: cmd.schoolId,
         level: cmd.level,
@@ -20,7 +20,7 @@ export class OuvrirFenetreChoixLV2UseCase {
       throw new Error(`Une fenêtre de choix LV2 est déjà ouverte pour le niveau ${cmd.level}`);
     }
 
-    const window = await (this.prisma as any).lv2ChoiceWindow.create({
+    const window = await this.prisma.lv2ChoiceWindow.create({
       data: {
         schoolId: cmd.schoolId,
         level: cmd.level,
@@ -33,7 +33,7 @@ export class OuvrirFenetreChoixLV2UseCase {
 
     // Élèves du niveau concerné — pour notification (SMS aux parents). StudentProfile n'a pas
     // de schoolId propre : l'établissement se filtre via la relation user.
-    const eleves: any[] = await (this.prisma as any).studentProfile.findMany({
+    const eleves: any[] = await this.prisma.studentProfile.findMany({
       where: { user: { schoolId: cmd.schoolId }, class: { level: cmd.level } },
       include: { user: { select: { id: true, firstName: true, lastName: true } } },
     });

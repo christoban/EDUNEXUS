@@ -7,7 +7,7 @@ export class DepartmentController {
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const departments = await this.prisma.department.findMany({
         where: { schoolId: user.schoolId },
         include: {
@@ -24,7 +24,7 @@ export class DepartmentController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { name, color } = req.body as { name?: string; color?: string };
       if (!name?.trim()) {
         res.status(400).json({ success: false, message: 'Le nom du département est requis' });
@@ -50,7 +50,7 @@ export class DepartmentController {
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const departmentId = req.params.id as string;
       const { name, color, headId, subjectIds } = req.body as {
         name?: string; color?: string; headId?: string | null; subjectIds?: string[];
@@ -191,7 +191,7 @@ export class DepartmentController {
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const departmentId = req.params.id as string;
 
       const department = await this.prisma.department.findFirst({
@@ -217,7 +217,7 @@ export class DepartmentController {
   // GET /:id/performance — moyennes par enseignant·matière·classe dans ce département
   performance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const departmentId = req.params.id as string;
 
       const dept = await this.prisma.department.findFirst({

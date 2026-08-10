@@ -8,7 +8,7 @@
  * Fire-and-forget, comme saveTurn()/notifier() ailleurs dans le projet : une panne du journal ne
  * doit jamais bloquer l'action métier elle-même.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 export type AIActionOrigin = 'UI_DIRECT' | 'AI_ASSISTANT';
 export type AIActionOutcome = 'SUCCES' | 'REFUSE' | 'ERREUR';
@@ -43,7 +43,7 @@ function sanitizeParams(params: unknown): Record<string, unknown> | undefined {
 }
 
 export function journaliserActionIA(prisma: PrismaClient, params: JournaliserActionParams): void {
-  (prisma as any).aIActionAuditLog
+  prisma.aIActionAuditLog
     .create({
       data: {
         actorUserId: params.actorUserId,
@@ -55,7 +55,10 @@ export function journaliserActionIA(prisma: PrismaClient, params: JournaliserAct
         origin: params.origin,
         outcome: params.outcome,
         refusalReason: params.refusalReason ?? undefined,
-        parametersSummary: sanitizeParams(params.parametersSummary),
+        // parametersSummary est délibérément `unknown` côté appelant (dizaines de sites, formes
+        // variées) — sanitizeParams() ne fait que rédiger les clés sensibles, le résultat reste
+        // un simple objet de résumé (primitives), jamais une valeur non sérialisable en JSON.
+        parametersSummary: sanitizeParams(params.parametersSummary) as Prisma.InputJsonValue | undefined,
         triggeringMessage: params.triggeringMessage ?? undefined,
       },
     })

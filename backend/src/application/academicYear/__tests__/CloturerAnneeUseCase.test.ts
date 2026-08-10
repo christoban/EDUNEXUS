@@ -130,6 +130,8 @@ describe('CloturerAnneeUseCase', () => {
     expect(resultat.avertissements).toHaveLength(1);
     expect(resultat.avertissements[0]).toContain('Pas de mapping');
     expect(resultat.elevesPromus).toBe(0);
+    // Bug indépendant corrigé au passage : ce champ était toujours à 0, codé en dur.
+    expect(resultat.elevesNonTraites).toBe(1);
   });
 
   it('devrait rejeter si l\'année est déjà archivée', async () => {

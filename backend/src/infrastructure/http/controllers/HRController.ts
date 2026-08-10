@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma, CareerEventType, StaffAttendanceStatus, LeaveType, LeaveStatus } from '@prisma/client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import ExcelJS from 'exceljs';
 import {
@@ -62,25 +62,25 @@ export async function traiterDemandeConge(
   statut: 'APPROVED' | 'REJECTED',
   validatedById: string | undefined,
 ): Promise<TraiterCongeResultat> {
-  const leaveRequest = await (prisma as any).leaveRequest.findFirst({ where: { id: requestId, schoolId } });
+  const leaveRequest = await prisma.leaveRequest.findFirst({ where: { id: requestId, schoolId } });
   if (!leaveRequest) throw new Error('Demande de congé introuvable');
   if (leaveRequest.statut !== 'PENDING') throw new Error('La demande a déjà été traitée');
 
-  const updated = await (prisma as any).leaveRequest.update({
+  const updated = await prisma.leaveRequest.update({
     where: { id: requestId },
     data: { statut, validatedBy: validatedById ?? null, validatedAt: new Date() },
   });
 
   if (statut === 'APPROVED') {
     const year = new Date(leaveRequest.dateDebut).getFullYear();
-    const balance = await (prisma as any).leaveBalance.upsert({
+    const balance = await prisma.leaveBalance.upsert({
       where: { userId_annee: { userId: leaveRequest.userId, annee: year } },
       create: { userId: leaveRequest.userId, schoolId, annee: year, soldeInitial: 30, soldeRestant: 30 },
       update: {},
     });
 
     const jours = daysBetweenInclusive(new Date(leaveRequest.dateDebut), new Date(leaveRequest.dateFin));
-    await (prisma as any).leaveBalance.update({
+    await prisma.leaveBalance.update({
       where: { id: balance.id },
       data: { soldeRestant: Math.max(0, Number(balance.soldeRestant) - jours) },
     });
@@ -93,11 +93,11 @@ export class HRController {
   constructor(private readonly prisma: PrismaClient) {}
 
   private getSchoolId(req: Request): string {
-    return (req as any).user?.schoolId;
+    return req.user?.schoolId;
   }
 
   private getCurrentUser(req: Request): any {
-    return (req as any).user;
+    return req.user;
   }
 
   private async loadEmployeeOrFail(userId: string, schoolId: string) {
@@ -121,9 +121,9 @@ export class HRController {
 
   private async getEmployeeSectionCode(userId: string, schoolId: string): Promise<string | null> {
     try {
-      const staff = await (this.prisma as any).staffProfile.findUnique({ where: { userId } });
+      const staff = await this.prisma.staffProfile.findUnique({ where: { userId } });
       if (!staff?.sectionId) return null;
-      const section = await (this.prisma as any).section.findUnique({ where: { id: staff.sectionId } });
+      const section = await this.prisma.section.findUnique({ where: { id: staff.sectionId } });
       return section?.code ?? null;
     } catch {
       return null;
@@ -131,25 +131,25 @@ export class HRController {
   }
 
   private async fetchEmployeeFile(userId: string) {
-    return (this.prisma as any).employeeFile.findUnique({ where: { userId } });
+    return this.prisma.employeeFile.findUnique({ where: { userId } });
   }
 
   private async getCurrentLeaveBalance(userId: string, schoolId: string) {
     const year = new Date().getFullYear();
-    const balance = await (this.prisma as any).leaveBalance.findUnique({
+    const balance = await this.prisma.leaveBalance.findUnique({
       where: { userId_annee: { userId, annee: year } },
     }).catch(() => null);
 
     if (balance) return balance;
 
-    const fallback = await (this.prisma as any).leaveBalance.findFirst({
+    const fallback = await this.prisma.leaveBalance.findFirst({
       where: { userId, schoolId },
       orderBy: { annee: 'desc' },
     });
 
     if (fallback) return fallback;
 
-    return (this.prisma as any).leaveBalance.create({
+    return this.prisma.leaveBalance.create({
       data: {
         userId,
         schoolId,
@@ -162,13 +162,13 @@ export class HRController {
 
   private async ensureLeaveBalance(userId: string, schoolId: string) {
     const year = new Date().getFullYear();
-    const existing = await (this.prisma as any).leaveBalance.findUnique({
+    const existing = await this.prisma.leaveBalance.findUnique({
       where: { userId_annee: { userId, annee: year } },
     }).catch(() => null);
 
     if (existing) return existing;
 
-    return (this.prisma as any).leaveBalance.create({
+    return this.prisma.leaveBalance.create({
       data: {
         userId,
         schoolId,
@@ -203,7 +203,7 @@ export class HRController {
         orderBy: [{ role: 'asc' }, { lastName: 'asc' }, { firstName: 'asc' }],
       });
 
-      const files = await (this.prisma as any).employeeFile.findMany({
+      const files = await this.prisma.employeeFile.findMany({
         where: { userId: { in: users.map((employee) => employee.id) } },
       });
       const fileByUserId = new Map<string, any>(files.map((file: any) => [file.userId, file]));
@@ -247,7 +247,7 @@ export class HRController {
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       });
 
-      const files = await (this.prisma as any).employeeFile.findMany({
+      const files = await this.prisma.employeeFile.findMany({
         where: { userId: { in: users.map((u) => u.id) } },
       });
       const fileByUserId = new Map<string, any>(files.map((f: any) => [f.userId, f]));
@@ -305,8 +305,8 @@ export class HRController {
 
       const [file, careerEvents, leaveRequests, leaveBalance] = await Promise.all([
         this.fetchEmployeeFile(employeeId),
-        (this.prisma as any).careerEvent.findMany({ where: { userId: employeeId, schoolId }, orderBy: { date: 'desc' } }),
-        (this.prisma as any).leaveRequest.findMany({ where: { userId: employeeId, schoolId }, orderBy: { createdAt: 'desc' } }),
+        this.prisma.careerEvent.findMany({ where: { userId: employeeId, schoolId }, orderBy: { date: 'desc' } }),
+        this.prisma.leaveRequest.findMany({ where: { userId: employeeId, schoolId }, orderBy: { createdAt: 'desc' } }),
         this.getCurrentLeaveBalance(employeeId, schoolId),
       ]);
 
@@ -367,7 +367,9 @@ export class HRController {
 
       const data = {
         dateNaissance: body.dateNaissance ? normalizeDateInput(body.dateNaissance) : null,
-        diplomes: body.diplomes ?? [],
+        // diplomes : JSON dynamique fourni par le client, forme non figée — cast local plutôt
+        // qu'un `as any` sur tout le payload, qui masquait par ailleurs schoolId manquant.
+        diplomes: (body.diplomes ?? []) as Prisma.InputJsonValue,
         numeroCNPS: body.numeroCNPS?.trim() || null,
         typeContrat: body.typeContrat?.trim() || null,
         dateEmbauche: body.dateEmbauche ? normalizeDateInput(body.dateEmbauche) : null,
@@ -376,8 +378,8 @@ export class HRController {
 
       const existing = await this.fetchEmployeeFile(employeeId);
       const file = existing
-        ? await (this.prisma as any).employeeFile.update({ where: { userId: employeeId }, data })
-        : await (this.prisma as any).employeeFile.create({ data: { ...data, userId: employeeId, schoolId } });
+        ? await this.prisma.employeeFile.update({ where: { userId: employeeId }, data })
+        : await this.prisma.employeeFile.create({ data: { ...data, userId: employeeId, schoolId } });
 
       res.status(existing ? 200 : 201).json({ success: true, data: file });
     } catch (error) {
@@ -402,11 +404,11 @@ export class HRController {
         return;
       }
 
-      const event = await (this.prisma as any).careerEvent.create({
+      const event = await this.prisma.careerEvent.create({
         data: {
           userId: employeeId,
           schoolId,
-          type: body.type,
+          type: body.type as CareerEventType,
           date: normalizeDateInput(body.date),
           observation: body.observation?.trim() || null,
         },
@@ -429,7 +431,7 @@ export class HRController {
         return;
       }
 
-      const events = await (this.prisma as any).careerEvent.findMany({
+      const events = await this.prisma.careerEvent.findMany({
         where: { userId: employeeId, schoolId },
         orderBy: { date: 'desc' },
       });
@@ -459,17 +461,17 @@ export class HRController {
         const employee = await this.loadEmployeeOrFail(entry.userId, schoolId);
         if (!employee) return null;
 
-        return (this.prisma as any).staffAttendance.upsert({
+        return this.prisma.staffAttendance.upsert({
           where: { userId_date: { userId: entry.userId, date: normalizedDate } },
           create: {
             userId: entry.userId,
             schoolId,
             date: normalizedDate,
-            statut: entry.statut,
+            statut: entry.statut as StaffAttendanceStatus,
             note: entry.note?.trim() || null,
           },
           update: {
-            statut: entry.statut,
+            statut: entry.statut as StaffAttendanceStatus,
             note: entry.note?.trim() || null,
           },
         });
@@ -494,7 +496,7 @@ export class HRController {
       const start = new Date(`${normalizedDate}T00:00:00.000Z`);
       const end = new Date(`${normalizedDate}T23:59:59.999Z`);
 
-      const records = await (this.prisma as any).staffAttendance.findMany({
+      const records = await this.prisma.staffAttendance.findMany({
         where: {
           schoolId,
           ...(userId ? { userId } : {}),
@@ -528,11 +530,11 @@ export class HRController {
 
       await this.ensureLeaveBalance(body.userId, schoolId);
 
-      const leaveRequest = await (this.prisma as any).leaveRequest.create({
+      const leaveRequest = await this.prisma.leaveRequest.create({
         data: {
           userId: body.userId,
           schoolId,
-          type: body.type,
+          type: body.type as LeaveType,
           dateDebut: normalizeDateInput(body.dateDebut),
           dateFin: normalizeDateInput(body.dateFin),
           motif: body.motif?.trim() || null,
@@ -589,11 +591,11 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const { userId, statut } = req.query as Record<string, string>;
 
-      const leaveRequests = await (this.prisma as any).leaveRequest.findMany({
+      const leaveRequests = await this.prisma.leaveRequest.findMany({
         where: {
           schoolId,
           ...(userId ? { userId } : {}),
-          ...(statut ? { statut } : {}),
+          ...(statut ? { statut: statut as LeaveStatus } : {}),
         },
         include: {
           user: { select: { id: true, firstName: true, lastName: true, role: true } },
@@ -619,7 +621,7 @@ export class HRController {
         return;
       }
 
-      const balances = await (this.prisma as any).leaveBalance.findMany({ where: { userId, schoolId }, orderBy: { annee: 'desc' } });
+      const balances = await this.prisma.leaveBalance.findMany({ where: { userId, schoolId }, orderBy: { annee: 'desc' } });
       const current = balances[0] ?? await this.getCurrentLeaveBalance(userId, schoolId);
 
       res.json({ success: true, data: { current, balances } });
@@ -716,7 +718,7 @@ export class HRController {
         return;
       }
 
-      const missionOrder = await (this.prisma as any).missionOrder.create({
+      const missionOrder = await this.prisma.missionOrder.create({
         data: {
           userId: body.userId,
           schoolId,
@@ -739,7 +741,7 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const missionId = String(req.params.id);
 
-      const missionOrder = await (this.prisma as any).missionOrder.findFirst({
+      const missionOrder = await this.prisma.missionOrder.findFirst({
         where: { id: missionId, schoolId },
         include: {
           user: { select: { id: true, firstName: true, lastName: true, role: true } },

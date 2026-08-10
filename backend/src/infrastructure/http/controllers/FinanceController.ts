@@ -164,7 +164,7 @@ async function envoyerRecuParEmail(paymentId: string): Promise<void> {
     });
     if (!payment || !payment.student?.email) return;
 
-    const pdfBuffer = await buildRecuPdf(payment as any);
+    const pdfBuffer = await buildRecuPdf(payment);
     const shortId = payment.id.slice(-8).toUpperCase();
     const year = new Date(payment.paidAt ?? payment.createdAt).getFullYear();
     const receiptNum = `REC-${year}-${shortId}`;
@@ -238,7 +238,7 @@ export class FinanceController {
         canal: 'IN_APP',
       });
 
-      const settings = await (prisma as any).schoolNotificationSettings.findUnique({ where: { schoolId } });
+      const settings = await prisma.schoolNotificationSettings.findUnique({ where: { schoolId } });
       if (settings?.emailDigestAdmin) {
         const admins = await prisma.user.findMany({
           where: { schoolId, role: 'ADMIN', isActive: true, email: { not: null } },
@@ -265,7 +265,7 @@ export class FinanceController {
   // GET /api/v2/finance/payments/:paymentId/receipt
   genererRecu = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const paymentId = req.params.paymentId as string;
 
       const payment = await prisma.payment.findUnique({
@@ -298,7 +298,7 @@ export class FinanceController {
         return;
       }
 
-      const pdfBuffer = await buildRecuPdf(payment as any);
+      const pdfBuffer = await buildRecuPdf(payment);
       const shortId = payment.id.slice(-8).toUpperCase();
       const year = new Date(payment.paidAt ?? payment.createdAt).getFullYear();
       const receiptNum = `REC-${year}-${shortId}`;
@@ -314,7 +314,7 @@ export class FinanceController {
   // POST /api/v2/finance/fee-plans
   creerPlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkFinancePermission(user, res)) return;
       const resultat = await this.creerPlanFrais.execute({
         schoolId: user.schoolId,
@@ -323,7 +323,9 @@ export class FinanceController {
       });
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'creer_plan_frais', targetType: 'FeePlan', targetId: (resultat as any)?.id,
+        // Bug indépendant : CreerPlanFraisResultat expose `planId`, jamais `id` — le cast `as
+        // any` masquait un ciblage d'audit toujours undefined pour cette action.
+        actionName: 'creer_plan_frais', targetType: 'FeePlan', targetId: resultat.planId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: resultat });
@@ -333,7 +335,7 @@ export class FinanceController {
         `créé le plan de frais « ${resultat.name} » (${resultat.amount} FCFA)`,
       );
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_plan_frais', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -346,7 +348,7 @@ export class FinanceController {
   // POST /api/v2/finance/fee-plans/copy-from-previous-year
   copierPlansAnneePrecedente = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!this.checkFinancePermission(user, res)) return;
       const { targetAcademicYearId, plans } = req.body as { targetAcademicYearId?: string; plans?: any[] };
 
@@ -387,7 +389,7 @@ export class FinanceController {
   // POST /api/v2/finance/invoices
   creerFacture = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { studentId, feePlanId, description } = req.body;
 
       if (!studentId || !feePlanId) {
@@ -410,7 +412,7 @@ export class FinanceController {
   // POST /api/v2/finance/invoices/bulk
   creerFacturesEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { feePlanId, classId, studentIds } = req.body;
 
       if (!feePlanId) {
@@ -431,7 +433,7 @@ export class FinanceController {
       });
       res.json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'generer_factures_masse', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -444,7 +446,7 @@ export class FinanceController {
   // POST /api/v2/finance/payments/mobile
   initierPaiementMobile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { factureId, studentId, phoneNumber, method } = req.body;
 
       if (!factureId || !phoneNumber || !method) {
@@ -509,7 +511,7 @@ export class FinanceController {
               studentId: payment.studentId,
               studentName: `${payment.student?.firstName ?? ''} ${payment.student?.lastName ?? ''}`.trim(),
               amount: payment.amount,
-              parentPhone: phone_number ?? (payment as any).phoneNumber ?? undefined,
+              parentPhone: phone_number ?? payment.phoneNumber ?? undefined,
             })
             void envoyerRecuParEmail(payment.id)
           } catch (err) {
@@ -526,7 +528,7 @@ export class FinanceController {
   // POST /api/v2/finance/payments/caution/:id/rembourser
   rembourserCautionEleve = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { action } = req.body;
 
       if (!action) {
@@ -553,7 +555,7 @@ export class FinanceController {
   // POST /api/v2/finance/expenses
   creerDepense = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { label, amount, category, date, ordonnateurId } = req.body;
 
       if (!label || !amount) {
@@ -580,7 +582,7 @@ export class FinanceController {
   // POST /api/v2/finance/payments/cash
   creerPaiementCash = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { factureId, studentId, montant } = req.body;
 
       if (!factureId || !studentId || montant == null) {
@@ -601,7 +603,7 @@ export class FinanceController {
 
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'enregistrer_paiement_cash', targetType: 'Payment', targetId: (resultat as any)?.paiementId,
+        actionName: 'enregistrer_paiement_cash', targetType: 'Payment', targetId: resultat.paiementId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { factureId, studentId, montant },
       });
       res.status(201).json({ success: true, data: resultat });
@@ -609,7 +611,7 @@ export class FinanceController {
       // Fire-and-forget : envoyer reçu PDF par email
       void envoyerRecuParEmail(resultat.paiementId);
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'enregistrer_paiement_cash', origin: 'UI_DIRECT', outcome: 'ERREUR',

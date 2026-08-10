@@ -109,9 +109,10 @@ export class CarteScolaireScrapingAdapter implements CarteScolaireService {
 
   /** Extrait toutes les valeurs Set-Cookie d'une réponse, sous forme d'un header Cookie réutilisable. */
   private extractCookieHeader(res: Response): string {
-    const getSetCookie = (res.headers as any).getSetCookie as (() => string[]) | undefined;
-    const raw: string[] = typeof getSetCookie === 'function'
-      ? getSetCookie.call(res.headers)
+    // Garde défensive conservée : getSetCookie() est bien déclarée par lib.dom.d.ts, mais tous
+    // les runtimes fetch (versions d'undici notamment) ne l'implémentent pas forcément.
+    const raw: string[] = typeof res.headers.getSetCookie === 'function'
+      ? res.headers.getSetCookie()
       : [res.headers.get('set-cookie')].filter((v): v is string => !!v);
 
     return raw

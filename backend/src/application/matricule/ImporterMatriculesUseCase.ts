@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { ImportMatriculeRow, ImportMatriculeResult, FuzzyMatchCandidate } from './types';
 import { normalizeForMatch, compareNames } from './stringSimilarity';
 import { parseDateFR as parseDateNaissance } from '../../utils/dateParsing';
@@ -21,7 +21,7 @@ export class ImporterMatriculesUseCase {
     fileName: string,
   ): Promise<ImportMatriculeResult> {
     // Créer le job de suivi
-    const job = await (this.prisma as any).matriculeImportJob.create({
+    const job = await this.prisma.matriculeImportJob.create({
       data: {
         schoolId,
         uploadedBy,
@@ -32,7 +32,7 @@ export class ImporterMatriculesUseCase {
     });
 
     // Charger tous les profils de l'école une seule fois (réutilisé pour exact ET fuzzy).
-    const profiles: any[] = await (this.prisma as any).studentProfile.findMany({
+    const profiles: any[] = await this.prisma.studentProfile.findMany({
       where: { user: { schoolId } },
       include: { user: { select: { firstName: true, lastName: true } } },
     });
@@ -73,7 +73,7 @@ export class ImporterMatriculesUseCase {
     const unmatched = unmatchedDetails.filter(d => !d.raison.includes('Conflit')).length;
 
     // Mettre à jour le job — matchedRows compte exact + fuzzy déjà confirmés (aucun à l'import).
-    await (this.prisma as any).matriculeImportJob.update({
+    await this.prisma.matriculeImportJob.update({
       where: { id: job.id },
       data: {
         status: 'COMPLETED',
@@ -83,7 +83,7 @@ export class ImporterMatriculesUseCase {
         flaggedForCorrection: 0,
         unmatchedRows: unmatched,
         errorRows: errors,
-        resultDetails: { unmatched: unmatchedDetails, fuzzyMatches },
+        resultDetails: { unmatched: unmatchedDetails, fuzzyMatches } as unknown as Prisma.InputJsonValue,
         processedAt: new Date(),
       },
     });
@@ -137,7 +137,7 @@ export class ImporterMatriculesUseCase {
           nom: row.nom, prenom: row.prenom, matriculeActuel: exact.matricule, matriculeNouveau: row.matricule,
         };
       }
-      await (this.prisma as any).studentProfile.update({
+      await this.prisma.studentProfile.update({
         where: { id: exact.id },
         data: { matricule: row.matricule, matriculeSource: 'EXCEL_IMPORT', matriculeMatchType: 'EXACT' },
       });

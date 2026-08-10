@@ -7,7 +7,7 @@
  * autorité pour corriger cartescolaire.cm : ce use case se contente de retirer le
  * candidat du traitement automatique et de tracer le signalement.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SignalerErreurCommande, FuzzyMatchCandidate } from './types';
 
 export interface SignalerErreurResultat {
@@ -18,21 +18,21 @@ export class SignalerErreurCarteScolaireUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: SignalerErreurCommande): Promise<SignalerErreurResultat> {
-    const job = await (this.prisma as any).matriculeImportJob.findUnique({ where: { id: cmd.jobId } });
+    const job = await this.prisma.matriculeImportJob.findUnique({ where: { id: cmd.jobId } });
     if (!job) throw new Error('Import introuvable');
     if (job.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
 
-    const details = (job.resultDetails ?? { unmatched: [], fuzzyMatches: [] }) as { unmatched: unknown[]; fuzzyMatches: FuzzyMatchCandidate[] };
+    const details = (job.resultDetails ?? { unmatched: [], fuzzyMatches: [] }) as unknown as { unmatched: unknown[]; fuzzyMatches: FuzzyMatchCandidate[] };
     const fuzzyMatches = details.fuzzyMatches ?? [];
     const entry = fuzzyMatches.find(f => f.ligne === cmd.ligne);
     if (!entry) throw new Error('Correspondance approximative introuvable pour cette ligne');
     if (entry.status !== 'PENDING') throw new Error(`Cette correspondance a déjà été traitée (statut : ${entry.status})`);
 
     entry.status = 'FLAGGED';
-    await (this.prisma as any).matriculeImportJob.update({
+    await this.prisma.matriculeImportJob.update({
       where: { id: job.id },
       data: {
-        resultDetails: { ...details, fuzzyMatches },
+        resultDetails: { ...details, fuzzyMatches } as unknown as Prisma.InputJsonValue,
         flaggedForCorrection: job.flaggedForCorrection + 1,
       },
     });

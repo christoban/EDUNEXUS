@@ -33,7 +33,7 @@ export class VerifierMatriculeUseCase {
   ) {}
 
   async execute(schoolId: string, studentProfileId: string): Promise<VerifierMatriculeResultat> {
-    const profile = await (this.prisma as any).studentProfile.findFirst({
+    const profile = await this.prisma.studentProfile.findFirst({
       where: { id: studentProfileId, user: { schoolId } },
       include: { user: { select: { firstName: true, lastName: true } } },
     });

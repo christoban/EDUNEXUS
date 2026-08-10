@@ -12,7 +12,7 @@ export class CreerSessionPebsUseCase {
     });
     if (!targetClass) throw new Error('Classe cible introuvable');
 
-    const session = await (this.prisma as any).pebsExamSession.create({
+    const session = await this.prisma.pebsExamSession.create({
       data: {
         schoolId: cmd.schoolId,
         name: cmd.name,

@@ -132,7 +132,7 @@ async function persistLog(data: {
   simulated: boolean
 }): Promise<void> {
   try {
-    await (prisma as any).smsLog.create({
+    await prisma.smsLog.create({
       data: {
         schoolId: data.schoolId,
         to: data.to,
@@ -153,7 +153,7 @@ async function getNotifSettings(schoolId: string): Promise<{
   smsBulletins: boolean
 }> {
   try {
-    const s = await (prisma as any).schoolNotificationSettings.findUnique({
+    const s = await prisma.schoolNotificationSettings.findUnique({
       where: { schoolId },
     })
     // Pas encore de paramètres → on adopte les défauts du schéma (tous à true)

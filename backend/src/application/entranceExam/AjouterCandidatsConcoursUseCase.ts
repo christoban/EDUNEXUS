@@ -6,7 +6,7 @@ export class AjouterCandidatsConcoursUseCase {
 
   async execute(cmd: AjouterCandidatsCommande): Promise<{ added: number }> {
     // Vérifier que la session existe et appartient à l'école
-    const session = await (this.prisma as any).entranceExamSession.findUnique({
+    const session = await this.prisma.entranceExamSession.findUnique({
       where: { id: cmd.sessionId },
     });
     if (!session) throw new Error('Session de concours introuvable');
@@ -16,7 +16,7 @@ export class AjouterCandidatsConcoursUseCase {
     let added = 0;
     for (const c of cmd.candidats) {
       try {
-        await (this.prisma as any).entranceExamCandidate.create({
+        await this.prisma.entranceExamCandidate.create({
           data: {
             sessionId: cmd.sessionId,
             firstName: c.firstName,
@@ -37,7 +37,7 @@ export class AjouterCandidatsConcoursUseCase {
 
     // Mettre à jour le statut de la session
     if (session.status === 'DRAFT' && added > 0) {
-      await (this.prisma as any).entranceExamSession.update({
+      await this.prisma.entranceExamSession.update({
         where: { id: cmd.sessionId },
         data: { status: 'RESULTS_PENDING' },
       });

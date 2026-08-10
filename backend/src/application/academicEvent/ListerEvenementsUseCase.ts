@@ -9,7 +9,7 @@ export class ListerEvenementsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(schoolId: string) {
-    return (this.prisma as any).academicEvent.findMany({
+    return this.prisma.academicEvent.findMany({
       where: { schoolId },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
       include: {

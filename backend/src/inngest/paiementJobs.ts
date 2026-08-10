@@ -75,7 +75,7 @@ export const relancePaiements = inngest.createFunction(
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const overduePayments = await (prisma as any).paiementMinesec.findMany({
+      const overduePayments = await prisma.paiementMinesec.findMany({
         where: {
           schoolId: school.id,
           anneeScolaire: yearLabel,

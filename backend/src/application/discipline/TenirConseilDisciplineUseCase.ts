@@ -22,7 +22,7 @@ export class TenirConseilDisciplineUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: TenirConseilDisciplineCommande) {
-    const session = await (this.prisma as any).disciplineCouncilSession.findFirst({
+    const session = await this.prisma.disciplineCouncilSession.findFirst({
       where: { id: cmd.sessionId, schoolId: cmd.schoolId },
     });
     if (!session) throw new Error('Conseil de discipline introuvable.');
@@ -42,7 +42,7 @@ export class TenirConseilDisciplineUseCase {
       );
     }
 
-    const record = await (this.prisma as any).disciplineRecord.create({
+    const record = await this.prisma.disciplineRecord.create({
       data: {
         schoolId: cmd.schoolId,
         studentId: session.studentId,
@@ -54,7 +54,7 @@ export class TenirConseilDisciplineUseCase {
       },
     });
 
-    return (this.prisma as any).disciplineCouncilSession.update({
+    return this.prisma.disciplineCouncilSession.update({
       where: { id: session.id },
       data: {
         heldAt: now,

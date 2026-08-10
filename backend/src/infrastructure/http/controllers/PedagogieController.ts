@@ -28,7 +28,7 @@ export async function calculerAlertesRetardProgramme(
   seuilPct = 15,
 ): Promise<AlerteRetardProgramme[]> {
   const anneeId = academicYearId ?? (
-    await (prisma as any).academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } })
+    await prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } })
   )?.id;
   if (!anneeId) return [];
 
@@ -45,7 +45,7 @@ export async function calculerAlertesRetardProgramme(
     attenduPct = totalJours > 0 ? Math.min(100, Math.round((ecoulees / totalJours) * 100)) : 0;
   }
 
-  const programmes = await (prisma as any).programme.findMany({
+  const programmes = await prisma.programme.findMany({
     where: { schoolId, academicYearId: anneeId },
     include: {
       subject: { select: { id: true, name: true } },
@@ -68,7 +68,7 @@ export async function calculerAlertesRetardProgramme(
     ).map((c: any) => c.id);
 
     for (const cid of classIds) {
-      const entries = await (prisma as any).cahierDeTexte.findMany({
+      const entries = await prisma.cahierDeTexte.findMany({
         where: { schoolId, classId: cid, subjectId: prog.subjectId, academicYearId: anneeId },
         select: { chapitreId: true },
       });
@@ -108,16 +108,16 @@ export class PedagogieController {
 
   listProgrammes = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { subjectId, classId, level, academicYearId } = req.query as Record<string, string>;
 
       const annee = academicYearId
         ? { id: academicYearId }
-        : await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true } });
+        : await this.prisma.academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true } });
 
       if (!annee) { res.json({ success: true, data: [] }); return; }
 
-      const programmes = await (this.prisma as any).programme.findMany({
+      const programmes = await this.prisma.programme.findMany({
         where: {
           schoolId: user.schoolId,
           academicYearId: annee.id,
@@ -139,7 +139,7 @@ export class PedagogieController {
 
   createProgramme = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { titre, subjectId, classId, level, academicYearId } = req.body as {
         titre?: string; subjectId?: string; classId?: string; level?: string; academicYearId?: string;
       };
@@ -150,7 +150,7 @@ export class PedagogieController {
       }
 
       const anneeId = academicYearId ?? (
-        await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
+        await this.prisma.academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
       )?.id;
 
       if (!anneeId) {
@@ -158,7 +158,7 @@ export class PedagogieController {
         return;
       }
 
-      const programme = await (this.prisma as any).programme.create({
+      const programme = await this.prisma.programme.create({
         data: {
           schoolId: user.schoolId,
           subjectId,
@@ -180,11 +180,11 @@ export class PedagogieController {
 
   updateProgramme = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
-      const { id } = req.params;
+      const user = req.user;
+      const id = String(req.params.id);
       const { titre, classId, level } = req.body as { titre?: string; classId?: string | null; level?: string | null };
 
-      const existing = await (this.prisma as any).programme.findFirst({ where: { id, schoolId: user.schoolId } });
+      const existing = await this.prisma.programme.findFirst({ where: { id, schoolId: user.schoolId } });
       if (!existing) { res.status(404).json({ success: false, message: 'Programme introuvable' }); return; }
 
       const data: any = {};
@@ -192,7 +192,7 @@ export class PedagogieController {
       if (classId !== undefined) data.classId = classId ?? null;
       if (level !== undefined) data.level = level ?? null;
 
-      const updated = await (this.prisma as any).programme.update({
+      const updated = await this.prisma.programme.update({
         where: { id },
         data,
         include: {
@@ -208,13 +208,13 @@ export class PedagogieController {
 
   deleteProgramme = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
-      const { id } = req.params;
+      const user = req.user;
+      const id = String(req.params.id);
 
-      const existing = await (this.prisma as any).programme.findFirst({ where: { id, schoolId: user.schoolId } });
+      const existing = await this.prisma.programme.findFirst({ where: { id, schoolId: user.schoolId } });
       if (!existing) { res.status(404).json({ success: false, message: 'Programme introuvable' }); return; }
 
-      await (this.prisma as any).programme.delete({ where: { id } });
+      await this.prisma.programme.delete({ where: { id } });
       res.json({ success: true, message: 'Programme supprimé' });
     } catch (e) { next(e); }
   };
@@ -223,8 +223,8 @@ export class PedagogieController {
 
   addChapitre = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
-      const { programmeId } = req.params;
+      const user = req.user;
+      const programmeId = String(req.params.programmeId);
       const { titre, ordre, volumeHeuresPrevu, sequenceCibleFin } = req.body as {
         titre?: string; ordre?: number; volumeHeuresPrevu?: number; sequenceCibleFin?: number;
       };
@@ -234,16 +234,16 @@ export class PedagogieController {
         return;
       }
 
-      const programme = await (this.prisma as any).programme.findFirst({ where: { id: programmeId, schoolId: user.schoolId } });
+      const programme = await this.prisma.programme.findFirst({ where: { id: programmeId, schoolId: user.schoolId } });
       if (!programme) { res.status(404).json({ success: false, message: 'Programme introuvable' }); return; }
 
-      const maxOrdre = await (this.prisma as any).chapitre.aggregate({
+      const maxOrdre = await this.prisma.chapitre.aggregate({
         where: { programmeId },
         _max: { ordre: true },
       });
       const nextOrdre = (maxOrdre._max?.ordre ?? 0) + 1;
 
-      const chapitre = await (this.prisma as any).chapitre.create({
+      const chapitre = await this.prisma.chapitre.create({
         data: {
           programmeId,
           titre: titre.trim(),
@@ -259,13 +259,13 @@ export class PedagogieController {
 
   updateChapitre = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
-      const { id } = req.params;
+      const user = req.user;
+      const id = String(req.params.id);
       const { titre, ordre, volumeHeuresPrevu, sequenceCibleFin } = req.body as {
         titre?: string; ordre?: number; volumeHeuresPrevu?: number; sequenceCibleFin?: number | null;
       };
 
-      const chapitre = await (this.prisma as any).chapitre.findUnique({
+      const chapitre = await this.prisma.chapitre.findUnique({
         where: { id },
         include: { programme: { select: { schoolId: true } } },
       });
@@ -279,17 +279,17 @@ export class PedagogieController {
       if (volumeHeuresPrevu !== undefined) data.volumeHeuresPrevu = volumeHeuresPrevu;
       if (sequenceCibleFin !== undefined) data.sequenceCibleFin = sequenceCibleFin;
 
-      const updated = await (this.prisma as any).chapitre.update({ where: { id }, data });
+      const updated = await this.prisma.chapitre.update({ where: { id }, data });
       res.json({ success: true, data: updated });
     } catch (e) { next(e); }
   };
 
   deleteChapitre = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
-      const { id } = req.params;
+      const user = req.user;
+      const id = String(req.params.id);
 
-      const chapitre = await (this.prisma as any).chapitre.findUnique({
+      const chapitre = await this.prisma.chapitre.findUnique({
         where: { id },
         include: { programme: { select: { schoolId: true } } },
       });
@@ -297,7 +297,7 @@ export class PedagogieController {
         res.status(404).json({ success: false, message: 'Chapitre introuvable' }); return;
       }
 
-      await (this.prisma as any).chapitre.delete({ where: { id } });
+      await this.prisma.chapitre.delete({ where: { id } });
       res.json({ success: true, message: 'Chapitre supprimé' });
     } catch (e) { next(e); }
   };
@@ -306,7 +306,7 @@ export class PedagogieController {
 
   createCahierDeTexte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, chapitreId, date, contenuRealise, contenuLibre, devoirsDonnes, academicYearId } = req.body as {
         classId?: string; subjectId?: string; chapitreId?: string; date?: string;
         contenuRealise?: string; contenuLibre?: string; devoirsDonnes?: string; academicYearId?: string;
@@ -329,7 +329,7 @@ export class PedagogieController {
       }
 
       const anneeId = academicYearId ?? (
-        await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
+        await this.prisma.academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
       )?.id;
 
       if (!anneeId) {
@@ -337,7 +337,7 @@ export class PedagogieController {
         return;
       }
 
-      const entry = await (this.prisma as any).cahierDeTexte.create({
+      const entry = await this.prisma.cahierDeTexte.create({
         data: {
           schoolId: user.schoolId,
           teacherId: user.userId,
@@ -364,7 +364,7 @@ export class PedagogieController {
       });
       res.status(201).json({ success: true, data: entry });
     } catch (e) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'ajouter_cahier_texte', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -376,14 +376,14 @@ export class PedagogieController {
 
   listCahierDeTexte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, teacherId, academicYearId, limit } = req.query as Record<string, string>;
 
       const anneeId = academicYearId ?? (
-        await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
+        await this.prisma.academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
       )?.id;
 
-      const entries = await (this.prisma as any).cahierDeTexte.findMany({
+      const entries = await this.prisma.cahierDeTexte.findMany({
         where: {
           schoolId: user.schoolId,
           ...(anneeId ? { academicYearId: anneeId } : {}),
@@ -409,7 +409,7 @@ export class PedagogieController {
 
   getProgression = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { classId, subjectId, academicYearId } = req.query as Record<string, string>;
 
       if (!classId || !subjectId) {
@@ -418,7 +418,7 @@ export class PedagogieController {
       }
 
       const anneeId = academicYearId ?? (
-        await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
+        await this.prisma.academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
       )?.id;
 
       if (!anneeId) { res.json({ success: true, data: null }); return; }
@@ -427,7 +427,7 @@ export class PedagogieController {
       const classe = await this.prisma.class.findFirst({ where: { id: classId, schoolId: user.schoolId }, select: { id: true, level: true } });
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
-      const programme = await (this.prisma as any).programme.findFirst({
+      const programme = await this.prisma.programme.findFirst({
         where: {
           schoolId: user.schoolId,
           subjectId,
@@ -443,7 +443,7 @@ export class PedagogieController {
       }
 
       // Compter les chapitres traités dans le cahier de texte
-      const entries = await (this.prisma as any).cahierDeTexte.findMany({
+      const entries = await this.prisma.cahierDeTexte.findMany({
         where: { schoolId: user.schoolId, classId, subjectId, academicYearId: anneeId },
         select: { chapitreId: true, date: true },
         orderBy: { date: 'asc' },
@@ -493,7 +493,7 @@ export class PedagogieController {
 
   getAlertesRetard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { academicYearId, seuilPct } = req.query as Record<string, string>;
       const seuil = seuilPct ? parseInt(seuilPct, 10) : 15;
       const alertes = await calculerAlertesRetardProgramme(this.prisma, user.schoolId, academicYearId, seuil);
@@ -504,7 +504,7 @@ export class PedagogieController {
       });
       res.json({ success: true, data: alertes });
     } catch (e) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'alertes_retard_programme', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -518,11 +518,11 @@ export class PedagogieController {
 
   getSubjectHasProgramme = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
-      const { subjectId } = req.params;
+      const user = req.user;
+      const subjectId = String(req.params.subjectId);
       const { classId } = req.query as { classId?: string };
 
-      const annee = await (this.prisma as any).academicYear.findFirst({
+      const annee = await this.prisma.academicYear.findFirst({
         where: { schoolId: user.schoolId, isCurrent: true },
         select: { id: true },
       });
@@ -535,7 +535,7 @@ export class PedagogieController {
           where: { id: classId, schoolId: user.schoolId },
           select: { level: true },
         });
-        programme = await (this.prisma as any).programme.findFirst({
+        programme = await this.prisma.programme.findFirst({
           where: {
             schoolId: user.schoolId,
             subjectId,
@@ -545,7 +545,7 @@ export class PedagogieController {
           include: { chapitres: { orderBy: { ordre: 'asc' } } },
         });
       } else {
-        programme = await (this.prisma as any).programme.findFirst({
+        programme = await this.prisma.programme.findFirst({
           where: { schoolId: user.schoolId, subjectId, ...(anneeId ? { academicYearId: anneeId } : {}) },
           include: { chapitres: { orderBy: { ordre: 'asc' } } },
         });
@@ -564,16 +564,16 @@ export class PedagogieController {
 
   getTodaySlot = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const dayOfWeek = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
       const currentTime = new Date().toTimeString().slice(0, 5); // "HH:MM"
 
-      const annee = await (this.prisma as any).academicYear.findFirst({
+      const annee = await this.prisma.academicYear.findFirst({
         where: { schoolId: user.schoolId, isCurrent: true },
         select: { id: true },
       });
 
-      const slots = await (this.prisma as any).timetableSlot.findMany({
+      const slots = await this.prisma.timetableSlot.findMany({
         where: {
           teacherId: user.userId,
           dayOfWeek,
@@ -595,7 +595,7 @@ export class PedagogieController {
       if (!slots.length) { res.json({ success: true, data: null }); return; }
 
       // Slot le plus récent déjà passé, sinon le premier à venir
-      const past = (slots as any[]).filter(s => s.startTime <= currentTime);
+      const past = slots.filter(s => s.startTime <= currentTime);
       const slot: any = past.length > 0 ? past[past.length - 1] : slots[0];
 
       if (!slot?.subjectId || !slot?.timetable) { res.json({ success: true, data: null }); return; }
@@ -625,7 +625,7 @@ export class PedagogieController {
       confidence: 0, error: 'Analyse impossible, veuillez saisir manuellement',
     };
     try {
-      const file = (req as any).file as (Express.Multer.File | undefined);
+      const file = req.file as (Express.Multer.File | undefined);
       if (!file) { res.status(400).json({ success: false, message: 'Image manquante' }); return; }
 
       const base64 = file.buffer.toString('base64');
@@ -673,11 +673,11 @@ ${consignes}`,
 
   getRapport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { teacherId, departmentId, classId, academicYearId } = req.query as Record<string, string>;
 
       const anneeId = academicYearId ?? (
-        await (this.prisma as any).academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
+        await this.prisma.academicYear.findFirst({ where: { schoolId: user.schoolId, isCurrent: true }, select: { id: true } })
       )?.id;
 
       // Résoudre les subjectIds si departmentId est fourni
@@ -698,7 +698,7 @@ ${consignes}`,
         ...(subjectIds ? { subjectId: { in: subjectIds } } : {}),
       };
 
-      const entries = await (this.prisma as any).cahierDeTexte.findMany({
+      const entries = await this.prisma.cahierDeTexte.findMany({
         where,
         include: {
           teacher: { select: { id: true, firstName: true, lastName: true } },

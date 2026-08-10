@@ -28,7 +28,7 @@ export class ScannerListeCandidatsUseCase {
 
   async execute(schoolId: string, sessionId: string, imageBase64: string, mimeType?: string): Promise<{ candidats: ScannedCandidate[]; warnings: string[] }> {
     // Vérifier la session
-    const session = await (this.prisma as any).entranceExamSession.findUnique({
+    const session = await this.prisma.entranceExamSession.findUnique({
       where: { id: sessionId },
     });
     if (!session) throw new Error('Session de concours introuvable');

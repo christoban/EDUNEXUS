@@ -23,7 +23,7 @@ export class ClasseController {
 
   creerClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { level, serie } = req.body as { level?: string; serie?: string };
 
       // Validation : pour le 2nd cycle, la combinaison (niveau, série) doit exister
@@ -33,7 +33,7 @@ export class ClasseController {
         if (niveauBac) {
           const seriePart = serie.includes('-') ? serie.split('-')[0] : serie;
           const exists = await this.prisma.bacCoefficient.findFirst({
-            where: { serie: seriePart, niveau: niveauBac as any },
+            where: { serie: seriePart, niveau: niveauBac },
             select: { id: true },
           });
           if (!exists) {
@@ -46,18 +46,30 @@ export class ClasseController {
         }
       }
 
+      const anneeCourante = await this.prisma.academicYear.findFirst({
+        where: { schoolId: user.schoolId, isCurrent: true },
+        select: { id: true },
+      });
+      if (!anneeCourante) {
+        res.status(400).json({ success: false, message: "Aucune année académique courante — impossible de créer une classe." });
+        return;
+      }
+
       const resultat = await this.creer.execute({
         schoolId: user.schoolId,
+        academicYearId: anneeCourante.id,
         ...req.body,
       });
       journaliserActionIA(this.prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'creer_classe', targetType: 'Class', targetId: (resultat as any)?.id,
+        // Bug indépendant : CreerClasseResultat expose `classeId`, jamais `id` — le cast `as
+        // any` masquait un ciblage d'audit toujours undefined pour cette action.
+        actionName: 'creer_classe', targetType: 'Class', targetId: resultat.classeId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -69,7 +81,7 @@ export class ClasseController {
 
   modifierClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.modifier.execute({
         classeId: req.params.id as string,
         schoolId: user.schoolId,
@@ -83,7 +95,7 @@ export class ClasseController {
 
   supprimerClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.supprimer.execute({
         classeId: req.params.id as string,
         schoolId: user.schoolId,
@@ -96,7 +108,7 @@ export class ClasseController {
       });
       res.json({ success: true, message: 'Classe mise à la corbeille' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'supprimer_classe', targetType: 'Class', targetId: req.params.id as string,
@@ -111,7 +123,7 @@ export class ClasseController {
     req: Request, res: Response, next: NextFunction
   ): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { teacherUserId } = req.body;
       const classeId = req.params.id as string;
 
@@ -147,7 +159,7 @@ export class ClasseController {
       });
       res.json({ success: true, message: 'Professeur Principal assigné' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'assigner_professeur_principal', targetType: 'Class', targetId: req.params.id as string,
@@ -160,7 +172,7 @@ export class ClasseController {
 
   creerSousGroupeTP = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { name } = req.body;
 
       if (!name) {
@@ -184,7 +196,7 @@ export class ClasseController {
     req: Request, res: Response, next: NextFunction
   ): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { studentProfileIds } = req.body;
 
       const resultat = await this.assignerEleves.execute({
@@ -310,7 +322,7 @@ export class ClasseController {
   // GET /:id/students — liste des élèves de la classe avec moyennes et taux de présence
   getStudents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const classId = req.params.id as string;
 
       const classe = await this.prisma.class.findFirst({
@@ -409,7 +421,7 @@ export class ClasseController {
   // GET /api/v2/classes/:id/tableau-honneur?periodId=&top=10
   tableauHonneur = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const classId = req.params.id as string;
       const { periodId } = req.query as Record<string, string>;
       const top = Math.min(20, Math.max(1, parseInt((req.query.top as string) || '10')));
@@ -502,7 +514,7 @@ export class ClasseController {
         const rowY = doc.y;
         const avg = rc.generalAverage ?? 0;
         const avgStr = avg.toFixed(2);
-        const mention = (rc as any).mention ?? mentionLabel(avg);
+        const mention = rc.mention ?? mentionLabel(avg);
         const isGold = i === 0;
         const isSilver = i === 1;
         const isBronze = i === 2;
@@ -550,7 +562,7 @@ export class ClasseController {
   // GET /api/v2/classes/:id/tableau-honneur-annuel?top=10
   tableauHonneurAnnuel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const classId = req.params.id as string;
       const top = Math.min(20, Math.max(1, parseInt((req.query.top as string) || '10')));
 

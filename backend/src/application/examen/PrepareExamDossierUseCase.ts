@@ -6,7 +6,7 @@
  * 2. Le paiement MINESEC pour cet examen est PAYE ou VERIFIE → sinon avertissement
  * 3. La classe correspond au type d'examen
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, TypeExamen, TypeFraisMinesec } from '@prisma/client';
 import type { PrepareExamDossierCommande, ExamDossier } from './types';
 
 // Correspondance niveau → type d'examen
@@ -29,7 +29,7 @@ export class PrepareExamDossierUseCase {
 
   async execute(cmd: PrepareExamDossierCommande): Promise<ExamDossier> {
     // Récupérer le profil élève
-    const profile = await (this.prisma as any).studentProfile.findFirst({
+    const profile = await this.prisma.studentProfile.findFirst({
       where: { user: { id: cmd.studentUserId, schoolId: cmd.schoolId } },
       include: {
         user: { select: { firstName: true, lastName: true } },
@@ -51,11 +51,11 @@ export class PrepareExamDossierUseCase {
     }
 
     // Vérifier si une inscription existe déjà
-    const existing = await (this.prisma as any).examRegistration.findFirst({
+    const existing = await this.prisma.examRegistration.findFirst({
       where: {
         studentId: profile.id,
         anneeScolaire: cmd.anneeScolaire,
-        typeExamen: cmd.typeExamen,
+        typeExamen: cmd.typeExamen as TypeExamen,
       },
     });
     if (existing) {
@@ -67,10 +67,10 @@ export class PrepareExamDossierUseCase {
     let paiementStatus: string | null = null;
     let paiementId: string | null = null;
     if (fraisKey) {
-      const paiement = await (this.prisma as any).paiementMinesec.findFirst({
+      const paiement = await this.prisma.paiementMinesec.findFirst({
         where: {
           studentId: profile.id,
-          typeFrais: fraisKey,
+          typeFrais: fraisKey as TypeFraisMinesec,
           anneeScolaire: cmd.anneeScolaire,
         },
       });
@@ -83,24 +83,24 @@ export class PrepareExamDossierUseCase {
 
     // Trouver ou créer l'Enrollment de l'année (même logique que GenererPaiementsMinesecUseCase —
     // avant ce correctif, enrollmentId était laissé à '' faute de mécanisme de création).
-    let enrollment = await (this.prisma as any).enrollment.findUnique({
+    let enrollment = await this.prisma.inscriptionMinesec.findUnique({
       where: { studentId_schoolId_anneeScolaire: { studentId: profile.id, schoolId: cmd.schoolId, anneeScolaire: cmd.anneeScolaire } },
     });
     if (!enrollment) {
-      enrollment = await (this.prisma as any).enrollment.create({
+      enrollment = await this.prisma.inscriptionMinesec.create({
         data: { studentId: profile.id, schoolId: cmd.schoolId, anneeScolaire: cmd.anneeScolaire, classe: niveau, status: 'ACTIVE' },
       });
     }
 
     // Créer l'inscription
     const session = new Date().getFullYear();
-    const registration = await (this.prisma as any).examRegistration.create({
+    const registration = await this.prisma.examRegistration.create({
       data: {
         studentId: profile.id,
         enrollmentId: enrollment.id,
         schoolId: cmd.schoolId,
         anneeScolaire: cmd.anneeScolaire,
-        typeExamen: cmd.typeExamen,
+        typeExamen: cmd.typeExamen as TypeExamen,
         session,
         matriculeNational: profile.matricule,
         paiementMinesecId: paiementId,

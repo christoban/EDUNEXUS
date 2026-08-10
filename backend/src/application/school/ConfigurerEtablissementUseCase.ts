@@ -10,7 +10,7 @@
  * (source de vérité MINESEC : CycleCoefficient / BacCoefficient). Aucun coefficient n'est
  * généré par le LLM.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { ActiverEtablissementUseCase } from './ActiverEtablissementUseCase';
 
 // ── OnboardingState (miroir du frontend) ─────────────────────────────────────
@@ -217,7 +217,7 @@ export class ConfigurerEtablissementUseCase {
     await this.prisma.school.update({
       where: { id: state.schoolId },
       data: {
-        onboardingConfig: mergedConfig as any,
+        onboardingConfig: mergedConfig as Prisma.InputJsonValue,
         ...(state.template ? { templateCode: state.template } : {}),
       },
     });

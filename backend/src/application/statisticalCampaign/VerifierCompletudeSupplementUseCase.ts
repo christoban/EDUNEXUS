@@ -24,7 +24,7 @@ export class VerifierCompletudeSupplementUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: VerifierCompletudeSupplementCommande): Promise<VerifierCompletudeSupplementResultat> {
-    const supplement = await (this.prisma as any).schoolStatisticalSupplement.findUnique({
+    const supplement = await this.prisma.schoolStatisticalSupplement.findUnique({
       where: { schoolId: cmd.schoolId },
     });
 

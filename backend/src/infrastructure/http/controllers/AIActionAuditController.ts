@@ -15,7 +15,7 @@ export class AIActionAuditController {
   // GET /api/v2/security/audit-log
   journalEtablissement = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { outcome, origin, actorRole, actionName, page = '1', limit = '50' } = req.query as Record<string, string>;
       const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
       const take = parseInt(limit, 10);
@@ -27,8 +27,8 @@ export class AIActionAuditController {
       if (actionName) where.actionName = actionName;
 
       const [entries, total] = await Promise.all([
-        (this.prisma as any).aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } }),
-        (this.prisma as any).aIActionAuditLog.count({ where }),
+        this.prisma.aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } }),
+        this.prisma.aIActionAuditLog.count({ where }),
       ]);
 
       res.json({

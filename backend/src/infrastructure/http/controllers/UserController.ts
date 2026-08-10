@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import type { UserRole, StaffPermissionType } from '@domain/types/enums';
 import jwt from 'jsonwebtoken';
 import { generateSecret, generateURI, verifySync } from 'otplib';
 import QRCode from 'qrcode';
@@ -10,7 +11,7 @@ import { genererCodesRecuperation } from '../../../utils/mfaRecoveryCodes';
 import { verifierMotDePasseEtMfa } from '../../../middleware/requireUserSensitiveAuth';
 import { emettreJetonReauth } from '../../../middleware/requireReauthToken';
 import { createHash, randomBytes } from 'crypto';
-import type { ConnecterUtilisateurUseCase } from '@application/user/ConnecterUtilisateurUseCase';
+import type { ConnecterUtilisateurUseCase, RoleMismatchError, SchoolSuspendedError } from '@application/user/ConnecterUtilisateurUseCase';
 import type { InscrireUtilisateurUseCase } from '@application/user/InscrireUtilisateurUseCase';
 import type { RafraichirTokenUseCase } from '@application/user/RafraichirTokenUseCase';
 import type { DeconnecterUtilisateurUseCase } from '@application/user/DeconnecterUtilisateurUseCase';
@@ -21,7 +22,7 @@ import type { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import type { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisateursUseCase';
 import type { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import type { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
-import type { TokenService } from '@domain/ports/services/TokenService';
+import type { TokenService, PayloadToken } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
@@ -93,7 +94,7 @@ export class UserController {
   // ── Pending login token (cookie temporaire entre les étapes de connexion) ──
 
   private signPendingToken(payload: Omit<PendingLoginPayload, 'tokenType'>, tokenType: PendingLoginPayload['tokenType'], expiresIn: string): string {
-    return jwt.sign({ ...payload, tokenType }, process.env.JWT_SECRET!, { expiresIn } as any);
+    return jwt.sign({ ...payload, tokenType }, process.env.JWT_SECRET!, { expiresIn: expiresIn as jwt.SignOptions['expiresIn'] });
   }
 
   private setPendingCookie(res: Response, token: string, maxAgeMs: number): void {
@@ -124,8 +125,8 @@ export class UserController {
     const tokens = this.tokenService.genererTokens({
       userId: payload.userId,
       schoolId: payload.schoolId,
-      role: payload.role as any,
-      permissions: payload.permissions as any,
+      role: payload.role as UserRole,
+      permissions: payload.permissions as StaffPermissionType[],
       tokenType: 'access',
     });
     res.cookie('access_token', tokens.accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_COOKIE_MAX_AGE_MS });
@@ -171,7 +172,7 @@ export class UserController {
         userId: resultat.userId,
         schoolId: resultat.schoolId,
         role: resultat.role,
-        permissions: resultat.permissions as any,
+        permissions: resultat.permissions,
         nomComplet: resultat.nomComplet,
         roleMismatch: resultat.roleMismatch ?? false,
         redirectTo: resultat.redirectTo ?? null,
@@ -182,7 +183,7 @@ export class UserController {
       res.json({ success: true, step: 'email_otp', message: 'Code de vérification envoyé par email' });
     } catch (error) {
       // École suspendue — credentials valides mais accès bloqué
-      if (error instanceof Error && (error as any).code === 'SCHOOL_SUSPENDED') {
+      if (error instanceof Error && (error as SchoolSuspendedError).code === 'SCHOOL_SUSPENDED') {
         res.status(403).json({
           success: false,
           error: 'SCHOOL_SUSPENDED',
@@ -196,7 +197,7 @@ export class UserController {
           success: false,
           code: 'ROLE_MISMATCH_MULTIPLE',
           message: 'Le rôle sélectionné ne correspond à aucun compte dans cet établissement.',
-          availableRoles: (error as any).availableRoles as string[],
+          availableRoles: (error as RoleMismatchError).availableRoles,
         });
         return;
       }
@@ -347,7 +348,7 @@ export class UserController {
   // GET /api/v2/users/mfa/status — statut MFA du compte authentifié (Admin/Staff/Teacher)
   mfaStatus = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { mfaEnabled: true } });
       res.json({ success: true, data: { mfaEnabled: user?.mfaEnabled ?? false } });
     } catch (error: any) {
@@ -358,7 +359,7 @@ export class UserController {
   // POST /api/v2/users/mfa/reconfigure/start — génère un NOUVEAU secret (gardé par requireUserSensitiveAuth)
   mfaReconfigureStart = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, mfaEnabled: true } });
       if (!user?.mfaEnabled) {
         res.status(400).json({ success: false, message: 'Configurez d\'abord le MFA depuis la connexion.' });
@@ -380,7 +381,7 @@ export class UserController {
   // POST /api/v2/users/mfa/reconfigure/confirm — confirme le nouveau secret + régénère les codes
   mfaReconfigureConfirm = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
       const { totpCode } = req.body;
       if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
 
@@ -417,7 +418,7 @@ export class UserController {
   // POST /api/v2/users/mfa/regen-codes — régénère uniquement les codes de récupération (gardé)
   mfaRegenCodes = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, mfaEnabled: true } });
       if (!user?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif.' }); return; }
 
@@ -439,7 +440,7 @@ export class UserController {
   // jeton court terme réutilisable ensuite pour les actions destructives de gravité complète.
   reauth = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = (req as any).user?.userId;
+      const userId = req.user?.userId;
       const { password, code } = req.body as { password?: string; code?: string };
       const resultat = await verifierMotDePasseEtMfa(userId, String(password ?? '').trim(), String(code ?? '').trim());
       if (!resultat.ok) {
@@ -457,7 +458,7 @@ export class UserController {
   // POST /api/v2/auth/logout
   logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (user?.userId) {
         await this.deconnecter.execute(user.userId);
       }
@@ -478,7 +479,9 @@ export class UserController {
         return;
       }
 
-      const payload = this.tokenService.verifierRefreshToken(refreshToken) as any;
+      // JwtTokenService écrit toujours refreshTokenVersion (défaut 0) à la signature — voir
+      // genererTokens — même si le port le déclare optionnel.
+      const payload = this.tokenService.verifierRefreshToken(refreshToken) as PayloadToken & { refreshTokenVersion: number };
       const tokens = await this.rafraichir.execute(payload);
 
       res.cookie('access_token', tokens.accessToken, {
@@ -501,7 +504,7 @@ export class UserController {
   // POST /api/v2/users
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const bcrypt = await import('bcryptjs');
       const isDevMode = process.env.EMAIL_DISABLED === 'true';
 
@@ -554,7 +557,7 @@ export class UserController {
 
       journaliserActionIA(this.prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'creer_eleve', targetType: 'User', targetId: (resultat as any)?.userId,
+        actionName: 'creer_eleve', targetType: 'User', targetId: resultat.userId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: resultat });
@@ -622,7 +625,7 @@ export class UserController {
         })();
       }
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -751,7 +754,7 @@ export class UserController {
         return;
       }
 
-      const user = await (this.prisma as any).user.findFirst({
+      const user = await this.prisma.user.findFirst({
         where: { schoolId: school.id, email: email.toLowerCase().trim() },
         select: { id: true, firstName: true, lastName: true, email: true },
       });
@@ -761,7 +764,7 @@ export class UserController {
         const tokenHash = createHash('sha256').update(plainToken).digest('hex');
         const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
-        await (this.prisma as any).user.update({
+        await this.prisma.user.update({
           where: { id: user.id },
           data: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: expiry },
         });
@@ -824,7 +827,7 @@ export class UserController {
       }
 
       const tokenHash = createHash('sha256').update(token).digest('hex');
-      const user = await (this.prisma as any).user.findFirst({
+      const user = await this.prisma.user.findFirst({
         where: {
           resetPasswordToken: tokenHash,
           resetPasswordTokenExpiry: { gt: new Date() },
@@ -840,7 +843,7 @@ export class UserController {
       const bcrypt = await import('bcryptjs');
       const passwordHash = await bcrypt.hash(password, 10);
 
-      await (this.prisma as any).user.update({
+      await this.prisma.user.update({
         where: { id: user.id },
         data: {
           passwordHash,
@@ -859,7 +862,7 @@ export class UserController {
   // POST /api/v2/users/auth/change-password  (authentifié)
   changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const authUser = (req as any).user as { userId: string };
+      const authUser = req.user as { userId: string };
       const { currentPassword, newPassword, confirmPassword } = req.body as {
         currentPassword?: string; newPassword?: string; confirmPassword?: string;
       };
@@ -882,7 +885,7 @@ export class UserController {
         return;
       }
 
-      const user = await (this.prisma as any).user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: authUser.userId },
         select: { id: true, passwordHash: true },
       });
@@ -903,7 +906,7 @@ export class UserController {
       }
 
       const passwordHash = await bcrypt.hash(newPassword, 10);
-      await (this.prisma as any).user.update({
+      await this.prisma.user.update({
         where: { id: user.id },
         data: { passwordHash, refreshTokenVersion: { increment: 1 } },
       });
@@ -917,7 +920,7 @@ export class UserController {
   // PUT /api/v2/users/:id
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       let passwordHash: string | undefined;
 
       if (req.body.password) {
@@ -980,7 +983,7 @@ export class UserController {
       });
       res.json({ success: true, message: 'Utilisateur mis à jour' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
@@ -994,7 +997,7 @@ export class UserController {
   // DELETE /api/v2/users/:id
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       await this.supprimer.execute({
         userId: req.params.id as string,
         schoolId: user.schoolId,
@@ -1010,7 +1013,7 @@ export class UserController {
   // POST /api/v2/students/:id/transfer
   transfer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { fromClasseId, toClasseId } = req.body;
 
       if (!fromClasseId || !toClasseId) {
@@ -1033,7 +1036,7 @@ export class UserController {
       });
       res.json({ success: true, message: 'Élève transféré avec succès' });
     } catch (error) {
-      const user = (req as any).user;
+      const user = req.user;
       journaliserActionIA(this.prisma, {
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
@@ -1047,9 +1050,9 @@ export class UserController {
   // POST /api/v2/users/import
   importUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const role = req.body.role as string;
-      const file = (req as any).file as Express.Multer.File | undefined;
+      const file = req.file as Express.Multer.File | undefined;
 
       if (!file) {
         res.status(400).json({ success: false, message: 'Fichier requis (.xlsx ou .xls)' });
@@ -1100,7 +1103,7 @@ export class UserController {
   // PATCH /api/v2/users/:id/ap-designation
   apDesignation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       const { departmentSubjectIds, action } = req.body as {
         departmentSubjectIds?: string[];
         action?: string;
@@ -1142,7 +1145,10 @@ export class UserController {
         res.status(401).json({ success: false, message: error.message });
         return;
       }
-      if (error.message.includes('refusée') || error.message.includes('Permission')) {
+      // 'refusé' (racine) plutôt que 'refusée' : matche aussi bien "Accès refusé" (masculin,
+      // ex. isolation multi-tenant) que "Permission refusée" (féminin) — les use cases de ce
+      // controller sont censés préfixer toute erreur d'autorisation par "Accès refusé : ...".
+      if (error.message.includes('refusé')) {
         res.status(403).json({ success: false, message: error.message });
         return;
       }

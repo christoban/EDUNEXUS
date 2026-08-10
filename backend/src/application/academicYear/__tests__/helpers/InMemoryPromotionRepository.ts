@@ -15,6 +15,9 @@ export class InMemoryPromotionRepository implements PromotionRepository {
   definirDecisions(d: DecisionConseil[]): void { this.decisions = d; }
 
   async findMappingsPromotion(_schoolId: string, _yearId: string) { return this.mappings; }
+  async creerMappingsPromotion(mappings: (ClassPromotionMapping & { schoolId: string; academicYearId: string })[]) {
+    this.mappings.push(...mappings.map(m => ({ fromClassId: m.fromClassId, toClassId: m.toClassId })));
+  }
   async findDecisionsEleves(_schoolId: string, _yearId: string) { return this.decisions; }
   async promouvoirEleve(params: PromotionEleveParams) {
     this.promotionsEnregistrees.push(params);

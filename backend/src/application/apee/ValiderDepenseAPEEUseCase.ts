@@ -15,7 +15,7 @@ export class ValiderDepenseAPEEUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: ValiderDepenseAPEECommande) {
-    const transaction = await (this.prisma as any).aPEETransaction.findFirst({
+    const transaction = await this.prisma.aPEETransaction.findFirst({
       where: { id: cmd.transactionId, schoolId: cmd.schoolId },
     });
 
@@ -32,7 +32,7 @@ export class ValiderDepenseAPEEUseCase {
       throw new Error('Impossible de valider : aucun justificatif joint à cette dépense.');
     }
 
-    return (this.prisma as any).aPEETransaction.update({
+    return this.prisma.aPEETransaction.update({
       where: { id: cmd.transactionId },
       data: { valide: true, valideParId: cmd.valideParId, valideAt: new Date() },
     });

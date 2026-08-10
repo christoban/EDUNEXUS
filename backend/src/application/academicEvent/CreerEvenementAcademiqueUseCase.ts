@@ -55,7 +55,7 @@ export class CreerEvenementAcademiqueUseCase {
       });
     }
 
-    const evenement = await (this.prisma as any).academicEvent.create({
+    const evenement = await this.prisma.academicEvent.create({
       data: {
         schoolId: cmd.schoolId,
         createdById: cmd.createdById,

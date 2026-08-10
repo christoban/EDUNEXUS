@@ -11,7 +11,7 @@ export class SupprimerAnnonceUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: SupprimerAnnonceCommande) {
-    const annonce = await (this.prisma as any).announcement.findFirst({
+    const annonce = await this.prisma.announcement.findFirst({
       where: { id: cmd.announcementId, schoolId: cmd.schoolId },
       select: { id: true, authorId: true },
     });
@@ -27,7 +27,7 @@ export class SupprimerAnnonceUseCase {
       throw new Error('Seul l\'auteur ou l\'Admin peut supprimer une annonce.');
     }
 
-    return (this.prisma as any).announcement.delete({
+    return this.prisma.announcement.delete({
       where: { id: annonce.id },
     });
   }

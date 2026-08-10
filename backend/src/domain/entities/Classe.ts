@@ -2,11 +2,12 @@
  * DOMAIN LAYER — Entité Classe
  * Représente une classe dans un établissement scolaire ZekoulABia.
  */
-import type { SectionLanguage } from '@domain/types/enums';
+import type { SectionLanguage, ClassStatus } from '@domain/types/enums';
 
 export interface ClasseProps {
   id: string;
   schoolId: string;
+  academicYearId: string;
   name: string;
   level?: string;         // ex: "6e", "2nde", "Form1", "CP"
   serie?: string;         // ex: "C", "D", "A4", "S1"
@@ -14,11 +15,13 @@ export interface ClasseProps {
   sectionId?: string;     // FR ou EN dans un établissement bilingue
   capacity: number;
   professorPrincipalId?: string;
+  status: ClassStatus;
   createdAt: Date;
 }
 
 export interface CreerClasseProps {
   schoolId: string;
+  academicYearId: string;
   name: string;
   level?: string;
   serie?: string;
@@ -26,6 +29,8 @@ export interface CreerClasseProps {
   sectionId?: string;
   capacity?: number;
   professorPrincipalId?: string;
+  /** DRAFT uniquement pour une classe proposée à la clôture d'année — ACTIVE par défaut. */
+  status?: ClassStatus;
 }
 
 export class Classe {
@@ -44,6 +49,7 @@ export class Classe {
       ...props,
       id: crypto.randomUUID(),
       capacity: props.capacity ?? 40,
+      status: props.status ?? 'ACTIVE',
       createdAt: new Date(),
     });
   }
@@ -56,6 +62,7 @@ export class Classe {
 
   get id(): string { return this.props.id; }
   get schoolId(): string { return this.props.schoolId; }
+  get academicYearId(): string { return this.props.academicYearId; }
   get name(): string { return this.props.name; }
   get level(): string | undefined { return this.props.level; }
   get serie(): string | undefined { return this.props.serie; }
@@ -63,6 +70,7 @@ export class Classe {
   get sectionId(): string | undefined { return this.props.sectionId; }
   get capacity(): number { return this.props.capacity; }
   get professorPrincipalId(): string | undefined { return this.props.professorPrincipalId; }
+  get status(): ClassStatus { return this.props.status; }
 
   // Nom complet ex: "2nde C" ou "CAP1 MAEL" ou "Form 2A"
   get nomComplet(): string {
@@ -95,6 +103,14 @@ export class Classe {
 
   aProfesseurPrincipal(): boolean {
     return !!this.props.professorPrincipalId;
+  }
+
+  /** Confirme une classe proposée (DRAFT) après revue admin — ValiderStructureAnneeSuivanteUseCase. */
+  activer(): void {
+    if (this.props.status !== 'DRAFT') {
+      throw new Error('Seule une classe proposée (DRAFT) peut être activée');
+    }
+    this.props.status = 'ACTIVE';
   }
 
   // --- Sérialisation ---

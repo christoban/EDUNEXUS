@@ -27,298 +27,6 @@ const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
 );
 
 import { NonRetriableError } from "inngest";
-import { createGroq } from "@ai-sdk/groq";
-import { generateText } from "ai";
-
-interface GenSettings {
-  startTime: string;
-  endTime: string;
-  periodsPerDay: number;
-  teachingDays: string[];
-  periods?: number;
-  lunchBreakMinutes?: number;
-  periodDuration?: number;
-}
-
-interface TimeSlot {
-  kind: "class" | "break";
-  startTime: string;
-  endTime: string;
-}
-
-const toMinutes = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
-};
-
-const toTime = (value: number) => {
-  const hours = Math.floor(value / 60)
-    .toString()
-    .padStart(2, "0");
-  const minutes = (value % 60).toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
-};
-
-const buildDailyTimeSlots = (settings: GenSettings): TimeSlot[] => {
-  const start = toMinutes(settings.startTime);
-  const end = toMinutes(settings.endTime);
-  const periods = settings.periodsPerDay;
-  const lunchBreak = periods > 1 ? settings.lunchBreakMinutes ?? 60 : 0;
-  const totalMinutes = end - start;
-  const teachingMinutes = totalMinutes - lunchBreak;
-
-  if (teachingMinutes <= 0) {
-    throw new NonRetriableError("Invalid time range for timetable generation");
-  }
-
-  const basePeriodDuration = Math.floor(teachingMinutes / periods);
-  const remainder = teachingMinutes % periods;
-  const lunchAfterIndex = Math.ceil(periods / 2);
-
-  const slots: TimeSlot[] = [];
-  let cursor = start;
-  for (let i = 0; i < periods; i++) {
-    const duration = basePeriodDuration + (i < remainder ? 1 : 0);
-    const slotStart = cursor;
-    const slotEnd = slotStart + duration;
-
-    slots.push({
-      kind: "class",
-      startTime: toTime(slotStart),
-      endTime: toTime(slotEnd),
-    });
-
-    cursor = slotEnd;
-    if (i + 1 === lunchAfterIndex && lunchBreak > 0) {
-      const breakStart = cursor;
-      cursor += lunchBreak;
-      slots.push({
-        kind: "break",
-        startTime: toTime(breakStart),
-        endTime: toTime(cursor),
-      });
-    }
-  }
-
-  return slots;
-};
-
-const normalizeSchedule = (rawSchedule: any, settings: GenSettings) => {
-  const rawDays = Array.isArray(rawSchedule?.schedule) ? rawSchedule.schedule : [];
-
-  const assignmentPool = rawDays
-    .flatMap((day: any) => (Array.isArray(day?.periods) ? day.periods : []))
-    .map((period: any) => ({
-      subject: period?.subject,
-      teacher: period?.teacher,
-    }))
-    .filter((period: any) => period.subject && period.teacher);
-
-  if (assignmentPool.length === 0) {
-    throw new NonRetriableError("AI generated no valid subject/teacher assignments");
-  }
-
-  const dailySlots = buildDailyTimeSlots(settings);
-  let assignmentIndex = 0;
-
-  const schedule = settings.teachingDays.map((day) => {
-    const periods = dailySlots.map((slot) => {
-      if (slot.kind === "break") {
-        return {
-          kind: "break",
-          subject: null,
-          teacher: null,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        };
-      }
-
-      const assignment = assignmentPool[assignmentIndex % assignmentPool.length];
-      assignmentIndex += 1;
-      return {
-        kind: "class",
-        subject: assignment.subject,
-        teacher: assignment.teacher,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-      };
-    });
-
-    return { day, periods };
-  });
-
-  return { schedule };
-};
-
-// Your new function:
-export const generateTimeTable = inngest.createFunction(
-  { id: "Generate-Timetable", triggers: [{ event: "generate/timetable" }] },
-  async ({ event, step }) => {
-    const { classId, academicYearId, settings } = event.data as {
-      classId: string;
-      academicYearId: string;
-      settings: GenSettings;
-      generationId?: string;
-    };
-
-    const updateGenerationStatus = async (
-      status: "running" | "completed" | "failed",
-      message?: string,
-      timetableId?: string
-    ) => {
-      if (!event.data.generationId) return;
-      await (prisma as any).timetableGeneration.update({
-        where: { id: event.data.generationId },
-        data: {
-          status,
-          message,
-          timetableId: timetableId || null,
-        },
-      });
-    };
-
-    try {
-      await updateGenerationStatus("running", "Generation started");
-
-      const contextData = await step.run("fetch-class-context", async () => {
-        const classData = await prisma.class.findUnique({
-          where: { id: classId },
-          select: { id: true, name: true, schoolId: true },
-        });
-        if (!classData) throw new NonRetriableError("Class not found");
-
-        const teacherProfiles = await prisma.teacherProfile.findMany({
-          where: {
-            teacherSubjects: { some: {} },
-            user: { schoolId: classData.schoolId },
-          },
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true } },
-            teacherSubjects: {
-              include: { subject: { select: { id: true, name: true, code: true } } },
-            },
-          },
-        });
-
-        const qualifiedTeachers = teacherProfiles.map((tp) => ({
-          id: tp.user.id,
-          name: `${tp.user.firstName} ${tp.user.lastName}`.trim(),
-          subjects: tp.teacherSubjects.map((ts) => ts.subjectId),
-        }));
-
-        const schoolSubjects = await prisma.subject.findMany({
-          where: { schoolId: classData.schoolId },
-          select: { id: true, name: true, code: true },
-        });
-
-        if (schoolSubjects.length === 0 || qualifiedTeachers.length === 0)
-          throw new NonRetriableError("No Subjects or Teachers assigned to this school");
-
-        return {
-          className: classData.name,
-          subjects: schoolSubjects,
-          teachers: qualifiedTeachers,
-        };
-      });
-
-    // generate timetable logic would go here
-      const aiSchedule = await step.run("generate-timetable-logic", async () => {
-      const apiKey = process.env.GROQ_API_KEY;
-      if (!apiKey) {
-        throw new NonRetriableError("GROQ_API_KEY is missing");
-      }
-
-      const allTimetables = await prisma.timetable.findMany({
-        where: { academicYearId },
-      });
-
-      const prompt = `
-        You are a school scheduler. Generate a weekly timetable.
-
-        CONTEXT:
-        - Class: ${contextData.className}
-        - Hours: ${settings.startTime} to ${settings.endTime} (${
-        settings.periodsPerDay
-      } periods/day).
-        - Teaching days: ${settings.teachingDays.join(", ")}
-
-        RESOURCES:
-        - Subjects: ${JSON.stringify(contextData.subjects)}
-        - Teachers: ${JSON.stringify(contextData.teachers)}
-        - Other Timetables: ${JSON.stringify(allTimetables)}
-
-        STRICT RULES:
-        1. Generate EXACTLY ${settings.periodsPerDay} periods per listed teaching day.
-        2. Use ONLY these days: ${settings.teachingDays.join(", ")}.
-        3. Every period must stay within ${settings.startTime} and ${settings.endTime}.
-        4. Assign a Teacher to every Subject period.
-        5. Teacher MUST have the subject ID in their list.
-        6. Avoid clashes with other classes(teacher can't be in two classes at the same time).
-        7. Keep the output strict JSON only.
-        8. Include every selected teaching day exactly once.
-
-        OUTPUT SCHEMA:
-        {
-          "schedule": [
-            {
-              "day": "Monday",
-              "periods": [
-                { "subject": "SUBJECT_ID", "teacher": "TEACHER_ID", "startTime": "HH:MM", "endTime": "HH:MM" }
-              ]
-            }
-          ]
-        }
-      `;
-
-      const groqClient = createGroq({ apiKey });
-      // gpt-oss-120b : moins cher, plus rapide, et particulièrement solide en génération JSON
-      // structurée sur Groq — exactement le profil de cette tâche (texte seul, jamais d'image).
-      const activeModel = groqClient("openai/gpt-oss-120b");
-
-      const { text } = await generateText({
-        prompt,
-        model: activeModel,
-      });
-
-      const cleanJSON = text.replace(/```json/g, "").replace(/```/g, "");
-        const parsed = JSON.parse(cleanJSON);
-        return normalizeSchedule(parsed, settings);
-      });
-      // now let save
-      const savedTimetable = await step.run("save-timetable", async () => {
-        // Delete existing to avoid duplicates
-        await prisma.timetable.deleteMany({
-          where: {
-            classId,
-            academicYearId,
-          },
-        });
-        const timetable = await prisma.timetable.create({
-          data: {
-            classId,
-            academicYearId,
-            schedule: aiSchedule.schedule,
-          } as any,
-        });
-
-        return timetable;
-      });
-
-      await updateGenerationStatus(
-        "completed",
-        "Timetable generated successfully",
-        savedTimetable.id
-      );
-      return { message: "Timetable generated successfully" };
-    } catch (error: any) {
-      await updateGenerationStatus(
-        "failed",
-        error?.message || "Timetable generation failed"
-      );
-      throw error;
-    }
-  }
-);
 
 export const generateReportCards = inngest.createFunction(
   { id: "Generate-Report-Cards", triggers: [{ event: "reportcard/generate" }] },
@@ -590,7 +298,7 @@ export const computeStudentHealthScores = inngest.createFunction(
       });
 
       for (const school of schools) {
-        const config = await (prisma as any).schoolConfig
+        const config = await prisma.schoolConfig
           .findFirst({
             where: { schoolId: school.id },
             select: { aiAlertsEnabled: true, aiRiskThreshold: true, aiRiskThresholdCritical: true },
@@ -918,7 +626,7 @@ export const sendProfessorPrincipalDigest = inngest.createFunction(
       const schools = await prisma.school.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
 
       for (const school of schools) {
-        const config = await (prisma as any).schoolConfig
+        const config = await prisma.schoolConfig
           .findFirst({ where: { schoolId: school.id }, select: { aiAlertsEnabled: true, aiRiskThreshold: true, aiRiskThresholdCritical: true } })
           .catch(() => null);
         if (config?.aiAlertsEnabled === false) continue;
@@ -938,7 +646,7 @@ export const sendProfessorPrincipalDigest = inngest.createFunction(
         const eleves = await prisma.studentProfile.findMany({
           where: { user: { schoolId: school.id }, classId: { not: null }, healthScore: { lte: warningThreshold } },
           select: { healthScore: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true, professorPrincipalId: true } } },
-        }) as any[];
+        });
         for (const e of eleves) {
           const nom = `${e.user.firstName} ${e.user.lastName}`;
           const ligne = `${nom} (${e.class?.name ?? "N/A"}) — indice ${e.healthScore}/100`;
@@ -1047,7 +755,7 @@ async function detecterChutePourNote(data: {
   });
   if (noteAvant?.sequenceAverage == null) return null;
 
-  const config = await (prisma as any).schoolConfig
+  const config = await prisma.schoolConfig
     .findFirst({ where: { schoolId: data.schoolId }, select: { subjectDropThreshold: true, aiAlertsEnabled: true } })
     .catch(() => null);
   if (config?.aiAlertsEnabled === false) return null;
@@ -1543,7 +1251,7 @@ export const checkAcademicEvents = inngest.createFunction(
       const maintenant = new Date();
 
       for (const school of schools) {
-        const aOuvrir = await (prisma as any).academicEvent.findMany({
+        const aOuvrir = await prisma.academicEvent.findMany({
           where: { schoolId: school.id, status: "UPCOMING", category: "FIXED_DATE", openDate: { lte: maintenant } },
         });
         for (const ev of aOuvrir) {
@@ -1557,14 +1265,14 @@ export const checkAcademicEvents = inngest.createFunction(
             console.error(`[AcademicEvent] activation ressource liée (${ev.id}):`, err?.message);
             continue;
           }
-          await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { status: "ACTIVE", linkedResourceId } });
+          await prisma.academicEvent.update({ where: { id: ev.id }, data: { status: "ACTIVE", linkedResourceId } });
           await notifierEvenementAcademique(
             prisma, school.id, ev.targetRoles, ev.title,
             ev.description ?? `« ${ev.title} » est désormais ouvert.`,
           ).catch((err) => console.error("[AcademicEvent] notification ouverture:", err?.message));
         }
 
-        const actifsAvecCloture = await (prisma as any).academicEvent.findMany({
+        const actifsAvecCloture = await prisma.academicEvent.findMany({
           where: { schoolId: school.id, status: "ACTIVE", closeDate: { not: null }, reminderSentAt: null },
         });
         for (const ev of actifsAvecCloture) {
@@ -1575,7 +1283,7 @@ export const checkAcademicEvents = inngest.createFunction(
               prisma, school.id, ev.targetRoles, `Rappel — ${ev.title}`,
               `« ${ev.title} » se clôture le ${new Date(ev.closeDate).toLocaleDateString("fr-FR")}. Pensez à agir avant cette date.`,
             ).catch((err) => console.error("[AcademicEvent] notification rappel:", err?.message));
-            await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { reminderSentAt: maintenant } });
+            await prisma.academicEvent.update({ where: { id: ev.id }, data: { reminderSentAt: maintenant } });
           }
         }
 
@@ -1584,14 +1292,14 @@ export const checkAcademicEvents = inngest.createFunction(
         // — une coupure de plusieurs semaines en plein milieu de la fenêtre (ex. vacances de
         // Noël pendant le choix LV2) est ainsi compensée jour après jour, pas seulement le cas
         // limite où la clôture tombe par hasard un jour fermé.
-        const fenetresGlissantes = await (prisma as any).academicEvent.findMany({
+        const fenetresGlissantes = await prisma.academicEvent.findMany({
           where: { schoolId: school.id, status: "ACTIVE", category: "SLIDING_WINDOW", closeDate: { not: null, gt: maintenant } },
         });
         for (const ev of fenetresGlissantes) {
           if (!ev.closeDate) continue;
           const nouvelleCloture = await prolongerSiFermetureAujourdhui(prisma, school.id, ev.closeDate, maintenant);
           if (nouvelleCloture) {
-            await (prisma as any).academicEvent.update({ where: { id: ev.id }, data: { closeDate: nouvelleCloture } });
+            await prisma.academicEvent.update({ where: { id: ev.id }, data: { closeDate: nouvelleCloture } });
             await synchroniserClotureRessourceLiee(prisma, ev.type, ev.linkedResourceId, nouvelleCloture);
           }
         }
@@ -1599,14 +1307,14 @@ export const checkAcademicEvents = inngest.createFunction(
         // Clôture — on récupère les événements concernés AVANT le updateMany pour pouvoir
         // clôturer leur ressource liée individuellement (ex. Lv2ChoiceWindow), ce
         // qu'un updateMany en masse ne permet pas de faire ligne par ligne.
-        const aCloturer = await (prisma as any).academicEvent.findMany({
+        const aCloturer = await prisma.academicEvent.findMany({
           where: { schoolId: school.id, status: "ACTIVE", closeDate: { lte: maintenant } },
           select: { id: true, type: true, linkedResourceId: true },
         });
         for (const ev of aCloturer) {
           await cloturerRessourceLiee(prisma, ev.type, ev.linkedResourceId);
         }
-        await (prisma as any).academicEvent.updateMany({
+        await prisma.academicEvent.updateMany({
           where: { id: { in: aCloturer.map((e: any) => e.id) } },
           data: { status: "CLOSED" },
         });
@@ -1629,7 +1337,7 @@ function dansLaFenetreOrientation(
 }
 
 async function resolverConseillersOrientation(schoolId: string): Promise<string[]> {
-  const conseillers = await (prisma as any).staffProfile.findMany({
+  const conseillers = await prisma.staffProfile.findMany({
     where: { schoolId, permissions: { some: { permission: "MANAGE_ORIENTATION" } } },
     select: { userId: true },
   }).catch(() => []);
@@ -1819,17 +1527,17 @@ export const purgerCorbeille = inngest.createFunction(
             grades, attendances, reportCards,
             parentLinksAsStudent, parentLinksAsParent, teacherSubjects, staffPermissions,
           ] = await Promise.all([
-            (prisma as any).studentProfile.findUnique({ where: { userId: u.id } }),
-            (prisma as any).parentProfile.findUnique({ where: { userId: u.id } }),
-            (prisma as any).teacherProfile.findUnique({ where: { userId: u.id } }),
-            (prisma as any).staffProfile.findUnique({ where: { userId: u.id }, include: { permissions: true } }),
+            prisma.studentProfile.findUnique({ where: { userId: u.id } }),
+            prisma.parentProfile.findUnique({ where: { userId: u.id } }),
+            prisma.teacherProfile.findUnique({ where: { userId: u.id } }),
+            prisma.staffProfile.findUnique({ where: { userId: u.id }, include: { permissions: true } }),
             prisma.grade.findMany({ where: { studentId: u.id } }),
             prisma.attendance.findMany({ where: { studentId: u.id } }),
-            (prisma as any).reportCard.findMany({ where: { studentId: u.id } }),
-            (prisma as any).parentStudent.findMany({ where: { studentProfile: { userId: u.id } } }),
-            (prisma as any).parentStudent.findMany({ where: { parentProfile: { userId: u.id } } }),
-            (prisma as any).teacherSubject.findMany({ where: { teacherProfile: { userId: u.id } } }),
-            (prisma as any).staffPermission.findMany({ where: { staffProfile: { userId: u.id } } }),
+            prisma.reportCard.findMany({ where: { studentId: u.id } }),
+            prisma.parentStudent.findMany({ where: { studentProfile: { userId: u.id } } }),
+            prisma.parentStudent.findMany({ where: { parentProfile: { userId: u.id } } }),
+            prisma.teacherSubject.findMany({ where: { teacherProfile: { userId: u.id } } }),
+            prisma.staffPermission.findMany({ where: { staffProfile: { userId: u.id } } }),
           ]);
 
           const snapshot = JSON.parse(JSON.stringify({
@@ -1838,7 +1546,7 @@ export const purgerCorbeille = inngest.createFunction(
             parentLinksAsStudent, parentLinksAsParent, teacherSubjects, staffPermissions,
           }));
 
-          await (prisma as any).userArchive.create({
+          await prisma.userArchive.create({
             data: {
               originalUserId: u.id, schoolId: u.schoolId, role: u.role,
               firstName: u.firstName, lastName: u.lastName, email: u.email, phone: u.phone,
@@ -1849,12 +1557,12 @@ export const purgerCorbeille = inngest.createFunction(
           await prisma.$transaction([
             prisma.attendance.deleteMany({ where: { studentId: u.id } }),
             prisma.grade.deleteMany({ where: { studentId: u.id } }),
-            (prisma as any).reportCard.deleteMany({ where: { studentId: u.id } }),
-            (prisma as any).parentStudent.deleteMany({
+            prisma.reportCard.deleteMany({ where: { studentId: u.id } }),
+            prisma.parentStudent.deleteMany({
               where: { OR: [{ studentProfile: { userId: u.id } }, { parentProfile: { userId: u.id } }] },
             }),
-            (prisma as any).teacherSubject.deleteMany({ where: { teacherProfile: { userId: u.id } } }),
-            (prisma as any).staffPermission.deleteMany({ where: { staffProfile: { userId: u.id } } }),
+            prisma.teacherSubject.deleteMany({ where: { teacherProfile: { userId: u.id } } }),
+            prisma.staffPermission.deleteMany({ where: { staffProfile: { userId: u.id } } }),
             prisma.user.delete({ where: { id: u.id } }),
           ]);
         } catch (err: any) {
@@ -1873,11 +1581,11 @@ export const purgerCorbeille = inngest.createFunction(
           await prisma.$transaction(async (tx) => {
             await tx.attendance.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
             await tx.grade.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
-            await (tx as any).classCouncilSession.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
+            await tx.classCouncilSession.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
             await tx.timetable.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
-            await (tx as any).classPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
-            await (tx as any).studentPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
-            await (tx as any).studentProfile.updateMany({ where: { classId: c.id, user: { schoolId: c.schoolId } }, data: { classId: null } });
+            await tx.classPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
+            await tx.studentPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
+            await tx.studentProfile.updateMany({ where: { classId: c.id, user: { schoolId: c.schoolId } }, data: { classId: null } });
             await tx.class.delete({ where: { id: c.id } });
           });
         } catch (err: any) {
@@ -1894,14 +1602,14 @@ export const purgerCorbeille = inngest.createFunction(
       for (const s of subjects) {
         try {
           await prisma.$transaction([
-            (prisma as any).classSubjectOverride.deleteMany({ where: { subjectId: s.id } }),
-            (prisma as any).subjectCoefficient.deleteMany({ where: { subjectId: s.id } }),
-            (prisma as any).teacherSubject.deleteMany({ where: { subjectId: s.id } }),
-            (prisma as any).teachingAssignment.deleteMany({ where: { subjectId: s.id } }),
-            (prisma as any).timetableSlot.deleteMany({ where: { subjectId: s.id } }),
-            (prisma as any).exam.deleteMany({ where: { subjectId: s.id } }),
+            prisma.classSubjectOverride.deleteMany({ where: { subjectId: s.id } }),
+            prisma.subjectCoefficient.deleteMany({ where: { subjectId: s.id } }),
+            prisma.teacherSubject.deleteMany({ where: { subjectId: s.id } }),
+            prisma.teachingAssignment.deleteMany({ where: { subjectId: s.id } }),
+            prisma.timetableSlot.deleteMany({ where: { subjectId: s.id } }),
+            prisma.exam.deleteMany({ where: { subjectId: s.id } }),
             prisma.grade.deleteMany({ where: { subjectId: s.id } }),
-            (prisma as any).reportCardSubjectLine.deleteMany({ where: { subjectId: s.id } }),
+            prisma.reportCardSubjectLine.deleteMany({ where: { subjectId: s.id } }),
             prisma.attendance.updateMany({ where: { subjectId: s.id }, data: { subjectId: null } }),
             prisma.subject.delete({ where: { id: s.id } }),
           ]);

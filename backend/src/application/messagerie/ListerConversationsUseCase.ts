@@ -31,7 +31,7 @@ export class ListerConversationsUseCase {
       ],
     };
 
-    const conversations = await (this.prisma as any).conversation.findMany({
+    const conversations = await this.prisma.conversation.findMany({
       where,
       include: {
         participants: { include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } } },
@@ -44,13 +44,13 @@ export class ListerConversationsUseCase {
     // qu'un aller-retour par conversation.
     const classIdsAAfficher = Array.from(new Set(conversations.map((c: any) => c.classId).filter(Boolean))) as string[];
     const classes = classIdsAAfficher.length
-      ? await (this.prisma as any).class.findMany({ where: { id: { in: classIdsAAfficher } }, select: { id: true, name: true } })
+      ? await this.prisma.class.findMany({ where: { id: { in: classIdsAAfficher } }, select: { id: true, name: true } })
       : [];
     const nomParClasseId = new Map(classes.map((c: any) => [c.id, c.name]));
 
     const avecMeta = await Promise.all(
       conversations.map(async (conversation: any) => {
-        const nonLus = await (this.prisma as any).message.count({
+        const nonLus = await this.prisma.message.count({
           where: {
             conversationId: conversation.id,
             senderId: { not: cmd.appelantId },

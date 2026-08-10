@@ -1,5 +1,6 @@
 import type { NotificationService, EnvoiNotificationOptions } from '@domain/ports/services/NotificationService';
 import type { NotificationType as DomainNotificationType } from '@domain/types/enums';
+import type { NotificationType as PrismaNotificationType, UserRole, Prisma } from '@prisma/client';
 import { getIO } from '../../socket/io';
 import { notifierUtilisateurPush } from './PushNotificationService';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
@@ -12,7 +13,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
  * `prisma.notification.create` échouerait silencieusement (valeur d'enum invalide) pour tout
  * le reste — cette table fait la conversion.
  */
-const DOMAIN_TO_PRISMA_NOTIFICATION_TYPE: Record<DomainNotificationType, string> = {
+const DOMAIN_TO_PRISMA_NOTIFICATION_TYPE: Record<DomainNotificationType, PrismaNotificationType> = {
   ABSENCE_ALERT: 'ATTENDANCE',
   GRADE_AVAILABLE: 'ACADEMIC',
   BULLETIN_AVAILABLE: 'ACADEMIC',
@@ -50,14 +51,14 @@ export class SocketNotificationService implements NotificationService {
     // (même pattern que relanceProfilRH, voir inngest/hrSelfServiceJobs.ts).
     let notificationId: string | null = null;
     try {
-      const created = await (prisma as any).notification.create({
+      const created = await prisma.notification.create({
         data: {
           schoolId: options.schoolId,
           userId: options.userId,
           type: DOMAIN_TO_PRISMA_NOTIFICATION_TYPE[options.type],
           title: options.titre,
           body: options.corps,
-          metadata: options.metadata ?? {},
+          metadata: (options.metadata ?? {}) as Prisma.InputJsonValue,
           channel: 'IN_APP',
         },
       });
@@ -94,12 +95,12 @@ export class SocketNotificationService implements NotificationService {
     }
 
     try {
-      const destinataires = await (prisma as any).user.findMany({
-        where: { schoolId: params.schoolId, role: params.role, isActive: true },
+      const destinataires = await prisma.user.findMany({
+        where: { schoolId: params.schoolId, role: params.role as UserRole, isActive: true },
         select: { id: true },
       });
       if (destinataires.length > 0) {
-        await (prisma as any).notification.createMany({
+        await prisma.notification.createMany({
           data: destinataires.map((u: { id: string }) => ({
             schoolId: params.schoolId,
             userId: u.id,
@@ -131,7 +132,7 @@ export class SocketNotificationService implements NotificationService {
 
   async marquerLue(notificationId: string): Promise<void> {
     try {
-      await (prisma as any).notification.update({ where: { id: notificationId }, data: { isRead: true } });
+      await prisma.notification.update({ where: { id: notificationId }, data: { isRead: true } });
     } catch (err) {
       console.error('[Notification] Échec marquerLue:', err);
     }

@@ -18,7 +18,7 @@ export async function verifierAppartenanceConversation(
   prisma: PrismaClient,
   params: { conversationId: string; schoolId: string; userId: string; role: string },
 ): Promise<{ id: string; type: string; classId: string | null; schoolId: string }> {
-  const conversation = await (prisma as any).conversation.findFirst({
+  const conversation = await prisma.conversation.findFirst({
     where: { id: params.conversationId, schoolId: params.schoolId },
     select: { id: true, type: true, classId: true, schoolId: true },
   });
@@ -30,7 +30,7 @@ export async function verifierAppartenanceConversation(
   const role = params.role.toUpperCase();
 
   if (conversation.type === 'PRIVATE') {
-    const participant = await (prisma as any).conversationParticipant.findUnique({
+    const participant = await prisma.conversationParticipant.findUnique({
       where: { conversationId_userId: { conversationId: conversation.id, userId: params.userId } },
     });
     if (!participant) throw new Error("Vous ne faites pas partie de cette conversation.");
@@ -57,24 +57,24 @@ export async function verifierAppartenanceConversation(
 }
 
 export async function estEnseignantDeLaClasse(prisma: PrismaClient, userId: string, classId: string): Promise<boolean> {
-  const teacherProfile = await (prisma as any).teacherProfile.findUnique({ where: { userId }, select: { id: true } });
+  const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId }, select: { id: true } });
   if (!teacherProfile) return false;
 
   const [assignment, classeCommePp] = await Promise.all([
-    (prisma as any).teachingAssignment.findFirst({ where: { classId, teacherId: userId }, select: { id: true } }),
-    (prisma as any).class.findFirst({ where: { id: classId, professorPrincipalId: userId }, select: { id: true } }),
+    prisma.teachingAssignment.findFirst({ where: { classId, teacherId: userId }, select: { id: true } }),
+    prisma.class.findFirst({ where: { id: classId, professorPrincipalId: userId }, select: { id: true } }),
   ]);
 
   return Boolean(assignment || classeCommePp);
 }
 
 export async function estEleveDeLaClasse(prisma: PrismaClient, userId: string, classId: string): Promise<boolean> {
-  const studentProfile = await (prisma as any).studentProfile.findUnique({ where: { userId }, select: { classId: true } });
+  const studentProfile = await prisma.studentProfile.findUnique({ where: { userId }, select: { classId: true } });
   return studentProfile?.classId === classId;
 }
 
 export async function estParentDUnEleveDeLaClasse(prisma: PrismaClient, userId: string, classId: string): Promise<boolean> {
-  const parentProfile = await (prisma as any).parentProfile.findUnique({
+  const parentProfile = await prisma.parentProfile.findUnique({
     where: { userId },
     include: { children: { include: { studentProfile: { select: { classId: true } } } } },
   });
@@ -92,8 +92,8 @@ export async function classIdsPertinents(prisma: PrismaClient, userId: string, r
 
   if (upperRole === 'TEACHER') {
     const [assignments, classesPp] = await Promise.all([
-      (prisma as any).teachingAssignment.findMany({ where: { teacherId: userId }, select: { classId: true } }),
-      (prisma as any).class.findMany({ where: { professorPrincipalId: userId }, select: { id: true } }),
+      prisma.teachingAssignment.findMany({ where: { teacherId: userId }, select: { classId: true } }),
+      prisma.class.findMany({ where: { professorPrincipalId: userId }, select: { id: true } }),
     ]);
     return Array.from(new Set([
       ...assignments.map((a: any) => a.classId),
@@ -102,12 +102,12 @@ export async function classIdsPertinents(prisma: PrismaClient, userId: string, r
   }
 
   if (upperRole === 'STUDENT') {
-    const studentProfile = await (prisma as any).studentProfile.findUnique({ where: { userId }, select: { classId: true } });
+    const studentProfile = await prisma.studentProfile.findUnique({ where: { userId }, select: { classId: true } });
     return studentProfile?.classId ? [studentProfile.classId] : [];
   }
 
   if (upperRole === 'PARENT') {
-    const parentProfile = await (prisma as any).parentProfile.findUnique({
+    const parentProfile = await prisma.parentProfile.findUnique({
       where: { userId },
       include: { children: { include: { studentProfile: { select: { classId: true } } } } },
     });
@@ -141,12 +141,12 @@ export async function destinatairesAutorises(
 
   const [assignments, classesPp, staffEtAdmin] = await Promise.all([
     classIds.length
-      ? (prisma as any).teachingAssignment.findMany({ where: { classId: { in: classIds } }, select: { teacherId: true } })
+      ? prisma.teachingAssignment.findMany({ where: { classId: { in: classIds } }, select: { teacherId: true } })
       : Promise.resolve([]),
     classIds.length
-      ? (prisma as any).class.findMany({ where: { id: { in: classIds }, professorPrincipalId: { not: null } }, select: { professorPrincipalId: true } })
+      ? prisma.class.findMany({ where: { id: { in: classIds }, professorPrincipalId: { not: null } }, select: { professorPrincipalId: true } })
       : Promise.resolve([]),
-    (prisma as any).user.findMany({ where: { schoolId, role: { in: ['STAFF', 'ADMIN'] }, isActive: true }, select: { id: true } }),
+    prisma.user.findMany({ where: { schoolId, role: { in: ['STAFF', 'ADMIN'] }, isActive: true }, select: { id: true } }),
   ]);
 
   return new Set<string>([

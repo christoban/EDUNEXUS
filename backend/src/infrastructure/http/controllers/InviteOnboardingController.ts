@@ -204,7 +204,7 @@ export class InviteOnboardingController {
             plan: invite2.plan,
             logoUrl: validLogo,
             onboardingConfig: onboardingConfig || undefined,
-            templateCode: (onboardingConfig as any)?.templateCode ?? null,
+            templateCode: onboardingConfig?.templateCode ?? null,
           },
         });
 

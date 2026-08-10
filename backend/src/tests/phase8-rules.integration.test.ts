@@ -4,7 +4,7 @@ import {
   formatGradeLabel,
   normalizeScoreOn20,
   scoreOn20ToPercentage,
-} from "../utils/gradingEngine.ts";
+} from "../domain/rules/GradingEngine.ts";
 import { calculateCouncilDecision } from "../utils/bulletinPolicy.ts";
 import { resolveBulletinTemplateType } from "../utils/reportCardTemplates.ts";
 

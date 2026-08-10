@@ -24,7 +24,7 @@ export class CreerTransactionAPEEUseCase {
       throw new Error('Le montant doit être strictement positif.');
     }
 
-    return (this.prisma as any).aPEETransaction.create({
+    return this.prisma.aPEETransaction.create({
       data: {
         schoolId: cmd.schoolId,
         creeParId: cmd.creeParId,

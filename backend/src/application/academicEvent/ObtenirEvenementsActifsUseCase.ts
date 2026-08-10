@@ -14,7 +14,7 @@ export class ObtenirEvenementsActifsUseCase {
   async execute(schoolId: string, role: string) {
     const dansQuatorzeJours = new Date(Date.now() + FENETRE_A_VENIR_JOURS * 24 * 60 * 60 * 1000);
 
-    const evenements = await (this.prisma as any).academicEvent.findMany({
+    const evenements = await this.prisma.academicEvent.findMany({
       where: {
         schoolId,
         targetRoles: { has: role },

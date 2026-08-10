@@ -64,6 +64,7 @@ export class CloturerAnneeUseCase {
 
     let promus = 0;
     let redoublants = 0;
+    let nonTraites = 0;
     const avertissements: string[] = [];
 
     for (const decision of decisions) {
@@ -79,6 +80,7 @@ export class CloturerAnneeUseCase {
           avertissements.push(
             `Pas de mapping de promotion pour la classe ${decision.fromClassId} — élève ${decision.studentId} non déplacé`
           );
+          nonTraites++;
           continue;
         }
 
@@ -110,7 +112,11 @@ export class CloturerAnneeUseCase {
       anneeId: commande.academicYearId,
       elevesPromus: promus,
       elevesRedoublants: redoublants,
-      elevesNonTraites: 0,
+      // Bug indépendant trouvé en retravaillant ce use case : ce champ était toujours à 0,
+      // codé en dur, alors que la branche ci-dessus pousse déjà un avertissement pour chaque
+      // élève sans mapping — le rapport de clôture minimisait silencieusement les élèves
+      // réellement non traités.
+      elevesNonTraites: nonTraites,
       avertissements,
     };
   }

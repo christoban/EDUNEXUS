@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateText, tool, APICallError } from 'ai';
@@ -72,19 +72,19 @@ export class AssistantController {
   ) {}
 
   private get logRepo() {
-    return (this.prisma as any).assistantActionLog;
+    return this.prisma.assistantActionLog;
   }
 
   private get helpArticleRepo() {
-    return (this.prisma as any).helpArticle;
+    return this.prisma.helpArticle;
   }
 
   private get helpQueryLogRepo() {
-    return (this.prisma as any).assistantHelpQueryLog;
+    return this.prisma.assistantHelpQueryLog;
   }
 
   private get conversationRepo() {
-    return (this.prisma as any).assistantConversationTurn;
+    return this.prisma.assistantConversationTurn;
   }
 
   /**
@@ -129,7 +129,7 @@ export class AssistantController {
   /** Persiste un tour (utilisateur ou assistant) dans l'historique du fil de conversation. */
   private saveTurn(conversationId: string, schoolId: string, userId: string, role: 'user' | 'assistant', content: string, toolCalls?: unknown) {
     this.conversationRepo
-      .create({ data: { conversationId, schoolId, userId, role, content, toolCalls: toolCalls ?? undefined } })
+      .create({ data: { conversationId, schoolId, userId, role, content, toolCalls: (toolCalls as Prisma.InputJsonValue) ?? undefined } })
       .catch((e: any) => console.error('[AssistantConversationTurn]', e?.message));
   }
 
@@ -372,7 +372,7 @@ export class AssistantController {
           executed.push({ error: `Action « ${tc.toolName} » non autorisée pour votre rôle.`, actionType: tc.toolName });
           continue;
         }
-        const input = tc.input as any;
+        const input = tc.input;
 
         if (action.destructive) {
           let summary = 'Cette action est irréversible.';
@@ -557,7 +557,7 @@ export class AssistantController {
         return;
       }
 
-      const undoData = (log.undoData ?? {}) as any;
+      const undoData = (log.undoData ?? {}) as Record<string, unknown>;
       try {
         await action.undo(log.parameters, undoData, this.ctx(req));
         await this.logRepo.update({ where: { id: log.id }, data: { status: 'UNDONE', undoneAt: new Date() } });

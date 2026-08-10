@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, DisciplineCouncilStatus } from '@prisma/client';
 import { ConvoquerConseilDisciplineUseCase, type CompositionConseil } from '@application/discipline/ConvoquerConseilDisciplineUseCase';
 import { TenirConseilDisciplineUseCase } from '@application/discipline/TenirConseilDisciplineUseCase';
 import { generatePVConseilDisciplinePdf } from '../../../utils/disciplineDocuments';
@@ -79,8 +79,8 @@ export class DisciplineCouncilController {
       const schoolId = req.user!.schoolId;
       const { status } = req.query as Record<string, string>;
 
-      const sessions = await (this.prisma as any).disciplineCouncilSession.findMany({
-        where: { schoolId, ...(status ? { status } : {}) },
+      const sessions = await this.prisma.disciplineCouncilSession.findMany({
+        where: { schoolId, ...(status ? { status: status as DisciplineCouncilStatus } : {}) },
         include: {
           student: { select: { id: true, firstName: true, lastName: true } },
           presidedBy: { select: { id: true, firstName: true, lastName: true } },
@@ -98,7 +98,7 @@ export class DisciplineCouncilController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
 
-      const session = await (this.prisma as any).disciplineCouncilSession.findFirst({
+      const session = await this.prisma.disciplineCouncilSession.findFirst({
         where: { id: sessionId, schoolId },
         include: { student: { select: { firstName: true, lastName: true } } },
       });
@@ -113,7 +113,9 @@ export class DisciplineCouncilController {
         schoolName: school?.name ?? 'ZekoulABia',
         studentName: `${session.student.firstName} ${session.student.lastName}`,
         motif: session.motif,
-        composition: session.composition,
+        // Écrite via ConvoquerConseilDisciplineUseCase, qui valide les 6 rôles obligatoires
+        // avant écriture (ROLES_OBLIGATOIRES) — round-trip sûr, même cast que côté écriture.
+        composition: session.composition as unknown as CompositionConseil,
         parentNotifiedAt: session.parentNotifiedAt,
         scheduledAt: session.scheduledAt,
         heldAt: session.heldAt,

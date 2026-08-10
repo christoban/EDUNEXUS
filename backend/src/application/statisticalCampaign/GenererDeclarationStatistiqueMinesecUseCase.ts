@@ -5,7 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import { decryptTemplate, setCellValue, writeWorkbookToFile, cleanupSession, type WorkbookSession } from './xlsEngine';
 import { resolveEsgFields, resolveIdentificationAutoFields, resolveFeeAutoFields, type ResolvedCell } from './resolveAutoFields';
 import { resolvePersonnelFields } from './resolvePersonnelFields';
@@ -36,7 +36,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
   async execute(cmd: GenererDeclarationStatistiqueCommande): Promise<GenererDeclarationStatistiqueResultat> {
     const completude = await this.verifierCompletude.execute({ schoolId: cmd.schoolId });
     if (!completude.complet) {
-      const submission = await (this.prisma as any).statisticalSubmission.create({
+      const submission = await this.prisma.statisticalSubmission.create({
         data: {
           schoolId: cmd.schoolId,
           templateId: (await this.getActiveTemplate()).id,
@@ -55,8 +55,8 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     }
 
     const template = await this.getActiveTemplate();
-    const supplement = await (this.prisma as any).schoolStatisticalSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
-    const school = await (this.prisma as any).school.findUnique({ where: { id: cmd.schoolId } });
+    const supplement = await this.prisma.schoolStatisticalSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
+    const school = await this.prisma.school.findUnique({ where: { id: cmd.schoolId } });
 
     const session = await decryptTemplate(template.filePath);
     try {
@@ -114,7 +114,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
         continue;
       }
       const dataType = typeof value === 'boolean' ? 'BOOLEAN' : typeof value === 'number' ? 'NUMBER' : 'TEXT';
-      const written = setCellValue(ws, field.cellReference, value, dataType as any);
+      const written = setCellValue(ws, field.cellReference, value, dataType);
       if (!written) {
         // La cellule cible contient une formule (bug de mapping potentiel) — jamais perdre
         // silencieusement une donnée renseignée par l'admin, toujours le signaler.
@@ -190,14 +190,14 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     const outputPath = path.join(outDir, fileName);
     await writeWorkbookToFile(session, outputPath);
 
-    const submission = await (this.prisma as any).statisticalSubmission.create({
+    const submission = await this.prisma.statisticalSubmission.create({
       data: {
         schoolId: cmd.schoolId,
         templateId: template.id,
         generatedBy: cmd.generatedByUserId,
         status: 'DRAFT',
         filePath: outputPath,
-        unresolvedFieldsReport: champsNonResolus as any,
+        unresolvedFieldsReport: champsNonResolus as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -211,7 +211,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
   }
 
   private async getActiveTemplate() {
-    const template = await (this.prisma as any).statisticalCampaignTemplate.findFirst({
+    const template = await this.prisma.statisticalCampaignTemplate.findFirst({
       where: { ministry: 'MINESEC', isActive: true },
       orderBy: { uploadedAt: 'desc' },
     });

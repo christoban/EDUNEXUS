@@ -29,7 +29,7 @@ export class EntranceExamController {
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const sessions = await (this.prisma as any).entranceExamSession.findMany({
+      const sessions = await this.prisma.entranceExamSession.findMany({
         where: { schoolId },
         orderBy: { createdAt: 'desc' },
       });
@@ -41,7 +41,7 @@ export class EntranceExamController {
   creer = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const { name, examDate, academicYearId, admissionThreshold, availableSeats } = req.body as any;
+      const { name, examDate, academicYearId, admissionThreshold, availableSeats } = req.body;
       if (!name || !examDate || !academicYearId) {
         res.status(400).json({ success: false, message: 'name, examDate, academicYearId requis' });
         return;
@@ -53,7 +53,8 @@ export class EntranceExamController {
       });
       journaliserActionIA(this.prisma, {
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
-        actionName: 'creer_session_concours_entree', targetType: 'EntranceExamSession', targetId: (result as any)?.id,
+        // Bug indépendant : execute() retourne { sessionId }, jamais `id`.
+        actionName: 'creer_session_concours_entree', targetType: 'EntranceExamSession', targetId: result.sessionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
       res.status(201).json({ success: true, data: result });
@@ -87,7 +88,7 @@ export class EntranceExamController {
     try {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
-      const file = (req as any).file as Express.Multer.File;
+      const file = req.file as Express.Multer.File;
       if (!file) {
         res.status(400).json({ success: false, message: 'Fichier requis' });
         return;

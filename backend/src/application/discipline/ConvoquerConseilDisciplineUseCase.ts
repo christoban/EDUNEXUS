@@ -4,7 +4,7 @@
  * compter de la notification aux parents (fixée à l'instant de la convocation), et exige la
  * composition légale complète du conseil.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 
 const DELAI_LEGAL_HEURES = 72;
 
@@ -53,18 +53,20 @@ export class ConvoquerConseilDisciplineUseCase {
       );
     }
 
-    const student = await (this.prisma as any).user.findFirst({
+    const student = await this.prisma.user.findFirst({
       where: { id: cmd.studentId, schoolId: cmd.schoolId, role: 'STUDENT' },
     });
     if (!student) throw new Error('Élève introuvable.');
 
-    return (this.prisma as any).disciplineCouncilSession.create({
+    return this.prisma.disciplineCouncilSession.create({
       data: {
         schoolId: cmd.schoolId,
         studentId: cmd.studentId,
         presidedById: cmd.presidedById,
         motif: cmd.motif.trim(),
-        composition: cmd.composition,
+        // Déjà validée champ par champ ci-dessus (ROLES_OBLIGATOIRES) — cast précis pour la
+        // colonne JSON, pas un `any` qui masquerait une composition invalide.
+        composition: cmd.composition as unknown as Prisma.InputJsonValue,
         parentNotifiedAt,
         scheduledAt: cmd.scheduledAt,
       },

@@ -5,7 +5,7 @@ export class AjouterCandidatsPebsUseCase {
   constructor(private readonly prisma: PrismaClient) {}
 
   async execute(cmd: AjouterCandidatsPebsCommande): Promise<{ added: number }> {
-    const session = await (this.prisma as any).pebsExamSession.findUnique({
+    const session = await this.prisma.pebsExamSession.findUnique({
       where: { id: cmd.sessionId },
     });
     if (!session) throw new Error('Session PEBS introuvable');
@@ -16,18 +16,18 @@ export class AjouterCandidatsPebsUseCase {
     for (const profileId of cmd.studentProfileIds) {
       try {
         // Vérifier que le profil appartient à l'école
-        const profile = await (this.prisma as any).studentProfile.findFirst({
+        const profile = await this.prisma.studentProfile.findFirst({
           where: { id: profileId, user: { schoolId: cmd.schoolId } },
         });
         if (!profile) continue;
 
         // Vérifier doublon
-        const existing = await (this.prisma as any).pebsExamCandidate.findFirst({
+        const existing = await this.prisma.pebsExamCandidate.findFirst({
           where: { sessionId: cmd.sessionId, studentProfileId: profileId },
         });
         if (existing) continue;
 
-        await (this.prisma as any).pebsExamCandidate.create({
+        await this.prisma.pebsExamCandidate.create({
           data: {
             sessionId: cmd.sessionId,
             studentProfileId: profileId,
@@ -42,7 +42,7 @@ export class AjouterCandidatsPebsUseCase {
     }
 
     if (session.status === 'DRAFT' && added > 0) {
-      await (this.prisma as any).pebsExamSession.update({
+      await this.prisma.pebsExamSession.update({
         where: { id: cmd.sessionId },
         data: { status: 'RESULTS_PENDING' },
       });

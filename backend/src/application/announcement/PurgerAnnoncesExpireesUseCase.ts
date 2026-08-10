@@ -8,7 +8,7 @@ export class PurgerAnnoncesExpireesUseCase {
   async execute(): Promise<{ count: number }> {
     const seuil = new Date(Date.now() - DELAI_GRACE_JOURS * 24 * 60 * 60 * 1000);
 
-    return (this.prisma as any).announcement.deleteMany({
+    return this.prisma.announcement.deleteMany({
       where: { expiresAt: { lt: seuil } },
     });
   }

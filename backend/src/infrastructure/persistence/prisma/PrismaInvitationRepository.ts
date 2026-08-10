@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, PlanType } from '@prisma/client';
 import type {
   InvitationRepository,
   InvitationProps,
@@ -36,7 +36,7 @@ export class PrismaInvitationRepository implements InvitationRepository {
         token: invitation.token,
         schoolId: invitation.schoolId,
         invitedByMasterId: invitation.invitedByMasterId,
-        plan: invitation.plan as any,
+        plan: invitation.plan as PlanType,
         status: invitation.status,
         expiresAt: invitation.expiresAt,
         notes: invitation.notes,

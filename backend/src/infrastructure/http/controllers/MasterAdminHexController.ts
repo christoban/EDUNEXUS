@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, SubjectType } from '@prisma/client';
 import type { InviterEcoleUseCase } from '@application/masterAdmin/InviterEcoleUseCase';
 import type { SuspendreEcoleUseCase } from '@application/masterAdmin/SuspendreEcoleUseCase';
 import type { ReactiverEcoleUseCase } from '@application/masterAdmin/ReactiverEcoleUseCase';
@@ -25,7 +25,7 @@ export class MasterAdminHexController {
   // POST /api/v2/master/schools/invite
   inviterEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       const { email, schoolName, plan, notes, subsystem } = req.body;
 
       if (!email || !schoolName) {
@@ -53,7 +53,7 @@ export class MasterAdminHexController {
   suspendreEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id as string;
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       await this.suspendre.execute(id);
       void logMasterAction({ req, masterUserId: master?.id, action: 'school_suspended', targetId: id, description: `École ${id} suspendue` });
       res.json({ success: true, message: 'École suspendue' });
@@ -66,7 +66,7 @@ export class MasterAdminHexController {
   reactiverEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id as string;
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       await this.reactiver.execute(id);
       void logMasterAction({ req, masterUserId: master?.id, action: 'school_reactivated', targetId: id, description: `École ${id} réactivée` });
       res.json({ success: true, message: 'École réactivée' });
@@ -79,7 +79,7 @@ export class MasterAdminHexController {
   rejeterEcole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id as string;
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       const { motif } = req.body;
       if (!motif) {
         res.status(400).json({ success: false, message: 'Le motif est obligatoire' });
@@ -187,7 +187,7 @@ export class MasterAdminHexController {
         return;
       }
 
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       const schoolName = school.name;
 
       await this.prisma.$transaction(async (tx) => {
@@ -224,7 +224,7 @@ export class MasterAdminHexController {
         return;
       }
 
-      const invite = (school.invites as any[])[0];
+      const invite = school.invites[0];
       if (!invite) {
         res.status(400).json({ success: false, message: 'Aucune invitation active à renvoyer pour cette école' });
         return;
@@ -241,7 +241,7 @@ export class MasterAdminHexController {
       const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
       const activationUrl = `${frontendUrl}/onboarding/${newToken}`;
 
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       void logMasterAction({ req, masterUserId: master?.id, action: 'school_invite_resent', targetId: id, description: `Invitation renvoyée à ${invite.email as string} pour «${invite.schoolName as string}»` });
 
       // Répondre immédiatement — l'email s'envoie en arrière-plan
@@ -279,7 +279,7 @@ export class MasterAdminHexController {
         return;
       }
       await this.prisma.school.update({ where: { id }, data: { status: 'PENDING' } });
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       void logMasterAction({ req, masterUserId: master?.id, action: 'school_approval_cancelled', targetId: id, description: `«${school.name}» approbation annulée (APPROVED → PENDING)` });
       res.json({ success: true, message: `L'approbation de ${school.name} a été annulée — elle repasse en attente` });
     } catch (error) {
@@ -301,7 +301,7 @@ export class MasterAdminHexController {
         return;
       }
       await this.prisma.school.update({ where: { id }, data: { status: 'PENDING' } });
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       void logMasterAction({ req, masterUserId: master?.id, action: 'school_reexamined', targetId: id, description: `«${school.name}» remise en examen (REJECTED → PENDING)` });
       res.json({ success: true, message: `La demande de ${school.name} est remise en examen` });
     } catch (error) {
@@ -401,8 +401,8 @@ export class MasterAdminHexController {
 
       const existingCount = await this.prisma.subject.count({ where: { schoolId: id } });
 
-      const config = school.onboardingConfig as any;
-      const templateCode: string | undefined = (school as any).templateCode ?? config?.templateCode;
+      const config = (school.onboardingConfig ?? {}) as Record<string, unknown>;
+      const templateCode: string | undefined = school.templateCode ?? (config.templateCode as string | undefined);
 
       const effectiveTemplate = templateCode
         ? await this.prisma.schoolTemplate.findUnique({ where: { code: templateCode } })
@@ -422,18 +422,19 @@ export class MasterAdminHexController {
         const TEMPLATES_WITH_REFERENCE_DATA = ['LYCEE_FR', 'CES_FR', 'PRIVE_FR', 'GHS_EN', 'GSS_EN', 'PRIVE_EN', 'LYCEE_BILINGUE'];
         const hasReferenceData = templateCode && TEMPLATES_WITH_REFERENCE_DATA.includes(templateCode);
         if (existingCount === 0 && effectiveTemplate && !hasReferenceData) {
-          const tCfg = effectiveTemplate.config as any;
-          const frSubjects: any[] = tCfg.defaultSubjects   ?? [];
-          const enSubjects: any[] = tCfg.defaultSubjectsEN ?? [];
+          interface TemplateSubjectDef { name: string; code: string; coefficient: number; hoursPerWeek?: number; subjectType?: string }
+          const tCfg = (effectiveTemplate.config ?? {}) as Record<string, unknown>;
+          const frSubjects = (tCfg.defaultSubjects as TemplateSubjectDef[] | undefined) ?? [];
+          const enSubjects = (tCfg.defaultSubjectsEN as TemplateSubjectDef[] | undefined) ?? [];
 
           for (const s of frSubjects) {
             await tx.subject.create({
-              data: { schoolId: id, name: s.name as string, code: s.code as string, coefficient: s.coefficient as number, hoursPerWeek: (s.hoursPerWeek ?? 2) as number, subjectType: (s.subjectType ?? 'THEORETICAL') as any },
+              data: { schoolId: id, name: s.name, code: s.code, coefficient: s.coefficient, hoursPerWeek: s.hoursPerWeek ?? 2, subjectType: (s.subjectType ?? 'THEORETICAL') as SubjectType },
             });
           }
           for (const s of enSubjects) {
             await tx.subject.create({
-              data: { schoolId: id, name: (frSubjects.length > 0 ? `${s.name} (EN)` : s.name) as string, code: (frSubjects.length > 0 ? `${s.code}_EN` : s.code) as string, coefficient: s.coefficient as number, hoursPerWeek: (s.hoursPerWeek ?? 2) as number, subjectType: (s.subjectType ?? 'THEORETICAL') as any },
+              data: { schoolId: id, name: frSubjects.length > 0 ? `${s.name} (EN)` : s.name, code: frSubjects.length > 0 ? `${s.code}_EN` : s.code, coefficient: s.coefficient, hoursPerWeek: s.hoursPerWeek ?? 2, subjectType: (s.subjectType ?? 'THEORETICAL') as SubjectType },
             });
           }
           subjectCount = frSubjects.length + enSubjects.length;
@@ -473,7 +474,7 @@ export class MasterAdminHexController {
               if (!subjectId) {
                 const code = subjectName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
                 const newS = await tx.subject.create({
-                  data: { schoolId: id, name: subjectName, code, coefficient: bc.coefficient, hoursPerWeek: 2, subjectType: 'THEORETICAL' as any },
+                  data: { schoolId: id, name: subjectName, code, coefficient: bc.coefficient, hoursPerWeek: 2, subjectType: 'THEORETICAL' as SubjectType },
                 });
                 subjectId = newS.id;
                 subjectByName.set(subjectName, subjectId);
@@ -503,7 +504,7 @@ export class MasterAdminHexController {
   // POST /api/v2/master/backup/trigger
   declencherSauvegarde = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       const schoolId = typeof req.body?.schoolId === 'string' && req.body.schoolId.trim() ? req.body.schoolId.trim() : undefined;
 
       const response = await inngest.send({
@@ -534,7 +535,7 @@ export class MasterAdminHexController {
   // le MFA depuis zéro (nouveau QR) à sa prochaine connexion — geste sensible, jamais silencieux.
   reinitialiserMfaUtilisateur = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const master = (req as any).masterUser;
+      const master = req.masterUser;
       const { subdomain, email } = req.body as { subdomain?: string; email?: string };
       if (!subdomain || !email) {
         res.status(400).json({ success: false, message: 'subdomain et email requis' });
@@ -608,8 +609,8 @@ export class MasterAdminHexController {
       if (actionName) where.actionName = actionName;
 
       const [entries, total] = await Promise.all([
-        (this.prisma as any).aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } }),
-        (this.prisma as any).aIActionAuditLog.count({ where }),
+        this.prisma.aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } }),
+        this.prisma.aIActionAuditLog.count({ where }),
       ]);
 
       res.json({

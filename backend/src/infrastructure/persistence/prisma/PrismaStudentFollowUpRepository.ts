@@ -99,7 +99,7 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
   constructor(private readonly prisma: PrismaClient) {}
 
   async create(data: CreerFollowUpData): Promise<FollowUpActionDetail> {
-    const created = await (this.prisma as any).studentFollowUpAction.create({
+    const created = await this.prisma.studentFollowUpAction.create({
       data: {
         schoolId: data.schoolId,
         studentProfileId: data.studentProfileId,
@@ -118,7 +118,7 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
   }
 
   async findById(id: string, schoolId: string): Promise<FollowUpActionDetail | null> {
-    const found = await (this.prisma as any).studentFollowUpAction.findFirst({
+    const found = await this.prisma.studentFollowUpAction.findFirst({
       where: { id, schoolId },
       select: SELECT_DETAIL,
     });
@@ -133,14 +133,14 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
   // la première. count===0 signale que la course a été perdue, sans quoi update() aurait de toute
   // façon réussi silencieusement.
   async close(id: string, closedById: string, closingNote: string): Promise<FollowUpActionDetail> {
-    const result = await (this.prisma as any).studentFollowUpAction.updateMany({
+    const result = await this.prisma.studentFollowUpAction.updateMany({
       where: { id, status: { not: 'CLOS' } },
       data: { status: 'CLOS', closedAt: new Date(), closedById, closingNote },
     });
     if (result.count === 0) {
       throw new Error('Cette action est déjà clôturée');
     }
-    const updated = await (this.prisma as any).studentFollowUpAction.findUniqueOrThrow({
+    const updated = await this.prisma.studentFollowUpAction.findUniqueOrThrow({
       where: { id },
       select: SELECT_DETAIL,
     });
@@ -148,14 +148,14 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
   }
 
   async reassign(id: string, assignedToId: string): Promise<FollowUpActionDetail> {
-    const result = await (this.prisma as any).studentFollowUpAction.updateMany({
+    const result = await this.prisma.studentFollowUpAction.updateMany({
       where: { id, status: { not: 'CLOS' } },
       data: { assignedToId, status: 'EN_COURS' },
     });
     if (result.count === 0) {
       throw new Error('Impossible de réassigner une action déjà clôturée');
     }
-    const updated = await (this.prisma as any).studentFollowUpAction.findUniqueOrThrow({
+    const updated = await this.prisma.studentFollowUpAction.findUniqueOrThrow({
       where: { id },
       select: SELECT_DETAIL,
     });
@@ -163,7 +163,7 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
   }
 
   async listOpen(schoolId: string, options: { assignedToId?: string }): Promise<FollowUpActionDetail[]> {
-    const rows = await (this.prisma as any).studentFollowUpAction.findMany({
+    const rows = await this.prisma.studentFollowUpAction.findMany({
       where: {
         schoolId,
         status: { in: ['OUVERT', 'EN_COURS'] },
@@ -176,7 +176,7 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
   }
 
   async listForStudent(studentProfileId: string, schoolId: string): Promise<FollowUpActionDetail[]> {
-    const rows = await (this.prisma as any).studentFollowUpAction.findMany({
+    const rows = await this.prisma.studentFollowUpAction.findMany({
       where: { studentProfileId, schoolId },
       orderBy: { createdAt: 'desc' },
       select: SELECT_DETAIL,

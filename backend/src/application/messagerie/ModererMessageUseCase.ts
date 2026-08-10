@@ -20,7 +20,7 @@ export class ModererMessageUseCase {
       throw new Error('Seuls Admin et Staff peuvent modérer un message.');
     }
 
-    const message = await (this.prisma as any).message.findFirst({
+    const message = await this.prisma.message.findFirst({
       where: { id: cmd.messageId, conversation: { schoolId: cmd.schoolId } },
       select: { id: true, senderId: true, moderationStatus: true, conversationId: true },
     });
@@ -29,7 +29,7 @@ export class ModererMessageUseCase {
       throw new Error('Ce message a déjà été modéré.');
     }
 
-    const misAJour = await (this.prisma as any).message.update({
+    const misAJour = await this.prisma.message.update({
       where: { id: cmd.messageId },
       data: {
         moderationStatus: cmd.decision,

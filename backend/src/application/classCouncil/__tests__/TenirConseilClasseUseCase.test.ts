@@ -64,9 +64,11 @@ function creerClasse() {
   return Classe.reconstituer({
     id: CLASS_ID,
     schoolId: SCHOOL_ID,
+    academicYearId: 'annee-1',
     name: '3e',
     serie: 'C',
     capacity: 40,
+    status: 'ACTIVE',
     createdAt: new Date(),
   });
 }

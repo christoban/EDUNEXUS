@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { CouncilDecision, ReportCardStatus } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
@@ -9,7 +10,7 @@ type AuthUser = { schoolId: string; userId: string; role: string; permissions?: 
 
 export class ClassCouncilController {
   private user(req: Request): AuthUser {
-    return (req as any).user as AuthUser;
+    return req.user as AuthUser;
   }
 
   private canManage(user: AuthUser): boolean {
@@ -85,7 +86,7 @@ export class ClassCouncilController {
           data: students.map(s => ({
             sessionId: session.id,
             studentId: s.userId,
-            decision: 'DELIBERATION' as any,
+            decision: 'DELIBERATION' as CouncilDecision,
             observations: null,
           })),
           skipDuplicates: true,
@@ -162,7 +163,7 @@ export class ClassCouncilController {
             },
           },
         },
-      }) as any;
+      });
       if (!session) {
         res.status(404).json({ message: 'Session introuvable' });
         return;
@@ -172,7 +173,7 @@ export class ClassCouncilController {
       // de séance pour repérer d'un coup d'œil qui mérite une attention particulière pendant la
       // délibération, sans dupliquer la logique de seuils (mêmes SchoolConfig que le reste de
       // l'Early Warning System).
-      const config = await (prisma as any).schoolConfig
+      const config = await prisma.schoolConfig
         .findUnique({ where: { schoolId: user.schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
         .catch(() => null);
       const warningThreshold = config?.aiRiskThreshold ?? 50;
@@ -242,8 +243,8 @@ export class ClassCouncilController {
 
       const councilDecision = await prisma.classCouncilDecision.upsert({
         where: { sessionId_studentId: { sessionId, studentId } },
-        create: { sessionId, studentId, decision: decision as any, observations: observations ?? null },
-        update: { decision: decision as any, observations: observations ?? null },
+        create: { sessionId, studentId, decision: decision as CouncilDecision, observations: observations ?? null },
+        update: { decision: decision as CouncilDecision, observations: observations ?? null },
         include: { student: { select: { id: true, firstName: true, lastName: true } } },
       });
 
@@ -264,6 +265,16 @@ export class ClassCouncilController {
       if (!decisions.length) { res.status(400).json({ message: 'decisions (tableau) est requis' }); return; }
       if (!this.canManage(user)) { res.status(403).json({ message: 'Permission VALIDATE_GRADES requise' }); return; }
 
+      // Absente jusqu'ici sur la voie en bloc (contrairement à ajouterDecision, la voie
+      // unitaire) — le cast `as any` masquait l'absence de validation, une décision hors
+      // énumération aurait fait échouer Prisma à l'exécution (500) plutôt qu'un 400 propre.
+      const validDecisions = ['PASS', 'REPEAT', 'DELIBERATION'];
+      const invalide = decisions.find(d => !validDecisions.includes(d.decision));
+      if (invalide) {
+        res.status(400).json({ message: `decision doit être : ${validDecisions.join(', ')} (reçu "${invalide.decision}" pour l'élève ${invalide.studentId})` });
+        return;
+      }
+
       const session = await prisma.classCouncilSession.findFirst({ where: { id: sessionId, schoolId: user.schoolId } });
       if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
       if (session.status === 'LOCKED') { res.status(409).json({ message: 'Session verrouillée' }); return; }
@@ -272,8 +283,8 @@ export class ClassCouncilController {
         decisions.map((d) =>
           prisma.classCouncilDecision.upsert({
             where: { sessionId_studentId: { sessionId, studentId: d.studentId } },
-            create: { sessionId, studentId: d.studentId, decision: d.decision as any, observations: d.observations ?? null },
-            update: { decision: d.decision as any, observations: d.observations ?? null },
+            create: { sessionId, studentId: d.studentId, decision: d.decision as CouncilDecision, observations: d.observations ?? null },
+            update: { decision: d.decision as CouncilDecision, observations: d.observations ?? null },
           })
         )
       );
@@ -295,7 +306,7 @@ export class ClassCouncilController {
       const session = await prisma.classCouncilSession.findFirst({
         where: { id: sessionId as string, schoolId: user.schoolId },
         include: { class: { select: { id: true, name: true } }, decisions: true },
-      }) as any;
+      });
       if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
       if (session.status === 'LOCKED') { res.status(409).json({ message: 'Session déjà verrouillée' }); return; }
       if (!session.decisions.length) { res.status(400).json({ message: 'Impossible de verrouiller une session sans décisions' }); return; }
@@ -331,7 +342,7 @@ export class ClassCouncilController {
       const session = await prisma.classCouncilSession.findFirst({
         where: { id: sessionId, schoolId: user.schoolId },
         include: { academicPeriod: { select: { id: true, name: true } } },
-      }) as any;
+      });
       if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
       if (session.status !== 'LOCKED') {
         res.status(409).json({ message: 'Le conseil doit être verrouillé avant de publier les bulletins' });
@@ -342,7 +353,7 @@ export class ClassCouncilController {
         where: {
           schoolId: user.schoolId,
           academicPeriodId: session.academicPeriodId,
-          validationStatus: 'GENERATED' as any,
+          validationStatus: 'GENERATED' as ReportCardStatus,
           student: { studentProfile: { classId: session.classId } },
         },
         select: {
@@ -355,7 +366,7 @@ export class ClassCouncilController {
       if (bulletins.length > 0) {
         await prisma.reportCard.updateMany({
           where: { id: { in: bulletins.map(b => b.id) } },
-          data: { validationStatus: 'SENT' as any },
+          data: { validationStatus: 'SENT' as ReportCardStatus },
         });
 
         const periodName: string = session.academicPeriod?.name ?? 'cette période';
@@ -408,7 +419,7 @@ export class ClassCouncilController {
           },
           school: { select: { name: true, city: true, phone: true } },
         },
-      }) as any;
+      });
 
       if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
 
@@ -586,7 +597,7 @@ export class ClassCouncilController {
           },
           school: { select: { name: true } },
         },
-      }) as any;
+      });
       if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
 
       const grades = await prisma.grade.findMany({
@@ -617,7 +628,7 @@ export class ClassCouncilController {
       const lowestAverage = averages.length > 0 ? Math.min(...averages) : 0;
       const successRate = totalStudents > 0 ? Math.round(((passCount + deliberationCount) / totalStudents) * 100) : 0;
 
-      const schoolName = (session as any).school?.name ?? 'Établissement';
+      const schoolName = session.school?.name ?? 'Établissement';
       const yearName = session.academicPeriod?.academicYear?.name ?? '—';
       const periodName = session.academicPeriod?.name ?? '—';
       const className = session.class?.name ?? '—';

@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import type { CreerActionSuiviEleveUseCase } from '@application/suivi/CreerActionSuiviEleveUseCase';
+import type { FollowUpActionType, InterviewMode } from '@domain/ports/repositories/StudentFollowUpRepository';
 import type { ClorreActionSuiviUseCase } from '@application/suivi/ClorreActionSuiviUseCase';
 import type { ListerActionsEnCoursUseCase } from '@application/suivi/ListerActionsEnCoursUseCase';
 import type { AssignerActionSuiviUseCase } from '@application/suivi/AssignerActionSuiviUseCase';
@@ -69,16 +70,30 @@ export class StudentFollowUpController {
         assignedToId?: string; targetDate?: string; interviewMode?: string; note?: string;
       };
       if (!studentId || !type) { res.status(400).json({ success: false, message: 'studentId et type requis' }); return; }
+      // Le switch interne de CreerActionSuiviEleveUseCase n'a pas de `default` — un type hors
+      // énumération n'y déclenche aucune vérification d'autorisation (donc rien d'exécuté),
+      // mais échouait ensuite silencieusement en erreur Prisma peu claire (500) à la
+      // persistance. Le cast `as any` masquait cette absence de validation en amont.
+      const TYPES_VALIDES: FollowUpActionType[] = ['ENTRETIEN_PARENT', 'SIGNALEMENT_CONSEILLER', 'OBSERVATION', 'CONVOCATION_ELEVE'];
+      if (!TYPES_VALIDES.includes(type as FollowUpActionType)) {
+        res.status(400).json({ success: false, message: `type doit être : ${TYPES_VALIDES.join(', ')}` });
+        return;
+      }
+      const MODES_VALIDES: InterviewMode[] = ['DATE_PROPOSEE', 'DEMANDE_DISPONIBILITE'];
+      if (interviewMode !== undefined && !MODES_VALIDES.includes(interviewMode as InterviewMode)) {
+        res.status(400).json({ success: false, message: `interviewMode doit être : ${MODES_VALIDES.join(', ')}` });
+        return;
+      }
 
       const action = await this.creerActionSuivi.execute({
         appelant: { userId: user.userId, schoolId: user.schoolId, role: user.role, permissions: user.permissions },
         studentId,
-        type: type as any,
+        type: type as FollowUpActionType,
         triggeringRecommendationId,
         subjectId,
         assignedToId,
         targetDate: targetDate ? new Date(targetDate) : undefined,
-        interviewMode: interviewMode as any,
+        interviewMode: interviewMode as InterviewMode | undefined,
         note,
       });
 
