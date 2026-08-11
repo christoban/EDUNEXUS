@@ -7,6 +7,8 @@ import type { SupprimerClasseUseCase } from '@application/class/SupprimerClasseU
 import type { AssignerProfesseurPrincipalUseCase } from '@application/class/AssignerProfesseurPrincipalUseCase';
 import type { CreerSousGroupeTPUseCase } from '@application/class/CreerSousGroupeTPUseCase';
 import type { AssignerElevesAuSousGroupeUseCase } from '@application/class/AssignerElevesAuSousGroupeUseCase';
+import type { AssignerSalleClasseUseCase } from '@application/studentGroup/AssignerSalleClasseUseCase';
+import type { RetirerAssignationSalleUseCase } from '@application/studentGroup/RetirerAssignationSalleUseCase';
 import { CYCLE2_LEVELS, NIVEAU_MAP, parseSerie } from '@application/school/SubjectAssignmentHelper';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 
@@ -18,6 +20,8 @@ export class ClasseController {
     private readonly assignerProfesseur: AssignerProfesseurPrincipalUseCase,
     private readonly creerSousGroupe: CreerSousGroupeTPUseCase,
     private readonly assignerEleves: AssignerElevesAuSousGroupeUseCase,
+    private readonly assignerSalle: AssignerSalleClasseUseCase,
+    private readonly retirerAssignationSalle: RetirerAssignationSalleUseCase,
     private readonly prisma: PrismaClient,
   ) {}
 
@@ -391,6 +395,44 @@ export class ClasseController {
 
       const ranked = result.map((s, i) => ({ ...s, rang: i + 1 }));
       res.json({ success: true, data: ranked, className: classe.name });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // PUT /classes/:id/room-assignment — assigne/change la salle habituelle de la classe pour l'année
+  assignerSalleClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const { roomId, academicYearId } = req.body as { roomId?: string; academicYearId?: string };
+      if (!roomId || !academicYearId) {
+        res.status(400).json({ success: false, message: 'roomId et academicYearId requis' });
+        return;
+      }
+      await this.assignerSalle.execute({
+        classId: req.params.id as string, roomId, academicYearId,
+        schoolId: user.schoolId, demandeurRole: user.role,
+      });
+      res.json({ success: true, message: 'Salle habituelle assignée' });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // DELETE /classes/:id/room-assignment?academicYearId= — retire la salle habituelle de la classe
+  retirerAssignationSalleClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const academicYearId = req.query['academicYearId'] as string | undefined;
+      if (!academicYearId) {
+        res.status(400).json({ success: false, message: 'academicYearId requis' });
+        return;
+      }
+      await this.retirerAssignationSalle.execute({
+        classId: req.params.id as string, academicYearId,
+        schoolId: user.schoolId, demandeurRole: user.role,
+      });
+      res.json({ success: true, message: 'Assignation de salle retirée' });
     } catch (error) {
       this.gererErreur(error, res, next);
     }

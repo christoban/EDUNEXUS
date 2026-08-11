@@ -2,6 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
+import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { synchroniserAppartenanceLV2, synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 import { parseDateFR } from '../../utils/dateParsing';
 export interface ImportRow {
   ligne: number
@@ -48,6 +52,9 @@ export class ImporterUtilisateursUseCase {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly userRepository: UserRepository,
+    private readonly groupSetRepository: StudentGroupSetRepository,
+    private readonly groupRepository: StudentGroupRepository,
+    private readonly membershipRepository: StudentGroupMembershipRepository,
   ) {}
 
   async execute(
@@ -182,6 +189,16 @@ export class ImporterUtilisateursUseCase {
 
     // ── PEBS ──────────────────────────────────────────────────────────────────
     const pebsVal = row.pebs?.trim().toUpperCase() ?? ''
+    const lv2Val = row.lv2?.trim() ?? ''
+    let importedProfileId: string | undefined
+    if (pebsVal || lv2Val) {
+      const importedProfile = await this.prisma.studentProfile.findUnique({
+        where: { userId: studentUser.id }, select: { id: true },
+      })
+      importedProfileId = importedProfile?.id
+    }
+    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository }
+
     if (pebsVal) {
       if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {
         throw new Error(`Valeur PEBS invalide : "${row.pebs?.trim()}" (attendu FR_PEBS ou EN_PEBS)`)
@@ -190,10 +207,12 @@ export class ImporterUtilisateursUseCase {
         where: { userId: studentUser.id },
         data: { pebsFiliere: pebsVal },
       })
+      if (importedProfileId) {
+        await synchroniserAppartenanceProgramme(syncRepos, { schoolId, studentProfileId: importedProfileId, pebsFiliere: pebsVal })
+      }
     }
 
     // ── LV2 ───────────────────────────────────────────────────────────────────
-    const lv2Val = row.lv2?.trim() ?? ''
     if (lv2Val) {
       const subjectId = lv2NameToId.get(lv2Val.toLowerCase().trim())
       if (!subjectId) {
@@ -203,6 +222,9 @@ export class ImporterUtilisateursUseCase {
         where: { userId: studentUser.id },
         data: { lv2SubjectId: subjectId },
       })
+      if (importedProfileId) {
+        await synchroniserAppartenanceLV2(syncRepos, { schoolId, studentProfileId: importedProfileId, lv2SubjectId: subjectId })
+      }
     }
 
     // Fire-and-forget : les emails ne bloquent pas la boucle d'import

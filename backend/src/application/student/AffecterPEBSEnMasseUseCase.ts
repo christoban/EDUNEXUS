@@ -1,4 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
+import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
+import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 
 export interface AffecterPEBSEnMasseCommande {
   studentUserIds: string[];
@@ -11,7 +15,12 @@ export interface AffecterPEBSEnMasseResultat {
 }
 
 export class AffecterPEBSEnMasseUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly groupSetRepository: StudentGroupSetRepository,
+    private readonly groupRepository: StudentGroupRepository,
+    private readonly membershipRepository: StudentGroupMembershipRepository,
+  ) {}
 
   async execute(cmd: AffecterPEBSEnMasseCommande): Promise<AffecterPEBSEnMasseResultat> {
     if (cmd.studentUserIds.length === 0) return { modifies: 0 };
@@ -35,6 +44,11 @@ export class AffecterPEBSEnMasseUseCase {
       where: { id: { in: profileIds } },
       data: { pebsFiliere: cmd.pebsFiliere },
     });
+
+    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
+    for (const profileId of profileIds) {
+      await synchroniserAppartenanceProgramme(syncRepos, { schoolId: cmd.schoolId, studentProfileId: profileId, pebsFiliere: cmd.pebsFiliere });
+    }
 
     return { modifies: result.count };
   }

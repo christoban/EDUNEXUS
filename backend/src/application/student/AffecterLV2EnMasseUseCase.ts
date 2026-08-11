@@ -1,4 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
+import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
+import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { synchroniserAppartenanceLV2 } from '@application/studentGroup/syncGroupMembership';
 
 export interface AffecterLV2EnMasseCommande {
   studentUserIds: string[];
@@ -11,7 +15,12 @@ export interface AffecterLV2EnMasseResultat {
 }
 
 export class AffecterLV2EnMasseUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly groupSetRepository: StudentGroupSetRepository,
+    private readonly groupRepository: StudentGroupRepository,
+    private readonly membershipRepository: StudentGroupMembershipRepository,
+  ) {}
 
   async execute(cmd: AffecterLV2EnMasseCommande): Promise<AffecterLV2EnMasseResultat> {
     if (cmd.studentUserIds.length === 0) return { modifies: 0 };
@@ -40,6 +49,11 @@ export class AffecterLV2EnMasseUseCase {
       where: { id: { in: profileIds } },
       data: { lv2SubjectId: cmd.lv2SubjectId },
     });
+
+    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
+    for (const profileId of profileIds) {
+      await synchroniserAppartenanceLV2(syncRepos, { schoolId: cmd.schoolId, studentProfileId: profileId, lv2SubjectId: cmd.lv2SubjectId });
+    }
 
     return { modifies: result.count };
   }

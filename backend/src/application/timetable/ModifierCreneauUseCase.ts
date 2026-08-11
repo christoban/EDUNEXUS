@@ -15,6 +15,7 @@ export interface ModifierCreneauCommande {
   roomId?: string;
   kind?: SlotKind;
   subGroupId?: string;
+  groupId?: string;
   isLV2Slot?: boolean;
   isElectiveSlot?: boolean;
 }
@@ -47,6 +48,7 @@ export class ModifierCreneauUseCase {
       ...(commande.roomId !== undefined && { roomId: commande.roomId }),
       ...(commande.kind !== undefined && { kind: commande.kind }),
       ...(commande.subGroupId !== undefined && { subGroupId: commande.subGroupId }),
+      ...(commande.groupId !== undefined && { groupId: commande.groupId }),
       ...(commande.isLV2Slot !== undefined && { isLV2Slot: commande.isLV2Slot }),
       ...(commande.isElectiveSlot !== undefined && { isElectiveSlot: commande.isElectiveSlot }),
     });

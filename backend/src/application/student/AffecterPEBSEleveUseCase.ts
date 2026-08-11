@@ -1,4 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
+import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
+import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 
 export interface AffecterPEBSEleveCommande {
   studentUserId: string;
@@ -7,7 +11,12 @@ export interface AffecterPEBSEleveCommande {
 }
 
 export class AffecterPEBSEleveUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly groupSetRepository: StudentGroupSetRepository,
+    private readonly groupRepository: StudentGroupRepository,
+    private readonly membershipRepository: StudentGroupMembershipRepository,
+  ) {}
 
   async execute(cmd: AffecterPEBSEleveCommande): Promise<void> {
     const profile = await this.prisma.studentProfile.findFirst({
@@ -24,5 +33,10 @@ export class AffecterPEBSEleveUseCase {
       where: { id: profile.id },
       data: { pebsFiliere: cmd.pebsFiliere },
     });
+
+    await synchroniserAppartenanceProgramme(
+      { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository },
+      { schoolId: cmd.schoolId, studentProfileId: profile.id, pebsFiliere: cmd.pebsFiliere }
+    );
   }
 }

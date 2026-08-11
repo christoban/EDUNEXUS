@@ -35,6 +35,11 @@ import { creerFinanceRoutes } from '@infrastructure/http/routes/finance.routes';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
 import { RoomController } from '@infrastructure/http/controllers/RoomController';
+import { StudentGroupController } from '@infrastructure/http/controllers/StudentGroupController';
+import { ResoudreParticipantsSeanceUseCase } from '@application/timetable/ResoudreParticipantsSeanceUseCase';
+import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
+import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupRepository';
+import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
 import { AcademicYearController } from '@infrastructure/http/controllers/AcademicYearController';
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
@@ -43,6 +48,7 @@ import { buildPayload, getLatestSchoolBackup } from '../../utils/schoolBackup';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
 import { creerRoomRoutes } from '@infrastructure/http/routes/room.routes';
+import { creerStudentGroupRoutes } from '@infrastructure/http/routes/studentGroup.routes';
 import { creerAcademicYearRoutes } from '@infrastructure/http/routes/academicYear.routes';
 import { creerTimetableRoutes } from '@infrastructure/http/routes/timetable.routes';
 import { creerParentRoutes } from '@infrastructure/http/routes/parent.routes';
@@ -1041,6 +1047,8 @@ export function bootstrapHexagonal(app: Application): void {
     container.class.assignerProfesseur,
     container.class.creerSousGroupe,
     container.class.assignerEleves,
+    container.studentGroup.assignerSalleClasse,
+    container.studentGroup.retirerAssignationSalle,
     prisma,
   );
 
@@ -1059,9 +1067,19 @@ export function bootstrapHexagonal(app: Application): void {
     prisma,
   );
 
+  const studentGroupController = new StudentGroupController(
+    container.studentGroup.creerGroupSet,
+    container.studentGroup.modifierGroupSet,
+    container.studentGroup.supprimerGroupSet,
+    container.studentGroup.creerGroup,
+    container.studentGroup.modifierGroup,
+    container.studentGroup.supprimerGroup,
+  );
+
   app.use('/api/v2/classes', creerClasseRoutes(classeController));
   app.use('/api/v2/subjects', creerSubjectRoutes(subjectController));
   app.use('/api/v2/rooms', creerRoomRoutes(roomController));
+  app.use('/api/v2/student-groups', creerStudentGroupRoutes(studentGroupController));
 
   const departmentController = new DepartmentController(prisma);
   app.use('/api/v2/departments', creerDepartmentRoutes(departmentController));
@@ -1097,6 +1115,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.timetable.modifierCreneau,
     container.timetable.publier,
     container.timetable.demanderRattrapage,
+    container.timetable.genererSeancesGroupe,
   );
 
   // ── POST /api/v2/timetables/generate-skeleton — génère les créneaux vides pour une classe ──
@@ -1514,6 +1533,9 @@ export function bootstrapHexagonal(app: Application): void {
 
   // ── Assistant IA EXÉCUTANT (copilot) — rôle ADMIN uniquement ────────────────
   // Catalogue d'actions mappé sur les use cases existants ; RBAC filtré + revérifié serveur.
+  const groupSetRepositoryLeger = new PrismaStudentGroupSetRepository(prisma);
+  const groupRepositoryLeger = new PrismaStudentGroupRepository(prisma);
+  const membershipRepositoryLeger = new PrismaStudentGroupMembershipRepository(prisma);
   const adminActionCatalog = buildAdminActionCatalog({
     creerClasse: container.class.creer,
     supprimerClasse: container.class.supprimer,
@@ -1530,10 +1552,10 @@ export function bootstrapHexagonal(app: Application): void {
     transfererEleve: container.user.transferer,
     modifierMatiere: container.subject.modifier,
     // Constructeurs légers (prisma uniquement) — pas encore exposés dans le container.
-    affecterLV2Eleve: new AffecterLV2EleveUseCase(prisma),
-    affecterLV2Masse: new AffecterLV2EnMasseUseCase(prisma),
-    affecterPEBSEleve: new AffecterPEBSEleveUseCase(prisma),
-    affecterPEBSMasse: new AffecterPEBSEnMasseUseCase(prisma),
+    affecterLV2Eleve: new AffecterLV2EleveUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterLV2Masse: new AffecterLV2EnMasseUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterPEBSEleve: new AffecterPEBSEleveUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterPEBSMasse: new AffecterPEBSEnMasseUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
     genererBulletins: container.reportCard.generer,
     envoyerBulletins: container.reportCard.envoyer,
     validerNotesEnBloc: container.grade.validerEnBloc,
@@ -1897,6 +1919,37 @@ export function bootstrapHexagonal(app: Application): void {
         orderBy: { name: 'asc' },
       });
       res.json({ success: true, data: rooms });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/student-groups — catalogue des GroupSet + leurs Group (référence, aucun
+  // filtrage par rôle, même principe que /rooms et /subjects).
+  app.get('/api/v2/student-groups', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const groupSets = await prisma.studentGroupSet.findMany({
+        where: { schoolId },
+        include: { groups: { orderBy: { name: 'asc' } } },
+        orderBy: { name: 'asc' },
+      });
+      res.json({ success: true, data: groupSets });
+    } catch (err) { next(err); }
+  });
+
+  // GET /api/v2/class-room-assignments?academicYearId= — salles habituelles par classe
+  app.get('/api/v2/class-room-assignments', requireAuth, async (req, res, next) => {
+    try {
+      const schoolId = req.user!.schoolId;
+      const academicYearId = req.query['academicYearId'] as string | undefined;
+      if (!academicYearId) {
+        res.status(400).json({ success: false, message: 'academicYearId requis' });
+        return;
+      }
+      const assignments = await prisma.classRoomAssignment.findMany({
+        where: { schoolId, academicYearId },
+        include: { class: { select: { id: true, name: true } }, room: { select: { id: true, name: true, capacity: true } } },
+      });
+      res.json({ success: true, data: assignments });
     } catch (err) { next(err); }
   });
 
@@ -2816,63 +2869,24 @@ export function bootstrapHexagonal(app: Application): void {
     }
   });
 
-  // GET /api/v2/timetable-slots/:id/students — élèves d'un créneau (filtre LV2 si isLV2Slot)
+  // GET /api/v2/timetable-slots/:id/students — participants d'un créneau, résolus
+  // automatiquement (électif A-Level > StudentGroup > LV2 legacy > toute la classe).
+  const resoudreParticipantsSeanceUseCase = new ResoudreParticipantsSeanceUseCase(prisma);
   app.get('/api/v2/timetable-slots/:id/students', requireAuth, async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;
       const slotId = req.params['id'] as string;
-
-      const slot = await prisma.timetableSlot.findUnique({
-        where: { id: slotId },
-        include: { timetable: { select: { schoolId: true, classId: true } }, subject: { select: { id: true, name: true } } },
-      });
-      if (!slot || slot.timetable.schoolId !== schoolId) {
-        res.status(404).json({ success: false, message: 'Créneau introuvable' }); return;
+      const resultat = await resoudreParticipantsSeanceUseCase.execute(slotId, schoolId);
+      res.json({ success: true, data: resultat });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'Créneau introuvable') {
+        res.status(404).json({ success: false, message: err.message }); return;
       }
-
-      const classId = slot.timetable.classId;
-      const isLV2 = slot.isLV2Slot ?? false;
-      const isElective = slot.isElectiveSlot ?? false;
-
-      const allStudents: any[] = await prisma.user.findMany({
-        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
-        select: {
-          id: true, firstName: true, lastName: true,
-          studentProfile: {
-            select: { lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } },
-          },
-        },
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      });
-
-      // Créneau électif A-Level : seuls les élèves ayant cette matière dans leur sélection.
-      // Créneau LV2 : seuls les élèves dont la LV2 = matière du créneau. Sinon toute la classe.
-      let eleves = allStudents;
-      if (isElective && slot.subjectId) {
-        eleves = allStudents.filter(s => (s.studentProfile?.alevelSubjects ?? []).some((a: any) => a.subjectId === slot.subjectId));
-      } else if (isLV2 && slot.subjectId) {
-        eleves = allStudents.filter(s => s.studentProfile?.lv2SubjectId === slot.subjectId);
+      if (err instanceof Error && err.message === 'Accès refusé') {
+        res.status(403).json({ success: false, message: err.message }); return;
       }
-
-      const label = isElective && slot.subject
-        ? `A-Level — ${slot.subject.name} (${eleves.length} élèves sur ${allStudents.length})`
-        : isLV2 && slot.subject
-          ? `Cours LV2 — ${slot.subject.name} (${eleves.length} élèves sur ${allStudents.length})`
-          : null;
-
-      res.json({
-        success: true,
-        data: {
-          isLV2Slot: isLV2,
-          isElectiveSlot: isElective,
-          subjectId: slot.subjectId,
-          classId,
-          label,
-          eleves: eleves.map(s => ({ id: s.id, firstName: s.firstName, lastName: s.lastName })),
-          totalClasse: allStudents.length,
-        },
-      });
-    } catch (err) { next(err); }
+      next(err);
+    }
   });
 
   // ── Module A-Level — choix individuel des matières par élève (max 5) ──────

@@ -1,11 +1,20 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AppliquerTransfertPebsCommande } from './types';
 import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
+import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
+import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 
 interface NotifieCandidat { studentUserId: string; studentName: string }
 
 export class AppliquerTransfertPebsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly groupSetRepository: StudentGroupSetRepository,
+    private readonly groupRepository: StudentGroupRepository,
+    private readonly membershipRepository: StudentGroupMembershipRepository,
+  ) {}
 
   async execute(cmd: AppliquerTransfertPebsCommande): Promise<{
     transferred: number; confirmed: boolean; selectionnes: NotifieCandidat[]; nonSelectionnes: NotifieCandidat[];
@@ -38,6 +47,7 @@ export class AppliquerTransfertPebsUseCase {
     const pebsFiliere = school?.subsystem === 'ANGLOPHONE' ? 'EN_PEBS' : 'FR_PEBS';
 
     // Appliquer les transferts
+    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
     let transferred = 0;
     const selectionnes: NotifieCandidat[] = [];
     for (const c of selected) {
@@ -45,6 +55,9 @@ export class AppliquerTransfertPebsUseCase {
         await this.prisma.studentProfile.update({
           where: { id: c.studentProfileId },
           data: { classId: session.targetClassId, pebsFiliere },
+        });
+        await synchroniserAppartenanceProgramme(syncRepos, {
+          schoolId: cmd.schoolId, studentProfileId: c.studentProfileId, pebsFiliere,
         });
         transferred++;
         if (c.studentProfile?.user) {

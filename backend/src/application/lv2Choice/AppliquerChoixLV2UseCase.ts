@@ -1,8 +1,17 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AppliquerChoixCommande } from './types';
+import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
+import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { synchroniserAppartenanceLV2 } from '@application/studentGroup/syncGroupMembership';
 
 export class AppliquerChoixLV2UseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly groupSetRepository: StudentGroupSetRepository,
+    private readonly groupRepository: StudentGroupRepository,
+    private readonly membershipRepository: StudentGroupMembershipRepository,
+  ) {}
 
   async execute(cmd: AppliquerChoixCommande): Promise<{ applied: number }> {
     // Vérifier que la fenêtre existe
@@ -22,12 +31,17 @@ export class AppliquerChoixLV2UseCase {
     }
 
     // Appliquer chaque choix en mettant à jour lv2SubjectId sur StudentProfile
+    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
     let applied = 0;
     for (const sub of submissions) {
       try {
         await this.prisma.studentProfile.update({
           where: { id: sub.studentProfileId },
           data: { lv2SubjectId: sub.chosenSubjectId },
+        });
+        await synchroniserAppartenanceLV2(syncRepos, {
+          schoolId: cmd.schoolId, studentProfileId: sub.studentProfileId,
+          lv2SubjectId: sub.chosenSubjectId, academicYearId: window.academicYearId,
         });
         applied++;
       } catch {

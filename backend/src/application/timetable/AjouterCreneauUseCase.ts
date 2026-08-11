@@ -14,6 +14,7 @@ export interface AjouterCreneauCommande {
   roomId?: string;
   kind?: SlotKind;
   subGroupId?: string;
+  groupId?: string;
   isLV2Slot?: boolean;
   isElectiveSlot?: boolean;
 }
@@ -81,6 +82,7 @@ export class AjouterCreneauUseCase {
       roomNom,
       kind: commande.kind,
       subGroupId: commande.subGroupId,
+      groupId: commande.groupId,
       isLV2Slot: commande.isLV2Slot,
       isElectiveSlot: commande.isElectiveSlot,
     });

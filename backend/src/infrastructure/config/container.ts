@@ -20,6 +20,10 @@ import { PrismaPresenceRepository } from '@infrastructure/persistence/prisma/Pri
 import { PrismaBulletinRepository } from '@infrastructure/persistence/prisma/PrismaBulletinRepository';
 import { PrismaMatiereRepository } from '@infrastructure/persistence/prisma/PrismaMatiereRepository';
 import { PrismaRoomRepository } from '@infrastructure/persistence/prisma/PrismaRoomRepository';
+import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
+import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupRepository';
+import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
+import { PrismaClassRoomAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaClassRoomAssignmentRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 
 // --- Use Cases : Notes ---
@@ -181,6 +185,7 @@ import { AjouterCreneauUseCase } from '@application/timetable/AjouterCreneauUseC
 import { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
 import { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
+import { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
 
 // --- Use Cases : AnneeAcademique ---
 import { CreerAnneeAcademiqueUseCase } from '@application/academicYear/CreerAnneeAcademiqueUseCase';
@@ -213,6 +218,16 @@ import { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUs
 import { CreerSalleUseCase } from '@application/room/CreerSalleUseCase';
 import { ModifierSalleUseCase } from '@application/room/ModifierSalleUseCase';
 import { SupprimerSalleUseCase } from '@application/room/SupprimerSalleUseCase';
+
+// --- Use Cases : StudentGroup / ClassRoomAssignment ---
+import { CreerStudentGroupSetUseCase } from '@application/studentGroup/CreerStudentGroupSetUseCase';
+import { ModifierStudentGroupSetUseCase } from '@application/studentGroup/ModifierStudentGroupSetUseCase';
+import { SupprimerStudentGroupSetUseCase } from '@application/studentGroup/SupprimerStudentGroupSetUseCase';
+import { CreerStudentGroupUseCase } from '@application/studentGroup/CreerStudentGroupUseCase';
+import { ModifierStudentGroupUseCase } from '@application/studentGroup/ModifierStudentGroupUseCase';
+import { SupprimerStudentGroupUseCase } from '@application/studentGroup/SupprimerStudentGroupUseCase';
+import { AssignerSalleClasseUseCase } from '@application/studentGroup/AssignerSalleClasseUseCase';
+import { RetirerAssignationSalleUseCase } from '@application/studentGroup/RetirerAssignationSalleUseCase';
 
 // --- Adapter Persistence Orientation ---
 import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
@@ -260,6 +275,10 @@ export function creerContainer() {
   const matiereRepository = new PrismaMatiereRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
   const roomRepository = new PrismaRoomRepository(prisma);
+  const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
+  const studentGroupRepository = new PrismaStudentGroupRepository(prisma);
+  const studentGroupMembershipRepository = new PrismaStudentGroupMembershipRepository(prisma);
+  const classRoomAssignmentRepository = new PrismaClassRoomAssignmentRepository(prisma);
 
   // 3. Services (adaptateurs réels)
   const emailService = new NodemailerEmailService();
@@ -279,7 +298,7 @@ export function creerContainer() {
 
   // 5. Use Cases — Import
   const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
-    prisma, userRepository
+    prisma, userRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository
   );
 
   // 6. Use Cases — Présences
@@ -388,6 +407,15 @@ export function creerContainer() {
   const modifierSalleUseCase = new ModifierSalleUseCase(roomRepository);
   const supprimerSalleUseCase = new SupprimerSalleUseCase(roomRepository);
 
+  const creerStudentGroupSetUseCase = new CreerStudentGroupSetUseCase(studentGroupSetRepository);
+  const modifierStudentGroupSetUseCase = new ModifierStudentGroupSetUseCase(studentGroupSetRepository);
+  const supprimerStudentGroupSetUseCase = new SupprimerStudentGroupSetUseCase(studentGroupSetRepository);
+  const creerStudentGroupUseCase = new CreerStudentGroupUseCase(studentGroupRepository, studentGroupSetRepository);
+  const modifierStudentGroupUseCase = new ModifierStudentGroupUseCase(studentGroupRepository, studentGroupSetRepository);
+  const supprimerStudentGroupUseCase = new SupprimerStudentGroupUseCase(studentGroupRepository, studentGroupSetRepository);
+  const assignerSalleClasseUseCase = new AssignerSalleClasseUseCase(classRoomAssignmentRepository, classeRepository, roomRepository);
+  const retirerAssignationSalleUseCase = new RetirerAssignationSalleUseCase(classRoomAssignmentRepository);
+
   // 12. Use Cases — Timetable
   const timetableRepository = new PrismaTimetableRepository(prisma);
 
@@ -399,6 +427,10 @@ export function creerContainer() {
     userRepository,
     notificationService,
     prisma,
+  );
+  const genererSeancesGroupeUseCase = new GenererSeancesGroupeUseCase(
+    timetableRepository, studentGroupRepository, studentGroupMembershipRepository,
+    classRoomAssignmentRepository, roomRepository,
   );
 
   // 13. Use Cases — AnneeAcademique
@@ -530,12 +562,23 @@ export function creerContainer() {
       modifier: modifierSalleUseCase,
       supprimer: supprimerSalleUseCase,
     },
+    studentGroup: {
+      creerGroupSet: creerStudentGroupSetUseCase,
+      modifierGroupSet: modifierStudentGroupSetUseCase,
+      supprimerGroupSet: supprimerStudentGroupSetUseCase,
+      creerGroup: creerStudentGroupUseCase,
+      modifierGroup: modifierStudentGroupUseCase,
+      supprimerGroup: supprimerStudentGroupUseCase,
+      assignerSalleClasse: assignerSalleClasseUseCase,
+      retirerAssignationSalle: retirerAssignationSalleUseCase,
+    },
     timetable: {
       creer: creerEmploiDuTempsUseCase,
       ajouterCreneau: ajouterCreneauUseCase,
       modifierCreneau: modifierCreneauUseCase,
       publier: publierEmploiDuTempsUseCase,
       demanderRattrapage: demanderRattrapageUseCase,
+      genererSeancesGroupe: genererSeancesGroupeUseCase,
     },
     academicYear: {
       creer: creerAnneeUseCase,
@@ -627,7 +670,7 @@ export function creerContainer() {
       ouvrirFenetre: new OuvrirFenetreChoixLV2UseCase(prisma),
       soumettreChoix: new SoumettreChoixLV2EleveUseCase(prisma),
       saisirManuel: new SaisirChoixLV2ManuelUseCase(prisma),
-      appliquerChoix: new AppliquerChoixLV2UseCase(prisma),
+      appliquerChoix: new AppliquerChoixLV2UseCase(prisma, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
       suivreFenetre: new SuivreFenetreChoixLV2UseCase(prisma),
     },
     entranceExam: {
@@ -643,7 +686,7 @@ export function creerContainer() {
       creerSession: new CreerSessionPebsUseCase(prisma),
       ajouterCandidats: new AjouterCandidatsPebsUseCase(prisma),
       calculerSelection: new CalculerSelectionPebsUseCase(prisma),
-      appliquerTransfert: new AppliquerTransfertPebsUseCase(prisma),
+      appliquerTransfert: new AppliquerTransfertPebsUseCase(prisma, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
       resumeSession: new ResumeSessionPebsUseCase(prisma),
       scannerListe: new ScannerListeCandidatsPebsUseCase(prisma),
       detecterAnomalies: new DetecterAnomaliesPebsUseCase(prisma),

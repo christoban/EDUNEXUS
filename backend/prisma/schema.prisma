@@ -191,6 +191,8 @@ model School {
   timetables                   Timetable[]
   timetableGridConfig          TimetableGridConfig?
   rooms                        Room[]
+  studentGroupSets             StudentGroupSet[]
+  classRoomAssignments         ClassRoomAssignment[]
   users                        User[]
   submissions                  Submission[]
   books                        Book[]
@@ -680,6 +682,7 @@ model StudentProfile {
   examRegistrations   ExamRegistration[]
   pebsExamCandidates  PebsExamCandidate[]
   followUpActions     StudentFollowUpAction[]
+  groupMemberships    StudentGroupMembership[]
 }
 
 enum MatriculeSource {
@@ -901,27 +904,29 @@ model ALevelGrade {
 }
 
 model AcademicYear {
-  id                  String               @id @default(cuid())
-  schoolId            String
-  name                String
-  startDate           DateTime
-  endDate             DateTime
-  isCurrent           Boolean              @default(false)
-  status              AcademicYearStatus   @default(ACTIVE)
-  createdAt           DateTime             @default(now())
-  periods             AcademicPeriod[]
-  school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  exams               Exam[]
-  grades              Grade[]
-  reportCards         ReportCard[]
-  timetables          Timetable[]
-  studentPromotions   StudentPromotion[]
-  classPromotions     ClassPromotion[]
-  programmes          Programme[]
-  cahierDeTexte       CahierDeTexte[]
-  feePlans            FeePlan[]
-  classes             Class[]
-  teachingAssignments TeachingAssignment[]
+  id                   String                   @id @default(cuid())
+  schoolId             String
+  name                 String
+  startDate            DateTime
+  endDate              DateTime
+  isCurrent            Boolean                  @default(false)
+  status               AcademicYearStatus       @default(ACTIVE)
+  createdAt            DateTime                 @default(now())
+  periods              AcademicPeriod[]
+  school               School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  exams                Exam[]
+  grades               Grade[]
+  reportCards          ReportCard[]
+  timetables           Timetable[]
+  studentPromotions    StudentPromotion[]
+  classPromotions      ClassPromotion[]
+  programmes           Programme[]
+  cahierDeTexte        CahierDeTexte[]
+  feePlans             FeePlan[]
+  classes              Class[]
+  teachingAssignments  TeachingAssignment[]
+  groupMemberships     StudentGroupMembership[]
+  classRoomAssignments ClassRoomAssignment[]
 
   @@index([schoolId])
 }
@@ -1006,6 +1011,7 @@ model Class {
   programmes            Programme[]
   cahierDeTexte         CahierDeTexte[]
   studentOnboardings    StudentOnboarding[]
+  roomAssignments       ClassRoomAssignment[]
 
   @@index([schoolId])
   @@index([deletedAt])
@@ -1026,6 +1032,12 @@ model Subject {
   subjectType            SubjectType             @default(THEORETICAL)
   departmentId           String?
   isLV2                  Boolean                 @default(false)
+  // Matière réservée aux membres d'un StudentGroup précis (ex. "English Literature" → Group
+  // "Bilingue" du GroupSet "Programme") — les élèves hors de ce Group n'ont simplement pas de
+  // séance, pas d'erreur. Distinct du fan-out par GroupSet entier (LV2), piloté par
+  // GenererSeancesGroupeUseCase, pas par un champ ici.
+  restrictedToGroupId    String?
+  restrictedToGroup      StudentGroup?           @relation("SubjectRestrictedToGroup", fields: [restrictedToGroupId], references: [id])
   exams                  Exam[]
   grades                 Grade[]
   attendances            Attendance[]
@@ -1043,6 +1055,7 @@ model Subject {
   alevelStudents         StudentALevelSubject[]  @relation("SubjectALevelStudents")
   lv2ChoiceSubmissions   Lv2ChoiceSubmission[]
   followUpActions        StudentFollowUpAction[]
+  studentGroups          StudentGroup[]
 
   @@index([schoolId])
   @@index([deletedAt])
@@ -1295,21 +1308,97 @@ model TimetableGridConfig {
 }
 
 model Room {
-  id          String          @id @default(cuid())
-  schoolId    String
-  name        String
-  type        RoomType        @default(NORMAL)
-  status      RoomStatus      @default(ACTIVE)
-  capacity    Int             @default(30)
-  equipment   String[]        @default([])
-  createdAt   DateTime        @default(now())
-  deletedAt   DateTime?
-  deletedById String?
-  school      School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  slots       TimetableSlot[]
+  id                   String                @id @default(cuid())
+  schoolId             String
+  name                 String
+  type                 RoomType              @default(NORMAL)
+  status               RoomStatus            @default(ACTIVE)
+  capacity             Int                   @default(30)
+  equipment            String[]              @default([])
+  createdAt            DateTime              @default(now())
+  deletedAt            DateTime?
+  deletedById          String?
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  slots                TimetableSlot[]
+  classRoomAssignments ClassRoomAssignment[]
 
   @@index([schoolId])
   @@index([deletedAt])
+}
+
+/// Dimension de subdivision des élèves (ex. "LV2", "Programme", "Sport") — un élève a au plus
+/// un StudentGroup par StudentGroupSet (exclusivité imposée par StudentGroupMembership), mais
+/// peut combiner des Groups de StudentGroupSet différents sans conflit. Nommé "Student..." pour
+/// éviter toute confusion avec SchoolGroup (groupe multi-établissements, concept sans rapport).
+model StudentGroupSet {
+  id        String         @id @default(cuid())
+  schoolId  String
+  code      String
+  name      String
+  createdAt DateTime       @default(now())
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  groups    StudentGroup[]
+
+  @@unique([schoolId, code])
+  @@index([schoolId])
+}
+
+/// Valeur dans une dimension (ex. "Allemand" dans le StudentGroupSet "LV2").
+model StudentGroup {
+  id                 String                   @id @default(cuid())
+  groupSetId         String
+  name               String
+  // Matière réelle correspondante pour un Group de type "choix de matière" (LV2 : Group
+  // "Allemand" → Subject Allemand) — optionnel, sans objet pour un GroupSet comme "Sport".
+  subjectId          String?
+  createdAt          DateTime                 @default(now())
+  groupSet           StudentGroupSet          @relation(fields: [groupSetId], references: [id], onDelete: Cascade)
+  subject            Subject?                 @relation(fields: [subjectId], references: [id])
+  memberships        StudentGroupMembership[]
+  restrictedSubjects Subject[]                @relation("SubjectRestrictedToGroup")
+  timetableSlots     TimetableSlot[]
+
+  @@unique([groupSetId, name])
+  @@index([subjectId])
+}
+
+/// Jamais Student → Group direct — toujours via cette table. academicYearId scope
+/// l'appartenance à une année (un élève change de Group LV2 d'une année à l'autre sans
+/// réécrire d'historique).
+model StudentGroupMembership {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  groupId          String
+  // Dénormalisé depuis group.groupSetId : permet à la contrainte d'unicité ci-dessous d'imposer
+  // "au plus 1 Group par GroupSet par élève par année" directement en base.
+  groupSetId       String
+  academicYearId   String
+  createdAt        DateTime       @default(now())
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  group            StudentGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  academicYear     AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, groupSetId, academicYearId])
+  @@index([groupId])
+}
+
+/// Salle habituelle d'une classe pour l'année — valeur par défaut simple, fixe, PAS recalculée
+/// à chaque génération d'emploi du temps. Changement en cours d'année possible mais manuel.
+model ClassRoomAssignment {
+  id             String       @id @default(cuid())
+  schoolId       String
+  classId        String
+  roomId         String
+  academicYearId String
+  createdAt      DateTime     @default(now())
+  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class          Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  room           Room         @relation(fields: [roomId], references: [id])
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, academicYearId])
+  @@index([schoolId])
+  @@index([roomId])
 }
 
 model TimetableSlot {
@@ -1325,8 +1414,13 @@ model TimetableSlot {
   subGroupId     String?
   isLV2Slot      Boolean        @default(false)
   isElectiveSlot Boolean        @default(false)
+  // StudentGroup (StudentGroupSet générique — LV2/Programme/...), distinct de subGroupId
+  // (ClassSubGroup — sous-groupes TP ad hoc par classe, non touché). Posé par
+  // GenererSeancesGroupeUseCase lors du fan-out d'une matière liée à un GroupSet.
+  groupId        String?
   room           Room?          @relation(fields: [roomId], references: [id])
   subGroup       ClassSubGroup? @relation(fields: [subGroupId], references: [id])
+  group          StudentGroup?  @relation(fields: [groupId], references: [id])
   subject        Subject?       @relation(fields: [subjectId], references: [id])
   teacher        User?          @relation("TeacherSlots", fields: [teacherId], references: [id])
   timetable      Timetable      @relation(fields: [timetableId], references: [id], onDelete: Cascade)

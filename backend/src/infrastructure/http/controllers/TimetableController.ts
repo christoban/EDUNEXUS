@@ -4,6 +4,7 @@ import type { AjouterCreneauUseCase } from '@application/timetable/AjouterCrenea
 import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
 import type { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import type { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
+import type { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
 import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
@@ -18,6 +19,7 @@ export class TimetableController {
     private readonly modifierCreneau: ModifierCreneauUseCase,
     private readonly publier: PublierEmploiDuTempsUseCase,
     private readonly demanderRattrapage: DemanderRattrapageUseCase,
+    private readonly genererSeances: GenererSeancesGroupeUseCase,
   ) {}
 
   creerManuel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -95,6 +97,33 @@ export class TimetableController {
     }
   };
 
+  genererSeancesGroupe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const resultat = await this.genererSeances.execute({
+        timetableId: req.params['id'] as string,
+        schoolId: user.schoolId,
+        ...req.body,
+      });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'generer_seances_groupe', targetType: 'Timetable', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { groupSetId: req.body?.groupSetId, nbSeances: resultat.creneauxCrees.length },
+      });
+      res.status(201).json({ success: true, data: resultat });
+    } catch (error) {
+      const user = req.user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'generer_seances_groupe', targetType: 'Timetable', targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
+      });
+      this.gererErreur(error, res, next);
+    }
+  };
+
   demanderCours = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
@@ -154,7 +183,15 @@ export class TimetableController {
         res.status(404).json({ success: false, message: error.message });
         return;
       }
-      if (error.message.includes('Impossible') || error.message.includes('déjà publié')) {
+      if (error.message.includes('existent déjà')) {
+        res.status(409).json({ success: false, message: error.message });
+        return;
+      }
+      if (
+        error.message.includes('Impossible') ||
+        error.message.includes('déjà publié') ||
+        error.message.startsWith('Aucun')
+      ) {
         res.status(422).json({ success: false, message: error.message });
         return;
       }
