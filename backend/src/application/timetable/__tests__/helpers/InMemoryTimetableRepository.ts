@@ -4,6 +4,7 @@ import type {
   TimetableRepository,
   CreneauConflitInfo,
 } from '@domain/ports/repositories/TimetableRepository';
+import type { SeanceProposee, CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 
 export class InMemoryTimetableRepository implements TimetableRepository {
   private edts = new Map<string, EmploiDuTemps>();
@@ -124,5 +125,57 @@ export class InMemoryTimetableRepository implements TimetableRepository {
 
   async sousGroupeAppartientAClasse(subGroupId: string, classId: string): Promise<boolean> {
     return this.sousGroupesValides.has(`${subGroupId}:${classId}`);
+  }
+
+  /** Occupation simulée d'AUTRES classes — alimentée par les tests via definirOccupationEcole(). */
+  private occupationEcole: CreneauOccupe[] = [];
+  definirOccupationEcole(occupation: CreneauOccupe[]): void { this.occupationEcole = occupation; }
+
+  async findOccupationEcole(
+    _schoolId: string, _academicYearId: string, _excludeTimetableId?: string
+  ): Promise<CreneauOccupe[]> {
+    return this.occupationEcole;
+  }
+
+  /**
+   * Double en mémoire : applique les conflits enseignant/salle avec les mêmes méthodes domaine
+   * que l'implémentation Prisma, et n'écrit rien si l'une échoue (tout ou rien simulé — on
+   * construit tout dans une liste locale avant de la committer dans le store).
+   */
+  async appliquerPropositionAtomique(
+    timetableId: string, _schoolId: string, seances: SeanceProposee[]
+  ): Promise<{ creneauxCrees: number }> {
+    const aInserer: CreneauHoraire[] = [];
+
+    for (const seance of seances) {
+      const creneau = CreneauHoraire.create({
+        timetableId,
+        subjectId: seance.subjectId,
+        teacherId: seance.teacherId,
+        teacherNom: this.enseignantsInfos.get(seance.teacherId)?.nom,
+        dayOfWeek: seance.dayOfWeek,
+        startTime: seance.startTime,
+        endTime: seance.endTime,
+        roomId: seance.roomId,
+        roomNom: this.sallesInfos.get(seance.roomId)?.nom,
+        kind: 'CLASS',
+      });
+
+      const dejaVus = [...this.creneaux.values(), ...aInserer];
+      const conflitsEnseignant = dejaVus
+        .filter(c => c.teacherId === seance.teacherId && c.dayOfWeek === seance.dayOfWeek && c.kind === 'CLASS')
+        .map(c => ({ id: c.id, startTime: c.startTime, endTime: c.endTime, classeNom: 'Classe Test' }));
+      creneau.verifierConflitEnseignant(conflitsEnseignant);
+
+      const conflitsSalle = dejaVus
+        .filter(c => c.roomId === seance.roomId && c.dayOfWeek === seance.dayOfWeek && c.kind === 'CLASS')
+        .map(c => ({ id: c.id, startTime: c.startTime, endTime: c.endTime, classeNom: 'Classe Test' }));
+      creneau.verifierConflitSalle(conflitsSalle);
+
+      aInserer.push(creneau);
+    }
+
+    for (const creneau of aInserer) this.creneaux.set(creneau.id, creneau);
+    return { creneauxCrees: aInserer.length };
   }
 }

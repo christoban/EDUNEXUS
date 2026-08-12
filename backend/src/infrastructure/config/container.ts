@@ -186,6 +186,9 @@ import { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUs
 import { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
+import { ProposerEmploiDuTempsUseCase } from '@application/timetable/ProposerEmploiDuTempsUseCase';
+import { AppliquerPropositionEmploiDuTempsUseCase } from '@application/timetable/AppliquerPropositionEmploiDuTempsUseCase';
+import { ORToolsWasmAdapter } from '@infrastructure/scheduling/ORToolsWasmAdapter';
 
 // --- Use Cases : AnneeAcademique ---
 import { CreerAnneeAcademiqueUseCase } from '@application/academicYear/CreerAnneeAcademiqueUseCase';
@@ -433,6 +436,15 @@ export function creerContainer() {
     classRoomAssignmentRepository, roomRepository,
   );
 
+  // Scheduling Engine (V2.5) — port hexagonal : le solveur OR-Tools/CP-SAT est interchangeable.
+  const schedulingSolver = new ORToolsWasmAdapter();
+  const proposerEmploiDuTempsUseCase = new ProposerEmploiDuTempsUseCase(
+    timetableRepository, roomRepository, classRoomAssignmentRepository, schedulingSolver, prisma,
+  );
+  const appliquerPropositionEmploiDuTempsUseCase = new AppliquerPropositionEmploiDuTempsUseCase(
+    timetableRepository,
+  );
+
   // 13. Use Cases — AnneeAcademique
   const promotionRepository = new PrismaPromotionRepository(prisma);
 
@@ -579,6 +591,8 @@ export function creerContainer() {
       publier: publierEmploiDuTempsUseCase,
       demanderRattrapage: demanderRattrapageUseCase,
       genererSeancesGroupe: genererSeancesGroupeUseCase,
+      proposerEmploiDuTemps: proposerEmploiDuTempsUseCase,
+      appliquerProposition: appliquerPropositionEmploiDuTempsUseCase,
     },
     academicYear: {
       creer: creerAnneeUseCase,

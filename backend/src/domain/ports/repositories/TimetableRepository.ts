@@ -1,5 +1,6 @@
 import type { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import type { CreneauHoraire } from '@domain/entities/CreneauHoraire';
+import type { SeanceProposee, CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 
 export interface CreneauConflitInfo {
   id: string;
@@ -78,4 +79,30 @@ export interface TimetableRepository {
     subGroupId: string,
     classId: string
   ): Promise<boolean>;
+
+  /**
+   * Occupation enseignant/salle de TOUTE l'école pour une année — alimente les contraintes dures
+   * "déjà pris" du SchedulingSolverPort (V2.5). Exclut l'EDT en cours de proposition
+   * (excludeTimetableId) : ses propres créneaux ne doivent pas être vus comme des conflits, on
+   * est justement en train de les (re)calculer.
+   */
+  findOccupationEcole(
+    schoolId: string,
+    academicYearId: string,
+    excludeTimetableId?: string
+  ): Promise<CreneauOccupe[]>;
+
+  /**
+   * Écrit une proposition d'emploi du temps en TOUT OU RIEN — une transaction unique enveloppe
+   * la re-vérification des conflits ET l'insertion de toutes les séances. Si une seule séance
+   * entre en conflit (état changé entre la proposition et son application), rien n'est écrit :
+   * jamais d'emploi du temps à moitié appliqué.
+   *
+   * Lève ConflitHoraireError / ConflitSalleError avec le détail de la séance fautive.
+   */
+  appliquerPropositionAtomique(
+    timetableId: string,
+    schoolId: string,
+    seances: SeanceProposee[]
+  ): Promise<{ creneauxCrees: number }>;
 }

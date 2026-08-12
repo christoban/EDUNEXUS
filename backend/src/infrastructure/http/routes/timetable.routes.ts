@@ -10,6 +10,9 @@ export function creerTimetableRoutes(controller: TimetableController): Router {
   router.post('/:id/slots', requireAuth, requireRole('ADMIN', 'STAFF'), controller.ajouterSlot);
   router.put('/:id/slots/:slotId', requireAuth, requireRole('ADMIN', 'STAFF'), controller.modifierSlot);
   router.post('/:id/generate-group-sessions', requireAuth, requireRole('ADMIN', 'STAFF'), controller.genererSeancesGroupe);
+  // Scheduling Engine V2.5 — le solveur propose, l'admin confirme, puis on écrit (tout ou rien).
+  router.post('/:id/propose-schedule', requireAuth, requireRole('ADMIN', 'STAFF'), controller.proposerEDT);
+  router.post('/:id/apply-schedule', requireAuth, requireRole('ADMIN', 'STAFF'), controller.appliquerPropositionEDT);
   router.put('/:id/publish', requireAuth, requireRole('ADMIN'), controller.publierEDT);
 
   return router;

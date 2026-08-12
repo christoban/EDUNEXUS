@@ -5,6 +5,7 @@ import type {
   TimetableRepository,
   CreneauConflitInfo,
 } from '@domain/ports/repositories/TimetableRepository';
+import type { SeanceProposee, CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 import type { TimetableStatus, SlotKind } from '@domain/types/enums';
 
 export class PrismaTimetableRepository implements TimetableRepository {
@@ -249,6 +250,137 @@ export class PrismaTimetableRepository implements TimetableRepository {
       where: { id: subGroupId, classId },
     });
     return count > 0;
+  }
+
+  // --- Scheduling Engine (V2.5) ---
+
+  async findOccupationEcole(
+    schoolId: string,
+    academicYearId: string,
+    excludeTimetableId?: string
+  ): Promise<CreneauOccupe[]> {
+    const slots = await this.prisma.timetableSlot.findMany({
+      where: {
+        kind: 'CLASS',
+        timetable: {
+          schoolId,
+          academicYearId,
+          ...(excludeTimetableId && { id: { not: excludeTimetableId } }),
+        },
+      },
+      select: { teacherId: true, roomId: true, dayOfWeek: true, startTime: true, endTime: true },
+    });
+
+    return slots.map(s => ({
+      teacherId: s.teacherId ?? undefined,
+      roomId: s.roomId ?? undefined,
+      dayOfWeek: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    }));
+  }
+
+  /**
+   * Tout ou rien : une seule transaction enveloppe la re-vérification des conflits ET l'écriture
+   * de toutes les séances. Les relectures d'occupation se font VIA `tx`, donc chaque séance voit
+   * celles déjà insérées plus tôt dans le même appel (une proposition ne peut pas se contredire
+   * elle-même). Toute erreur de conflit sort du callback → Prisma annule l'intégralité.
+   */
+  async appliquerPropositionAtomique(
+    timetableId: string,
+    schoolId: string,
+    seances: SeanceProposee[]
+  ): Promise<{ creneauxCrees: number }> {
+    return this.prisma.$transaction(async (tx) => {
+      for (const seance of seances) {
+        const creneau = CreneauHoraire.create({
+          timetableId,
+          subjectId: seance.subjectId,
+          teacherId: seance.teacherId,
+          teacherNom: await this.nomEnseignant(tx, seance.teacherId),
+          dayOfWeek: seance.dayOfWeek,
+          startTime: seance.startTime,
+          endTime: seance.endTime,
+          roomId: seance.roomId,
+          roomNom: await this.nomSalle(tx, seance.roomId),
+          kind: 'CLASS',
+        });
+
+        creneau.verifierConflitEnseignant(
+          await this.conflitsEnseignant(tx, seance.teacherId, seance.dayOfWeek, schoolId)
+        );
+        creneau.verifierConflitSalle(
+          await this.conflitsSalle(tx, seance.roomId, seance.dayOfWeek, schoolId)
+        );
+
+        const data = creneau.toObject();
+        await tx.timetableSlot.create({
+          data: {
+            id: data.id,
+            timetableId: data.timetableId,
+            subjectId: data.subjectId,
+            teacherId: data.teacherId,
+            dayOfWeek: data.dayOfWeek,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            roomId: data.roomId,
+            kind: data.kind,
+          },
+        });
+      }
+
+      return { creneauxCrees: seances.length };
+    });
+  }
+
+  // Variantes transactionnelles des lectures de conflit — même forme que les méthodes publiques
+  // équivalentes, mais liées au client de transaction pour rester cohérentes intra-transaction.
+  private async conflitsEnseignant(
+    tx: Parameters<Parameters<PrismaClient['$transaction']>[0]>[0],
+    teacherId: string,
+    dayOfWeek: number,
+    schoolId: string
+  ): Promise<CreneauConflitInfo[]> {
+    const slots = await tx.timetableSlot.findMany({
+      where: { teacherId, dayOfWeek, kind: 'CLASS', timetable: { schoolId } },
+      include: { timetable: { include: { class: { select: { name: true } } } } },
+    });
+    return slots.map(s => ({
+      id: s.id, startTime: s.startTime, endTime: s.endTime, classeNom: s.timetable.class.name,
+    }));
+  }
+
+  private async conflitsSalle(
+    tx: Parameters<Parameters<PrismaClient['$transaction']>[0]>[0],
+    roomId: string,
+    dayOfWeek: number,
+    schoolId: string
+  ): Promise<CreneauConflitInfo[]> {
+    const slots = await tx.timetableSlot.findMany({
+      where: { roomId, dayOfWeek, kind: 'CLASS', timetable: { schoolId } },
+      include: { timetable: { include: { class: { select: { name: true } } } } },
+    });
+    return slots.map(s => ({
+      id: s.id, startTime: s.startTime, endTime: s.endTime, classeNom: s.timetable.class.name,
+    }));
+  }
+
+  private async nomEnseignant(
+    tx: Parameters<Parameters<PrismaClient['$transaction']>[0]>[0],
+    teacherId: string
+  ): Promise<string | undefined> {
+    const user = await tx.user.findUnique({
+      where: { id: teacherId }, select: { firstName: true, lastName: true },
+    });
+    return user ? `${user.firstName} ${user.lastName}` : undefined;
+  }
+
+  private async nomSalle(
+    tx: Parameters<Parameters<PrismaClient['$transaction']>[0]>[0],
+    roomId: string
+  ): Promise<string | undefined> {
+    const room = await tx.room.findUnique({ where: { id: roomId }, select: { name: true } });
+    return room?.name;
   }
 
   // --- Conversion ---

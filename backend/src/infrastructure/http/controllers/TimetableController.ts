@@ -5,6 +5,9 @@ import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCren
 import type { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import type { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import type { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
+import type { ProposerEmploiDuTempsUseCase } from '@application/timetable/ProposerEmploiDuTempsUseCase';
+import type { AppliquerPropositionEmploiDuTempsUseCase } from '@application/timetable/AppliquerPropositionEmploiDuTempsUseCase';
+import type { SeanceProposee } from '@domain/ports/services/SchedulingSolverPort';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
 import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
@@ -20,6 +23,8 @@ export class TimetableController {
     private readonly publier: PublierEmploiDuTempsUseCase,
     private readonly demanderRattrapage: DemanderRattrapageUseCase,
     private readonly genererSeances: GenererSeancesGroupeUseCase,
+    private readonly proposerEmploiDuTemps: ProposerEmploiDuTempsUseCase,
+    private readonly appliquerProposition: AppliquerPropositionEmploiDuTempsUseCase,
   ) {}
 
   creerManuel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -124,6 +129,72 @@ export class TimetableController {
     }
   };
 
+  // POST /timetables/:id/propose-schedule — calcule une proposition, n'écrit RIEN.
+  proposerEDT = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const proposition = await this.proposerEmploiDuTemps.execute({
+        timetableId: req.params['id'] as string,
+        schoolId: user.schoolId,
+      });
+
+      // INFAISABLE n'est pas une erreur technique : c'est un résultat métier exploitable
+      // (la raison dit quoi corriger). 422 plutôt qu'une exception opaque.
+      if (proposition.statut === 'INFAISABLE') {
+        res.status(422).json({
+          success: false,
+          code: 'PLANIFICATION_INFAISABLE',
+          message: proposition.raisonInfaisabilite,
+          data: proposition,
+        });
+        return;
+      }
+
+      res.json({ success: true, data: proposition });
+    } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /timetables/:id/apply-schedule — écrit la proposition confirmée, en TOUT OU RIEN.
+  appliquerPropositionEDT = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const { seances } = req.body as { seances?: SeanceProposee[] };
+
+      if (!Array.isArray(seances)) {
+        res.status(400).json({ success: false, message: 'seances[] requis' });
+        return;
+      }
+
+      const resultat = await this.appliquerProposition.execute({
+        timetableId: req.params['id'] as string,
+        schoolId: user.schoolId,
+        seances,
+      });
+
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'appliquer_proposition_emploi_du_temps', targetType: 'Timetable',
+        targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { creneauxCrees: resultat.creneauxCrees },
+      });
+      res.status(201).json({ success: true, data: resultat });
+    } catch (error) {
+      const user = req.user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'appliquer_proposition_emploi_du_temps', targetType: 'Timetable',
+        targetId: req.params['id'] as string,
+        origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined,
+        parametersSummary: { nbSeances: (req.body as { seances?: unknown[] })?.seances?.length },
+      });
+      this.gererErreur(error, res, next);
+    }
+  };
+
   demanderCours = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
@@ -190,6 +261,7 @@ export class TimetableController {
       if (
         error.message.includes('Impossible') ||
         error.message.includes('déjà publié') ||
+        error.message.includes('Proposition vide') ||
         error.message.startsWith('Aucun')
       ) {
         res.status(422).json({ success: false, message: error.message });
