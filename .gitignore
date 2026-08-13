@@ -42,3 +42,6 @@ ml-service/uvicorn.log
 .agents/
 skills-lock.json
 .claude/
+
+.vscode/
+.mimicode/
