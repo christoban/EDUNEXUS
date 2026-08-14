@@ -104,7 +104,9 @@ export default function SectionStudentDashboard({ onNav, onToast, user }: Props)
       if (avgRes.rank !== undefined) result.rank = { pos: avgRes.rank, total: avgRes.totalStudents || 0 }
 
       if (ttRes.success) {
-        const todayIdx = new Date().getDay()
+        // getDay() : 0=Dimanche, 1=Lundi … → converti en 0=Lundi … 5=Samedi, la convention
+        // unique de TimetableSlot.dayOfWeek. Dimanche (6) ne matche aucun créneau.
+        const todayIdx = (new Date().getDay() + 6) % 7
         result.todaySlots = ttRes.data.flatMap((tt: any) =>
           (tt.slots || []).filter((s: any) => s.dayOfWeek === todayIdx)
             .sort((a: any, b: any) => (a.startTime || '').localeCompare(b.startTime || ''))

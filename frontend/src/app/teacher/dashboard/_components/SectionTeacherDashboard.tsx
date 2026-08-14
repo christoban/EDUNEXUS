@@ -49,10 +49,10 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
       result.attendanceRate = statsRes.stats.attendanceRate
     }
     if (timetableRes.success) {
-      // getDay() : 0=Dimanche, 1=Lundi … 6=Samedi — aligné sur TimetableSlot.dayOfWeek tel qu'il
-      // est réellement stocké (Lundi=1). Le `- 1` précédent décalait tout d'un jour : rien le
-      // lundi, et les cours de la veille les autres jours. Dimanche (0) ne matche aucun créneau.
-      const todayIdx = new Date().getDay()
+      // getDay() : 0=Dimanche, 1=Lundi … 6=Samedi → converti en 0=Lundi … 5=Samedi, la
+      // convention unique de TimetableSlot.dayOfWeek. Dimanche devient 6 et ne matche donc
+      // aucun créneau, ce qui est le comportement voulu.
+      const todayIdx = (new Date().getDay() + 6) % 7
       const teacherProfileId = user?.teacherProfile?.id
       result.todaySlots = timetableRes.data.flatMap((tt: any) =>
         (tt.slots || [])

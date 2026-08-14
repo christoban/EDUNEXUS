@@ -9,27 +9,13 @@ import type {
   CaseGrille,
 } from '@domain/ports/services/SchedulingSolverPort';
 import { calculerSqelette } from '@infrastructure/http/controllers/TimetableGridConfigController';
+import { joursActifsVersIndex } from '@domain/types/joursSemaine';
 import type { SubjectType } from '@domain/types/enums';
 
 export interface ProposerEmploiDuTempsCommande {
   timetableId: string;
   schoolId: string;
 }
-
-/**
- * Conversion jour → dayOfWeek selon la convention du DOMAINE (0=Lundi … 5=Samedi), celle que
- * CreneauHoraire.create() valide et que ConflitHoraireError utilise pour nommer les jours.
- *
- * ⚠️ Le endpoint historique `POST /timetables/generate-skeleton` (hexagonal.bootstrap.ts) utilise
- * une convention DIFFÉRENTE (LUNDI=1 … SAMEDI=6) en écrivant directement via Prisma, sans passer
- * par l'entité — incohérence préexistante, hors périmètre de ce chantier. On suit ici la
- * convention du domaine parce que le chemin d'application (appliquerPropositionAtomique →
- * CreneauHoraire.create) la fait respecter : avec 1..6, un cours le samedi lèverait
- * "Jour invalide".
- */
-const JOUR_VERS_INDEX: Record<string, number> = {
-  LUNDI: 0, MARDI: 1, MERCREDI: 2, JEUDI: 3, VENDREDI: 4, SAMEDI: 5,
-};
 
 export class ProposerEmploiDuTempsUseCase {
   constructor(
@@ -132,9 +118,7 @@ export class ProposerEmploiDuTempsUseCase {
     if (!config) return [];
 
     const periodesCours = calculerSqelette(config).filter(p => p.type === 'COURS');
-    const jours = config.joursActifs
-      .map(j => JOUR_VERS_INDEX[j])
-      .filter((j): j is number => j !== undefined);
+    const jours = joursActifsVersIndex(config.joursActifs);
 
     return jours.flatMap(dayOfWeek =>
       periodesCours.map(p => ({ dayOfWeek, startTime: p.debut, endTime: p.fin })),

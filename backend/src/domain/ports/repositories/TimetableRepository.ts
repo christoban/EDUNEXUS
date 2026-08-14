@@ -1,6 +1,6 @@
 import type { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import type { CreneauHoraire } from '@domain/entities/CreneauHoraire';
-import type { SeanceProposee, CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
+import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 
 export interface CreneauConflitInfo {
   id: string;
@@ -93,16 +93,37 @@ export interface TimetableRepository {
   ): Promise<CreneauOccupe[]>;
 
   /**
-   * Écrit une proposition d'emploi du temps en TOUT OU RIEN — une transaction unique enveloppe
-   * la re-vérification des conflits ET l'insertion de toutes les séances. Si une seule séance
-   * entre en conflit (état changé entre la proposition et son application), rien n'est écrit :
-   * jamais d'emploi du temps à moitié appliqué.
+   * Écrit un lot de créneaux en TOUT OU RIEN — une transaction unique enveloppe la validation ET
+   * l'insertion. Si un seul créneau échoue, rien n'est écrit : jamais d'emploi du temps à moitié
+   * appliqué. Chaque créneau est construit via CreneauHoraire.create(), donc le format (heures,
+   * jour 0-5) est toujours validé par le domaine, quel que soit l'appelant.
    *
-   * Lève ConflitHoraireError / ConflitSalleError avec le détail de la séance fautive.
+   * `verifierConflits` (défaut true) :
+   *  - true  → re-vérifie conflit enseignant + conflit salle, les relectures passant par la
+   *            transaction pour que chaque créneau voie ceux déjà insérés dans le même lot.
+   *            Lève ConflitHoraireError / ConflitSalleError avec le détail du créneau fautif.
+   *  - false → validation de format uniquement, aucune requête de conflit. Réservé aux appelants
+   *            qui ont DÉJÀ résolu les conflits en mémoire (TimetableAutoController.autoGenerate)
+   *            ou pour qui la notion n'a pas de sens (créneaux vides d'un squelette de grille).
+   *            Rend explicite et localisé ce qui était auparavant un contournement invisible.
    */
-  appliquerPropositionAtomique(
+  creerCreneauxEnLot(
     timetableId: string,
     schoolId: string,
-    seances: SeanceProposee[]
+    creneaux: CreneauALoter[],
+    options?: { verifierConflits?: boolean }
   ): Promise<{ creneauxCrees: number }>;
+}
+
+/**
+ * Un créneau à insérer en lot. Surensemble de SeanceProposee : le solveur produit toujours
+ * matière/enseignant/salle, alors qu'un squelette de grille n'a que le jour et l'horaire.
+ */
+export interface CreneauALoter {
+  subjectId?: string;
+  teacherId?: string;
+  roomId?: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
 }

@@ -187,6 +187,7 @@ import { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmplo
 import { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
 import { ProposerEmploiDuTempsUseCase } from '@application/timetable/ProposerEmploiDuTempsUseCase';
+import { GenererSqueletteEmploiDuTempsUseCase } from '@application/timetable/GenererSqueletteEmploiDuTempsUseCase';
 import { AppliquerPropositionEmploiDuTempsUseCase } from '@application/timetable/AppliquerPropositionEmploiDuTempsUseCase';
 import { ORToolsWasmAdapter } from '@infrastructure/scheduling/ORToolsWasmAdapter';
 
@@ -444,6 +445,9 @@ export function creerContainer() {
   const appliquerPropositionEmploiDuTempsUseCase = new AppliquerPropositionEmploiDuTempsUseCase(
     timetableRepository,
   );
+  const genererSqueletteEmploiDuTempsUseCase = new GenererSqueletteEmploiDuTempsUseCase(
+    timetableRepository, prisma,
+  );
 
   // 13. Use Cases — AnneeAcademique
   const promotionRepository = new PrismaPromotionRepository(prisma);
@@ -593,6 +597,10 @@ export function creerContainer() {
       genererSeancesGroupe: genererSeancesGroupeUseCase,
       proposerEmploiDuTemps: proposerEmploiDuTempsUseCase,
       appliquerProposition: appliquerPropositionEmploiDuTempsUseCase,
+      genererSquelette: genererSqueletteEmploiDuTempsUseCase,
+      // Exposé pour TimetableAutoController, qui écrit ses créneaux en lot après avoir résolu
+      // les conflits lui-même (cf. verifierConflits: false).
+      repository: timetableRepository,
     },
     academicYear: {
       creer: creerAnneeUseCase,

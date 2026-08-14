@@ -40,7 +40,7 @@ interface GenResults {
 }
 
 const DAY_MAP: Record<string, number> = {
-  LUNDI: 1, MARDI: 2, MERCREDI: 3, JEUDI: 4, VENDREDI: 5, SAMEDI: 6,
+  LUNDI: 0, MARDI: 1, MERCREDI: 2, JEUDI: 3, VENDREDI: 4, SAMEDI: 5,
 }
 
 const SUBJECT_PALETTES = [
@@ -203,7 +203,8 @@ export default function SectionTimetable({ onToast }: Props) {
   const slotMap = new Map<string, TimetableSlot>()
   for (const s of slots) slotMap.set(`${s.dayOfWeek}-${s.startTime}`, s)
 
-  const joursNumeriques = joursActifs.map(j => DAY_MAP[j]).filter(Boolean)
+  // filter sur undefined et non sur la véracité : `.filter(Boolean)` supprimerait le lundi (0).
+  const joursNumeriques = joursActifs.map(j => DAY_MAP[j]).filter((d): d is number => d !== undefined)
   const hasGridConfig = squelette.length > 0
   const fallbackTimes = hasGridConfig ? [] : Array.from(new Set(slots.map(s => s.startTime))).sort()
   const displayDays = hasGridConfig ? joursActifs : ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI']

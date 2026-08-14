@@ -4,8 +4,9 @@ import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
 import type {
   TimetableRepository,
   CreneauConflitInfo,
+  CreneauALoter,
 } from '@domain/ports/repositories/TimetableRepository';
-import type { SeanceProposee, CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
+import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 import type { TimetableStatus, SlotKind } from '@domain/types/enums';
 
 export class PrismaTimetableRepository implements TimetableRepository {
@@ -281,37 +282,50 @@ export class PrismaTimetableRepository implements TimetableRepository {
   }
 
   /**
-   * Tout ou rien : une seule transaction enveloppe la re-vérification des conflits ET l'écriture
-   * de toutes les séances. Les relectures d'occupation se font VIA `tx`, donc chaque séance voit
-   * celles déjà insérées plus tôt dans le même appel (une proposition ne peut pas se contredire
-   * elle-même). Toute erreur de conflit sort du callback → Prisma annule l'intégralité.
+   * Tout ou rien : une seule transaction enveloppe la validation ET l'écriture de tous les
+   * créneaux. Quand les conflits sont vérifiés, les relectures se font VIA `tx`, donc chaque
+   * créneau voit ceux déjà insérés plus tôt dans le même lot (un lot ne peut pas se contredire
+   * lui-même). Toute erreur sort du callback → Prisma annule l'intégralité.
    */
-  async appliquerPropositionAtomique(
+  async creerCreneauxEnLot(
     timetableId: string,
     schoolId: string,
-    seances: SeanceProposee[]
+    creneaux: CreneauALoter[],
+    options?: { verifierConflits?: boolean }
   ): Promise<{ creneauxCrees: number }> {
+    const verifierConflits = options?.verifierConflits ?? true;
+
     return this.prisma.$transaction(async (tx) => {
-      for (const seance of seances) {
+      for (const seance of creneaux) {
+        // CreneauHoraire.create() valide TOUJOURS le format (heures, début < fin, jour 0-5),
+        // même sans vérification de conflit — c'est ce qui manquait aux chemins direct-Prisma.
         const creneau = CreneauHoraire.create({
           timetableId,
           subjectId: seance.subjectId,
           teacherId: seance.teacherId,
-          teacherNom: await this.nomEnseignant(tx, seance.teacherId),
+          teacherNom: verifierConflits && seance.teacherId
+            ? await this.nomEnseignant(tx, seance.teacherId) : undefined,
           dayOfWeek: seance.dayOfWeek,
           startTime: seance.startTime,
           endTime: seance.endTime,
           roomId: seance.roomId,
-          roomNom: await this.nomSalle(tx, seance.roomId),
+          roomNom: verifierConflits && seance.roomId
+            ? await this.nomSalle(tx, seance.roomId) : undefined,
           kind: 'CLASS',
         });
 
-        creneau.verifierConflitEnseignant(
-          await this.conflitsEnseignant(tx, seance.teacherId, seance.dayOfWeek, schoolId)
-        );
-        creneau.verifierConflitSalle(
-          await this.conflitsSalle(tx, seance.roomId, seance.dayOfWeek, schoolId)
-        );
+        if (verifierConflits) {
+          if (seance.teacherId) {
+            creneau.verifierConflitEnseignant(
+              await this.conflitsEnseignant(tx, seance.teacherId, seance.dayOfWeek, schoolId)
+            );
+          }
+          if (seance.roomId) {
+            creneau.verifierConflitSalle(
+              await this.conflitsSalle(tx, seance.roomId, seance.dayOfWeek, schoolId)
+            );
+          }
+        }
 
         const data = creneau.toObject();
         await tx.timetableSlot.create({
@@ -329,7 +343,7 @@ export class PrismaTimetableRepository implements TimetableRepository {
         });
       }
 
-      return { creneauxCrees: seances.length };
+      return { creneauxCrees: creneaux.length };
     });
   }
 

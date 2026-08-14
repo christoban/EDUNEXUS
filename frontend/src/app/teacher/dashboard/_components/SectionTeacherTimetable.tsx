@@ -32,7 +32,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
     try {
       const res = await fetchApi('/api/v2/timetables', { credentials: 'include' }).then(r => r.json())
       if (res.success) {
-        // Clé = "dayOfWeek-startTime" (1-5, heure exacte)
+        // Clé = "dayOfWeek-startTime" (0=Lundi … 4=Vendredi, heure exacte)
         const slotMap: Record<string, SlotType> = {}
         // Dériver la grille horaire depuis les données réelles (startTime uniques triés)
         const rowMap = new Map<string, string>() // startTime → endTime
@@ -227,7 +227,7 @@ export default function SectionTeacherTimetable({ onToast, user }: Props) {
                     <td style={{ padding: '10px 11px', background: 'var(--bg2)', fontSize: 13, fontWeight: 800, color: 'var(--text3)', textAlign: 'center', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
                       {row.start}<br /><span style={{ fontSize: 11, color: 'var(--border2)' }}>{row.end}</span>
                     </td>
-                    {[1, 2, 3, 4, 5].map((day) => {
+                    {[0, 1, 2, 3, 4].map((day) => {
                       const slot = slots[`${day}-${row.start}`]
                       return (
                         <td key={day} style={{ padding: 0, border: '1px solid var(--border)', verticalAlign: 'top', minWidth: 140, height: 76 }}>

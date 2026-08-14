@@ -211,7 +211,8 @@ export class DevController {
         }[] = [];
 
         let aIdx = 0;
-        for (let day = 1; day <= 5; day++) {
+        // 0=Lundi … 4=Vendredi — convention unique du domaine (cf. domain/types/joursSemaine.ts).
+        for (let day = 0; day <= 4; day++) {
           for (let s = 0; s < SLOTS_PER_DAY.length; s++) {
             const slotKey = `${day}-${s}`;
 

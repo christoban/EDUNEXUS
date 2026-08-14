@@ -38,7 +38,9 @@ export class AppliquerPropositionEmploiDuTempsUseCase {
       throw new Error("Impossible d'appliquer une proposition à un EDT déjà publié");
     }
 
-    return this.timetableRepository.appliquerPropositionAtomique(
+    // verifierConflits laissé à son défaut (true) : l'état a pu changer entre la proposition et
+    // sa confirmation par l'admin, c'est précisément le cas que la re-vérification couvre.
+    return this.timetableRepository.creerCreneauxEnLot(
       commande.timetableId,
       commande.schoolId,
       commande.seances,

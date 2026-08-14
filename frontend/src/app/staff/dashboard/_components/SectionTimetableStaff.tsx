@@ -49,7 +49,7 @@ const DAY_NAME: Record<string, string> = {
   JEUDI: 'Jeudi', VENDREDI: 'Vendredi', SAMEDI: 'Samedi',
 }
 const DAY_MAP: Record<string, number> = {
-  LUNDI: 1, MARDI: 2, MERCREDI: 3, JEUDI: 4, VENDREDI: 5, SAMEDI: 6,
+  LUNDI: 0, MARDI: 1, MERCREDI: 2, JEUDI: 3, VENDREDI: 4, SAMEDI: 5,
 }
 
 // Palette de couleurs par matière (hash stable)
@@ -287,7 +287,8 @@ export default function SectionTimetable({ onToast }: Props) {
   for (const s of slots) slotMap.set(`${s.dayOfWeek}-${s.startTime}`, s)
 
   const joursActifs = gridConfig?.joursActifs ?? ['LUNDI', 'MARDI', 'MERCREDI', 'JEUDI', 'VENDREDI']
-  const joursNumeriques = joursActifs.map(j => DAY_MAP[j]).filter(Boolean)
+  // filter sur undefined et non sur la véracité : `.filter(Boolean)` supprimerait le lundi (0).
+  const joursNumeriques = joursActifs.map(j => DAY_MAP[j]).filter((d): d is number => d !== undefined)
 
   // Calcul du remplissage
   const totalCours = slots.filter(s => s.kind === 'CLASS').length
@@ -457,7 +458,7 @@ export default function SectionTimetable({ onToast }: Props) {
               {t('timetable.fillSlotTitle')}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 22 }}>
-              {['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][modalSlot.dayOfWeek]} · {modalSlot.startTime}–{modalSlot.endTime}
+              {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][modalSlot.dayOfWeek]} · {modalSlot.startTime}–{modalSlot.endTime}
             </div>
 
             {conflictMsg && (

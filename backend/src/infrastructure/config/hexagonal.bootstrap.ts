@@ -1127,35 +1127,14 @@ export function bootstrapHexagonal(app: Application): void {
       const { classId } = req.body as { classId?: string };
       if (!classId) { res.status(400).json({ success: false, message: 'classId requis' }); return; }
 
-      const gridConfig = await prisma.timetableGridConfig.findUnique({ where: { schoolId } });
-      if (!gridConfig) { res.status(422).json({ success: false, message: 'Veuillez d\'abord configurer la grille horaire.' }); return; }
+      // Les préconditions (grille configurée, classe/année existantes, EDT pas déjà créé) sont
+      // portées par le use case — la route ne fait plus que traduire ses erreurs en statuts HTTP.
+      const { timetableId } = await container.timetable.genererSquelette.execute({ schoolId, classId });
 
-      const classeExiste = await prisma.class.findFirst({ where: { id: classId, schoolId } });
-      if (!classeExiste) { res.status(404).json({ success: false, message: 'Classe introuvable.' }); return; }
-
-      const annee = await prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true } });
-      if (!annee) { res.status(422).json({ success: false, message: 'Aucune année scolaire courante. Configurez une année scolaire d\'abord.' }); return; }
-
-      const existing = await prisma.timetable.findFirst({ where: { schoolId, classId, academicYearId: annee.id } });
-      if (existing) { res.status(409).json({ success: false, message: 'Un emploi du temps existe déjà pour cette classe et cette année scolaire.', data: { timetableId: existing.id } }); return; }
-
-      const squelette = calculerSqelette(gridConfig);
-      const periodesCours = squelette.filter(p => p.type === 'COURS');
-
-      const DAY_MAP: Record<string, number> = { LUNDI: 1, MARDI: 2, MERCREDI: 3, JEUDI: 4, VENDREDI: 5, SAMEDI: 6 };
-      const joursActifs = gridConfig.joursActifs.map(j => DAY_MAP[j]).filter(Boolean);
-
-      const timetable = await prisma.timetable.create({
-        data: {
-          schoolId, classId, academicYearId: annee.id,
-          slots: {
-            create: joursActifs.flatMap(dayOfWeek =>
-              periodesCours.map(p => ({
-                dayOfWeek, startTime: p.debut, endTime: p.fin, kind: 'CLASS',
-              }))
-            ),
-          },
-        },
+      // Relecture pour conserver à l'identique la forme de réponse attendue par le front
+      // (timetable + class + slots triés).
+      const timetable = await prisma.timetable.findUnique({
+        where: { id: timetableId },
         include: {
           class: { select: { id: true, name: true } },
           slots: { orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] },
@@ -1163,7 +1142,26 @@ export function bootstrapHexagonal(app: Application): void {
       });
 
       res.status(201).json({ success: true, data: timetable });
-    } catch (err) { next(err); }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('existe déjà')) {
+        // Le front s'appuie sur data.timetableId pour basculer sur l'EDT existant — contrat conservé.
+        const annee = await prisma.academicYear.findFirst({ where: { schoolId: req.user!.schoolId, isCurrent: true }, select: { id: true } });
+        const existing = annee
+          ? await prisma.timetable.findFirst({
+              where: { schoolId: req.user!.schoolId, classId: (req.body as { classId?: string }).classId, academicYearId: annee.id },
+              select: { id: true },
+            })
+          : null;
+        res.status(409).json({ success: false, message, data: { timetableId: existing?.id } });
+        return;
+      }
+      if (message.includes('Classe introuvable')) { res.status(404).json({ success: false, message }); return; }
+      if (message.includes('grille horaire') || message.includes('année scolaire')) {
+        res.status(422).json({ success: false, message }); return;
+      }
+      next(err);
+    }
   });
 
   // ── GET /api/v2/timetables/check-conflict — vérifie si un enseignant est déjà occupé ──
@@ -1286,7 +1284,11 @@ export function bootstrapHexagonal(app: Application): void {
   });
 
   // ── POST /api/v2/timetables/auto-generate — génération automatique par backtracking ──
-  const timetableAutoController = new TimetableAutoController(prisma);
+  const timetableAutoController = new TimetableAutoController(
+    prisma,
+    container.timetable.repository,
+    container.timetable.modifierCreneau,
+  );
   app.post('/api/v2/timetables/auto-generate', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.autoGenerate);
   app.post('/api/v2/timetables/:id/adjust', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.adjust);
 

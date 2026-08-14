@@ -4,7 +4,8 @@ import type {
   TimetableRepository,
   CreneauConflitInfo,
 } from '@domain/ports/repositories/TimetableRepository';
-import type { SeanceProposee, CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
+import type { CreneauALoter } from '@domain/ports/repositories/TimetableRepository';
+import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 
 export class InMemoryTimetableRepository implements TimetableRepository {
   private edts = new Map<string, EmploiDuTemps>();
@@ -142,24 +143,31 @@ export class InMemoryTimetableRepository implements TimetableRepository {
    * que l'implémentation Prisma, et n'écrit rien si l'une échoue (tout ou rien simulé — on
    * construit tout dans une liste locale avant de la committer dans le store).
    */
-  async appliquerPropositionAtomique(
-    timetableId: string, _schoolId: string, seances: SeanceProposee[]
+  async creerCreneauxEnLot(
+    timetableId: string, _schoolId: string, creneaux: CreneauALoter[],
+    options?: { verifierConflits?: boolean }
   ): Promise<{ creneauxCrees: number }> {
+    const verifierConflits = options?.verifierConflits ?? true;
     const aInserer: CreneauHoraire[] = [];
 
-    for (const seance of seances) {
+    for (const seance of creneaux) {
       const creneau = CreneauHoraire.create({
         timetableId,
         subjectId: seance.subjectId,
         teacherId: seance.teacherId,
-        teacherNom: this.enseignantsInfos.get(seance.teacherId)?.nom,
+        teacherNom: seance.teacherId ? this.enseignantsInfos.get(seance.teacherId)?.nom : undefined,
         dayOfWeek: seance.dayOfWeek,
         startTime: seance.startTime,
         endTime: seance.endTime,
         roomId: seance.roomId,
-        roomNom: this.sallesInfos.get(seance.roomId)?.nom,
+        roomNom: seance.roomId ? this.sallesInfos.get(seance.roomId)?.nom : undefined,
         kind: 'CLASS',
       });
+
+      if (!verifierConflits) {
+        aInserer.push(creneau);
+        continue;
+      }
 
       const dejaVus = [...this.creneaux.values(), ...aInserer];
       const conflitsEnseignant = dejaVus

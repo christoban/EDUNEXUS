@@ -3,6 +3,11 @@ import type { Request, Response, NextFunction } from 'express';
 import { calculerSqelette } from './TimetableGridConfigController';
 import { generateWithGroq } from '../../../services/groq';
 import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
+import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
+import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
+import { NOMS_JOURS, joursActifsVersIndex } from '@domain/types/joursSemaine';
+import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
+import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -69,12 +74,14 @@ function getOrCreate<K, V>(map: Map<K, V>, key: K, factory: () => V): V {
   return map.get(key)!;
 }
 
-const DAY_NAMES: Record<number, string> = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi' };
-
 // ─── Contrôleur ───────────────────────────────────────────────────────────────
 
 export class TimetableAutoController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly timetableRepository: TimetableRepository,
+    private readonly modifierCreneau: ModifierCreneauUseCase,
+  ) {}
 
   autoGenerate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -126,8 +133,9 @@ export class TimetableAutoController {
       // 5. Créneaux de la grille — ordre distribué (période d'abord, jour ensuite)
       const squelette = calculerSqelette(gridConfig);
       const periodesCours = squelette.filter(p => p.type === 'COURS');
-      const DAY_MAP: Record<string, number> = { LUNDI: 1, MARDI: 2, MERCREDI: 3, JEUDI: 4, VENDREDI: 5, SAMEDI: 6 };
-      const joursNumeriques = gridConfig.joursActifs.map(j => DAY_MAP[j]).filter(Boolean) as number[];
+      // 0=Lundi … 5=Samedi (convention unique du domaine). `joursActifsVersIndex` filtre sur
+      // `!== undefined` et non sur la véracité : un `.filter(Boolean)` supprimerait le lundi (0).
+      const joursNumeriques = joursActifsVersIndex(gridConfig.joursActifs);
 
       // Calculer l'heure de la grande pause pour savoir si matin/après-midi
       let grandePauseMin = Infinity;
@@ -309,17 +317,24 @@ export class TimetableAutoController {
           isNew = true;
         }
 
-        await this.prisma.timetableSlot.createMany({
-          data: classPlaced.map(p => ({
-            timetableId,
+        // `verifierConflits: false` : l'algorithme greedy ci-dessus a DÉJÀ résolu les conflits
+        // enseignant/classe en mémoire (teacherOccupied / classOccupied) avant de placer quoi que
+        // ce soit — les re-vérifier ici serait redondant et coûterait une requête par créneau.
+        // Le passage par creerCreneauxEnLot garantit malgré tout la validation de format par
+        // l'entité (jour 0-5, heures valides), qui manquait au createMany direct.
+        // Atomique par classe : une classe qui échoue n'annule pas les précédentes, ce qui
+        // préserve la sémantique de succès partiel (results[] / skipped[]).
+        await this.timetableRepository.creerCreneauxEnLot(
+          timetableId, schoolId,
+          classPlaced.map(p => ({
             subjectId: p.subjectId,
             teacherId: p.teacherId,
             dayOfWeek: p.slot.dayOfWeek,
             startTime: p.slot.startTime,
             endTime: p.slot.endTime,
-            kind: 'CLASS',
           })),
-        });
+          { verifierConflits: false },
+        );
 
         results.push({ classId: cls.id, className: cls.name, timetableId, slotsCreated: classPlaced.length, isNew });
       }
@@ -399,10 +414,10 @@ export class TimetableAutoController {
 
       const slotsContext = timetable.slots
         .filter(s => s.subject && s.teacher)
-        .map(s => `ID:${s.id} | ${DAY_NAMES[s.dayOfWeek] ?? s.dayOfWeek} ${s.startTime}-${s.endTime} | ${s.subject!.name} | ${s.teacher!.firstName} ${s.teacher!.lastName}`)
+        .map(s => `ID:${s.id} | ${NOMS_JOURS[s.dayOfWeek] ?? s.dayOfWeek} ${s.startTime}-${s.endTime} | ${s.subject!.name} | ${s.teacher!.firstName} ${s.teacher!.lastName}`)
         .join('\n');
 
-      const prompt = `Tu gères l'emploi du temps de la classe ${timetable.class.name}.\n\nCréneaux actuels :\n${slotsContext || '(aucun créneau)'}\n\nInstruction : "${instruction}"\n\nRetourne UNIQUEMENT un JSON array des modifications, format strict :\n[{"slotId":"...","newDayOfWeek":1,"newStartTime":"HH:MM","newEndTime":"HH:MM"}]\nSi impossible ou ambigu, retourne []. Ne retourne QUE le JSON.`;
+      const prompt = `Tu gères l'emploi du temps de la classe ${timetable.class.name}.\n\nCréneaux actuels :\n${slotsContext || '(aucun créneau)'}\n\nInstruction : "${instruction}"\n\nRetourne UNIQUEMENT un JSON array des modifications, format strict :\n[{"slotId":"...","newDayOfWeek":0,"newStartTime":"HH:MM","newEndTime":"HH:MM"}]\nnewDayOfWeek est un entier : 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi, 5=Samedi. Aucune autre valeur n'est acceptée.\nSi impossible ou ambigu, retourne []. Ne retourne QUE le JSON.`;
 
       const response = await generateWithGroq(
         prompt,
@@ -426,32 +441,34 @@ export class TimetableAutoController {
       const applied: string[] = [];
       const errors: string[] = [];
 
+      // Chaque changement passe par ModifierCreneauUseCase : il applique les VRAIES règles du
+      // domaine (chevauchement horaire réel — et non une égalité exacte de startTime qui laissait
+      // passer 08:00-10:00 contre 09:00-10:00 —, conflit de salle, volume horaire AP, et
+      // validation de plage du jour produit par le LLM). Le try/catch par changement préserve la
+      // sémantique de succès partiel attendue par le front (applied[] / errors[]).
       for (const change of changes) {
         const slot = timetable.slots.find(s => s.id === change.slotId);
         if (!slot) { errors.push(`Créneau ${change.slotId} introuvable`); continue; }
 
-        if (slot.teacher) {
-          const conflit = await this.prisma.timetableSlot.findFirst({
-            where: {
-              teacherId: slot.teacher.id,
-              dayOfWeek: change.newDayOfWeek,
-              startTime: change.newStartTime,
-              id: { not: slot.id },
-              timetable: { is: { schoolId } },
-            },
+        try {
+          await this.modifierCreneau.execute({
+            creneauId: slot.id,
+            timetableId: timetable.id,
+            schoolId,
+            dayOfWeek: change.newDayOfWeek,
+            startTime: change.newStartTime,
+            endTime: change.newEndTime,
           });
-          if (conflit) {
-            const conflitEdt = await this.prisma.timetable.findUnique({ where: { id: conflit.timetableId }, include: { class: { select: { name: true } } } });
-            errors.push(`Conflit : ${slot.teacher.firstName} ${slot.teacher.lastName} est déjà en ${conflitEdt?.class.name ?? '?'} le ${DAY_NAMES[change.newDayOfWeek]} à ${change.newStartTime}`);
-            continue;
+          applied.push(`${slot.subject?.name ?? '?'} → ${NOMS_JOURS[change.newDayOfWeek] ?? change.newDayOfWeek} ${change.newStartTime}`);
+        } catch (err) {
+          if (err instanceof ConflitHoraireError || err instanceof ConflitSalleError) {
+            errors.push(err.message);
+          } else {
+            errors.push(
+              `${slot.subject?.name ?? 'Créneau'} : ${err instanceof Error ? err.message : 'modification impossible'}`,
+            );
           }
         }
-
-        await this.prisma.timetableSlot.update({
-          where: { id: slot.id },
-          data: { dayOfWeek: change.newDayOfWeek, startTime: change.newStartTime, endTime: change.newEndTime },
-        });
-        applied.push(`${slot.subject?.name ?? '?'} → ${DAY_NAMES[change.newDayOfWeek]} ${change.newStartTime}`);
       }
 
       res.json({
