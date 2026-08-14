@@ -49,7 +49,10 @@ export default function SectionTeacherDashboard({ onNav, onToast, user }: Props)
       result.attendanceRate = statsRes.stats.attendanceRate
     }
     if (timetableRes.success) {
-      const todayIdx = new Date().getDay() - 1 // 0=Lundi, -1=Dimanche (ignoré)
+      // getDay() : 0=Dimanche, 1=Lundi … 6=Samedi — aligné sur TimetableSlot.dayOfWeek tel qu'il
+      // est réellement stocké (Lundi=1). Le `- 1` précédent décalait tout d'un jour : rien le
+      // lundi, et les cours de la veille les autres jours. Dimanche (0) ne matche aucun créneau.
+      const todayIdx = new Date().getDay()
       const teacherProfileId = user?.teacherProfile?.id
       result.todaySlots = timetableRes.data.flatMap((tt: any) =>
         (tt.slots || [])
