@@ -69,6 +69,20 @@ export class AssistantController {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly catalog: ActionDefinition[],
+    /**
+     * Génération de texte, injectable — production : `generateText` du SDK `ai` (défaut).
+     *
+     * Ce point d'injection existe pour la SÉCURITÉ, pas pour la couverture : les garde-fous de
+     * ce contrôleur (double-vérification RBAC, détection de paramètre halluciné, confirmation
+     * obligatoire des actions destructives) ne se déclenchent que face à une sortie de modèle
+     * précise. Avec le vrai modèle, on ne peut pas PROVOQUER ces sorties de façon fiable : on ne
+     * teste alors que le cas heureux. En injectant un générateur contrôlé, on soumet les
+     * garde-fous au pire comportement possible — un modèle qui appelle un outil interdit au
+     * rôle, qui invente un paramètre, ou qui obéit à une injection de prompt.
+     *
+     * Même patron d'optionnalité que `CreerClasseUseCase` : la production ne passe rien.
+     */
+    private readonly genererTexte: typeof generateText = generateText,
   ) {}
 
   private get logRepo() {
@@ -287,7 +301,7 @@ export class AssistantController {
 
       let result;
       try {
-        result = await generateText({ model: groqModel, system, prompt: message, tools, toolChoice: 'auto' });
+        result = await this.genererTexte({ model: groqModel, system, prompt: message, tools, toolChoice: 'auto' });
       } catch (e: any) {
         // Le message top-level (ex. « Failed to call a function ») ne dit jamais QUEL tool ni
         // QUELS arguments malformés Groq a tenté de générer — cette information vit dans
