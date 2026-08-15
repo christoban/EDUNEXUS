@@ -125,24 +125,21 @@ describe('filterCatalogForUser — robustesse', () => {
   });
 
   /**
-   * COMPORTEMENT RÉEL, documenté volontairement plutôt que corrigé ici (une correction change la
-   * sécurité et relève d'une décision produit) :
-   *
-   * sur la branche sans `allowedRoles`, le filtre ne vérifie QUE la permission — le rôle n'est
-   * plus regardé une fois qu'on n'est ni ADMIN ni porteur d'`allowedRoles`. N'IMPORTE quel rôle
-   * détenant la permission franchit donc le filtre, alors que le commentaire de la fonction
-   * annonce « ADMIN voit tout ; STAFF voit uniquement si requiredPermission correspond ».
-   *
-   * Non exploitable en l'état : `PrismaUserRepository:85` ne persiste des permissions que pour
-   * `role === 'STAFF'`, donc TEACHER/PARENT/STUDENT arrivent toujours avec `permissions: []`.
-   * Le jour où une permission serait accordée à un autre rôle, l'accès s'ouvrirait en silence.
+   * RÉGRESSION — sur la branche sans `allowedRoles`, le filtre ne vérifiait QUE la permission :
+   * n'importe quel rôle la détenant franchissait la porte, alors que le contrat annonce
+   * « ADMIN voit tout ; STAFF voit uniquement si requiredPermission correspond ». Ce n'était pas
+   * exploitable (seuls les comptes STAFF reçoivent des permissions persistées), mais l'accès se
+   * serait ouvert en silence dès qu'une permission aurait été accordée à un autre rôle — par
+   * exemple VALIDATE_GRADES à un professeur principal.
    */
-  it('DOCUMENTE UN ÉCART — un rôle non-STAFF porteur de la permission franchit le filtre', () => {
+  it("un rôle non-STAFF porteur de la permission NE franchit PAS le filtre", () => {
     const catalogue = [action('action_notes', { requiredPermission: 'VALIDATE_GRADES' })];
 
-    expect(filterCatalogForUser(catalogue, { role: 'TEACHER', permissions: ['VALIDATE_GRADES'] })).toHaveLength(1);
-    // Sans la permission, le rôle reste bien bloqué — c'est la permission qui fait foi, pas le rôle.
-    expect(filterCatalogForUser(catalogue, { role: 'TEACHER', permissions: [] })).toHaveLength(0);
+    for (const role of ['TEACHER', 'PARENT', 'STUDENT']) {
+      expect(filterCatalogForUser(catalogue, { role, permissions: ['VALIDATE_GRADES'] })).toHaveLength(0);
+    }
+    // Le STAFF légitime, lui, passe toujours — la correction ne restreint que les autres rôles.
+    expect(filterCatalogForUser(catalogue, { role: 'STAFF', permissions: ['VALIDATE_GRADES'] })).toHaveLength(1);
   });
 
   it('catalogue vide → résultat vide, sans erreur', () => {

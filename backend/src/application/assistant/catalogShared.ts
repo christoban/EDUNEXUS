@@ -253,7 +253,11 @@ export function filterCatalogForUser(
       return a.requiredPermission === null || perms.has(a.requiredPermission);
     }
     if (role === 'ADMIN') return true;
-    return a.requiredPermission !== null && perms.has(a.requiredPermission);
+    // `role === 'STAFF'` explicite : sans lui, la seule détention de la permission suffisait,
+    // quel que soit le rôle. Non exploitable à l'époque (seuls les comptes STAFF reçoivent des
+    // permissions persistées, PrismaUserRepository:85), mais l'accès se serait ouvert en silence
+    // le jour où une permission aurait été accordée à un enseignant ou un parent.
+    return role === 'STAFF' && a.requiredPermission !== null && perms.has(a.requiredPermission);
   });
 }
 
