@@ -70,10 +70,6 @@ export default function SectionTimetable({ onToast }: Props) {
   const [error, setError]                     = useState<string | null>(null)
 
   // Auto-generation state
-  const [autoGenerating, setAutoGenerating]   = useState(false)
-  const [genResults, setGenResults]           = useState<GenResults | null>(null)
-  const [showGenPanel, setShowGenPanel]       = useState(false)
-  const [confirmReset, setConfirmReset]       = useState(false)
 
   // Groq adjustment state
   const [adjustInstruction, setAdjustInstruction] = useState('')
@@ -146,32 +142,6 @@ export default function SectionTimetable({ onToast }: Props) {
     }
   }
 
-  const handleAutoGenerate = async () => {
-    setAutoGenerating(true); setGenResults(null); setConfirmReset(false)
-    try {
-      const res = await fetchApi('/api/v2/timetables/auto-generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || t('timetable.err'))
-      setGenResults(data.data)
-      setShowGenPanel(true)
-      const s = data.data.stats
-      onToast(
-        `${t('timetable.genToast', { classes: s.classesTraitees, slots: s.slotsTotal })}${s.coursNonPlaces > 0 ? t('timetable.genUnplacedSuffix', { n: s.coursNonPlaces }) : ''}`,
-        s.coursNonPlaces > 0 ? 'info' : 'success',
-      )
-      if (classId) fetchTimetable()
-    } catch (err) {
-      onToast(err instanceof Error ? err.message : t('timetable.errGen'), 'error')
-    } finally {
-      setAutoGenerating(false)
-    }
-  }
-
   const handleAdjust = async () => {
     if (!timetable || !adjustInstruction.trim()) return
     setAdjusting(true); setAdjustResult(null)
@@ -237,24 +207,6 @@ export default function SectionTimetable({ onToast }: Props) {
           </select>
 
           <div className="flex flex-wrap gap-2 md:gap-[10px] md:items-center">
-            {/* Bouton génération automatique */}
-            {!confirmReset ? (
-              <button className="text-[12.5px] md:text-[15px] font-semibold md:font-bold rounded-full px-[14px] py-[10px] md:px-[16px] md:py-[10px]" style={{ ...btnAI, borderRadius: undefined, padding: undefined, fontWeight: undefined, opacity: autoGenerating ? 0.7 : 1 }} disabled={autoGenerating}
-                onClick={() => setConfirmReset(true)}>
-                {autoGenerating
-                  ? <><span style={spinInline} />{t('timetable.generating')}</>
-                  : t('timetable.autoGen')}
-              </button>
-            ) : (
-              <div className="flex-wrap md:flex-nowrap" style={{ display: 'flex', gap: 6, alignItems: 'center', background: 'var(--amber-light)', border: '1.5px solid var(--amber)', borderRadius: 10, padding: '6px 10px' }}>
-                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--amber)' }}>{t('timetable.overwriteConfirm')}</span>
-                <button style={{ ...btnPrim, padding: '5px 12px', fontSize: 13, borderRadius: 8 }} onClick={handleAutoGenerate} disabled={autoGenerating}>
-                  {autoGenerating ? <><span style={spinInline} />…</> : t('timetable.yesGenerate')}
-                </button>
-                <button style={{ ...btnSec, padding: '5px 10px', fontSize: 13, borderRadius: 8 }} onClick={() => setConfirmReset(false)}>{t('timetable.cancel')}</button>
-              </div>
-            )}
-
             {timetable && timetable.status !== 'PUBLISHED' && (
               <button className="text-[12.5px] md:text-[15px] font-semibold md:font-bold rounded-full md:rounded-[11px] px-[14px] py-[10px] md:px-[18px] md:py-[10px]" style={{ ...btnPrim, borderRadius: undefined, padding: undefined, fontSize: undefined, fontWeight: undefined }} onClick={handlePublish} disabled={publishing}>
                 {publishing ? <><span style={spinInline} />{t('timetable.publishing')}</> : t('timetable.publishBtn')}
@@ -270,65 +222,6 @@ export default function SectionTimetable({ onToast }: Props) {
       </div>
 
       {/* Panel résultats génération */}
-      {showGenPanel && genResults && (
-        <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1.5px solid var(--border2)', marginBottom: 20, overflow: 'hidden' }}>
-          <div className="flex-wrap gap-[8px] px-[14px] py-[12px] md:px-[18px] md:py-[14px]" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <span className="text-[14px] md:text-[16px]" style={{ fontWeight: 800, color: 'var(--text)' }}>{t('timetable.genResultsTitle')}</span>
-              <span className="text-[12px] md:text-[13px]" style={{ marginLeft: 12, color: 'var(--text3)' }}>
-                {t('timetable.genPanelSummary', { classes: genResults.stats.classesTraitees, slots: genResults.stats.slotsTotal })}
-                {genResults.stats.coursNonPlaces > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>{t('timetable.genUnplacedSuffix', { n: genResults.stats.coursNonPlaces })}</span>}
-              </span>
-            </div>
-            <button onClick={() => setShowGenPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text3)', padding: 4, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}><X size={16} strokeWidth={2} /></button>
-          </div>
-
-          <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {/* Classes générées */}
-            {genResults.results.length > 0 && (
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', marginBottom: 6 }}>{t('timetable.classesGenerated')}</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {genResults.results.map(r => (
-                    <div key={r.classId} style={{ background: 'var(--green-light)', border: '1px solid var(--green)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
-                      {r.className} · {t('timetable.lessonsCount', { n: r.slotsCreated })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Classes ignorées */}
-            {genResults.skipped.length > 0 && (
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--amber)', marginBottom: 6 }}>{t('timetable.skipped')}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {genResults.skipped.map(s => (
-                    <div key={s.classId} style={{ fontSize: 13, color: 'var(--amber)' }}><strong>{s.className}</strong> — {s.reason}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Cours non placés avec explication Groq */}
-            {genResults.unplaced.length > 0 && (
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--red)', marginBottom: 8 }}>{t('timetable.unplacedTitle')}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {genResults.unplaced.map((u, i) => (
-                    <div key={i} style={{ background: 'var(--red-light)', border: '1px solid var(--red-light)', borderRadius: 10, padding: '10px 14px' }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--red)', marginBottom: 4 }}>
-                        {u.className} — {u.subjectName} ({u.teacherName})
-                      </div>
-                      <div style={{ fontSize: 13, color: 'var(--red)', lineHeight: 1.5 }}>{u.explication}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Chargement */}
       {loading && (
@@ -351,11 +244,7 @@ export default function SectionTimetable({ onToast }: Props) {
         <div className="p-[28px] md:px-[32px] md:py-[60px]" style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><CalendarDays size={44} strokeWidth={1.5} className="md:hidden" /><CalendarDays size={52} strokeWidth={1.5} className="hidden md:block" /></div>
           <div className="text-[17px] md:text-[20px]" style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{t('timetable.selectClassTitle')}</div>
-          <div className="text-[13.5px] md:text-[15px] mb-[20px] md:mb-[24px]" style={{ color: 'var(--text3)' }}>{t('timetable.selectClassHint')}</div>
-          <button className="w-full md:w-auto justify-center md:justify-start text-[13.5px] md:text-[16px] px-[18px] md:px-[24px] py-[10px] md:py-[12px]" style={{ ...btnAI, fontSize: undefined, padding: undefined }} disabled={autoGenerating}
-            onClick={() => setConfirmReset(true)}>
-            {autoGenerating ? <><span style={spinInline} />{t('timetable.genInProgress')}</> : t('timetable.autoGenAll')}
-          </button>
+          <div className="text-[13.5px] md:text-[15px]" style={{ color: 'var(--text3)' }}>{t('timetable.selectClassHint')}</div>
         </div>
       )}
 

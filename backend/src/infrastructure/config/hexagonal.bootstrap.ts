@@ -1283,13 +1283,15 @@ export function bootstrapHexagonal(app: Application): void {
     } catch (err) { next(err); }
   });
 
-  // ── POST /api/v2/timetables/auto-generate — génération automatique par backtracking ──
+  // ── POST /api/v2/timetables/:id/adjust — ajustement d'un EDT en langage naturel ──
+  // La génération automatique passe désormais exclusivement par le Scheduling Engine V2.5
+  // (propose-schedule / apply-schedule) : l'ancien moteur glouton `auto-generate` a été
+  // supprimé pour qu'il n'existe qu'UNE voie de génération. `adjust` est conservé — c'est une
+  // fonctionnalité d'édition, sans équivalent côté solveur.
   const timetableAutoController = new TimetableAutoController(
     prisma,
-    container.timetable.repository,
     container.timetable.modifierCreneau,
   );
-  app.post('/api/v2/timetables/auto-generate', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.autoGenerate);
   app.post('/api/v2/timetables/:id/adjust', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.adjust);
 
   app.use('/api/v2/timetables', creerTimetableRoutes(timetableController));

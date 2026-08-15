@@ -598,9 +598,6 @@ export function creerContainer() {
       proposerEmploiDuTemps: proposerEmploiDuTempsUseCase,
       appliquerProposition: appliquerPropositionEmploiDuTempsUseCase,
       genererSquelette: genererSqueletteEmploiDuTempsUseCase,
-      // Exposé pour TimetableAutoController, qui écrit ses créneaux en lot après avoir résolu
-      // les conflits lui-même (cf. verifierConflits: false).
-      repository: timetableRepository,
     },
     academicYear: {
       creer: creerAnneeUseCase,

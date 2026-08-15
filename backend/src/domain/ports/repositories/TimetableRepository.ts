@@ -103,8 +103,9 @@ export interface TimetableRepository {
    *            transaction pour que chaque créneau voie ceux déjà insérés dans le même lot.
    *            Lève ConflitHoraireError / ConflitSalleError avec le détail du créneau fautif.
    *  - false → validation de format uniquement, aucune requête de conflit. Réservé aux appelants
-   *            qui ont DÉJÀ résolu les conflits en mémoire (TimetableAutoController.autoGenerate)
-   *            ou pour qui la notion n'a pas de sens (créneaux vides d'un squelette de grille).
+   *            pour qui la notion n'a pas de sens — aujourd'hui le seul cas est le squelette de
+   *            grille (`GenererSqueletteEmploiDuTempsUseCase`), dont les créneaux n'ont ni
+   *            enseignant ni salle : les vérifications seraient des no-ops coûteuses.
    *            Rend explicite et localisé ce qui était auparavant un contournement invisible.
    */
   creerCreneauxEnLot(
