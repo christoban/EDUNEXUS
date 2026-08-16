@@ -43,10 +43,15 @@ le chemin complet route → contrôleur → use case → requête Prisma.
 | 2.1 `grades/:id/validate` | ✅ **corrigé** — `NoteRepository.findById(id, schoolId)` |
 | 2.2 `grades/:id/submit` | 🟡 **partiellement corrigé** — cross-tenant fermé, appartenance intra-école encore ouverte (voir 2.2) |
 | 2.3 orientation (×2) | ⬜ ouvert |
-| 2.4 examens (×2) | ⬜ ouvert |
+| 2.4 examens (×2) | ✅ **corrigé** — `updateMany({ id, schoolId })` + 404 si `count === 0` |
 | 2.5 année académique (×2) | ⬜ ouvert |
 | 2.6 `schools/:id/activate` | ⬜ ouvert |
-| 2.7 `matricules/import-jobs/:id` | ⬜ ouvert |
+| 2.7 `matricules/import-jobs/:id` | ✅ **corrigé** — `findFirst({ id, schoolId })` |
+
+⚠️ **Les correctifs 2.4 et 2.7 ne sont couverts par aucun test.** Ces trois routes n'en avaient
+aucun avant, et la tâche n'en a pas ajouté. L'isolation y est correcte à la lecture du code, mais
+rien ne l'empêche de régresser silencieusement — contrairement à 2.1, verrouillé par un test vérifié
+capable d'échouer. À couvrir dans le volet « tests d'isolation » de V0.2.
 
 ### 2.1 🔴 Critique — `PATCH /api/v2/grades/:id/validate` — ✅ CORRIGÉ
 
@@ -122,7 +127,7 @@ routes plus récentes de la même famille (`valider-conseiller`, `proposer-eleve
 transmettent toutes `schoolId: user.schoolId`. Ce n'est pas une lacune de conception : c'est une
 dérive entre code ancien et code récent.
 
-### 2.4 🟠 Écritures cross-tenant — examens
+### 2.4 🟠 Écritures cross-tenant — examens — ✅ CORRIGÉ
 
 `examen.routes.ts:10-11`, toutes deux `requireAuth, requireRole('ADMIN')` :
 
@@ -131,6 +136,10 @@ dérive entre code ancien et code récent.
 
 Le rôle est vérifié, l'école jamais. Un admin de A peut écrire un **résultat d'examen officiel**
 (`status: 'RESULT_AVAILABLE'`) sur une inscription de B.
+
+**Correctif appliqué.** `update` → `updateMany({ where: { id, schoolId: req.user.schoolId } })`,
+suivi d'un `404` si `count === 0`. `update` n'accepte que des champs uniques dans son `where`, d'où
+`updateMany`. Le `count` à 0 confond volontairement « inexistante » et « hors de mon école ».
 
 ### 2.5 🟠 Écritures cross-tenant — année académique
 
@@ -166,7 +175,7 @@ router.post('/schools/:id/activate', requireAuth, requireRole('ADMIN'), async (r
 A peut déclencher l'activation de B (création de classes, matières, structure) dès lors que B est
 approuvée.
 
-### 2.7 🟡 Lecture cross-tenant — `GET /api/v2/matricules/import-jobs/:id`
+### 2.7 🟡 Lecture cross-tenant — `GET /api/v2/matricules/import-jobs/:id` — ✅ CORRIGÉ
 
 `matricule.routes.ts:23` — `requireAuth, requireRole('ADMIN','STAFF')` :
 
@@ -177,6 +186,9 @@ res.json({ success: true, data: job });
 
 Le job est renvoyé tel quel. Fuite de lecture seule, donc moins grave que les précédentes, mais le
 contenu d'un job d'import de matricules concerne nominativement des élèves.
+
+**Correctif appliqué.** `findUnique` → `findFirst({ where: { id, schoolId: req.user.schoolId } })`.
+Le `404` existant et son message sont inchangés.
 
 ### 2.8 Faux positifs vérifiés (8)
 

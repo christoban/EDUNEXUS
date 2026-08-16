@@ -57,10 +57,17 @@ export class ExamenController {
         return;
       }
 
-      await this.prisma.examRegistration.update({
-        where: { id: examId },
+      // updateMany et non update : `where` de update n'accepte que des champs uniques, or
+      // schoolId ne l'est pas. Le count à 0 signifie « inexistante OU hors de mon école » —
+      // volontairement indiscernables, pour ne pas révéler l'existence d'un examen d'une autre école.
+      const maj = await this.prisma.examRegistration.updateMany({
+        where: { id: examId, schoolId: req.user!.schoolId },
         data: { numeroCandidatExamen, status: 'CONFIRMED' },
       });
+      if (maj.count === 0) {
+        res.status(404).json({ success: false, message: 'Inscription à l\'examen introuvable' });
+        return;
+      }
 
       res.json({ success: true, message: 'Numéro candidat enregistré' });
     } catch (err) { next(err); }
@@ -78,8 +85,9 @@ export class ExamenController {
         return;
       }
 
-      await this.prisma.examRegistration.update({
-        where: { id: examId },
+      // updateMany : voir le commentaire de setCandidateNumber.
+      const maj = await this.prisma.examRegistration.updateMany({
+        where: { id: examId, schoolId: req.user!.schoolId },
         data: {
           resultatStatus,
           resultatMention: resultatMention ?? null,
@@ -89,6 +97,10 @@ export class ExamenController {
           status: 'RESULT_AVAILABLE',
         },
       });
+      if (maj.count === 0) {
+        res.status(404).json({ success: false, message: 'Inscription à l\'examen introuvable' });
+        return;
+      }
 
       res.json({ success: true, message: 'Résultat enregistré' });
     } catch (err) { next(err); }

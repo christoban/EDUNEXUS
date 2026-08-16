@@ -64,7 +64,12 @@ export class MatriculeController {
   getJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const jobId = String(req.params['id']);
-      const job = await this.prisma.matriculeImportJob.findUnique({ where: { id: jobId } });
+      // findFirst et non findUnique : `where` de findUnique n'accepte que des champs uniques,
+      // or schoolId ne l'est pas. Un job d'une autre école doit être introuvable, pas seulement
+      // interdit — le 404 existant ci-dessous s'en charge, sans message distinct.
+      const job = await this.prisma.matriculeImportJob.findFirst({
+        where: { id: jobId, schoolId: req.user!.schoolId },
+      });
       if (!job) {
         res.status(404).json({ success: false, message: 'Job introuvable' });
         return;
