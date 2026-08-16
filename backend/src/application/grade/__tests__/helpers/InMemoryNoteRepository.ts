@@ -5,8 +5,9 @@ import type { GradeValidationStatus } from '@domain/types/enums';
 export class InMemoryNoteRepository implements NoteRepository {
   private store = new Map<string, Note>();
 
-  async findById(id: string): Promise<Note | null> {
-    return this.store.get(id) ?? null;
+  async findById(id: string, schoolId: string): Promise<Note | null> {
+    const note = this.store.get(id);
+    return note && note.schoolId === schoolId ? note : null;
   }
 
   async findByEleve(studentId: string, academicYearId: string): Promise<Note[]> {

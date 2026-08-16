@@ -7,7 +7,7 @@ export class InMemoryNoteRepository implements NoteRepository {
 
   setNonValidees(notes: NoteNonValideeInfo[]): void { this.nonValidees = notes; }
 
-  async findById(_id: string): Promise<Note | null> { return null; }
+  async findById(_id: string, _schoolId: string): Promise<Note | null> { return null; }
   async findByEleve(_studentId: string, _academicYearId: string): Promise<Note[]> { return []; }
   async findByClasse(_classId: string, _sequenceId: string): Promise<Note[]> { return []; }
   async findByEnseignant(_teacherId: string, _sequenceId: string): Promise<Note[]> { return []; }

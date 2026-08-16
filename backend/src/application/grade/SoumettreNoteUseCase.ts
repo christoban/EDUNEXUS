@@ -8,6 +8,8 @@ import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 export interface SoumettreNoteCommande {
   noteId: string;
   demandeurId: string; // Doit être l'enseignant qui a saisi
+  /** École de l'utilisateur qui soumet, issue du token. Jamais du corps de la requête. */
+  schoolId: string;
 }
 
 export class SoumettreNoteUseCase {
@@ -15,7 +17,7 @@ export class SoumettreNoteUseCase {
 
   async execute(commande: SoumettreNoteCommande): Promise<void> {
     // 1. Charger la note
-    const note = await this.noteRepository.findById(commande.noteId);
+    const note = await this.noteRepository.findById(commande.noteId, commande.schoolId);
     if (!note) {
       throw new Error(`Note introuvable : ${commande.noteId}`);
     }

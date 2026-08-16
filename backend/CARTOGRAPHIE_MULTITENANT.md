@@ -36,7 +36,19 @@ service, helper). Elles restent à échantillonner, mais après les défauts con
 **9 défauts réels confirmés, 8 faux positifs.** Aucun n'est théorique : dans chaque cas j'ai suivi
 le chemin complet route → contrôleur → use case → requête Prisma.
 
-### 2.1 🔴 Critique — `PATCH /api/v2/grades/:id/validate`
+### État des correctifs
+
+| Défaut | Statut |
+|---|---|
+| 2.1 `grades/:id/validate` | ✅ **corrigé** — `NoteRepository.findById(id, schoolId)` |
+| 2.2 `grades/:id/submit` | 🟡 **partiellement corrigé** — cross-tenant fermé, appartenance intra-école encore ouverte (voir 2.2) |
+| 2.3 orientation (×2) | ⬜ ouvert |
+| 2.4 examens (×2) | ⬜ ouvert |
+| 2.5 année académique (×2) | ⬜ ouvert |
+| 2.6 `schools/:id/activate` | ⬜ ouvert |
+| 2.7 `matricules/import-jobs/:id` | ⬜ ouvert |
+
+### 2.1 🔴 Critique — `PATCH /api/v2/grades/:id/validate` — ✅ CORRIGÉ
 
 Route : `grade.routes.ts:30` — `sensitiveWriteLimiter, requireAuth` uniquement.
 Use case : [ValiderNoteUseCase.ts](src/application/grade/ValiderNoteUseCase.ts)
@@ -54,10 +66,24 @@ La tenancy **de la note** n'est vérifiée nulle part. Un Censeur de l'école A,
 normalement, peut valider une note de l'école B s'il en connaît l'identifiant — et la note devient
 définitive (`SUBMITTED → VALIDATED`).
 
-C'est le défaut le plus grave de la cartographie : écriture cross-tenant sur une **note scolaire
+C'était le défaut le plus grave de la cartographie : écriture cross-tenant sur une **note scolaire
 validée**, c'est-à-dire la donnée la moins réversible du produit.
 
-### 2.2 🔴 `PATCH /api/v2/grades/:id/submit` — garde conditionnelle contournable
+**Correctif appliqué.** `NoteRepository.findById` prend désormais un `schoolId` **obligatoire**
+(paramètre requis, non optionnel : le compilateur interdit à tout appelant présent ou futur de
+l'omettre). L'implémentation Prisma passe de `findUnique` à `findFirst` — `findUnique` n'accepte
+que des champs uniques dans son `where`. Les trois use cases concernés (`Valider`, `Soumettre`,
+`Rejeter`) reçoivent le `schoolId` **du token**, jamais du corps de la requête.
+
+Le message d'erreur reste volontairement `Note introuvable` : identique pour « n'existe pas » et
+« existe dans une autre école », sinon le correctif deviendrait un oracle d'existence.
+
+Les trois doubles de test `InMemoryNoteRepository` filtrent réellement sur `schoolId` — un double
+qui accepterait le paramètre en l'ignorant rendrait vert par construction tout test d'isolation.
+Test de non-régression : `ValiderNoteUseCase.test.ts` › « Isolation multi-tenant », **vérifié
+capable d'échouer** (garde neutralisée → 1 fail, restaurée → 10 pass).
+
+### 2.2 🟡 `PATCH /api/v2/grades/:id/submit` — garde conditionnelle contournable — PARTIELLEMENT CORRIGÉ
 
 Route : `grade.routes.ts:29` — `requireAuth` seul, aucune restriction de rôle.
 La protection repose entièrement sur
@@ -71,6 +97,14 @@ if (noteData.recordedById && noteData.recordedById !== commande.demandeurId) thr
 vaut `null`, **la condition entière est sautée** : n'importe quel utilisateur authentifié, de
 n'importe quelle école, peut soumettre la note. La garde protège le cas courant et laisse passer
 exactement le cas où la note n'a pas d'auteur identifié.
+
+**Ce que le correctif de 2.1 ferme ici** : le volet *cross-tenant*. `SoumettreNoteUseCase` charge
+maintenant la note via `findById(noteId, schoolId)`, donc une note d'une autre école est
+introuvable — la garde nullable n'est plus atteignable depuis l'extérieur du tenant.
+
+**Ce qui reste ouvert** : à l'intérieur d'une même école, un utilisateur quelconque peut toujours
+soumettre une note dont le `recordedById` est `null`. Ce n'est plus une faille multi-tenant mais un
+défaut d'appartenance, hors périmètre de ce chantier — à traiter séparément.
 
 ### 2.3 🟠 Écritures cross-tenant — orientation
 

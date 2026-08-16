@@ -13,6 +13,8 @@ export interface RejeterNoteCommande {
   validateurId: string;
   motif: string;
   lang?: Language;
+  /** École de l'utilisateur qui rejette, issue du token. Jamais du corps de la requête. */
+  schoolId: string;
 }
 
 export class RejeterNoteUseCase {
@@ -30,7 +32,7 @@ export class RejeterNoteUseCase {
     }
 
     // 2. Charger et rejeter la note
-    const note = await this.noteRepository.findById(commande.noteId);
+    const note = await this.noteRepository.findById(commande.noteId, commande.schoolId);
     if (!note) {
       throw new Error(`Note introuvable : ${commande.noteId}`);
     }

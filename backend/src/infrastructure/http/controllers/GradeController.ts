@@ -63,6 +63,7 @@ export class GradeController {
       await this.soumettreNote.execute({
         noteId: req.params.id as string,
         demandeurId: user.userId,
+        schoolId: user.schoolId,
       });
       res.json({ success: true, message: 'Note soumise pour validation' });
     } catch (error) {
@@ -77,6 +78,7 @@ export class GradeController {
       const resultat = await this.validerNote.execute({
         noteId: req.params.id as string,
         validateurId: user.userId,
+        schoolId: user.schoolId,
       });
 
       // Déclenche la détection de chute par matière (Phase 3) — fire-and-forget, ne bloque
@@ -114,6 +116,7 @@ export class GradeController {
         validateurId: user.userId,
         motif,
         lang,
+        schoolId: user.schoolId,
       });
       res.json({ success: true, message: 'Note rejetée — enseignant notifié' });
     } catch (error) {

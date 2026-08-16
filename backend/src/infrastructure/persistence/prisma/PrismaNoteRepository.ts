@@ -6,8 +6,10 @@ import type { GradeValidationStatus } from '@domain/types/enums';
 export class PrismaNoteRepository implements NoteRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string): Promise<Note | null> {
-    const data = await this.prisma.grade.findUnique({ where: { id } });
+  async findById(id: string, schoolId: string): Promise<Note | null> {
+    // findFirst et non findUnique : `where` de findUnique n'accepte que des champs uniques,
+    // or schoolId ne l'est pas.
+    const data = await this.prisma.grade.findFirst({ where: { id, schoolId } });
     if (!data) return null;
     return this.toDomain(data);
   }

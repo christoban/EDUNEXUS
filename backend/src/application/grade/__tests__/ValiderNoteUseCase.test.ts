@@ -112,6 +112,7 @@ describe('ValiderNoteUseCase', () => {
       const resultat = await useCase.execute({
         noteId: NOTE_ID_FIXE,
         validateurId: 'censeur-1',
+        schoolId: SCHOOL_ID,
       });
 
       expect(resultat.statut).toBe('VALIDATED');
@@ -126,9 +127,9 @@ describe('ValiderNoteUseCase', () => {
       const note = creerNoteAvecIdFixe();
       await noteRepo.save(note);
 
-      await useCase.execute({ noteId: NOTE_ID_FIXE, validateurId: 'censeur-1' });
+      await useCase.execute({ noteId: NOTE_ID_FIXE, validateurId: 'censeur-1', schoolId: SCHOOL_ID });
 
-      const noteApres = await noteRepo.findById(NOTE_ID_FIXE);
+      const noteApres = await noteRepo.findById(NOTE_ID_FIXE, SCHOOL_ID);
       expect(noteApres?.validationStatus).toBe('VALIDATED');
     });
   });
@@ -143,6 +144,7 @@ describe('ValiderNoteUseCase', () => {
       const resultat = await useCase.execute({
         noteId: NOTE_ID_FIXE,
         validateurId: 'admin-1',
+        schoolId: SCHOOL_ID,
       });
 
       expect(resultat.statut).toBe('VALIDATED');
@@ -156,7 +158,7 @@ describe('ValiderNoteUseCase', () => {
       await noteRepo.save(note);
 
       await expect(
-        useCase.execute({ noteId: NOTE_ID_FIXE, validateurId: 'inconnu' })
+        useCase.execute({ noteId: NOTE_ID_FIXE, validateurId: 'inconnu', schoolId: SCHOOL_ID })
       ).rejects.toThrow('Validateur introuvable');
     });
 
@@ -167,7 +169,7 @@ describe('ValiderNoteUseCase', () => {
       await noteRepo.save(note);
 
       await expect(
-        useCase.execute({ noteId: NOTE_ID_FIXE, validateurId: 'staff-2' })
+        useCase.execute({ noteId: NOTE_ID_FIXE, validateurId: 'staff-2', schoolId: SCHOOL_ID })
       ).rejects.toThrow('Permission refusée');
     });
   });
@@ -179,7 +181,7 @@ describe('ValiderNoteUseCase', () => {
       // noteRepo vide
 
       await expect(
-        useCase.execute({ noteId: 'note-inexistante', validateurId: 'censeur-1' })
+        useCase.execute({ noteId: 'note-inexistante', validateurId: 'censeur-1', schoolId: SCHOOL_ID })
       ).rejects.toThrow('Note introuvable');
     });
 
@@ -191,7 +193,7 @@ describe('ValiderNoteUseCase', () => {
       await noteRepo.save(noteDraft);
 
       await expect(
-        useCase.execute({ noteId: noteDraft.id, validateurId: 'censeur-1' })
+        useCase.execute({ noteId: noteDraft.id, validateurId: 'censeur-1', schoolId: SCHOOL_ID })
       ).rejects.toThrow('Impossible de valider');
     });
 
@@ -220,8 +222,42 @@ describe('ValiderNoteUseCase', () => {
       await noteRepo.save(noteDejaValidee);
 
       await expect(
-        useCase.execute({ noteId: 'note-deja-validee', validateurId: 'censeur-1' })
+        useCase.execute({ noteId: 'note-deja-validee', validateurId: 'censeur-1', schoolId: SCHOOL_ID })
       ).rejects.toThrow('Impossible de valider');
+    });
+  });
+
+  describe('Isolation multi-tenant', () => {
+    it('rejette la validation d\'une note appartenant à une autre école', async () => {
+      const censeur = creerCenseur(); // école school-1, permission VALIDATE_GRADES : acteur légitime
+      userRepo.ajouter(censeur);
+
+      const noteAutreEcole = Note.reconstituer({
+        id: 'note-autre-ecole',
+        schoolId: 'school-2',
+        studentId: 'eleve-9',
+        subjectId: 'maths-1',
+        classId: 'class-3e',
+        academicYearId: 'year-2026',
+        sequenceId: 'seq-1',
+        recordedById: 'teacher-9',
+        sequenceScore: 14,
+        coefficient: 4,
+        maxValue: 20,
+        validationStatus: 'SUBMITTED',
+        isOfflineSync: false,
+        createdAt: new Date(),
+      });
+      await noteRepo.save(noteAutreEcole);
+
+      // « Note introuvable » et non « note d'une autre école » : le message ne doit pas révéler
+      // que la note existe ailleurs.
+      await expect(
+        useCase.execute({ noteId: 'note-autre-ecole', validateurId: 'censeur-1', schoolId: SCHOOL_ID })
+      ).rejects.toThrow('Note introuvable');
+
+      const intacte = await noteRepo.findById('note-autre-ecole', 'school-2');
+      expect(intacte?.validationStatus).toBe('SUBMITTED');
     });
   });
 
@@ -236,6 +272,7 @@ describe('ValiderNoteUseCase', () => {
       const resultat = await useCase.execute({
         noteId: NOTE_ID_FIXE,
         validateurId: 'censeur-1',
+        schoolId: SCHOOL_ID,
       });
       const apres = Date.now();
 

@@ -9,6 +9,8 @@ import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 export interface ValiderNoteCommande {
   noteId: string;
   validateurId: string;
+  /** École de l'utilisateur qui valide, issue du token. Jamais du corps de la requête. */
+  schoolId: string;
 }
 
 export interface ValiderNoteResultat {
@@ -37,7 +39,7 @@ export class ValiderNoteUseCase {
     }
 
     // 2. Charger la note
-    const note = await this.noteRepository.findById(commande.noteId);
+    const note = await this.noteRepository.findById(commande.noteId, commande.schoolId);
     if (!note) {
       throw new Error(`Note introuvable : ${commande.noteId}`);
     }

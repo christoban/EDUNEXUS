@@ -14,7 +14,12 @@ export interface NoteNonValideeInfo {
 
 export interface NoteRepository {
   // Lecture
-  findById(id: string): Promise<Note | null>;
+  /**
+   * Charge une note. Le `schoolId` est OBLIGATOIRE : une note d'une autre école doit être
+   * introuvable, pas seulement interdite. Paramètre requis (et non optionnel) pour que le
+   * compilateur empêche tout appelant futur de l'omettre.
+   */
+  findById(id: string, schoolId: string): Promise<Note | null>;
   findByEleve(studentId: string, academicYearId: string): Promise<Note[]>;
   findByClasse(classId: string, sequenceId: string): Promise<Note[]>;
   findByEnseignant(teacherId: string, sequenceId: string): Promise<Note[]>;
