@@ -71,7 +71,12 @@ export interface AnneeAcademiqueRepository {
   desactiverToutesAnneesEcole(schoolId: string): Promise<void>;
 
   // --- Périodes ---
-  findPeriodeById(id: string): Promise<PeriodeAcademiqueProps | null>;
+  /**
+   * Le `schoolId` est OBLIGATOIRE : une période d'une autre école doit être introuvable, pas
+   * seulement interdite. Paramètre requis pour que le compilateur empêche tout appelant de l'omettre.
+   * NB : AcademicPeriod ne porte pas de schoolId — le filtrage passe par la relation academicYear.
+   */
+  findPeriodeById(id: string, schoolId: string): Promise<PeriodeAcademiqueProps | null>;
   findPeriodesByAnnee(academicYearId: string): Promise<PeriodeAcademiqueProps[]>;
   findPeriodeCourante(schoolId: string): Promise<PeriodeAcademiqueProps | null>;
   findDernierePeriode(academicYearId: string): Promise<PeriodeAcademiqueProps | null>;
@@ -84,7 +89,11 @@ export interface AnneeAcademiqueRepository {
   activerPeriode(periodeId: string): Promise<void>;
 
   // --- Séquences ---
-  findSequenceById(id: string): Promise<SequenceAcademiqueProps | null>;
+  /**
+   * Le `schoolId` est OBLIGATOIRE : une séquence d'une autre école doit être introuvable, pas
+   * seulement interdite. Paramètre requis pour que le compilateur empêche tout appelant de l'omettre.
+   */
+  findSequenceById(id: string, schoolId: string): Promise<SequenceAcademiqueProps | null>;
   findSequencesByPeriode(academicPeriodId: string): Promise<SequenceAcademiqueProps[]>;
   findSequenceCourante(schoolId: string): Promise<SequenceAcademiqueProps | null>;
   saveSequence(sequence: SequenceAcademiqueProps): Promise<void>;

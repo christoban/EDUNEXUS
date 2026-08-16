@@ -49,7 +49,7 @@ export class AcademicYearController {
   definirPeriodeCourante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      await this.definirPeriode.definirPeriode(req.params['id'] as string);
+      await this.definirPeriode.definirPeriode(req.params['id'] as string, req.user!.schoolId);
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'definir_periode_courante', targetType: 'AcademicPeriod', targetId: req.params['id'] as string,
@@ -70,7 +70,7 @@ export class AcademicYearController {
 
   definirSequenceCourante = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.definirPeriode.definirSequence(req.params['id'] as string);
+      await this.definirPeriode.definirSequence(req.params['id'] as string, req.user!.schoolId);
       res.json({ success: true, message: 'Séquence courante définie' });
     } catch (error) {
       this.gererErreur(error, res, next);

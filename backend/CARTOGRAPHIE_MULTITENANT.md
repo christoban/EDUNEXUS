@@ -44,7 +44,7 @@ le chemin complet route → contrôleur → use case → requête Prisma.
 | 2.2 `grades/:id/submit` | 🟡 **partiellement corrigé** — cross-tenant fermé, appartenance intra-école encore ouverte (voir 2.2) |
 | 2.3 orientation (×2) | ⬜ ouvert |
 | 2.4 examens (×2) | ✅ **corrigé** — `updateMany({ id, schoolId })` + 404 si `count === 0` |
-| 2.5 année académique (×2) | ⬜ ouvert |
+| 2.5 année académique (×2) | ✅ **corrigé** — `findPeriodeById/findSequenceById(id, schoolId)` |
 | 2.6 `schools/:id/activate` | ⬜ ouvert |
 | 2.7 `matricules/import-jobs/:id` | ✅ **corrigé** — `findFirst({ id, schoolId })` |
 
@@ -141,7 +141,7 @@ Le rôle est vérifié, l'école jamais. Un admin de A peut écrire un **résult
 suivi d'un `404` si `count === 0`. `update` n'accepte que des champs uniques dans son `where`, d'où
 `updateMany`. Le `count` à 0 confond volontairement « inexistante » et « hors de mon école ».
 
-### 2.5 🟠 Écritures cross-tenant — année académique
+### 2.5 🟠 Écritures cross-tenant — année académique — ✅ CORRIGÉ
 
 `academicYear.routes.ts:9-10`, `requireAuth, requireRole('ADMIN')` :
 
@@ -159,6 +159,22 @@ await this.anneeRepository.activerSequence(sequenceId);
 L'objet chargé fournit lui-même le périmètre de la désactivation en masse. Un admin de A peut donc
 **changer la séquence courante de l'école B** — ce qui déplace le contexte de saisie des notes de
 toute une école.
+
+**Correctif appliqué.** `findPeriodeById` et `findSequenceById` prennent un `schoolId` obligatoire,
+propagé depuis le token par le contrôleur, le générateur de bulletins et le catalogue de l'assistant.
+
+⚠️ **Asymétrie importante entre les deux modèles** : `AcademicSequence` porte une colonne `schoolId`
+directe, mais **`AcademicPeriod` n'en a pas** — sa tenancy vient de son `AcademicYear`. Le filtre
+d'une période passe donc par la relation : `where: { id, academicYear: { schoolId } }`. Ajouter une
+colonne `schoolId` à `AcademicPeriod` serait une migration destructrice (colonne obligatoire sans
+défaut sur une table peuplée) et n'a pas été faite.
+
+Conséquence sur les tests : `PeriodeAcademiqueProps` ne portant pas de `schoolId`, les doubles
+InMemory ne peuvent pas filtrer les périodes — leur paramètre est explicitement `_schoolId` avec un
+commentaire. **L'isolation des périodes n'est donc vérifiable qu'en test d'intégration contre la
+vraie base**, à faire dans le volet V0.2. Celle des séquences est verrouillée par
+`DefinirPeriodeCouranteUseCase.test.ts` › « Isolation multi-tenant », **vérifié capable d'échouer**
+(filtre du double neutralisé → 2 fail, restauré → 3 pass).
 
 ### 2.6 🟠 `POST /api/v2/schools/:id/activate` — `schoolId` pris dans l'URL
 

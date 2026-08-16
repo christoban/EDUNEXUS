@@ -43,7 +43,8 @@ export class InMemoryAnneeAcademiqueRepository implements AnneeAcademiqueReposit
     }
   }
 
-  async findPeriodeById(id: string): Promise<PeriodeAcademiqueProps | null> { return this.periodes.get(id) ?? null; }
+  // _schoolId non utilisé : voir InMemoryAnneeAcademiqueRepository de academicYear.
+  async findPeriodeById(id: string, _schoolId: string): Promise<PeriodeAcademiqueProps | null> { return this.periodes.get(id) ?? null; }
 
   async findPeriodesByAnnee(academicYearId: string): Promise<PeriodeAcademiqueProps[]> {
     return [...this.periodes.values()].filter(p => p.academicYearId === academicYearId);
@@ -71,7 +72,10 @@ export class InMemoryAnneeAcademiqueRepository implements AnneeAcademiqueReposit
     if (p) this.periodes.set(periodeId, { ...p, isCurrent: true });
   }
 
-  async findSequenceById(id: string): Promise<SequenceAcademiqueProps | null> { return this.sequences.get(id) ?? null; }
+  async findSequenceById(id: string, schoolId: string): Promise<SequenceAcademiqueProps | null> {
+    const seq = this.sequences.get(id);
+    return seq && seq.schoolId === schoolId ? seq : null;
+  }
   async findSequencesByPeriode(academicPeriodId: string): Promise<SequenceAcademiqueProps[]> {
     return [...this.sequences.values()].filter(s => s.academicPeriodId === academicPeriodId);
   }

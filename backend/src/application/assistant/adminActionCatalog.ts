@@ -1297,7 +1297,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
           select: { id: true, name: true },
         });
         if (!period) throw new Error(`Aucune période nommée « ${input.periodName} » n'existe pour l'année courante.`);
-        await deps.definirPeriodeCourante.definirPeriode(period.id);
+        await deps.definirPeriodeCourante.definirPeriode(period.id, ctx.schoolId);
         return {
           resultLabel: `Période courante définie sur « ${period.name} »`,
           undoData: { previousPeriodId: previous?.id ?? null },
@@ -1307,7 +1307,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       },
       async undo(_params, undoData, ctx) {
         const previousId = undoData.previousPeriodId as string | null;
-        if (previousId) await deps.definirPeriodeCourante.definirPeriode(previousId);
+        if (previousId) await deps.definirPeriodeCourante.definirPeriode(previousId, ctx.schoolId);
       },
     },
 

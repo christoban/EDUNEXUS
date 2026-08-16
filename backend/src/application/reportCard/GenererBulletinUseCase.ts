@@ -63,7 +63,7 @@ export class GenererBulletinUseCase {
     // sinon un academicPeriodId invalide fait tomber silencieusement dans le early-return "Aucun
     // élève avec des notes validées" (aucune séquence ne peut matcher une période qui n'existe
     // pas), masquant la vraie cause derrière un message trompeur.
-    const periode = await this.anneeRepository.findPeriodeById(commande.academicPeriodId);
+    const periode = await this.anneeRepository.findPeriodeById(commande.academicPeriodId, commande.schoolId);
     if (!periode) throw new Error('Période académique introuvable');
 
     const annee = await this.anneeRepository.findById(commande.academicYearId);

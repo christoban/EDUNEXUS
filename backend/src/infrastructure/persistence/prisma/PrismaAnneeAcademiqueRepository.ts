@@ -70,8 +70,13 @@ export class PrismaAnneeAcademiqueRepository implements AnneeAcademiqueRepositor
 
   // --- Périodes ---
 
-  async findPeriodeById(id: string): Promise<PeriodeAcademiqueProps | null> {
-    const data = await this.prisma.academicPeriod.findUnique({ where: { id } });
+  async findPeriodeById(id: string, schoolId: string): Promise<PeriodeAcademiqueProps | null> {
+    // AcademicPeriod ne porte PAS de colonne schoolId : la tenancy est portée par son AcademicYear.
+    // Le filtre passe donc par la relation. findFirst et non findUnique — le `where` de findUnique
+    // n'accepte que des champs uniques.
+    const data = await this.prisma.academicPeriod.findFirst({
+      where: { id, academicYear: { schoolId } },
+    });
     if (!data) return null;
     return this.periodeToProps(data);
   }
@@ -123,8 +128,9 @@ export class PrismaAnneeAcademiqueRepository implements AnneeAcademiqueRepositor
 
   // --- Séquences ---
 
-  async findSequenceById(id: string): Promise<SequenceAcademiqueProps | null> {
-    const data = await this.prisma.academicSequence.findUnique({ where: { id } });
+  async findSequenceById(id: string, schoolId: string): Promise<SequenceAcademiqueProps | null> {
+    // AcademicSequence porte un schoolId direct, contrairement à AcademicPeriod.
+    const data = await this.prisma.academicSequence.findFirst({ where: { id, schoolId } });
     if (!data) return null;
     return this.sequenceToProps(data);
   }
