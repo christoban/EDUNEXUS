@@ -46,25 +46,43 @@ le chemin complet route → contrôleur → use case → requête Prisma.
 | 2.4 examens (×2) | ✅ **corrigé** — `updateMany({ id, schoolId })` + 404 si `count === 0` |
 | 2.5 année académique (×2) | ✅ **corrigé** — `findPeriodeById/findSequenceById(id, schoolId)` |
 | 2.6 `schools/:id/activate` | ✅ **corrigé** — comparaison `:id` vs token dans la route |
-| 2.7 `matricules/import-jobs/:id` | ✅ **corrigé** — `findFirst({ id, schoolId })` |
+| 2.7 `matricules/import-jobs/:id` | ⚪ **faux positif** — route masquée, jamais exploitable (voir ci-dessous) |
 
-**Les 9 défauts sont fermés.** Mais la couverture de tests est très inégale, et c'est maintenant le
-principal risque restant :
+**Les 9 défauts sont fermés, et tous les correctifs sont désormais verrouillés par un test vérifié
+capable d'échouer.**
 
-| Correctif | Verrouillé par un test ? |
+| Correctif | Test |
 |---|---|
-| 2.1 / 2.2 notes | ✅ test unitaire vérifié capable d'échouer |
-| 2.5 séquences | ✅ test unitaire vérifié capable d'échouer |
-| 2.5 périodes | ❌ impossible en unitaire (`PeriodeAcademiqueProps` n'a pas de `schoolId`) |
-| 2.3 orientation ×2 | ❌ aucun double InMemory pour ce dépôt |
-| 2.4 examens ×2 | ❌ aucun test sur ces routes |
-| 2.6 activation | ❌ aucun test sur cette route |
-| 2.7 job matricules | ❌ aucun test sur cette route |
+| 2.1 / 2.2 notes | `ValiderNoteUseCase.test.ts` › Isolation multi-tenant (unitaire) |
+| 2.5 séquences | `DefinirPeriodeCouranteUseCase.test.ts` › Isolation multi-tenant (unitaire) |
+| 2.3 ×2, 2.4 ×2, 2.5 périodes, 2.6 | `multiTenantIsolationCorrectifs.integration.test.ts` (intégration, vraie base) |
+| 2.7 job matricules | idem — mais voir la correction ci-dessous : le défaut n'était pas exploitable |
 
-Sept correctifs sur neuf ne sont donc **corrects qu'à la lecture du code** : rien n'empêche une
-régression silencieuse. C'est précisément l'objet du volet « tests d'isolation » de V0.2, qui
-demande des tests d'intégration contre la vraie base — la seule façon de couvrir des chemins qui
-n'ont pas de double.
+Méthode de validation : chaque correctif a été **neutralisé un par un**, la suite relancée, puis
+restauré. Neutraliser 2.4 casse 2 tests, chacun des autres en casse 1 — aucun test n'est vert par
+construction.
+
+Le point de méthode qui compte : l'appelant des tests d'intégration est un **ADMIN parfaitement
+légitime dans son école**. Un test utilisant un utilisateur sans le bon rôle serait passé au vert
+sur les 9 défauts d'origine sans rien prouver — il aurait mesuré le middleware, pas l'isolation.
+
+### ⚠️ Correction : le défaut 2.7 n'était pas exploitable
+
+Le test d'intégration a révélé que `matricule.routes.ts` déclare `/import-jobs/:schoolId`
+(`listJobs`, ligne 22) **avant** `/import-jobs/:id` (`getJob`, ligne 23). Express retient la
+première : **`getJob` est inatteignable, c'est du code mort.** Or `listJobs` ignore le paramètre
+d'URL et lit `req.user.schoolId` — aucune fuite n'était donc possible.
+
+La cartographie initiale surestimait ce point : elle a analysé `getJob` isolément, sans considérer
+l'ordre de déclaration des routes. Le correctif appliqué reste en place (défense en profondeur si
+la route redevient un jour atteignable), mais **il ne corrigeait rien d'exploitable**.
+
+Il reste un vrai bug, non lié à la sécurité : **une route déclarée est morte**. La faire vivre
+demande de distinguer les chemins (`/import-jobs/job/:id` par exemple) — c'est un changement d'API,
+donc une décision produit, pas un correctif à passer en douce.
+
+Enseignement de méthode : l'analyse par fichier ne voit pas le masquage de routes. Les catégories
+`SURE-*` de la section 1 partagent cette limite.
 
 ### 2.1 🔴 Critique — `PATCH /api/v2/grades/:id/validate` — ✅ CORRIGÉ
 
