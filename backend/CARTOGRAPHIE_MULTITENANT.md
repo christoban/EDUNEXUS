@@ -42,16 +42,29 @@ le chemin complet route → contrôleur → use case → requête Prisma.
 |---|---|
 | 2.1 `grades/:id/validate` | ✅ **corrigé** — `NoteRepository.findById(id, schoolId)` |
 | 2.2 `grades/:id/submit` | 🟡 **partiellement corrigé** — cross-tenant fermé, appartenance intra-école encore ouverte (voir 2.2) |
-| 2.3 orientation (×2) | ⬜ ouvert |
+| 2.3 orientation (×2) | ✅ **corrigé** — `updateEntretien` / `validerRecommandation` filtrés |
 | 2.4 examens (×2) | ✅ **corrigé** — `updateMany({ id, schoolId })` + 404 si `count === 0` |
 | 2.5 année académique (×2) | ✅ **corrigé** — `findPeriodeById/findSequenceById(id, schoolId)` |
-| 2.6 `schools/:id/activate` | ⬜ ouvert |
+| 2.6 `schools/:id/activate` | ✅ **corrigé** — comparaison `:id` vs token dans la route |
 | 2.7 `matricules/import-jobs/:id` | ✅ **corrigé** — `findFirst({ id, schoolId })` |
 
-⚠️ **Les correctifs 2.4 et 2.7 ne sont couverts par aucun test.** Ces trois routes n'en avaient
-aucun avant, et la tâche n'en a pas ajouté. L'isolation y est correcte à la lecture du code, mais
-rien ne l'empêche de régresser silencieusement — contrairement à 2.1, verrouillé par un test vérifié
-capable d'échouer. À couvrir dans le volet « tests d'isolation » de V0.2.
+**Les 9 défauts sont fermés.** Mais la couverture de tests est très inégale, et c'est maintenant le
+principal risque restant :
+
+| Correctif | Verrouillé par un test ? |
+|---|---|
+| 2.1 / 2.2 notes | ✅ test unitaire vérifié capable d'échouer |
+| 2.5 séquences | ✅ test unitaire vérifié capable d'échouer |
+| 2.5 périodes | ❌ impossible en unitaire (`PeriodeAcademiqueProps` n'a pas de `schoolId`) |
+| 2.3 orientation ×2 | ❌ aucun double InMemory pour ce dépôt |
+| 2.4 examens ×2 | ❌ aucun test sur ces routes |
+| 2.6 activation | ❌ aucun test sur cette route |
+| 2.7 job matricules | ❌ aucun test sur cette route |
+
+Sept correctifs sur neuf ne sont donc **corrects qu'à la lecture du code** : rien n'empêche une
+régression silencieuse. C'est précisément l'objet du volet « tests d'isolation » de V0.2, qui
+demande des tests d'intégration contre la vraie base — la seule façon de couvrir des chemins qui
+n'ont pas de double.
 
 ### 2.1 🔴 Critique — `PATCH /api/v2/grades/:id/validate` — ✅ CORRIGÉ
 
@@ -111,7 +124,7 @@ introuvable — la garde nullable n'est plus atteignable depuis l'extérieur du 
 soumettre une note dont le `recordedById` est `null`. Ce n'est plus une faille multi-tenant mais un
 défaut d'appartenance, hors périmètre de ce chantier — à traiter séparément.
 
-### 2.3 🟠 Écritures cross-tenant — orientation
+### 2.3 🟠 Écritures cross-tenant — orientation — ✅ CORRIGÉ
 
 | Route | Repository | Requête |
 |---|---|---|
@@ -126,6 +139,17 @@ correctement sur les deux (ligne 27), et `findRecommandationById(id, schoolId)` 
 routes plus récentes de la même famille (`valider-conseiller`, `proposer-eleve`, `choisir-piste`)
 transmettent toutes `schoolId: user.schoolId`. Ce n'est pas une lacune de conception : c'est une
 dérive entre code ancien et code récent.
+
+**Correctif appliqué.** Les deux méthodes du dépôt prennent un `schoolId` obligatoire.
+`validerRecommandation` **réutilise `findRecommandationById(id, schoolId)`** — le lecteur déjà
+filtré qui existait à côté sans être appelé. `updateEntretien` contrôle la tenancy avant écriture
+via la relation `fiche` : `EntretienOrientation` ne porte pas de `schoolId` propre.
+
+Les deux méthodes du contrôleur traduisent désormais « introuvable » en **404**, et non plus en 500
+via `next(err)` — même code et même message que pour une ressource inexistante.
+
+Vérifié au passage : `ValiderRecommandationConseillerUseCase` est bien sûr, il lit d'abord via
+`findRecommandationById(id, schoolId)`. La classification initiale était correcte.
 
 ### 2.4 🟠 Écritures cross-tenant — examens — ✅ CORRIGÉ
 
@@ -176,7 +200,7 @@ vraie base**, à faire dans le volet V0.2. Celle des séquences est verrouillée
 `DefinirPeriodeCouranteUseCase.test.ts` › « Isolation multi-tenant », **vérifié capable d'échouer**
 (filtre du double neutralisé → 2 fail, restauré → 3 pass).
 
-### 2.6 🟠 `POST /api/v2/schools/:id/activate` — `schoolId` pris dans l'URL
+### 2.6 🟠 `POST /api/v2/schools/:id/activate` — `schoolId` pris dans l'URL — ✅ CORRIGÉ
 
 [school-config.routes.ts:9](src/infrastructure/http/routes/school-config.routes.ts#L9) :
 
@@ -190,6 +214,10 @@ router.post('/schools/:id/activate', requireAuth, requireRole('ADMIN'), async (r
 — ce qui est correct pour un use case. La comparaison manquante est celle de la route. Un admin de
 A peut déclencher l'activation de B (création de classes, matières, structure) dès lors que B est
 approuvée.
+
+**Correctif appliqué.** Comparaison `schoolId !== req.user.schoolId` → **403** dans la route, avant
+tout appel au use case. Le use case reste inchangé : lui faire confiance au `schoolId` reçu est le
+bon contrat, la vérification appartient à la couche qui détient le token.
 
 ### 2.7 🟡 Lecture cross-tenant — `GET /api/v2/matricules/import-jobs/:id` — ✅ CORRIGÉ
 

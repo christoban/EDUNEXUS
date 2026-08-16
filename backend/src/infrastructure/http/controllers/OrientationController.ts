@@ -192,7 +192,7 @@ export class OrientationController {
       const user = req.user;
       if (!this.checkPermission(user, res)) return;
       const { notes, recommendations, nextActions, parentNotified, followUpDate, status } = req.body;
-      const updated = await this.repo.updateEntretien(req.params.id as string, {
+      const updated = await this.repo.updateEntretien(req.params.id as string, user.schoolId, {
         notes,
         recommendations,
         nextActions,
@@ -201,7 +201,15 @@ export class OrientationController {
         status,
       });
       res.json({ success: true, data: updated });
-    } catch (err) { next(err); }
+    } catch (err) {
+      // Hors tenant ou inexistant : 404 indiscernables, pour ne pas révéler l'existence
+      // d'une ressource appartenant à une autre école.
+      if (err instanceof Error && err.message.includes('introuvable')) {
+        res.status(404).json({ success: false, message: err.message });
+        return;
+      }
+      next(err);
+    }
   };
 
   // POST /api/v2/orientation/fiches/:id/tests
@@ -272,9 +280,17 @@ export class OrientationController {
         res.status(403).json({ success: false, message: 'Seul un ADMIN peut valider une recommandation de série' });
         return;
       }
-      const updated = await this.repo.validerRecommandation(req.params.id as string);
+      const updated = await this.repo.validerRecommandation(req.params.id as string, user.schoolId);
       res.json({ success: true, data: updated });
-    } catch (err) { next(err); }
+    } catch (err) {
+      // Hors tenant ou inexistant : 404 indiscernables, pour ne pas révéler l'existence
+      // d'une ressource appartenant à une autre école.
+      if (err instanceof Error && err.message.includes('introuvable')) {
+        res.status(404).json({ success: false, message: err.message });
+        return;
+      }
+      next(err);
+    }
   };
 
   // POST /api/v2/orientation/fiches/:id/suivis

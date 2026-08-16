@@ -166,7 +166,11 @@ export interface IOrientationRepository {
     parentNotified?: boolean; followUpDate?: Date;
     status?: StatutEntretien;
   }): Promise<EntretienDetail>;
-  updateEntretien(entretienId: string, data: Partial<{
+  /**
+   * Le `schoolId` est OBLIGATOIRE. EntretienOrientation ne porte pas de schoolId : sa tenancy
+   * vient de sa FicheOrientation, le filtre passe donc par la relation `fiche`.
+   */
+  updateEntretien(entretienId: string, schoolId: string, data: Partial<{
     notes: string; recommendations: string; nextActions: string;
     parentNotified: boolean; followUpDate: Date; status: StatutEntretien;
   }>): Promise<EntretienDetail>;
@@ -185,7 +189,8 @@ export interface IOrientationRepository {
   createOrUpdateRecommandation(ficheId: string, studentId: string, data: {
     serieActuelle: string; serieRecommandee: string; justification: string;
   }): Promise<RecommandationDetail>;
-  validerRecommandation(recommandationId: string): Promise<RecommandationDetail>;
+  /** Le `schoolId` est OBLIGATOIRE : une recommandation d'une autre école doit être introuvable. */
+  validerRecommandation(recommandationId: string, schoolId: string): Promise<RecommandationDetail>;
 
   // Recommandation — moteur de checkpoints (workflow CALCULEE → ... → VALIDEE_ELEVE/VALIDEE_PAR_DEFAUT)
   findRecommandationById(recommandationId: string, schoolId: string): Promise<RecommandationDetail | null>;

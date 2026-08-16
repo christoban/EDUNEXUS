@@ -139,10 +139,18 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     return created as EntretienDetail;
   }
 
-  async updateEntretien(entretienId: string, data: Partial<{
+  async updateEntretien(entretienId: string, schoolId: string, data: Partial<{
     notes: string; recommendations: string; nextActions: string;
     parentNotified: boolean; followUpDate: Date; status: StatutEntretien;
   }>): Promise<EntretienDetail> {
+    // Contrôle de tenancy avant écriture : EntretienOrientation n'a pas de schoolId propre, on
+    // passe par sa fiche. Message volontairement identique à celui d'un entretien inexistant.
+    const autorise = await this.prisma.entretienOrientation.findFirst({
+      where: { id: entretienId, fiche: { schoolId } },
+      select: { id: true },
+    });
+    if (!autorise) throw new Error('Entretien introuvable');
+
     const updated = await this.prisma.entretienOrientation.update({
       where: { id: entretienId },
       data: {
@@ -222,7 +230,11 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     return created as RecommandationDetail;
   }
 
-  async validerRecommandation(recommandationId: string): Promise<RecommandationDetail> {
+  async validerRecommandation(recommandationId: string, schoolId: string): Promise<RecommandationDetail> {
+    // Réutilise le lecteur déjà filtré par école plutôt que d'en réécrire un.
+    const existante = await this.findRecommandationById(recommandationId, schoolId);
+    if (!existante) throw new Error('Recommandation introuvable');
+
     const updated = await this.prisma.recommandationSerie.update({
       where: { id: recommandationId },
       data: { adminValidated: true, status: 'VALIDEE_ADMIN' },
