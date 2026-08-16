@@ -1,0 +1,202 @@
+# Cartographie de l'exposition multi-tenant — routes à paramètre d'identifiant
+
+**Date** : 2026-08-15 · **Périmètre** : `backend/src/infrastructure/http/routes/*.ts` +
+routes déclarées inline dans `src/infrastructure/config/hexagonal.bootstrap.ts`.
+**Objet** : préparer le chantier V0.2 (tests d'isolation cross-tenant) en identifiant les routes
+qui acceptent un identifiant en paramètre et pourraient donc lire ou écrire hors de leur école.
+
+**Méthode** : extraction mécanique des 205 routes portant un `:param`, puis analyse de signaux
+(présence de `schoolId` dans la requête Prisma, comparaison explicite dans le contrôleur ou le use
+case, middleware de rôle, helper privé de chargement), puis **relecture manuelle intégrale des 17
+routes classées À RISQUE**. Les catégories SÛRES n'ont pas été relues une par une : elles reposent
+sur un signal positif vérifiable dans le code, pas sur une absence de signal.
+
+---
+
+## 1. Vue d'ensemble
+
+| Classe | Nb | Signification |
+|---|---:|---|
+| `SURE-A` | 75 | Requête filtrée sur `id` **et** `schoolId` |
+| `SURE-B` | 55 | Comparaison explicite `schoolId !== …` dans le contrôleur ou le use case |
+| `SURE-MASTER` | 17 | Route plateforme (master admin), transverse aux écoles **par conception** |
+| `SURE-OWNER` | 1 | Appartenance vérifiée par `userId`/`teacherId` — plus strict que `schoolId` |
+| `A-VERIFIER` | 40 | Aucun signal négatif, mais aucun signal positif automatiquement détectable |
+| `A-RISQUE` | 17 | Aucun filtrage tenant détectable → **relues manuellement** (section 2) |
+| **Total** | **205** | |
+
+Les 40 `A-VERIFIER` ne sont pas des vulnérabilités présumées : ce sont majoritairement des routes
+dont la protection passe par une couche que l'analyse statique ne traverse pas (repository partagé,
+service, helper). Elles restent à échantillonner, mais après les défauts confirmés ci-dessous.
+
+---
+
+## 2. Défauts confirmés — relecture manuelle des 17 routes À RISQUE
+
+**9 défauts réels confirmés, 8 faux positifs.** Aucun n'est théorique : dans chaque cas j'ai suivi
+le chemin complet route → contrôleur → use case → requête Prisma.
+
+### 2.1 🔴 Critique — `PATCH /api/v2/grades/:id/validate`
+
+Route : `grade.routes.ts:30` — `sensitiveWriteLimiter, requireAuth` uniquement.
+Use case : [ValiderNoteUseCase.ts](src/application/grade/ValiderNoteUseCase.ts)
+
+```ts
+// ligne 33 — vérifie que le VALIDATEUR a la permission (question : « qui agit ? »)
+if (!validateur.aPermission('VALIDATE_GRADES')) { … }
+
+// ligne 40 — charge la note SANS aucun filtre d'école (question jamais posée : « sur quoi ? »)
+const note = await this.noteRepository.findById(commande.noteId);
+```
+
+`NoteRepository.findById` est un `prisma.grade.findUnique({ where: { id } })` : pas de `schoolId`.
+La tenancy **de la note** n'est vérifiée nulle part. Un Censeur de l'école A, authentifié
+normalement, peut valider une note de l'école B s'il en connaît l'identifiant — et la note devient
+définitive (`SUBMITTED → VALIDATED`).
+
+C'est le défaut le plus grave de la cartographie : écriture cross-tenant sur une **note scolaire
+validée**, c'est-à-dire la donnée la moins réversible du produit.
+
+### 2.2 🔴 `PATCH /api/v2/grades/:id/submit` — garde conditionnelle contournable
+
+Route : `grade.routes.ts:29` — `requireAuth` seul, aucune restriction de rôle.
+La protection repose entièrement sur
+[SoumettreNoteUseCase.ts:25](src/application/grade/SoumettreNoteUseCase.ts#L25) :
+
+```ts
+if (noteData.recordedById && noteData.recordedById !== commande.demandeurId) throw …
+```
+
+`recordedById` est `String?` — nullable ([schema.prisma:1163](prisma/schema.prisma#L1163)). Quand il
+vaut `null`, **la condition entière est sautée** : n'importe quel utilisateur authentifié, de
+n'importe quelle école, peut soumettre la note. La garde protège le cas courant et laisse passer
+exactement le cas où la note n'a pas d'auteur identifié.
+
+### 2.3 🟠 Écritures cross-tenant — orientation
+
+| Route | Repository | Requête |
+|---|---|---|
+| `PATCH /api/v2/orientation/entretiens/:id` | `updateEntretien` | `where: { id: entretienId }` ([PrismaOrientationRepository.ts:147](src/infrastructure/repositories/PrismaOrientationRepository.ts#L147)) |
+| `PATCH /api/v2/orientation/recommandations/:id/valider` | `validerRecommandation` | `where: { id: recommandationId }` ([:227](src/infrastructure/repositories/PrismaOrientationRepository.ts#L227)) |
+
+La seconde ne vérifie que `user.role !== 'ADMIN'` — donc un admin, mais de n'importe quelle école.
+
+**Le bon motif existe déjà dans le même fichier** : `findFicheDetailById(ficheId, schoolId)` filtre
+correctement sur les deux (ligne 27), et `findRecommandationById(id, schoolId)` **accepte déjà un
+`schoolId`** — il n'est simplement pas utilisé par le chemin de validation. De même, les trois
+routes plus récentes de la même famille (`valider-conseiller`, `proposer-eleve`, `choisir-piste`)
+transmettent toutes `schoolId: user.schoolId`. Ce n'est pas une lacune de conception : c'est une
+dérive entre code ancien et code récent.
+
+### 2.4 🟠 Écritures cross-tenant — examens
+
+`examen.routes.ts:10-11`, toutes deux `requireAuth, requireRole('ADMIN')` :
+
+- `PATCH /api/v2/examens/:id/set-candidate-number` → `examRegistration.update({ where: { id: examId } })`
+- `PATCH /api/v2/examens/:id/result` → `examRegistration.update({ where: { id: examId } })`
+
+Le rôle est vérifié, l'école jamais. Un admin de A peut écrire un **résultat d'examen officiel**
+(`status: 'RESULT_AVAILABLE'`) sur une inscription de B.
+
+### 2.5 🟠 Écritures cross-tenant — année académique
+
+`academicYear.routes.ts:9-10`, `requireAuth, requireRole('ADMIN')` :
+
+- `PATCH /api/v2/academic-years/periods/:id/set-current`
+- `PATCH /api/v2/academic-years/sequences/:id/set-current`
+
+Les deux use cases suivent le même schéma :
+
+```ts
+const sequence = await this.anneeRepository.findSequenceById(sequenceId); // pas de schoolId
+await this.anneeRepository.desactiverToutesSequences(sequence.academicPeriodId);
+await this.anneeRepository.activerSequence(sequenceId);
+```
+
+L'objet chargé fournit lui-même le périmètre de la désactivation en masse. Un admin de A peut donc
+**changer la séquence courante de l'école B** — ce qui déplace le contexte de saisie des notes de
+toute une école.
+
+### 2.6 🟠 `POST /api/v2/schools/:id/activate` — `schoolId` pris dans l'URL
+
+[school-config.routes.ts:9](src/infrastructure/http/routes/school-config.routes.ts#L9) :
+
+```ts
+router.post('/schools/:id/activate', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
+  const schoolId = req.params.id as string;          // ← jamais comparé à req.user.schoolId
+  const result = await activateUseCase.execute({ schoolId });
+```
+
+`ActiverEtablissementUseCase` fait confiance au `schoolId` reçu (ligne 38 : `where: { id: schoolId }`)
+— ce qui est correct pour un use case. La comparaison manquante est celle de la route. Un admin de
+A peut déclencher l'activation de B (création de classes, matières, structure) dès lors que B est
+approuvée.
+
+### 2.7 🟡 Lecture cross-tenant — `GET /api/v2/matricules/import-jobs/:id`
+
+`matricule.routes.ts:23` — `requireAuth, requireRole('ADMIN','STAFF')` :
+
+```ts
+const job = await this.prisma.matriculeImportJob.findUnique({ where: { id: jobId } });
+res.json({ success: true, data: job });
+```
+
+Le job est renvoyé tel quel. Fuite de lecture seule, donc moins grave que les précédentes, mais le
+contenu d'un job d'import de matricules concerne nominativement des élèves.
+
+### 2.8 Faux positifs vérifiés (8)
+
+| Route(s) | Pourquoi c'est sûr |
+|---|---|
+| 8 routes `HRController` | Protection dans le helper privé `loadEmployeeOrFail` → `findFirst({ where: { id, schoolId, role: { in: […] } } })` — invisible à l'analyse statique |
+| `GET /orientation/fiches/:id` | Transmet `user.schoolId` → `findFicheDetailById(ficheId, schoolId)` → `where: { id, schoolId }` |
+| `GET /hr/me/document/:index/download` | `userId` vient du JWT ; l'index adresse le document de l'utilisateur lui-même |
+| `masterAdmin /schools/:id`, `/schools/:id/plan` | `router.use(protectMaster)` + `authorizeMaster(['super_admin','platform_admin'])` — transverse par conception |
+| `eleve-onboarding /token/:token`, `invite/:token` | Pré-authentification volontaire ; le jeton **est** le secret |
+| `GET /orientation/aspirations/:checkpointType` | Le paramètre est une énumération, pas un identifiant d'entité |
+
+---
+
+## 3. Ce que la cartographie dit du code
+
+Les 9 défauts ne sont pas répartis au hasard. Ils partagent un motif unique :
+
+> **le rôle de l'acteur est vérifié, la tenancy de l'objet ne l'est pas.**
+
+`requireRole('ADMIN')` répond à « cette personne a-t-elle le droit de faire ça ? » et donne le
+sentiment que la route est protégée. Elle ne répond jamais à « sur quel objet ? ». Les 130 routes
+sûres transmettent le `schoolId` du token jusqu'à la requête ; les 9 défectueuses s'arrêtent au
+middleware.
+
+Corollaire pratique pour V0.2 : un test d'isolation qui se contente d'appeler la route avec un
+utilisateur sans le bon rôle **passera au vert sur les 9 défauts**. Le test doit utiliser un acteur
+parfaitement légitime dans son école et une ressource d'une autre école.
+
+---
+
+## 4. Décision à prendre
+
+Les 9 défauts sont des vulnérabilités confirmées, dont 2 en écriture sur des données scolaires
+définitives (validation de note, résultat d'examen). Deux options, la même que pour la lacune RBAC
+de `filterCatalogForUser` :
+
+- **(a) corriger puis tester** — les correctifs sont petits et localisés (passer `schoolId` jusqu'à
+  la requête, comparer dans la route pour 2.6) ; les tests V0.2 verrouillent ensuite le
+  comportement corrigé ;
+- **(b) tester d'abord** — écrire les tests rouges, puis corriger.
+
+Je recommande **(a)** pour 2.1 et 2.2 (les deux plus graves, sur les notes) et **(b)** pour le
+reste : c'est le seul moyen de garantir que chaque test est capable d'échouer, discipline appliquée
+tout au long de ce projet. Rien n'est en production, donc aucune contrainte de calendrier ne pèse
+sur ce choix.
+
+---
+
+## 5. Limites de cette cartographie
+
+- Les catégories `SURE-*` reposent sur un signal positif détecté automatiquement, **non relu route
+  par route**. Un faux négatif y reste possible.
+- Les 40 `A-VERIFIER` n'ont pas été tranchées.
+- Seules les routes portant un `:param` sont couvertes. Une route sans paramètre qui lit un
+  identifiant dans le **corps** de la requête présenterait le même risque et n'apparaît pas ici —
+  c'est le prolongement naturel de ce travail.
