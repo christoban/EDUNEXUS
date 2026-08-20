@@ -85,7 +85,7 @@
 - **Interactions** : Socket.io (in-app), Email (Resend/Nodemailer), SMS (bilingues), modèles `Notification`/`Announcement`/`Message`/`BroadcastLog`.
 - **Son des notifications** (juillet 2026) :
   - **In-app** (app ouverte, Socket.io) : **fait**. `fe/lib/notificationSound.ts` (carillon synthétisé en Web Audio API, aucun fichier audio) déclenché depuis `fe/hooks/NotificationContext.tsx` (`onNotification`) — un seul point de branchement, couvre tous les rôles/dashboards puisque `NotificationBell`/`NotificationCenter` partagent ce contexte.
-  - **Push** (app fermée/tél. verrouillé, `fe/worker/index.js`) : son **système par défaut uniquement** (`silent: false`, explicite dans le code) — un son **personnalisé** n'est PAS atteignable en Web Push standard (limite navigateur, surtout iOS), quel que soit le code écrit ici. **Reste à faire, uniquement au moment de l'empaquetage Capacitor** (voir ARCHITECTURE.md §8 ADR-10) : basculer sur `@capacitor/push-notifications` (APNs/FCM) et fournir un fichier son (`.caf`/`.wav` iOS, `.mp3`/`.wav` Android) dans le payload de notification. Rien à préparer avant cette bascule. Plan détaillé : [Plan_Capacitor_Mobile_ZekoulABia.md](Plan_Capacitor_Mobile_ZekoulABia.md).
+  - **Push** (app fermée/tél. verrouillé, `fe/worker/index.js`) : son **système par défaut uniquement** (`silent: false`, explicite dans le code) — un son **personnalisé** n'est PAS atteignable en Web Push standard (limite navigateur, surtout iOS), quel que soit le code écrit ici. **Reste à faire, uniquement au moment de l'empaquetage Capacitor** (voir ARCHITECTURE.md §8 ADR-10) : basculer sur `@capacitor/push-notifications` (APNs/FCM) et fournir un fichier son (`.caf`/`.wav` iOS, `.mp3`/`.wav` Android) dans le payload de notification. Rien à préparer avant cette bascule. Plan détaillé : [Plan_Capacitor_Mobile_ZekoulABia.md](docs/Plan_Capacitor_Mobile_ZekoulABia.md).
 
 ## 13. Assistant IA / Copilot admin
 
@@ -132,7 +132,7 @@
 ## 21. Internationalisation (i18n) & thème
 
 **Objectif** : afficher la bonne langue par sous-système/section, et un thème clair/sombre cohérent.
-- **i18n** : `fe/lib/i18n/`, `fe/locales/{fr,en}/*.json` (12 namespaces, parité stricte), `useT` ; backend `utils/languageHelper.ts` (`resolveLanguage`). Emails/SMS/bulletins/prompts Groq alignés sur cette source unique.
+- **i18n** : `fe/lib/i18n/`, `fe/locales/{fr,en}/*.json` (13 namespaces, parité stricte), `useT` ; backend `utils/languageHelper.ts` (`resolveLanguage`). Emails/SMS/bulletins/prompts Groq alignés sur cette source unique.
 - **Thème** : `next-themes` (`providers.tsx`), tokens `.dark` (`globals.css`), `ThemeToggle`.
 
 ## 22. Mode hors-ligne (PWA)
@@ -191,3 +191,104 @@
 - **Copilot** : actions `ouvrir_fenetre_lv2`, `suivi_lv2`
 - **Frontend admin** : `SectionAdminLV2Choice.tsx` — création, suivi, saisie manuelle
 - **Frontend élève** : endpoints `/students/me/lv2-choice-window` et `/students/me/lv2-choice`
+
+---
+
+## 26. Annonces
+
+**Objectif** : publier des annonces ciblées (rôles/classes), avec expiration et modération.
+
+- **Backend** : `app/announcement/*` (5 use cases), `AnnouncementController`, `announcement.routes.ts`
+- **Schéma** : `Announcement` (cibles, dates, statut modération via `SchoolConfig`)
+- **Frontend** : sections annonces côté admin/staff/élèves
+- **Interactions** : ciblage par rôle/classe, purge automatique des annonces expirées (`PurgerAnnoncesExpireesUseCase`)
+
+## 27. Messagerie in-app & modération
+
+**Objectif** : conversations entre membres de l'établissement (élève→enseignant, canaux classe/parents), avec modération optionnelle.
+
+- **Backend** : `app/messagerie/*` (10 use cases), `CommunicationsController`, `messagerie.routes.ts`
+- **Schéma** : `Conversation`, `ConversationParticipant`, `Message`, `MessageReadStatus`
+- **Règles** : accès aux conversations privées réservé aux participants ; modération `PENDING` activable via `SchoolConfig.messageModeration` ; idempotence `clientMessageId`
+- **Frontend** : `SectionCommunications.tsx` et écrans messagerie
+
+## 28. Événements académiques
+
+**Objectif** : planifier des événements (examens, échéances) avec fenêtres et ressources liées.
+
+- **Backend** : `app/academicEvent/*` (5 use cases), `AcademicEventController`, `academicEvent.routes.ts`
+- **Schéma** : `AcademicEvent`, `SchoolCalendarException`
+- **Interactions** : activation de ressources liées au déclenchement (`activerRessourceLiee`), ajustement de fenêtres
+
+## 29. Discipline
+
+**Objectif** : registre disciplinaire et conseils de discipline.
+
+- **Backend** : `app/discipline/*` (2 use cases), `DisciplineController` (lister/creer/lever), `DisciplineCouncilController`, `discipline.routes.ts`
+- **Schéma** : `DisciplineRecord`, `DisciplineCouncilSession`
+- **Interactions** : justification des absences persistée (`AttendanceController.justifierAbsence`), convocation/tenue de conseil
+
+## 30. Groupes d'écoles & transferts (multi-établissement)
+
+**Objectif** : un propriétaire de groupe (`SchoolGroup`) gère plusieurs écoles et orchestre les transferts d'élèves/enseignants entre elles.
+
+- **Backend** : `app/schoolGroup/*` (11 use cases), `GroupAuthController` (login dédié), `GroupTransferController`, `GroupDashboardController`, `GroupTransferController`
+- **Schéma** : `SchoolGroup`, `SchoolGroupOwner`, `GroupTransferRequest`
+- **Flux** : demande de transfert (école A) → validation (école B) → acceptation (`AccepterTransfertEleve/EnseignantUseCase`) ; KPI consolidés (`calculerKpisEcole`)
+- **Frontend** : `fe/app/group/` (login, `[token]`, dashboard)
+
+## 31. Statistiques officielles (MINESEC / MINEDUB)
+
+**Objectif** : générer les déclarations statistiques réglementaires.
+
+- **Backend** : `app/statisticalCampaign/*` (`GenererDeclarationStatistiqueMinesecUseCase`), `app/statisticalCampaignMinedub/*` (`GenererRapportSyntheseMinedubUseCase`), controllers `StatisticalCampaignController` / `StatisticalCampaignMinedubController`
+- **Schéma** : `StatisticalCampaignTemplate`, `CampaignFieldMapping`, `StatisticalSubmission`, `MinedubStatisticalReport`
+- **Détail** : maps de correspondance MINESEC (`minesecAgeDistributionMap`, `minesecEsgFieldMap`, `minesecEstpGridMap`, `minesecFixedFieldMap`, `minesecTechnicalCatalog`), champs auto résolus (`resolveAutoFields`)
+
+## 32. Matricules & carte scolaire
+
+**Objectif** : importer/gérer les matricules (dont carte scolaire officielle), détecter et corriger les erreurs.
+
+- **Backend** : `app/matricule/*` (6 use cases), `MatriculeController`, `matricule.routes.ts`
+- **Schéma** : `MatriculeImportJob`, `InscriptionMinesec`
+- **Interactions** : import Excel (`parserMatriculeExcel`), synchronisation carte scolaire (`SyncFromCarteScolaireUseCase`), correspondance floue (`stringSimilarity`, `ConfirmerCorrespondanceFuzzyUseCase`)
+
+## 33. APEE (association des parents)
+
+**Objectif** : transactions et dépenses de l'association des parents d'élèves.
+
+- **Backend** : `app/apee/*` (2 use cases), `APEEController`, `apee.routes.ts`
+- **Schéma** : `APEETransaction`
+- **Flux** : création de transaction → validation de dépense (`ValiderDepenseAPEEUseCase`)
+
+## 34. Suivi des élèves
+
+**Objectif** : actions de suivi individuel et historique.
+
+- **Backend** : `app/suivi/*` (5 use cases), `StudentFollowUpController`
+- **Schéma** : `StudentFollowUpAction`
+- **Flux** : création d'action → assignation → clôture ; historique par élève
+
+## 35. Groupes d'élèves & salles
+
+**Objectif** : organiser les élèves en groupes/sets et les assigner à des salles.
+
+- **Backend** : `app/studentGroup/*` (8 use cases), `StudentGroupController`, `app/room/*` (3 use cases), `RoomController`
+- **Schéma** : `StudentGroupSet`, `StudentGroup`, `StudentGroupMembership`, `Room`, `ClassRoomAssignment`
+- **Interactions** : assignation/retrait salle (classe ou groupe), sets réutilisables (`CreerStudentGroupSetUseCase`)
+
+## 36. Paiements MINESEC
+
+**Objectif** : générer les paiements réglementaires MINESEC et leurs synthèses.
+
+- **Backend** : `app/paiementMinesec/*` (4 use cases), `PaiementMinesecController`
+- **Schéma** : `PaiementMinesec`, `PaiementEtablissement`, `TarifMinesecReference`
+- **Flux** : génération par école (`GenererPaiementsMinesecPourEcoleUseCase`), vues école/élève (`GetSchoolPaymentOverviewUseCase`, `GetStudentPaymentDashboardUseCase`)
+
+## 37. Push notifications
+
+**Objectif** : abonnement aux notifications push (web) et désinscription.
+
+- **Backend** : `app/pushNotification/*` (2 use cases), `PushNotificationController`
+- **Schéma** : `PushSubscription`
+- **Limite connue** : son personnalisé uniquement au moment de l'empaquetage Capacitor (voir §12 et ARCHITECTURE.md §8 ADR-10)

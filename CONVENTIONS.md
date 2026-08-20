@@ -55,10 +55,10 @@
 
 ---
 
-## 5. Prisma & base de données (Windows)
+## 5. Prisma & base de données (Fedora Linux)
 
 - **Migrations** : `npx prisma migrate dev --name <nom> --skip-generate` depuis `backend/`.
-- **`prisma generate` échoue** (EPERM Windows) — attendu. Pour un **nouveau modèle**, utiliser `(prisma as any).monModele` (le délégué existe au runtime malgré l'échec du binaire).
+- **`prisma generate`** : fonctionne normalement sous Fedora (binaire `.so`, plus de verrou `.dll` Windows). Arrêter le serveur dev/`prisma studio` avant de lancer la commande. Le repli `(prisma as any).monModele` n'est plus systématique (héritage Windows).
 - **Nouveau modèle** = ajouter au `schema.prisma` + migration + index `@@index([schoolId])` par défaut. Respecter le style des modèles voisins (relations nommées, `onDelete: Cascade` cohérent).
 - **Jamais** supprimer une colonne sans (i) preuve qu'elle n'est lue nulle part, (ii) retrait préalable du code, (iii) justification. En cas de doute : garder + documenter.
 
@@ -80,7 +80,7 @@
 
 - **Tout texte affiché** passe par `useT('<namespace>')('clé')`. Aucune chaîne UTF en dur destinée à l'utilisateur.
 - **Parité stricte fr/en** : toute clé ajoutée dans `locales/fr/<ns>.json` doit exister dans `locales/en/<ns>.json` (et vice-versa). Vérifier la parité (mêmes clés, même nombre).
-- **Namespaces** : `common, navigation, admin, teacher, staff, parent, student, grades, finance, discipline, errors, onboarding`.
+- **Namespaces** : `common, navigation, admin, teacher, staff, parent, student, grades, finance, discipline, errors, onboarding, hrSelfService`.
 - **Résolution de langue** : **une seule** fonction `resolveLanguage(subsystem, sectionCode?)` (frontend `lib/i18n`, backend `utils/languageHelper`). **Ne jamais recréer** une autre logique. Langue dérivée des données (établissement/section), **pas de l'URL**.
 - **Pages « universelles » (login, landing publique, onboarding)** : elles ne concernent **aucun établissement précis** (elles servent FR **et** EN). Règle : **démarrage en français par défaut + toggle FR/EN** (`components/LanguageSwitch`), jamais de langue dérivée d'une école. Le choix utilisateur est **mémorisé** (`localStorage ZEKOULABIA_lang_override`) et prime partout ensuite. La langue de l'établissement ne s'applique qu'**après connexion** (dashboard, école `ACTIVE`). Toute nouvelle page publique/pré-connexion doit suivre cette règle (toggle + surcharge).
 - **Prompts Groq / emails / SMS** : toujours injecter la langue via `resolveLanguage` (+ `instructionLangue` pour les prompts).

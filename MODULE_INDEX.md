@@ -34,6 +34,23 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 | **lv2Choice** (5 UC) | Choix LV2 numérisé : fenêtres, soumission élève/admin, application | `app/lv2Choice`, `infra/http/controllers/Lv2ChoiceController` | `OuvrirFenetreChoixLV2UseCase`, `SoumettreChoixLV2EleveUseCase`, `SaisirChoixLV2ManuelUseCase`, `AppliquerChoixLV2UseCase`, `SuivreFenetreChoixLV2UseCase` | Prisma, `AffecterLV2EleveUseCase` |
 | **entranceExam** (7 UC) | Concours d'entrée 6e : sessions, candidats, admission, CEP, scan Vision, anomalies | `app/entranceExam`, `infra/http/controllers/EntranceExamController` | `CreerSessionConcoursUseCase`, `CalculerAdmissionConcoursUseCase`, `EnregistrerResultatCepUseCase`, `ScannerListeCandidatsUseCase`, `DetecterAnomaliesConcoursUseCase` | Prisma, `InscrireUtilisateurUseCase`, Groq (scan) |
 | **pebsExam** (7 UC) | Sélection PEBS : sessions, candidats, sélection, transfert classe, scan, anomalies | `app/pebsExam`, `infra/http/controllers/PebsExamController` | `CreerSessionPebsUseCase`, `CalculerSelectionPebsUseCase`, `AppliquerTransfertPebsUseCase`, `ScannerListeCandidatsPebsUseCase`, `DetecterAnomaliesPebsUseCase` | Prisma, Groq (scan) |
+| **announcement** (5 UC) | Annonces publiées (ciblées, expiration, modération) | `app/announcement`, `infra/http/controllers/AnnouncementController` | `CreerAnnonceUseCase`, `ModifierAnnonceUseCase`, `ListerAnnoncesUseCase`, `SupprimerAnnonceUseCase`, `PurgerAnnoncesExpireesUseCase` | Prisma, `Announcement` |
+| **messagerie** (10 UC) | Messagerie in-app : conversations, canaux classe/parents, modération | `app/messagerie`, `infra/http/controllers/CommunicationsController` | `EnvoyerMessageUseCase`, `ListerConversationsUseCase`, `CreerCanalClasseUseCase`, `CreerCanalParentsUseCase`, `ListerMessagesEnAttenteModerationUseCase` | Prisma, Socket.io |
+| **discipline** (2 UC) | Conseils de discipline (convocation, tenue) + registre | `app/discipline`, `infra/http/controllers/DisciplineController` `DisciplineCouncilController` | `ConvoquerConseilDisciplineUseCase`, `TenirConseilDisciplineUseCase` | Prisma, `DisciplineRecord`, `DisciplineCouncilSession` |
+| **academicEvent** (5 UC) | Événements académiques, fenêtres, ressources liées | `app/academicEvent`, `infra/http/controllers/AcademicEventController` | `CreerEvenementAcademiqueUseCase`, `DeclencherEvenementUseCase`, `AjusterFenetreEvenementUseCase`, `ObtenirEvenementsActifsUseCase` | Prisma, `AcademicEvent` |
+| **matricule** (6 UC) | Matricules, carte scolaire (import, sync, erreurs) | `app/matricule`, `infra/http/controllers/MatriculeController` | `ImporterMatriculesUseCase`, `SyncFromCarteScolaireUseCase`, `ConfirmerCorrespondanceFuzzyUseCase`, `SignalerErreurCarteScolaireUseCase` | Prisma, xlsx, `stringSimilarity` |
+| **paiementMinesec** (4 UC) | Paiements MINESEC (génération, synthèses) | `app/paiementMinesec`, `infra/http/controllers/PaiementMinesecController` | `GenererPaiementsMinesecUseCase`, `GenererPaiementsMinesecPourEcoleUseCase`, `GetSchoolPaymentOverviewUseCase` | Prisma, `PaiementMinesec`, `TarifMinesecReference` |
+| **statisticalCampaign** (2 UC) | Campagnes statistiques MINESEC (déclarations) | `app/statisticalCampaign`, `infra/http/controllers/StatisticalCampaignController` | `GenererDeclarationStatistiqueMinesecUseCase` | Prisma, `StatisticalCampaignTemplate`, maps MINESEC |
+| **statisticalCampaignMinedub** (1 UC) | Rapports de synthèse MINEDUB (primaire) | `app/statisticalCampaignMinedub`, `infra/http/controllers/StatisticalCampaignMinedubController` | `GenererRapportSyntheseMinedubUseCase` | Prisma, `MinedubStatisticalReport` |
+| **eleveOnboarding** (4 UC) | Onboarding élève (squelette, formulaire, validation) | `app/eleveOnboarding`, `infra/http/controllers/EleveOnboardingController` | `CreerSqueletteOnboardingUseCase`, `SoumettreFormulaireOnboardingUseCase`, `ValiderOnboardingUseCase` | Prisma, `StudentOnboarding` |
+| **studentGroup** (8 UC) | Groupes d'élèves (sets), assignation de salle | `app/studentGroup`, `infra/http/controllers/StudentGroupController` | `CreerStudentGroupSetUseCase`, `CreerStudentGroupUseCase`, `AssignerSalleClasseUseCase` | Prisma, `StudentGroupSet`, `StudentGroup`, `Room` |
+| **schoolGroup** (11 UC) | Groupes d'écoles, transferts d'élèves/enseignants entre écoles | `app/schoolGroup`, `infra/http/controllers/GroupTransferController` `GroupAuthController` `GroupDashboardController` | `LoginGroupOwnerUseCase`, `CreerDemandeTransfertGroupeUseCase`, `AccepterTransfertEleveUseCase`, `AccepterTransfertEnseignantUseCase`, `calculerKpisEcole` | Prisma, `SchoolGroup`, `GroupTransferRequest` |
+| **room** (3 UC) | Salles (création, modification, suppression) | `app/room`, `infra/http/controllers/RoomController` | `CreerSalleUseCase`, `ModifierSalleUseCase`, `SupprimerSalleUseCase` | Prisma, `Room` |
+| **suivi** (5 UC) | Suivi des élèves (actions, historique) | `app/suivi`, `infra/http/controllers/StudentFollowUpController` | `CreerActionSuiviEleveUseCase`, `AssignerActionSuiviUseCase`, `ListerHistoriqueSuiviEleveUseCase` | Prisma, `StudentFollowUpAction` |
+| **apee** (2 UC) | APEE (association parents) : transactions, dépenses | `app/apee`, `infra/http/controllers/APEEController` | `CreerTransactionAPEEUseCase`, `ValiderDepenseAPEEUseCase` | Prisma, `APEETransaction` |
+| **pushNotification** (2 UC) | Abonnements push (souscription/désinscription) | `app/pushNotification`, `infra/http/controllers/PushNotificationController` | `SouscrirePushUseCase`, `DesinscrirePushUseCase` | Prisma, `PushSubscription` |
+| **hr** (1 UC) | Analyse de diplômes (IA) | `app/hr`, `infra/http/controllers/HRController` | `AnalyserDiplomeUseCase` | Groq, `EmployeeFile` |
+| **examen** (1 UC) | Préparation des dossiers d'examen | `app/examen`, `infra/http/controllers/ExamenController` | `PrepareExamDossierUseCase` | Prisma, `ExamRegistration` |
 
 ---
 
@@ -45,13 +62,13 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 | **Auth / RBAC** | Middlewares JWT, multi-tenant, sécurité master, rate-limit | `middleware/auth.ts`, `authMultiTenant.ts`, `masterAuthSecurity.ts`, `rateLimit.ts` | `requireAuth`, `requireRole`, `requireSchool` |
 | **i18n / langue** | Source unique de langue + templates emails | `utils/languageHelper.ts`, `utils/emailTemplates.ts` | `resolveLanguage`, `instructionLangue` |
 | **Documents** | Génération PDF : bulletins, documents scolaires, RH | `utils/reportCards/`, `utils/schoolDocuments/`, `utils/hrDocuments.ts`, `infra/services/PdfKitBulletinService.ts` | PDFKit |
-| **IA (Groq)** | Façade LLM | `services/groq.ts`, `infra/services/GroqIAService.ts` | `generateWithGroq`, `groqModel` (llama-3.3-70b) |
+| **IA (Groq)** | Façade LLM | `services/groq.ts`, `infra/services/GroqIAService.ts` | `generateWithGroq`, `groqModel` (`openai/gpt-oss-120b`) |
 | **Intégrations externes** | Mobile Money, Email, SMS | `services/campay.ts` + `infra/services/CampayPaiementService.ts`, `services/emailService.ts` + `NodemailerEmailService.ts`, `services/smsService.ts` + `infra/services/SmsNotificationService.ts` | |
 | **Jobs asynchrones** | Bulletins en masse, EDT auto, notifications | `inngest/functions.ts`, `inngest/index.ts` | Inngest |
 | **Temps réel** | Notifications poussées | `socket/io.ts`, `infra/services/SocketNotificationService.ts` | Socket.io |
-| **Persistence** | 21 repositories Prisma | `infra/persistence/prisma/*Repository.ts`, `config/prisma.ts` | Implémentent les ports |
+| **Persistence** | 27 repositories Prisma | `infra/persistence/prisma/*Repository.ts`, `config/prisma.ts` | Implémentent les ports |
 | **Scripts / migrations data** | Seed, migrations ponctuelles, reset master | `scripts/` | ex. `migrate-lv2-subjects.ts`, `reset-master.ts` |
-| **Schéma DB** | 94 modèles Prisma | `backend/prisma/schema.prisma`, `backend/prisma/migrations/` | Multi-tenant par `schoolId` |
+| **Schéma DB** | 133 modèles Prisma | `backend/prisma/schema.prisma`, `backend/prisma/migrations/` | Multi-tenant par `schoolId` |
 
 ---
 
@@ -59,16 +76,18 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 
 | Module | Rôle | Emplacement | Fichiers clés |
 |---|---|---|---|
-| **Dashboard Admin** (23 sections) | Toute la gestion école + examens/admissions | `fe/app/admin/dashboard` | `page.tsx`, `_components/Section*.tsx`, `AdminSidebar/Topbar/Toast`, `AssistantWidget` |
-| **Dashboard Enseignant** (11) | Notes, présences, cahier de texte, PP | `fe/app/teacher/dashboard` | `_components/SectionTeacher*`, `SectionCahierDeTexte`, `SectionProfesseurPrincipal` |
-| **Dashboard Staff** (13) | Selon permissions (Censeur, Intendant, discipline, orientation, biblio…) | `fe/app/staff/dashboard` | `_components/Section*Staff`, `SectionDiscipline`, `SectionFinanceStaff`, `SectionLibrary` |
-| **Dashboard Parent** (7) | Suivi enfants, paiements, bulletins | `fe/app/parent/dashboard` | `_components/SectionParent*` |
-| **Dashboard Élève** (6) | Notes, bulletins, EDT, biblio | `fe/app/student/dashboard` | `_components/SectionStudent*` |
-| **Dashboard Master** (3) | Super-admin plateforme | `fe/app/master` | `_components/SectionSchools`, `SectionLogs`, `MasterModals` |
+| **Dashboard Admin** (32 sections) | Toute la gestion école + examens/admissions | `fe/app/admin/dashboard` | `page.tsx`, `_components/Section*.tsx`, `AdminSidebar/Topbar/Toast`, `AssistantWidget` |
+| **Dashboard Enseignant** (12) | Notes, présences, cahier de texte, PP | `fe/app/teacher/dashboard` | `_components/SectionTeacher*`, `SectionCahierDeTexte`, `SectionProfesseurPrincipal` |
+| **Dashboard Staff** (16) | Selon permissions (Censeur, Intendant, discipline, orientation, biblio…) | `fe/app/staff/dashboard` | `_components/Section*Staff`, `SectionDiscipline`, `SectionFinanceStaff`, `SectionLibrary` |
+| **Dashboard Parent** (8) | Suivi enfants, paiements, bulletins | `fe/app/parent/dashboard` | `_components/SectionParent*` |
+| **Dashboard Élève** (7) | Notes, bulletins, EDT, biblio, onboarding | `fe/app/student/dashboard` | `_components/SectionStudent*` |
+| **Dashboard Master** | Super-admin plateforme | `fe/app/master` | `_components/SectionSchools`, `SectionLogs`, `MasterModals` |
+| **Dashboard Group** | Propriétaire d'un groupe d'écoles | `fe/app/group` | `dashboard/`, `login`, `[token]` |
 | **Onboarding Phase 1** | Wizard d'inscription (token) | `fe/app/onboarding/[token]/page.tsx` | `detectTemplate`, `TEMPLATE_META`, PEBS, LV2 |
 | **Onboarding Phase 2** | Conversationnel + activation | `fe/app/admin/configuration` | `page.tsx`, `ConversationalOnboarding.tsx` (réconcilié depuis Phase 1) |
+| **Onboarding élève** | Squelette + formulaire + validation | `fe/app/eleve-onboarding` | Élève préinscrit valide son dossier |
 | **Auth / public** | Login, reset, landing, invite | `fe/app/login`, `reset-password`, `invite`, `components/LandingPage` | |
-| **Socle i18n** | Traduction FR/EN | `fe/lib/i18n/`, `fe/locales/{fr,en}/*.json` | `useT`, `LanguageProvider`, `resolveLanguage`, `README.md` |
+| **Socle i18n** | Traduction FR/EN | `fe/lib/i18n/`, `fe/locales/{fr,en}/*.json` (13 namespaces) | `useT`, `LanguageProvider`, `resolveLanguage`, `README.md` |
 | **Thème** | Clair/sombre | `fe/app/providers.tsx` (next-themes), `fe/app/globals.css` (`.dark`), `components/ThemeToggle` | |
 | **Offline / PWA** | File d'attente hors-ligne | `fe/lib/offline/` (Dexie), `components/OfflineIndicator/EmptyState` | |
 | **Composants partagés** | UI transverse | `fe/components/` + `fe/components/ui/` (shadcn) | `AnimatedBackground`, `LanguageSwitch`, `PasswordStrengthBar` |

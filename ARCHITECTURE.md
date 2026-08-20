@@ -30,7 +30,7 @@ ZEKOULABIA/
 ```
 
 - **Runtime** : **Bun** partout (backend exécute le TS directement, pas de build backend).
-- **Plateforme de dev** : Windows (voir gotchas §9 et [AGENTS.md](AGENTS.md)).
+- **Plateforme de dev** : Fedora Linux (héritage Windows jusqu'à mi-2026 — voir gotchas §9 et [AGENTS.md](AGENTS.md)).
 - **Communication front↔back** : REST `/api/v2/*` (cookies HTTP-only pour l'auth) + **Socket.io** (temps réel) + **Inngest** (jobs asynchrones).
 
 ---
@@ -66,15 +66,15 @@ Le backend applique une **architecture hexagonale** stricte en 3 couches. Règle
 - `value-objects/`, `types/` (enums), `constants/`, `errors/` (erreurs domaine typées).
 
 ### 3.2 `application/` — les cas d'usage (orchestration)
-22 modules par domaine (`class`, `subject`, `grade`, `reportCard`, `finance`, `timetable`, `school`, `student`, `user`, `masterAdmin`, `orientation`, `attendance`, `academicYear`, `classCouncil`, `schoolSettings`, `parent`, `ai`, `assistant`, `messaging`, `lv2Choice`, `entranceExam`, `pebsExam`). Chaque use case :
+40 modules par domaine : `academicEvent`, `academicYear`, `ai`, `announcement`, `apee`, `assistant`, `attendance`, `class`, `classCouncil`, `discipline`, `eleveOnboarding`, `entranceExam`, `examen`, `finance`, `grade`, `hr`, `lv2Choice`, `masterAdmin`, `matricule`, `messagerie`, `messaging`, `orientation`, `paiementMinesec`, `parent`, `pebsExam`, `pushNotification`, `reportCard`, `room`, `school`, `schoolGroup`, `schoolSettings`, `shared`, `statisticalCampaign`, `statisticalCampaignMinedub`, `student`, `studentGroup`, `subject`, `suivi`, `timetable`, `user`. Chaque use case :
 - reçoit ses dépendances par **injection de constructeur** (ports, pas d'implémentations) ;
 - ne touche **jamais** Prisma/HTTP directement (sauf `prisma?` optionnel injecté ponctuellement pour des lectures, cf. `GenererBulletinUseCase`) ;
 - porte une méthode `execute(commande)` retournant un résultat typé ;
 - est **testable en isolation** via des repos/services in-memory (`__tests__/helpers/`).
 
 ### 3.3 `infrastructure/` — les adapters (le monde réel)
-- `http/controllers/` (40) : traduisent HTTP ↔ use cases. `http/routes/` (36) : montage Express + middlewares (`requireAuth`, `requireRole`). `http/dto/`, `http/middlewares/`.
-- `persistence/prisma/` (21 repos) : implémentent les ports repository via Prisma.
+- `http/controllers/` (65) : traduisent HTTP ↔ use cases. `http/routes/` (59) : montage Express + middlewares (`requireAuth`, `requireRole`). `http/dto/`, `http/middlewares/`.
+- `persistence/prisma/` (27 repos) : implémentent les ports repository via Prisma.
 - `services/` : adapters externes implémentant les ports (`GroqIAService` [Groq], `CampayPaiementService` [Mobile Money], `NodemailerEmailService`/Resend, `SmsNotificationService`, `PdfKitBulletinService`, `JwtTokenService`, `SocketNotificationService`).
 - `config/container.ts` : **composition root** — instancie repos + services + use cases et les câble. `config/hexagonal.bootstrap.ts` : monte toutes les routes sur l'app Express à partir du container.
 - `inngest/`, `socket/`, `pdf/`.
@@ -100,9 +100,9 @@ frontend/src/
 └── lib/            fetchApi, i18n/, offline/ (Dexie/PWA), userAuth, colors, utils
 ```
 
-- **Dashboards** : chaque rôle a un `dashboard/page.tsx` + `_components/Section*.tsx` (admin 23, teacher 11, staff 13, parent 7, student 6, master 3) + une sidebar + topbar + toasts.
+- **Dashboards** : chaque rôle a un `dashboard/page.tsx` + `_components/Section*.tsx` (admin 32, teacher 12, staff 16, parent 8, student 7) + une sidebar + topbar + toasts. S'y ajoutent les espaces **master** (plateforme) et **group** (propriétaire d'un groupe d'écoles : `frontend/src/app/group/`), ainsi que l'onboarding élève dédié (`frontend/src/app/eleve-onboarding/`).
 - **Styles** : **inline styles** majoritaires + tokens CSS (`var(--bg)`, `var(--text)`…) définis dans `globals.css`, plus quelques utilitaires Tailwind. Thème clair/sombre via **next-themes** + `@custom-variant dark` (Tailwind v4).
-- **i18n** : système **maison** (`src/lib/i18n`), 12 namespaces × fr/en, dictionnaires importés **statiquement**. Langue dérivée de l'établissement/section (jamais de l'URL).
+- **i18n** : système **maison** (`src/lib/i18n`), 13 namespaces × fr/en, dictionnaires importés **statiquement**. Langue dérivée de l'établissement/section (jamais de l'URL).
 - **Offline/PWA** : `@ducanh2912/next-pwa` + **Dexie** (IndexedDB) pour la file d'attente offline (`lib/offline`).
 - **Data fetching** : `fetchApi` (wrapper `fetch` avec cookies) vers `/api/v2/*`. Temps réel via `socket.io-client`.
 
@@ -113,6 +113,7 @@ frontend/src/
 | Rôle | Portée | Auth |
 |---|---|---|
 | **MASTER** | Plateforme (super-admin ZEKOULABIA) : invite/approuve/suspend les écoles | JWT master + **MFA (otplib)**, audit |
+| **GROUP_MASTER** | Groupe d'écoles (`SchoolGroup`) : transferts d'élèves/enseignants entre écoles du groupe, KPI consolidés | Connexion dédiée (`LoginGroupOwnerUseCase`), JWT group owner |
 | **ADMIN / STAFF / TEACHER** | Une école ; STAFF a des permissions granulaires via `StaffPermissionType` (Censeur, Intendant, Surveillant Général, HOD…) | Connexion à 3 facteurs **obligatoire** : mot de passe → code email → TOTP (`otplib`). Configuration MFA forcée dès la 1ère connexion (aucun accès dashboard tant qu'elle n'est pas activée), jamais désactivable ensuite (reconfiguration guardée uniquement). JWT cookie `access_token`, `schoolId` (+ `permissions[]` pour STAFF) |
 | **PARENT / STUDENT** | Une école, périmètre restreint | Mot de passe + code email (pas de MFA). JWT cookie `access_token`, `schoolId` |
 
@@ -138,14 +139,14 @@ Autres flux importants :
 - **Jobs asynchrones (Inngest)** : génération de bulletins en masse, génération auto d'emploi du temps (IA), notifications — `inngest/functions.ts`.
 - **Temps réel (Socket.io)** : notifications in-app poussées via `SocketNotificationService`.
 - **Paiement Mobile Money** : `InitierPaiementMobileMoneyUseCase` → `CampayPaiementService` → webhook Campay → `TraiterWebhookCampayUseCase`.
-- **IA (Groq)** : assistant, insights, commentaires de bulletin, EDT auto — via `services/groq.ts` / `GroqIAService` (modèle **Groq** `llama-3.3-70b`).
+- **IA (Groq)** : assistant, insights, commentaires de bulletin, EDT auto — via `services/groq.ts` / `GroqIAService` (modèle **Groq** `openai/gpt-oss-120b`).
 - **Examens & Admissions** : concours d'entrée 6e (sessions, candidats, CEP, création compte élève), sélection PEBS (transfert classe en masse), choix LV2 numérisé (fenêtres, soumission élève/admin) — modules `lv2Choice`, `entranceExam`, `pebsExam`. IA intégrée : scan Vision, détection d'anomalies, copilot admin.
 
 ---
 
 ## 7. Dépendances importantes
 
-**Backend** : Express, Prisma/PostgreSQL, Zod (validation), jsonwebtoken + bcryptjs + otplib (auth/MFA), `@ai-sdk/groq` + `ai` (IA), Inngest (jobs), Socket.io (temps réel), PDFKit (bulletins), Nodemailer + Resend (email), Campay via axios (Mobile Money), multer + xlsx (imports), archiver (ZIP), helmet + cors + express-rate-limit (sécurité).
+**Backend** : Express, Prisma/PostgreSQL, Zod (validation), jsonwebtoken + bcryptjs + otplib (auth/MFA), `@ai-sdk/groq` + `ai` (IA), Inngest (jobs), Socket.io (temps réel), PDFKit (bulletins), Nodemailer + Resend (email), Campay via axios (Mobile Money), multer + xlsx (imports), archiver (ZIP), qrcode (documents vérifiables), helmet + cors + express-rate-limit (sécurité).
 
 **Frontend** : Next 16 + React 19, Tailwind v4, next-themes (thème), Recharts (graphes), framer-motion + lenis (animations), react-hook-form + @hookform/resolvers + zod (formulaires), @dnd-kit (drag & drop, ex. emploi du temps), Dexie + next-pwa (offline), socket.io-client, sonner (toasts), lucide-react (icônes), shadcn/@base-ui (primitives UI).
 
@@ -153,7 +154,7 @@ Autres flux importants :
 
 ## 8. Décisions architecturales importantes (ADR condensées)
 
-1. **Hexagonal côté backend** : découple le métier des frameworks → testabilité (34 fichiers de tests, repos in-memory) et remplaçabilité des adapters.
+1. **Hexagonal côté backend** : découple le métier des frameworks → testabilité (92 fichiers de tests, repos in-memory) et remplaçabilité des adapters.
 2. **Multi-tenant à base partagée** (`schoolId`) plutôt qu'une base par école : simplicité opérationnelle ; l'isolation est une **responsabilité applicative stricte**.
 3. **Source unique de langue** : `resolveLanguage(subsystem, sectionCode?)` (backend `utils/languageHelper`, miroir frontend `lib/i18n`). Ne jamais recréer de logique de langue. Langue dérivée des données, pas de l'URL.
    - **Pages « universelles » (sans établissement précis)** — `login`, landing publique, onboarding (`/onboarding/[token]` et `/admin/configuration`) : elles servent **tous** les établissements (FR/EN/bilingue), donc la langue **n'est PAS dérivée d'une école**. Elles démarrent en **français par défaut** et exposent un **toggle FR/EN** (`components/LanguageSwitch`) dont le choix est **mémorisé** (`localStorage ZEKOULABIA_lang_override`, priorité maximale dans le provider). La langue officielle de l'établissement ne s'applique **qu'une fois connecté au dashboard** (école `ACTIVE`).
@@ -164,15 +165,15 @@ Autres flux importants :
 8. **Thème via tokens CSS + next-themes** : migration progressive des couleurs hex vers `var(--token)`.
 9. **IA via Groq** — point d'entrée `generateWithGroq` / `groqModel` (`services/groq.ts`), adapter `GroqIAService`.
 10. **Multi-plateforme (Desktop/Android/iPhone) — PWA maintenant, Capacitor plus tard pour mobile** (juillet 2026). Un seul codebase Next.js, pas d'app native écrite séparément. Desktop reste PWA pure indéfiniment (pas d'équivalent natif pour un navigateur de bureau). Mobile (Android **et** iPhone — base d'utilisateurs iPhone significative au Cameroun, ne pas sous-estimer) : empaquetage **Capacitor** prévu **plus tôt que "si le besoin apparaît"**, car la PWA seule a deux limites réelles côté iOS — pas de présence App Store (découvrabilité), et les notifications push Safari sont limitées (support iOS 16.4+ uniquement, et seulement après que l'utilisateur ait fait "Ajouter à l'écran d'accueil" manuellement — jamais automatique). Ne jamais forcer le téléchargement de l'app une fois Capacitor livré : le web doit rester utilisable sans installation (fracture numérique — téléphones d'entrée de gamme à stockage limité, cf. constat enquête terrain). Prévoir un bandeau discret, fermable, orienté bénéfice concret (son personnalisé fiable, ouverture rapide, icône écran d'accueil) plutôt qu'un blocage.
-    - **Conséquence directe sur le son des notifications** (voir §12 de [FEATURES.md](FEATURES.md)) : le son **in-app** (app ouverte, reçu via Socket.io) est indépendant de tout ça et déjà implémenté (`fe/lib/notificationSound.ts`, synthétisé en Web Audio API, pas de fichier audio). Le son **personnalisé du push** (app fermée/tél. verrouillé) est en revanche **bloqué par la plateforme** tant que l'app tourne en Web Push standard (`fe/worker/index.js` — la Notification API des navigateurs n'accepte qu'un son système on/off, `silent: false`, jamais un fichier audio custom, quasi inexistant sur iOS). Ce n'est **pas un manque de développement**, c'est une limite du navigateur — non résoluble avant l'empaquetage. **Au moment de Capacitor** : passer par `@capacitor/push-notifications` (APNs/FCM natifs), qui accepte un champ son personnalisé dans le payload — fournir un fichier `.caf`/`.wav` (iOS) et `.mp3`/`.wav` (Android) à ce moment-là. Rien à préparer avant. Plan détaillé (architecture bundle statique offline-first + défis techniques identifiés) : [Plan_Capacitor_Mobile_ZekoulABia.md](Plan_Capacitor_Mobile_ZekoulABia.md).
+    - **Conséquence directe sur le son des notifications** (voir §12 de [FEATURES.md](FEATURES.md)) : le son **in-app** (app ouverte, reçu via Socket.io) est indépendant de tout ça et déjà implémenté (`fe/lib/notificationSound.ts`, synthétisé en Web Audio API, pas de fichier audio). Le son **personnalisé du push** (app fermée/tél. verrouillé) est en revanche **bloqué par la plateforme** tant que l'app tourne en Web Push standard (`fe/worker/index.js` — la Notification API des navigateurs n'accepte qu'un son système on/off, `silent: false`, jamais un fichier audio custom, quasi inexistant sur iOS). Ce n'est **pas un manque de développement**, c'est une limite du navigateur — non résoluble avant l'empaquetage. **Au moment de Capacitor** : passer par `@capacitor/push-notifications` (APNs/FCM natifs), qui accepte un champ son personnalisé dans le payload — fournir un fichier `.caf`/`.wav` (iOS) et `.mp3`/`.wav` (Android) à ce moment-là. Rien à préparer avant. Plan détaillé (architecture bundle statique offline-first + défis techniques identifiés) : [Plan_Capacitor_Mobile_ZekoulABia.md](docs/Plan_Capacitor_Mobile_ZekoulABia.md).
 
 ---
 
-## 9. Contraintes d'environnement (Windows) — à respecter absolument
+## 9. Contraintes d'environnement (Fedora Linux) — à respecter absolument
 
 - **Vérif TS** : `cd backend && ./node_modules/.bin/tsc --noEmit` (idem `frontend/`). Jamais `npx tsc`.
 - **Migrations** : `npx prisma migrate dev --name X --skip-generate` depuis `backend/`.
-- **`prisma generate` échoue** (EPERM verrou DLL) **si le serveur backend tourne** (il garde le fichier `.dll.node` ouvert) — **arrêter le serveur d'abord**, `generate` réussit alors normalement (vérifié 2026-08-03). Si vraiment impossible d'arrêter le serveur (cas rare), utiliser `(prisma as any).monModele` au runtime comme repli temporaire, puis régénérer et retirer le cast dès que possible.
+- **`prisma generate`** : fonctionne normalement sous Fedora (le moteur est un binaire `.so`, plus soumis au verrouillage `.dll` Windows). Seule précaution : arrêter le serveur dev/`prisma studio` avant de lancer la commande. Le repli `(prisma as any).monModele` ne doit plus être systématique (voir [AGENTS.md](AGENTS.md)).
 - **Smoke tests** : `bun _smoke.ts` **dans** `backend/` (jamais `/tmp`), puis supprimer le fichier.
 - **Backend sans build** : `bun run dev` / `bun run start`. **Build = frontend uniquement** (`bun run build`).
 
