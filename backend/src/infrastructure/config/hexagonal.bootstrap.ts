@@ -36,6 +36,8 @@ import { creerFinanceRoutes } from '@infrastructure/http/routes/finance.routes';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
 import { RoomController } from '@infrastructure/http/controllers/RoomController';
+import { TeacherUnavailabilityController } from '@infrastructure/http/controllers/TeacherUnavailabilityController';
+import { creerTeacherUnavailabilityRoutes } from '@infrastructure/http/routes/teacher-unavailability.routes';
 import { StudentGroupController } from '@infrastructure/http/controllers/StudentGroupController';
 import { ResoudreParticipantsSeanceUseCase } from '@application/timetable/ResoudreParticipantsSeanceUseCase';
 import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
@@ -1071,6 +1073,14 @@ export function bootstrapHexagonal(app: Application): void {
     prisma,
   );
 
+  const teacherUnavailabilityController = new TeacherUnavailabilityController(
+    container.teacherUnavailability.creer,
+    container.teacherUnavailability.modifier,
+    container.teacherUnavailability.supprimer,
+    container.teacherUnavailability.lister,
+    prisma,
+  );
+
   const studentGroupController = new StudentGroupController(
     container.studentGroup.creerGroupSet,
     container.studentGroup.modifierGroupSet,
@@ -1083,6 +1093,7 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/classes', creerClasseRoutes(classeController));
   app.use('/api/v2/subjects', creerSubjectRoutes(subjectController));
   app.use('/api/v2/rooms', creerRoomRoutes(roomController));
+  app.use('/api/v2/teacher-unavailabilities', creerTeacherUnavailabilityRoutes(teacherUnavailabilityController));
   app.use('/api/v2/student-groups', creerStudentGroupRoutes(studentGroupController));
 
   const departmentController = new DepartmentController(prisma);

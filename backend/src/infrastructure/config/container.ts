@@ -20,6 +20,7 @@ import { PrismaPresenceRepository } from '@infrastructure/persistence/prisma/Pri
 import { PrismaBulletinRepository } from '@infrastructure/persistence/prisma/PrismaBulletinRepository';
 import { PrismaMatiereRepository } from '@infrastructure/persistence/prisma/PrismaMatiereRepository';
 import { PrismaRoomRepository } from '@infrastructure/persistence/prisma/PrismaRoomRepository';
+import { PrismaTeacherUnavailabilityRepository } from '@infrastructure/persistence/prisma/PrismaTeacherUnavailabilityRepository';
 import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
 import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupRepository';
 import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
@@ -226,6 +227,12 @@ import { CreerSalleUseCase } from '@application/room/CreerSalleUseCase';
 import { ModifierSalleUseCase } from '@application/room/ModifierSalleUseCase';
 import { SupprimerSalleUseCase } from '@application/room/SupprimerSalleUseCase';
 
+// --- Use Cases : TeacherUnavailability (V2.4) ---
+import { CreerIndisponibiliteEnseignantUseCase } from '@application/timetable/CreerIndisponibiliteEnseignantUseCase';
+import { ModifierIndisponibiliteEnseignantUseCase } from '@application/timetable/ModifierIndisponibiliteEnseignantUseCase';
+import { SupprimerIndisponibiliteEnseignantUseCase } from '@application/timetable/SupprimerIndisponibiliteEnseignantUseCase';
+import { ListerIndisponibilitesEnseignantUseCase } from '@application/timetable/ListerIndisponibilitesEnseignantUseCase';
+
 // --- Use Cases : StudentGroup / ClassRoomAssignment ---
 import { CreerStudentGroupSetUseCase } from '@application/studentGroup/CreerStudentGroupSetUseCase';
 import { ModifierStudentGroupSetUseCase } from '@application/studentGroup/ModifierStudentGroupSetUseCase';
@@ -418,6 +425,20 @@ export function creerContainer() {
   const modifierSalleUseCase = new ModifierSalleUseCase(roomRepository);
   const supprimerSalleUseCase = new SupprimerSalleUseCase(roomRepository);
 
+  const teacherUnavailabilityRepository = new PrismaTeacherUnavailabilityRepository(prisma);
+  const creerIndisponibiliteEnseignantUseCase = new CreerIndisponibiliteEnseignantUseCase(
+    teacherUnavailabilityRepository, userRepository
+  );
+  const modifierIndisponibiliteEnseignantUseCase = new ModifierIndisponibiliteEnseignantUseCase(
+    teacherUnavailabilityRepository
+  );
+  const supprimerIndisponibiliteEnseignantUseCase = new SupprimerIndisponibiliteEnseignantUseCase(
+    teacherUnavailabilityRepository
+  );
+  const listerIndisponibilitesEnseignantUseCase = new ListerIndisponibilitesEnseignantUseCase(
+    teacherUnavailabilityRepository, userRepository
+  );
+
   const creerStudentGroupSetUseCase = new CreerStudentGroupSetUseCase(studentGroupSetRepository);
   const modifierStudentGroupSetUseCase = new ModifierStudentGroupSetUseCase(studentGroupSetRepository);
   const supprimerStudentGroupSetUseCase = new SupprimerStudentGroupSetUseCase(studentGroupSetRepository);
@@ -585,6 +606,12 @@ export function creerContainer() {
       creer: creerSalleUseCase,
       modifier: modifierSalleUseCase,
       supprimer: supprimerSalleUseCase,
+    },
+    teacherUnavailability: {
+      creer: creerIndisponibiliteEnseignantUseCase,
+      modifier: modifierIndisponibiliteEnseignantUseCase,
+      supprimer: supprimerIndisponibiliteEnseignantUseCase,
+      lister: listerIndisponibilitesEnseignantUseCase,
     },
     studentGroup: {
       creerGroupSet: creerStudentGroupSetUseCase,

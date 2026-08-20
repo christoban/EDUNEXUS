@@ -200,6 +200,7 @@ model School {
   ficheOrientations            FicheOrientation[]
   orientationCheckpointConfigs OrientationCheckpointConfig[]
   studentRecommendations       StudentRecommendation[]
+  teacherUnavailabilities      TeacherUnavailability[]
   academicEvents               AcademicEvent[]
   calendarExceptions           SchoolCalendarException[]
   verifiableDocuments          VerifiableDocument[]
@@ -595,6 +596,7 @@ model User {
   studentAspirations              StudentAspiration[]        @relation("studentAspirations")
   testsAptitudeAdministres        TestAptitude[]             @relation("testAdministeredBy")
   teachingAssignments             TeachingAssignment[]       @relation("TeacherAssignments")
+  teacherUnavailabilities         TeacherUnavailability[]    @relation("TeacherUnavailabilities")
   headedDepartments               Department[]               @relation("DepartmentHead")
   cahierDeTexte                   CahierDeTexte[]            @relation("TeacherCahierDeTexte")
   employeeFile                    EmployeeFile?              @relation("EmployeeFileUser")
@@ -1106,6 +1108,31 @@ model TeachingAssignment {
   @@unique([classId, subjectId])
   @@index([schoolId])
   @@index([academicYearId])
+}
+
+// V2.4 — Indisponibilité enseignant (récurrente hebdomadaire). L'absence d'enregistrement
+// signifie disponible (repli sûr) — on ne stocke que les exceptions. La grille EDT étant
+// hebdomadaire sans date fixe, la récurrence par jour-de-semaine + plage horaire est le bon
+// grain. Scoping tenant par colonne directe schoolId (même convention que DisciplineRecord,
+// Attendance, Grade). Limitation assumée : ne s'applique qu'aux futures propositions du
+// solveur, jamais rétroactivement aux emplois du temps déjà appliqués.
+model TeacherUnavailability {
+  id         String   @id @default(cuid())
+  schoolId   String
+  teacherId  String
+  dayOfWeek  Int // 0=lundi … 5=samedi (convention unifiée joursSemaine, jamais filtrer par falsy)
+  startTime  String   // "HH:MM"
+  endTime    String   // "HH:MM"
+  reason     String?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  teacher User   @relation("TeacherUnavailabilities", fields: [teacherId], references: [id], onDelete: Cascade)
+  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, teacherId])
+  @@index([schoolId, active])
+  @@index([teacherId, dayOfWeek])
 }
 
 model Attendance {

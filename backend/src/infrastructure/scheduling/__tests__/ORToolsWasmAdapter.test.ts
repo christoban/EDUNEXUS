@@ -103,6 +103,55 @@ describe('ORToolsWasmAdapter — modèle CP-SAT', () => {
     expect(resultat.seances[0]!.dayOfWeek).toBe(1);
   });
 
+  it('DUR (V2.4) — ne place jamais une séance sur un créneau où l\'enseignant est indisponible', async () => {
+    // prof-A est indisponible toute la journée 0 → sa séance doit basculer sur la journée 1.
+    const resultat = await adapter.proposer(input({
+      exigences: [
+        { subjectId: 'maths', subjectType: 'THEORETICAL', teacherId: 'prof-A', durationMinutes: 60 },
+      ],
+      indisponibilitesEnseignants: [
+        { teacherId: 'prof-A', dayOfWeek: 0, startTime: '08:00', endTime: '09:00' },
+        { teacherId: 'prof-A', dayOfWeek: 0, startTime: '09:00', endTime: '10:00' },
+      ],
+    }));
+
+    expect(['OPTIMAL', 'FEASIBLE']).toContain(resultat.statut);
+    expect(resultat.seances[0]!.dayOfWeek).toBe(1);
+  });
+
+  it('DUR (V2.4) — indisponibilité d\'un enseignant n\'empêche pas un autre enseignant d\'être placé', async () => {
+    // prof-B est indisponible sur le créneau matin de la journée 0, mais prof-A reste libre partout.
+    const resultat = await adapter.proposer(input({
+      exigences: [
+        { subjectId: 'maths', subjectType: 'THEORETICAL', teacherId: 'prof-A', durationMinutes: 60 },
+        { subjectId: 'francais', subjectType: 'THEORETICAL', teacherId: 'prof-B', durationMinutes: 60 },
+      ],
+      indisponibilitesEnseignants: [
+        { teacherId: 'prof-B', dayOfWeek: 0, startTime: '08:00', endTime: '09:00' },
+        { teacherId: 'prof-B', dayOfWeek: 0, startTime: '09:00', endTime: '10:00' },
+      ],
+    }));
+
+    expect(['OPTIMAL', 'FEASIBLE']).toContain(resultat.statut);
+    expect(resultat.seances).toHaveLength(2);
+    const seanceProfA = resultat.seances.find(s => s.teacherId === 'prof-A');
+    expect(seanceProfA).toBeDefined();
+  });
+
+  it('INFAISABLE (V2.4) — enseignant indisponible sur toute la grille → aucune séance plaçable', async () => {
+    const resultat = await adapter.proposer(input({
+      exigences: [
+        { subjectId: 'maths', subjectType: 'THEORETICAL', teacherId: 'prof-A', durationMinutes: 60 },
+      ],
+      indisponibilitesEnseignants: GRILLE.map(c => ({
+        teacherId: 'prof-A', dayOfWeek: c.dayOfWeek, startTime: c.startTime, endTime: c.endTime,
+      })),
+    }));
+
+    expect(resultat.statut).toBe('INFAISABLE');
+    expect(resultat.seances).toHaveLength(0);
+  });
+
   it('DUR — ne place jamais une séance dans une salle déjà occupée par une autre classe', async () => {
     // La salle habituelle est prise toute la grille → la séance part en labo malgré la
     // préférence souple pour la salle habituelle (le dur prime toujours sur le souple).

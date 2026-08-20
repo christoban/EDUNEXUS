@@ -7,6 +7,7 @@ import type {
   PropositionEmploiDuTemps,
   ExigenceSeance,
   CaseGrille,
+  IndisponibiliteEnseignant,
 } from '@domain/ports/services/SchedulingSolverPort';
 import { calculerSqelette } from '@infrastructure/http/controllers/TimetableGridConfigController';
 import { joursActifsVersIndex } from '@domain/types/joursSemaine';
@@ -65,6 +66,8 @@ export class ProposerEmploiDuTempsUseCase {
       commande.schoolId, emploiDuTemps.academicYearId, commande.timetableId,
     );
 
+    const indisponibilitesEnseignants = await this.chargerIndisponibilitesEnseignants(commande.schoolId);
+
     return this.solver.proposer({
       classId: emploiDuTemps.classId,
       salleHabituelleId: assignation?.roomId,
@@ -72,7 +75,22 @@ export class ProposerEmploiDuTempsUseCase {
       grille,
       sallesDisponibles: salles,
       occupationExistante,
+      indisponibilitesEnseignants,
     });
+  }
+
+  /** Plages actives où un enseignant est indisponible — contrainte DURE du solveur (V2.4). */
+  private async chargerIndisponibilitesEnseignants(schoolId: string): Promise<IndisponibiliteEnseignant[]> {
+    const items = await this.prisma.teacherUnavailability.findMany({
+      where: { schoolId, active: true },
+      select: { teacherId: true, dayOfWeek: true, startTime: true, endTime: true },
+    });
+    return items.map(i => ({
+      teacherId: i.teacherId,
+      dayOfWeek: i.dayOfWeek,
+      startTime: i.startTime,
+      endTime: i.endTime,
+    }));
   }
 
   /**

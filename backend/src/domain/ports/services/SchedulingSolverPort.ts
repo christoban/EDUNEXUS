@@ -31,6 +31,17 @@ export interface CreneauOccupe {
   endTime: string;
 }
 
+/**
+ * Indisponibilité d'un enseignant (V2.4) — plage hebdomadaire où il ne peut pas recevoir de
+ * séance. Contrainte DURE pour le solveur : aucun placement sur un créneau chevauchant.
+ */
+export interface IndisponibiliteEnseignant {
+  teacherId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
 export interface SalleDisponible {
   roomId: string;
   type: RoomType;
@@ -52,6 +63,8 @@ export interface ProposerEmploiDuTempsInput {
   grille: CaseGrille[];
   sallesDisponibles: SalleDisponible[];
   occupationExistante: CreneauOccupe[];
+  /** Plages où un enseignant est indisponible (V2.4) — contrainte DURE. Vide par défaut. */
+  indisponibilitesEnseignants?: IndisponibiliteEnseignant[];
 }
 
 export interface SeanceProposee {

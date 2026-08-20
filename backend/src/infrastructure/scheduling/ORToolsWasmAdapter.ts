@@ -33,6 +33,7 @@ import type {
   CaseGrille,
   SalleDisponible,
   CreneauOccupe,
+  IndisponibiliteEnseignant,
 } from '@domain/ports/services/SchedulingSolverPort';
 
 /** Poids de la seule contrainte souple de cette tranche (préférence salle habituelle). */
@@ -43,7 +44,7 @@ const NB_WORKERS = 1;
 
 export class ORToolsWasmAdapter implements SchedulingSolverPort {
   async proposer(input: ProposerEmploiDuTempsInput): Promise<PropositionEmploiDuTemps> {
-    const { exigences, grille, sallesDisponibles, occupationExistante, salleHabituelleId } = input;
+    const { exigences, grille, sallesDisponibles, occupationExistante, salleHabituelleId, indisponibilitesEnseignants = [] } = input;
 
     if (exigences.length === 0) {
       return { statut: 'OPTIMAL', seances: [], scoreObjectif: 0, dureeResolutionMs: 0 };
@@ -79,6 +80,7 @@ export class ORToolsWasmAdapter implements SchedulingSolverPort {
       for (let c = 0; c < grille.length; c++) {
         const caseGrille = grille[c]!;
         if (estOccupe(occupationExistante, caseGrille, { teacherId: exigence.teacherId })) continue;
+        if (estIndisponible(indisponibilitesEnseignants, caseGrille, exigence.teacherId)) continue;
 
         for (const { salle, idx: s } of sallesCompatibles) {
           if (estOccupe(occupationExistante, caseGrille, { roomId: salle.roomId })) continue;
@@ -208,6 +210,28 @@ function estOccupe(
     const occupeDebut = CreneauHoraire.heureEnMinutes(occupe.startTime);
     const occupeFin = CreneauHoraire.heureEnMinutes(occupe.endTime);
     return debut < occupeFin && fin > occupeDebut;
+  });
+}
+
+/**
+ * Contrainte DURE V2.4 — un enseignant indisponible sur une plage ne peut recevoir aucune séance
+ * qui la chevauche. Même arithmétique de chevauchement que CreneauHoraire (une seule source).
+ */
+function estIndisponible(
+  indisponibilites: IndisponibiliteEnseignant[],
+  caseGrille: CaseGrille,
+  teacherId: string,
+): boolean {
+  if (indisponibilites.length === 0) return false;
+  const debut = CreneauHoraire.heureEnMinutes(caseGrille.startTime);
+  const fin = CreneauHoraire.heureEnMinutes(caseGrille.endTime);
+
+  return indisponibilites.some(indispo => {
+    if (indispo.teacherId !== teacherId) return false;
+    if (indispo.dayOfWeek !== caseGrille.dayOfWeek) return false;
+    const indispoDebut = CreneauHoraire.heureEnMinutes(indispo.startTime);
+    const indispoFin = CreneauHoraire.heureEnMinutes(indispo.endTime);
+    return debut < indispoFin && fin > indispoDebut;
   });
 }
 
