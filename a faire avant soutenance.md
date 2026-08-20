@@ -88,7 +88,7 @@ Le censeur/directeur fait sa vérification de cohérence globale (VALIDATED) —
 Le censeur/directeur publie (PUBLISHED) → diffusion automatique à tous les destinataires concernés (parents, élèves), sans envoi manuel un par un
 
 
-
+le fichier bootstrap est devenu trop long il faut le scinder en plusieurs fichiuers et de meme pour tous les autre s fichiers qui dépasse 500 OU 600 OU 700 OU 800 lignes de code
 
 
 
