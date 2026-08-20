@@ -230,7 +230,12 @@ export class AttendanceController {
 
       const updated = await prisma.attendance.update({
         where: { id: attendanceId },
-        data: { status: 'ABSENT_JUSTIFIED' },
+        data: {
+          status: 'ABSENT_JUSTIFIED',
+          justification,
+          justifiedById: user.userId,
+          justifiedAt: new Date(),
+        },
         include: {
           student: { select: { id: true, firstName: true, lastName: true } },
           class: { select: { id: true, name: true } },
