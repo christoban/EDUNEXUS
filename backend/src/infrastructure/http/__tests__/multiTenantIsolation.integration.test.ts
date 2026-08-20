@@ -117,6 +117,7 @@ afterAll(async () => {
   await prismaTest.grade.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.academicSequence.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYear: { schoolId: schoolB.id } } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.academicYear.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.studentProfile.deleteMany({ where: { userId: studentB.id } });
   await prismaTest.subject.deleteMany({ where: { schoolId: schoolB.id } });
@@ -192,7 +193,7 @@ describe("Isolation multi-tenant — un token école A ne doit jamais atteindre 
     expect(res.status).toBe(403);
 
     const enrollmentInchange = await prismaTest.enrollment.findFirst({
-      where: { student: { userId: studentB.id }, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      where: { student: { userId: studentB.id }, status: 'ACTIVE' },
     });
     expect(enrollmentInchange?.classId).toBe(classB.id);
   });

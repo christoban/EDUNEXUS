@@ -86,6 +86,7 @@ afterAll(async () => {
   await prismaTest.timetable.deleteMany({ where: { schoolId } });
   await prismaTest.timetableGridConfig.deleteMany({ where: { schoolId } });
   await prismaTest.subject.deleteMany({ where: { schoolId } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.class.deleteMany({ where: { schoolId } });
   await prismaTest.academicYear.deleteMany({ where: { schoolId } });
   await prismaTest.user.deleteMany({ where: { schoolId } });

@@ -79,6 +79,7 @@ afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await prismaTest.classCouncilDecision.deleteMany({ where: { session: { schoolId } } });
   await prismaTest.classCouncilSession.deleteMany({ where: { schoolId } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.studentProfile.deleteMany({ where: { user: { schoolId } } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYearId } });
   await prismaTest.class.deleteMany({ where: { schoolId } });

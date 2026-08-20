@@ -85,7 +85,7 @@ beforeAll(async () => {
   );
 
   const annee = await prismaTest.academicYear.create({
-    data: { schoolId, name: '2025-2026', startDate: new Date('2025-09-01'), endDate: new Date('2026-06-30') },
+    data: { schoolId, name: '2025-2026', startDate: new Date('2025-09-01'), endDate: new Date('2026-06-30'), isCurrent: true },
   });
   academicYearId = annee.id;
 
@@ -110,6 +110,7 @@ afterAll(async () => {
   await prismaTest.grade.deleteMany({ where: { schoolId } });
   await prismaTest.academicSequence.deleteMany({ where: { schoolId } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYear: { schoolId } } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.academicYear.deleteMany({ where: { schoolId } });
   await prismaTest.studentProfile.deleteMany({ where: { user: { schoolId } } });
   await prismaTest.subject.deleteMany({ where: { schoolId } });

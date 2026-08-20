@@ -130,6 +130,7 @@ afterAll(async () => {
   for (const schoolId of [schoolAId, schoolBId]) {
     await prismaTest.assistantActionLog.deleteMany({ where: { schoolId } });
     await prismaTest.aIActionAuditLog.deleteMany({ where: { schoolId } });
+    await prismaTest.enrollment.deleteMany({ where: { schoolId } });
     await prismaTest.class.deleteMany({ where: { schoolId } });
     await prismaTest.academicYear.deleteMany({ where: { schoolId } });
     await prismaTest.user.deleteMany({ where: { schoolId } });

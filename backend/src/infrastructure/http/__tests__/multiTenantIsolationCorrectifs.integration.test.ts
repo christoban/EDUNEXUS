@@ -142,6 +142,7 @@ afterAll(async () => {
   await prismaTest.matriculeImportJob.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.examRegistration.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYear: { schoolId: schoolB.id } } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.studentProfile.deleteMany({ where: { userId: studentUserB.id } });
   await prismaTest.class.deleteMany({ where: { schoolId: schoolB.id } });
   await prismaTest.academicYear.deleteMany({ where: { schoolId: schoolB.id } });

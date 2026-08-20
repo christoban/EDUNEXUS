@@ -100,6 +100,7 @@ afterAll(async () => {
   await prismaTest.classPromotion.deleteMany({ where: { schoolId } });
   await prismaTest.classCouncilDecision.deleteMany({ where: { session: { schoolId } } });
   await prismaTest.classCouncilSession.deleteMany({ where: { schoolId } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.studentProfile.deleteMany({ where: { user: { schoolId } } });
   await prismaTest.class.deleteMany({ where: { schoolId } });
   await prismaTest.academicPeriod.deleteMany({ where: { academicYearId: anneeActuelleId } });
@@ -185,7 +186,7 @@ describe('Clôture d\'année — proposer/renommer/valider structure puis clôtu
     expect(anneeActuelle?.status).toBe('ARCHIVED');
 
     const enrollment = await prismaTest.enrollment.findFirst({
-      where: { studentId: studentProfileId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      where: { studentId: studentProfileId, status: 'ACTIVE', academicYearId: anneeSuivanteId },
     });
     expect(enrollment?.classId).toBe(classeDraftId);
   });

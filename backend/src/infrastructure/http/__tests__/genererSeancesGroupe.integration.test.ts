@@ -124,6 +124,7 @@ afterAll(async () => {
   await prismaTest.studentGroup.deleteMany({ where: { groupSet: { schoolId } } });
   await prismaTest.studentGroupSet.deleteMany({ where: { schoolId } });
   await prismaTest.classRoomAssignment.deleteMany({ where: { schoolId } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.studentProfile.deleteMany({ where: { user: { schoolId } } });
   await prismaTest.room.deleteMany({ where: { schoolId } });
   await prismaTest.class.deleteMany({ where: { schoolId } });

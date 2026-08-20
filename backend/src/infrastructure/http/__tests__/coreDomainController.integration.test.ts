@@ -54,6 +54,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await prismaTest.academicPeriod.deleteMany({ where: { academicYearId } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.academicYear.deleteMany({ where: { schoolId } });
   await prismaTest.user.deleteMany({ where: { schoolId } });
   await nettoyerEcole(prismaTest, schoolId);

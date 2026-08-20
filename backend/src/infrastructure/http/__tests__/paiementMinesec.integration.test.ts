@@ -85,6 +85,7 @@ afterAll(async () => {
   await prismaTest.examRegistration.deleteMany({ where: { schoolId } });
   await prismaTest.paiementMinesec.deleteMany({ where: { schoolId } });
   await prismaTest.inscriptionMinesec.deleteMany({ where: { schoolId } });
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.studentProfile.deleteMany({ where: { userId: studentUserId } });
   await prismaTest.class.deleteMany({ where: { schoolId } });
   await prismaTest.academicYear.deleteMany({ where: { schoolId } });

@@ -27,7 +27,10 @@ function creerPrismaFake(actionInitiale: { id: string; status: string }) {
           status: statutActuel, createdById: 'u1', assignedToId: 'u2',
           targetDate: null, interviewMode: null, note: null, createdAt: new Date(),
           closedAt: null, closedById: null, closingNote: null,
-          studentProfile: { userId: 'stu1', user: { firstName: 'A', lastName: 'B' }, classId: 'c1', class: { name: '3eA', professorPrincipalId: null } },
+          studentProfile: {
+            userId: 'stu1', user: { firstName: 'A', lastName: 'B' },
+            enrollmentsYearScoped: [{ classId: 'c1', class: { name: '3eA', professorPrincipalId: null } }],
+          },
           subject: null, createdBy: { firstName: 'X', lastName: 'Y' }, assignedTo: null, closedBy: null,
         };
       },

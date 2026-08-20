@@ -70,6 +70,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
+  await prismaTest.enrollment.deleteMany({ where: { schoolId } });
   await prismaTest.class.deleteMany({ where: { schoolId } });
   await prismaTest.subjectCoefficient.deleteMany({ where: { schoolId } });
   await prismaTest.classSubjectOverride.deleteMany({ where: { schoolId } });
