@@ -10,6 +10,7 @@ import type { EnregistrerPaiementCashUseCase } from '@application/finance/Enregi
 import type { CopierPlansFraisAnneePrecedenteUseCase } from '@application/finance/CopierPlansFraisAnneePrecedenteUseCase';
 import { SeuilLegalDepasseError } from '@domain/errors/SeuilLegalDepasseError';
 import { SeparationOrdonnateurError } from '@domain/errors/SeparationOrdonnateurError';
+import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
 import type { PaymentMethod } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
@@ -600,7 +601,7 @@ export class FinanceController {
   creerPaiementCash = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const { factureId, studentId, montant } = req.body;
+      const { factureId, studentId, montant, baseUpdatedAt } = req.body;
 
       if (!factureId || !studentId || montant == null) {
         res.status(400).json({
@@ -616,6 +617,7 @@ export class FinanceController {
         studentId,
         montant: Number(montant),
         enregistreurId: user.userId,
+        baseUpdatedAt: baseUpdatedAt ? new Date(baseUpdatedAt) : undefined,
       });
 
       journaliserActionIA(prisma, {
@@ -647,6 +649,22 @@ export class FinanceController {
       });
       return;
     }
+    if (error instanceof ConflitVersionPaiementError) {
+      res.status(409).json({
+        success: false,
+        code: 'CONFLIT_VERSION',
+        message: error.message,
+        data: {
+          factureId: error.factureId,
+          versionServeur: error.versionServeur,
+          versionLocale: error.versionLocale,
+          montantSaisi: error.montantSaisi,
+          totalPaye: error.totalPaye,
+          resteARegler: error.resteARegler,
+        },
+      });
+      return;
+    }
     if (error instanceof SeparationOrdonnateurError) {
       res.status(403).json({
         success: false,
@@ -665,6 +683,10 @@ export class FinanceController {
         return;
       }
       if (error.message.includes('ne peut plus être payée')) {
+        res.status(422).json({ success: false, message: error.message });
+        return;
+      }
+      if (error.message.includes('dépasse le solde restant')) {
         res.status(422).json({ success: false, message: error.message });
         return;
       }

@@ -308,6 +308,8 @@ Client A modifie X, Client B modifie X → Conflict → Conflict Resolution Poli
 ```
 **Différenciée par type de donnée (déjà tranché) :** dernier écrit gagne pour les champs mineurs ; double-version + arbitrage humain obligatoire pour notes et paiements — jamais de résolution automatique silencieuse sur ces deux catégories.
 
+**✅ Paiements — mis en œuvre 2026-08-20 :** version = `Invoice.updatedAt` (`@updatedAt`, migration `add_paiement_version_conflit`) ; `EnregistrerPaiementCashUseCase` accepte `baseUpdatedAt` et lève `ConflitVersionPaiementError` en cas de divergence ; **encaissement cash atomique** (`encaisserCash` : `$transaction` + `SELECT … FOR UPDATE` + garde du solde restant) — deux encaissements simultanés ne peuvent pas dépasser la facture ; controller → 409 `CONFLIT_VERSION` avec données d'arbitrage. Aucune résolution automatique silencieuse. Notes : mécanisme déjà en place (`GradeController.ts:298-345` + UI `SectionOfflineStatus.tsx`).
+
 ## V3.3 — Assistant IA multi-rôle — **élargi au-delà de l'onboarding/orientation**
 Pattern non négociable : `LLM → Intent/Command → Validation des règles → Confirmation utilisateur → Persistence`. L'IA ne fait jamais `LLM → UPDATE database` directement.
 

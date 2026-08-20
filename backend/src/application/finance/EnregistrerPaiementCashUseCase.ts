@@ -2,8 +2,16 @@
  * APPLICATION LAYER — Use Case : Enregistrer un paiement en espèces (guichet)
  * Contourne Campay — crée directement un paiement SUCCESS.
  * Réservé à ADMIN et STAFF (Intendant, Censeur…).
+ *
+ * V3.2 « Stratégie de conflits » :
+ * - Le client envoie baseUpdatedAt (version de la facture qu'il affiche).
+ * - Si la facture a changé entre-temps → ConflitVersionPaiementError (409).
+ * - L'encaissement est ATOMIQUE (transaction) : deux encaissements simultanés
+ *   ne peuvent pas dépasser le solde.
+ * - Jamais de résolution automatique silencieuse : l'humain arbitre.
  */
 import { Paiement } from '@domain/entities/Paiement';
+import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
 import type { FactureRepository } from '@domain/ports/repositories/FactureRepository';
 import type { PaiementRepository } from '@domain/ports/repositories/PaiementRepository';
 
@@ -14,6 +22,8 @@ export interface EnregistrerPaiementCashCommande {
   /** Montant effectivement encaissé. Peut être inférieur au total (paiement partiel). */
   montant: number;
   enregistreurId: string;
+  /** Version de la facture telle que lue par le client. Optionnel (compat. rétro). */
+  baseUpdatedAt?: Date;
 }
 
 export interface EnregistrerPaiementCashResultat {
@@ -42,8 +52,20 @@ export class EnregistrerPaiementCashUseCase {
     if (commande.montant <= 0) {
       throw new Error('Le montant encaissé doit être supérieur à 0');
     }
-    if (commande.montant > facture.amount) {
-      throw new Error(`Le montant encaissé (${commande.montant}) dépasse le total de la facture (${facture.amount})`);
+
+    // 1b. Détection de conflit de version — jamais de résolution silencieuse.
+    if (commande.baseUpdatedAt && facture.updatedAt) {
+      const totalPayeActuel = await this.factureRepository.calculerTotalPayeAvecSucces(commande.factureId);
+      if (facture.updatedAt.getTime() !== commande.baseUpdatedAt.getTime()) {
+        throw new ConflitVersionPaiementError({
+          factureId: commande.factureId,
+          versionServeur: facture.updatedAt,
+          versionLocale: commande.baseUpdatedAt,
+          montantSaisi: commande.montant,
+          totalPaye: totalPayeActuel,
+          resteARegler: Math.max(0, facture.amount - totalPayeActuel),
+        });
+      }
     }
 
     // 2. Créer le paiement cash directement en SUCCESS
@@ -55,12 +77,8 @@ export class EnregistrerPaiementCashUseCase {
       enregistreurId: commande.enregistreurId,
     });
 
-    await this.paiementRepository.save(paiement);
-
-    // 3. Recalculer le statut de la facture
-    const totalPaye = await this.factureRepository.calculerTotalPayeAvecSucces(commande.factureId);
-    facture.mettreAJourStatut(totalPaye);
-    await this.factureRepository.update(facture);
+    // 3. Encaissement ATOMIQUE : re-vérifie le solde en transaction, met à jour la facture.
+    const totalPaye = await this.paiementRepository.encaisserCash(paiement, facture);
 
     return {
       paiementId: paiement.id,

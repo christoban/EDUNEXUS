@@ -19,6 +19,7 @@ export interface FactureProps {
   status: InvoiceStatus;
   description?: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface CreerFactureProps {
@@ -58,6 +59,8 @@ export class Facture {
   get amount(): number { return this.props.amount; }
   get status(): InvoiceStatus { return this.props.status; }
   get dueDate(): Date | undefined { return this.props.dueDate; }
+  get createdAt(): Date { return this.props.createdAt; }
+  get updatedAt(): Date | undefined { return this.props.updatedAt; }
 
   // --- Logique métier pure ---
   // (extraite de getInvoiceStatus() dans controllers/finance.ts)

@@ -149,6 +149,7 @@ export class PrismaFactureRepository implements FactureRepository {
       status: data.status as InvoiceStatus,
       description: data.description ?? undefined,
       createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
     });
   }
 }

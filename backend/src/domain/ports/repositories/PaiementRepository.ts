@@ -2,6 +2,7 @@
  * DOMAIN LAYER — Port Repository Paiement (Payment)
  */
 import type { Paiement } from '@domain/entities/Paiement';
+import type { Facture } from '@domain/entities/Facture';
 import type { PaymentMethod } from '@domain/types/enums';
 
 export interface RevenusParPeriode {
@@ -39,4 +40,14 @@ export interface PaiementRepository {
 
   save(paiement: Paiement): Promise<void>;
   update(paiement: Paiement): Promise<void>;
+
+  /**
+   * Encaissement en espèces ATOMIQUE (V3.2) : crée le paiement SUCCESS et met à jour
+   * la facture dans une MÊME transaction, en re-vérifiant à l'intérieur que la facture
+   * reste payable et que le montant ne dépasse pas le solde restant. Deux encaissements
+   * simultanés sur la même facture ne peuvent donc pas tous les deux réussir.
+   *
+   * @returns total payé cumulé (paiements SUCCESS) après cet encaissement.
+   */
+  encaisserCash(paiement: Paiement, facture: Facture): Promise<number>;
 }

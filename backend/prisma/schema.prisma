@@ -1464,6 +1464,7 @@ model Invoice {
   status      InvoiceStatus @default(PENDING)
   description String?
   createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   feePlan     FeePlan?      @relation(fields: [feePlanId], references: [id])
   school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   student     User          @relation("StudentInvoices", fields: [studentId], references: [id])
@@ -1495,6 +1496,7 @@ model Payment {
   operatorRef         String?
   phoneNumber         String?
   webhookData         Json?
+  updatedAt           DateTime       @updatedAt
   refundedBy          User?          @relation("RefundedPayments", fields: [refundedById], references: [id])
   invoice             Invoice?       @relation(fields: [invoiceId], references: [id])
   school              School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
