@@ -1039,6 +1039,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.finance.enregistrerDepense,
     container.finance.enregistrerPaiementCash,
     container.finance.copierPlansFraisAnneePrecedente,
+    container.finance.changerStatutPlanFrais,
   );
 
   app.use('/api/v2/finance', creerFinanceRoutes(financeController));

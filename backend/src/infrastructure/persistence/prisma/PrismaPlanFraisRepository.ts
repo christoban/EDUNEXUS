@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { PlanFrais } from '@domain/entities/PlanFrais';
 import type { PlanFraisRepository } from '@domain/ports/repositories/PlanFraisRepository';
-import type { FeeType } from '@domain/types/enums';
+import type { FeeType, FeePlanStatus } from '@domain/types/enums';
 
 export class PrismaPlanFraisRepository implements PlanFraisRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -72,7 +72,15 @@ export class PrismaPlanFraisRepository implements PlanFraisRepository {
         description: data.description,
         createdAt: data.createdAt,
         academicYearId: data.academicYearId,
+        status: data.status,
       },
+    });
+  }
+
+  async updateStatus(id: string, status: FeePlanStatus): Promise<void> {
+    await this.prisma.feePlan.update({
+      where: { id },
+      data: { status },
     });
   }
 
@@ -109,6 +117,7 @@ export class PrismaPlanFraisRepository implements PlanFraisRepository {
       description: data.description ?? undefined,
       createdAt: data.createdAt,
       academicYearId: data.academicYearId ?? undefined,
+      status: data.status,
     });
   }
 }

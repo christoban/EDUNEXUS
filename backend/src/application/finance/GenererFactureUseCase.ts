@@ -32,6 +32,11 @@ export class GenererFactureUseCase {
     if (plan.schoolId !== commande.schoolId) {
       throw new Error("Ce plan n'appartient pas à votre établissement");
     }
+    if (!plan.estPublie()) {
+      throw new Error(
+        `Le plan de frais « ${plan.name} » n'est pas publié — facturation impossible`
+      );
+    }
 
     // 2. Loi 3 — vérifier seuil légal si scolarité
     if (plan.estScolarite()) {

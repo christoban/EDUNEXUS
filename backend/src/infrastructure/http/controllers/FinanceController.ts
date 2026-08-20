@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { CreerPlanFraisUseCase } from '@application/finance/CreerPlanFraisUseCase';
+import type { ChangerStatutPlanFraisUseCase } from '@application/finance/ChangerStatutPlanFraisUseCase';
 import type { GenererFactureUseCase } from '@application/finance/GenererFactureUseCase';
 import type { GenererFacturesEnMasseUseCase } from '@application/finance/GenererFacturesEnMasseUseCase';
 import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
@@ -11,7 +12,8 @@ import type { CopierPlansFraisAnneePrecedenteUseCase } from '@application/financ
 import { SeuilLegalDepasseError } from '@domain/errors/SeuilLegalDepasseError';
 import { SeparationOrdonnateurError } from '@domain/errors/SeparationOrdonnateurError';
 import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
-import type { PaymentMethod } from '@domain/types/enums';
+import { TransitionStatutPlanFraisError } from '@domain/errors/TransitionStatutPlanFraisError';
+import type { FeePlanStatus, PaymentMethod } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { notifyPaymentSms } from '@infrastructure/services/SmsNotificationService';
@@ -209,6 +211,7 @@ export class FinanceController {
     private readonly enregistrerDepense: EnregistrerDepenseUseCase,
     private readonly enregistrerPaiementCash: EnregistrerPaiementCashUseCase,
     private readonly copierPlansFraisAnneePrecedente: CopierPlansFraisAnneePrecedenteUseCase,
+    private readonly changerStatutPlanFrais: ChangerStatutPlanFraisUseCase,
   ) {}
 
   // Même pattern que OrientationController.checkPermission — ADMIN passe toujours,
@@ -400,6 +403,43 @@ export class FinanceController {
         `reconduit ${resultat.crees} plan(s) de frais pour la nouvelle année scolaire`,
       );
     } catch (error) {
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // PATCH /api/v2/finance/fee-plans/:id/status — workflow de publication V1.11
+  changerStatutPlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      if (!this.checkFinancePermission(user, res)) return;
+      const { id } = req.params as { id: string };
+      const { statutCible } = req.body as { statutCible?: FeePlanStatus };
+
+      if (!statutCible) {
+        res.status(400).json({ success: false, message: 'statutCible requis' });
+        return;
+      }
+
+      const resultat = await this.changerStatutPlanFrais.execute({
+        schoolId: user.schoolId,
+        feePlanId: id,
+        statutCible,
+      });
+      journaliserActionIA(prisma, {
+        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
+        actionName: 'changer_statut_plan_frais', targetType: 'FeePlan', targetId: resultat.planId,
+        origin: 'UI_DIRECT', outcome: 'SUCCES',
+        parametersSummary: { statutCible, nouveauStatut: resultat.status },
+      });
+      res.json({ success: true, data: resultat });
+    } catch (error) {
+      const user = req.user;
+      journaliserActionIA(prisma, {
+        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
+        actionName: 'changer_statut_plan_frais', origin: 'UI_DIRECT', outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined,
+        parametersSummary: { id: req.params.id, ...req.body },
+      });
       this.gererErreur(error, res, next);
     }
   };
@@ -673,6 +713,14 @@ export class FinanceController {
       });
       return;
     }
+    if (error instanceof TransitionStatutPlanFraisError) {
+      res.status(409).json({
+        success: false,
+        code: 'TRANSITION_STATUT_INVALIDE',
+        message: error.message,
+      });
+      return;
+    }
     if (error instanceof Error) {
       if (error.message.includes('déjà en cours')) {
         res.status(409).json({ success: false, message: error.message });
@@ -688,6 +736,14 @@ export class FinanceController {
       }
       if (error.message.includes('dépasse le solde restant')) {
         res.status(422).json({ success: false, message: error.message });
+        return;
+      }
+      if (error.message.includes("n'est pas publié")) {
+        res.status(422).json({ success: false, code: 'PLAN_NON_PUBLIE', message: error.message });
+        return;
+      }
+      if (error.message.includes("n'appartient pas à votre établissement")) {
+        res.status(403).json({ success: false, message: error.message });
         return;
       }
       if (error.message.includes('Permission')) {

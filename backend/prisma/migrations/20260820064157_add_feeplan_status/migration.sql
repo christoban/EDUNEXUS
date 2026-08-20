@@ -1,0 +1,5 @@
+-- CreateEnum
+CREATE TYPE "FeePlanStatus" AS ENUM ('DRAFT', 'PENDING_VALIDATION', 'APPROVED', 'PUBLISHED');
+
+-- AlterTable
+ALTER TABLE "FeePlan" ADD COLUMN     "status" "FeePlanStatus" NOT NULL DEFAULT 'PUBLISHED';

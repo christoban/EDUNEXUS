@@ -8,6 +8,8 @@ export function creerFinanceRoutes(controller: FinanceController): Router {
   // Plans de frais
   router.post('/fee-plans', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerPlan);
   router.post('/fee-plans/copy-from-previous-year', requireAuth, requireRole('ADMIN', 'STAFF'), controller.copierPlansAnneePrecedente);
+  // Workflow de publication V1.11 : DRAFT → PENDING_VALIDATION → APPROVED → PUBLISHED
+  router.patch('/fee-plans/:id/status', requireAuth, requireRole('ADMIN', 'STAFF'), controller.changerStatutPlan);
 
   // Factures
   router.post('/invoices', requireAuth, requireRole('ADMIN', 'STAFF'), controller.creerFacture);

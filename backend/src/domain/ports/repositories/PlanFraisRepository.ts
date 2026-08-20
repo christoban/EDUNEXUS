@@ -2,7 +2,7 @@
  * DOMAIN LAYER — Port Repository Plan de Frais (FeePlan)
  */
 import type { PlanFrais } from '@domain/entities/PlanFrais';
-import type { FeeType } from '@domain/types/enums';
+import type { FeeType, FeePlanStatus } from '@domain/types/enums';
 
 export interface PlanFraisRepository {
   findById(id: string): Promise<PlanFrais | null>;
@@ -20,5 +20,6 @@ export interface PlanFraisRepository {
 
   save(planFrais: PlanFrais): Promise<void>;
   update(planFrais: PlanFrais): Promise<void>;
+  updateStatus(id: string, status: FeePlanStatus): Promise<void>;
   delete(id: string): Promise<void>;
 }

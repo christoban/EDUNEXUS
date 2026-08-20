@@ -32,6 +32,14 @@ export class GenererFacturesEnMasseUseCase {
     // 1. Charger le plan
     const plan = await this.planFraisRepository.findById(commande.feePlanId);
     if (!plan) throw new Error(`Plan introuvable : ${commande.feePlanId}`);
+    if (plan.schoolId !== commande.schoolId) {
+      throw new Error("Ce plan n'appartient pas à votre établissement");
+    }
+    if (!plan.estPublie()) {
+      throw new Error(
+        `Le plan de frais « ${plan.name} » n'est pas publié — facturation impossible`
+      );
+    }
 
     // 2. Loi 3
     if (plan.estScolarite()) {

@@ -10,3 +10,4 @@ export { NoteValideeSyncError } from './NoteValideeSyncError';
 export { VolumeHoraireAPError } from './VolumeHoraireAPError';
 export { ConflitHoraireError } from './ConflitHoraireError';
 export { ConflitVersionPaiementError } from './ConflitVersionPaiementError';
+export { TransitionStatutPlanFraisError } from './TransitionStatutPlanFraisError';

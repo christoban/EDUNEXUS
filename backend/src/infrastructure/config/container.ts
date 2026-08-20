@@ -135,6 +135,7 @@ import { CampayPaiementService } from '@infrastructure/services/CampayPaiementSe
 
 // --- Use Cases : Finance ---
 import { CreerPlanFraisUseCase } from '@application/finance/CreerPlanFraisUseCase';
+import { ChangerStatutPlanFraisUseCase } from '@application/finance/ChangerStatutPlanFraisUseCase';
 import { CopierPlansFraisAnneePrecedenteUseCase } from '@application/finance/CopierPlansFraisAnneePrecedenteUseCase';
 import { GenererFactureUseCase } from '@application/finance/GenererFactureUseCase';
 import { GenererFacturesEnMasseUseCase } from '@application/finance/GenererFacturesEnMasseUseCase';
@@ -362,6 +363,7 @@ export function creerContainer() {
   const campayPaiementService = new CampayPaiementService();
 
   const creerPlanFraisUseCase = new CreerPlanFraisUseCase(planFraisRepository);
+  const changerStatutPlanFraisUseCase = new ChangerStatutPlanFraisUseCase(planFraisRepository);
   const genererFactureUseCase = new GenererFactureUseCase(factureRepository, planFraisRepository);
   const genererFacturesEnMasseUseCase = new GenererFacturesEnMasseUseCase(
     factureRepository, planFraisRepository, userRepository,
@@ -619,6 +621,7 @@ export function creerContainer() {
       enregistrerDepense: enregistrerDepenseUseCase,
       enregistrerPaiementCash: enregistrerPaiementCashUseCase,
       copierPlansFraisAnneePrecedente: copierPlansFraisAnneePrecedenteUseCase,
+      changerStatutPlanFrais: changerStatutPlanFraisUseCase,
       factureRepository,
     },
     ai: {

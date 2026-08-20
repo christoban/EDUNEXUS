@@ -30,6 +30,7 @@ export type GradingSystem = 'OUT_OF_20' | 'OUT_OF_100';
 export type SectionLanguage = 'FR' | 'EN';
 
 export type FeeType = 'TUITION' | 'APEE_PTA' | 'EXAM' | 'UNIFORM' | 'CAUTION' | 'WORKSHOP' | 'INSCRIPTION' | 'DEVELOPMENT_LEVY' | 'SPORTS_LEVY';
+export type FeePlanStatus = 'DRAFT' | 'PENDING_VALIDATION' | 'APPROVED' | 'PUBLISHED';
 export type PaymentMethod = 'CASH' | 'MTN_MOMO' | 'ORANGE_MONEY' | 'BANK_TRANSFER' | 'EXPRESS_UNION';
 export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
 export type InvoiceStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELLED';

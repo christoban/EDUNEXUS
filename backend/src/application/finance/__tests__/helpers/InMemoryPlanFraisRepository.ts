@@ -1,6 +1,6 @@
 import { PlanFrais } from '@domain/entities/PlanFrais';
 import type { PlanFraisRepository } from '@domain/ports/repositories/PlanFraisRepository';
-import type { FeeType } from '@domain/types/enums';
+import type { FeeType, FeePlanStatus } from '@domain/types/enums';
 
 export class InMemoryPlanFraisRepository implements PlanFraisRepository {
   private store = new Map<string, PlanFrais>();
@@ -31,5 +31,10 @@ export class InMemoryPlanFraisRepository implements PlanFraisRepository {
   }
   async save(plan: PlanFrais) { this.store.set(plan.id, plan); }
   async update(plan: PlanFrais) { this.store.set(plan.id, plan); }
+  async updateStatus(id: string, status: FeePlanStatus) {
+    const plan = this.store.get(id);
+    if (!plan) throw new Error('Plan introuvable');
+    this.store.set(id, PlanFrais.reconstituer({ ...plan.toObject(), status }));
+  }
   async delete(id: string) { this.store.delete(id); }
 }

@@ -5,8 +5,9 @@
  * Aucune facturation supérieure aux seuils légaux.
  * verifierSeuilLegal() lance SeuilLegalDepasseError si dépassement.
  */
-import type { FeeType } from '@domain/types/enums';
+import type { FeeType, FeePlanStatus } from '@domain/types/enums';
 import { SeuilLegalDepasseError } from '@domain/errors/SeuilLegalDepasseError';
+import { TransitionStatutPlanFraisError } from '@domain/errors/TransitionStatutPlanFraisError';
 
 export interface PlanFraisProps {
   id: string;
@@ -23,6 +24,8 @@ export interface PlanFraisProps {
   createdAt: Date;
   /** Non renseigné pour un plan "évergreen" — voir note du modèle FeePlan. */
   academicYearId?: string;
+  /** Workflow de publication V1.11. */
+  status: FeePlanStatus;
 }
 
 export interface CreerPlanFraisProps {
@@ -37,6 +40,7 @@ export interface CreerPlanFraisProps {
   dueDate?: Date;
   description?: string;
   academicYearId?: string;
+  status?: FeePlanStatus;
 }
 
 export class PlanFrais {
@@ -51,6 +55,7 @@ export class PlanFrais {
       id: crypto.randomUUID(),
       currency: props.currency ?? 'XAF',
       isRefundable: props.isRefundable ?? false,
+      status: props.status ?? 'PUBLISHED',
       createdAt: new Date(),
     });
   }
@@ -70,12 +75,32 @@ export class PlanFrais {
   get isRefundable(): boolean { return this.props.isRefundable; }
   get dueDate(): Date | undefined { return this.props.dueDate; }
   get academicYearId(): string | undefined { return this.props.academicYearId; }
+  get status(): FeePlanStatus { return this.props.status; }
 
   // --- Méthodes métier ---
 
   estScolarite(): boolean { return this.props.feeType === 'TUITION'; }
   estCaution(): boolean { return this.props.feeType === 'CAUTION'; }
   estAPEE(): boolean { return this.props.feeType === 'APEE_PTA'; }
+
+  estPublie(): boolean { return this.props.status === 'PUBLISHED'; }
+
+  /**
+   * Workflow de publication V1.11 : DRAFT → PENDING_VALIDATION → APPROVED → PUBLISHED.
+   * Toute autre transition lance TransitionStatutPlanFraisError.
+   */
+  changerStatut(cible: FeePlanStatus): void {
+    const transitions: Record<FeePlanStatus, FeePlanStatus[]> = {
+      DRAFT: ['PENDING_VALIDATION'],
+      PENDING_VALIDATION: ['APPROVED'],
+      APPROVED: ['PUBLISHED'],
+      PUBLISHED: [],
+    };
+    if (!transitions[this.props.status].includes(cible)) {
+      throw new TransitionStatutPlanFraisError(this.props.name, this.props.status, cible);
+    }
+    this.props.status = cible;
+  }
 
   /**
    * Loi 3 — Art. 48 MINESEC
