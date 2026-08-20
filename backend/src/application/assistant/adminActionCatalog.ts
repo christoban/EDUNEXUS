@@ -1,4 +1,4 @@
-﻿/**
+/**
  * APPLICATION LAYER — Catalogue d'actions de l'assistant IA (copilot), rôle ADMIN.
  *
  * Chaque entrée mappe UNE intention en langage naturel vers UN use case existant.
@@ -30,6 +30,7 @@ import {
   resolveCurrentSequence,
   calculerMoyennesClasseSequence,
 } from '@application/assistant/catalogShared';
+import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 import type { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';
 import type { SupprimerClasseUseCase } from '@application/class/SupprimerClasseUseCase';
@@ -372,7 +373,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async summarizeDestructive(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const [students, grades] = await Promise.all([
-          ctx.prisma.studentProfile.count({ where: { classId: classe.id } }),
+          ctx.prisma.enrollment.count({ where: { classId: classe.id, status: 'ACTIVE', academicYear: { isCurrent: true } } }),
           ctx.prisma.grade.count({ where: { classId: classe.id } }),
         ]);
         const parts = [`${students} élève(s)`];
@@ -795,7 +796,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const subject = input.subjectName ? await resolveSubject(ctx, input.subjectName) : null;
-        const profiles = await ctx.prisma.studentProfile.findMany({ where: { classId: classe.id }, select: { userId: true, lv2SubjectId: true } });
+        const profiles = await ctx.prisma.studentProfile.findMany({ where: { ...whereProfilesParClasse(classe.id) }, select: { userId: true, lv2SubjectId: true } });
         const r = await deps.affecterLV2Masse.execute({
           studentUserIds: profiles.map((p) => p.userId),
           schoolId: ctx.schoolId,
@@ -861,7 +862,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       }),
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
-        const profiles = await ctx.prisma.studentProfile.findMany({ where: { classId: classe.id }, select: { userId: true, pebsFiliere: true } });
+        const profiles = await ctx.prisma.studentProfile.findMany({ where: { ...whereProfilesParClasse(classe.id) }, select: { userId: true, pebsFiliere: true } });
         const r = await deps.affecterPEBSMasse.execute({
           studentUserIds: profiles.map((p) => p.userId),
           schoolId: ctx.schoolId,
@@ -893,7 +894,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const profiles = await ctx.prisma.studentProfile.findMany({
-          where: { classId: classe.id },
+          where: { ...whereProfilesParClasse(classe.id) },
           select: { lv2Subject: { select: { name: true } } },
         });
         const counts = new Map<string, number>();
@@ -921,7 +922,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const profiles = await ctx.prisma.studentProfile.findMany({
-          where: { classId: classe.id, lv2SubjectId: null },
+          where: { ...whereProfilesParClasse(classe.id), lv2SubjectId: null },
           select: { user: { select: { firstName: true, lastName: true } } },
         });
         const resultLabel = profiles.length === 0
@@ -945,7 +946,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       inputSchema: z.object({ className: z.string().min(1) }),
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
-        const profiles = await ctx.prisma.studentProfile.findMany({ where: { classId: classe.id }, select: { pebsFiliere: true } });
+        const profiles = await ctx.prisma.studentProfile.findMany({ where: { ...whereProfilesParClasse(classe.id) }, select: { pebsFiliere: true } });
         const frPebs = profiles.filter((p) => p.pebsFiliere === 'FR_PEBS').length;
         const enPebs = profiles.filter((p) => p.pebsFiliere === 'EN_PEBS').length;
         const nonPebs = profiles.length - frPebs - enPebs;
@@ -1393,7 +1394,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
       async execute(input, ctx) {
         const classe = await resolveClass(ctx, input.className);
         const plan = await resolvePlanFrais(ctx, input.planName);
-        const profiles = await ctx.prisma.studentProfile.findMany({ where: { classId: classe.id }, select: { userId: true } });
+        const profiles = await ctx.prisma.studentProfile.findMany({ where: { ...whereProfilesParClasse(classe.id) }, select: { userId: true } });
         if (profiles.length === 0) throw new Error(`Aucun élève inscrit dans ${classe.name}.`);
         const r = await deps.genererFacturesMasse.execute({
           schoolId: ctx.schoolId,
@@ -1472,7 +1473,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         let label = "l'établissement";
         if (input.className) {
           const classe = await resolveClass(ctx, input.className);
-          const profiles = await ctx.prisma.studentProfile.findMany({ where: { classId: classe.id }, select: { userId: true } });
+          const profiles = await ctx.prisma.studentProfile.findMany({ where: { ...whereProfilesParClasse(classe.id) }, select: { userId: true } });
           studentIds = profiles.map((p) => p.userId);
           label = classe.name;
         }
@@ -1680,7 +1681,7 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         let label = "l'établissement";
         if (input.className) {
           const classe = await resolveClass(ctx, input.className);
-          const profiles = await ctx.prisma.studentProfile.findMany({ where: { classId: classe.id }, select: { userId: true } });
+          const profiles = await ctx.prisma.studentProfile.findMany({ where: { ...whereProfilesParClasse(classe.id) }, select: { userId: true } });
           studentIds = profiles.map((p) => p.userId);
           label = classe.name;
         }
@@ -2000,13 +2001,17 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         const eleves = await ctx.prisma.studentProfile.findMany({
           where: {
             user: { schoolId: ctx.schoolId },
-            ...(classe ? { classId: classe.id } : {}),
+            ...(classe ? whereProfilesParClasse(classe.id) : {}),
             healthScore: { lte: warningThreshold },
           },
           select: {
             healthScore: true,
             user: { select: { firstName: true, lastName: true } },
-            class: { select: { name: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { class: { select: { name: true } } },
+              take: 1,
+            },
           },
           orderBy: { healthScore: 'asc' },
         });
@@ -2022,7 +2027,8 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
           eleves.map((e) => {
             const score = e.healthScore ?? 75;
             const niveau = score <= criticalThreshold ? 'CRITIQUE' : 'à surveiller';
-            return `${e.user.firstName ?? ''} ${e.user.lastName ?? ''}`.trim() + ` (${e.class?.name ?? 'N/A'}, ${score}/100, ${niveau})`;
+            const className = e.enrollmentsYearScoped[0]?.class?.name ?? 'N/A';
+            return `${e.user.firstName ?? ''} ${e.user.lastName ?? ''}`.trim() + ` (${className}, ${score}/100, ${niveau})`;
           }).join(', ');
         return { resultLabel, section: 'ai', entity: 'studentProfile' };
       },

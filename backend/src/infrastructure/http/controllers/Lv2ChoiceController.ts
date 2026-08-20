@@ -114,13 +114,21 @@ export class Lv2ChoiceController {
       // Récupérer le profil élève
       const profile = await this.prisma.studentProfile.findFirst({
         where: { user: { id: userId, schoolId } },
+        select: {
+          id: true,
+          enrollmentsYearScoped: {
+            where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+            select: { classId: true },
+            take: 1,
+          },
+        },
       });
       if (!profile) {
         res.status(404).json({ success: false, message: 'Profil élève introuvable' });
         return;
       }
 
-      const classe = await this.prisma.class.findUnique({ where: { id: profile.classId } });
+      const classe = await this.prisma.class.findUnique({ where: { id: profile.enrollmentsYearScoped?.[0]?.classId ?? '' } });
       if (!classe) {
         res.status(404).json({ success: false, message: 'Classe introuvable' });
         return;

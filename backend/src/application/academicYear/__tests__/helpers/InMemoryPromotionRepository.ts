@@ -22,7 +22,7 @@ export class InMemoryPromotionRepository implements PromotionRepository {
   async promouvoirEleve(params: PromotionEleveParams) {
     this.promotionsEnregistrees.push(params);
   }
-  async mettreAJourClasseEleve(studentId: string, classId: string) {
+  async mettreAJourClasseEleve(studentId: string, classId: string, _demandeurId: string) {
     this.classesEleves.set(studentId, classId);
   }
   async countPromotions(_schoolId: string, _yearId: string) {

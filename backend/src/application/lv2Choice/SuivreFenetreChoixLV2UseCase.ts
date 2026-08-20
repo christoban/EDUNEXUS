@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SuivreFenetreCommande } from './types';
+import { whereProfilesParClasses } from '@application/shared/studentEnrollment';
 
 interface EleveSuivi {
   studentProfileId: string;
@@ -37,11 +38,15 @@ export class SuivreFenetreChoixLV2UseCase {
     const classByName = new Map(classes.map(c => [c.id, c.name]));
 
     const profiles = await this.prisma.studentProfile.findMany({
-      where: { classId: { in: classIds }, studentStatus: 'ACTIVE' },
+      where: { ...whereProfilesParClasses(classIds), studentStatus: 'ACTIVE' },
       select: {
         id: true,
         userId: true,
-        classId: true,
+        enrollmentsYearScoped: {
+          where: { classId: { in: classIds }, status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { classId: true },
+          take: 1,
+        },
         user: { select: { firstName: true, lastName: true } },
       },
     });
@@ -55,12 +60,13 @@ export class SuivreFenetreChoixLV2UseCase {
 
     const students: EleveSuivi[] = profiles.map((p: any) => {
       const sub = subByStudent.get(p.id);
+      const studentClassId = p.enrollmentsYearScoped?.[0]?.classId;
       return {
         studentProfileId: p.id,
         userId: p.userId,
         firstName: p.user.firstName,
         lastName: p.user.lastName,
-        className: classByName.get(p.classId) ?? '',
+        className: (studentClassId ? classByName.get(studentClassId) : '') ?? '',
         hasSubmitted: !!sub,
         submissionMethod: sub?.submissionMethod,
         chosenSubjectName: sub?.chosenSubject?.name,

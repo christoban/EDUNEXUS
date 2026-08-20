@@ -80,9 +80,9 @@ async function main() {
       where: { schoolId: SCHOOL_ID },
       select: { teacherId: true, classId: true, subjectId: true },
     }),
-    prisma.studentProfile.findMany({
-      where: { user: { schoolId: SCHOOL_ID }, classId: { not: null } },
-      select: { userId: true, classId: true },
+    prisma.enrollment.findMany({
+      where: { schoolId: SCHOOL_ID, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      select: { student: { select: { userId: true } }, classId: true },
     }),
     prisma.subjectCoefficient.findMany({
       where: { schoolId: SCHOOL_ID },
@@ -126,8 +126,8 @@ async function main() {
   // Index students par classId
   const studentsByClass = new Map<string, string[]>();
   for (const sp of studentProfiles) {
-    if (!studentsByClass.has(sp.classId!)) studentsByClass.set(sp.classId!, []);
-    studentsByClass.get(sp.classId!)!.push(sp.userId);
+    if (!studentsByClass.has(sp.classId)) studentsByClass.set(sp.classId, []);
+    studentsByClass.get(sp.classId)!.push(sp.student.userId);
   }
 
   const SEQUENCES = [SEQ1_ID, SEQ2_ID];

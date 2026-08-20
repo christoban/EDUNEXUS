@@ -47,7 +47,11 @@ export class PrismaParentRepository implements ParentRepository {
             studentProfile: {
               include: {
                 user: { select: { firstName: true, lastName: true } },
-                class: { select: { id: true, name: true, serie: true } },
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { id: true, name: true, serie: true } } },
+                  take: 1,
+                },
               },
             },
           },
@@ -64,6 +68,7 @@ export class PrismaParentRepository implements ParentRepository {
       parent.children.map(async (lien) => {
         const profil = lien.studentProfile;
         const studentId = profil.userId;
+        const classeActuelle = profil.enrollmentsYearScoped[0]?.class ?? null;
 
         const [nbPresent, nbRetard, nbAbsent, total] = await Promise.all([
           this.prisma.attendance.count({
@@ -98,9 +103,9 @@ export class PrismaParentRepository implements ParentRepository {
           studentId,
           prenom: profil.user.firstName,
           nom: profil.user.lastName,
-          classeId: profil.class?.id,
-          classeNom: profil.class
-            ? `${profil.class.name}${profil.class.serie ? ' ' + profil.class.serie : ''}`
+          classeId: classeActuelle?.id,
+          classeNom: classeActuelle
+            ? `${classeActuelle.name}${classeActuelle.serie ? ' ' + classeActuelle.serie : ''}`
             : undefined,
           tauxPresence,
           tauxPonctualite,

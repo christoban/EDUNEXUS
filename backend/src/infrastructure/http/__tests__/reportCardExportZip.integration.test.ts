@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
@@ -64,7 +65,7 @@ beforeAll(async () => {
 
   const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'export-zip' });
   studentId = student.id;
-  await prismaTest.studentProfile.create({ data: { userId: student.id, classId } });
+  await creerEleveAvecClasse(prismaTest, { userId: student.id, classId, enrolledById: student.id });
 
   await prismaTest.reportCard.create({
     data: {
@@ -86,7 +87,7 @@ afterAll(async () => {
   await prismaTest.$disconnect();
 });
 
-describe('ReportCardController.exporterZip — résolution className via student.studentProfile.class', () => {
+describe('ReportCardController.exporterZip — résolution className via Enrollment year-scoped', () => {
   it('la requête Prisma corrigée (mêmes include que le contrôleur) résout le vrai nom de classe', async () => {
     const reportCard = await prismaTest.reportCard.findFirst({
       where: { schoolId, academicPeriodId },
@@ -94,14 +95,22 @@ describe('ReportCardController.exporterZip — résolution className via student
         student: {
           select: {
             id: true, firstName: true, lastName: true,
-            studentProfile: { select: { class: { select: { name: true } } } },
+            studentProfile: {
+              select: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { name: true } } },
+                  take: 1,
+                },
+              },
+            },
           },
         },
       },
     });
     expect(reportCard).not.toBeNull();
     // Avant le correctif, (reportCard as any).class?.name était toujours undefined → '—'.
-    expect(reportCard!.student.studentProfile?.class?.name).toBe('4ème Export Zip');
+    expect(reportCard!.student.studentProfile?.enrollmentsYearScoped?.[0]?.class?.name).toBe('4ème Export Zip');
   });
 
   it("POST /report-cards/export/:classId répond 200 avec un ZIP", async () => {

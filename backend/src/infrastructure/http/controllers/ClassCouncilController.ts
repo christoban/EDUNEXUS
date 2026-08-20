@@ -5,6 +5,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { logActivity } from '../../../utils/activitieslog';
 import { notifyBulletinSms } from '../../services/SmsNotificationService';
+import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 type AuthUser = { schoolId: string; userId: string; role: string; permissions?: string[] };
 
@@ -78,7 +79,7 @@ export class ClassCouncilController {
 
       // Pré-peupler une décision DELIBERATION pour chaque élève de la classe
       const students = await prisma.studentProfile.findMany({
-        where: { classId },
+        where: { ...whereProfilesParClasse(classId) },
         select: { userId: true },
       });
       if (students.length > 0) {
@@ -238,7 +239,7 @@ export class ClassCouncilController {
       if (!session) { res.status(404).json({ message: 'Session introuvable' }); return; }
       if (session.status === 'LOCKED') { res.status(409).json({ message: 'Cette session est verrouillée. Aucune modification possible.' }); return; }
 
-      const studentProfile = await prisma.studentProfile.findFirst({ where: { userId: studentId, classId: session.classId } });
+      const studentProfile = await prisma.studentProfile.findFirst({ where: { userId: studentId, ...whereProfilesParClasse(session.classId) } });
       if (!studentProfile) { res.status(404).json({ message: "Cet élève n'appartient pas à cette classe" }); return; }
 
       const councilDecision = await prisma.classCouncilDecision.upsert({
@@ -354,7 +355,7 @@ export class ClassCouncilController {
           schoolId: user.schoolId,
           academicPeriodId: session.academicPeriodId,
           validationStatus: 'GENERATED' as ReportCardStatus,
-          student: { studentProfile: { classId: session.classId } },
+          student: { studentProfile: whereProfilesParClasse(session.classId) },
         },
         select: {
           id: true,
@@ -428,7 +429,7 @@ export class ClassCouncilController {
         where: {
           schoolId: user.schoolId,
           academicPeriodId: session.academicPeriodId,
-          student: { studentProfile: { classId: session.classId } },
+          student: { studentProfile: whereProfilesParClasse(session.classId) },
         },
         select: { studentId: true, generalAverage: true, mention: true, rank: true },
       });

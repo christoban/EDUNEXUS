@@ -5,6 +5,7 @@ import type { StudentGroupSetRepository } from '@domain/ports/repositories/Stude
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import { synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
+import { changerClasseEleve } from '@application/shared/studentEnrollment';
 
 interface NotifieCandidat { studentUserId: string; studentName: string }
 
@@ -46,15 +47,39 @@ export class AppliquerTransfertPebsUseCase {
     const school = await this.prisma.school.findUnique({ where: { id: cmd.schoolId }, select: { subsystem: true } });
     const pebsFiliere = school?.subsystem === 'ANGLOPHONE' ? 'EN_PEBS' : 'FR_PEBS';
 
+    // Résoudre la classe cible + un admin pour enrolledById
+    const [targetClass, adminUser] = await Promise.all([
+      this.prisma.class.findUnique({
+        where: { id: session.targetClassId },
+        select: { schoolId: true, academicYearId: true },
+      }),
+      this.prisma.user.findFirst({
+        where: { schoolId: cmd.schoolId, role: 'ADMIN' },
+        select: { id: true },
+      }),
+    ]);
+    if (!targetClass) throw new Error('Classe cible PEBS introuvable');
+    const enrolledById = adminUser?.id ?? 'SYSTEM';
+
     // Appliquer les transferts
     const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
     let transferred = 0;
     const selectionnes: NotifieCandidat[] = [];
     for (const c of selected) {
       try {
+        // 1. Mettre à jour pebsFiliere (attribut élève)
         await this.prisma.studentProfile.update({
           where: { id: c.studentProfileId },
-          data: { classId: session.targetClassId, pebsFiliere },
+          data: { pebsFiliere },
+        });
+        // 2. Changer la classe via Enrollment
+        await changerClasseEleve(this.prisma, {
+          studentId: c.studentProfileId,
+          newClassId: session.targetClassId,
+          academicYearId: targetClass.academicYearId,
+          schoolId: targetClass.schoolId,
+          enrolledById,
+          exitReason: 'PEBS',
         });
         await synchroniserAppartenanceProgramme(syncRepos, {
           schoolId: cmd.schoolId, studentProfileId: c.studentProfileId, pebsFiliere,

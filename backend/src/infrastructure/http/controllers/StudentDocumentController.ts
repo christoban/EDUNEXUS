@@ -14,7 +14,11 @@ async function fetchStudent(prisma: PrismaClient, userId: string, schoolId: stri
     where: { userId, user: { schoolId } },
     include: {
       user: { select: { firstName: true, lastName: true, phone: true, schoolId: true } },
-      class: { select: { name: true, section: { select: { code: true } } } },
+      enrollmentsYearScoped: {
+        where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+        take: 1,
+        select: { class: { select: { name: true, section: { select: { code: true } } } } },
+      },
       parents: {
         include: {
           parentProfile: {
@@ -25,6 +29,10 @@ async function fetchStudent(prisma: PrismaClient, userId: string, schoolId: stri
       },
     },
   });
+}
+
+function classeActuelle(student: { enrollmentsYearScoped: { class: { name: string; section: { code: string } | null } | null }[] | undefined }) {
+  return student?.enrollmentsYearScoped?.[0]?.class ?? null;
 }
 
 async function fetchSchool(prisma: PrismaClient, schoolId: string) {
@@ -71,14 +79,14 @@ export class StudentDocumentController {
           dataSnapshot: {
             studentName,
             matricule: student.matricule ?? null,
-            className: student.class?.name ?? '—',
+            className: classeActuelle(student)?.name ?? '—',
             yearName: year?.name ?? '—',
             status: student.studentStatus,
           },
         },
       });
 
-      const lang = resolveLanguage(school?.subsystem, student.class?.section?.code)
+      const lang = resolveLanguage(school?.subsystem, classeActuelle(student)?.section?.code ?? null)
       const pdf = await generateCertificatPdf({
         documentId: doc.id,
         school: {
@@ -88,7 +96,7 @@ export class StudentDocumentController {
         },
         studentName,
         matricule: student.matricule ?? undefined,
-        className: student.class?.name ?? '—',
+        className: classeActuelle(student)?.name ?? '—',
         yearName: year?.name ?? '—',
         // timeZone: 'UTC' explicite — la date est stockée en UTC minuit ; sans ça, le
         // formatage dépend de l'heure locale du serveur (actuellement UTC+1, où ça reste
@@ -142,13 +150,13 @@ export class StudentDocumentController {
           dataSnapshot: {
             studentName,
             matricule: student.matricule ?? null,
-            className: student.class?.name ?? '—',
+            className: classeActuelle(student)?.name ?? '—',
             yearName: year?.name ?? '—',
           },
         },
       });
 
-      const lang = resolveLanguage(school?.subsystem, student.class?.section?.code)
+      const lang = resolveLanguage(school?.subsystem, classeActuelle(student)?.section?.code ?? null)
       const pdf = await generateCarteScolairepdf({
         documentId: doc.id,
         school: {
@@ -157,7 +165,7 @@ export class StudentDocumentController {
         },
         studentName,
         matricule: student.matricule ?? undefined,
-        className: student.class?.name ?? '—',
+        className: classeActuelle(student)?.name ?? '—',
         yearName: year?.name ?? '—',
         photoUrl: student.photoUrl ?? undefined,
         emergencyContact: parent ? `${parent.lastName} ${parent.firstName}` : undefined,
@@ -219,14 +227,14 @@ export class StudentDocumentController {
           dataSnapshot: {
             studentName,
             matricule: student.matricule ?? null,
-            className: student.class?.name ?? '—',
+            className: classeActuelle(student)?.name ?? '—',
             yearName: year?.name ?? '—',
             motif: motif || student.studentStatus,
           },
         },
       });
 
-      const lang = resolveLanguage(school?.subsystem, student.class?.section?.code)
+      const lang = resolveLanguage(school?.subsystem, classeActuelle(student)?.section?.code ?? null)
       const pdf = await generateLettreTransfertPdf({
         documentId: doc.id,
         school: {
@@ -236,7 +244,7 @@ export class StudentDocumentController {
         },
         studentName,
         matricule: student.matricule ?? undefined,
-        className: student.class?.name ?? '—',
+        className: classeActuelle(student)?.name ?? '—',
         yearName: year?.name ?? '—',
         motif: motif || student.studentStatus,
         lastAverage: lastBulletin?.generalAverage ?? undefined,

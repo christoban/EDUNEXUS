@@ -58,9 +58,9 @@ export interface PromotionRepository {
   promouvoirEleve(params: PromotionEleveParams): Promise<void>;
 
   /**
-   * Met à jour la classId d'un élève dans son profil.
+   * Met à jour l'inscription d'un élève (clôture l'ancien Enrollment, crée le nouveau).
    */
-  mettreAJourClasseEleve(studentId: string, newClassId: string): Promise<void>;
+  mettreAJourClasseEleve(studentId: string, newClassId: string, demandeurId: string): Promise<void>;
 
   /**
    * Compte les promotions enregistrées pour le rapport de clôture.

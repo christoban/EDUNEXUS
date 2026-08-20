@@ -213,6 +213,7 @@ model School {
   leaveBalances                LeaveBalance[]
   missionOrders                MissionOrder[]
   enrollments                  InscriptionMinesec[]
+  enrollmentsYearScoped        Enrollment[]
   studentOnboardings           StudentOnboarding[]
   schoolOnboardingSettings     SchoolOnboardingSettings?
   statisticalSubmissions       StatisticalSubmission[]
@@ -585,7 +586,6 @@ model User {
   pushSubscriptions               PushSubscription[]
   offlineQueueItems               OfflineQueue[]             @relation("UserOfflineQueue")
   timetableSlots                  TimetableSlot[]            @relation("TeacherSlots")
-  promotionsAsStudent             StudentPromotion[]         @relation("PromotedStudent")
   promotionsDecided               StudentPromotion[]         @relation("PromotionDecidedBy")
   classesProfessorPrincipal       Class[]                    @relation("ClassProfessorPrincipal")
   bookLoans                       BookLoan[]                 @relation("StudentBookLoans")
@@ -616,6 +616,7 @@ model User {
   followUpActionsCreated          StudentFollowUpAction[]    @relation("FollowUpCreatedBy")
   followUpActionsAssigned         StudentFollowUpAction[]    @relation("FollowUpAssignedTo")
   followUpActionsClosed           StudentFollowUpAction[]    @relation("FollowUpClosedBy")
+  enrollmentsCreated              Enrollment[]               @relation("EnrollmentBy")
 
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
@@ -662,7 +663,6 @@ model StudentProfile {
   matriculeMatchType  String?
   dateOfBirth         DateTime?
   gender              String?
-  classId             String?
   exitYear            String?
   studentStatus       StudentStatus               @default(ACTIVE)
   healthScore         Int?                        @default(75)
@@ -670,13 +670,14 @@ model StudentProfile {
   photoUrl            String?
   lv2SubjectId        String?
   parents             ParentStudent[]
-  class               Class?                      @relation(fields: [classId], references: [id])
   lv2Subject          Subject?                    @relation("StudentLV2", fields: [lv2SubjectId], references: [id])
   user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   subGroupAssignments StudentSubGroupAssignment[]
   alevelSubjects      StudentALevelSubject[]
   verifiableDocuments VerifiableDocument[]
   enrollments         InscriptionMinesec[]
+  enrollmentsYearScoped Enrollment[]
+  promotions          StudentPromotion[]
   paiementsMinesec    PaiementMinesec[]
   paiementsEtab       PaiementEtablissement[]
   examRegistrations   ExamRegistration[]
@@ -927,6 +928,7 @@ model AcademicYear {
   teachingAssignments  TeachingAssignment[]
   groupMemberships     StudentGroupMembership[]
   classRoomAssignments ClassRoomAssignment[]
+  enrollments          Enrollment[]
 
   @@index([schoolId])
 }
@@ -1000,7 +1002,6 @@ model Class {
   subGroups             ClassSubGroup[]
   exams                 Exam[]
   grades                Grade[]
-  students              StudentProfile[]
   timetables            Timetable[]
   studentFromPromotions StudentPromotion[]     @relation("StudentFromClass")
   studentToPromotions   StudentPromotion[]     @relation("StudentToClass")
@@ -1012,6 +1013,7 @@ model Class {
   cahierDeTexte         CahierDeTexte[]
   studentOnboardings    StudentOnboarding[]
   roomAssignments       ClassRoomAssignment[]
+  enrollments           Enrollment[]
 
   @@index([schoolId])
   @@index([deletedAt])
@@ -1757,12 +1759,12 @@ model StudentPromotion {
   academicYearId String
   promotedById   String
   promotedAt     DateTime     @default(now())
-  school         School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student        User         @relation("PromotedStudent", fields: [studentId], references: [id])
-  fromClass      Class        @relation("StudentFromClass", fields: [fromClassId], references: [id])
-  toClass        Class        @relation("StudentToClass", fields: [toClassId], references: [id])
-  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
-  promotedBy     User         @relation("PromotionDecidedBy", fields: [promotedById], references: [id])
+  school         School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student        StudentProfile @relation(fields: [studentId], references: [id])
+  fromClass      Class          @relation("StudentFromClass", fields: [fromClassId], references: [id])
+  toClass        Class          @relation("StudentToClass", fields: [toClassId], references: [id])
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id])
+  promotedBy     User           @relation("PromotionDecidedBy", fields: [promotedById], references: [id])
 
   @@unique([studentId, academicYearId])
   @@index([schoolId])
@@ -3064,6 +3066,40 @@ enum InscriptionMinesecStatus {
   SUSPENDED
   TRANSFERRED_OUT
   TRANSFERRED_IN
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  TRANSFERRED
+  GRADUATED
+  DROPPED
+  REPEATING
+}
+
+model Enrollment {
+  id              String            @id @default(cuid())
+  studentId       String
+  classId         String
+  academicYearId  String
+  schoolId        String
+  status          EnrollmentStatus  @default(ACTIVE)
+  enrolledAt      DateTime          @default(now())
+  enrolledById    String
+  exitedAt        DateTime?
+  exitReason      String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  student         StudentProfile    @relation(fields: [studentId], references: [id])
+  class           Class             @relation(fields: [classId], references: [id])
+  academicYear    AcademicYear      @relation(fields: [academicYearId], references: [id])
+  school          School            @relation(fields: [schoolId], references: [id])
+  enrolledBy      User              @relation("EnrollmentBy", fields: [enrolledById], references: [id])
+
+  @@unique([studentId, academicYearId])
+  @@index([schoolId, academicYearId])
+  @@index([classId])
+  @@index([studentId])
 }
 
 model PaiementMinesec {

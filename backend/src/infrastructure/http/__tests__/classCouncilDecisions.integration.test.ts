@@ -13,6 +13,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
@@ -67,11 +68,11 @@ beforeAll(async () => {
 
   const studentA = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'conseil-a' });
   studentAId = studentA.id;
-  await prismaTest.studentProfile.create({ data: { userId: studentA.id, classId } });
+  await creerEleveAvecClasse(prismaTest, { userId: studentA.id, classId, enrolledById: studentA.id });
 
   const studentB = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'conseil-b' });
   studentBId = studentB.id;
-  await prismaTest.studentProfile.create({ data: { userId: studentB.id, classId } });
+  await creerEleveAvecClasse(prismaTest, { userId: studentB.id, classId, enrolledById: studentB.id });
 });
 
 afterAll(async () => {

@@ -281,10 +281,13 @@ export class DevController {
       const schoolId = req.user!.schoolId;
       const days = Math.min(90, Math.max(1, parseInt(String(req.body.days ?? 30))));
 
-      const studentProfiles = await this.prisma.studentProfile.findMany({
-        where: { user: { schoolId }, classId: { not: null } },
-        select: { userId: true, classId: true },
+      const enrollments = await this.prisma.enrollment.findMany({
+        where: { schoolId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+        select: { studentId: true, classId: true, student: { select: { userId: true } } },
       });
+      const studentProfiles = enrollments
+        .filter((e) => e.student)
+        .map((e) => ({ userId: e.student!.userId, classId: e.classId }));
 
       if (studentProfiles.length === 0) {
         res.status(422).json({ success: false, message: 'Aucun élève avec classe assignée.' });
@@ -381,10 +384,12 @@ export class DevController {
       }
 
       const [studentProfiles, assignments] = await Promise.all([
-        this.prisma.studentProfile.findMany({
-          where: { user: { schoolId }, classId: { not: null } },
-          select: { userId: true, classId: true },
-        }),
+        this.prisma.enrollment.findMany({
+          where: { schoolId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { studentId: true, classId: true, student: { select: { userId: true } } },
+        }).then((rows) =>
+          rows.filter((e) => e.student).map((e) => ({ userId: e.student!.userId, classId: e.classId }))
+        ),
         this.prisma.teachingAssignment.findMany({
           where: { schoolId },
           select: { classId: true, subjectId: true },
@@ -419,7 +424,7 @@ export class DevController {
 
       for (const seq of sequences) {
         for (const sp of studentProfiles) {
-          const classAssignments = assignmentsByClass.get(sp.classId!) ?? [];
+          const classAssignments = assignmentsByClass.get(sp.classId) ?? [];
           for (const assignment of classAssignments) {
             // Score réaliste : distribution normale approchée entre 3 et 20
             const base = 8 + Math.random() * 11; // 8-19
@@ -429,7 +434,7 @@ export class DevController {
               schoolId,
               studentId: sp.userId,
               subjectId: assignment.subjectId,
-              classId: sp.classId!,
+classId: sp.classId,
               academicYearId: academicYear.id,
               sequenceId: seq.id,
               sequenceScore: score,
@@ -472,12 +477,12 @@ export class DevController {
             serie: true,
             professorPrincipalId: true,
             professorPrincipal: { select: { firstName: true, lastName: true } },
-            _count: { select: { students: true, teachingAssignments: true } },
+            _count: { select: { enrollments: true, teachingAssignments: true } },
             timetables: { select: { id: true, _count: { select: { slots: true } } }, take: 1 },
           },
           orderBy: { name: 'asc' },
         }),
-        this.prisma.studentProfile.count({ where: { class: { schoolId } } }),
+        this.prisma.enrollment.count({ where: { schoolId, status: 'ACTIVE', academicYear: { isCurrent: true } } }),
         this.prisma.user.count({ where: { schoolId, role: 'TEACHER', isActive: true } }),
         this.prisma.teachingAssignment.count({ where: { schoolId } }),
         this.prisma.timetable.count({ where: { schoolId } }),
@@ -488,7 +493,7 @@ export class DevController {
         name: c.name,
         level: c.level,
         serie: c.serie,
-        students: c._count.students,
+        students: c._count.enrollments,
         professorPrincipal: c.professorPrincipal
           ? `${c.professorPrincipal.firstName} ${c.professorPrincipal.lastName}`
           : null,
@@ -542,27 +547,45 @@ export class DevController {
         return;
       }
 
-      // Élèves de cette école sans classe assignée
-      const students = await this.prisma.studentProfile.findMany({
-        where: { classId: null, user: { schoolId } },
+      // Élèves de cette école sans inscription active à l'année courante
+      const anneeCourante = await this.prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+      if (!anneeCourante) {
+        res.status(422).json({ success: false, message: 'Aucune année académique courante.' });
+        return;
+      }
+
+      const inscrits = await this.prisma.enrollment.findMany({
+        where: { schoolId, academicYearId: anneeCourante.id, status: 'ACTIVE' },
+        select: { studentId: true },
+      });
+      const inscritIds = new Set(inscrits.map(e => e.studentId));
+      const allStudents = await this.prisma.studentProfile.findMany({
+        where: { user: { schoolId } },
         select: { id: true },
       });
+      const students = allStudents.filter(s => !inscritIds.has(s.id));
 
       if (students.length === 0) {
         res.json({ success: true, data: { message: 'Aucun élève sans classe trouvé.', count: 0 } });
         return;
       }
 
-      const result = await this.prisma.studentProfile.updateMany({
-        where: { id: { in: students.map(s => s.id) } },
-        data: { classId: targetClass.id },
+      await this.prisma.enrollment.createMany({
+        data: students.map(s => ({
+          studentId: s.id,
+          classId: targetClass.id,
+          academicYearId: anneeCourante.id,
+          schoolId,
+          enrolledById: req.user!.userId,
+          status: 'ACTIVE' as const,
+        })),
       });
 
       res.json({
         success: true,
         data: {
-          message: `${result.count} élève(s) assigné(s) à la classe "${targetClass.name}"`,
-          count: result.count,
+          message: `${students.length} élève(s) assigné(s) à la classe "${targetClass.name}"`,
+          count: students.length,
           className: targetClass.name,
         },
       });

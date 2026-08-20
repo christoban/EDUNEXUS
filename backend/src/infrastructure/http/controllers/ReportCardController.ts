@@ -12,6 +12,7 @@ import { resolveLanguage } from '../../../utils/languageHelper';
 import { generateBulletinPdf } from '../../../utils/reportCards/index';
 import { getMention } from '../../../utils/reportCards/helpers';
 import { getEffectiveSchoolSettings } from '../../../utils/schoolSettings';
+import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
 export class ReportCardController {
   constructor(
@@ -255,7 +256,15 @@ export class ReportCardController {
           student: {
             select: {
               id: true, firstName: true, lastName: true,
-              studentProfile: { select: { class: { select: { name: true } } } },
+              studentProfile: {
+                select: {
+                  enrollmentsYearScoped: {
+                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                    select: { class: { select: { name: true } } },
+                    take: 1,
+                  },
+                },
+              },
             },
           },
           subjectLines: { orderBy: { subjectName: 'asc' } },
@@ -294,9 +303,9 @@ export class ReportCardController {
           logoUrl: settings.schoolLogoUrl ?? undefined,
           studentName,
           // Bug indépendant : ReportCard n'a pas de relation `class` directe (uniquement via
-          // student.studentProfile.class) — `(reportCard as any).class` était toujours
+          // student.studentProfile.enrollmentsYearScoped.class) — `(reportCard as any).class` était toujours
           // undefined, chaque PDF exporté affichait "—" au lieu du vrai nom de classe.
-          className: reportCard.student.studentProfile?.class?.name ?? '—',
+          className: reportCard.student.studentProfile?.enrollmentsYearScoped?.[0]?.class?.name ?? '—',
           periodName: reportCard.academicPeriod?.name ?? '—',
           yearName: reportCard.academicYear?.name ?? '—',
           generalAverage: reportCard.generalAverage ?? 0,
@@ -356,7 +365,19 @@ export class ReportCardController {
       const reportCard = await prisma.reportCard.findFirst({
         where: { id: req.params.id as string, schoolId: user.schoolId },
         include: {
-          student: { include: { studentProfile: { include: { class: { select: { professorPrincipalId: true } } } } } },
+          student: {
+            include: {
+              studentProfile: {
+                include: {
+                  enrollmentsYearScoped: {
+                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                    select: { class: { select: { professorPrincipalId: true } } },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          },
         },
       });
 
@@ -366,7 +387,7 @@ export class ReportCardController {
       }
 
       // Seul le Professeur Principal de la classe ou un Admin peut écrire le commentaire
-      const professorPrincipalId = reportCard.student?.studentProfile?.class?.professorPrincipalId;
+      const professorPrincipalId = reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.professorPrincipalId;
       const isPP = professorPrincipalId === user.userId;
       if (role !== 'ADMIN' && !isPP) {
         res.status(403).json({
@@ -407,7 +428,13 @@ export class ReportCardController {
               firstName: true,
               lastName: true,
               studentProfile: {
-                select: { class: { select: { professorPrincipalId: true, section: { select: { code: true } } } } },
+                select: {
+                  enrollmentsYearScoped: {
+                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                    select: { class: { select: { professorPrincipalId: true, section: { select: { code: true } } } } },
+                    take: 1,
+                  },
+                },
               },
             },
           },
@@ -419,7 +446,7 @@ export class ReportCardController {
         return;
       }
 
-      const professorPrincipalId = reportCard.student?.studentProfile?.class?.professorPrincipalId;
+      const professorPrincipalId = reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.professorPrincipalId;
       const isPP = professorPrincipalId === user.userId;
       if (role !== 'ADMIN' && !isPP) {
         res.status(403).json({
@@ -445,7 +472,7 @@ export class ReportCardController {
       const pointsForts = subjectLines.filter((s) => (s.subjectAverage ?? 0) >= 14).map((s) => s.subjectName).slice(0, 3);
       const pointsFaibles = subjectLines.filter((s) => (s.subjectAverage ?? 0) < 10).map((s) => s.subjectName).slice(0, 3);
 
-      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.class?.section?.code ?? null);
+      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null);
       const nomEleve = `${reportCard.student.firstName ?? ''} ${reportCard.student.lastName ?? ''}`.trim();
 
       const comment = await this.iaService.genererCommentaireBulletin({
@@ -506,7 +533,7 @@ export class ReportCardController {
       const where: any = { schoolId: user.schoolId };
       if (yearId) where.academicYearId = yearId;
       if (periodId) where.academicPeriodId = periodId;
-      if (classId) where.student = { studentProfile: { classId } };
+      if (classId) where.student = whereElevesParClasse(classId);
 
       if (role === 'STUDENT') {
         where.studentId = user.userId;
@@ -555,7 +582,20 @@ export class ReportCardController {
         include: {
           academicYear: true,
           academicPeriod: true,
-          student: { select: { id: true, firstName: true, lastName: true, studentProfile: { select: { class: { select: { name: true, section: { select: { code: true } } } } } } } },
+          student: {
+            select: {
+              id: true, firstName: true, lastName: true,
+              studentProfile: {
+                select: {
+                  enrollmentsYearScoped: {
+                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                    select: { class: { select: { name: true, section: { select: { code: true } } } } },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          },
           subjectLines: { orderBy: { subjectName: 'asc' } },
           school: { include: { schoolConfig: true, schoolSettings: true } },
         },
@@ -586,14 +626,14 @@ export class ReportCardController {
       const studentName = `${reportCard.student.firstName} ${reportCard.student.lastName}`.trim();
       const periodName = reportCard.academicPeriod?.name ?? '—';
       const template = (reportCard.template ?? 'FR_SECONDARY') as BulletinTemplate;
-      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.class?.section?.code ?? null);
+      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null);
 
       const pdfBuffer = await generateBulletinPdf(template, {
         schoolName: settings.schoolName ?? reportCard.school?.name ?? 'École',
         schoolMotto: settings.schoolMotto ?? '',
         logoUrl: settings.schoolLogoUrl ?? undefined,
         studentName,
-        className: reportCard.student?.studentProfile?.class?.name ?? '—',
+        className: reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.name ?? '—',
         periodName,
         yearName: reportCard.academicYear?.name ?? '—',
         generalAverage: reportCard.generalAverage ?? 0,

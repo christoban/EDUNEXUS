@@ -171,7 +171,10 @@ export class AssistantController {
       }),
       this.prisma.class.findMany({
         where: { schoolId },
-        select: { name: true, _count: { select: { students: true } } },
+        select: {
+          name: true,
+          _count: { select: { enrollments: { where: { status: 'ACTIVE', academicYear: { isCurrent: true } } } } },
+        },
         orderBy: { name: 'asc' },
         take: 80,
       }),
@@ -180,7 +183,7 @@ export class AssistantController {
       this.prisma.academicPeriod.findMany({ where: { academicYear: { schoolId, isCurrent: true } }, select: { name: true }, orderBy: { orderIndex: 'asc' } }),
     ]);
 
-    const classList = classes.map((c) => `${c.name} (${c._count.students} élèves)`).join(', ') || 'aucune classe';
+    const classList = classes.map((c) => `${c.name} (${c._count.enrollments} élèves)`).join(', ') || 'aucune classe';
     const subjectList = subjects.map((s) => `${s.name} (coeff ${s.coefficient})`).join(', ') || 'aucune matière';
     const teacherList = teachers.map((t) => `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim()).filter(Boolean).join(', ') || 'aucun enseignant';
     const periodList = periods.map((p) => p.name).join(', ') || 'non configurées';

@@ -17,6 +17,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
@@ -79,7 +80,7 @@ beforeAll(async () => {
 
   const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'cloture-structure' });
   studentUserId = student.id;
-  const profile = await prismaTest.studentProfile.create({ data: { userId: student.id, classId: classeSourceId } });
+  const profile = await creerEleveAvecClasse(prismaTest, { userId: student.id, classId: classeSourceId, enrolledById: student.id });
   studentProfileId = profile.id;
 
   // Décision de conseil PASS — pilote la promotion à la clôture. Aucune note créée pour cette
@@ -183,7 +184,9 @@ describe('Clôture d\'année — proposer/renommer/valider structure puis clôtu
     const anneeActuelle = await prismaTest.academicYear.findUnique({ where: { id: anneeActuelleId } });
     expect(anneeActuelle?.status).toBe('ARCHIVED');
 
-    const profile = await prismaTest.studentProfile.findUnique({ where: { id: studentProfileId } });
-    expect(profile?.classId).toBe(classeDraftId);
+    const enrollment = await prismaTest.enrollment.findFirst({
+      where: { studentId: studentProfileId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+    });
+    expect(enrollment?.classId).toBe(classeDraftId);
   });
 });

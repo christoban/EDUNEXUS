@@ -34,10 +34,17 @@ export class GenererPaiementsMinesecUseCase {
     // Récupérer l'élève et sa classe (source du niveau — le champ Enrollment.classe en est dérivé)
     const profile = await this.prisma.studentProfile.findFirst({
       where: { id: cmd.studentProfileId, user: { schoolId: cmd.schoolId } },
-      include: { class: { select: { level: true, name: true } } },
+      include: {
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { level: true, name: true } } },
+          take: 1,
+        },
+      },
     });
     if (!profile) throw new Error('Élève introuvable');
-    const niveau = profile.class?.level ?? profile.class?.name;
+    const classeActuelle = profile.enrollmentsYearScoped?.[0]?.class;
+    const niveau = classeActuelle?.level ?? classeActuelle?.name;
     if (!niveau) throw new Error("Cet élève n'est affecté à aucune classe — impossible de déterminer les frais applicables");
 
     // Trouver ou créer l'Enrollment de l'année — aucun mécanisme ne le créait auparavant,

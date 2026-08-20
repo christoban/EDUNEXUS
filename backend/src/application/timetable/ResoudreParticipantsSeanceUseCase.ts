@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
 /**
  * Généralise l'ancienne logique inline de GET /timetable-slots/:id/students (LV2 uniquement) et
@@ -52,7 +53,7 @@ export class ResoudreParticipantsSeanceUseCase {
     const isLV2 = slot.isLV2Slot ?? false;
 
     const tousLesEleves = await this.prisma.user.findMany({
-      where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+      where: { schoolId, role: 'STUDENT', isActive: true, ...(classId ? whereElevesParClasse(classId) : {}) },
       select: {
         id: true, firstName: true, lastName: true,
         studentProfile: { select: { id: true, lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } } },

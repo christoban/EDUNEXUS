@@ -86,7 +86,7 @@ Cycles, niveaux, filières, classes, matières, groupes, spécialités, années 
 Student ≠ Enrollment     (Student tenant-scoped, Enrollment year-scoped)
 Teacher ≠ TeachingAssignment (Teacher tenant-scoped, TeachingAssignment year-scoped)
 ```
-À vérifier en priorité une fois le code existant audité : `StudentProfile` a-t-il un `classId` direct (anti-pattern) ou déjà une relation Enrollment ?
+> **✅ RÉSOLU (chantier 2026-08-20)** : le `classId` direct a été supprimé. La classe d'un élève se lit uniquement via `Enrollment` year-scoped (`status='ACTIVE'` + `academicYear.isCurrent=true`), centralisée dans `backend/src/application/shared/studentEnrollment.ts`. 71 fichiers migrés, `tsc --noEmit` propre. Détail : `docs/AUDIT_ROADMAP.md` → V0.5.
 
 ## V0.6 — Année scolaire (inchangé)
 `SchoolYear`, périodes, trimestres/séquences, période active, clôture, changement d'année.

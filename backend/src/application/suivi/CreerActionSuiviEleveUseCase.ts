@@ -86,11 +86,20 @@ export class CreerActionSuiviEleveUseCase {
   async execute(cmd: CreerActionSuiviCommande): Promise<FollowUpActionDetail> {
     const profile = await this.prisma.studentProfile.findFirst({
       where: { userId: cmd.studentId, user: { schoolId: cmd.appelant.schoolId } },
-      select: { id: true, classId: true },
+      select: {
+        id: true,
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { classId: true },
+          take: 1,
+        },
+      },
     });
     if (!profile) throw new Error('Élève introuvable');
+    const currentClassId = profile.enrollmentsYearScoped?.[0]?.classId ?? null;
+    if (!currentClassId) throw new Error("Cet élève n'est inscrit dans aucune classe");
 
-    const cap = await this.calculerCapacites(cmd.appelant, profile.classId);
+    const cap = await this.calculerCapacites(cmd.appelant, currentClassId);
     let subjectIdPersiste: string | undefined;
 
     switch (cmd.type) {
@@ -110,7 +119,7 @@ export class CreerActionSuiviEleveUseCase {
             throw new Error('Précisez la matière concernée par votre observation');
           }
           const assignation = await this.prisma.teachingAssignment.findFirst({
-            where: { teacherId: cmd.appelant.userId, classId: profile.classId!, subjectId: cmd.subjectId },
+            where: { teacherId: cmd.appelant.userId, classId: currentClassId, subjectId: cmd.subjectId },
             select: { id: true },
           });
           if (!assignation) {

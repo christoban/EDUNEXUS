@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
+import { getClasseActuelleEleve } from '@application/shared/studentEnrollment';
 
 const formatPercent = (n: number, d: number) =>
   d ? `${Math.round((n / d) * 100)}%` : '0%';
@@ -61,11 +62,7 @@ export class DashboardController {
         stats = { myClassesCount: myClasses.length, myClassNames: myClasses.map((c) => c.name), nextClass, recentActivity: formattedActivity };
 
       } else if (user.role === 'STUDENT') {
-        const studentProfile = await this.prisma.studentProfile.findUnique({
-          where: { userId: user.userId },
-          include: { class: true },
-        });
-        const classId = studentProfile?.classId;
+        const classeActuelle = await getClasseActuelleEleve(this.prisma, user.userId);
         const [presenceCount, totalPresence, grades] = await Promise.all([
           this.prisma.attendance.count({ where: { studentId: user.userId, status: { in: ['PRESENT', 'LATE'] } } }),
           this.prisma.attendance.count({ where: { studentId: user.userId } }),
@@ -76,7 +73,7 @@ export class DashboardController {
           }),
         ]);
         const avgGrade = grades.length ? (grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length).toFixed(1) : 'N/A';
-        stats = { className: studentProfile?.class?.name || 'Non assigné', avgAttendance: formatPercent(presenceCount, totalPresence), avgGrade, recentActivity: formattedActivity };
+        stats = { className: classeActuelle?.className || 'Non assigné', avgAttendance: formatPercent(presenceCount, totalPresence), avgGrade, recentActivity: formattedActivity };
 
       } else if (user.role === 'PARENT') {
         stats = { recentActivity: formattedActivity };

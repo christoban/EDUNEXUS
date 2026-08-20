@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { verifierAppartenanceConversation, destinatairesAutorises } from './MessagerieAccessHelpers';
 import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
 import { getIO } from '../../socket/io';
+import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export interface EnvoyerMessageCommande {
   schoolId: string;
@@ -137,11 +138,14 @@ export class EnvoyerMessageUseCase {
         this.prisma.teachingAssignment.findMany({ where: { classId: conversation.classId }, select: { teacherId: true } }),
         this.prisma.class.findUnique({ where: { id: conversation.classId }, select: { professorPrincipalId: true } }),
         conversation.type === 'CLASS_CHANNEL'
-          ? this.prisma.studentProfile.findMany({ where: { classId: conversation.classId }, select: { userId: true } })
+          ? this.prisma.studentProfile.findMany({
+              where: { ...whereProfilesParClasse(conversation.classId) },
+              select: { userId: true },
+            })
           : Promise.resolve([]),
         conversation.type === 'PARENT_CHANNEL'
           ? this.prisma.parentStudent.findMany({
-              where: { studentProfile: { classId: conversation.classId } },
+              where: { studentProfile: whereProfilesParClasse(conversation.classId) },
               select: { parentProfile: { select: { userId: true } } },
             })
           : Promise.resolve([]),

@@ -28,6 +28,7 @@ import { DevController } from '@infrastructure/http/controllers/DevController';
 import { creerDevRoutes } from '@infrastructure/http/routes/dev.routes';
 import { UserController } from '@infrastructure/http/controllers/UserController';
 import { MasterAdminHexController } from '@infrastructure/http/controllers/MasterAdminHexController';
+import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 import { creerUserRoutes } from '@infrastructure/http/routes/user.routes';
 import { creerMasterAdminHexRoutes } from '@infrastructure/http/routes/masterAdminHex.routes';
 import { FinanceController } from '@infrastructure/http/controllers/FinanceController';
@@ -1660,7 +1661,7 @@ export function bootstrapHexagonal(app: Application): void {
       const where: any = {
         schoolId,
         ...(role ? { role } : {}),
-        ...(classId && role === 'STUDENT' ? { studentProfile: { classId } } : {}),
+        ...(classId && role === 'STUDENT' ? whereElevesParClasse(classId) : {}),
         ...(search ? { OR: [
           { firstName: { contains: search, mode: 'insensitive' } },
           { lastName: { contains: search, mode: 'insensitive' } },
@@ -1671,14 +1672,23 @@ export function bootstrapHexagonal(app: Application): void {
         res.status(403).json({ success: false, message: 'Accès refusé' });
         return;
       }
-      const [total, users, roleGroups] = await Promise.all([
+      const [total, rawUsers, roleGroups] = await Promise.all([
         prisma.user.count({ where }),
         prisma.user.findMany({
           where,
           select: {
             id: true, firstName: true, lastName: true, email: true, role: true,
             isActive: true, lastLogin: true, createdAt: true,
-            studentProfile: { select: { id: true, classId: true, dateOfBirth: true, gender: true, class: { select: { name: true } } } },
+            studentProfile: {
+              select: {
+                id: true, dateOfBirth: true, gender: true,
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { classId: true, class: { select: { name: true } } },
+                  take: 1,
+                },
+              },
+            },
             staffProfile: { select: { title: true } },
             teacherProfile: {
               select: {
@@ -1698,6 +1708,22 @@ export function bootstrapHexagonal(app: Application): void {
           ? prisma.user.groupBy({ by: ['role'], where: { schoolId }, _count: { id: true } })
           : Promise.resolve(null),
       ]);
+
+      // Mapper pour préserver le contrat API (studentProfile.classId + studentProfile.class.name)
+      const users = rawUsers.map(u => {
+        if (!u.studentProfile) return u;
+        const enrollment = u.studentProfile.enrollmentsYearScoped?.[0];
+        const { enrollmentsYearScoped: _enr, ...profileRest } = u.studentProfile;
+        return {
+          ...u,
+          studentProfile: {
+            ...profileRest,
+            classId: enrollment?.classId ?? null,
+            class: enrollment?.class ?? null,
+          },
+        };
+      });
+
       const roleCounts = roleGroups
         ? Object.fromEntries(roleGroups.map(g => [g.role, g._count.id]))
         : undefined;
@@ -1708,7 +1734,7 @@ export function bootstrapHexagonal(app: Application): void {
   // GET /api/v2/users/me — infos de l'utilisateur connecté
   app.get('/api/v2/users/me', requireAuth, async (req, res, next) => {
     try {
-      const user = await prisma.user.findUnique({
+      const rawUser = await prisma.user.findUnique({
         where: { id: req.user!.userId },
         select: {
           id: true, firstName: true, lastName: true, email: true, role: true, isActive: true,
@@ -1718,13 +1744,51 @@ export function bootstrapHexagonal(app: Application): void {
               teacherSubjects: { select: { subject: { select: { id: true, name: true } } } },
             },
           },
-          studentProfile: { select: { id: true, class: { select: { id: true, name: true } } } },
+          studentProfile: {
+            select: {
+              id: true,
+              enrollmentsYearScoped: {
+                where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                select: { class: { select: { id: true, name: true } } },
+                take: 1,
+              },
+            },
+          },
           staffProfile: { select: { id: true, title: true } },
-          classesProfessorPrincipal: { select: { id: true, name: true, _count: { select: { students: true } } } },
+          classesProfessorPrincipal: {
+            select: {
+              id: true, name: true,
+              _count: {
+                select: {
+                  enrollments: {
+                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  },
+                },
+              },
+            },
+          },
           headedDepartments: { select: { id: true, name: true, color: true, subjects: { select: { id: true, name: true } } } },
         },
       });
-      if (!user) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return; }
+
+      if (!rawUser) { res.status(404).json({ success: false, message: 'Utilisateur introuvable' }); return; }
+
+      // Mapper pour préserver le contrat API
+      const user = {
+        ...rawUser,
+        studentProfile: rawUser.studentProfile
+          ? {
+              id: rawUser.studentProfile.id,
+              class: rawUser.studentProfile.enrollmentsYearScoped?.[0]?.class ?? null,
+            }
+          : null,
+        classesProfessorPrincipal: rawUser.classesProfessorPrincipal?.map(c => ({
+          id: c.id,
+          name: c.name,
+          _count: { students: c._count.enrollments }, // préserve la clé "students" pour le frontend
+        })),
+      };
+
       res.json({ success: true, data: user });
     } catch (err) { next(err); }
   });
@@ -1760,7 +1824,13 @@ export function bootstrapHexagonal(app: Application): void {
         where: whereClause,
         include: {
           professorPrincipal: { select: { id: true, firstName: true, lastName: true } },
-          _count: { select: { students: true } },
+          _count: {
+            select: {
+              enrollments: {
+                where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              },
+            },
+          },
         },
         orderBy: { name: 'asc' },
       });
@@ -1774,12 +1844,17 @@ export function bootstrapHexagonal(app: Application): void {
       const cycleDeClasse = (level: string | null | undefined): 'primaire' | 'secondaire' =>
         isNiveauPrimaireOuMaternelle(level) ? 'primaire' : (ecoleEstPrimaire ? 'primaire' : 'secondaire');
 
-      // Nombre d'élèves PEBS par classe (une seule requête groupée)
+      // Nombre d'élèves PEBS par classe (une seule requête groupée via Enrollment)
       const classIds = classes.map(c => c.id);
       const pebsCounts = classIds.length > 0
-        ? await prisma.studentProfile.groupBy({
+        ? await prisma.enrollment.groupBy({
             by: ['classId'],
-            where: { classId: { in: classIds }, pebsFiliere: { not: null } },
+            where: {
+              classId: { in: classIds },
+              status: 'ACTIVE',
+              academicYear: { isCurrent: true },
+              student: { pebsFiliere: { not: null } },
+            },
             _count: { _all: true },
           })
         : [];
@@ -1787,7 +1862,7 @@ export function bootstrapHexagonal(app: Application): void {
 
       // Enrichir chaque classe avec pebsBadge (3 états : PEBS / MIXTE / GENERAL)
       const data = classes.map(cls => {
-        const total = cls._count.students;
+        const total = cls._count.enrollments;
         const pebsN = pebsCountByClass.get(cls.id) ?? 0;
         const pebsMixte = cls.pebsMixte === true;
         let pebsBadge: 'PEBS' | 'MIXTE' | 'GENERAL' | null = null;
@@ -1798,7 +1873,12 @@ export function bootstrapHexagonal(app: Application): void {
             ? (pebsMixte ? 'MIXTE' : 'GENERAL')
             : (pebsN === 0 ? 'GENERAL' : pebsN === total ? 'PEBS' : 'MIXTE');
         }
-        return { ...cls, pebsBadge, cycle: cycleDeClasse(cls.level) };
+        return {
+          ...cls,
+          _count: { students: cls._count.enrollments }, // préserve la clé attendue par le frontend
+          pebsBadge,
+          cycle: cycleDeClasse(cls.level),
+        };
       });
 
       res.json({ success: true, data });
@@ -2695,7 +2775,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
       const students = await prisma.user.findMany({
-        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        where: { schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
         select: {
           id: true, firstName: true, lastName: true,
           studentProfile: { select: { lv2SubjectId: true, lv2Subject: { select: { id: true, name: true } } } },
@@ -2831,7 +2911,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
       const students = await prisma.user.findMany({
-        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        where: { schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
         select: {
           id: true, firstName: true, lastName: true,
           studentProfile: { select: { pebsFiliere: true } },
@@ -2975,7 +3055,7 @@ export function bootstrapHexagonal(app: Application): void {
       });
 
       const students = await prisma.user.findMany({
-        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        where: { schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
         select: {
           id: true, firstName: true, lastName: true,
           studentProfile: { select: { alevelSubjects: { select: { subject: { select: { id: true, name: true } } } } } },
@@ -3022,7 +3102,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
       const students = await prisma.user.findMany({
-        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        where: { schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
         select: { id: true },
       });
 
@@ -3050,7 +3130,7 @@ export function bootstrapHexagonal(app: Application): void {
       if (!classe) { res.status(404).json({ success: false, message: 'Classe introuvable' }); return; }
 
       const allStudents: any[] = await prisma.user.findMany({
-        where: { schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        where: { schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
         select: {
           id: true, firstName: true, lastName: true,
           studentProfile: { select: { lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } } },

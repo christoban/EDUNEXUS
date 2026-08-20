@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { getClassIdActuelEleve, whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 /**
  * Vérifie qu'un utilisateur a le droit de lire/écrire dans une conversation donnée. Centralisé
@@ -69,17 +70,18 @@ export async function estEnseignantDeLaClasse(prisma: PrismaClient, userId: stri
 }
 
 export async function estEleveDeLaClasse(prisma: PrismaClient, userId: string, classId: string): Promise<boolean> {
-  const studentProfile = await prisma.studentProfile.findUnique({ where: { userId }, select: { classId: true } });
-  return studentProfile?.classId === classId;
+  const classIdActuel = await getClassIdActuelEleve(prisma, userId);
+  return classIdActuel === classId;
 }
 
 export async function estParentDUnEleveDeLaClasse(prisma: PrismaClient, userId: string, classId: string): Promise<boolean> {
-  const parentProfile = await prisma.parentProfile.findUnique({
-    where: { userId },
-    include: { children: { include: { studentProfile: { select: { classId: true } } } } },
+  const count = await prisma.parentStudent.count({
+    where: {
+      parentProfile: { userId },
+      studentProfile: whereProfilesParClasse(classId),
+    },
   });
-  if (!parentProfile) return false;
-  return parentProfile.children.some((c: any) => c.studentProfile?.classId === classId);
+  return count > 0;
 }
 
 /**
@@ -102,18 +104,29 @@ export async function classIdsPertinents(prisma: PrismaClient, userId: string, r
   }
 
   if (upperRole === 'STUDENT') {
-    const studentProfile = await prisma.studentProfile.findUnique({ where: { userId }, select: { classId: true } });
-    return studentProfile?.classId ? [studentProfile.classId] : [];
+    const classId = await getClassIdActuelEleve(prisma, userId);
+    return classId ? [classId] : [];
   }
 
   if (upperRole === 'PARENT') {
-    const parentProfile = await prisma.parentProfile.findUnique({
-      where: { userId },
-      include: { children: { include: { studentProfile: { select: { classId: true } } } } },
+    const children = await prisma.parentStudent.findMany({
+      where: { parentProfile: { userId } },
+      select: {
+        studentProfile: {
+          select: {
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { classId: true },
+              take: 1,
+            },
+          },
+        },
+      },
     });
-    if (!parentProfile) return [];
     return Array.from(new Set(
-      parentProfile.children.map((c: any) => c.studentProfile?.classId).filter((id: string | null): id is string => !!id),
+      children
+        .map((c: any) => c.studentProfile?.enrollmentsYearScoped?.[0]?.classId)
+        .filter((id: string | null | undefined): id is string => !!id),
     ));
   }
 

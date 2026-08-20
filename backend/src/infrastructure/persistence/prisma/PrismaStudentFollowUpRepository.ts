@@ -26,8 +26,11 @@ const SELECT_DETAIL = {
     select: {
       userId: true,
       user: { select: { firstName: true, lastName: true } },
-      classId: true,
-      class: { select: { name: true, professorPrincipalId: true } },
+      enrollmentsYearScoped: {
+        where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+        take: 1,
+        select: { classId: true, class: { select: { name: true, professorPrincipalId: true } } },
+      },
     },
   },
   subject: { select: { name: true } },
@@ -56,8 +59,10 @@ type RawFollowUp = {
   studentProfile: {
     userId: string;
     user: { firstName: string; lastName: string };
-    classId: string | null;
-    class: { name: string; professorPrincipalId: string | null } | null;
+    enrollmentsYearScoped: {
+      classId: string;
+      class: { name: string; professorPrincipalId: string | null } | null;
+    }[];
   };
   subject: { name: string } | null;
   createdBy: { firstName: string; lastName: string };
@@ -72,9 +77,9 @@ function versDetail(r: RawFollowUp): FollowUpActionDetail {
     studentProfileId: r.studentProfileId,
     studentId: r.studentProfile.userId,
     studentName: `${r.studentProfile.user.firstName} ${r.studentProfile.user.lastName}`,
-    classId: r.studentProfile.classId,
-    className: r.studentProfile.class?.name ?? null,
-    classProfessorPrincipalId: r.studentProfile.class?.professorPrincipalId ?? null,
+    classId: r.studentProfile.enrollmentsYearScoped[0]?.classId ?? null,
+    className: r.studentProfile.enrollmentsYearScoped[0]?.class?.name ?? null,
+    classProfessorPrincipalId: r.studentProfile.enrollmentsYearScoped[0]?.class?.professorPrincipalId ?? null,
     triggeringRecommendationId: r.triggeringRecommendationId,
     subjectId: r.subjectId,
     subjectName: r.subject?.name ?? null,

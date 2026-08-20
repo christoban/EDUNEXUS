@@ -144,18 +144,28 @@ export async function resolveStudent(
       id: true,
       firstName: true,
       lastName: true,
-      studentProfile: { select: { class: { select: { name: true } } } },
+      studentProfile: {
+        select: {
+          enrollmentsYearScoped: {
+            where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+            select: { class: { select: { name: true } } },
+            take: 1,
+          },
+        },
+      },
     },
   });
   const full = (s: { firstName: string | null; lastName: string | null }) =>
     `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim();
+  const classNameOf = (s: (typeof students)[number]): string | null =>
+    s.studentProfile?.enrollmentsYearScoped?.[0]?.class?.name ?? null;
   const target = norm(name);
   let matches = students.filter((s) => norm(full(s)) === target);
   if (matches.length === 0) matches = students.filter((s) => norm(full(s)).includes(target));
 
   if (matches.length > 1 && className) {
     const classTarget = norm(className);
-    const narrowed = matches.filter((s) => s.studentProfile?.class?.name && norm(s.studentProfile.class.name) === classTarget);
+    const narrowed = matches.filter((s) => classNameOf(s) && norm(classNameOf(s)!) === classTarget);
     if (narrowed.length > 0) matches = narrowed;
   }
 
@@ -163,12 +173,12 @@ export async function resolveStudent(
   if (matches.length > 1) {
     const list = matches
       .slice(0, 6)
-      .map((s) => `${full(s)} (${s.studentProfile?.class?.name ?? 'sans classe'})`)
+      .map((s) => `${full(s)} (${classNameOf(s) ?? 'sans classe'})`)
       .join(', ');
     throw new Error(`Plusieurs élèves nommés « ${name} » existent : ${list}. Précisez la classe.`);
   }
   const m = matches[0];
-  return { id: m.id, name: full(m), className: m.studentProfile?.class?.name ?? null };
+  return { id: m.id, name: full(m), className: classNameOf(m) };
 }
 
 export async function resolveCurrentAcademicYear(ctx: ActionContext): Promise<{ id: string; name: string }> {

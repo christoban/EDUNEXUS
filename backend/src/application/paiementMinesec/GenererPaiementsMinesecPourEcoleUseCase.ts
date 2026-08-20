@@ -18,7 +18,7 @@ export class GenererPaiementsMinesecPourEcoleUseCase {
 
   async execute(cmd: GenererPaiementsEcoleCommande): Promise<GenererPaiementsEcoleResultat> {
     const eleves = await this.prisma.studentProfile.findMany({
-      where: { user: { schoolId: cmd.schoolId }, studentStatus: 'ACTIVE', classId: { not: null } },
+      where: { user: { schoolId: cmd.schoolId }, studentStatus: 'ACTIVE', enrollmentsYearScoped: { some: { status: 'ACTIVE', academicYear: { isCurrent: true } } } },
       select: { id: true },
     });
 

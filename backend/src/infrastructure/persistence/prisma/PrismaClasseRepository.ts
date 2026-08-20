@@ -57,8 +57,8 @@ export class PrismaClasseRepository implements ClasseRepository {
   }
 
   async countEleves(classeId: string): Promise<number> {
-    return this.prisma.studentProfile.count({
-      where: { classId: classeId },
+    return this.prisma.enrollment.count({
+      where: { classId: classeId, status: 'ACTIVE', academicYear: { isCurrent: true } },
     });
   }
 

@@ -17,6 +17,7 @@ import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import { prismaTest } from '../../persistence/prisma/__tests__/helpers/prismaTestClient';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../persistence/prisma/__tests__/helpers/dbFixtures';
 
@@ -74,7 +75,7 @@ beforeAll(async () => {
 
   const studentUserB = await creerUtilisateurTest(prismaTest, schoolB.id, { role: 'STUDENT' });
   studentB = studentUserB;
-  await prismaTest.studentProfile.create({ data: { userId: studentB.id, classId: classB.id } });
+  await creerEleveAvecClasse(prismaTest, { userId: studentB.id, classId: classB.id, enrolledById: studentB.id });
 
   const academicPeriodB = await prismaTest.academicPeriod.create({
     data: { academicYearId: academicYearB.id, name: 'Trimestre 1', orderIndex: 1, startDate: new Date('2025-09-01'), endDate: new Date('2025-12-20') },
@@ -190,7 +191,9 @@ describe("Isolation multi-tenant — un token école A ne doit jamais atteindre 
     });
     expect(res.status).toBe(403);
 
-    const profilInchange = await prismaTest.studentProfile.findUnique({ where: { userId: studentB.id } });
-    expect(profilInchange?.classId).toBe(classB.id);
+    const enrollmentInchange = await prismaTest.enrollment.findFirst({
+      where: { student: { userId: studentB.id }, status: 'ACTIVE', academicYear: { isCurrent: true } },
+    });
+    expect(enrollmentInchange?.classId).toBe(classB.id);
   });
 });

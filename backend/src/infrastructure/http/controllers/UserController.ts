@@ -948,13 +948,25 @@ export class UserController {
       if (req.body.email || req.body.phone) {
         const cible = await this.prisma.user.findUnique({
           where: { id: req.params.id as string },
-          select: { role: true, studentProfile: { select: { class: { select: { level: true } } } } },
+          select: {
+            role: true,
+            studentProfile: {
+              select: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                  take: 1,
+                  select: { class: { select: { level: true } } },
+                },
+              },
+            },
+          },
         });
         const effectiveRole = req.body.role ?? cible?.role;
         if (effectiveRole === 'STUDENT') {
           const ecole = await this.prisma.school.findUnique({ where: { id: user.schoolId }, select: { templateCode: true } });
-          const isPrimaireClasse = cible?.studentProfile?.class?.level
-            ? isNiveauPrimaireOuMaternelle(cible.studentProfile.class.level)
+          const niveauClasse = cible?.studentProfile?.enrollmentsYearScoped[0]?.class?.level;
+          const isPrimaireClasse = niveauClasse
+            ? isNiveauPrimaireOuMaternelle(niveauClasse)
             : getTemplateMeta(ecole?.templateCode).isPrimaire;
           if (isPrimaireClasse) {
             res.status(400).json({

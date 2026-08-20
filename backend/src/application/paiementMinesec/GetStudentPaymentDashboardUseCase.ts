@@ -15,7 +15,11 @@ export class GetStudentPaymentDashboardUseCase {
       where: { user: { id: studentUserId, schoolId } },
       include: {
         user: { select: { firstName: true, lastName: true } },
-        class: { select: { name: true } },
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true } } },
+          take: 1,
+        },
       },
     });
     if (!profile) throw new Error('Élève introuvable');
@@ -65,7 +69,7 @@ export class GetStudentPaymentDashboardUseCase {
         id: profile.id,
         nom: profile.user.lastName,
         prenom: profile.user.firstName,
-        classe: profile.class?.name ?? '',
+        classe: profile.enrollmentsYearScoped?.[0]?.class?.name ?? '',
         matriculeNational: profile.matricule,
       },
       enrollment: enrollment ? {

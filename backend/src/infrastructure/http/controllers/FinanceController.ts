@@ -40,7 +40,10 @@ async function buildRecuPdf(payment: {
   student?: {
     firstName: string;
     lastName: string;
-    studentProfile?: { matricule?: string | null; class?: { name: string } | null } | null;
+    studentProfile?: {
+      matricule?: string | null;
+      enrollmentsYearScoped?: { class?: { name: string } | null }[];
+    } | null;
   } | null;
   invoice?: {
     amount: number;
@@ -61,7 +64,7 @@ async function buildRecuPdf(payment: {
     const schoolName = payment.school?.name ?? 'ZEKOULABIA';
     const studentName = `${payment.student?.firstName ?? ''} ${payment.student?.lastName ?? ''}`.trim();
     const matricule = payment.student?.studentProfile?.matricule ?? '-';
-    const className = payment.student?.studentProfile?.class?.name ?? '-';
+    const className = payment.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.name ?? '-';
     const invoiceLabel = payment.invoice?.feePlan?.name ?? payment.invoice?.description ?? 'Facture';
     const invoiceTotal = payment.invoice?.amount ?? payment.amount;
     const totalPaid = (payment.invoice?.payments ?? []).reduce((s, p) => s + p.amount, 0);
@@ -149,7 +152,14 @@ async function envoyerRecuParEmail(paymentId: string): Promise<void> {
           select: {
             id: true, firstName: true, lastName: true, email: true,
             studentProfile: {
-              select: { matricule: true, class: { select: { name: true } } },
+              select: {
+                matricule: true,
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                  take: 1,
+                  select: { class: { select: { name: true } } },
+                },
+              },
             },
           },
         },
@@ -275,7 +285,14 @@ export class FinanceController {
             select: {
               firstName: true, lastName: true, email: true,
               studentProfile: {
-                select: { matricule: true, class: { select: { name: true } } },
+                select: {
+                  matricule: true,
+                  enrollmentsYearScoped: {
+                    where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                    take: 1,
+                    select: { class: { select: { name: true } } },
+                  },
+                },
               },
             },
           },

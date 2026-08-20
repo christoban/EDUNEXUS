@@ -33,13 +33,23 @@ export class GetElevesParMatiereALevelUseCase {
         subjectId,
         student: {
           user: { schoolId, isActive: true },
-          ...(classId ? { classId } : {}),
+          ...(classId
+            ? {
+                enrollmentsYearScoped: {
+                  some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+                },
+              }
+            : {}),
         },
       },
       select: {
         student: {
           select: {
-            class: { select: { name: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { class: { select: { name: true } } },
+              take: 1,
+            },
             user: { select: { id: true, firstName: true, lastName: true } },
           },
         },
@@ -51,7 +61,7 @@ export class GetElevesParMatiereALevelUseCase {
         id: l.student.user.id,
         firstName: l.student.user.firstName,
         lastName: l.student.user.lastName,
-        className: l.student.class?.name ?? null,
+        className: l.student.enrollmentsYearScoped?.[0]?.class?.name ?? null,
       }))
       .sort((a: EleveALevel, b: EleveALevel) =>
         a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));

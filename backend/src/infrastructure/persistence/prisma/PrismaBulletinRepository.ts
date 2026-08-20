@@ -37,7 +37,7 @@ export class PrismaBulletinRepository implements BulletinRepository {
 
   async findByClasse(classId: string, academicPeriodId: string): Promise<Bulletin[]> {
     const eleves = await this.prisma.studentProfile.findMany({
-      where: { classId },
+      where: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE' as const, academicYear: { isCurrent: true } } } },
       select: { userId: true },
     });
     const studentIds = eleves.map(e => e.userId);
@@ -62,7 +62,7 @@ export class PrismaBulletinRepository implements BulletinRepository {
     academicPeriodId: string
   ): Promise<{ studentId: string; generalAverage: number }[]> {
     const eleves = await this.prisma.studentProfile.findMany({
-      where: { classId },
+      where: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE' as const, academicYear: { isCurrent: true } } } },
       select: { userId: true },
     });
     const studentIds = eleves.map(e => e.userId);

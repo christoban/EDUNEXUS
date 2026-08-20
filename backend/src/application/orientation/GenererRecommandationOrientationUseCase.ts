@@ -97,9 +97,16 @@ export class GenererRecommandationOrientationUseCase {
   private async determinerSerieActuelle(studentId: string): Promise<string> {
     const profile = await this.prisma.studentProfile.findUnique({
       where: { userId: studentId },
-      select: { class: { select: { name: true, level: true, serie: true } } },
+      select: {
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true, level: true, serie: true } } },
+          take: 1,
+        },
+      },
     });
-    return profile?.class?.serie || profile?.class?.level || profile?.class?.name || 'Non renseignée';
+    const classe = profile?.enrollmentsYearScoped[0]?.class ?? null;
+    return classe?.serie || classe?.level || classe?.name || 'Non renseignée';
   }
 
   /**

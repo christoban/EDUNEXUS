@@ -11,6 +11,7 @@ import type { AssignerSalleClasseUseCase } from '@application/studentGroup/Assig
 import type { RetirerAssignationSalleUseCase } from '@application/studentGroup/RetirerAssignationSalleUseCase';
 import { CYCLE2_LEVELS, NIVEAU_MAP, parseSerie } from '@application/school/SubjectAssignmentHelper';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { whereElevesParClasse, whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export class ClasseController {
   constructor(
@@ -339,7 +340,7 @@ export class ClasseController {
       }
 
       const students = await this.prisma.user.findMany({
-        where: { schoolId: user.schoolId, role: 'STUDENT', isActive: true, studentProfile: { classId } },
+        where: { schoolId: user.schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
         select: { id: true, firstName: true, lastName: true },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       });
@@ -488,7 +489,7 @@ export class ClasseController {
         where: {
           schoolId: user.schoolId,
           academicPeriodId: periodId,
-          student: { studentProfile: { classId } },
+          student: { studentProfile: whereProfilesParClasse(classId) },
           generalAverage: { not: null },
         },
         include: { student: { select: { firstName: true, lastName: true } } },
@@ -643,7 +644,7 @@ export class ClasseController {
         where: {
           schoolId: user.schoolId,
           academicPeriodId: { in: academicYear.periods.map(p => p.id) },
-          student: { studentProfile: { classId } },
+          student: { studentProfile: whereProfilesParClasse(classId) },
         },
         include: { student: { select: { firstName: true, lastName: true } } },
       });

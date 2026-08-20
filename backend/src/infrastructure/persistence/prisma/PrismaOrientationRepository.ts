@@ -29,7 +29,15 @@ export class PrismaOrientationRepository implements IOrientationRepository {
         student: {
           select: {
             id: true, firstName: true, lastName: true,
-            studentProfile: { select: { class: { select: { name: true } } } },
+            studentProfile: {
+              select: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { name: true } } },
+                  take: 1,
+                },
+              },
+            },
           },
         },
         entretiens: { orderBy: { date: 'desc' } },
@@ -50,7 +58,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       mainConcern: data.mainConcern,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
-      student: data.student as FicheDetail['student'],
+      student: this.mapStudent(data.student),
       entretiens: data.entretiens as EntretienDetail[],
       tests: data.tests as TestDetail[],
       recommandation: data.recommandation as RecommandationDetail | null,
@@ -67,7 +75,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       ...(riskLevel ? { riskLevel } : {}),
       ...(status ? { status } : {}),
       ...(academicYearId ? { academicYearId } : {}),
-      ...(classId ? { student: { studentProfile: { classId } } } : {}),
+      ...(classId ? { student: { studentProfile: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } } } } } : {}),
     };
 
     const [total, items] = await Promise.all([
@@ -78,7 +86,15 @@ export class PrismaOrientationRepository implements IOrientationRepository {
           student: {
             select: {
               id: true, firstName: true, lastName: true,
-              studentProfile: { select: { class: { select: { name: true } } } },
+              studentProfile: {
+                select: {
+                  enrollmentsYearScoped: {
+                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                    select: { class: { select: { name: true } } },
+                    take: 1,
+                  },
+                },
+              },
             },
           },
           _count: { select: { entretiens: true, tests: true, suivis: true } },
@@ -89,7 +105,20 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       }),
     ]);
 
-    return { fiches: items as FicheListItem[], total };
+    return {
+      fiches: items.map((f) => ({
+        id: f.id,
+        studentId: f.studentId,
+        status: f.status,
+        riskLevel: f.riskLevel,
+        mainConcern: f.mainConcern,
+        createdAt: f.createdAt,
+        updatedAt: f.updatedAt,
+        student: this.mapStudent(f.student),
+        _count: f._count,
+      })),
+      total,
+    };
   }
 
   async createFiche(data: {
@@ -471,6 +500,20 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       entretiensThisMois,
       recommandationsEnAttente,
       repartitionRisque,
+    };
+  }
+
+  private mapStudent(student: {
+    id: string; firstName: string; lastName: string;
+    studentProfile: { enrollmentsYearScoped: Array<{ class: { name: string } }> } | null;
+  }): FicheDetail['student'] {
+    return {
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      studentProfile: student.studentProfile
+        ? { class: student.studentProfile.enrollmentsYearScoped[0]?.class ?? null }
+        : null,
     };
   }
 

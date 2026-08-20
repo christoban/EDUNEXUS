@@ -185,11 +185,17 @@ export class StatisticsController {
       if (criteria === 'level') {
         const profiles = await this.prisma.studentProfile.findMany({
           where: { studentStatus: 'ACTIVE', user: { schoolId: user.schoolId } },
-          select: { class: { select: { level: true } } },
+          select: {
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { class: { select: { level: true } } },
+              take: 1,
+            },
+          },
         });
         const counts = new Map<string, number>();
         for (const p of profiles) {
-          const label = p.class?.level || 'Non assigné';
+          const label = p.enrollmentsYearScoped?.[0]?.class?.level || 'Non assigné';
           counts.set(label, (counts.get(label) ?? 0) + 1);
         }
         res.json({ success: true, data: Array.from(counts, ([label, count]) => ({ label, count })) });

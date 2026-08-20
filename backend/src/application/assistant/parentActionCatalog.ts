@@ -49,7 +49,11 @@ async function mesEnfants(ctx: ActionContext): Promise<MonEnfant[]> {
         select: {
           id: true,
           userId: true,
-          class: { select: { name: true } },
+          enrollmentsYearScoped: {
+            where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+            select: { class: { select: { name: true } } },
+            take: 1,
+          },
           user: { select: { firstName: true, lastName: true } },
         },
       },
@@ -59,7 +63,7 @@ async function mesEnfants(ctx: ActionContext): Promise<MonEnfant[]> {
     studentUserId: l.studentProfile.userId,
     studentProfileId: l.studentProfile.id,
     name: `${l.studentProfile.user.firstName ?? ''} ${l.studentProfile.user.lastName ?? ''}`.trim(),
-    className: l.studentProfile.class?.name ?? null,
+    className: l.studentProfile.enrollmentsYearScoped[0]?.class?.name ?? null,
   }));
 }
 

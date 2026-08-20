@@ -8,12 +8,19 @@ export class SoumettreChoixLV2EleveUseCase {
     // Récupérer le profil élève
     const profile = await this.prisma.studentProfile.findFirst({
       where: { user: { id: cmd.studentUserId, schoolId: cmd.schoolId } },
-      include: { user: { select: { schoolId: true } } },
+      include: {
+        user: { select: { schoolId: true } },
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { classId: true },
+          take: 1,
+        },
+      },
     });
     if (!profile) throw new Error('Profil élève introuvable');
 
     // Trouver la fenêtre ouverte pour le niveau de l'élève
-    const classe = await this.prisma.class.findUnique({ where: { id: profile.classId } });
+    const classe = await this.prisma.class.findUnique({ where: { id: profile.enrollmentsYearScoped[0]?.classId ?? '' } });
     if (!classe) throw new Error('Classe introuvable');
 
     const window = await this.prisma.lv2ChoiceWindow.findFirst({

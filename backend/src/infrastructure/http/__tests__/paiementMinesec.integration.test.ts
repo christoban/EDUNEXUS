@@ -13,6 +13,7 @@
  *  4. GetSchoolPaymentOverviewUseCase → GET /paiements-minesec/dashboard/school
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
@@ -72,8 +73,9 @@ beforeAll(async () => {
 
   const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
   studentUserId = student.id;
-  const profile = await prismaTest.studentProfile.create({
-    data: { userId: student.id, classId: classe.id, matricule: 'MAT-2025-0001', matriculeVerifieAt: new Date() },
+  const profile = await creerEleveAvecClasse(prismaTest, {
+    userId: student.id, classId: classe.id, enrolledById: student.id,
+    extraProfileData: { matricule: 'MAT-2025-0001', matriculeVerifieAt: new Date() },
   });
   studentProfileId = profile.id;
 });

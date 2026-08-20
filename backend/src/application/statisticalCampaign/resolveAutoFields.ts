@@ -45,23 +45,33 @@ async function fetchEsgStudents(prisma: PrismaClient, schoolId: string): Promise
     where: {
       studentStatus: 'ACTIVE',
       user: { schoolId },
-      class: { level: { in: ['6e', '5e', '4e', '3e', '2nde', '1ere', 'Tle'] } },
+      enrollmentsYearScoped: {
+        some: {
+          status: 'ACTIVE',
+          academicYear: { isCurrent: true },
+          class: { level: { in: ['6e', '5e', '4e', '3e', '2nde', '1ere', 'Tle'] } },
+        },
+      },
     },
     select: {
       gender: true,
       dateOfBirth: true,
-      class: { select: { level: true, serie: true, filiere: true } },
+      enrollmentsYearScoped: {
+        where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+        select: { class: { select: { level: true, serie: true, filiere: true } } },
+        take: 1,
+      },
       lv2Subject: { select: { name: true } },
     },
   });
   return students
-    .filter((s: any) => s.class)
+    .filter((s: any) => s.enrollmentsYearScoped?.[0]?.class)
     .map((s: any) => ({
       gender: s.gender,
       dateOfBirth: s.dateOfBirth,
-      niveau: s.class.level,
-      serie: s.class.serie,
-      filiere: s.class.filiere,
+      niveau: s.enrollmentsYearScoped[0].class.level,
+      serie: s.enrollmentsYearScoped[0].class.serie,
+      filiere: s.enrollmentsYearScoped[0].class.filiere,
       lv2Name: s.lv2Subject?.name ?? null,
     }));
 }

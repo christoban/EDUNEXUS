@@ -3,6 +3,7 @@ import type {
   StudentGroupMembershipRepository,
   MembreCompteParGroupe,
 } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export class PrismaStudentGroupMembershipRepository implements StudentGroupMembershipRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -33,7 +34,7 @@ export class PrismaStudentGroupMembershipRepository implements StudentGroupMembe
     academicYearId: string
   ): Promise<MembreCompteParGroupe[]> {
     const studentsInClass = await this.prisma.studentProfile.findMany({
-      where: { classId },
+      where: { ...whereProfilesParClasse(classId) },
       select: { id: true },
     });
     const studentIds = studentsInClass.map(s => s.id);

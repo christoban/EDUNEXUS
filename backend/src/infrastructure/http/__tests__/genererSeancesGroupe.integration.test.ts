@@ -13,6 +13,7 @@ import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import { prismaTest } from '../../persistence/prisma/__tests__/helpers/prismaTestClient';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../persistence/prisma/__tests__/helpers/dbFixtures';
 
@@ -94,14 +95,14 @@ beforeAll(async () => {
   // 3 élèves en Allemand (le plus nombreux → salle habituelle), 2 en Espagnol (→ flottante).
   for (let i = 0; i < 3; i++) {
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: `seances-de-${i}` });
-    const profile = await prismaTest.studentProfile.create({ data: { userId: student.id, classId } });
+    const profile = await creerEleveAvecClasse(prismaTest, { userId: student.id, classId, enrolledById: student.id });
     await prismaTest.studentGroupMembership.create({
       data: { studentProfileId: profile.id, groupId: groupAllemandId, groupSetId, academicYearId: annee.id },
     });
   }
   for (let i = 0; i < 2; i++) {
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: `seances-es-${i}` });
-    const profile = await prismaTest.studentProfile.create({ data: { userId: student.id, classId } });
+    const profile = await creerEleveAvecClasse(prismaTest, { userId: student.id, classId, enrolledById: student.id });
     await prismaTest.studentGroupMembership.create({
       data: { studentProfileId: profile.id, groupId: groupEspagnolId, groupSetId, academicYearId: annee.id },
     });

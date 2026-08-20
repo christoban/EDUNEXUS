@@ -33,7 +33,11 @@ export class PrepareExamDossierUseCase {
       where: { user: { id: cmd.studentUserId, schoolId: cmd.schoolId } },
       include: {
         user: { select: { firstName: true, lastName: true } },
-        class: { select: { name: true, level: true } },
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true, level: true } } },
+          take: 1,
+        },
       },
     });
     if (!profile) throw new Error('Élève introuvable');
@@ -44,7 +48,8 @@ export class PrepareExamDossierUseCase {
     }
 
     // Validation 2 : vérifier que le type d'examen est cohérent avec la classe
-    const niveau = profile.class?.level ?? '';
+    const classeActuelle = profile.enrollmentsYearScoped[0]?.class ?? null;
+    const niveau = classeActuelle?.level ?? '';
     const examensApplicables = NIVEAU_TO_EXAMEN[niveau] ?? [];
     if (examensApplicables.length > 0 && !examensApplicables.includes(cmd.typeExamen)) {
       throw new Error(`Le type d'examen ${cmd.typeExamen} n'est pas applicable pour le niveau ${niveau}`);
@@ -125,7 +130,7 @@ export class PrepareExamDossierUseCase {
         nom: profile.user.lastName,
         prenom: profile.user.firstName,
         matricule: profile.matricule,
-        classe: profile.class?.name ?? '',
+        classe: classeActuelle?.name ?? '',
       },
       typeExamen: cmd.typeExamen,
       anneeScolaire: cmd.anneeScolaire,

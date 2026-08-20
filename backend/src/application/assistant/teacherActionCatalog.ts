@@ -27,6 +27,7 @@ import {
   resolveCurrentPeriod,
   resolveCurrentSequence,
 } from '@application/assistant/catalogShared';
+import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export interface TeacherActionDeps {
   saisirNote: SaisirNoteUseCase;
@@ -138,7 +139,7 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         const subject = await resolveSubject(ctx, input.subjectName);
         const sequence = await resolveCurrentSequence(ctx);
         const [total, draft, saisies] = await Promise.all([
-          ctx.prisma.studentProfile.count({ where: { classId: classe.id } }),
+          ctx.prisma.enrollment.count({ where: { classId: classe.id, status: 'ACTIVE', academicYear: { isCurrent: true } } }),
           ctx.prisma.grade.count({ where: { schoolId: ctx.schoolId, classId: classe.id, subjectId: subject.id, sequenceId: sequence.id, recordedById: ctx.userId, validationStatus: 'DRAFT' } }),
           ctx.prisma.grade.count({ where: { schoolId: ctx.schoolId, classId: classe.id, subjectId: subject.id, sequenceId: sequence.id, recordedById: ctx.userId } }),
         ]);
@@ -397,7 +398,7 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         const assignation = await ctx.prisma.teachingAssignment.findFirst({ where: { teacherId: ctx.userId, classId: classe.id } });
         if (!assignation) throw new Error(`Vous n'enseignez pas dans ${classe.name}.`);
         const eleves = await ctx.prisma.user.findMany({
-          where: { schoolId: ctx.schoolId, role: 'STUDENT', studentProfile: { classId: classe.id } },
+          where: { schoolId: ctx.schoolId, role: 'STUDENT', studentProfile: { ...whereProfilesParClasse(classe.id) } },
           select: { firstName: true, lastName: true },
           orderBy: { lastName: 'asc' },
         });

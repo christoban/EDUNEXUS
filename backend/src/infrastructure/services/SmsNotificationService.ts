@@ -113,9 +113,15 @@ async function resolveSmsLanguage(schoolId: string, studentId: string): Promise<
     if (school?.subsystem !== 'BILINGUAL') return resolveLanguage(school?.subsystem)
     const sp = await prisma.studentProfile.findUnique({
       where: { userId: studentId },
-      select: { class: { select: { section: { select: { code: true } } } } },
+      select: {
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { section: { select: { code: true } } } } },
+          take: 1,
+        },
+      },
     })
-    return resolveLanguage('BILINGUAL', sp?.class?.section?.code ?? null)
+    return resolveLanguage('BILINGUAL', sp?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null)
   } catch {
     return 'fr'
   }

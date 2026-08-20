@@ -5,6 +5,7 @@ import type {
   DecisionConseil,
   PromotionEleveParams,
 } from '@domain/ports/repositories/PromotionRepository';
+import { changerClasseEleve } from '@application/shared/studentEnrollment';
 
 export class PrismaPromotionRepository implements PromotionRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -65,17 +66,26 @@ export class PrismaPromotionRepository implements PromotionRepository {
   }
 
   async promouvoirEleve(params: PromotionEleveParams): Promise<void> {
+    // params.studentId est un userId (convention de ClassCouncilDecision) —
+    // on résout le StudentProfile.id pour l'enregistrement StudentPromotion
+    // (StudentPromotion.studentId pointe vers StudentProfile, pas User).
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId: params.studentId },
+      select: { id: true },
+    });
+    if (!profile) throw new Error(`StudentProfile introuvable pour userId=${params.studentId}`);
+
     await this.prisma.studentPromotion.upsert({
       where: {
         studentId_academicYearId: {
-          studentId: params.studentId,
+          studentId: profile.id,
           academicYearId: params.academicYearId,
         },
       },
       create: {
         id: crypto.randomUUID(),
         schoolId: params.schoolId,
-        studentId: params.studentId,
+        studentId: profile.id,
         fromClassId: params.fromClassId,
         toClassId: params.toClassId,
         academicYearId: params.academicYearId,
@@ -90,10 +100,29 @@ export class PrismaPromotionRepository implements PromotionRepository {
     });
   }
 
-  async mettreAJourClasseEleve(studentId: string, newClassId: string): Promise<void> {
-    await this.prisma.studentProfile.update({
-      where: { userId: studentId },
-      data: { classId: newClassId },
+  async mettreAJourClasseEleve(studentId: string, newClassId: string, demandeurId: string): Promise<void> {
+    // studentId est un userId (convention existante) — on résout le StudentProfile.id
+    const [profile, classe] = await Promise.all([
+      this.prisma.studentProfile.findUnique({
+        where: { userId: studentId },
+        select: { id: true },
+      }),
+      this.prisma.class.findUnique({
+        where: { id: newClassId },
+        select: { schoolId: true, academicYearId: true },
+      }),
+    ]);
+
+    if (!profile) throw new Error(`StudentProfile introuvable pour userId=${studentId}`);
+    if (!classe) throw new Error(`Classe introuvable: ${newClassId}`);
+
+    await changerClasseEleve(this.prisma, {
+      studentId: profile.id,
+      newClassId,
+      academicYearId: classe.academicYearId,
+      schoolId: classe.schoolId,
+      enrolledById: demandeurId,
+      exitReason: 'PROMOTION',
     });
   }
 
@@ -139,10 +168,19 @@ export class PrismaPromotionRepository implements PromotionRepository {
     // (ex. "2nde C A" et "2nde C B") — jamais toujours la même classe par défaut.
     const classes = await this.prisma.class.findMany({
       where: { schoolId, level: niveauCible, serie: reco.finalTrack },
-      select: { id: true, _count: { select: { students: true } } },
+      select: { id: true },
     });
     if (classes.length === 0) return null;
-    classes.sort((a, b) => a._count.students - b._count.students);
+
+    // Compter les inscriptions actives par classe via Enrollment
+    const classIds = classes.map(c => c.id);
+    const counts = await this.prisma.enrollment.groupBy({
+      by: ['classId'],
+      where: { classId: { in: classIds }, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      _count: { id: true },
+    });
+    const countMap = new Map(counts.map(r => [r.classId, r._count.id]));
+    classes.sort((a, b) => (countMap.get(a.id) ?? 0) - (countMap.get(b.id) ?? 0));
     return classes[0]!.id;
   }
 }

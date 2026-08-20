@@ -18,6 +18,14 @@ export class AjouterCandidatsPebsUseCase {
         // Vérifier que le profil appartient à l'école
         const profile = await this.prisma.studentProfile.findFirst({
           where: { id: profileId, user: { schoolId: cmd.schoolId } },
+          select: {
+            id: true,
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { classId: true },
+              take: 1,
+            },
+          },
         });
         if (!profile) continue;
 
@@ -31,7 +39,7 @@ export class AjouterCandidatsPebsUseCase {
           data: {
             sessionId: cmd.sessionId,
             studentProfileId: profileId,
-            currentClassId: profile.classId,
+            currentClassId: profile.enrollmentsYearScoped?.[0]?.classId ?? null,
             selectionResult: 'PENDING',
           },
         });

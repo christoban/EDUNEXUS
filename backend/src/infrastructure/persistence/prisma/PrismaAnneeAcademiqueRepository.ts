@@ -275,7 +275,7 @@ export class PrismaAnneeAcademiqueRepository implements AnneeAcademiqueRepositor
 
     for (const classe of classes) {
       const nbEleves = await this.prisma.studentProfile.count({
-        where: { classId: classe.id },
+        where: { enrollmentsYearScoped: { some: { classId: classe.id, status: 'ACTIVE' as const, academicYear: { isCurrent: true } } } },
       });
       if (nbEleves === 0) continue;
 

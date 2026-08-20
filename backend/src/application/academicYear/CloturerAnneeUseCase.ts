@@ -93,7 +93,7 @@ export class CloturerAnneeUseCase {
           promotedById: commande.demandeurId,
         });
 
-        await this.promotionRepository.mettreAJourClasseEleve(decision.studentId, toClassId);
+        await this.promotionRepository.mettreAJourClasseEleve(decision.studentId, toClassId, commande.demandeurId);
         promus++;
       } else if (decision.decision === 'REPEAT') {
         await this.promotionRepository.promouvoirEleve({

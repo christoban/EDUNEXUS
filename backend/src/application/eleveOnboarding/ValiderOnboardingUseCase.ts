@@ -134,10 +134,25 @@ export class ValiderOnboardingUseCase {
       const studentProfile = await tx.studentProfile.create({
         data: {
           userId: studentUser.id,
-          classId,
           studentStatus: 'ACTIVE',
           dateOfBirth,
           gender,
+        },
+      });
+
+      // Inscription year-scoped : la classe vit désormais dans Enrollment
+      const classeCible = await tx.class.findUniqueOrThrow({
+        where: { id: classId },
+        select: { schoolId: true, academicYearId: true },
+      });
+      await tx.enrollment.create({
+        data: {
+          studentId: studentProfile.id,
+          classId,
+          academicYearId: classeCible.academicYearId,
+          schoolId: classeCible.schoolId,
+          enrolledById: cmd.validatedById,
+          status: 'ACTIVE',
         },
       });
 

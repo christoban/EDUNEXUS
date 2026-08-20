@@ -44,10 +44,10 @@ async function run() {
 
   for (const cls of classes) {
     // 3. Élèves de la classe
-    const students = await p.studentProfile.findMany({
-      where: { classId: cls.id },
-      select: { userId: true },
-    });
+    const students = await p.enrollment.findMany({
+      where: { classId: cls.id, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      select: { student: { select: { userId: true } } },
+    }).then(rows => rows.map(r => r.student));
     if (students.length === 0) {
       skippedClasses++;
       continue;

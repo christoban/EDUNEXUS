@@ -3,6 +3,7 @@ import type { PrismaClient, Prisma, UserRole } from '@prisma/client';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
 import { sendSMS, isSmsConfigured } from '../../../services/smsService';
 import { sendTransactionalEmail, isEmailConfigured } from '../../../services/emailService';
+import { whereProfilesParClasse, whereProfilesParClasses } from '@application/shared/studentEnrollment';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,20 +64,24 @@ async function resolveRecipients(
     // ce chemin était donc déjà systématiquement cassé pour toute diffusion ciblant une
     // classe/un niveau/un statut de paiement, indépendamment du bug paidAmount ci-dessous.
     const studentWhere: Prisma.StudentProfileWhereInput = { user: { schoolId } };
-    if (target.classId) studentWhere.classId = target.classId;
+    if (target.classId) Object.assign(studentWhere, whereProfilesParClasse(target.classId));
     if (target.level) {
       const classes = await prisma.class.findMany({
         where: { schoolId, level: target.level },
         select: { id: true },
       });
-      studentWhere.classId = { in: classes.map((c) => c.id) };
+      Object.assign(studentWhere, whereProfilesParClasses(classes.map((c) => c.id)));
     }
 
     const students = await prisma.studentProfile.findMany({
       where: studentWhere,
       include: {
         user: { select: { firstName: true, lastName: true } },
-        class: { select: { name: true } },
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true } } },
+          take: 1,
+        },
         parents: {
           include: {
             parentProfile: {
@@ -103,7 +108,7 @@ async function resolveRecipients(
       }
 
       const studentName = `${student.user.lastName} ${student.user.firstName}`;
-      const className   = student.class?.name ?? '';
+      const className   = student.enrollmentsYearScoped?.[0]?.class?.name ?? '';
 
       // Calcul du solde restant (somme des factures non payées). Invoice n'a pas de colonne
       // paidAmount — le montant réellement payé se déduit des Payment liés (statut SUCCESS),

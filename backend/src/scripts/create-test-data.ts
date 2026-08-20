@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import { prisma } from "../config/prisma";
 
 async function main() {
@@ -105,7 +106,7 @@ async function main() {
     // create StudentProfile linking to class
     const existingProfile = await prisma.studentProfile.findFirst({ where: { userId: user.id } });
     if (!existingProfile) {
-      await prisma.studentProfile.create({ data: { userId: user.id, classId: cls.id } });
+      await creerEleveAvecClasse(prisma, { userId: user.id, classId: cls.id, enrolledById: user.id });
       console.log("Created StudentProfile for", user.id);
     }
   }

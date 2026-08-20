@@ -40,11 +40,24 @@ async function fetchPrimaryStudents(prisma: PrismaClient, schoolId: string): Pro
     where: {
       studentStatus: 'ACTIVE',
       user: { schoolId },
-      class: { level: { in: ALL_PRIMARY_LEVELS } },
+      enrollmentsYearScoped: {
+        some: {
+          status: 'ACTIVE',
+          academicYear: { isCurrent: true },
+          class: { level: { in: ALL_PRIMARY_LEVELS } },
+        },
+      },
     },
-    select: { gender: true, dateOfBirth: true, class: { select: { level: true } } },
+    select: {
+      gender: true, dateOfBirth: true,
+      enrollmentsYearScoped: {
+        where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+        select: { class: { select: { level: true } } },
+        take: 1,
+      },
+    },
   });
-  return students.filter((s: any) => s.class).map((s: any) => ({ gender: s.gender, dateOfBirth: s.dateOfBirth, niveau: s.class.level }));
+  return students.filter((s: any) => s.enrollmentsYearScoped?.[0]?.class).map((s: any) => ({ gender: s.gender, dateOfBirth: s.dateOfBirth, niveau: s.enrollmentsYearScoped[0].class.level }));
 }
 
 export async function resolveEffectifsParNiveau(prisma: PrismaClient, schoolId: string): Promise<NiveauEffectif[]> {

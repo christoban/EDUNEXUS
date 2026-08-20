@@ -34,7 +34,12 @@ export class OuvrirFenetreChoixLV2UseCase {
     // Élèves du niveau concerné — pour notification (SMS aux parents). StudentProfile n'a pas
     // de schoolId propre : l'établissement se filtre via la relation user.
     const eleves: any[] = await this.prisma.studentProfile.findMany({
-      where: { user: { schoolId: cmd.schoolId }, class: { level: cmd.level } },
+      where: {
+        user: { schoolId: cmd.schoolId },
+        enrollmentsYearScoped: {
+          some: { status: 'ACTIVE', academicYear: { isCurrent: true }, class: { level: cmd.level } },
+        },
+      },
       include: { user: { select: { id: true, firstName: true, lastName: true } } },
     });
 

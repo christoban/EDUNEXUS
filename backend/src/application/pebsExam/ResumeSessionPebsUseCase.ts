@@ -16,7 +16,14 @@ export class ResumeSessionPebsUseCase {
       where: { sessionId },
       include: {
         studentProfile: {
-          include: { user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } },
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { class: { select: { name: true } } },
+              take: 1,
+            },
+          },
         },
       },
       orderBy: { id: 'asc' },
@@ -27,7 +34,7 @@ export class ResumeSessionPebsUseCase {
       studentProfileId: c.studentProfileId,
       firstName: c.studentProfile?.user?.firstName ?? '?',
       lastName: c.studentProfile?.user?.lastName ?? '?',
-      currentClassName: c.studentProfile?.class?.name ?? '?',
+      currentClassName: c.studentProfile?.enrollmentsYearScoped?.[0]?.class?.name ?? '?',
       examScore: c.examScore,
       selectionResult: c.selectionResult,
     }));

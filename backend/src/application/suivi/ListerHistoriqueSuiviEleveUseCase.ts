@@ -20,11 +20,19 @@ export class ListerHistoriqueSuiviEleveUseCase {
   async execute(appelant: AppelantSuivi, studentId: string): Promise<FollowUpActionDetail[]> {
     const profile = await this.prisma.studentProfile.findFirst({
       where: { userId: studentId, user: { schoolId: appelant.schoolId } },
-      select: { id: true, classId: true },
+      select: {
+        id: true,
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { classId: true },
+          take: 1,
+        },
+      },
     });
     if (!profile) throw new Error('Élève introuvable');
+    const classId = profile.enrollmentsYearScoped?.[0]?.classId ?? null;
 
-    if (!(await this.peutConsulterFiche(appelant, profile.classId))) {
+    if (!(await this.peutConsulterFiche(appelant, classId))) {
       throw new Error('Vous n\'avez pas accès au suivi de cet élève');
     }
 

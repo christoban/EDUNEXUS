@@ -454,7 +454,7 @@ export function buildStaffActionCatalog(deps: StaffActionDeps): ActionDefinition
             academicYearId: year.id,
             status: { in: ['OUVERTE', 'EN_COURS'] },
             riskLevel: { in: ['ELEVE', 'CRITIQUE'] },
-            ...(classId ? { student: { studentProfile: { classId } } } : {}),
+            ...(classId ? { student: { studentProfile: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE' as const, academicYear: { isCurrent: true } } } } } } : {}),
           },
           select: { riskLevel: true, student: { select: { firstName: true, lastName: true } } },
         });

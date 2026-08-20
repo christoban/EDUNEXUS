@@ -34,7 +34,7 @@ export class PrismaFactureRepository implements FactureRepository {
 
   async findByClasse(classId: string): Promise<Facture[]> {
     const eleves = await this.prisma.studentProfile.findMany({
-      where: { classId },
+      where: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE' as const, academicYear: { isCurrent: true } } } },
       select: { userId: true },
     });
     const studentIds = eleves.map(e => e.userId);

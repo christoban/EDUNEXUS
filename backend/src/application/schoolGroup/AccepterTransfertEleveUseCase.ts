@@ -35,7 +35,11 @@ export class AccepterTransfertEleveUseCase {
         studentProfile: {
           select: {
             id: true,
-            class: { select: { level: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+              select: { class: { select: { level: true } } },
+              take: 1,
+            },
             parents: { select: { parentProfile: { select: { user: { select: { email: true, phone: true } } } } } },
           },
         },
@@ -46,7 +50,7 @@ export class AccepterTransfertEleveUseCase {
     // Suggestion de classe — best-effort par niveau, toujours éditable par l'Admin cible avant
     // que la famille ne valide (jamais une assignation automatique définitive).
     let classId: string | undefined;
-    const niveau = sourceUser.studentProfile.class?.level;
+    const niveau = sourceUser.studentProfile.enrollmentsYearScoped?.[0]?.class?.level;
     if (niveau) {
       const classeCorrespondante = await this.prisma.class.findFirst({
         where: { schoolId: cmd.targetSchoolId, level: niveau },

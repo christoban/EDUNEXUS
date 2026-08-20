@@ -18,6 +18,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import * as XLSX from 'xlsx';
+import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
@@ -414,7 +415,7 @@ describe("Bulletin (GenererBulletinUseCase) — vérification via le VRAI flux d
     const subjectFort = await prismaTest.subject.create({ data: { schoolId, name: 'Maths (bulletin)', coefficient: 4 } });
     const subjectFaible = await prismaTest.subject.create({ data: { schoolId, name: 'Dessin (bulletin)', coefficient: 1 } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
-    await prismaTest.studentProfile.create({ data: { userId: student.id, classId: classeBulletin.id } });
+    await creerEleveAvecClasse(prismaTest, { userId: student.id, classId: classeBulletin.id, enrolledById: student.id });
 
     // 1. Saisie via le VRAI flux enseignant (grille de saisie en masse), pas saisir/modifier —
     //    c'est ce que le frontend appelle réellement (POST /grades/draft, un appel par matière).
@@ -470,7 +471,7 @@ describe("GradeController.importerDepuisExcel — troisième voie de saisie, sta
     const classeImport = await prismaTest.class.create({ data: { schoolId, name: '4ème Import', academicYearId } });
     const subjectImport = await prismaTest.subject.create({ data: { schoolId, name: 'SVT (import)', coefficient: 3 } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
-    await prismaTest.studentProfile.create({ data: { userId: student.id, classId: classeImport.id, matricule: 'IMP-0001' } });
+    await creerEleveAvecClasse(prismaTest, { userId: student.id, classId: classeImport.id, enrolledById: student.id, extraProfileData: { matricule: 'IMP-0001' } });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([

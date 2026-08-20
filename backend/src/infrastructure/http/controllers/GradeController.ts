@@ -686,7 +686,10 @@ export class GradeController {
       ]);
 
       const students = await prisma.studentProfile.findMany({
-        where: { classId, user: { schoolId: user.schoolId } },
+        where: {
+          user: { schoolId: user.schoolId },
+          enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } },
+        },
         include: { user: { select: { firstName: true, lastName: true } } },
         orderBy: { user: { lastName: 'asc' } },
       });
@@ -798,7 +801,10 @@ export class GradeController {
       const coefficient = subject?.coefficient ?? 1;
 
       const studentProfiles = await prisma.studentProfile.findMany({
-        where: { classId, user: { schoolId: user.schoolId } },
+        where: {
+          user: { schoolId: user.schoolId },
+          enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } },
+        },
         select: { matricule: true, userId: true },
       });
       const matriculeToUserId = new Map(

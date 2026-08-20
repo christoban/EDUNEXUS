@@ -1,4 +1,4 @@
-﻿import { inngest } from "./index.ts";
+import { inngest } from "./index.ts";
 import { prisma } from "../config/prisma.ts";
 import { sendTransactionalEmail } from "../services/emailService.ts";
 import { resolveLanguage } from "../utils/languageHelper.ts";
@@ -19,6 +19,7 @@ import { RelancerElevesEnAttenteUseCase } from "../application/orientation/Relan
 import { FinaliserParDefautUseCase } from "../application/orientation/FinaliserParDefautUseCase";
 import { ListerElevesAOrienterUseCase } from "../application/orientation/ListerElevesAOrienterUseCase";
 import { PurgerAnnoncesExpireesUseCase } from "../application/announcement/PurgerAnnoncesExpireesUseCase";
+import { whereElevesParClasse } from "../application/shared/studentEnrollment";
 
 const iaService = new GroqIAService();
 const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
@@ -60,7 +61,7 @@ export const generateReportCards = inngest.createFunction(
         role: "STUDENT",
         isActive: true,
         ...(studentId ? { id: studentId } : {}),
-        ...(classId ? { studentProfile: { classId } } : {}),
+        ...(classId ? whereElevesParClasse(classId) : {}),
       };
       return prisma.user.findMany({
         where,
@@ -69,7 +70,15 @@ export const generateReportCards = inngest.createFunction(
           firstName: true,
           lastName: true,
           email: true,
-          studentProfile: { select: { classId: true } },
+          studentProfile: {
+            select: {
+              enrollmentsYearScoped: {
+                where: { status: "ACTIVE", academicYear: { isCurrent: true } },
+                select: { classId: true },
+                take: 1,
+              },
+            },
+          },
         },
       });
     });
@@ -82,7 +91,7 @@ export const generateReportCards = inngest.createFunction(
 
     await step.run("generate-report-cards", async () => {
       for (const student of students) {
-        const studentClassId = student.studentProfile?.classId;
+        const studentClassId = student.studentProfile?.enrollmentsYearScoped?.[0]?.classId ?? null;
         if (!studentClassId) continue;
 
         const sequences = await prisma.academicSequence.findMany({
@@ -233,7 +242,11 @@ export const generateReportCards = inngest.createFunction(
             email: true,
             studentProfile: {
               include: {
-                class: { select: { section: { select: { code: true } } } },
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                  take: 1,
+                  include: { class: { select: { section: { select: { code: true } } } } },
+                },
                 parents: {
                   include: {
                     parentProfile: {
@@ -248,7 +261,7 @@ export const generateReportCards = inngest.createFunction(
         if (!student?.email) continue;
 
         const studentName = `${student.firstName} ${student.lastName}`.trim();
-        const lang = resolveLanguage(school?.subsystem, student.studentProfile?.class?.section?.code ?? null);
+        const lang = resolveLanguage(school?.subsystem, student.studentProfile?.enrollmentsYearScoped[0]?.class?.section?.code ?? null);
         const parentRecipients = student.studentProfile?.parents
           .map((p) => p.parentProfile?.user ? { email: p.parentProfile.user.email, userId: p.parentProfile.user.id } : null)
           .filter((r): r is { email: string; userId: string } => Boolean(r?.email)) ?? [];
@@ -381,16 +394,19 @@ async function resolveStudentContext(studentId: string, schoolId: string) {
   const profile = await prisma.studentProfile.findFirst({
     where: { userId: studentId, user: { schoolId } },
     select: {
-      classId: true,
       user: { select: { firstName: true, lastName: true } },
-      class: { select: { name: true, professorPrincipalId: true } },
+      enrollmentsYearScoped: {
+        where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+        take: 1,
+        select: { classId: true, class: { select: { name: true, professorPrincipalId: true } } },
+      },
     },
   });
   return {
     nomComplet: profile ? `${profile.user.firstName} ${profile.user.lastName}` : "Élève",
-    classId: profile?.classId ?? null,
-    className: profile?.class?.name ?? null,
-    professorPrincipalId: profile?.class?.professorPrincipalId ?? null,
+    classId: profile?.enrollmentsYearScoped[0]?.classId ?? null,
+    className: profile?.enrollmentsYearScoped[0]?.class?.name ?? null,
+    professorPrincipalId: profile?.enrollmentsYearScoped[0]?.class?.professorPrincipalId ?? null,
   };
 }
 
@@ -644,13 +660,21 @@ export const sendProfessorPrincipalDigest = inngest.createFunction(
 
         // 1. Alertes composite du calcul qui vient de tourner (score déjà persisté).
         const eleves = await prisma.studentProfile.findMany({
-          where: { user: { schoolId: school.id }, classId: { not: null }, healthScore: { lte: warningThreshold } },
-          select: { healthScore: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true, professorPrincipalId: true } } },
+          where: { user: { schoolId: school.id }, healthScore: { lte: warningThreshold } },
+          select: {
+            healthScore: true,
+            user: { select: { firstName: true, lastName: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+              take: 1,
+              select: { class: { select: { name: true, professorPrincipalId: true } } },
+            },
+          },
         });
         for (const e of eleves) {
           const nom = `${e.user.firstName} ${e.user.lastName}`;
-          const ligne = `${nom} (${e.class?.name ?? "N/A"}) — indice ${e.healthScore}/100`;
-          ajouter(e.class?.professorPrincipalId, e.healthScore <= criticalThreshold ? "critiques" : "vigilances", ligne);
+          const ligne = `${nom} (${e.enrollmentsYearScoped[0]?.class?.name ?? "N/A"}) — indice ${e.healthScore}/100`;
+          ajouter(e.enrollmentsYearScoped[0]?.class?.professorPrincipalId, e.healthScore <= criticalThreshold ? "critiques" : "vigilances", ligne);
         }
 
         // 2. Chutes par matière détectées la veille — peu importe quel enseignant de matière a
@@ -666,7 +690,15 @@ export const sendProfessorPrincipalDigest = inngest.createFunction(
           const [profils, matieres] = await Promise.all([
             prisma.studentProfile.findMany({
               where: { userId: { in: studentIds }, user: { schoolId: school.id } },
-              select: { userId: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true, professorPrincipalId: true } } },
+              select: {
+                userId: true,
+                user: { select: { firstName: true, lastName: true } },
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                  take: 1,
+                  select: { class: { select: { name: true, professorPrincipalId: true } } },
+                },
+              },
             }),
             prisma.subject.findMany({ where: { id: { in: subjectIds } }, select: { id: true, name: true } }),
           ]);
@@ -674,10 +706,10 @@ export const sendProfessorPrincipalDigest = inngest.createFunction(
           const nomMatiere = new Map(matieres.map((m) => [m.id, m.name]));
           for (const c of chutes) {
             const profil = profilParEleve.get(c.studentId);
-            if (!profil?.class) continue;
+            if (!profil?.enrollmentsYearScoped[0]) continue;
             const nom = `${profil.user.firstName} ${profil.user.lastName}`;
             const matiere = c.subjectId ? (nomMatiere.get(c.subjectId) ?? "une matière") : "une matière";
-            ajouter(profil.class.professorPrincipalId, "chutes", `${nom} (${profil.class.name}) — chute en ${matiere}`);
+            ajouter(profil.enrollmentsYearScoped[0].class.professorPrincipalId, "chutes", `${nom} (${profil.enrollmentsYearScoped[0].class.name}) — chute en ${matiere}`);
           }
         }
 
@@ -1585,7 +1617,10 @@ export const purgerCorbeille = inngest.createFunction(
             await tx.timetable.deleteMany({ where: { schoolId: c.schoolId, classId: c.id } });
             await tx.classPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
             await tx.studentPromotion.deleteMany({ where: { schoolId: c.schoolId, OR: [{ fromClassId: c.id }, { toClassId: c.id }] } });
-            await tx.studentProfile.updateMany({ where: { classId: c.id, user: { schoolId: c.schoolId } }, data: { classId: null } });
+            await tx.enrollment.updateMany({
+              where: { classId: c.id, schoolId: c.schoolId },
+              data: { status: 'TRANSFERRED', exitedAt: new Date(), exitReason: 'PURGE_CLASSE' },
+            });
             await tx.class.delete({ where: { id: c.id } });
           });
         } catch (err: any) {

@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { StaffPermissionType, UserRole } from '@domain/types/enums';
+import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -51,7 +52,7 @@ export class PrismaUserRepository implements UserRepository {
 
   async findByClass(schoolId: string, classId: string): Promise<User[]> {
     const data = await this.prisma.user.findMany({
-      where: { schoolId, role: 'STUDENT', studentProfile: { classId } },
+      where: { schoolId, role: 'STUDENT', ...whereElevesParClasse(classId) },
       include: { staffProfile: { include: { permissions: true } } },
     });
     return data.map((item) => this.toDomain(item));
@@ -173,11 +174,30 @@ export class PrismaUserRepository implements UserRepository {
       const studentProfile = await this.prisma.studentProfile.create({
         data: {
           userId: data.id,
-          classId: profilData.classeId ?? null,
           dateOfBirth: profilData.dateOfBirth ?? null,
           gender: profilData.gender ?? null,
         },
       });
+
+      // Inscription year-scoped (la classe vit dans Enrollment, plus sur le profil)
+      if (profilData.classeId) {
+        const classe = await this.prisma.class.findUnique({
+          where: { id: profilData.classeId },
+          select: { schoolId: true, academicYearId: true },
+        });
+        if (classe) {
+          await this.prisma.enrollment.create({
+            data: {
+              studentId: studentProfile.id,
+              classId: profilData.classeId,
+              academicYearId: classe.academicYearId,
+              schoolId: classe.schoolId,
+              enrolledById: data.id,
+              status: 'ACTIVE',
+            },
+          });
+        }
+      }
 
       if (profilData.parentOfStudentIds?.length) {
         for (const parentId of profilData.parentOfStudentIds) {
@@ -365,24 +385,42 @@ export class PrismaUserRepository implements UserRepository {
     demandeurId: string;
     schoolId: string;
   }): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.studentProfile.update({
-        where: { userId: params.studentId },
-        data: { classId: params.toClasseId },
-      }),
-      this.prisma.studentPromotion.create({
+    const classeCible = await this.prisma.class.findUniqueOrThrow({
+      where: { id: params.toClasseId },
+      select: { schoolId: true, academicYearId: true },
+    });
+    const profilEleve = await this.prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: params.studentId },
+      select: { id: true },
+    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.enrollment.updateMany({
+        where: { studentId: profilEleve.id, status: 'ACTIVE' },
+        data: { status: 'TRANSFERRED', exitedAt: new Date(), exitReason: 'TRANSFERT_INTERNE' },
+      });
+      await tx.enrollment.create({
+        data: {
+          studentId: profilEleve.id,
+          classId: params.toClasseId,
+          academicYearId: classeCible.academicYearId,
+          schoolId: classeCible.schoolId,
+          enrolledById: params.demandeurId,
+          status: 'ACTIVE',
+        },
+      });
+      await tx.studentPromotion.create({
         data: {
           id: crypto.randomUUID(),
           schoolId: params.schoolId,
-          studentId: params.studentId,
+          studentId: profilEleve.id,
           fromClassId: params.fromClasseId,
           toClassId: params.toClasseId,
           academicYearId: 'TRANSFER',
           promotedById: params.demandeurId,
           promotedAt: new Date(),
         },
-      }),
-    ]);
+      });
+    });
   }
 
   async findEmailsParentsParEleve(studentId: string): Promise<string[]> {

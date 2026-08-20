@@ -28,12 +28,22 @@ export class ListerElevesAOrienterUseCase {
     const eleves = await this.prisma.studentProfile.findMany({
       where: {
         studentStatus: 'ACTIVE',
-        class: ListerElevesAOrienterUseCase.eligibiliteWhere(params.checkpointType),
+        enrollmentsYearScoped: {
+          some: {
+            status: 'ACTIVE',
+            academicYear: { isCurrent: true },
+            class: ListerElevesAOrienterUseCase.eligibiliteWhere(params.checkpointType),
+          },
+        },
         user: { schoolId: params.schoolId },
       },
       select: {
         userId: true,
-        class: { select: { name: true } },
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true } } },
+          take: 1,
+        },
         user: { select: { firstName: true, lastName: true } },
       },
     });
@@ -54,7 +64,7 @@ export class ListerElevesAOrienterUseCase {
       studentId: e.userId,
       firstName: e.user.firstName,
       lastName: e.user.lastName,
-      className: e.class?.name ?? '—',
+      className: e.enrollmentsYearScoped[0]?.class?.name ?? '—',
       hasRecommendation: recoByStudent.has(e.userId),
       recommendationStatus: recoByStudent.get(e.userId) ?? null,
     }));

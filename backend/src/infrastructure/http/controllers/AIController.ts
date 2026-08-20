@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { generateWithGroq } from '../../../services/groq';
 import { resolveLanguage, instructionLangue, type Language } from '../../../utils/languageHelper';
 import type { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
+import { getClassIdActuelEleve, whereProfilesParClasse, whereProfilesParClasses } from '@application/shared/studentEnrollment';
 
 export class AIController {
   constructor(
@@ -32,7 +33,7 @@ export class AIController {
   ): Promise<boolean> {
     const profile = await this.prisma.studentProfile.findFirst({
       where: { userId: studentId, user: { schoolId: user.schoolId } },
-      select: { classId: true },
+      select: { id: true },
     });
     if (!profile) return false;
 
@@ -47,10 +48,11 @@ export class AIController {
     }
 
     if (role === 'TEACHER') {
-      if (!profile.classId) return false;
+      const classId = await getClassIdActuelEleve(this.prisma, studentId);
+      if (!classId) return false;
       const [assignment, estProfPrincipal] = await Promise.all([
-        this.prisma.teachingAssignment.findFirst({ where: { teacherId: user.userId, classId: profile.classId }, select: { id: true } }),
-        this.prisma.class.findFirst({ where: { id: profile.classId, professorPrincipalId: user.userId }, select: { id: true } }),
+        this.prisma.teachingAssignment.findFirst({ where: { teacherId: user.userId, classId }, select: { id: true } }),
+        this.prisma.class.findFirst({ where: { id: classId, professorPrincipalId: user.userId }, select: { id: true } }),
       ]);
       return !!assignment || !!estProfPrincipal;
     }
@@ -137,8 +139,15 @@ export class AIController {
       }
 
       const students = await this.prisma.studentProfile.findMany({
-        where: { user: { schoolId }, ...(classId ? { classId } : {}) },
-        include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
+        where: { user: { schoolId }, ...(classId ? whereProfilesParClasse(classId) : {}) },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true } },
+          enrollmentsYearScoped: {
+            where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+            take: 1,
+            select: { class: { select: { id: true, name: true } } },
+          },
+        },
         orderBy: { healthScore: 'asc' },
       });
 
@@ -146,7 +155,7 @@ export class AIController {
         const score = s.healthScore ?? 75;
         const alertLevel =
           score <= 30 ? 'critical' : score <= 50 ? 'warning' : score <= 70 ? 'recommendation' : score <= 85 ? 'good' : 'excellent';
-        return { studentId: s.user.id, name: `${s.user.firstName} ${s.user.lastName}`, className: s.class?.name ?? '—', healthScore: score, alertLevel };
+        return { studentId: s.user.id, name: `${s.user.firstName} ${s.user.lastName}`, className: s.enrollmentsYearScoped[0]?.class?.name ?? '—', healthScore: score, alertLevel };
       });
 
       res.json({
@@ -219,8 +228,15 @@ export class AIController {
       const ppClassIdList = Array.from(ppClassIds);
       const studentsComposite = ppClassIdList.length
         ? await this.prisma.studentProfile.findMany({
-            where: { classId: { in: ppClassIdList }, healthScore: { lte: warningThreshold } },
-            include: { user: { select: { id: true, firstName: true, lastName: true } }, class: { select: { id: true, name: true } } },
+            where: { ...whereProfilesParClasses(ppClassIdList), healthScore: { lte: warningThreshold } },
+            include: {
+              user: { select: { id: true, firstName: true, lastName: true } },
+              enrollmentsYearScoped: {
+                where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                take: 1,
+                select: { class: { select: { id: true, name: true } } },
+              },
+            },
             orderBy: { healthScore: 'asc' },
           })
         : [];
@@ -239,12 +255,12 @@ export class AIController {
         const score: number = s.healthScore ?? 75;
         const alertLevel = score <= criticalThreshold ? 'critical' : 'warning';
         const conseil = dernierConseilParEleve.get(s.user.id);
-        const classId = s.class?.id ?? null;
+        const classId = s.enrollmentsYearScoped[0]?.class?.id ?? null;
         return {
           studentId: s.user.id,
           name: `${s.user.firstName} ${s.user.lastName}`,
           classId,
-          className: s.class?.name ?? '—',
+          className: s.enrollmentsYearScoped[0]?.class?.name ?? '—',
           source: 'COMPOSITE' as const,
           healthScore: score,
           alertLevel,
@@ -267,8 +283,16 @@ export class AIController {
       let resultSubjectDrop: AtRiskEntry[] = [];
       if (classIdsMatiereSeule.length > 0) {
         const elevesMatiereSeule = await this.prisma.studentProfile.findMany({
-          where: { classId: { in: classIdsMatiereSeule } },
-          select: { userId: true, classId: true, user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } },
+          where: whereProfilesParClasses(classIdsMatiereSeule),
+          select: {
+            userId: true,
+            user: { select: { firstName: true, lastName: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+              take: 1,
+              select: { classId: true, class: { select: { name: true } } },
+            },
+          },
         });
         const profilParEleve = new Map(elevesMatiereSeule.map((e) => [e.userId, e]));
 
@@ -290,7 +314,9 @@ export class AIController {
           if (!profil || !c.subjectId) continue;
           // Ne garder que si CE professeur enseigne bien CETTE matière dans CETTE classe — pas la
           // chute d'un élève détectée pour un autre enseignant partageant la même classe.
-          const mesMatieresIci = mesMatieresParClasse.get(profil.classId!) ?? [];
+          const classIdProfil = profil.enrollmentsYearScoped[0]?.classId;
+          if (!classIdProfil) continue;
+          const mesMatieresIci = mesMatieresParClasse.get(classIdProfil) ?? [];
           if (!mesMatieresIci.some((m) => m.id === c.subjectId)) continue;
           const cle = `${c.studentId}__${c.subjectId}`;
           if (!vueParEleveMatiere.has(cle)) vueParEleveMatiere.set(cle, c);
@@ -298,12 +324,13 @@ export class AIController {
 
         resultSubjectDrop = Array.from(vueParEleveMatiere.values()).map((c): AtRiskEntry => {
           const profil = profilParEleve.get(c.studentId)!;
-          const matiere = (mesMatieresParClasse.get(profil.classId!) ?? []).find((m) => m.id === c.subjectId);
+          const classIdProfil = profil.enrollmentsYearScoped[0]?.classId;
+          const matiere = (classIdProfil ? mesMatieresParClasse.get(classIdProfil) ?? [] : []).find((m) => m.id === c.subjectId);
           return {
             studentId: c.studentId,
             name: `${profil.user.firstName} ${profil.user.lastName}`,
-            classId: profil.classId,
-            className: profil.class?.name ?? '—',
+            classId: classIdProfil ?? null,
+            className: profil.enrollmentsYearScoped[0]?.class?.name ?? '—',
             source: 'SUBJECT_DROP' as const,
             healthScore: null,
             alertLevel: null,
@@ -312,7 +339,7 @@ export class AIController {
             conseilDate: c.createdAt,
             recommendationId: c.id,
             isProfesseurPrincipal: false,
-            mesMatieres: mesMatieresParClasse.get(profil.classId!) ?? [],
+            mesMatieres: classIdProfil ? mesMatieresParClasse.get(classIdProfil) ?? [] : [],
           };
         });
       }
@@ -347,21 +374,43 @@ export class AIController {
       if (role === 'STUDENT') {
         const profile = await this.prisma.studentProfile.findFirst({
           where: { userId: user.userId, user: { schoolId } },
-          include: { user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } },
+          include: {
+            user: { select: { firstName: true, lastName: true } },
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+              take: 1,
+              select: { class: { select: { name: true } } },
+            },
+          },
         });
         if (!profile) { res.json({ children: [] }); return; }
-        cibles = [{ studentId: user.userId, name: `${profile.user.firstName} ${profile.user.lastName}`, className: profile.class?.name ?? '—' }];
+        cibles = [{ studentId: user.userId, name: `${profile.user.firstName} ${profile.user.lastName}`, className: profile.enrollmentsYearScoped[0]?.class?.name ?? '—' }];
       } else if (role === 'PARENT') {
         const parentProfile = await this.prisma.parentProfile.findUnique({
           where: { userId: user.userId },
-          include: { children: { include: { studentProfile: { include: { user: { select: { firstName: true, lastName: true } }, class: { select: { name: true } } } } } } },
+          include: {
+            children: {
+              include: {
+                studentProfile: {
+                  include: {
+                    user: { select: { firstName: true, lastName: true } },
+                    enrollmentsYearScoped: {
+                      where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+                      take: 1,
+                      select: { class: { select: { name: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
         });
         cibles = (parentProfile?.children ?? [])
           .filter((c) => c.studentProfile)
           .map((c) => ({
             studentId: c.studentProfile!.userId,
             name: `${c.studentProfile!.user.firstName} ${c.studentProfile!.user.lastName}`,
-            className: c.studentProfile!.class?.name ?? '—',
+            className: c.studentProfile!.enrollmentsYearScoped[0]?.class?.name ?? '—',
           }));
       } else {
         res.status(403).json({ success: false, message: 'Accès réservé aux parents et élèves' });

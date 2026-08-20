@@ -12,10 +12,10 @@ async function main() {
   let totalCreees = 0
 
   for (const session of sessionsVides) {
-    const students = await prisma.studentProfile.findMany({
-      where: { classId: session.classId },
-      select: { userId: true },
-    })
+    const students = await prisma.enrollment.findMany({
+      where: { classId: session.classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      select: { student: { select: { userId: true } } },
+    }).then((rows) => rows.map((r) => r.student))
 
     if (students.length === 0) {
       console.log(`⚠️  Session ${session.id} (classId=${session.classId}) : aucun élève dans la classe`)
