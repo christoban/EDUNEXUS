@@ -49,6 +49,7 @@ import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletin
 
 // --- Use Cases : Conseil de Classe ---
 import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
+import { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';
 
 // --- Use Cases : Matricule ---
 import { ImporterMatriculesUseCase } from '@application/matricule/ImporterMatriculesUseCase';
@@ -157,6 +158,7 @@ import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/Pr
 // --- Adapters Persistence AI ---
 import { PrismaSanteEleveRepository } from '@infrastructure/persistence/prisma/PrismaSanteEleveRepository';
 import { PrismaClassCouncilRepository } from '@infrastructure/persistence/prisma/PrismaClassCouncilRepository';
+import { PrismaClassCouncilPreviewQueryPort } from '@infrastructure/persistence/prisma/PrismaClassCouncilPreviewQueryPort';
 
 // --- Adapter Service IA ---
 import { GroqIAService } from '@infrastructure/services/GroqIAService';
@@ -334,6 +336,9 @@ export function creerContainer() {
   // 8. Use Cases — Conseil de Classe
   const tenirConseilClasseUseCase = new TenirConseilClasseUseCase(
     noteRepository, classeRepository, userRepository
+  );
+  const preparerVueConseilClasseUseCase = new PreparerVueConseilClasseUseCase(
+    new PrismaClassCouncilPreviewQueryPort(prisma)
   );
 
   // Repositories supplémentaires
@@ -540,6 +545,7 @@ export function creerContainer() {
     },
     classCouncil: {
       tenir: tenirConseilClasseUseCase,
+      preparerVue: preparerVueConseilClasseUseCase,
     },
     user: {
       connecter: connecterUtilisateurUseCase,

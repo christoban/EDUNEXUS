@@ -38,3 +38,8 @@ export type {
   SchoolSettingsComplets,
 } from './SchoolSettingsRepository';
 export type { ParentRepository, EnfantAvecStats } from './ParentRepository';
+export type {
+  ClassCouncilPreviewQueryPort,
+  DonneesVueConseil,
+  DonneesVueConseilParEleve,
+} from './ClassCouncilPreviewQueryPort';

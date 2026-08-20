@@ -7,6 +7,7 @@ export function creerClassCouncilRoutes(controller: ClassCouncilController): Rou
   const router = Router();
 
   router.get('/', requireAuth, controller.listerSessions);
+  router.get('/preview', requireAuth, controller.preparerVue);
   router.post('/', sensitiveWriteLimiter, requireAuth, controller.creerSession);
   router.get('/:id', requireAuth, controller.obtenirSession);
   router.post('/:id/decisions', requireAuth, controller.ajouterDecision);

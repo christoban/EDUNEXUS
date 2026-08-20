@@ -6,10 +6,13 @@ import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogge
 import { logActivity } from '../../../utils/activitieslog';
 import { notifyBulletinSms } from '../../services/SmsNotificationService';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
+import type { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';
 
 type AuthUser = { schoolId: string; userId: string; role: string; permissions?: string[] };
 
 export class ClassCouncilController {
+  constructor(private readonly preparerVueConseil: PreparerVueConseilClasseUseCase) {}
+
   private user(req: Request): AuthUser {
     return req.user as AuthUser;
   }
@@ -139,6 +142,49 @@ export class ClassCouncilController {
       });
 
       res.json({ sessions, total: sessions.length });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/v2/class-councils/preview?classId=&academicPeriodId=
+  // Vue préparatoire (V1.12) — fonctionne avant même l'ouverture de la session de conseil,
+  // indexée sur la classe et la période, pas sur une session.
+  preparerVue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = this.user(req);
+
+      if (['STUDENT', 'PARENT'].includes(user.role.toUpperCase())) {
+        res.status(403).json({ message: 'Réservé à la direction et au censeur' });
+        return;
+      }
+      if (!this.canManage(user)) {
+        res.status(403).json({ message: 'Permission VALIDATE_GRADES requise' });
+        return;
+      }
+
+      const { classId, academicPeriodId } = req.query as Record<string, string>;
+      if (!classId || !academicPeriodId) {
+        res.status(400).json({ message: 'classId et academicPeriodId sont requis' });
+        return;
+      }
+
+      // Isolation multi-tenant : la classe et la période doivent appartenir à l'établissement
+      const classe = await prisma.class.findFirst({
+        where: { id: classId, schoolId: user.schoolId },
+        select: { id: true },
+      });
+      if (!classe) {
+        res.status(404).json({ message: 'Classe introuvable' });
+        return;
+      }
+
+      const vue = await this.preparerVueConseil.execute({
+        schoolId: user.schoolId,
+        classId,
+        academicPeriodId,
+      });
+      res.json({ vue });
     } catch (error) {
       next(error);
     }
