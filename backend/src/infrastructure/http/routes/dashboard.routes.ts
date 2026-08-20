@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import type { DashboardController } from '@infrastructure/http/controllers/DashboardController';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../../../middleware/auth';
 
 export function creerDashboardRoutes(controller: DashboardController): Router {
   const router = Router();
   router.get('/stats', requireAuth, controller.getStats);
-  router.get('/admin-badges', requireAuth, controller.getAdminBadges);
+  router.get('/admin-badges', requireAuth, requireRole('ADMIN'), controller.getAdminBadges);
   return router;
 }
