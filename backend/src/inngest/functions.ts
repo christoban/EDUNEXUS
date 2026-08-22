@@ -1690,3 +1690,55 @@ export const BackupSchoolDataJob = inngest.createFunction(
     return { requestedSchoolId: payload.schoolId ?? null, schoolsProcessed: schools.length, backups };
   }
 );
+/**
+ * V2.5 — Emploi du temps appliqué (propose → apply). Notifie l'admin et, si une séance porte une
+ * matière d'examen à venir, émet assessment/scheduled. Isolée par schoolId (jamais de requête
+ * globale non filtrée).
+ */
+export const handleTimetableSeancesAppliquees = inngest.createFunction(
+  { id: "Handle-Timetable-Seances-Appliquees", triggers: [{ event: "timetable/seances.appliquees" }] },
+  async ({ event, step }) => {
+    const { schoolId, timetableId, seances } = event.data as {
+      schoolId: string;
+      timetableId: string;
+      nbSeances: number;
+      seances: { subjectId: string }[];
+    };
+
+    // AssessmentScheduled : matières liées à un examen à venir (filtré par schoolId + date).
+    await step.run("check-upcoming-exams", async () => {
+      const subjectIds = [...new Set((seances ?? []).map(s => s.subjectId))];
+      if (subjectIds.length === 0) return;
+      const exams = await prisma.exam.findMany({
+        where: { schoolId, subjectId: { in: subjectIds }, scheduledAt: { gte: new Date() } },
+        select: { id: true, subjectId: true, classId: true },
+      });
+      for (const exam of exams) {
+        await inngest.send({
+          name: "assessment/scheduled",
+          data: { schoolId, examId: exam.id, classId: exam.classId, subjectId: exam.subjectId, timetableId },
+        });
+      }
+    });
+
+    // Notification admin (isolée par schoolId).
+    await step.run("notify-admins", async () => {
+      const admins = await prisma.user.findMany({
+        where: { schoolId, role: "ADMIN", isActive: true },
+        select: { id: true },
+      });
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: {
+            schoolId, userId: admin.id, type: "SYSTEM",
+            title: "Emploi du temps appliqué",
+            body: `${(seances ?? []).length} séance(s) appliquée(s).`,
+            channel: "IN_APP",
+          },
+        });
+      }
+    });
+
+    return { timetableId, nbSeances: (seances ?? []).length };
+  }
+);

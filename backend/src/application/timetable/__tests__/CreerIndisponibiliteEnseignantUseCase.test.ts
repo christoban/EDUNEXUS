@@ -1,59 +1,85 @@
 import { describe, it, expect } from 'bun:test';
 import { CreerIndisponibiliteEnseignantUseCase } from '../CreerIndisponibiliteEnseignantUseCase';
 import { TeacherUnavailability } from '@domain/entities/TeacherUnavailability';
+import { User } from '@domain/entities/User';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { UserRole } from '@domain/types/enums';
 
-function userStub(overrides: Partial<{ id: string; schoolId: string; nomComplet: string; role: string }> = {}): {
-  id: string;
-  schoolId: string;
-  nomComplet: string;
-  role: string;
-  estEnseignant: (r: string) => boolean;
-} {
-  const base = {
-    id: 'prof-1', schoolId: 'school-1', nomComplet: 'M. Test', role: 'TEACHER',
-    estEnseignant: (r) => (overrides.role ?? 'TEACHER') === r,
-  } as const;
+function userStub(role: UserRole = 'TEACHER', schoolId = 'school-1'): User {
+  return User.reconstituer({
+    id: 'prof-1',
+    schoolId,
+    role,
+    firstName: 'M.',
+    lastName: 'Test',
+    isActive: true,
+    refreshTokenVersion: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
+
+/** Stub complet de UserRepository : toutes les méthodes en no-op, findById seul configurable. */
+function userRepositoryStub(user: User | null): UserRepository {
   return {
-    id: base.id,
-    schoolId: base.schoolId,
-    nomComplet: base.nomComplet,
-    role: base.role,
-    estEnseignant: base.estEnseignant,
+    findById: async () => user,
+    findByEmail: async () => null,
+    findByPhone: async () => null,
+    findBySchool: async () => [],
+    findByRole: async () => [],
+    findByClass: async () => [],
+    existsByEmail: async () => false,
+    save: async () => {},
+    update: async () => {},
+    delete: async () => {},
+    findByIdWithRefreshVersion: async () => null,
+    authentifier: async () => null,
+    listerRolesAvecMotDePasse: async () => [],
+    saveAvecProfil: async () => {},
+    mettreAJourAvecProfil: async () => {},
+    supprimerAvecCascade: async () => {},
+    restaurer: async () => {},
+    transfererEleve: async () => {},
+    findEmailsParentsParEleve: async () => [],
   };
 }
 
 function repositoryStub(existantes: TeacherUnavailability[] = []): {
+  findById: (id: string) => Promise<TeacherUnavailability | null>;
+  findBySchool: (schoolId: string, activeOnly?: boolean) => Promise<TeacherUnavailability[]>;
   findByTeacher: (teacherId: string, schoolId: string, activeOnly?: boolean) => Promise<TeacherUnavailability[]>;
   save: (u: TeacherUnavailability) => Promise<void>;
+  update: (u: TeacherUnavailability) => Promise<void>;
+  delete: (id: string, schoolId: string) => Promise<void>;
 } {
-  const enregistrees: TeacherUnavailability[] = [];
   return {
-    findByTeacher: async (teacherId, schoolId, activeOnly) => {
-      // Simule le filtrage schoolId + activeOnly
+    findById: async (id) => existantes.find(t => t.id === id) ?? null,
+    findBySchool: async (schoolId, activeOnly) => {
       return existantes.filter(t => t.schoolId === schoolId && (!activeOnly || t.active));
     },
-    save: async (u) => { enregistrees.push(u); },
+    findByTeacher: async (teacherId, schoolId, activeOnly) => {
+      return existantes.filter(t => t.teacherId === teacherId && t.schoolId === schoolId && (!activeOnly || t.active));
+    },
+    save: async (u) => { existantes.push(u); },
+    update: async () => {},
+    delete: async () => {},
   };
 }
 
 describe('CreerIndisponibiliteEnseignantUseCase (V2.4)', () => {
   it('crée une indisponibilité valide', async () => {
     const repo = repositoryStub();
-    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, {
-      findById: userStub(),
-    });
+    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, userRepositoryStub(userStub()));
     const resultat = await useCase.execute({
       schoolId: 'school-1', teacherId: 'prof-1', dayOfWeek: 0, startTime: '08:00', endTime: '09:00',
     });
     expect(resultat.id).toBeDefined();
-    expect(repo.findByTeacher('prof-1', 'school-1', true)).toHaveLength(1);
+    expect(await repo.findByTeacher('prof-1', 'school-1', true)).toHaveLength(1);
   });
 
   it('rejette si l\'enseignant n\'existe pas', async () => {
     const repo = repositoryStub();
-    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, {
-      findById: async () => null,
-    });
+    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, userRepositoryStub(null));
     await expect(useCase.execute({
       schoolId: 'school-1', teacherId: 'prof-1', dayOfWeek: 0, startTime: '08:00', endTime: '09:00',
     })).rejects.toThrow('Enseignant introuvable');
@@ -61,9 +87,7 @@ describe('CreerIndisponibiliteEnseignantUseCase (V2.4)', () => {
 
   it('rejette si l\'utilisateur n\'est pas un enseignant', async () => {
     const repo = repositoryStub();
-    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, {
-      findById: async () => ({ id: 'prof-1', schoolId: 'school-1', nomComplet: 'Test', role: 'ADMIN', estEnseignant: () => false }),
-    });
+    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, userRepositoryStub(userStub('ADMIN')));
     await expect(useCase.execute({
       schoolId: 'school-1', teacherId: 'prof-1', dayOfWeek: 0, startTime: '08:00', endTime: '09:00',
     })).rejects.toThrow("n'est pas un enseignant");
@@ -71,9 +95,7 @@ describe('CreerIndisponibiliteEnseignantUseCase (V2.4)', () => {
 
   it('rejette un enseignant d\'une autre école', async () => {
     const repo = repositoryStub();
-    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, {
-      findById: async () => ({ id: 'prof-1', schoolId: 'school-2', nomComplet: 'Test', role: 'TEACHER', estEnseignant: () => true }),
-    });
+    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, userRepositoryStub(userStub('TEACHER', 'school-2')));
     await expect(useCase.execute({
       schoolId: 'school-1', teacherId: 'prof-1', dayOfWeek: 0, startTime: '08:00', endTime: '09:00',
     })).rejects.toThrow("n'appartient pas");
@@ -84,9 +106,7 @@ describe('CreerIndisponibiliteEnseignantUseCase (V2.4)', () => {
       schoolId: 'school-1', teacherId: 'prof-1', dayOfWeek: 0, startTime: '08:00', endTime: '10:00',
     });
     const repo = repositoryStub([existante]);
-    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, {
-      findById: userStub(),
-    });
+    const useCase = new CreerIndisponibiliteEnseignantUseCase(repo, userRepositoryStub(userStub()));
     await expect(useCase.execute({
       schoolId: 'school-1', teacherId: 'prof-1', dayOfWeek: 0, startTime: '08:30', endTime: '09:30',
     })).rejects.toThrow('chevauchement');

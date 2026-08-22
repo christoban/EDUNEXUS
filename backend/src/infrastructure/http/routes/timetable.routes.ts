@@ -13,6 +13,8 @@ export function creerTimetableRoutes(controller: TimetableController): Router {
   // Scheduling Engine V2.5 — le solveur propose, l'admin confirme, puis on écrit (tout ou rien).
   router.post('/:id/propose-schedule', requireAuth, requireRole('ADMIN', 'STAFF'), controller.proposerEDT);
   router.post('/:id/apply-schedule', requireAuth, requireRole('ADMIN', 'STAFF'), controller.appliquerPropositionEDT);
+  // What-if (V2.5) — simule sans écrire.
+  router.post('/:id/what-if', requireAuth, requireRole('ADMIN', 'STAFF'), controller.simulerEDT);
   router.put('/:id/publish', requireAuth, requireRole('ADMIN'), controller.publierEDT);
 
   return router;

@@ -1133,6 +1133,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.timetable.genererSeancesGroupe,
     container.timetable.proposerEmploiDuTemps,
     container.timetable.appliquerProposition,
+    container.timetable.simulerEmploiDuTemps,
   );
 
   // ── POST /api/v2/timetables/generate-skeleton — génère les créneaux vides pour une classe ──

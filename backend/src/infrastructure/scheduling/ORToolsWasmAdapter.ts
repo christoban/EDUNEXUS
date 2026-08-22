@@ -23,6 +23,7 @@
  * (ClassRoomAssignment) — un cours dans sa salle habituelle vaut POIDS_SALLE_HABITUELLE points.
  */
 import { CpModel, CpSolver, weightedSum } from 'or-tools-wasm/cp-sat';
+import type { LinearExprLike } from 'or-tools-wasm/cp-sat';
 import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
 import type {
   SchedulingSolverPort,
@@ -35,6 +36,9 @@ import type {
   CreneauOccupe,
   IndisponibiliteEnseignant,
 } from '@domain/ports/services/SchedulingSolverPort';
+import { modeliserContraintesDouces } from '@infrastructure/scheduling/contraintesDouces';
+import type { Placement } from '@infrastructure/scheduling/contraintesDouces';
+import { NOMS_JOURS } from '@domain/types/joursSemaine';
 
 /** Poids de la seule contrainte souple de cette tranche (préférence salle habituelle). */
 const POIDS_SALLE_HABITUELLE = 10;
@@ -44,7 +48,7 @@ const NB_WORKERS = 1;
 
 export class ORToolsWasmAdapter implements SchedulingSolverPort {
   async proposer(input: ProposerEmploiDuTempsInput): Promise<PropositionEmploiDuTemps> {
-    const { exigences, grille, sallesDisponibles, occupationExistante, salleHabituelleId, indisponibilitesEnseignants = [] } = input;
+    const { exigences, grille, sallesDisponibles, occupationExistante, salleHabituelleId, indisponibilitesEnseignants = [], contraintes } = input;
 
     if (exigences.length === 0) {
       return { statut: 'OPTIMAL', seances: [], scoreObjectif: 0, dureeResolutionMs: 0 };
@@ -59,7 +63,6 @@ export class ORToolsWasmAdapter implements SchedulingSolverPort {
     const model = new CpModel();
 
     // --- Variables : uniquement les placements RÉELLEMENT possibles ---
-    type Placement = { exigenceIdx: number; caseIdx: number; salleIdx: number };
     const placements: Placement[] = [];
     const variables: ReturnType<CpModel['newBoolVar']>[] = [];
 
@@ -73,6 +76,7 @@ export class ORToolsWasmAdapter implements SchedulingSolverPort {
         return {
           statut: 'INFAISABLE', seances: [], scoreObjectif: 0, dureeResolutionMs: 0,
           raisonInfaisabilite: `Aucune salle compatible pour une matière ${exigence.subjectType} (matière ${exigence.subjectId}) — une matière pratique exige une salle spécialisée (laboratoire, atelier, salle informatique ou terrain).`,
+          suggestions: [`Créez ou libérez une salle spécialisée (laboratoire, atelier, salle informatique…) pour la matière ${exigence.subjectName ?? exigence.subjectId}.`],
         };
       }
 
@@ -95,6 +99,7 @@ export class ORToolsWasmAdapter implements SchedulingSolverPort {
         return {
           statut: 'INFAISABLE', seances: [], scoreObjectif: 0, dureeResolutionMs: 0,
           raisonInfaisabilite: `Aucun créneau libre pour la matière ${exigence.subjectId} : l'enseignant ou toutes les salles compatibles sont déjà occupés sur l'ensemble de la grille horaire.`,
+          suggestions: [`La matière ${exigence.subjectName ?? exigence.subjectId} (enseignant ${exigence.teacherName ?? exigence.teacherId}) n'a aucun créneau libre — vérifiez les indisponibilités de l'enseignant ou l'occupation des salles compatibles.`],
         };
       }
     }
@@ -130,12 +135,22 @@ export class ORToolsWasmAdapter implements SchedulingSolverPort {
       }
     }
 
-    // --- Objectif (SOUPLE) : préférer la salle habituelle de la classe ---
+    // --- Objectif (SOUPLE) : salle habituelle + contraintes douces V2.5, en UN SEUL maximize ---
+    const termes: { terme: LinearExprLike; coeff: number }[] = [];
     if (salleHabituelleId) {
-      const poids = placements.map(p =>
-        sallesDisponibles[p.salleIdx]!.roomId === salleHabituelleId ? POIDS_SALLE_HABITUELLE : 0,
-      );
-      model.maximize(weightedSum(variables, poids));
+      for (let i = 0; i < placements.length; i++) {
+        if (sallesDisponibles[placements[i]!.salleIdx]!.roomId === salleHabituelleId) {
+          termes.push({ terme: variables[i]!, coeff: POIDS_SALLE_HABITUELLE });
+        }
+      }
+    }
+    // Contraintes douces V2.5 (pénalités) + blocs de 2 h (DUR, §4) — un seul appel, qui gère
+    // aussi le cas options = undefined (blocs actifs par défaut, aucune pénalité).
+    termes.push(...modeliserContraintesDouces({ model, placements, variables, exigences, grille, options: contraintes }));
+    let objectifExpr: LinearExprLike | null = null;
+    if (termes.length > 0) {
+      objectifExpr = weightedSum(termes.map(t => t.terme), termes.map(t => t.coeff));
+      model.maximize(objectifExpr);
     }
 
     // --- Résolution ---
@@ -149,30 +164,81 @@ export class ORToolsWasmAdapter implements SchedulingSolverPort {
       return {
         statut: 'INFAISABLE', seances: [], scoreObjectif: 0, dureeResolutionMs,
         raisonInfaisabilite: `Aucune combinaison ne satisfait toutes les contraintes (statut solveur : ${statusName}). Libérez des créneaux, ajoutez une salle compatible, ou réduisez le nombre de séances à placer.`,
+        suggestions: ['Libérez des créneaux (occupation existante), ajoutez une salle compatible, ou réduisez le nombre de séances à placer.'],
       };
     }
 
-    const seances: SeanceProposee[] = [];
-    for (let i = 0; i < placements.length; i++) {
-      if (solver.value(variables[i]!) !== 1) continue;
-      const { exigenceIdx, caseIdx, salleIdx } = placements[i]!;
-      const exigence = exigences[exigenceIdx]!;
-      const caseGrille = grille[caseIdx]!;
-      seances.push({
-        subjectId: exigence.subjectId,
-        teacherId: exigence.teacherId,
-        roomId: sallesDisponibles[salleIdx]!.roomId,
-        dayOfWeek: caseGrille.dayOfWeek,
-        startTime: caseGrille.startTime,
-        endTime: caseGrille.endTime,
+    // --- Extraire les séances retenues + score (réutilisé pour les alternatives) ---
+    const extraire = (): { seances: SeanceProposee[]; score: number } => {
+      const seances: SeanceProposee[] = [];
+      for (let i = 0; i < placements.length; i++) {
+        if (solver.value(variables[i]!) !== 1) continue;
+        const { exigenceIdx, caseIdx, salleIdx } = placements[i]!;
+        const exigence = exigences[exigenceIdx]!;
+        const caseGrille = grille[caseIdx]!;
+        seances.push({
+          subjectId: exigence.subjectId,
+          teacherId: exigence.teacherId,
+          roomId: sallesDisponibles[salleIdx]!.roomId,
+          dayOfWeek: caseGrille.dayOfWeek,
+          startTime: caseGrille.startTime,
+          endTime: caseGrille.endTime,
+        });
+      }
+      return { seances, score: termes.length > 0 ? solver.objectiveValue() : 0 };
+    };
+
+    const { seances, score } = extraire();
+
+    // --- Explain My Timetable (V2.5 §7) : une ligne par séance retenue ---
+    let explicatifs: string[] | undefined;
+    if (contraintes?.explicatifs) {
+      explicatifs = seances.map(s => {
+        const exigence = exigences.find(e => e.subjectId === s.subjectId);
+        const salle = sallesDisponibles.find(r => r.roomId === s.roomId);
+        const jour = NOMS_JOURS[s.dayOfWeek] ?? String(s.dayOfWeek);
+        const raison = s.roomId === salleHabituelleId
+          ? 'salle habituelle de la classe'
+          : exigence?.subjectType === 'PRACTICAL'
+            ? 'salle spécialisée exigée'
+            : 'première salle compatible libre';
+        return `${jour} ${s.startTime}-${s.endTime} · ${exigence?.subjectName ?? s.subjectId} (${exigence?.teacherName ?? s.teacherId}) · ${salle?.roomName ?? s.roomId} — ${raison}`;
       });
+    }
+
+    // --- Solutions multiples scorées (no-good re-solve, V2.5 §6) ---
+    const solutionsAlternatives: { score: number; seances: SeanceProposee[] }[] = [];
+    const sm = input.solutionsMultiples;
+    if (sm) {
+      const nombre = Math.max(1, Math.min(sm.nombre ?? 3, 5));
+      const marge = sm.margeScore ?? 0;
+      const gardeFou = debut + 5000;
+      for (let k = 1; k < nombre; k++) {
+        if (performance.now() > gardeFou) break;
+        // no-good : au moins une variable retenue de la solution courante doit basculer.
+        const retenues = placements
+          .map((_, i) => (solver.value(variables[i]!) === 1 ? variables[i]! : null))
+          .filter((v): v is NonNullable<typeof v> => v !== null);
+        if (retenues.length === 0) break;
+        model.addBoolOr(retenues.map(v => v.not()));
+        // Borne d'objectif : ne garder que les alternatives à ≤ marge du score optimal.
+        if (marge > 0 && objectifExpr) {
+          model.addLinearConstraint(objectifExpr, score - marge, 1e9);
+        }
+        const statusK = await solver.solve(model, { numSearchWorkers: NB_WORKERS });
+        const nomK = solver.statusName(statusK);
+        if (nomK !== 'OPTIMAL' && nomK !== 'FEASIBLE') break;
+        solutionsAlternatives.push(extraire());
+      }
     }
 
     return {
       statut: statusName,
       seances,
-      scoreObjectif: salleHabituelleId ? solver.objectiveValue() : 0,
+      scoreObjectif: score,
       dureeResolutionMs,
+      ...(solutionsAlternatives.length > 0 ? { solutionsAlternatives } : {}),
+      ...(explicatifs ? { explicatifs } : {}),
     };
   }
 }

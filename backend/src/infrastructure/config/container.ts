@@ -193,6 +193,7 @@ import { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeanc
 import { ProposerEmploiDuTempsUseCase } from '@application/timetable/ProposerEmploiDuTempsUseCase';
 import { GenererSqueletteEmploiDuTempsUseCase } from '@application/timetable/GenererSqueletteEmploiDuTempsUseCase';
 import { AppliquerPropositionEmploiDuTempsUseCase } from '@application/timetable/AppliquerPropositionEmploiDuTempsUseCase';
+import { SimulerEmploiDuTempsUseCase } from '@application/timetable/SimulerEmploiDuTempsUseCase';
 import { ORToolsWasmAdapter } from '@infrastructure/scheduling/ORToolsWasmAdapter';
 
 // --- Use Cases : AnneeAcademique ---
@@ -473,6 +474,9 @@ export function creerContainer() {
   const appliquerPropositionEmploiDuTempsUseCase = new AppliquerPropositionEmploiDuTempsUseCase(
     timetableRepository,
   );
+  const simulerEmploiDuTempsUseCase = new SimulerEmploiDuTempsUseCase(
+    proposerEmploiDuTempsUseCase, schedulingSolver, prisma,
+  );
   const genererSqueletteEmploiDuTempsUseCase = new GenererSqueletteEmploiDuTempsUseCase(
     timetableRepository, prisma,
   );
@@ -632,6 +636,7 @@ export function creerContainer() {
       genererSeancesGroupe: genererSeancesGroupeUseCase,
       proposerEmploiDuTemps: proposerEmploiDuTempsUseCase,
       appliquerProposition: appliquerPropositionEmploiDuTempsUseCase,
+      simulerEmploiDuTemps: simulerEmploiDuTempsUseCase,
       genererSquelette: genererSqueletteEmploiDuTempsUseCase,
     },
     academicYear: {

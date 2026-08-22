@@ -1031,6 +1031,8 @@ model Subject {
   code                   String?
   coefficient            Float                   @default(1)
   hoursPerWeek           Int                     @default(2)
+  // V2.5 — séances groupées en blocs de N cases adjacentes (null/1 = libre, 2 = blocs de 2 h).
+  blocDureeCases         Int?
   createdAt              DateTime                @default(now())
   deletedAt              DateTime?
   deletedById            String?

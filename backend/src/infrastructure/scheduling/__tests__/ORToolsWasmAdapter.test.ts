@@ -141,7 +141,7 @@ describe('ORToolsWasmAdapter — modèle CP-SAT', () => {
   it('INFAISABLE (V2.4) — enseignant indisponible sur toute la grille → aucune séance plaçable', async () => {
     const resultat = await adapter.proposer(input({
       exigences: [
-        { subjectId: 'maths', subjectType: 'THEORETICAL', teacherId: 'prof-A', durationMinutes: 60 },
+        { subjectId: 'maths', subjectType: 'THEORETICAL', teacherId: 'prof-A', durationMinutes: 60, subjectName: 'Maths', teacherName: 'M. A' },
       ],
       indisponibilitesEnseignants: GRILLE.map(c => ({
         teacherId: 'prof-A', dayOfWeek: c.dayOfWeek, startTime: c.startTime, endTime: c.endTime,
@@ -150,6 +150,9 @@ describe('ORToolsWasmAdapter — modèle CP-SAT', () => {
 
     expect(resultat.statut).toBe('INFAISABLE');
     expect(resultat.seances).toHaveLength(0);
+    // Réparation auto : la suggestion nomme la matière concernée.
+    expect(resultat.suggestions).toHaveLength(1);
+    expect(resultat.suggestions![0]).toContain('Maths');
   });
 
   it('DUR — ne place jamais une séance dans une salle déjà occupée par une autre classe', async () => {
@@ -179,6 +182,7 @@ describe('ORToolsWasmAdapter — modèle CP-SAT', () => {
     expect(resultat.statut).toBe('INFAISABLE');
     expect(resultat.seances).toHaveLength(0);
     expect(resultat.raisonInfaisabilite).toContain('Aucune salle compatible');
+    expect(resultat.suggestions?.[0]).toContain('salle spécialisée');
   });
 
   it('INFAISABLE explicite — plus de séances à placer que de créneaux disponibles', async () => {

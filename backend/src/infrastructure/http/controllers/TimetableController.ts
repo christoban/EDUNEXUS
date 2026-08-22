@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import type { CreerEmploiDuTempsUseCase } from '@application/timetable/CreerEmploiDuTempsUseCase';
 import type { AjouterCreneauUseCase } from '@application/timetable/AjouterCreneauUseCase';
 import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
@@ -7,13 +8,46 @@ import type { DemanderRattrapageUseCase } from '@application/timetable/DemanderR
 import type { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
 import type { ProposerEmploiDuTempsUseCase } from '@application/timetable/ProposerEmploiDuTempsUseCase';
 import type { AppliquerPropositionEmploiDuTempsUseCase } from '@application/timetable/AppliquerPropositionEmploiDuTempsUseCase';
-import type { SeanceProposee } from '@domain/ports/services/SchedulingSolverPort';
+import type { SimulerEmploiDuTempsUseCase } from '@application/timetable/SimulerEmploiDuTempsUseCase';
+import type { SimulationEmploiDuTemps } from '@application/timetable/SimulerEmploiDuTempsUseCase';
+import type { SeanceProposee, ContraintesDoucesOptions } from '@domain/ports/services/SchedulingSolverPort';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
 import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../utils/languageHelper';
 import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { inngest } from '../../../inngest/index.ts';
+
+/** Schéma Zod des contraintes douces V2.5 — .strict() : toute clé inconnue → 400. */
+const contraintesSchema = z.object({
+  trouEnseignant: z.boolean().optional(),
+  troisCoursConsecutifs: z.boolean().optional(),
+  equilibrageSemaine: z.boolean().optional(),
+  volumeMaxEnseignantParJour: z.number().int().positive().max(720).optional(),
+  blocsDeuxHeures: z.boolean().optional(),
+  poids: z.object({
+    trou: z.number().positive().optional(),
+    troisConsecutifs: z.number().positive().optional(),
+    desequilibre: z.number().positive().optional(),
+    volumeJour: z.number().positive().optional(),
+  }).strict().optional(),
+}).strict();
+
+/** Schéma Zod des simulations « what if » V2.5 — .strict() : clé inconnue → 400. */
+const simulationsSchema = z.object({
+  indisponibilitesSupplementaires: z.array(z.object({
+    teacherId: z.string(),
+    dayOfWeek: z.number().int().min(0).max(6),
+    startTime: z.string(),
+    endTime: z.string(),
+  })).optional(),
+  sallesHorsService: z.array(z.string()).optional(),
+  retraitHeures: z.array(z.object({
+    subjectId: z.string(),
+    heures: z.number().positive(),
+  })).optional(),
+}).strict();
 
 export class TimetableController {
   constructor(
@@ -25,6 +59,7 @@ export class TimetableController {
     private readonly genererSeances: GenererSeancesGroupeUseCase,
     private readonly proposerEmploiDuTemps: ProposerEmploiDuTempsUseCase,
     private readonly appliquerProposition: AppliquerPropositionEmploiDuTempsUseCase,
+    private readonly simulerEmploiDuTemps: SimulerEmploiDuTempsUseCase,
   ) {}
 
   creerManuel = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -133,9 +168,22 @@ export class TimetableController {
   proposerEDT = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
+
+      // Contraintes douces V2.5 — optionnelles, validées strictement (aucune clé inconnue).
+      let contraintes: ContraintesDoucesOptions | undefined;
+      if (req.body?.contraintes !== undefined) {
+        const parsed = contraintesSchema.safeParse(req.body.contraintes);
+        if (!parsed.success) {
+          res.status(400).json({ success: false, message: 'contraintes invalides', details: parsed.error.issues });
+          return;
+        }
+        contraintes = parsed.data;
+      }
+
       const proposition = await this.proposerEmploiDuTemps.execute({
         timetableId: req.params['id'] as string,
         schoolId: user.schoolId,
+        contraintes,
       });
 
       // INFAISABLE n'est pas une erreur technique : c'est un résultat métier exploitable
@@ -180,6 +228,14 @@ export class TimetableController {
         origin: 'UI_DIRECT', outcome: 'SUCCES',
         parametersSummary: { creneauxCrees: resultat.creneauxCrees },
       });
+
+      // V2.5 — événement APRÈS la transaction (jamais dedans) : les séances sont écrites, on
+      // notifie l'écosystème (AssessmentScheduled si une matière d'examen à venir est concernée).
+      void inngest.send({
+        name: 'timetable/seances.appliquees',
+        data: { schoolId: user.schoolId, timetableId: req.params['id'] as string, nbSeances: seances.length, seances },
+      }).catch((err) => console.error('[TimetableController] Échec envoi timetable/seances.appliquees:', err?.message));
+
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
       const user = req.user;
@@ -191,6 +247,26 @@ export class TimetableController {
         refusalReason: error instanceof Error ? error.message : undefined,
         parametersSummary: { nbSeances: (req.body as { seances?: unknown[] })?.seances?.length },
       });
+      this.gererErreur(error, res, next);
+    }
+  };
+
+  // POST /timetables/:id/what-if — simule une modification SANS rien écrire.
+  simulerEDT = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = req.user;
+      const parsed = simulationsSchema.safeParse(req.body?.simulations);
+      if (!parsed.success) {
+        res.status(400).json({ success: false, message: 'simulations invalides', details: parsed.error.issues });
+        return;
+      }
+      const resultat = await this.simulerEmploiDuTemps.execute({
+        timetableId: req.params['id'] as string,
+        schoolId: user.schoolId,
+        simulations: parsed.data as SimulationEmploiDuTemps,
+      });
+      res.json({ success: true, data: resultat });
+    } catch (error) {
       this.gererErreur(error, res, next);
     }
   };

@@ -136,12 +136,13 @@ afterAll(async () => {
   await prismaTest.$disconnect();
 });
 
-async function proposer() {
+async function proposer(contraintes?: unknown) {
   const res = await fetch(`${baseUrl}/timetables/${timetableId}/propose-schedule`, {
     method: 'POST', headers: headers(),
+    body: contraintes !== undefined ? JSON.stringify({ contraintes }) : undefined,
   });
   const body = await res.json() as {
-    success: boolean; message?: string;
+    success: boolean; message?: string; details?: unknown;
     data?: { statut: string; seances: SeanceProposee[]; scoreObjectif: number; dureeResolutionMs: number };
   };
   return { res, body };
@@ -155,13 +156,25 @@ async function appliquer(seances: SeanceProposee[]) {
   return { res, body };
 }
 
+async function simuler(simulations: unknown) {
+  const res = await fetch(`${baseUrl}/timetables/${timetableId}/what-if`, {
+    method: 'POST', headers: headers(), body: JSON.stringify({ simulations }),
+  });
+  const body = await res.json() as {
+    success: boolean; message?: string; details?: unknown;
+    data?: { differences: { seancesDeplacees: number; scoreBase: number; scoreSimule: number } };
+  };
+  return { res, body };
+}
+
 describe('Scheduling Engine V2.5 — propose puis apply', () => {
   it('propose-schedule respecte le type de salle (dur) et préfère la salle habituelle (souple), sans rien écrire', async () => {
     const { res, body } = await proposer();
     if (!body.success) throw new Error(`Échec proposition : ${JSON.stringify(body)}`);
     expect(res.status).toBe(200);
     expect(['OPTIMAL', 'FEASIBLE']).toContain(body.data!.statut);
-    expect(body.data!.seances).toHaveLength(2);
+    // 2 matières × hoursPerWeek=2 (défaut) / cases d'1 h = 2 séances chacune → 4 au total.
+    expect(body.data!.seances).toHaveLength(4);
 
     const seanceMaths = body.data!.seances.find(s => s.subjectId === subjectMathsId)!;
     const seanceTp = body.data!.seances.find(s => s.subjectId === subjectTpId)!;
@@ -183,10 +196,10 @@ describe('Scheduling Engine V2.5 — propose puis apply', () => {
     const { res, body: bodyApply } = await appliquer(seances);
     if (!bodyApply.success) throw new Error(`Échec application : ${JSON.stringify(bodyApply)}`);
     expect(res.status).toBe(201);
-    expect(bodyApply.data!.creneauxCrees).toBe(2);
+    expect(bodyApply.data!.creneauxCrees).toBe(4);
 
     const slots = await prismaTest.timetableSlot.findMany({ where: { timetableId } });
-    expect(slots).toHaveLength(2);
+    expect(slots).toHaveLength(4);
     expect(slots.find(s => s.subjectId === subjectTpId)!.roomId).toBe(salleLaboId);
     expect(slots.find(s => s.subjectId === subjectMathsId)!.roomId).toBe(salleHabituelleId);
 
@@ -197,7 +210,7 @@ describe('Scheduling Engine V2.5 — propose puis apply', () => {
   it("ATOMICITÉ — un conflit sur une seule séance annule TOUTE la proposition", async () => {
     const { body } = await proposer();
     const seances = body.data!.seances;
-    expect(seances.length).toBe(2);
+    expect(seances.length).toBe(4);
 
     // Simule un changement d'état entre propose et apply : un autre EDT occupe la salle de la
     // DERNIÈRE séance de la proposition. La 1re séance passerait sans problème — c'est
@@ -239,6 +252,38 @@ describe('Scheduling Engine V2.5 — propose puis apply', () => {
   it('apply-schedule rejette une proposition vide (422)', async () => {
     const { res, body } = await appliquer([]);
     expect(res.status).toBe(422);
+    expect(body.success).toBe(false);
+  });
+
+  it('propose-schedule accepte des contraintes douces valides (200)', async () => {
+    const { res, body } = await proposer({ trouEnseignant: true, volumeMaxEnseignantParJour: 240 });
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(['OPTIMAL', 'FEASIBLE']).toContain(body.data!.statut);
+  });
+
+  it('propose-schedule rejette une clé de contrainte inconnue (400)', async () => {
+    const { res, body } = await proposer({ optionInconnue: true });
+    expect(res.status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+
+  it('propose-schedule rejette un type de contrainte invalide (400)', async () => {
+    const { res, body } = await proposer({ volumeMaxEnseignantParJour: 'beaucoup' });
+    expect(res.status).toBe(400);
+    expect(body.success).toBe(false);
+  });
+
+  it('what-if : simulation valide (aucune salle hors service) → 200, aucun déplacement', async () => {
+    const { res, body } = await simuler({});
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data!.differences.seancesDeplacees).toBe(0);
+  });
+
+  it('what-if : simulation invalide (clé inconnue) → 400', async () => {
+    const { res, body } = await simuler({ inconnu: true });
+    expect(res.status).toBe(400);
     expect(body.success).toBe(false);
   });
 });
