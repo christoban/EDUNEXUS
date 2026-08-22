@@ -9,8 +9,8 @@
     "migrate:phase5": "bun src/scripts/migrate-phase5.ts",
     "migrate:phase8": "bun src/scripts/migrate-phase8.ts",
     "test": "bun test",
-    "test:rules": "bun test src/tests",
-    "test:integration": "bun test --env-file .env.test src/infrastructure/persistence/prisma/__tests__/ src/infrastructure/http/__tests__/",
+    "test:rules": "bun test tests/unit/domain/rules tests/unit/utils",
+    "test:integration": "bun test --env-file .env.test tests/integration",
     "reset:master": "bun src/scripts/reset-master.ts",
     "lint": "eslint ."
   },

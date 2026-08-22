@@ -30,14 +30,14 @@
 | Section frontend | `Section<Nom>.tsx` dans `_components/` | `SectionBulletins.tsx` |
 | Composant partagé | `PascalCase.tsx` | `AnimatedBackground.tsx` |
 | Hook | `useXxx` | `useT`, `useLanguage` |
-| Test | `<Nom>.test.ts` dans `__tests__/` | `SaisirNoteUseCase.test.ts` |
+| Test | `<Nom>.test.ts` dans `tests/unit|integration/...` | `tests/unit/application/grade/SaisirNoteUseCase.test.ts` |
 | i18n | `locales/{fr,en}/<namespace>.json` | `locales/fr/admin.json` |
 
 ---
 
 ## 3. Structure des dossiers (rappel — détail dans ARCHITECTURE/MODULE_INDEX)
 
-- **Backend** = hexagonal : `domain/` (entities, ports, rules, types, value-objects, errors) → `application/<module>/` (use cases + `__tests__/`) → `infrastructure/` (http, persistence, services, config). Transverses : `services/`, `utils/`, `middleware/`, `inngest/`, `socket/`, `scripts/`.
+- **Backend** = hexagonal : `domain/` (entities, ports, rules, types, value-objects, errors) → `application/<module>/` (use cases) → `infrastructure/` (http, persistence, services, config). Transverses : `services/`, `utils/`, `middleware/`, `inngest/`, `socket/`, `scripts/`. Tests centralisés dans `tests/` (`unit/` et `integration/`).
 - **Frontend** = App Router : `app/<role>/dashboard/_components/Section*.tsx`, `components/`, `lib/`, `locales/`.
 - **Un use case par fichier** ; regroupés par domaine ; `index.ts` de barrel par module.
 
@@ -97,8 +97,8 @@
 
 ## 9. Tests
 
-- Tests unitaires de use cases avec des **repos/services in-memory** dans `application/<module>/__tests__/helpers/`.
-- `bun test` (ou `bun test src/tests`). Ne pas casser les tests existants.
+- Tests unitaires de use cases avec des **repos/services in-memory** dans `tests/unit/application/<module>/helpers/`.
+- `bun test` (ou `bun test tests/unit/domain/rules tests/unit/utils`). Ne pas casser les tests existants.
 - **Smoke test runtime** : fichier temporaire `_smoke_*.ts` **dans `backend/`** exécuté avec `bun`, puis supprimé (voir [AGENTS.md](AGENTS.md)).
 
 ---

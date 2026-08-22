@@ -70,7 +70,7 @@ Le backend applique une **architecture hexagonale** stricte en 3 couches. Règle
 - reçoit ses dépendances par **injection de constructeur** (ports, pas d'implémentations) ;
 - ne touche **jamais** Prisma/HTTP directement (sauf `prisma?` optionnel injecté ponctuellement pour des lectures, cf. `GenererBulletinUseCase`) ;
 - porte une méthode `execute(commande)` retournant un résultat typé ;
-- est **testable en isolation** via des repos/services in-memory (`__tests__/helpers/`).
+- est **testable en isolation** via des repos/services in-memory (`tests/unit/application/<module>/helpers/`).
 
 ### 3.3 `infrastructure/` — les adapters (le monde réel)
 - `http/controllers/` (65) : traduisent HTTP ↔ use cases. `http/routes/` (59) : montage Express + middlewares (`requireAuth`, `requireRole`). `http/dto/`, `http/middlewares/`.

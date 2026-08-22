@@ -15,7 +15,7 @@
 # largement utilisé dans le code (JSON Prisma, enums) pour typer précisément une valeur sans
 # `any` — seul `as any` lui-même (et @ts-ignore/@ts-expect-error) est un vrai garde-fou.
 
-STAGED_BACKEND_TS=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^backend/.*\.tsx?$' || true)
+STAGED_BACKEND_TS=$(git diff --cached --name-only --diff-filter=ACMDR | grep -E '^backend/.*\.tsx?$' || true)
 
 if [ -z "$STAGED_BACKEND_TS" ]; then
   exit 0
@@ -32,13 +32,17 @@ bunx tsc --noEmit -p . || {
 }
 
 echo "  → recherche de as any / @ts-ignore / @ts-expect-error sur les lignes ajoutées"
-RELATIVE_FILES=$(echo "$STAGED_BACKEND_TS" | sed 's|^backend/||')
+# Diff COMPLET (pas de pathspec) : un pathspec désactive la détection de renames, or pour un
+# `git mv` + réécriture, git afficherait alors le fichier comme entièrement nouveau — et tous
+# les `as any` préexistants (déjà dans HEAD) apparaîtraient comme "ajoutés". Avec le diff
+# complet + -M, les renames sont détectés : seules les lignes réellement ajoutées ressortent.
+# On filtre ensuite par awk sur les fichiers backend/ pour ne garder que le périmètre du hook.
 # Exclut les lignes de commentaire (JSDoc ` * ...` et `// ...`) : elles ne peuvent pas
 # réintroduire un vrai cast, seulement en parler en prose (ex. documenter un bug corrigé).
-CULPRITS=$(git diff --cached -- $RELATIVE_FILES \
-  | grep -E '^\+[^+]' \
-  | grep -vE '^\+\s*(\*|//)' \
-  | grep -E '\bas any\b|@ts-ignore|@ts-expect-error' || true)
+CULPRITS=$(git diff --cached --no-ext-diff -M | awk '
+  /^diff --git/ { inBackend = ($0 ~ / b\/backend\//) }
+  inBackend && /^\+[^+]/ && !/^\+\s*(\*|\/\/)/ && ($0 ~ /\bas any\b/ || $0 ~ /@ts-ignore/ || $0 ~ /@ts-expect-error/) { print }
+')
 
 if [ -n "$CULPRITS" ]; then
   echo "❌ Nouveau \`as any\` (ou @ts-ignore/@ts-expect-error) détecté dans les lignes ajoutées :"
