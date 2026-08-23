@@ -7,12 +7,12 @@
  * sans déclencheur utilisateur (la création du lien et l'activation du compte sont
  * notifiées directement depuis EleveOnboardingController, voir son en-tête).
  */
-import { inngest } from './index';
+import { inngest } from '../client/index';
 import { PrismaClient, type UserRole } from '@prisma/client';
-import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
-import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
-import { buildOnboardingLinkTemplate } from '../utils/emailTemplates';
-import { notifyOnboardingReminderSms } from '../infrastructure/services/sms/SmsNotificationService.ts';
+import { softDeleteExtension } from '../../persistence/prisma/softDeleteExtension';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
+import { buildOnboardingLinkTemplate } from '../../../utils/emailTemplates';
+import { notifyOnboardingReminderSms } from '../../services/sms/SmsNotificationService.ts';
 
 const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 

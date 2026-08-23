@@ -15,7 +15,7 @@ import { logActivity } from '../../../utils/activitieslog';
 import { calculateAverageScoreOn20, scoreOn20ToPercentage } from '@domain/rules/GradingEngine';
 import type { GradeValidationStatus } from '@domain/types/enums';
 import { resolveLanguage } from '../../../utils/languageHelper';
-import { inngest } from '../../../inngest/index.ts';
+import { inngest } from '../../inngest/client/index.ts';
 import * as XLSX from 'xlsx';
 
 export class GradeController {

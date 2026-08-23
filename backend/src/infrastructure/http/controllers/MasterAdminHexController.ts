@@ -7,7 +7,7 @@ import type { ReactiverEcoleUseCase } from '@application/masterAdmin/ReactiverEc
 import type { RejeterEcoleUseCase } from '@application/masterAdmin/RejeterEcoleUseCase';
 import type { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/ChangerPlanAbonnementUseCase';
 import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
-import { inngest } from '../../../inngest/index.ts';
+import { inngest } from '../../inngest/client/index.ts';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { listSchoolBackups } from '../../../utils/schoolBackup';
 import { logMasterAction } from '../../../utils/masterAuthAudit';

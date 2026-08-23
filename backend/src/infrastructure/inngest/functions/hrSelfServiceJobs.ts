@@ -11,10 +11,10 @@
  * n'existe ailleurs), ce job écrit directement dans la table Notification pour que l'employé
  * voie sa relance dans sa cloche même s'il n'était pas connecté au moment de l'envoi.
  */
-import { inngest } from './index';
+import { inngest } from '../client/index';
 import { PrismaClient } from '@prisma/client';
-import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
-import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
+import { softDeleteExtension } from '../../persistence/prisma/softDeleteExtension';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 

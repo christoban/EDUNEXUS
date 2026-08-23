@@ -18,7 +18,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../utils/languageHelper';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { logActivity } from '../../../utils/activitieslog';
-import { inngest } from '../../../inngest/index.ts';
+import { inngest } from '../../inngest/client/index.ts';
 
 /** Schéma Zod des contraintes douces V2.5 — .strict() : toute clé inconnue → 400. */
 const contraintesSchema = z.object({

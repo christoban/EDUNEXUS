@@ -15,7 +15,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 
 import { serve } from "inngest/express";
-import { inngest } from "./inngest/index.ts";
+import { inngest } from "./infrastructure/inngest/client/index.ts";
 import {
   generateReportCards,
   handleGradeSubmitted,
@@ -37,11 +37,11 @@ import {
   purgeAnnoncesExpirees,
   purgeSchoolLogs,
   handleTimetableSeancesAppliquees,
-} from "./inngest/functions.ts";
-import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/paiementJobs.ts";
-import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
-import { relanceProfilRH } from "./inngest/hrSelfServiceJobs.ts";
-import { exporterOffsiteNocturne } from "./inngest/backupOffsiteJob.ts";
+} from "./infrastructure/inngest/functions/functions.ts";
+import { syncCarteScolaire, relancePaiements, auditMatricules } from "./infrastructure/inngest/functions/paiementJobs.ts";
+import { relanceOnboarding } from "./infrastructure/inngest/functions/eleveOnboardingJobs.ts";
+import { relanceProfilRH } from "./infrastructure/inngest/functions/hrSelfServiceJobs.ts";
+import { exporterOffsiteNocturne } from "./infrastructure/inngest/functions/backupOffsiteJob.ts";
 import { initSocket } from "./infrastructure/socket/SocketServer.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';

@@ -1,25 +1,25 @@
-import { inngest } from "./index.ts";
-import { prisma } from "../config/prisma.ts";
-import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
-import { resolveLanguage } from "../utils/languageHelper.ts";
-import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
-import { createSchoolBackup, purgeSchoolLogsByRetention } from "../utils/schoolBackup.ts";
-import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms, notifyOverdueBookSms } from '../infrastructure/services/sms/SmsNotificationService.ts';
-import { SocketNotificationService } from '../infrastructure/services/notification/SocketNotificationService.ts';
-import { notifierParentsPushDabord } from '../infrastructure/services/notification/PushFirstNotifier.ts';
-import { PrismaSanteEleveRepository } from "../infrastructure/persistence/prisma/PrismaSanteEleveRepository";
-import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSanteUseCase";
-import { GroqIAService } from '../infrastructure/services/ai/GroqIAService.ts';
-import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../utils/schoolCalendar";
-import { notifierEvenementAcademique } from "@infrastructure/services/notification/AcademicEventNotificationService";
-import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "../application/academicEvent";
-import { PrismaOrientationRepository } from "../infrastructure/persistence/prisma/PrismaOrientationRepository";
-import { GenererRecommandationOrientationUseCase } from "../application/orientation/GenererRecommandationOrientationUseCase";
-import { RelancerElevesEnAttenteUseCase } from "../application/orientation/RelancerElevesEnAttenteUseCase";
-import { FinaliserParDefautUseCase } from "../application/orientation/FinaliserParDefautUseCase";
-import { ListerElevesAOrienterUseCase } from "../application/orientation/ListerElevesAOrienterUseCase";
-import { PurgerAnnoncesExpireesUseCase } from "../application/announcement/PurgerAnnoncesExpireesUseCase";
-import { whereElevesParClasse } from "../application/shared/studentEnrollment";
+import { inngest } from "../client/index.ts";
+import { prisma } from "../../../config/prisma.ts";
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
+import { resolveLanguage } from "../../../utils/languageHelper.ts";
+import { getEffectiveSchoolSettings } from "../../../utils/schoolSettings.ts";
+import { createSchoolBackup, purgeSchoolLogsByRetention } from "../../../utils/schoolBackup.ts";
+import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms, notifyOverdueBookSms } from '../../services/sms/SmsNotificationService.ts';
+import { SocketNotificationService } from '../../services/notification/SocketNotificationService.ts';
+import { notifierParentsPushDabord } from '../../services/notification/PushFirstNotifier.ts';
+import { PrismaSanteEleveRepository } from "../../persistence/prisma/PrismaSanteEleveRepository";
+import { CalculerIndiceSanteUseCase } from "@application/ai/CalculerIndiceSanteUseCase";
+import { GroqIAService } from '../../services/ai/GroqIAService.ts';
+import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../../../utils/schoolCalendar";
+import { notifierEvenementAcademique } from "../../services/notification/AcademicEventNotificationService";
+import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "@application/academicEvent";
+import { PrismaOrientationRepository } from "../../persistence/prisma/PrismaOrientationRepository";
+import { GenererRecommandationOrientationUseCase } from "@application/orientation/GenererRecommandationOrientationUseCase";
+import { RelancerElevesEnAttenteUseCase } from "@application/orientation/RelancerElevesEnAttenteUseCase";
+import { FinaliserParDefautUseCase } from "@application/orientation/FinaliserParDefautUseCase";
+import { ListerElevesAOrienterUseCase } from "@application/orientation/ListerElevesAOrienterUseCase";
+import { PurgerAnnoncesExpireesUseCase } from "@application/announcement/PurgerAnnoncesExpireesUseCase";
+import { whereElevesParClasse } from "@application/shared/studentEnrollment";
 
 const iaService = new GroqIAService();
 const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
@@ -415,7 +415,7 @@ async function notifierPersonnelDirect(userId: string, schoolId: string, titre: 
   await socketService
     .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
     .catch((err) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
-  const { notifierUtilisateurPush } = await import('../infrastructure/services/notification/PushNotificationService.ts');
+  const { notifierUtilisateurPush } = await import('../../services/notification/PushNotificationService.ts');
   await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
 }
 
