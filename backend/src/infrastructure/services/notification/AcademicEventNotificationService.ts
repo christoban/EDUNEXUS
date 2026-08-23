@@ -6,8 +6,8 @@
  * informatifs, pas d'urgence justifiant le coût d'un SMS).
  */
 import type { PrismaClient, UserRole } from '@prisma/client';
-import { SocketNotificationService } from '../infrastructure/services/notification/SocketNotificationService.ts';
-import { notifierUtilisateurPush } from '../infrastructure/services/notification/PushNotificationService.ts';
+import { SocketNotificationService } from './SocketNotificationService.ts';
+import { notifierUtilisateurPush } from './PushNotificationService.ts';
 
 export async function notifierEvenementAcademique(
   prisma: PrismaClient,

@@ -1,14 +1,19 @@
 /**
- * UTILS — Notifications du module Onboarding Auto-Service Élèves, factorisées pour être
- * appelées depuis plusieurs contrôleurs : EleveOnboardingController (flux AUTOSERVICE) ET
- * EntranceExamController (flux CONCOURS, après EnregistrerResultatCepUseCase). Fire-and-
- * forget, jamais throw — voir l'en-tête de EleveOnboardingController pour le choix de ne
- * pas passer par Inngest pour ces envois ponctuels déclenchés par une action utilisateur.
+ * Service de notifications du module Onboarding Auto-Service Élèves, factorisé pour être
+ * appelé depuis plusieurs contrôleurs : EleveOnboardingController et EntranceExamController.
+ * Fire-and-forget, jamais throw — les envois ponctuels sont déclenchés par une action utilisateur.
  */
 import type { PrismaClient } from '@prisma/client';
-import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
-import { buildOnboardingLinkTemplate, buildOnboardingPasswordSetupTemplate } from './emailTemplates';
-import { notifyOnboardingLinkSms, notifyOnboardingActivatedSms, notifyOnboardingActivatedSmsOnly } from '../infrastructure/services/sms/SmsNotificationService.ts';
+import { sendTransactionalEmail } from '../email/EmailService.ts';
+import {
+  notifyOnboardingLinkSms,
+  notifyOnboardingActivatedSms,
+  notifyOnboardingActivatedSmsOnly,
+} from '../sms/SmsNotificationService.ts';
+import {
+  buildOnboardingLinkTemplate,
+  buildOnboardingPasswordSetupTemplate,
+} from '../../../utils/emailTemplates';
 
 function frontendUrl(): string {
   return process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -23,15 +28,27 @@ export async function notifierOnboardingLienCree(
   schoolId: string,
   nomProvisoire: string,
   result: {
-    token: string; tokenExpiresAt: Date; contactEmail: string | null; contactTelephone: string | null;
-    parentContactEmail?: string | null; parentContactTelephone?: string | null;
+    token: string;
+    tokenExpiresAt: Date;
+    contactEmail: string | null;
+    contactTelephone: string | null;
+    parentContactEmail?: string | null;
+    parentContactTelephone?: string | null;
   },
 ): Promise<void> {
   try {
-    const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { name: true },
+    });
     const schoolName = school?.name ?? 'votre établissement';
     const formUrl = `${frontendUrl()}/eleve-onboarding/${result.token}`;
-    const expiryDays = Math.max(1, Math.round((result.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+    const expiryDays = Math.max(
+      1,
+      Math.round(
+        (result.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+      ),
+    );
 
     const destinataires = [
       { email: result.contactEmail, phone: result.contactTelephone },
@@ -49,14 +66,16 @@ export async function notifierOnboardingLienCree(
           html: tpl.html,
           text: tpl.text,
           metadata: { schoolId },
-        }).catch(err => console.error('[Email] Échec envoi lien onboarding:', err?.message));
+        }).catch((err: unknown) =>
+          console.error('[Email] Échec envoi lien onboarding:', err instanceof Error ? err.message : String(err)),
+        );
       }
       if (dest.phone) {
         void notifyOnboardingLinkSms({ schoolId, nomProvisoire, schoolName, phone: dest.phone, expiryDays, formUrl });
       }
     }
-  } catch (err: any) {
-    console.error('[Onboarding] Échec notification lien créé:', err?.message);
+  } catch (err: unknown) {
+    console.error('[Onboarding] Échec notification lien créé:', err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -66,29 +85,36 @@ export async function notifierOnboardingValidation(
   schoolId: string,
   result: {
     comptesCrees: {
-      role: 'STUDENT' | 'PARENT'; resetToken: string | null; contactEmail: string | null; contactTelephone: string | null;
-      compteExistant: boolean; accessMode?: 'FULL_ACCESS' | 'SMS_ONLY';
-    }[]
+      role: 'STUDENT' | 'PARENT';
+      resetToken: string | null;
+      contactEmail: string | null;
+      contactTelephone: string | null;
+      compteExistant: boolean;
+      accessMode?: 'FULL_ACCESS' | 'SMS_ONLY';
+    }[];
   },
 ): Promise<void> {
   try {
-    const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { name: true, subdomain: true } });
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { name: true, subdomain: true },
+    });
     const schoolName = school?.name ?? 'votre établissement';
 
     for (const compte of result.comptesCrees) {
-      if (compte.compteExistant) continue; // rien à configurer pour un compte réutilisé
+      if (compte.compteExistant) continue;
 
-      // accessMode=SMS_ONLY : jamais de lien d'activation, même par SMS — seulement une
-      // notification informative invitant à se présenter à l'établissement (voir la doc de
-      // notifyOnboardingActivatedSmsOnly). Pas de resetToken généré pour ces comptes.
       if (compte.accessMode === 'SMS_ONLY') {
-        if (compte.contactTelephone) void notifyOnboardingActivatedSmsOnly({ schoolId, schoolName, phone: compte.contactTelephone });
+        if (compte.contactTelephone) {
+          void notifyOnboardingActivatedSmsOnly({ schoolId, schoolName, phone: compte.contactTelephone });
+        }
         continue;
       }
 
       if (!compte.resetToken) continue;
       const recipientName = compte.role === 'PARENT' ? 'Parent' : 'Élève';
       const setupUrl = `${frontendUrl()}/reset-password?token=${compte.resetToken}&subdomain=${school?.subdomain ?? ''}`;
+
       if (compte.contactEmail) {
         const tpl = buildOnboardingPasswordSetupTemplate({ recipientName, schoolName, setupUrl });
         await sendTransactionalEmail({
@@ -99,13 +125,15 @@ export async function notifierOnboardingValidation(
           html: tpl.html,
           text: tpl.text,
           metadata: { schoolId },
-        }).catch(err => console.error('[Email] Échec envoi configuration mot de passe onboarding:', err?.message));
+        }).catch((err: unknown) =>
+          console.error('[Email] Échec envoi configuration mot de passe onboarding:', err instanceof Error ? err.message : String(err)),
+        );
       }
       if (compte.contactTelephone) {
         void notifyOnboardingActivatedSms({ schoolId, schoolName, phone: compte.contactTelephone, setupUrl });
       }
     }
-  } catch (err: any) {
-    console.error('[Onboarding] Échec notification validation:', err?.message);
+  } catch (err: unknown) {
+    console.error('[Onboarding] Échec notification validation:', err instanceof Error ? err.message : String(err));
   }
 }

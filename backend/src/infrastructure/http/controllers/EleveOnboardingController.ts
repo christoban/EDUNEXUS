@@ -5,7 +5,7 @@ import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/Cr
 import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboarding/SoumettreFormulaireOnboardingUseCase';
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
 import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
-import { notifierOnboardingLienCree, notifierOnboardingValidation } from '../../../utils/onboardingNotifications';
+import { notifierOnboardingLienCree, notifierOnboardingValidation } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { generateOnboardingFormPdf } from '../../../utils/onboardingDocuments';
 
 /**

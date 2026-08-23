@@ -5,7 +5,7 @@
  * Notifie immédiatement les rôles cibles à l'ouverture.
  */
 import type { PrismaClient } from '@prisma/client';
-import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
+import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
 export interface DeclencherEvenementCommande {

@@ -11,7 +11,7 @@ import { PrismaSanteEleveRepository } from "../infrastructure/persistence/prisma
 import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSanteUseCase";
 import { GroqIAService } from '../infrastructure/services/ai/GroqIAService.ts';
 import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../utils/schoolCalendar";
-import { notifierEvenementAcademique } from "../utils/academicEventNotifier";
+import { notifierEvenementAcademique } from "@infrastructure/services/notification/AcademicEventNotificationService";
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "../application/academicEvent";
 import { PrismaOrientationRepository } from "../infrastructure/persistence/prisma/PrismaOrientationRepository";
 import { GenererRecommandationOrientationUseCase } from "../application/orientation/GenererRecommandationOrientationUseCase";

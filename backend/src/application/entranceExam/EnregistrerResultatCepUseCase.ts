@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { EnregistrerResultatCepCommande } from './types';
 import { CreerSqueletteOnboardingUseCase } from '../eleveOnboarding/CreerSqueletteOnboardingUseCase';
-import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
+import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 
 /**
  * Phase 5 de la spec onboarding auto-service élève (spec-onboarding-eleve-autoservice.md

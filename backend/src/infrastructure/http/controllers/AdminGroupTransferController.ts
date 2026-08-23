@@ -4,7 +4,7 @@ import { ListerDemandesTransfertEntrantesUseCase } from '../../../application/sc
 import { AccepterTransfertEleveUseCase } from '../../../application/schoolGroup/AccepterTransfertEleveUseCase';
 import { AccepterTransfertEnseignantUseCase } from '../../../application/schoolGroup/AccepterTransfertEnseignantUseCase';
 import { RejeterTransfertGroupeUseCase } from '../../../application/schoolGroup/RejeterTransfertGroupeUseCase';
-import { notifierOnboardingLienCree } from '../../../utils/onboardingNotifications';
+import { notifierOnboardingLienCree } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 export class AdminGroupTransferController {

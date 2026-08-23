@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { CreerSessionPebsCommande } from './types';
-import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
+import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 
 export class CreerSessionPebsUseCase {
   constructor(private readonly prisma: PrismaClient) {}

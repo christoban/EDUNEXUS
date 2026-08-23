@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AppliquerTransfertPebsCommande } from './types';
-import { notifierEvenementAcademique } from '../../utils/academicEventNotifier';
+import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';

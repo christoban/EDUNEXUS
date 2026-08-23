@@ -8,7 +8,7 @@ import { ResumeSessionConcoursUseCase } from '@application/entranceExam/ResumeSe
 import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerListeCandidatsUseCase';
 import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
 import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/sms/SmsNotificationService';
-import { notifierOnboardingLienCree } from '../../../utils/onboardingNotifications';
+import { notifierOnboardingLienCree } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { parseDateFR } from '../../../utils/dateParsing';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
