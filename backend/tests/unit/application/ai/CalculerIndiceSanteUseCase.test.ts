@@ -39,7 +39,7 @@ describe('CalculerIndiceSanteUseCase', () => {
   });
 
   it('devrait retourner PROGRESSION pour un élève excellent', async () => {
-    santeRepo.definir('eleve-1', donneesParfaites);
+    santeRepo.definir('eleve-1', 'school-1', 'annee-1', donneesParfaites);
 
     const resultat = await useCase.execute({
       studentId: 'eleve-1',
@@ -53,7 +53,7 @@ describe('CalculerIndiceSanteUseCase', () => {
   });
 
   it('devrait retourner CRITIQUE pour un élève en grande difficulté', async () => {
-    santeRepo.definir('eleve-2', donneesEleveEnDifficulte);
+    santeRepo.definir('eleve-2', 'school-1', 'annee-1', donneesEleveEnDifficulte);
 
     const resultat = await useCase.execute({
       studentId: 'eleve-2',
@@ -66,7 +66,7 @@ describe('CalculerIndiceSanteUseCase', () => {
   });
 
   it('devrait sauvegarder le score si sauvegarderScore=true', async () => {
-    santeRepo.definir('eleve-1', donneesParfaites);
+    santeRepo.definir('eleve-1', 'school-1', 'annee-1', donneesParfaites);
 
     const resultat = await useCase.execute({
       studentId: 'eleve-1',
@@ -79,7 +79,7 @@ describe('CalculerIndiceSanteUseCase', () => {
   });
 
   it('ne devrait pas sauvegarder si sauvegarderScore=false', async () => {
-    santeRepo.definir('eleve-1', donneesParfaites);
+    santeRepo.definir('eleve-1', 'school-1', 'annee-1', donneesParfaites);
 
     await useCase.execute({
       studentId: 'eleve-1',
@@ -92,7 +92,7 @@ describe('CalculerIndiceSanteUseCase', () => {
   });
 
   it('le score doit être borné entre 0 et 100', async () => {
-    santeRepo.definir('eleve-1', donneesParfaites);
+    santeRepo.definir('eleve-1', 'school-1', 'annee-1', donneesParfaites);
 
     const resultat = await useCase.execute({
       studentId: 'eleve-1',
@@ -115,7 +115,7 @@ describe('CalculerIndiceSanteUseCase', () => {
   });
 
   it('devrait appeler IAService.calculerIndiceSante avec les bonnes données', async () => {
-    santeRepo.definir('eleve-1', donneesParfaites);
+    santeRepo.definir('eleve-1', 'school-1', 'annee-1', donneesParfaites);
 
     await useCase.execute({
       studentId: 'eleve-1',
@@ -130,7 +130,7 @@ describe('CalculerIndiceSanteUseCase', () => {
 
   describe('calculerScoreSeulement (job nocturne, sans appel IA)', () => {
     it('calcule et sauvegarde le score sans appeler IAService', async () => {
-      santeRepo.definir('eleve-1', donneesParfaites);
+      santeRepo.definir('eleve-1', 'school-1', 'annee-1', donneesParfaites);
 
       const resultat = await useCase.calculerScoreSeulement('eleve-1', 'school-1', 'annee-1');
 
@@ -141,7 +141,7 @@ describe('CalculerIndiceSanteUseCase', () => {
     });
 
     it('signale tendancePositive pour une hausse nette et non compensée', async () => {
-      santeRepo.definir('eleve-3', { ...donneesParfaites, studentId: 'eleve-3', moyennesPrecedentes: [10, 13, 16] });
+      santeRepo.definir('eleve-3', 'school-1', 'annee-1', { ...donneesParfaites, studentId: 'eleve-3', moyennesPrecedentes: [10, 13, 16] });
 
       const resultat = await useCase.calculerScoreSeulement('eleve-3', 'school-1', 'annee-1');
 
@@ -149,7 +149,7 @@ describe('CalculerIndiceSanteUseCase', () => {
     });
 
     it('ne signale pas tendancePositive pour un élève en difficulté', async () => {
-      santeRepo.definir('eleve-2', donneesEleveEnDifficulte);
+      santeRepo.definir('eleve-2', 'school-1', 'annee-1', donneesEleveEnDifficulte);
 
       const resultat = await useCase.calculerScoreSeulement('eleve-2', 'school-1', 'annee-1');
 

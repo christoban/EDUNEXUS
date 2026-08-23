@@ -41,10 +41,10 @@ describe('CloturerAnneeUseCase', () => {
   });
 
   it('devrait promouvoir les élèves PASS vers la classe suivante', async () => {
-    promotionRepo.definirMappings([
+    promotionRepo.definirMappings('school-1', 'annee-1', [
       { fromClassId: 'classe-3e', toClassId: 'classe-2nde' },
     ]);
-    promotionRepo.definirDecisions([
+    promotionRepo.definirDecisions('school-1', 'annee-1', [
       { studentId: 'eleve-1', fromClassId: 'classe-3e', decision: 'PASS' },
       { studentId: 'eleve-2', fromClassId: 'classe-3e', decision: 'PASS' },
     ]);
@@ -61,7 +61,7 @@ describe('CloturerAnneeUseCase', () => {
   });
 
   it('devrait maintenir les redoublants dans la même classe', async () => {
-    promotionRepo.definirDecisions([
+    promotionRepo.definirDecisions('school-1', 'annee-1', [
       { studentId: 'eleve-3', fromClassId: 'classe-3e', decision: 'REPEAT' },
     ]);
 
@@ -116,8 +116,8 @@ describe('CloturerAnneeUseCase', () => {
   });
 
   it('devrait générer un avertissement si pas de mapping pour une classe', async () => {
-    promotionRepo.definirMappings([]);
-    promotionRepo.definirDecisions([
+    promotionRepo.definirMappings('school-1', 'annee-1', []);
+    promotionRepo.definirDecisions('school-1', 'annee-1', [
       { studentId: 'eleve-1', fromClassId: 'classe-sans-mapping', decision: 'PASS' },
     ]);
 

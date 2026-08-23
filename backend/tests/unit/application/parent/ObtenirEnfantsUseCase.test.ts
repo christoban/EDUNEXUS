@@ -9,7 +9,7 @@ describe('Parent — Use Cases', () => {
   beforeEach(() => {
     repo = new InMemoryParentRepository();
 
-    repo.definirRelation('parent-1', ['eleve-1', 'eleve-2']);
+    repo.definirRelation('parent-1', ['eleve-1', 'eleve-2'], 'school-1');
 
     repo.definirStats('eleve-1', {
       studentId: 'eleve-1',
