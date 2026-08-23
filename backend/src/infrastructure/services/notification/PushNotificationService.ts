@@ -13,7 +13,7 @@
  * n'existe (voir AGENTS.md §2 — ne pas construire par anticipation).
  */
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
-import { sendPush, isPushConfigured } from '../../services/webPushService'
+import { sendPush, isPushConfigured } from './WebPushClient.ts'
 
 export interface NotifierUtilisateurPushOptions {
   userId: string

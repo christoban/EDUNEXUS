@@ -1,6 +1,6 @@
 import type { PdfService, ContexteBulletin } from '@domain/ports/services/PdfService';
 import type { LigneMatiereProps } from '@domain/entities/Bulletin';
-import { generateBulletinPdf } from '../../utils/reportCards/templates';
+import { generateBulletinPdf } from '../../../utils/reportCards/templates.ts';
 
 export class PdfKitBulletinService implements PdfService {
   async genererBulletin(contexte: ContexteBulletin): Promise<Buffer> {

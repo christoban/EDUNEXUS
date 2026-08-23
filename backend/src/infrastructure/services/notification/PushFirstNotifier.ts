@@ -7,9 +7,9 @@
  * paiement, sanction disciplinaire et retard de bibliothèque.
  */
 import type { NotificationType } from '@domain/types/enums';
-import { SocketNotificationService } from './SocketNotificationService';
-import { notifierUtilisateurPushAvecResultat } from './PushNotificationService';
-import { getParentContacts } from './SmsNotificationService';
+import { SocketNotificationService } from './SocketNotificationService.ts';
+import { notifierUtilisateurPushAvecResultat } from './PushNotificationService.ts';
+import { getParentContacts } from '../sms/SmsNotificationService.ts';
 
 const notificationService = new SocketNotificationService();
 

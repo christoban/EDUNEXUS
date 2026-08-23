@@ -1,8 +1,8 @@
 import type { NotificationService, EnvoiNotificationOptions } from '@domain/ports/services/NotificationService';
 import type { NotificationType as DomainNotificationType } from '@domain/types/enums';
 import type { NotificationType as PrismaNotificationType, UserRole, Prisma } from '@prisma/client';
-import { getIO } from '../../socket/io';
-import { notifierUtilisateurPush } from './PushNotificationService';
+import { getIO } from '../../../socket/io.ts';
+import { notifierUtilisateurPush } from './PushNotificationService.ts';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 
 /**

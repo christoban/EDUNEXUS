@@ -1,6 +1,6 @@
 import type { EmailService, EnvoiEmailOptions } from '@domain/ports/services/EmailService';
-import type { EmailEventType } from '../../types/email';
-import { sendTransactionalEmail } from '../../services/emailService';
+import type { EmailEventType } from '../../../types/email.ts';
+import { sendTransactionalEmail } from './EmailService.ts';
 
 export class NodemailerEmailService implements EmailService {
   async envoyer(options: EnvoiEmailOptions): Promise<void> {

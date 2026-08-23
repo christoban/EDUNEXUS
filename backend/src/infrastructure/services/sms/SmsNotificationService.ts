@@ -6,8 +6,8 @@
  *   - Never throws — all public functions are fire-and-forget safe
  */
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
-import { sendSMS, isSmsConfigured } from '../../services/smsService'
-import { resolveLanguage, type Language } from '../../utils/languageHelper'
+import { sendSMS, isSmsConfigured } from './SmsService.ts'
+import { resolveLanguage, type Language } from '../../../utils/languageHelper.ts'
 
 type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2' | 'ONBOARDING' | 'LIBRARY'
 

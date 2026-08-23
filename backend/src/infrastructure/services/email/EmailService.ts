@@ -1,10 +1,10 @@
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
-import { prisma } from "../config/prisma.ts";
-import type { EmailEventType } from "../types/email.ts";
-import { PUSH_MIGRATED_EVENT_TYPES } from "../types/email.ts";
-import { notifierUtilisateurPushAvecResultat } from "../infrastructure/services/PushNotificationService";
-import { SocketNotificationService } from "../infrastructure/services/SocketNotificationService";
+import { prisma } from '../../../config/prisma.ts';
+import type { EmailEventType } from '../../../types/email.ts';
+import { PUSH_MIGRATED_EVENT_TYPES } from '../../../types/email.ts';
+import { notifierUtilisateurPushAvecResultat } from '../notification/PushNotificationService.ts';
+import { SocketNotificationService } from '../notification/SocketNotificationService.ts';
 import type { NotificationType as DomainNotificationType } from "@domain/types/enums";
 
 const notificationService = new SocketNotificationService();
