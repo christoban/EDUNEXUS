@@ -6,6 +6,7 @@ export class InMemoryNoteRepository implements NoteRepository {
   private store = new Map<string, Note>();
   private nonValidees: NoteNonValideeInfo[] = [];
   private nonValideesSet = false;
+  private sequencePeriods = new Map<string, string>();
 
   ajouter(note: Note): void {
     this.store.set(note.id, note);
@@ -14,6 +15,10 @@ export class InMemoryNoteRepository implements NoteRepository {
   setNonValidees(notes: NoteNonValideeInfo[]): void {
     this.nonValidees = notes;
     this.nonValideesSet = true;
+  }
+
+  setSequenceAcademicPeriod(sequenceId: string, academicPeriodId: string): void {
+    this.sequencePeriods.set(sequenceId, academicPeriodId);
   }
 
   async findById(id: string, schoolId: string): Promise<Note | null> {
@@ -69,7 +74,7 @@ export class InMemoryNoteRepository implements NoteRepository {
 
   async findNotesNonValideesParClasse(
     classId: string,
-    _academicPeriodId: string
+    academicPeriodId: string
   ): Promise<NoteNonValideeInfo[]> {
     if (this.nonValideesSet) {
       return this.nonValidees;
@@ -77,33 +82,28 @@ export class InMemoryNoteRepository implements NoteRepository {
 
     return [...this.store.values()]
       .filter(
-        n =>
-          n.toObject().classId === classId &&
-          n.validationStatus !== 'VALIDATED' &&
-          n.validationStatus !== 'LOCKED'
+        note =>
+          note.toObject().classId === classId &&
+          this.sequencePeriods.get(note.toObject().sequenceId) === academicPeriodId &&
+          (note.validationStatus === 'DRAFT' || note.validationStatus === 'SUBMITTED')
       )
-      .map(n => ({
-        matiereNom: n.toObject().subjectId,
-        enseignantNom: n.toObject().recordedById ?? '',
-        statut: n.validationStatus,
+      .map(note => ({
+        matiereNom: note.toObject().subjectId,
+        enseignantNom: note.toObject().recordedById ?? '',
+        statut: note.validationStatus,
       }));
   }
 
   async toutesNotesValideesParClasse(
     classId: string,
-    _academicPeriodId: string
+    academicPeriodId: string
   ): Promise<boolean> {
     if (this.nonValideesSet) {
       return this.nonValidees.length === 0;
     }
 
-    const notes = [...this.store.values()].filter(n => n.toObject().classId === classId);
-    return (
-      notes.length > 0 &&
-      notes.every(
-        n => n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED'
-      )
-    );
+    const nonValidees = await this.findNotesNonValideesParClasse(classId, academicPeriodId);
+    return nonValidees.length === 0;
   }
 
   async save(note: Note): Promise<void> {
@@ -134,20 +134,26 @@ export class InMemoryNoteRepository implements NoteRepository {
     );
   }
 
-  async findNotesEnAttenteDepuis(_heures: number): Promise<Note[]> {
-    return [];
+  async findNotesEnAttenteDepuis(heures: number): Promise<Note[]> {
+    const depuis = new Date(Date.now() - heures * 60 * 60 * 1000);
+
+    return [...this.store.values()].filter(
+      note =>
+        note.validationStatus === 'SUBMITTED' && note.toObject().createdAt <= depuis
+    );
   }
 
   async verrouillerNotesValidees(
     studentId: string,
     classId: string,
-    _academicPeriodId: string
+    academicPeriodId: string
   ): Promise<void> {
     for (const note of this.store.values()) {
       const data = note.toObject();
       if (
         data.studentId === studentId &&
         data.classId === classId &&
+        this.sequencePeriods.get(data.sequenceId) === academicPeriodId &&
         data.validationStatus === 'VALIDATED'
       ) {
         note.verrouiller();
