@@ -97,8 +97,21 @@ export class InMemoryUserRepository implements UserRepository {
       .map(u => u.role);
   }
 
-  async saveAvecProfil(user: User, _profilData: any): Promise<void> {
+  async saveAvecProfil(user: User, profilData: {
+    passwordHash: string;
+    staffTitle?: string;
+    specializations?: string[];
+    subjectIds?: string[];
+    classeId?: string;
+    dateOfBirth?: Date;
+    gender?: string;
+    parentOfStudentIds?: string[];
+  }): Promise<void> {
     this.store.set(user.id, user);
+
+    if (profilData.classeId !== undefined) {
+      this.classesParEleve.set(user.id, profilData.classeId);
+    }
   }
 
   async mettreAJourAvecProfil(userId: string, data: {
