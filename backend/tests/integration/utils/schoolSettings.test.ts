@@ -8,7 +8,7 @@
  * générait quand même des bulletins avec le template francophone).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { getEffectiveSchoolSettings } from '../../../src/utils/schoolSettings.ts';
+import { getEffectiveSchoolSettings } from '../../../src/infrastructure/services/school-settings/SchoolSettingsService.ts';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
 

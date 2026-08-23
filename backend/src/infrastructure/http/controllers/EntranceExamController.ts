@@ -9,7 +9,7 @@ import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerL
 import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
 import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/sms/SmsNotificationService';
 import { notifierOnboardingLienCree } from '@infrastructure/services/notification/OnboardingNotificationService';
-import { parseDateFR } from '../../../utils/dateParsing';
+import { parseDateFR } from '../../../shared/date/parseDateFR';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 

@@ -7,7 +7,7 @@
  */
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client'
 import { sendSMS, isSmsConfigured } from './SmsService.ts'
-import { resolveLanguage, type Language } from '../../../utils/languageHelper.ts'
+import { resolveLanguage, type Language } from '../../../domain/policies/LanguagePolicy.ts'
 
 type SmsType = 'ABSENCE' | 'PAYMENT' | 'BULLETIN' | 'DISCIPLINE' | 'ADMISSION' | 'PEBS' | 'LV2' | 'ONBOARDING' | 'LIBRARY'
 

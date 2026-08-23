@@ -1,7 +1,7 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { ImportMatriculeRow, ImportMatriculeResult, FuzzyMatchCandidate } from './types';
 import { normalizeForMatch, compareNames } from './stringSimilarity';
-import { parseDateFR as parseDateNaissance } from '../../utils/dateParsing';
+import { parseDateFR as parseDateNaissance } from '../../shared/date/parseDateFR';
 
 /**
  * Seuil de similarité (0-1) pour classer une paire nom/prénom comme "correspondance

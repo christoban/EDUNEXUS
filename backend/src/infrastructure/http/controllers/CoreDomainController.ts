@@ -1,8 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { PeriodType } from '@prisma/client';
-import { DEFAULT_SUBSYSTEMS, ensureDefaultSubSystems } from '../../../utils/coreDomainDefaults';
-import { logActivity } from '../../../utils/activitieslog';
+import { DEFAULT_SUBSYSTEMS, ensureDefaultSubSystems } from '../../../domain/subsystems/SubsystemDefaults';
+import { logActivity } from '../../services/audit/ActivityLogService';
 
 export class CoreDomainController {
   constructor(private readonly prisma: PrismaClient) {}

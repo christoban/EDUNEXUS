@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
-import { passwordError } from '../../../utils/passwordValidator';
+import { passwordError } from '../../../domain/security/PasswordPolicy';
 
 const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 

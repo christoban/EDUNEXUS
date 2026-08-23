@@ -11,7 +11,7 @@
 import type { SchoolSettingsRepository } from '@domain/ports/repositories/SchoolSettingsRepository';
 import type { SchoolLanguageMode, AcademicCalendarType, SchoolCycle } from '@domain/constants/SystemeEducatifCameroun';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
-import { logActivity } from '../../utils/activitieslog';
+import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
 export interface MettreAJourParametresCommande {
   schoolId: string;

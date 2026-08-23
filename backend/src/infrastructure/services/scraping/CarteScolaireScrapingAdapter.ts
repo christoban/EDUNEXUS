@@ -30,7 +30,7 @@
  *   non extrait, resterait une supposition non confirmée.
  */
 import * as cheerio from 'cheerio';
-import { parseDateFR } from '../../../utils/dateParsing.ts';
+import { parseDateFR } from '../../../shared/date/parseDateFR.ts';
 import type { CarteScolaireService, RechercheMatriculeResult, CarteScolairePaymentStatus } from '@domain/ports/services/CarteScolaireService';
 
 const BASE_URL = 'https://cartescolaire.cm';

@@ -9,8 +9,8 @@ import type { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/Chan
 import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
 import { inngest } from '../../inngest/client/index.ts';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
-import { listSchoolBackups } from '../../../utils/schoolBackup';
-import { logMasterAction } from '../../../utils/masterAuthAudit';
+import { listSchoolBackups } from '../../backup/SchoolBackupService';
+import { logMasterAction } from '../../services/audit/MasterAuthAuditService';
 
 export class MasterAdminHexController {
   constructor(

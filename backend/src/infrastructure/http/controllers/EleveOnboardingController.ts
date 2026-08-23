@@ -6,7 +6,7 @@ import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboardi
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
 import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
 import { notifierOnboardingLienCree, notifierOnboardingValidation } from '@infrastructure/services/notification/OnboardingNotificationService';
-import { generateOnboardingFormPdf } from '../../../utils/onboardingDocuments';
+import { generateOnboardingFormPdf } from '../../pdf/onboarding/OnboardingFormPdfRenderer';
 
 /**
  * Préfixe /api/v2/eleve-onboarding — distinct de /api/v2/onboarding (déjà pris par

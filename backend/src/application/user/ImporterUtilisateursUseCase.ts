@@ -6,7 +6,7 @@ import type { StudentGroupSetRepository } from '@domain/ports/repositories/Stude
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import { synchroniserAppartenanceLV2, synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
-import { parseDateFR } from '../../utils/dateParsing';
+import { parseDateFR } from '../../shared/date/parseDateFR';
 export interface ImportRow {
   ligne: number
   nom: string

@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.ts";
+import prisma from "../../../config/prisma.ts";
 
 export const logActivity = async ({
   userId,

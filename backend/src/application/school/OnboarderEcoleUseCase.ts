@@ -8,7 +8,7 @@ import { User } from '@domain/entities/User';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
-import { resolveLanguage } from '../../utils/languageHelper';
+import { resolveLanguage } from '../../domain/policies/LanguagePolicy';
 import type { SchoolSubsystem, EducationType, SchoolOwnership } from '@domain/types/enums';
 
 export interface OnboarderEcoleCommande {

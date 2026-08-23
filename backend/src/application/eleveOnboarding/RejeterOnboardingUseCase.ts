@@ -2,7 +2,7 @@
  * APPLICATION — Use case : Rejeter un onboarding élève (doublon, erreur de saisie, etc.)
  */
 import type { PrismaClient } from '@prisma/client';
-import { logActivity } from '../../utils/activitieslog';
+import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
 import type { RejeterOnboardingCommande, RejeterOnboardingResultat } from './types';
 

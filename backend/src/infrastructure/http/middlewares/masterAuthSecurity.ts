@@ -1,5 +1,5 @@
 import { type NextFunction, type Request, type Response } from "express";
-import { logMasterAuthAudit } from '../../../utils/masterAuthAudit.ts';
+import { logMasterAuthAudit } from '../../services/audit/MasterAuthAuditService.ts';
 
 const normalizeIp = (value?: string | null) => {
   if (!value) return "";

@@ -16,7 +16,7 @@ import type { PdfService } from '@domain/ports/services/PdfService';
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 import type { BulletinTemplate } from '@domain/types/enums';
 import type { PrismaClient } from '@prisma/client';
-import { resolveLanguage } from '../../utils/languageHelper';
+import { resolveLanguage } from '../../domain/policies/LanguagePolicy';
 
 export interface GenererBulletinCommande {
   schoolId: string;

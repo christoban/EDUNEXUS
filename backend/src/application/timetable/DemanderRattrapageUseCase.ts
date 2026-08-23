@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
-import type { Language } from '../../utils/languageHelper';
+import type { Language } from '../../domain/policies/LanguagePolicy';
 import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
 
 export interface DemanderRattrapageCommande {

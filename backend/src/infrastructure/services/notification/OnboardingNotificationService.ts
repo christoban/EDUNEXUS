@@ -13,7 +13,7 @@ import {
 import {
   buildOnboardingLinkTemplate,
   buildOnboardingPasswordSetupTemplate,
-} from '../../../utils/emailTemplates';
+} from '../email/templates/emailTemplates';
 
 function frontendUrl(): string {
   return process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';

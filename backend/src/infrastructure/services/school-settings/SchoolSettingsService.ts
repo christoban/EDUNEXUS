@@ -1,4 +1,4 @@
-import { prisma } from "../config/prisma.ts";
+import { prisma } from "../../../config/prisma.ts";
 
 export const DEFAULT_SCHOOL_SETTINGS = {
   schoolName: "ZEKOULABIA Education",

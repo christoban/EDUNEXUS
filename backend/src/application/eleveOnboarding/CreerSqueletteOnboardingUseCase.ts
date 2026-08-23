@@ -9,7 +9,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { randomBytes } from 'crypto';
-import { logActivity } from '../../utils/activitieslog';
+import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { determinerRecipientType } from './rules';
 import { getTemplateMeta } from '../school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../lib/classSerieValidator';

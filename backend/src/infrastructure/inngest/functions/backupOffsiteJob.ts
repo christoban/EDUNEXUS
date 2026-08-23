@@ -16,8 +16,8 @@ import { readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { inngest } from '../client/index.ts';
-import { chiffrerBuffer } from '../../../utils/backupEncryption';
-import { calculerClesAConserver } from '../../../utils/backupRotation';
+import { chiffrerBuffer } from '../../backup/BackupEncryption';
+import { calculerClesAConserver } from '../../backup/BackupRetentionPolicy';
 import { televerserObjet, listerObjets, supprimerObjet } from '../../services/storage/OffsiteBackupStorage.ts';
 
 const execFileAsync = promisify(execFile);

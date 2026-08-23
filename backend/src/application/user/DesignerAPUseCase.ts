@@ -6,7 +6,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
-import { logActivity } from '../../utils/activitieslog';
+import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
 export interface DesignerAPCommande {
   userId: string;

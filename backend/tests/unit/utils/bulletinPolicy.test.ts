@@ -3,7 +3,7 @@ import {
   calculateCouncilDecision,
   DEFAULT_BULLETIN_POLICY,
   resolveBulletinPolicy,
-} from '../../../src/utils/bulletinPolicy.ts';
+} from '../../../src/domain/policies/BulletinPolicy.ts';
 
 describe("bulletinPolicy", () => {
   test("resolveBulletinPolicy returns defaults when config is missing", () => {

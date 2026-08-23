@@ -9,7 +9,8 @@ import type {
   DonneesIndiceSante,
   ResultatIndiceSante,
 } from '@domain/ports/services/IAService';
-import { instructionLangue, type Language } from '../../../utils/languageHelper.ts';
+import type { Language } from '@domain/policies/LanguagePolicy';
+import { instructionLangue } from './prompts/LanguagePrompt.ts';
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY ?? '',

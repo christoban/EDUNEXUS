@@ -3,7 +3,7 @@ import type { CouncilDecision, ReportCardStatus } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { logActivity } from '../../../utils/activitieslog';
+import { logActivity } from '../../services/audit/ActivityLogService';
 import { notifyBulletinSms } from '../../services/sms/SmsNotificationService.ts';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 import type { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';

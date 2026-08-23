@@ -11,7 +11,7 @@ import type { SchoolRepository } from '@domain/ports/repositories/SchoolReposito
 import type { InvitationRepository, InvitationProps } from '@domain/ports/repositories/InvitationRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
 import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
-import { buildSchoolInviteTemplate } from '../../utils/emailTemplates';
+import { buildSchoolInviteTemplate } from '../../infrastructure/services/email/templates/emailTemplates';
 
 export interface InviterEcoleCommande {
   email: string;

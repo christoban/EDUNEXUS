@@ -11,10 +11,10 @@ import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { logActivity } from '../../../utils/activitieslog';
+import { logActivity } from '../../services/audit/ActivityLogService';
 import { calculateAverageScoreOn20, scoreOn20ToPercentage } from '@domain/rules/GradingEngine';
 import type { GradeValidationStatus } from '@domain/types/enums';
-import { resolveLanguage } from '../../../utils/languageHelper';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 import { inngest } from '../../inngest/client/index.ts';
 import * as XLSX from 'xlsx';
 

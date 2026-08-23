@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
 
 import { prisma } from '../../../config/prisma.ts';
-import { logMasterAuthAudit } from '../../../utils/masterAuthAudit.ts';
+import { logMasterAuthAudit } from '../../services/audit/MasterAuthAuditService.ts';
 
 const extractSensitiveAuthPayload = (req: Request) => {
   const body = req.body || {};

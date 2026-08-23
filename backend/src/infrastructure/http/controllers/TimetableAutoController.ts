@@ -1,7 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { generateWithGroq } from '../../services/ai/GroqClient.ts';
-import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
+import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
 import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
 import { NOMS_JOURS } from '@domain/types/joursSemaine';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';

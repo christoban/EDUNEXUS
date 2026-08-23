@@ -1,5 +1,5 @@
 /**
- * Language helper utilities — SOURCE UNIQUE DE VÉRITÉ pour la résolution de
+ * Language resolution policy — SOURCE UNIQUE DE VÉRITÉ pour la résolution de
  * langue d'affichage / communication dans tout le projet.
  *
  * Utilise `School.subsystem` et (pour les établissements bilingues) `Section.code`.
@@ -29,9 +29,4 @@ export function resolveLanguage(
   if (subsystem === "ANGLOPHONE") return "en";
   if (subsystem === "BILINGUAL") return sectionCode === "EN" ? "en" : "fr";
   return "fr";
-}
-
-/** Instruction de langue à injecter dans un prompt système Groq. */
-export function instructionLangue(lang: Language): string {
-  return lang === "fr" ? "Réponds toujours en français." : "Answer always in English.";
 }

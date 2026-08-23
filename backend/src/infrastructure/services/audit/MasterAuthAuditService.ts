@@ -1,5 +1,5 @@
 import { type Request } from "express";
-import { prisma } from "../config/prisma.ts";
+import { prisma } from "../../../config/prisma.ts";
 
 export type MasterAuthOutcome = "success" | "failure";
 

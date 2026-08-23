@@ -5,7 +5,7 @@
  */
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
-import { resolveLanguage } from '../../utils/languageHelper';
+import { resolveLanguage } from '../../domain/policies/LanguagePolicy';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 
 export interface ApprouverEcoleCommande {

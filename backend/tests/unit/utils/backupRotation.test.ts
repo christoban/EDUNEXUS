@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { calculerClesAConserver, type ObjetDatable } from '@utils/backupRotation';
+import { calculerClesAConserver, type ObjetDatable } from '@infrastructure/backup/BackupRetentionPolicy';
 
 const JOUR = 86400000;
 const MAINTENANT = new Date('2026-08-02T02:00:00Z');

@@ -65,8 +65,8 @@ import type { CalculerAdmissionConcoursUseCase } from '@application/entranceExam
 import type { ResumeSessionPebsUseCase } from '@application/pebsExam/ResumeSessionPebsUseCase';
 import type { CalculerSelectionPebsUseCase } from '@application/pebsExam/CalculerSelectionPebsUseCase';
 import type { VerifierMatriculeUseCase } from '@application/matricule/VerifierMatriculeUseCase';
-import { resolveLanguage } from '@utils/languageHelper';
-import { getEffectiveSchoolSettings } from '@utils/schoolSettings';
+import { resolveLanguage } from '@domain/policies/LanguagePolicy';
+import { getEffectiveSchoolSettings } from '@infrastructure/services/school-settings/SchoolSettingsService';
 
 // ─── Contexte & contrats ─────────────────────────────────────────────────────
 // (ActionContext / ActionExecuteResult / ActionDefinition : voir catalogShared.ts —

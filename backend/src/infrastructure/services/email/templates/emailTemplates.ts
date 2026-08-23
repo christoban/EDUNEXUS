@@ -1,4 +1,4 @@
-import type { ReportPeriod } from "./reporting.ts";
+import type { ReportPeriod } from "../../../../domain/academic/reporting.ts";
 
 type Language = "fr" | "en";
 

@@ -7,7 +7,7 @@ import {
   getMentionEn,
   getMentionApc,
   type TableColumnDef,
-} from "./helpers.ts";
+} from "./BulletinPdfHelpers.ts";
 
 // ─── Types ────────────────────────────────────────────────────
 type SubjectLine = {

@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient, DisciplineCouncilStatus } from '@prisma/client';
 import { ConvoquerConseilDisciplineUseCase, type CompositionConseil } from '@application/discipline/ConvoquerConseilDisciplineUseCase';
 import { TenirConseilDisciplineUseCase } from '@application/discipline/TenirConseilDisciplineUseCase';
-import { generatePVConseilDisciplinePdf } from '../../../utils/disciplineDocuments';
+import { generatePVConseilDisciplinePdf } from '../../pdf/discipline/DisciplineCouncilMinutesPdfRenderer';
 
 /**
  * Préfixe /api/v2/discipline-council (MODULE 13/17, Art. 30 — chantier Juillet 2026).

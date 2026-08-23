@@ -4,8 +4,8 @@ import {
   generateCertificatPdf,
   generateCarteScolairepdf,
   generateLettreTransfertPdf,
-} from '../../../utils/schoolDocuments/index';
-import { resolveLanguage } from '../../../utils/languageHelper';
+} from '../../pdf/school-documents/SchoolDocumentPdfRenderer';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 
 const VERIFY_BASE = process.env.CLIENT_URL || 'http://localhost:3000';
 

@@ -6,8 +6,8 @@ import {
   generateAttestationTravailPdf,
   generateCertificatTravailPdf,
   generateMissionOrderPdf,
-} from '../../../utils/hrDocuments';
-import { resolveLanguage } from '../../../utils/languageHelper';
+} from '../../pdf/hr/HrDocumentPdfRenderer';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 
 type EmployeeRole = 'TEACHER' | 'STAFF';
 type LeaveStatusValue = 'PENDING' | 'APPROVED' | 'REJECTED';

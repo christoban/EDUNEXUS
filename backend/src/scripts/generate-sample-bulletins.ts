@@ -6,7 +6,7 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { generateBulletinPdf } from "../utils/reportCards/templates.ts";
+import { generateBulletinPdf } from "../infrastructure/pdf/report-card/BulletinTemplates.ts";
 
 const OUT_DIR = join(import.meta.dir, "..", "..", "..", "..", "bulletins-demo");
 

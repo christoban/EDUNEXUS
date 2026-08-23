@@ -47,7 +47,7 @@ import { AcademicYearController } from '@infrastructure/http/controllers/Academi
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
 import { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';
-import { buildPayload, getLatestSchoolBackup } from '../../utils/schoolBackup';
+import { buildPayload, getLatestSchoolBackup } from '../backup/SchoolBackupService';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
 import { creerRoomRoutes } from '@infrastructure/http/routes/room.routes';

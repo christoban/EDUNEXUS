@@ -1,7 +1,7 @@
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { PromotionRepository } from '@domain/ports/repositories/PromotionRepository';
 import { VerifierPrerequisClotureUseCase } from './VerifierPrerequisClotureUseCase';
-import { logActivity } from '../../utils/activitieslog';
+import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
 export interface CloturerAnneeCommande {
   academicYearId: string;

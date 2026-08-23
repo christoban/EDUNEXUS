@@ -11,7 +11,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { compareNames } from '../matricule/stringSimilarity';
-import { parseDateFR } from '../../utils/dateParsing';
+import { parseDateFR } from '../../shared/date/parseDateFR';
 import { peutSoumettreFormulaire } from './rules';
 import type { SoumettreFormulaireOnboardingCommande, SoumettreFormulaireOnboardingResultat } from './types';
 

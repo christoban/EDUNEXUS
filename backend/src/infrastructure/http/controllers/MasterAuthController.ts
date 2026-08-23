@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { generateSecret, generateURI, verifySync } from 'otplib';
 import QRCode from 'qrcode';
-import { logMasterAuthAudit } from '../../../utils/masterAuthAudit';
+import { logMasterAuthAudit } from '../../services/audit/MasterAuthAuditService';
 import { LoginMasterUseCase } from '../../../application/masterAdmin/LoginMasterUseCase';
 import { VerifyMfaUseCase } from '../../../application/masterAdmin/VerifyMfaUseCase';
 import { prisma } from '../../../config/prisma';

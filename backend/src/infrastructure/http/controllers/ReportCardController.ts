@@ -8,10 +8,10 @@ import type { BulletinTemplate } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { notifyBulletinSms } from '@infrastructure/services/sms/SmsNotificationService';
-import { resolveLanguage } from '../../../utils/languageHelper';
-import { generateBulletinPdf } from '../../../utils/reportCards/index';
-import { getMention } from '../../../utils/reportCards/helpers';
-import { getEffectiveSchoolSettings } from '../../../utils/schoolSettings';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
+import { generateBulletinPdf } from '../../pdf/report-card/index';
+import { getMention } from '../../pdf/report-card/BulletinPdfHelpers';
+import { getEffectiveSchoolSettings } from '../../services/school-settings/SchoolSettingsService';
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
 export class ReportCardController {

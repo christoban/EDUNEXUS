@@ -5,8 +5,8 @@ import {
   normalizeScoreOn20,
   scoreOn20ToPercentage,
 } from '../../../../src/domain/rules/GradingEngine.ts';
-import { calculateCouncilDecision } from '../../../../src/utils/bulletinPolicy.ts';
-import { resolveBulletinTemplateType } from '../../../../src/utils/reportCardTemplates.ts';
+import { calculateCouncilDecision } from '../../../../src/domain/policies/BulletinPolicy.ts';
+import { resolveBulletinTemplateType } from '../../../../src/domain/policies/BulletinTemplatePolicy.ts';
 
 type PilotScenario = {
   id: "FR" | "EN" | "BILINGUAL" | "COMPLEX";

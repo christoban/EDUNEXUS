@@ -10,7 +10,8 @@ import {
   type ActionContext,
   type ActionDefinition,
 } from '@application/assistant/catalogShared';
-import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
+import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
+import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 /** Fenêtre pendant laquelle une action non-destructive reste annulable (5 minutes). */

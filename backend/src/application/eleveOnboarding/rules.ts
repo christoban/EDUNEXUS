@@ -7,7 +7,7 @@
  * (pattern déjà en place dans ce projet pour matricule/paiementMinesec/entranceExam).
  */
 import type { OnboardingRecipient, OnboardingSource, OnboardingStatus } from './types';
-import type { SectionCycle } from '../../utils/coreDomainDefaults';
+import type { SectionCycle } from '../../domain/subsystems/SubsystemDefaults';
 
 /**
  * Détermine le destinataire du lien d'onboarding.

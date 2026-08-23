@@ -6,7 +6,7 @@
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
-import type { Language } from '../../utils/languageHelper';
+import type { Language } from '../../domain/policies/LanguagePolicy';
 
 export interface RejeterNoteCommande {
   noteId: string;

@@ -46,8 +46,8 @@
 import type { PrismaClient } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
-import { parseDateFR } from '../../utils/dateParsing';
-import { logActivity } from '../../utils/activitieslog';
+import { parseDateFR } from '../../shared/date/parseDateFR';
+import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
 import type { ValiderOnboardingCommande, ValiderOnboardingResultat, ValiderOnboardingCompteResultat } from './types';
 
