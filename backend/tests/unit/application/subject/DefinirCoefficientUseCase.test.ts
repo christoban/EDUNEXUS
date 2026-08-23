@@ -77,4 +77,37 @@ describe('DefinirCoefficientUseCase — coefficients BAC camerounais', () => {
       coefficients: [{ classLevel: 'Tle', coefficient: 3 }],
     })).rejects.toThrow('Admin');
   });
+
+  it('devrait isoler les coefficients entre établissements', async () => {
+    await repo.upsertCoefficients('school-1', [
+      { subjectId: 'maths-1', classLevel: 'Tle', serieCode: 'C', coefficient: 6 },
+    ]);
+
+    await repo.upsertCoefficients('school-2', [
+      { subjectId: 'maths-1', classLevel: 'Tle', serieCode: 'C', coefficient: 8 },
+    ]);
+
+    const school1Coefficients = await repo.getCoefficients('school-1', 'maths-1');
+    const school2Coefficients = await repo.getCoefficients('school-2', 'maths-1');
+
+    expect(school1Coefficients).toHaveLength(1);
+    expect(school1Coefficients[0].coefficient).toBe(6);
+
+    expect(school2Coefficients).toHaveLength(1);
+    expect(school2Coefficients[0].coefficient).toBe(8);
+  });
+
+  it('devrait utiliser le coefficient spécifique au niveau et à la série', async () => {
+    await repo.upsertCoefficients('school-1', [
+      { subjectId: 'maths-1', classLevel: 'Tle', serieCode: 'C', coefficient: 6 },
+    ]);
+
+    const coefficient = await repo.getCoefficientPourClasse('maths-1', 'Tle', 'C');
+    expect(coefficient).toBe(6);
+  });
+
+  it("devrait utiliser le coefficient par défaut de la matière si aucun coefficient spécifique n'existe", async () => {
+    const coefficient = await repo.getCoefficientPourClasse('maths-1', 'Tle', 'D');
+    expect(coefficient).toBe(1);
+  });
 });

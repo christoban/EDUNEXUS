@@ -7,11 +7,34 @@ import type {
 export class InMemoryMatiereRepository implements MatiereRepository {
   private store = new Map<string, MatiereProps>();
   private assignments = new Set<string>();
-  private coefficients: CoefficientMatiere[] = [];
+
+  private coefficients: {
+    schoolId: string;
+    coefficient: CoefficientMatiere;
+  }[] = [];
+
+  private bacCoefficients: {
+    serieCode: string;
+    subjectName: string;
+    coefficient: number;
+  }[] = [];
+
   syncAppels: { subjectId: string; teacherUserIds: string[] }[] = [];
 
   ajouter(matiere: MatiereProps): void {
     this.store.set(matiere.id, matiere);
+  }
+
+  ajouterBACCoefficient(
+    serieCode: string,
+    subjectName: string,
+    coefficient: number
+  ): void {
+    this.bacCoefficients.push({
+      serieCode,
+      subjectName,
+      coefficient,
+    });
   }
 
   async findById(id: string): Promise<MatiereProps | null> {
@@ -32,16 +55,32 @@ export class InMemoryMatiereRepository implements MatiereRepository {
 
   async getCoefficientPourClasse(
     subjectId: string,
-    _classLevel: string,
-    _serieCode?: string
+    classLevel: string,
+    serieCode?: string
   ): Promise<number> {
+    const coefficient = this.coefficients.find(
+      entry =>
+        entry.coefficient.subjectId === subjectId &&
+        entry.coefficient.classLevel === classLevel &&
+        entry.coefficient.serieCode === serieCode
+    );
+
+    if (coefficient) {
+      return coefficient.coefficient.coefficient;
+    }
+
     return this.store.get(subjectId)?.coefficient ?? 1;
   }
 
   async getCoefficientsBACParSerie(
-    _serieCode: string
+    serieCode: string
   ): Promise<{ subjectName: string; coefficient: number }[]> {
-    return [];
+    return this.bacCoefficients
+      .filter(coefficient => coefficient.serieCode === serieCode)
+      .map(({ subjectName, coefficient }) => ({
+        subjectName,
+        coefficient,
+      }));
   }
 
   async estEnseignantAssigne(
@@ -62,28 +101,40 @@ export class InMemoryMatiereRepository implements MatiereRepository {
   }
 
   async getCoefficients(
-    _schoolId: string,
+    schoolId: string,
     subjectId: string
   ): Promise<CoefficientMatiere[]> {
-    return this.coefficients.filter(c => c.subjectId === subjectId);
+    return this.coefficients
+      .filter(
+        entry =>
+          entry.schoolId === schoolId &&
+          entry.coefficient.subjectId === subjectId
+      )
+      .map(entry => entry.coefficient);
   }
 
   async upsertCoefficients(
-    _schoolId: string,
+    schoolId: string,
     coefficients: CoefficientMatiere[]
   ): Promise<void> {
     for (const coefficient of coefficients) {
       const index = this.coefficients.findIndex(
         existing =>
-          existing.subjectId === coefficient.subjectId &&
-          existing.classLevel === coefficient.classLevel &&
-          existing.serieCode === coefficient.serieCode
+          existing.schoolId === schoolId &&
+          existing.coefficient.subjectId === coefficient.subjectId &&
+          existing.coefficient.classLevel === coefficient.classLevel &&
+          existing.coefficient.serieCode === coefficient.serieCode
       );
 
+      const entry = {
+        schoolId,
+        coefficient,
+      };
+
       if (index >= 0) {
-        this.coefficients[index] = coefficient;
+        this.coefficients[index] = entry;
       } else {
-        this.coefficients.push(coefficient);
+        this.coefficients.push(entry);
       }
     }
   }
