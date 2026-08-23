@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { verifierAppartenanceConversation, destinatairesAutorises } from './MessagerieAccessHelpers';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
-import { getIO } from '../../socket/io';
+import { getIO } from '../../infrastructure/socket/SocketServer';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export interface EnvoyerMessageCommande {

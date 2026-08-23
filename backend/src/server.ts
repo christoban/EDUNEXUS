@@ -42,7 +42,7 @@ import { syncCarteScolaire, relancePaiements, auditMatricules } from "./inngest/
 import { relanceOnboarding } from "./inngest/eleveOnboardingJobs.ts";
 import { relanceProfilRH } from "./inngest/hrSelfServiceJobs.ts";
 import { exporterOffsiteNocturne } from "./inngest/backupOffsiteJob.ts";
-import { initSocket } from "./socket/io.ts";
+import { initSocket } from "./infrastructure/socket/SocketServer.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { idempotency } from './infrastructure/http/middlewares/idempotency.ts';
