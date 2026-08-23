@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { ValiderNoteUseCase } from '@application/grade/ValiderNoteUseCase';
 import { Note } from '@domain/entities/Note';
 import { User } from '@domain/entities/User';
-import { InMemoryNoteRepository } from './helpers/InMemoryNoteRepository.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
+import { InMemoryNoteRepository } from '../../../helpers/repositories/InMemoryNoteRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

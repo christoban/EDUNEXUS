@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerSchoolSettingsRoutes(controller: SchoolSettingsController): Router {
   const router = Router();

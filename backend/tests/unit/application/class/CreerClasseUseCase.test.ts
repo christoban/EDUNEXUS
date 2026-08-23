@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CreerClasseUseCase } from '../../../../src/application/class/CreerClasseUseCase.ts';
-import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository.ts';
+import { InMemoryClasseRepository } from '../../../helpers/repositories/InMemoryClasseRepository.ts';
 import { Classe } from '@domain/entities/Classe';
 
 describe('CreerClasseUseCase', () => {

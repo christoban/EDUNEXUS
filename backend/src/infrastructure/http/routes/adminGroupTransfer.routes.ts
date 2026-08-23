@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AdminGroupTransferController } from '../controllers/AdminGroupTransferController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerAdminGroupTransferRoutes(controller: AdminGroupTransferController): Router {
   const router = Router();

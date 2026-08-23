@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { GroupTransferController } from '../controllers/GroupTransferController';
-import { protectGroupOwner } from '../../../middleware/authMultiTenant';
+import { protectGroupOwner } from '../middlewares/authMultiTenant.ts';
 
 export function creerGroupTransferRoutes(controller: GroupTransferController): Router {
   const router = Router();

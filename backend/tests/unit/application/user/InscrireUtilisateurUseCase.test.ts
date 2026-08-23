@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { InscrireUtilisateurUseCase } from '../../../../src/application/user/InscrireUtilisateurUseCase.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 
 describe('InscrireUtilisateurUseCase', () => {
   let userRepo: InMemoryUserRepository;

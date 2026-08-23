@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { TimetableController } from '@infrastructure/http/controllers/TimetableController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerTimetableRoutes(controller: TimetableController): Router {
   const router = Router();

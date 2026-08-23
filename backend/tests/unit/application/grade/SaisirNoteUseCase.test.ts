@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
 import { User } from '@domain/entities/User';
-import { InMemoryNoteRepository } from './helpers/InMemoryNoteRepository.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
-import { InMemoryMatiereRepository } from './helpers/InMemoryMatiereRepository.ts';
+import { InMemoryNoteRepository } from '../../../helpers/repositories/InMemoryNoteRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
+import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemoryMatiereRepository.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

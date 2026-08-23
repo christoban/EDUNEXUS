@@ -2,7 +2,7 @@ import { type NextFunction, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
 
-import { prisma } from "../config/prisma.ts";
+import { prisma } from '../../../config/prisma.ts';
 
 /**
  * Miroir de masterSensitiveAuth.ts pour les comptes école (ADMIN/STAFF/TEACHER).

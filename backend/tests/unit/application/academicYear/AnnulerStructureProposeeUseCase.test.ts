@@ -9,8 +9,8 @@
  */
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { AnnulerStructureProposeeUseCase } from '../../../../src/application/academicYear/AnnulerStructureProposeeUseCase.ts';
-import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository.ts';
-import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository.ts';
+import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
+import { InMemoryClasseRepository } from '../../../helpers/repositories/InMemoryClasseRepository.ts';
 import { Classe } from '@domain/entities/Classe';
 
 describe('AnnulerStructureProposeeUseCase', () => {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { OrientationController } from '@infrastructure/http/controllers/OrientationController';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth } from '../middlewares/auth.ts';
 
 export function creerOrientationRoutes(controller: OrientationController): Router {
   const router = Router();

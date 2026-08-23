@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AttendanceController } from '@infrastructure/http/controllers/AttendanceController';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth } from '../middlewares/auth.ts';
 
 export function creerAttendanceRoutes(controller: AttendanceController): Router {
   const router = Router();

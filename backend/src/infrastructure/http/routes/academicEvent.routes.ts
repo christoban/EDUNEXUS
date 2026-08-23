@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AcademicEventController } from '@infrastructure/http/controllers/AcademicEventController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerAcademicEventRoutes(controller: AcademicEventController): Router {
   const router = Router();

@@ -79,7 +79,7 @@ Le backend applique une **architecture hexagonale** stricte en 3 couches. Règle
 - `config/container.ts` : **composition root** — instancie repos + services + use cases et les câble. `config/hexagonal.bootstrap.ts` : monte toutes les routes sur l'app Express à partir du container.
 - `inngest/`, `socket/`, `pdf/`.
 
-> ⚠️ Le repo contient aussi des **dossiers utilitaires hors hexagone** (historiques ou transverses) : `utils/` (reportCards, schoolDocuments, hrDocuments, emailTemplates, languageHelper), `middleware/`, `inngest/`, `socket/`, `scripts/`, `validation/`, `lib/`. Ils sont utilisés directement par l'infrastructure. Ne pas les confondre avec les couches hexagonales.
+> ⚠️ Le repo contient aussi des **dossiers utilitaires hors hexagone** (historiques ou transverses) : `utils/` (reportCards, schoolDocuments, hrDocuments, emailTemplates, languageHelper), `inngest/`, `socket/`, `scripts/`, `validation/`, `lib/`. Ils sont utilisés directement par l'infrastructure. Ne pas les confondre avec les couches hexagonales.
 
 ### 3.4 Point d'entrée
 `backend/src/server.ts` → crée l'app Express, appelle le bootstrap (container + routes), démarre Socket.io et le serveur HTTP.

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { ActivitiesLogController } from '@infrastructure/http/controllers/ActivitiesLogController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerActivitiesRoutes(controller: ActivitiesLogController): Router {
   const router = Router();

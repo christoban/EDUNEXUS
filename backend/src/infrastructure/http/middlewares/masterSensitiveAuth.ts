@@ -2,8 +2,8 @@ import { type NextFunction, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { verifySync } from "otplib";
 
-import { prisma } from "../config/prisma.ts";
-import { logMasterAuthAudit } from "../utils/masterAuthAudit.ts";
+import { prisma } from '../../../config/prisma.ts';
+import { logMasterAuthAudit } from '../../../utils/masterAuthAudit.ts';
 
 const extractSensitiveAuthPayload = (req: Request) => {
   const body = req.body || {};

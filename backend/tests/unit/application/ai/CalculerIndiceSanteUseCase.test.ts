@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CalculerIndiceSanteUseCase } from '../../../../src/application/ai/CalculerIndiceSanteUseCase.ts';
-import { InMemorySanteEleveRepository } from './helpers/InMemorySanteEleveRepository.ts';
-import { FakeIAService } from './helpers/FakeIAService.ts';
+import { InMemorySanteEleveRepository } from '../../../helpers/repositories/InMemorySanteEleveRepository.ts';
+import { FakeIAService } from '../../../helpers/services/FakeIAService.ts';
 
 describe('CalculerIndiceSanteUseCase', () => {
   let santeRepo: InMemorySanteEleveRepository;

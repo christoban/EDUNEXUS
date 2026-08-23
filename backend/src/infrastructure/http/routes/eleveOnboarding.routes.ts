@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../../middleware/auth';
-import { authLimiter } from '../../../middleware/rateLimit';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
+import { authLimiter } from '../middlewares/rateLimit.ts';
 import type { EleveOnboardingController } from '../controllers/EleveOnboardingController';
 
 export function creerEleveOnboardingRoutes(controller: EleveOnboardingController): Router {

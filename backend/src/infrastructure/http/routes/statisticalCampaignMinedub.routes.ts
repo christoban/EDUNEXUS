@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 import type { StatisticalCampaignMinedubController } from '../controllers/StatisticalCampaignMinedubController';
 
 export function creerStatisticalCampaignMinedubRoutes(controller: StatisticalCampaignMinedubController): Router {

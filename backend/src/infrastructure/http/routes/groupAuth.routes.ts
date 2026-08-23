@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { GroupAuthController } from '../controllers/GroupAuthController';
-import { protectGroupOwner } from '../../../middleware/authMultiTenant';
-import { groupAuthLimiter, groupEmailOtpLimiter, groupMfaLimiter } from '../../../middleware/rateLimit';
+import { protectGroupOwner } from '../middlewares/authMultiTenant.ts';
+import { groupAuthLimiter, groupEmailOtpLimiter, groupMfaLimiter } from '../middlewares/rateLimit.ts';
 
 export function creerGroupAuthRoutes(controller: GroupAuthController): Router {
   const router = Router();

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { EnregistrerDepenseUseCase } from '../../../../src/application/finance/EnregistrerDepenseUseCase.ts';
-import { InMemoryDepenseRepository } from './helpers/InMemoryDepenseRepository.ts';
-import { InMemoryUserRepository } from '../user/helpers/InMemoryUserRepository.ts';
+import { InMemoryDepenseRepository } from '../../../helpers/repositories/InMemoryDepenseRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 import { User } from '@domain/entities/User';
 import { SeparationOrdonnateurError } from '@domain/errors/SeparationOrdonnateurError';
 

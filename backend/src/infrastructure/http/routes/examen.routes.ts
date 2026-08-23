@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 import type { ExamenController } from '../controllers/ExamenController';
 
 export function creerExamenRoutes(controller: ExamenController): Router {

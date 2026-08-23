@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { AIController } from '@infrastructure/http/controllers/AIController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
-import { sensitiveWriteLimiter } from '../../../middleware/rateLimit';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
+import { sensitiveWriteLimiter } from '../middlewares/rateLimit.ts';
 
 export function creerAIRoutes(controller: AIController): Router {
   const router = Router();

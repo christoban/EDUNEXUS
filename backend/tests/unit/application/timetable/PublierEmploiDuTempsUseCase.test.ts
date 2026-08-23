@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { PublierEmploiDuTempsUseCase } from '../../../../src/application/timetable/PublierEmploiDuTempsUseCase.ts';
-import { InMemoryTimetableRepository } from './helpers/InMemoryTimetableRepository.ts';
+import { InMemoryTimetableRepository } from '../../../helpers/repositories/InMemoryTimetableRepository.ts';
 import { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
 

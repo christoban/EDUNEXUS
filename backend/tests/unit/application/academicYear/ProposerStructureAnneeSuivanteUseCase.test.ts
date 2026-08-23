@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { ProposerStructureAnneeSuivanteUseCase } from '../../../../src/application/academicYear/ProposerStructureAnneeSuivanteUseCase.ts';
-import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository.ts';
-import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository.ts';
-import { InMemoryPromotionRepository } from './helpers/InMemoryPromotionRepository.ts';
+import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
+import { InMemoryClasseRepository } from '../../../helpers/repositories/InMemoryClasseRepository.ts';
+import { InMemoryPromotionRepository } from '../../../helpers/repositories/InMemoryPromotionRepository.ts';
 import { Classe } from '@domain/entities/Classe';
 
 describe('ProposerStructureAnneeSuivanteUseCase', () => {

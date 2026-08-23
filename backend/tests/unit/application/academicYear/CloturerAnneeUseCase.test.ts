@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CloturerAnneeUseCase } from '../../../../src/application/academicYear/CloturerAnneeUseCase.ts';
-import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository.ts';
-import { InMemoryPromotionRepository } from './helpers/InMemoryPromotionRepository.ts';
+import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
+import { InMemoryPromotionRepository } from '../../../helpers/repositories/InMemoryPromotionRepository.ts';
 
 describe('CloturerAnneeUseCase', () => {
   let anneeRepo: InMemoryAnneeAcademiqueRepository;

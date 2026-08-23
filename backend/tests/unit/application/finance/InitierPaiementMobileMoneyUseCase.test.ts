@@ -13,9 +13,9 @@
  */
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { InitierPaiementMobileMoneyUseCase } from '../../../../src/application/finance/InitierPaiementMobileMoneyUseCase.ts';
-import { InMemoryFactureRepository } from './helpers/InMemoryFactureRepository.ts';
-import { InMemoryPaiementRepository } from './helpers/InMemoryPaiementRepository.ts';
-import { FakePaiementService } from './helpers/FakePaiementService.ts';
+import { InMemoryFactureRepository } from '../../../helpers/repositories/InMemoryFactureRepository.ts';
+import { InMemoryPaiementRepository } from '../../../helpers/repositories/InMemoryPaiementRepository.ts';
+import { FakePaiementService } from '../../../helpers/services/FakePaiementService.ts';
 import { Facture } from '@domain/entities/Facture';
 import { Paiement } from '@domain/entities/Paiement';
 

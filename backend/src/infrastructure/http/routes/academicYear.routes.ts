@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AcademicYearController } from '@infrastructure/http/controllers/AcademicYearController';
-import { requireAuth, requireRole, requireRoleOrPermission } from '../../../middleware/auth';
+import { requireAuth, requireRole, requireRoleOrPermission } from '../middlewares/auth.ts';
 
 export function creerAcademicYearRoutes(controller: AcademicYearController): Router {
   const router = Router();

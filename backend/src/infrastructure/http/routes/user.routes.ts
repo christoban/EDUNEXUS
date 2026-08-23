@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
 import type { UserController } from '@infrastructure/http/controllers/UserController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
-import { authLimiter, userEmailOtpLimiter, userMfaLimiter } from '../../../middleware/rateLimit';
-import { requireUserSensitiveAuth } from '../../../middleware/requireUserSensitiveAuth';
-import { requireReauthToken } from '../../../middleware/requireReauthToken';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
+import { authLimiter, userEmailOtpLimiter, userMfaLimiter } from '../middlewares/rateLimit.ts';
+import { requireUserSensitiveAuth } from '../middlewares/requireUserSensitiveAuth.ts';
+import { requireReauthToken } from '../middlewares/requireReauthToken.ts';
 
 const upload = multer({
   storage: multer.memoryStorage(),

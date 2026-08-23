@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { GroupDashboardController } from '../controllers/GroupDashboardController';
-import { protectGroupOwner } from '../../../middleware/authMultiTenant';
+import { protectGroupOwner } from '../middlewares/authMultiTenant.ts';
 
 export function creerGroupDashboardRoutes(controller: GroupDashboardController): Router {
   const router = Router();

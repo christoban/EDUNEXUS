@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { CommunicationsController } from '@infrastructure/http/controllers/CommunicationsController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerCommunicationsRoutes(controller: CommunicationsController): Router {
   const router = Router();

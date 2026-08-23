@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { MasterAdminHexController } from '@infrastructure/http/controllers/MasterAdminHexController';
-import { protectMaster, authorizeMaster } from '../../../middleware/authMultiTenant';
-import { requireMasterSensitiveAuth } from '../../../middleware/masterSensitiveAuth';
+import { protectMaster, authorizeMaster } from '../middlewares/authMultiTenant.ts';
+import { requireMasterSensitiveAuth } from '../middlewares/masterSensitiveAuth.ts';
 
 export function creerMasterAdminHexRoutes(controller: MasterAdminHexController): Router {
   const router = Router();

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { TimetableGridConfigController } from '../controllers/TimetableGridConfigController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerTimetableGridConfigRoutes(controller: TimetableGridConfigController): Router {
   const router = Router();

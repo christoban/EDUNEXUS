@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { SubjectController } from '@infrastructure/http/controllers/SubjectController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerSubjectRoutes(controller: SubjectController): Router {
   const router = Router();

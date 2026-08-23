@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { ActiverEtablissementUseCase } from '@application/school/ActiverEtablissementUseCase';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerSchoolConfigRoutes(activateUseCase: ActiverEtablissementUseCase): Router {
   const router = Router();

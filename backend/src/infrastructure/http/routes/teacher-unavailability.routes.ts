@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { TeacherUnavailabilityController } from '@infrastructure/http/controllers/TeacherUnavailabilityController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerTeacherUnavailabilityRoutes(controller: TeacherUnavailabilityController): Router {
   const router = Router();

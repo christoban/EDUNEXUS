@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import type { MasterAuthController } from '../controllers/MasterAuthController';
-import { protectMaster } from '../../../middleware/authMultiTenant';
-import { restrictMasterLoginByIp } from '../../../middleware/masterAuthSecurity';
-import { masterAuthLimiter, masterEmailOtpLimiter, masterMfaLimiter } from '../../../middleware/rateLimit';
-import { requireMasterSensitiveAuth } from '../../../middleware/masterSensitiveAuth';
+import { protectMaster } from '../middlewares/authMultiTenant.ts';
+import { restrictMasterLoginByIp } from '../middlewares/masterAuthSecurity.ts';
+import { masterAuthLimiter, masterEmailOtpLimiter, masterMfaLimiter } from '../middlewares/rateLimit.ts';
+import { requireMasterSensitiveAuth } from '../middlewares/masterSensitiveAuth.ts';
 
 export function creerMasterAuthRoutes(controller: MasterAuthController): Router {
   const router = Router();

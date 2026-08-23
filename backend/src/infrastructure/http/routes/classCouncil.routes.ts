@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { ClassCouncilController } from '@infrastructure/http/controllers/ClassCouncilController';
-import { requireAuth } from '../../../middleware/auth';
-import { sensitiveWriteLimiter } from '../../../middleware/rateLimit';
+import { requireAuth } from '../middlewares/auth.ts';
+import { sensitiveWriteLimiter } from '../middlewares/rateLimit.ts';
 
 export function creerClassCouncilRoutes(controller: ClassCouncilController): Router {
   const router = Router();

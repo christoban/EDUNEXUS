@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { RoomController } from '@infrastructure/http/controllers/RoomController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerRoomRoutes(controller: RoomController): Router {
   const router = Router();

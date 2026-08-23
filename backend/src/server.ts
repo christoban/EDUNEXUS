@@ -45,7 +45,7 @@ import { exporterOffsiteNocturne } from "./inngest/backupOffsiteJob.ts";
 import { initSocket } from "./socket/io.ts";
 import { bootstrapHexagonal } from './infrastructure/config/hexagonal.bootstrap';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { idempotency } from './middleware/idempotency';
+import { idempotency } from './infrastructure/http/middlewares/idempotency.ts';
 import { checkLibreOfficeAvailable } from '@application/statisticalCampaign/xlsEngine';
 
 // Load environment variables from .env file

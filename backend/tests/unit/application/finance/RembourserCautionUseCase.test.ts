@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { RembourserCautionUseCase } from '../../../../src/application/finance/RembourserCautionUseCase.ts';
-import { InMemoryPaiementRepository } from './helpers/InMemoryPaiementRepository.ts';
+import { InMemoryPaiementRepository } from '../../../helpers/repositories/InMemoryPaiementRepository.ts';
 import { Paiement } from '@domain/entities/Paiement';
 
 describe('RembourserCautionUseCase', () => {

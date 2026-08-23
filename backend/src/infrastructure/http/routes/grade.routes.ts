@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import type { GradeController } from '@infrastructure/http/controllers/GradeController';
-import { requireAuth } from '../../../middleware/auth';
-import { sensitiveWriteLimiter } from '../../../middleware/rateLimit';
+import { requireAuth } from '../middlewares/auth.ts';
+import { sensitiveWriteLimiter } from '../middlewares/rateLimit.ts';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 

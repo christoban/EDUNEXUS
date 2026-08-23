@@ -2,7 +2,7 @@ import type { Server as HttpServer } from "http";
 import { Server, type Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import { parse as parseCookie } from "cookie";
-import type { AuthPayload } from "../middleware/auth";
+import type { AuthPayload } from '../infrastructure/http/middlewares/auth.ts';
 import { prisma } from "@infrastructure/persistence/prisma/prisma.client";
 import { verifierAppartenanceConversation } from "@application/messagerie/MessagerieAccessHelpers";
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { TeachingAssignmentController } from '../controllers/TeachingAssignmentController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerTeachingAssignmentRoutes(controller: TeachingAssignmentController): Router {
   const router = Router();

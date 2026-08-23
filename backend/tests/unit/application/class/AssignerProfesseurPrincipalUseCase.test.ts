@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { AssignerProfesseurPrincipalUseCase } from '../../../../src/application/class/AssignerProfesseurPrincipalUseCase.ts';
-import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository.ts';
-import { InMemoryUserRepository } from '../user/helpers/InMemoryUserRepository.ts';
+import { InMemoryClasseRepository } from '../../../helpers/repositories/InMemoryClasseRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 import { Classe } from '@domain/entities/Classe';
 import { User } from '@domain/entities/User';
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { AnnouncementController } from '@infrastructure/http/controllers/AnnouncementController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerAnnouncementRoutes(controller: AnnouncementController): Router {
   const router = Router();

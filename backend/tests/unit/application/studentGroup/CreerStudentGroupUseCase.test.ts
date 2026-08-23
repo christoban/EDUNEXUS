@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CreerStudentGroupUseCase } from '../../../../src/application/studentGroup/CreerStudentGroupUseCase.ts';
-import { InMemoryStudentGroupRepository } from './helpers/InMemoryStudentGroupRepository.ts';
-import { InMemoryStudentGroupSetRepository } from './helpers/InMemoryStudentGroupSetRepository.ts';
+import { InMemoryStudentGroupRepository } from '../../../helpers/repositories/InMemoryStudentGroupRepository.ts';
+import { InMemoryStudentGroupSetRepository } from '../../../helpers/repositories/InMemoryStudentGroupSetRepository.ts';
 
 describe('CreerStudentGroupUseCase', () => {
   let groupRepo: InMemoryStudentGroupRepository;

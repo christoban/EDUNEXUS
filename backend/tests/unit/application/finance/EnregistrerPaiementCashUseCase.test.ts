@@ -11,8 +11,8 @@
  */
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { EnregistrerPaiementCashUseCase } from '../../../../src/application/finance/EnregistrerPaiementCashUseCase.ts';
-import { InMemoryFactureRepository } from './helpers/InMemoryFactureRepository.ts';
-import { InMemoryPaiementRepository } from './helpers/InMemoryPaiementRepository.ts';
+import { InMemoryFactureRepository } from '../../../helpers/repositories/InMemoryFactureRepository.ts';
+import { InMemoryPaiementRepository } from '../../../helpers/repositories/InMemoryPaiementRepository.ts';
 import { Facture } from '@domain/entities/Facture';
 import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
 

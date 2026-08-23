@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CreerAnneeAcademiqueUseCase } from '../../../../src/application/academicYear/CreerAnneeAcademiqueUseCase.ts';
-import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository.ts';
+import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
 
 describe('CreerAnneeAcademiqueUseCase', () => {
   let repo: InMemoryAnneeAcademiqueRepository;

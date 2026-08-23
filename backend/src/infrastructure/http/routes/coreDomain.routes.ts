@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { CoreDomainController } from '@infrastructure/http/controllers/CoreDomainController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerCoreDomainRoutes(controller: CoreDomainController): Router {
   const router = Router();

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { DepartmentController } from '@infrastructure/http/controllers/DepartmentController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerDepartmentRoutes(controller: DepartmentController): Router {
   const router = Router();

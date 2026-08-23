@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 import type { HRSelfServiceController } from '../controllers/HRSelfServiceController';
 
 const upload = multer({

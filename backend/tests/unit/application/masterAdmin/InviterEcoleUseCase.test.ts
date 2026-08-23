@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { InviterEcoleUseCase } from '../../../../src/application/masterAdmin/InviterEcoleUseCase.ts';
-import { InMemorySchoolRepository } from '../user/helpers/InMemorySchoolRepository.ts';
-import { InMemoryInvitationRepository } from '../user/helpers/InMemoryInvitationRepository.ts';
-import { FakeEmailService } from '../user/helpers/FakeEmailService.ts';
+import { InMemorySchoolRepository } from '../../../helpers/repositories/InMemorySchoolRepository.ts';
+import { InMemoryInvitationRepository } from '../../../helpers/repositories/InMemoryInvitationRepository.ts';
+import { FakeEmailService } from '../../../helpers/services/FakeEmailService.ts';
 
 describe('InviterEcoleUseCase', () => {
   let schoolRepo: InMemorySchoolRepository;

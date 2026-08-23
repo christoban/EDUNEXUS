@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { DashboardController } from '@infrastructure/http/controllers/DashboardController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerDashboardRoutes(controller: DashboardController): Router {
   const router = Router();

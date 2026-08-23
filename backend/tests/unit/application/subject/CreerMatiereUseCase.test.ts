@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CreerMatiereUseCase } from '../../../../src/application/subject/CreerMatiereUseCase.ts';
-import { InMemoryMatiereRepository } from './helpers/InMemoryMatiereRepository.ts';
-import { InMemoryUserRepository } from '../user/helpers/InMemoryUserRepository.ts';
+import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemoryMatiereRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 import { User } from '@domain/entities/User';
 
 describe('CreerMatiereUseCase', () => {

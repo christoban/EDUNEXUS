@@ -6,14 +6,14 @@ import { Bulletin } from '@domain/entities/Bulletin';
 import { Classe } from '@domain/entities/Classe';
 import { User } from '@domain/entities/User';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
-import { InMemoryNoteRepository } from './helpers/InMemoryNoteRepository.ts';
-import { InMemoryBulletinRepository } from './helpers/InMemoryBulletinRepository.ts';
-import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
-import { InMemoryMatiereRepository } from './helpers/InMemoryMatiereRepository.ts';
-import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository.ts';
-import { InMemoryPresenceRepository } from './helpers/InMemoryPresenceRepository.ts';
-import { InMemoryPdfService } from './helpers/InMemoryPdfService.ts';
+import { InMemoryNoteRepository } from '../../../helpers/repositories/InMemoryNoteRepository.ts';
+import { InMemoryBulletinRepository } from '../../../helpers/repositories/InMemoryBulletinRepository.ts';
+import { InMemoryClasseRepository } from '../../../helpers/repositories/InMemoryClasseRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
+import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemoryMatiereRepository.ts';
+import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
+import { InMemoryPresenceRepository } from '../../../helpers/repositories/InMemoryPresenceRepository.ts';
+import { InMemoryPdfService } from '../../../helpers/services/InMemoryPdfService.ts';
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 
 class InMemoryClassCouncilRepository implements ClassCouncilRepository {

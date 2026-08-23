@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { StudentGroupController } from '@infrastructure/http/controllers/StudentGroupController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerStudentGroupRoutes(controller: StudentGroupController): Router {
   const router = Router();

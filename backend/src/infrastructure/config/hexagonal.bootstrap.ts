@@ -22,7 +22,7 @@ import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.ro
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
 import { StudentDocumentController } from '@infrastructure/http/controllers/StudentDocumentController';
 import { creerStudentDocumentRoutes } from '@infrastructure/http/routes/studentDocument.routes';
-import { protectMaster, authorizeMaster } from '../../middleware/authMultiTenant';
+import { protectMaster, authorizeMaster } from '../http/middlewares/authMultiTenant.ts';
 import { errorHandler } from '@infrastructure/http/middlewares/errorHandler';
 import { DevController } from '@infrastructure/http/controllers/DevController';
 import { creerDevRoutes } from '@infrastructure/http/routes/dev.routes';
@@ -172,8 +172,8 @@ import { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnex
 import { sendTransactionalEmail } from '../services/email/EmailService.ts';
 import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../services/sms/SmsNotificationService.ts';
 import { notifierParentsPushDabord } from '../services/notification/PushFirstNotifier.ts';
-import { requireAuth, requireRole } from '../../middleware/auth';
-import { requireMasterSensitiveAuth } from '../../middleware/masterSensitiveAuth';
+import { requireAuth, requireRole } from '../http/middlewares/auth.ts';
+import { requireMasterSensitiveAuth } from '../http/middlewares/masterSensitiveAuth.ts';
 import { MatriculeController } from '@infrastructure/http/controllers/MatriculeController';
 import { creerMatriculeRoutes } from '@infrastructure/http/routes/matricule.routes';
 import { EleveOnboardingController } from '@infrastructure/http/controllers/EleveOnboardingController';

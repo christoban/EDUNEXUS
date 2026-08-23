@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { SuspendreEcoleUseCase } from '../../../../src/application/masterAdmin/SuspendreEcoleUseCase.ts';
 import { ReactiverEcoleUseCase } from '../../../../src/application/masterAdmin/ReactiverEcoleUseCase.ts';
-import { InMemorySchoolRepository } from '../user/helpers/InMemorySchoolRepository.ts';
-import { InMemoryInvitationRepository } from '../user/helpers/InMemoryInvitationRepository.ts';
+import { InMemorySchoolRepository } from '../../../helpers/repositories/InMemorySchoolRepository.ts';
+import { InMemoryInvitationRepository } from '../../../helpers/repositories/InMemoryInvitationRepository.ts';
 import { School } from '@domain/entities/School';
 
 describe('SuspendreEcoleUseCase', () => {

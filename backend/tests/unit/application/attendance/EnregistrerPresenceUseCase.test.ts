@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
 import { User } from '@domain/entities/User';
-import { InMemoryPresenceRepository } from './helpers/InMemoryPresenceRepository.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
-import { InMemoryNotificationService } from './helpers/InMemoryNotificationService.ts';
+import { InMemoryPresenceRepository } from '../../../helpers/repositories/InMemoryPresenceRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
+import { InMemoryNotificationService } from '../../../helpers/services/InMemoryNotificationService.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

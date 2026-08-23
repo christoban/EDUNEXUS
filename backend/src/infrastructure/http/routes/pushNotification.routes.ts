@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { PushNotificationController } from '@infrastructure/http/controllers/PushNotificationController';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth } from '../middlewares/auth.ts';
 
 export function creerPushNotificationRoutes(controller: PushNotificationController): Router {
   const router = Router();

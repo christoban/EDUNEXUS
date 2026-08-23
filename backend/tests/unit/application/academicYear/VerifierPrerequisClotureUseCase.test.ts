@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { VerifierPrerequisClotureUseCase } from '../../../../src/application/academicYear/VerifierPrerequisClotureUseCase.ts';
-import { InMemoryAnneeAcademiqueRepository } from './helpers/InMemoryAnneeAcademiqueRepository.ts';
+import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
 
 describe('VerifierPrerequisClotureUseCase', () => {
   let repo: InMemoryAnneeAcademiqueRepository;

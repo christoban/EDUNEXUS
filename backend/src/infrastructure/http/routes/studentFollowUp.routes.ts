@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { StudentFollowUpController } from '@infrastructure/http/controllers/StudentFollowUpController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 // Outil interne au personnel de suivi d'un élève signalé — jamais exposé aux parents/élèves
 // (PLAN_VERIFICATION_ET_ACTIONS_SUIVI.md, B.7 : même garde-fou de confidentialité que les

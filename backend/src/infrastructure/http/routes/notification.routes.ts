@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { NotificationController } from '@infrastructure/http/controllers/NotificationController';
-import { requireAuth } from '../../../middleware/auth';
+import { requireAuth } from '../middlewares/auth.ts';
 
 export function creerNotificationRoutes(controller: NotificationController): Router {
   const router = Router();

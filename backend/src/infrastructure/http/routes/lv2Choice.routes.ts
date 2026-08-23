@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 import type { Lv2ChoiceController } from '../controllers/Lv2ChoiceController';
 
 export function creerLv2ChoiceRoutes(controller: Lv2ChoiceController): Router {

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { ConnecterUtilisateurUseCase } from '../../../../src/application/user/ConnecterUtilisateurUseCase.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
-import { InMemorySchoolRepository } from './helpers/InMemorySchoolRepository.ts';
-import { FakeTokenService } from './helpers/FakeTokenService.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
+import { InMemorySchoolRepository } from '../../../helpers/repositories/InMemorySchoolRepository.ts';
+import { FakeTokenService } from '../../../helpers/services/FakeTokenService.ts';
 import { User } from '@domain/entities/User';
 import { School } from '@domain/entities/School';
 

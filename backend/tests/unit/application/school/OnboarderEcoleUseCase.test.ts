@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { OnboarderEcoleUseCase } from '@application/school/OnboarderEcoleUseCase';
-import { InMemorySchoolRepository } from './helpers/InMemorySchoolRepository.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
-import { InMemoryEmailService } from './helpers/InMemoryEmailService.ts';
+import { InMemorySchoolRepository } from '../../../helpers/repositories/InMemorySchoolRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
+import { InMemoryEmailService } from '../../../helpers/services/InMemoryEmailService.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

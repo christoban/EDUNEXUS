@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 import type { DevController } from '../controllers/DevController';
 
 export function creerDevRoutes(controller: DevController): Router {

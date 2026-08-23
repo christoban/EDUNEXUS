@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { FinanceController } from '@infrastructure/http/controllers/FinanceController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerFinanceRoutes(controller: FinanceController): Router {
   const router = Router();

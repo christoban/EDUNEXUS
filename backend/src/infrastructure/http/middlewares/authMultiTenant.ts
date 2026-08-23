@@ -1,7 +1,7 @@
 import { type Request, type Response, type NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { prisma } from "../config/prisma.ts";
-import type { AuthPayload } from "./auth";
+import { prisma } from '../../../config/prisma.ts';
+import type { AuthPayload } from './auth.ts';
 
 const masterJwtSecret = process.env.MASTER_JWT_SECRET || process.env.JWT_SECRET;
 const groupOwnerJwtSecret = process.env.GROUP_OWNER_JWT_SECRET || process.env.JWT_SECRET;

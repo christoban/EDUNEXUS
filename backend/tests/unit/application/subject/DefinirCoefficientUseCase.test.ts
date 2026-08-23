@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { DefinirCoefficientUseCase } from '../../../../src/application/subject/DefinirCoefficientUseCase.ts';
-import { InMemoryMatiereRepository } from './helpers/InMemoryMatiereRepository.ts';
+import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemoryMatiereRepository.ts';
 
 describe('DefinirCoefficientUseCase — coefficients BAC camerounais', () => {
   let repo: InMemoryMatiereRepository;

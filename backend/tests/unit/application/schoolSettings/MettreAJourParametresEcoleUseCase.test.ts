@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { MettreAJourParametresEcoleUseCase } from '../../../../src/application/schoolSettings/MettreAJourParametresEcoleUseCase.ts';
 import { ObtenirParametresEcoleUseCase } from '../../../../src/application/schoolSettings/ObtenirParametresEcoleUseCase.ts';
-import { InMemorySchoolSettingsRepository } from './helpers/InMemorySchoolSettingsRepository.ts';
+import { InMemorySchoolSettingsRepository } from '../../../helpers/repositories/InMemorySchoolSettingsRepository.ts';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
 
 describe('SchoolSettings — Use Cases', () => {

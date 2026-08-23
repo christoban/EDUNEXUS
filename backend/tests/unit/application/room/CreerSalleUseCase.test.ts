@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CreerSalleUseCase } from '../../../../src/application/room/CreerSalleUseCase.ts';
-import { InMemoryRoomRepository } from './helpers/InMemoryRoomRepository.ts';
+import { InMemoryRoomRepository } from '../../../helpers/repositories/InMemoryRoomRepository.ts';
 import { Room } from '@domain/entities/Room';
 
 describe('CreerSalleUseCase', () => {

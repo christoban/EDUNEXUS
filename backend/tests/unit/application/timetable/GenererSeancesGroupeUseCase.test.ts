@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { GenererSeancesGroupeUseCase } from '../../../../src/application/timetable/GenererSeancesGroupeUseCase.ts';
-import { InMemoryTimetableRepository } from './helpers/InMemoryTimetableRepository.ts';
-import { InMemoryStudentGroupRepository } from './helpers/InMemoryStudentGroupRepository.ts';
-import { InMemoryStudentGroupMembershipRepository } from './helpers/InMemoryStudentGroupMembershipRepository.ts';
-import { InMemoryClassRoomAssignmentRepository } from './helpers/InMemoryClassRoomAssignmentRepository.ts';
-import { InMemoryRoomRepository } from './helpers/InMemoryRoomRepository.ts';
+import { InMemoryTimetableRepository } from '../../../helpers/repositories/InMemoryTimetableRepository.ts';
+import { InMemoryStudentGroupRepository } from '../../../helpers/repositories/InMemoryStudentGroupRepository.ts';
+import { InMemoryStudentGroupMembershipRepository } from '../../../helpers/repositories/InMemoryStudentGroupMembershipRepository.ts';
+import { InMemoryClassRoomAssignmentRepository } from '../../../helpers/repositories/InMemoryClassRoomAssignmentRepository.ts';
+import { InMemoryRoomRepository } from '../../../helpers/repositories/InMemoryRoomRepository.ts';
 import { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import { Room } from '@domain/entities/Room';
 

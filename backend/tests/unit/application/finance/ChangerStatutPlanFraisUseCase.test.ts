@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { ChangerStatutPlanFraisUseCase } from '../../../../src/application/finance/ChangerStatutPlanFraisUseCase.ts';
-import { InMemoryPlanFraisRepository } from './helpers/InMemoryPlanFraisRepository.ts';
+import { InMemoryPlanFraisRepository } from '../../../helpers/repositories/InMemoryPlanFraisRepository.ts';
 import { PlanFrais } from '@domain/entities/PlanFrais';
 import { TransitionStatutPlanFraisError } from '@domain/errors/TransitionStatutPlanFraisError';
 

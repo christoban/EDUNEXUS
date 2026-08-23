@@ -3,9 +3,9 @@ import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConsei
 import { User } from '@domain/entities/User';
 import { Classe } from '@domain/entities/Classe';
 import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
-import { InMemoryNoteRepository } from './helpers/InMemoryNoteRepository.ts';
-import { InMemoryClasseRepository } from './helpers/InMemoryClasseRepository.ts';
-import { InMemoryUserRepository } from './helpers/InMemoryUserRepository.ts';
+import { InMemoryNoteRepository } from '../../../helpers/repositories/InMemoryNoteRepository.ts';
+import { InMemoryClasseRepository } from '../../../helpers/repositories/InMemoryClasseRepository.ts';
+import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

@@ -26,7 +26,7 @@ import type { AddressInfo } from 'net';
 import type { PrismaClient } from '@prisma/client';
 import { AssistantController } from '../../../src/infrastructure/http/controllers/AssistantController.ts';
 import { buildAdminActionCatalog } from '@application/assistant/adminActionCatalog';
-import { requireAuth } from '../../../src/middleware/auth.ts';
+import { requireAuth } from '../../../src/infrastructure/http/middlewares/auth.ts';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
 import { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';

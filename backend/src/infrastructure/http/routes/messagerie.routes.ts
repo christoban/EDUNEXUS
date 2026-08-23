@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { MessagerieController } from '@infrastructure/http/controllers/MessagerieController';
-import { requireAuth, requireRole } from '../../../middleware/auth';
+import { requireAuth, requireRole } from '../middlewares/auth.ts';
 
 export function creerMessagerieRoutes(controller: MessagerieController): Router {
   const router = Router();

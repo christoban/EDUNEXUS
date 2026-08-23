@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { ObtenirEnfantsUseCase } from '../../../../src/application/parent/ObtenirEnfantsUseCase.ts';
 import { VerifierAccesEnfantUseCase } from '../../../../src/application/parent/VerifierAccesEnfantUseCase.ts';
-import { InMemoryParentRepository } from './helpers/InMemoryParentRepository.ts';
+import { InMemoryParentRepository } from '../../../helpers/repositories/InMemoryParentRepository.ts';
 
 describe('Parent — Use Cases', () => {
   let repo: InMemoryParentRepository;

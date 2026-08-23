@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { CreerPlanFraisUseCase } from '../../../../src/application/finance/CreerPlanFraisUseCase.ts';
-import { InMemoryPlanFraisRepository } from './helpers/InMemoryPlanFraisRepository.ts';
+import { InMemoryPlanFraisRepository } from '../../../helpers/repositories/InMemoryPlanFraisRepository.ts';
 import { SeuilLegalDepasseError } from '@domain/errors/SeuilLegalDepasseError';
 
 describe('CreerPlanFraisUseCase — Loi 3 Art. 48 MINESEC', () => {
