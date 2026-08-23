@@ -87,9 +87,12 @@ export class InMemoryPromotionRepository implements PromotionRepository {
     this.classesEleves.set(studentId, classId);
   }
 
-  async countPromotions(_schoolId: string, _yearId: string) {
-    const promus = this.promotionsEnregistrees.filter(p => p.fromClassId !== p.toClassId).length;
-    const redoublants = this.promotionsEnregistrees.filter(p => p.fromClassId === p.toClassId).length;
+  async countPromotions(schoolId: string, academicYearId: string) {
+    const filtered = this.promotionsEnregistrees.filter(
+      p => p.schoolId === schoolId && p.academicYearId === academicYearId
+    );
+    const promus = filtered.filter(p => p.fromClassId !== p.toClassId).length;
+    const redoublants = filtered.filter(p => p.fromClassId === p.toClassId).length;
     return { promus, redoublants };
   }
 

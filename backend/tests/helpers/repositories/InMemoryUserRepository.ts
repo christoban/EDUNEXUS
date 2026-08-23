@@ -6,6 +6,7 @@ export class InMemoryUserRepository implements UserRepository {
   private store = new Map<string, User>();
   private classesParEleve = new Map<string, string>();
   private parentsParEleve = new Map<string, Set<string>>();
+  private utilisateursSupprimes = new Set<string>();
 
   ajouter(user: User): void {
     this.store.set(user.id, user);
@@ -19,24 +20,35 @@ export class InMemoryUserRepository implements UserRepository {
     this.parentsParEleve.set(studentId, new Set(parentIds));
   }
 
+  private estActif(user: User): boolean {
+    return !this.utilisateursSupprimes.has(user.id);
+  }
+
   async findById(id: string): Promise<User | null> {
-    return this.store.get(id) ?? null;
+    const user = this.store.get(id);
+    return user && this.estActif(user) ? user : null;
   }
 
   async findByEmail(email: string, schoolId: string): Promise<User | null> {
-    return [...this.store.values()].find(u => u.email === email && u.schoolId === schoolId) ?? null;
+    return [...this.store.values()].find(
+      u => u.email === email && u.schoolId === schoolId && this.estActif(u)
+    ) ?? null;
   }
 
   async findByPhone(phone: string, schoolId: string): Promise<User | null> {
-    return [...this.store.values()].find(u => u.phone === phone && u.schoolId === schoolId) ?? null;
+    return [...this.store.values()].find(
+      u => u.phone === phone && u.schoolId === schoolId && this.estActif(u)
+    ) ?? null;
   }
 
   async findBySchool(schoolId: string): Promise<User[]> {
-    return [...this.store.values()].filter(u => u.schoolId === schoolId);
+    return [...this.store.values()].filter(u => u.schoolId === schoolId && this.estActif(u));
   }
 
   async findByRole(schoolId: string, role: UserRole): Promise<User[]> {
-    return [...this.store.values()].filter(u => u.schoolId === schoolId && u.role === role);
+    return [...this.store.values()].filter(
+      u => u.schoolId === schoolId && u.role === role && this.estActif(u)
+    );
   }
 
   async findByClass(schoolId: string, classId: string): Promise<User[]> {
@@ -44,12 +56,15 @@ export class InMemoryUserRepository implements UserRepository {
       user =>
         user.schoolId === schoolId &&
         user.role === 'STUDENT' &&
-        this.classesParEleve.get(user.id) === classId
+        this.classesParEleve.get(user.id) === classId &&
+        this.estActif(user)
     );
   }
 
   async existsByEmail(email: string, schoolId: string): Promise<boolean> {
-    return [...this.store.values()].some(u => u.email === email && u.schoolId === schoolId);
+    return [...this.store.values()].some(
+      u => u.email === email && u.schoolId === schoolId && this.estActif(u)
+    );
   }
 
   async save(user: User): Promise<void> {
@@ -72,13 +87,13 @@ export class InMemoryUserRepository implements UserRepository {
 
   async authentifier(email: string, schoolId: string, _plainPassword: string, role?: string): Promise<User | null> {
     return [...this.store.values()].find(
-      u => u.email === email && u.schoolId === schoolId && (!role || u.role === role)
+      u => u.email === email && u.schoolId === schoolId && this.estActif(u) && (!role || u.role === role)
     ) ?? null;
   }
 
   async listerRolesAvecMotDePasse(email: string, schoolId: string, _plainPassword: string): Promise<string[]> {
     return [...this.store.values()]
-      .filter(u => u.email === email && u.schoolId === schoolId)
+      .filter(u => u.email === email && u.schoolId === schoolId && this.estActif(u))
       .map(u => u.role);
   }
 
@@ -124,11 +139,17 @@ export class InMemoryUserRepository implements UserRepository {
   }
 
   async supprimerAvecCascade(userId: string): Promise<void> {
-    this.store.delete(userId);
+    if (!this.store.has(userId)) {
+      throw new Error('Utilisateur introuvable');
+    }
+    this.utilisateursSupprimes.add(userId);
   }
 
-  async restaurer(_userId: string): Promise<void> {
-    // stub — User entity n'a pas deletedAt dans le domaine
+  async restaurer(userId: string): Promise<void> {
+    if (!this.store.has(userId)) {
+      throw new Error('Utilisateur introuvable');
+    }
+    this.utilisateursSupprimes.delete(userId);
   }
 
   async transfererEleve(params: {
@@ -153,7 +174,7 @@ export class InMemoryUserRepository implements UserRepository {
     const parentIds = this.parentsParEleve.get(studentId) ?? new Set();
 
     return [...this.store.values()]
-      .filter(user => parentIds.has(user.id) && user.email !== undefined)
+      .filter(user => parentIds.has(user.id) && user.email !== undefined && this.estActif(user))
       .map(user => user.email!);
   }
 }
