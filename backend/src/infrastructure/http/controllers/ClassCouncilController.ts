@@ -2,9 +2,9 @@ import type { Request, Response, NextFunction } from 'express';
 import type { CouncilDecision, ReportCardStatus } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { logActivity } from '../../../utils/activitieslog';
-import { notifyBulletinSms } from '../../services/SmsNotificationService';
+import { notifyBulletinSms } from '../../services/sms/SmsNotificationService.ts';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 import type { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';
 

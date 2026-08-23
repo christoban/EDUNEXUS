@@ -8,7 +8,7 @@ import type { ProposerStructureAnneeSuivanteUseCase } from '@application/academi
 import type { ValiderStructureAnneeSuivanteUseCase } from '@application/academicYear/ValiderStructureAnneeSuivanteUseCase';
 import type { AnnulerStructureProposeeUseCase } from '@application/academicYear/AnnulerStructureProposeeUseCase';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 export class AcademicYearController {
   constructor(

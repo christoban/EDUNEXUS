@@ -7,8 +7,8 @@ import { AppliquerTransfertPebsUseCase } from '@application/pebsExam/AppliquerTr
 import { ResumeSessionPebsUseCase } from '@application/pebsExam/ResumeSessionPebsUseCase';
 import { ScannerListeCandidatsPebsUseCase } from '@application/pebsExam/ScannerListeCandidatsPebsUseCase';
 import { DetecterAnomaliesPebsUseCase } from '@application/pebsExam/DetecterAnomaliesPebsUseCase';
-import { notifyPebsSelectionSms } from '@infrastructure/services/SmsNotificationService';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { notifyPebsSelectionSms } from '@infrastructure/services/sms/SmsNotificationService';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class PebsExamController {

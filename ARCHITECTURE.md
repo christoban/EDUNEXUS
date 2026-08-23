@@ -75,11 +75,11 @@ Le backend applique une **architecture hexagonale** stricte en 3 couches. Règle
 ### 3.3 `infrastructure/` — les adapters (le monde réel)
 - `http/controllers/` (65) : traduisent HTTP ↔ use cases. `http/routes/` (59) : montage Express + middlewares (`requireAuth`, `requireRole`). `http/dto/`, `http/middlewares/`.
 - `persistence/prisma/` (27 repos) : implémentent les ports repository via Prisma.
-- `services/` : adapters externes implémentant les ports (`GroqIAService` [Groq], `CampayPaiementService` [Mobile Money], `NodemailerEmailService`/Resend, `SmsNotificationService`, `PdfKitBulletinService`, `JwtTokenService`, `SocketNotificationService`).
+- `services/` : adapters externes + clients techniques, organisés par domaine — `ai/` (GroqIAService, GroqClient, DocumentAiOrchestrator…), `email/`, `sms/`, `payment/`, `notification/`, `auth/`, `storage/`, `pdf/`, `scraping/`.
 - `config/container.ts` : **composition root** — instancie repos + services + use cases et les câble. `config/hexagonal.bootstrap.ts` : monte toutes les routes sur l'app Express à partir du container.
 - `inngest/`, `socket/`, `pdf/`.
 
-> ⚠️ Le repo contient aussi des **dossiers utilitaires hors hexagone** (historiques ou transverses) : `services/` (campay, emailService, groq, smsService), `utils/` (reportCards, schoolDocuments, hrDocuments, emailTemplates, languageHelper), `middleware/`, `inngest/`, `socket/`, `scripts/`, `validation/`, `lib/`. Ils sont utilisés directement par l'infrastructure. Ne pas les confondre avec les couches hexagonales.
+> ⚠️ Le repo contient aussi des **dossiers utilitaires hors hexagone** (historiques ou transverses) : `utils/` (reportCards, schoolDocuments, hrDocuments, emailTemplates, languageHelper), `middleware/`, `inngest/`, `socket/`, `scripts/`, `validation/`, `lib/`. Ils sont utilisés directement par l'infrastructure. Ne pas les confondre avec les couches hexagonales.
 
 ### 3.4 Point d'entrée
 `backend/src/server.ts` → crée l'app Express, appelle le bootstrap (container + routes), démarre Socket.io et le serveur HTTP.
@@ -139,7 +139,7 @@ Autres flux importants :
 - **Jobs asynchrones (Inngest)** : génération de bulletins en masse, génération auto d'emploi du temps (IA), notifications — `inngest/functions.ts`.
 - **Temps réel (Socket.io)** : notifications in-app poussées via `SocketNotificationService`.
 - **Paiement Mobile Money** : `InitierPaiementMobileMoneyUseCase` → `CampayPaiementService` → webhook Campay → `TraiterWebhookCampayUseCase`.
-- **IA (Groq)** : assistant, insights, commentaires de bulletin, EDT auto — via `services/groq.ts` / `GroqIAService` (modèle **Groq** `openai/gpt-oss-120b`).
+- **IA (Groq)** : assistant, insights, commentaires de bulletin, EDT auto — via `infrastructure/services/ai/GroqClient.ts` / `GroqIAService` (modèle **Groq** `openai/gpt-oss-120b`).
 - **Examens & Admissions** : concours d'entrée 6e (sessions, candidats, CEP, création compte élève), sélection PEBS (transfert classe en masse), choix LV2 numérisé (fenêtres, soumission élève/admin) — modules `lv2Choice`, `entranceExam`, `pebsExam`. IA intégrée : scan Vision, détection d'anomalies, copilot admin.
 
 ---
@@ -163,7 +163,7 @@ Autres flux importants :
 6. **PEBS orthogonal au template** : le « bilingue » établissement (2 sections) ≠ le Programme Spécial Bilingue (flag activable). Ne pas les fusionner.
 7. **i18n frontend maison** (pas de lib) + dictionnaires **statiques** : bascule FR↔EN fiable sur tout appareil.
 8. **Thème via tokens CSS + next-themes** : migration progressive des couleurs hex vers `var(--token)`.
-9. **IA via Groq** — point d'entrée `generateWithGroq` / `groqModel` (`services/groq.ts`), adapter `GroqIAService`.
+9. **IA via Groq** — point d'entrée `generateWithGroq` / `groqModel` (`infrastructure/services/ai/GroqClient.ts`), adapter `GroqIAService`.
 10. **Multi-plateforme (Desktop/Android/iPhone) — PWA maintenant, Capacitor plus tard pour mobile** (juillet 2026). Un seul codebase Next.js, pas d'app native écrite séparément. Desktop reste PWA pure indéfiniment (pas d'équivalent natif pour un navigateur de bureau). Mobile (Android **et** iPhone — base d'utilisateurs iPhone significative au Cameroun, ne pas sous-estimer) : empaquetage **Capacitor** prévu **plus tôt que "si le besoin apparaît"**, car la PWA seule a deux limites réelles côté iOS — pas de présence App Store (découvrabilité), et les notifications push Safari sont limitées (support iOS 16.4+ uniquement, et seulement après que l'utilisateur ait fait "Ajouter à l'écran d'accueil" manuellement — jamais automatique). Ne jamais forcer le téléchargement de l'app une fois Capacitor livré : le web doit rester utilisable sans installation (fracture numérique — téléphones d'entrée de gamme à stockage limité, cf. constat enquête terrain). Prévoir un bandeau discret, fermable, orienté bénéfice concret (son personnalisé fiable, ouverture rapide, icône écran d'accueil) plutôt qu'un blocage.
     - **Conséquence directe sur le son des notifications** (voir §12 de [FEATURES.md](FEATURES.md)) : le son **in-app** (app ouverte, reçu via Socket.io) est indépendant de tout ça et déjà implémenté (`fe/lib/notificationSound.ts`, synthétisé en Web Audio API, pas de fichier audio). Le son **personnalisé du push** (app fermée/tél. verrouillé) est en revanche **bloqué par la plateforme** tant que l'app tourne en Web Push standard (`fe/worker/index.js` — la Notification API des navigateurs n'accepte qu'un son système on/off, `silent: false`, jamais un fichier audio custom, quasi inexistant sur iOS). Ce n'est **pas un manque de développement**, c'est une limite du navigateur — non résoluble avant l'empaquetage. **Au moment de Capacitor** : passer par `@capacitor/push-notifications` (APNs/FCM natifs), qui accepte un champ son personnalisé dans le payload — fournir un fichier `.caf`/`.wav` (iOS) et `.mp3`/`.wav` (Android) à ce moment-là. Rien à préparer avant. Plan détaillé (architecture bundle statique offline-first + défis techniques identifiés) : [Plan_Capacitor_Mobile_ZekoulABia.md](docs/Plan_Capacitor_Mobile_ZekoulABia.md).
 

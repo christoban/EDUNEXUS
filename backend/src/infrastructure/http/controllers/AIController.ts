@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
-import { generateWithGroq } from '../../../services/groq';
+import { generateWithGroq } from '../../services/ai/GroqClient.ts';
 import { resolveLanguage, instructionLangue, type Language } from '../../../utils/languageHelper';
 import type { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
 import { getClassIdActuelEleve, whereProfilesParClasse, whereProfilesParClasses } from '@application/shared/studentEnrollment';

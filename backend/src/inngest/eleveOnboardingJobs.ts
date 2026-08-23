@@ -10,9 +10,9 @@
 import { inngest } from './index';
 import { PrismaClient, type UserRole } from '@prisma/client';
 import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
-import { sendTransactionalEmail } from '../services/emailService';
+import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
 import { buildOnboardingLinkTemplate } from '../utils/emailTemplates';
-import { notifyOnboardingReminderSms } from '../infrastructure/services/SmsNotificationService';
+import { notifyOnboardingReminderSms } from '../infrastructure/services/sms/SmsNotificationService.ts';
 
 const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 

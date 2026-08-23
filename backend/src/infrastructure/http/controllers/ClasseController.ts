@@ -10,7 +10,7 @@ import type { AssignerElevesAuSousGroupeUseCase } from '@application/class/Assig
 import type { AssignerSalleClasseUseCase } from '@application/studentGroup/AssignerSalleClasseUseCase';
 import type { RetirerAssignationSalleUseCase } from '@application/studentGroup/RetirerAssignationSalleUseCase';
 import { CYCLE2_LEVELS, NIVEAU_MAP, parseSerie } from '@application/school/SubjectAssignmentHelper';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { whereElevesParClasse, whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export class ClasseController {

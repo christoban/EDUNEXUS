@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient, Prisma, CareerEventType, StaffAttendanceStatus, LeaveType, LeaveStatus } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import ExcelJS from 'exceljs';
 import {
   generateAttestationTravailPdf,

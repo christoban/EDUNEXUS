@@ -6,9 +6,9 @@
  * pas passer par Inngest pour ces envois ponctuels déclenchés par une action utilisateur.
  */
 import type { PrismaClient } from '@prisma/client';
-import { sendTransactionalEmail } from '../services/emailService';
+import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
 import { buildOnboardingLinkTemplate, buildOnboardingPasswordSetupTemplate } from './emailTemplates';
-import { notifyOnboardingLinkSms, notifyOnboardingActivatedSms, notifyOnboardingActivatedSmsOnly } from '../infrastructure/services/SmsNotificationService';
+import { notifyOnboardingLinkSms, notifyOnboardingActivatedSms, notifyOnboardingActivatedSmsOnly } from '../infrastructure/services/sms/SmsNotificationService.ts';
 
 function frontendUrl(): string {
   return process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';

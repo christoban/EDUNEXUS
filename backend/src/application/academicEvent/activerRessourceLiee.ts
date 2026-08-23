@@ -12,7 +12,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { OuvrirFenetreChoixLV2UseCase } from '../lv2Choice/OuvrirFenetreChoixLV2UseCase';
-import { notifyLv2WindowOpenSms } from '../../infrastructure/services/SmsNotificationService';
+import { notifyLv2WindowOpenSms } from '../../infrastructure/services/sms/SmsNotificationService.ts';
 
 export interface EvenementPourActivation {
   id: string;

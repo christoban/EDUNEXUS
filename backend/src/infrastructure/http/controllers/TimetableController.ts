@@ -16,7 +16,7 @@ import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../utils/languageHelper';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { inngest } from '../../../inngest/index.ts';
 
 /** Schéma Zod des contraintes douces V2.5 — .strict() : toute clé inconnue → 400. */

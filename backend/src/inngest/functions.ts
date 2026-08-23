@@ -1,15 +1,15 @@
 import { inngest } from "./index.ts";
 import { prisma } from "../config/prisma.ts";
-import { sendTransactionalEmail } from "../services/emailService.ts";
+import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
 import { resolveLanguage } from "../utils/languageHelper.ts";
 import { getEffectiveSchoolSettings } from "../utils/schoolSettings.ts";
 import { createSchoolBackup, purgeSchoolLogsByRetention } from "../utils/schoolBackup.ts";
-import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms, notifyOverdueBookSms } from "../infrastructure/services/SmsNotificationService.ts";
-import { SocketNotificationService } from "../infrastructure/services/SocketNotificationService";
-import { notifierParentsPushDabord } from "../infrastructure/services/PushFirstNotifier";
+import { notifyOverdueInvoiceSms, notifyAbsenceThresholdSms, notifyOverdueBookSms } from '../infrastructure/services/sms/SmsNotificationService.ts';
+import { SocketNotificationService } from '../infrastructure/services/notification/SocketNotificationService.ts';
+import { notifierParentsPushDabord } from '../infrastructure/services/notification/PushFirstNotifier.ts';
 import { PrismaSanteEleveRepository } from "../infrastructure/persistence/prisma/PrismaSanteEleveRepository";
 import { CalculerIndiceSanteUseCase } from "../application/ai/CalculerIndiceSanteUseCase";
-import { GroqIAService } from "../infrastructure/services/GroqIAService";
+import { GroqIAService } from '../infrastructure/services/ai/GroqIAService.ts';
 import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../utils/schoolCalendar";
 import { notifierEvenementAcademique } from "../utils/academicEventNotifier";
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "../application/academicEvent";
@@ -415,7 +415,7 @@ async function notifierPersonnelDirect(userId: string, schoolId: string, titre: 
   await socketService
     .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
     .catch((err) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
-  const { notifierUtilisateurPush } = await import("../infrastructure/services/PushNotificationService");
+  const { notifierUtilisateurPush } = await import('../infrastructure/services/notification/PushNotificationService.ts');
   await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
 }
 

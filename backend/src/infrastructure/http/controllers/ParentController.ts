@@ -6,7 +6,7 @@ import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/Ini
 import type { FactureRepository } from '@domain/ports/repositories/FactureRepository';
 import type { PaymentMethod } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 export class ParentController {
   constructor(

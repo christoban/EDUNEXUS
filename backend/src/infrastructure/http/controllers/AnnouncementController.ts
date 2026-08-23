@@ -4,7 +4,7 @@ import { CreerAnnonceUseCase } from '@application/announcement/CreerAnnonceUseCa
 import { ListerAnnoncesUseCase } from '@application/announcement/ListerAnnoncesUseCase';
 import { ModifierAnnonceUseCase } from '@application/announcement/ModifierAnnonceUseCase';
 import { SupprimerAnnonceUseCase } from '@application/announcement/SupprimerAnnonceUseCase';
-import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
 export class AnnouncementController {
   private readonly creerAnnonce: CreerAnnonceUseCase;

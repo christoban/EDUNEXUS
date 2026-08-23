@@ -2,7 +2,7 @@ import type { PrismaClient, Prisma } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateText, tool, APICallError } from 'ai';
-import { groqModel } from '../../../services/groq';
+import { groqModel } from '../../services/ai/GroqClient.ts';
 import {
   buildTools,
   filterCatalogForUser,
@@ -11,7 +11,7 @@ import {
   type ActionDefinition,
 } from '@application/assistant/catalogShared';
 import { resolveLanguage, instructionLangue } from '../../../utils/languageHelper';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 /** Fenêtre pendant laquelle une action non-destructive reste annulable (5 minutes). */
 const UNDO_WINDOW_MS = 5 * 60 * 1000;

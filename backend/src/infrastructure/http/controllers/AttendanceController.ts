@@ -2,9 +2,9 @@ import type { Request, Response, NextFunction } from 'express';
 import type { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
 import type { AttendancePeriod, AttendanceStatus } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { notifyAbsenceSms } from '@infrastructure/services/SmsNotificationService';
-import { notifierParentsPushDabord } from '@infrastructure/services/PushFirstNotifier';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { notifyAbsenceSms } from '@infrastructure/services/sms/SmsNotificationService';
+import { notifierParentsPushDabord } from '@infrastructure/services/notification/PushFirstNotifier';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 const startOfDayUtc = (dateString: string) => {
   const [y = 0, m = 1, d = 1] = dateString.split('-').map(Number);

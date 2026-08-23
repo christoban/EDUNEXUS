@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { SouscrirePushUseCase } from '@application/pushNotification/SouscrirePushUseCase';
 import type { DesinscrirePushUseCase } from '@application/pushNotification/DesinscrirePushUseCase';
-import { getVapidPublicKey } from '../../../services/webPushService';
+import { getVapidPublicKey } from '../../services/notification/WebPushClient.ts';
 
 export class PushNotificationController {
   constructor(

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { verifierAppartenanceConversation, destinatairesAutorises } from './MessagerieAccessHelpers';
-import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 import { getIO } from '../../socket/io';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 

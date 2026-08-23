@@ -6,7 +6,7 @@ import { generateSecret, generateURI, verifySync } from 'otplib';
 import QRCode from 'qrcode';
 import { passwordError } from '../../../utils/passwordValidator';
 import { parseDateFR } from '../../../utils/dateParsing';
-import { sendTransactionalEmail } from '../../../services/emailService';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { genererCodesRecuperation } from '../../../utils/mfaRecoveryCodes';
 import { verifierMotDePasseEtMfa } from '../../../middleware/requireUserSensitiveAuth';
 import { emettreJetonReauth } from '../../../middleware/requireReauthToken';
@@ -26,7 +26,7 @@ import type { TokenService, PayloadToken } from '@domain/ports/services/TokenSer
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import * as XLSX from 'xlsx';
 
 const COOKIE_OPTIONS = {
@@ -587,7 +587,7 @@ export class UserController {
 
             console.log(`[Invite] Lien d'invitation pour ${recipientEmail}: ${inviteUrl}`);
 
-            const { sendTransactionalEmail } = await import('../../../services/emailService');
+            const { sendTransactionalEmail } = await import('../../services/email/EmailService.ts');
             await sendTransactionalEmail({
               recipientEmail,
               subject: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,

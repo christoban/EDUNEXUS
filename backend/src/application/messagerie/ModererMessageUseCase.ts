@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
 export interface ModererMessageCommande {
   schoolId: string;

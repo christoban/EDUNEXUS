@@ -1,4 +1,4 @@
-import { extraireDocument } from '@infrastructure/services/DocumentAiOrchestrator';
+import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
 
 /**
  * APPLICATION — Use case : analyse par IA d'une photo/scan de diplôme, pour PRÉ-REMPLIR le

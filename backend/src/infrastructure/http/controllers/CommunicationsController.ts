@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient, Prisma, UserRole } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
-import { sendSMS, isSmsConfigured } from '../../../services/smsService';
-import { sendTransactionalEmail, isEmailConfigured } from '../../../services/emailService';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import { sendSMS, isSmsConfigured } from '../../services/sms/SmsService.ts';
+import { sendTransactionalEmail, isEmailConfigured } from '../../services/email/EmailService.ts';
 import { whereProfilesParClasse, whereProfilesParClasses } from '@application/shared/studentEnrollment';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

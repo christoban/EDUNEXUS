@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import type { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
+import type { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
 /**
  * Préfixe /api/v2/notifications — alimente la cloche IN_APP (voir SocketNotificationService,

@@ -5,7 +5,7 @@ import { AccepterTransfertEleveUseCase } from '../../../application/schoolGroup/
 import { AccepterTransfertEnseignantUseCase } from '../../../application/schoolGroup/AccepterTransfertEnseignantUseCase';
 import { RejeterTransfertGroupeUseCase } from '../../../application/schoolGroup/RejeterTransfertGroupeUseCase';
 import { notifierOnboardingLienCree } from '../../../utils/onboardingNotifications';
-import { sendTransactionalEmail } from '../../../services/emailService';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 export class AdminGroupTransferController {
   constructor(

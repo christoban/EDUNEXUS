@@ -3,7 +3,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { CreerSalleUseCase } from '@application/room/CreerSalleUseCase';
 import type { ModifierSalleUseCase } from '@application/room/ModifierSalleUseCase';
 import type { SupprimerSalleUseCase } from '@application/room/SupprimerSalleUseCase';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 export class RoomController {
   constructor(

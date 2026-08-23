@@ -15,11 +15,11 @@ import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaieme
 import { TransitionStatutPlanFraisError } from '@domain/errors/TransitionStatutPlanFraisError';
 import type { FeePlanStatus, PaymentMethod } from '@domain/types/enums';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
-import { notifyPaymentSms } from '@infrastructure/services/SmsNotificationService';
-import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import { notifyPaymentSms } from '@infrastructure/services/sms/SmsNotificationService';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 import PDFDocument from 'pdfkit';
-import { sendTransactionalEmail } from '../../../services/emailService';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 const notificationService = new SocketNotificationService();
 

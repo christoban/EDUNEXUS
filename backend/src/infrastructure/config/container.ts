@@ -59,7 +59,7 @@ import { SyncFromCarteScolaireUseCase } from '@application/matricule/SyncFromCar
 import { VerifierRecuUseCase } from '@application/matricule/VerifierRecuUseCase';
 import { ConfirmerCorrespondanceFuzzyUseCase } from '@application/matricule/ConfirmerCorrespondanceFuzzyUseCase';
 import { SignalerErreurCarteScolaireUseCase } from '@application/matricule/SignalerErreurCarteScolaireUseCase';
-import { CarteScolaireScrapingAdapter } from '@infrastructure/services/CarteScolaireScrapingAdapter';
+import { CarteScolaireScrapingAdapter } from '@infrastructure/services/scraping/CarteScolaireScrapingAdapter';
 
 // --- Use Cases : Onboarding Auto-Service Élèves ---
 import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/CreerSqueletteOnboardingUseCase';
@@ -109,10 +109,10 @@ import { ScannerListeCandidatsPebsUseCase } from '@application/pebsExam/ScannerL
 import { DetecterAnomaliesPebsUseCase } from '@application/pebsExam/DetecterAnomaliesPebsUseCase';
 
 // --- Adapters Services ---
-import { NodemailerEmailService } from '@infrastructure/services/NodemailerEmailService';
-import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
-import { PdfKitBulletinService } from '@infrastructure/services/PdfKitBulletinService';
-import { JwtTokenService } from '@infrastructure/services/JwtTokenService';
+import { NodemailerEmailService } from '@infrastructure/services/email/NodemailerEmailService';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
+import { PdfKitBulletinService } from '@infrastructure/services/pdf/PdfKitBulletinService';
+import { JwtTokenService } from '@infrastructure/services/auth/JwtTokenService';
 
 // --- Adapters Persistence (suite) ---
 import { PrismaInvitationRepository } from '@infrastructure/persistence/prisma/PrismaInvitationRepository';
@@ -133,7 +133,7 @@ import { PrismaPaiementRepository } from '@infrastructure/persistence/prisma/Pri
 import { PrismaDepenseRepository } from '@infrastructure/persistence/prisma/PrismaDepenseRepository';
 
 // --- Adapter Service Campay ---
-import { CampayPaiementService } from '@infrastructure/services/CampayPaiementService';
+import { CampayPaiementService } from '@infrastructure/services/payment/CampayPaiementService';
 
 // --- Use Cases : Finance ---
 import { CreerPlanFraisUseCase } from '@application/finance/CreerPlanFraisUseCase';
@@ -162,13 +162,13 @@ import { PrismaClassCouncilRepository } from '@infrastructure/persistence/prisma
 import { PrismaClassCouncilPreviewQueryPort } from '@infrastructure/persistence/prisma/PrismaClassCouncilPreviewQueryPort';
 
 // --- Adapter Service IA ---
-import { GroqIAService } from '@infrastructure/services/GroqIAService';
+import { GroqIAService } from '@infrastructure/services/ai/GroqIAService';
 
 // --- Use Cases : AI ---
 import { CalculerIndiceSanteUseCase } from '@application/ai/CalculerIndiceSanteUseCase';
 import { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
-import { RulesBasedPredictionService } from '@infrastructure/services/RulesBasedPredictionService';
-import { TabPfnPredictionService } from '@infrastructure/services/TabPfnPredictionService';
+import { RulesBasedPredictionService } from '@infrastructure/services/ai/RulesBasedPredictionService';
+import { TabPfnPredictionService } from '@infrastructure/services/ai/TabPfnPredictionService';
 
 // --- Adapters Persistence Parent + SchoolSettings ---
 import { PrismaParentRepository } from '@infrastructure/persistence/prisma/PrismaParentRepository';

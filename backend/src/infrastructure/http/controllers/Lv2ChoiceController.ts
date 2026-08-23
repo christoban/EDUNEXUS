@@ -5,8 +5,8 @@ import { SoumettreChoixLV2EleveUseCase } from '@application/lv2Choice/SoumettreC
 import { SaisirChoixLV2ManuelUseCase } from '@application/lv2Choice/SaisirChoixLV2ManuelUseCase';
 import { AppliquerChoixLV2UseCase } from '@application/lv2Choice/AppliquerChoixLV2UseCase';
 import { SuivreFenetreChoixLV2UseCase } from '@application/lv2Choice/SuivreFenetreChoixLV2UseCase';
-import { notifyLv2WindowOpenSms } from '@infrastructure/services/SmsNotificationService';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { notifyLv2WindowOpenSms } from '@infrastructure/services/sms/SmsNotificationService';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 export class Lv2ChoiceController {
   constructor(

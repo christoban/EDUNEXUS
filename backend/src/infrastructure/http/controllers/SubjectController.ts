@@ -5,7 +5,7 @@ import type { AssignerEnseignantMatiereUseCase } from '@application/subject/Assi
 import type { DefinirCoefficientUseCase } from '@application/subject/DefinirCoefficientUseCase';
 import type { SupprimerMatiereUseCase } from '@application/subject/SupprimerMatiereUseCase';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 export class SubjectController {
   constructor(

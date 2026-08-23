@@ -18,7 +18,7 @@ import { join } from 'path';
 import { inngest } from './index.ts';
 import { chiffrerBuffer } from '../utils/backupEncryption';
 import { calculerClesAConserver } from '../utils/backupRotation';
-import { televerserObjet, listerObjets, supprimerObjet } from '../infrastructure/services/OffsiteBackupStorage';
+import { televerserObjet, listerObjets, supprimerObjet } from '../infrastructure/services/storage/OffsiteBackupStorage.ts';
 
 const execFileAsync = promisify(execFile);
 const PREFIXE_R2 = 'db-exports/';

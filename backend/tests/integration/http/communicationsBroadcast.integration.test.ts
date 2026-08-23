@@ -19,7 +19,7 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
-import * as smsServiceReel from '../../../src/services/smsService.ts';
+import * as smsServiceReel from '../../../src/infrastructure/services/sms/SmsService.ts';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
 
@@ -33,7 +33,7 @@ if (!process.env.JWT_SECRET) {
 // sécurité si jamais le mock ne s'applique pas au module déjà importé ailleurs. On repart du
 // module réel importé statiquement (pas d'import() du même spécificateur DANS la factory du
 // mock — ça provoque une résolution circulaire qui bloque indéfiniment).
-mock.module('../../../src/services/smsService.ts', () => ({
+mock.module('../../../src/infrastructure/services/sms/SmsService.ts', () => ({
   ...smsServiceReel,
   isSmsConfigured: () => false,
   sendSMS: async () => ({ success: false, error: 'sendSMS mocké — ne doit jamais être appelé dans ce test' }),

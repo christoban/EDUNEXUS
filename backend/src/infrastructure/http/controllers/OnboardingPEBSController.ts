@@ -6,7 +6,7 @@
  * la soumet à Groq, et retourne une structure classe par classe.
  */
 import type { Request, Response, NextFunction } from 'express';
-import { generateWithGroq } from '../../../services/groq';
+import { generateWithGroq } from '../../services/ai/GroqClient.ts';
 
 interface PEBSOrgRule {
   className: string;

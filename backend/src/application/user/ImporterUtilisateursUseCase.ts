@@ -391,7 +391,7 @@ export class ImporterUtilisateursUseCase {
   // Dev mode : juste logué en console, aucun email réel envoyé
   private async envoyerEmailDevMode(email: string, prenom: string, nom: string, schoolId: string, schoolName: string): Promise<void> {
     try {
-      const { sendTransactionalEmail } = await import('../../services/emailService')
+      const { sendTransactionalEmail } = await import('../../infrastructure/services/email/EmailService.ts')
       await sendTransactionalEmail({
         recipientEmail: email,
         subject: `[DEV] Compte créé — ${schoolName}`,
@@ -425,7 +425,7 @@ export class ImporterUtilisateursUseCase {
 
       console.log(`[Import] Lien invitation ${email}: ${inviteUrl}`)
 
-      const { sendTransactionalEmail } = await import('../../services/emailService')
+      const { sendTransactionalEmail } = await import('../../infrastructure/services/email/EmailService.ts')
       await sendTransactionalEmail({
         recipientEmail: email,
         subject: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,

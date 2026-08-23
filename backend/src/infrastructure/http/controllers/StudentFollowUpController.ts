@@ -6,9 +6,9 @@ import type { ClorreActionSuiviUseCase } from '@application/suivi/ClorreActionSu
 import type { ListerActionsEnCoursUseCase } from '@application/suivi/ListerActionsEnCoursUseCase';
 import type { AssignerActionSuiviUseCase } from '@application/suivi/AssignerActionSuiviUseCase';
 import type { ListerHistoriqueSuiviEleveUseCase } from '@application/suivi/ListerHistoriqueSuiviEleveUseCase';
-import { SocketNotificationService } from '@infrastructure/services/SocketNotificationService';
-import { notifierUtilisateurPush } from '@infrastructure/services/PushNotificationService';
-import { notifierParentsPushDabord } from '@infrastructure/services/PushFirstNotifier';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
+import { notifierUtilisateurPush } from '@infrastructure/services/notification/PushNotificationService';
+import { notifierParentsPushDabord } from '@infrastructure/services/notification/PushFirstNotifier';
 
 const TITRES: Record<string, string> = {
   ENTRETIEN_PARENT: 'Entretien parent à programmer',

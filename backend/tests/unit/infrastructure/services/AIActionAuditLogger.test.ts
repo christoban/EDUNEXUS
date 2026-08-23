@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 function creerPrismaFake() {
   const appels: any[] = [];

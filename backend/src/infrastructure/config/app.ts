@@ -8,7 +8,7 @@ import { GradeController } from '@infrastructure/http/controllers/GradeControlle
 import { AttendanceController } from '@infrastructure/http/controllers/AttendanceController';
 import { SchoolOnboardingController } from '@infrastructure/http/controllers/SchoolOnboardingController';
 import { ReportCardController } from '@infrastructure/http/controllers/ReportCardController';
-import { GroqIAService } from '@infrastructure/services/GroqIAService';
+import { GroqIAService } from '@infrastructure/services/ai/GroqIAService';
 import { creerGradeRoutes } from '@infrastructure/http/routes/grade.routes';
 import { creerAttendanceRoutes } from '@infrastructure/http/routes/attendance.routes';
 import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.routes';

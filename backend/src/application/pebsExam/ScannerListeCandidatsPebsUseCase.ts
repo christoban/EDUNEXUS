@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { extraireDocument } from '@infrastructure/services/DocumentAiOrchestrator';
+import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
 
 interface ScannedCandidate {
   firstName: string;

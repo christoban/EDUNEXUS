@@ -7,10 +7,10 @@ import { EnregistrerResultatCepUseCase } from '@application/entranceExam/Enregis
 import { ResumeSessionConcoursUseCase } from '@application/entranceExam/ResumeSessionConcoursUseCase';
 import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerListeCandidatsUseCase';
 import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
-import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/SmsNotificationService';
+import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/sms/SmsNotificationService';
 import { notifierOnboardingLienCree } from '../../../utils/onboardingNotifications';
 import { parseDateFR } from '../../../utils/dateParsing';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class EntranceExamController {

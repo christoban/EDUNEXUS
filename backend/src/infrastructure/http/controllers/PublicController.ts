@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
-import { sendContactRequestEmail, sendTransactionalEmail } from '../../../services/emailService';
+import { sendContactRequestEmail, sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 export class PublicController {
   constructor(private readonly prisma: PrismaClient) {}

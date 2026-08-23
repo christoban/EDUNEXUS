@@ -16,7 +16,7 @@ import type { ListerElevesAOrienterUseCase } from '@application/orientation/List
 import type { ConfigurerCheckpointOrientationUseCase } from '@application/orientation/ConfigurerCheckpointOrientationUseCase';
 import type { IOrientationRepository } from '@domain/ports/repositories/IOrientationRepository';
 import type { PrismaClient } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 const TYPES_PREOCCUPATION: TypePreoccupation[] = ['SCOLAIRE', 'COMPORTEMENTAL', 'FAMILIAL', 'PROFESSIONNEL', 'SANTE', 'AUTRE'];
 

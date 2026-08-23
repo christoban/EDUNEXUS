@@ -61,11 +61,11 @@ Chemins raccourcis : `app/` = `backend/src/application`, `infra/` = `backend/src
 | **Container / Bootstrap** | Composition root : câble repos + services + use cases, monte les routes | `infra/config/container.ts`, `infra/config/hexagonal.bootstrap.ts` | Point unique où l'on branche un nouveau use case / une nouvelle route |
 | **Auth / RBAC** | Middlewares JWT, multi-tenant, sécurité master, rate-limit | `middleware/auth.ts`, `authMultiTenant.ts`, `masterAuthSecurity.ts`, `rateLimit.ts` | `requireAuth`, `requireRole`, `requireSchool` |
 | **i18n / langue** | Source unique de langue + templates emails | `utils/languageHelper.ts`, `utils/emailTemplates.ts` | `resolveLanguage`, `instructionLangue` |
-| **Documents** | Génération PDF : bulletins, documents scolaires, RH | `utils/reportCards/`, `utils/schoolDocuments/`, `utils/hrDocuments.ts`, `infra/services/PdfKitBulletinService.ts` | PDFKit |
-| **IA (Groq)** | Façade LLM | `services/groq.ts`, `infra/services/GroqIAService.ts` | `generateWithGroq`, `groqModel` (`openai/gpt-oss-120b`) |
-| **Intégrations externes** | Mobile Money, Email, SMS | `services/campay.ts` + `infra/services/CampayPaiementService.ts`, `services/emailService.ts` + `NodemailerEmailService.ts`, `services/smsService.ts` + `infra/services/SmsNotificationService.ts` | |
+| **Documents** | Génération PDF : bulletins, documents scolaires, RH | `utils/reportCards/`, `utils/schoolDocuments/`, `utils/hrDocuments.ts`, `infra/services/pdf/PdfKitBulletinService.ts` | PDFKit |
+| **IA (Groq)** | Façade LLM | `infra/services/ai/GroqClient.ts`, `infra/services/ai/GroqIAService.ts` | `generateWithGroq`, `groqModel` (`openai/gpt-oss-120b`) |
+| **Intégrations externes** | Mobile Money, Email, SMS | `infra/services/payment/CampayClient.ts` + `CampayPaiementService.ts`, `infra/services/email/EmailService.ts` + `NodemailerEmailService.ts`, `infra/services/sms/SmsService.ts` + `SmsNotificationService.ts` | |
 | **Jobs asynchrones** | Bulletins en masse, EDT auto, notifications | `inngest/functions.ts`, `inngest/index.ts` | Inngest |
-| **Temps réel** | Notifications poussées | `socket/io.ts`, `infra/services/SocketNotificationService.ts` | Socket.io |
+| **Temps réel** | Notifications poussées | `socket/io.ts`, `infra/services/notification/SocketNotificationService.ts` | Socket.io |
 | **Persistence** | 27 repositories Prisma | `infra/persistence/prisma/*Repository.ts`, `config/prisma.ts` | Implémentent les ports |
 | **Scripts / migrations data** | Seed, migrations ponctuelles, reset master | `scripts/` | ex. `migrate-lv2-subjects.ts`, `reset-master.ts` |
 | **Schéma DB** | 133 modèles Prisma | `backend/prisma/schema.prisma`, `backend/prisma/migrations/` | Multi-tenant par `schoolId` |

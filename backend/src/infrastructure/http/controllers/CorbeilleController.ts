@@ -9,7 +9,7 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 /**
  * Dispatch dynamique par nom de modèle (User/Class/Subject uniquement — les 3 seules valeurs

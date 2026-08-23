@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { sendTransactionalEmail } from '../../../services/emailService';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { passwordError } from '../../../utils/passwordValidator';
 
 const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'

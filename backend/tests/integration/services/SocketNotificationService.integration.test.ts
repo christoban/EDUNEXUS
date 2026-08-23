@@ -12,7 +12,7 @@
  * ici) — le service dégrade proprement (persiste en base, saute juste l'émission live).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { SocketNotificationService } from '../../../src/infrastructure/services/SocketNotificationService.ts';
+import { SocketNotificationService } from '../../../src/infrastructure/services/notification/SocketNotificationService.ts';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
 

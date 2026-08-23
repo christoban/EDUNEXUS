@@ -14,7 +14,7 @@
 import { inngest } from './index';
 import { PrismaClient } from '@prisma/client';
 import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
-import { sendTransactionalEmail } from '../services/emailService';
+import { sendTransactionalEmail } from '../infrastructure/services/email/EmailService.ts';
 
 const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 

@@ -135,7 +135,7 @@ Si en lisant ou modifiant du code tu repères une violation d'une règle de la �
 > Historique : le projet a été développé sous Windows jusqu'à mi-2026, ce qui explique certaines conventions ci-dessous marquées « héritage Windows ». L'environnement de développement est désormais **Fedora Linux**.
 
 - Backend : **Bun + Express + Prisma + PostgreSQL**, **hexagonal**. Pas de build backend (`bun run dev`/`start`). Build = **frontend uniquement** (`bun run build`).
-- IA : **Groq** via `@ai-sdk/groq`, façade `generateWithGroq()` / `groqModel` (`backend/src/services/groq.ts`).
+- IA : **Groq** via `@ai-sdk/groq`, façade `generateWithGroq()` / `groqModel` (`backend/src/infrastructure/services/ai/GroqClient.ts`).
 - **Vérif TS** : `cd backend && ./node_modules/.bin/tsc --noEmit` (et/ou `frontend/`). **Jamais `npx tsc`.**
 - **Migrations** : `npx prisma migrate dev --name <nom> --skip-generate` (depuis `backend/`).
 - **`prisma generate`** : sous Fedora, ce n'est **plus un contournement obligatoire** — l'erreur `EPERM: operation not permitted, unlink ... query_engine-windows.dll.node` était propre à Windows (verrou de fichier `.dll` par l'OS et/ou un antivirus pendant que le process est chargé). Sous Linux, le moteur Prisma est un binaire `.so`, non soumis à ce verrouillage. `prisma generate` devrait donc s'exécuter normalement. Seule précaution qui reste valable : stopper le serveur dev/`prisma studio` avant de lancer la commande, pour éviter qu'un process ne tienne le fichier ouvert. Si un nouveau modèle n'est pas encore reconnu par le client généré, `(prisma as any).monModele` reste un repli valable en dernier recours, mais ne doit plus être systématique.

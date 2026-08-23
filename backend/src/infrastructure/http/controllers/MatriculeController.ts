@@ -7,7 +7,7 @@ import { VerifierRecuUseCase } from '@application/matricule/VerifierRecuUseCase'
 import { ConfirmerCorrespondanceFuzzyUseCase } from '@application/matricule/ConfirmerCorrespondanceFuzzyUseCase';
 import { SignalerErreurCarteScolaireUseCase } from '@application/matricule/SignalerErreurCarteScolaireUseCase';
 import { parseMatriculeExcel } from '@application/matricule/parserMatriculeExcel';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class MatriculeController {

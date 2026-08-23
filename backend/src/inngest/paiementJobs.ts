@@ -8,9 +8,9 @@
 import { inngest } from './index';
 import { PrismaClient } from '@prisma/client';
 import { softDeleteExtension } from '../infrastructure/persistence/prisma/softDeleteExtension';
-import { CarteScolaireScrapingAdapter } from '../infrastructure/services/CarteScolaireScrapingAdapter';
+import { CarteScolaireScrapingAdapter } from '../infrastructure/services/scraping/CarteScolaireScrapingAdapter.ts';
 import { SyncFromCarteScolaireUseCase } from '../application/matricule/SyncFromCarteScolaireUseCase';
-import { notifyMinesecOverdueSms } from '../infrastructure/services/SmsNotificationService';
+import { notifyMinesecOverdueSms } from '../infrastructure/services/sms/SmsNotificationService.ts';
 
 const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 const carteScolaire = new CarteScolaireScrapingAdapter();

@@ -1,9 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient, DisciplineType } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/AIActionAuditLogger';
-import { notifierParentsPushDabord } from '@infrastructure/services/PushFirstNotifier';
-import { notifyDisciplineSms } from '@infrastructure/services/SmsNotificationService';
-import { sendTransactionalEmail } from '../../../services/emailService';
+import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import { notifierParentsPushDabord } from '@infrastructure/services/notification/PushFirstNotifier';
+import { notifyDisciplineSms } from '@infrastructure/services/sms/SmsNotificationService';
+import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 /**
  * Préfixe /api/v2/discipline — sanctions disciplinaires (ADMIN, STAFF).
