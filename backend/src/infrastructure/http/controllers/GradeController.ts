@@ -11,6 +11,7 @@ import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import { logActivity } from '../../../utils/activitieslog';
 import { calculateAverageScoreOn20, scoreOn20ToPercentage } from '@domain/rules/GradingEngine';
 import type { GradeValidationStatus } from '@domain/types/enums';
 import { resolveLanguage } from '../../../utils/languageHelper';
@@ -94,6 +95,8 @@ export class GradeController {
         }).catch((err) => console.error('[GradeController] Échec envoi grade/validated:', err?.message));
       }
 
+      void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Note validée', details: `Note ${req.params.id} validée` });
+
       res.json({ success: true, data: resultat });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -118,6 +121,7 @@ export class GradeController {
         lang,
         schoolId: user.schoolId,
       });
+      void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Note rejetée', details: `Note ${req.params.id} rejetée : ${motif}` });
       res.json({ success: true, message: 'Note rejetée — enseignant notifié' });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -153,6 +157,8 @@ export class GradeController {
           },
         }).catch((err) => console.error('[GradeController] Échec envoi grade/validated-batch:', err?.message));
       }
+
+      void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Notes validées en masse', details: `Classe ${classId}, séquence ${sequenceId} : ${resultat.gradesValidees.length} notes` });
 
       journaliserActionIA(prisma, {
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,

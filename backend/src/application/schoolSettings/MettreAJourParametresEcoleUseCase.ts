@@ -11,9 +11,11 @@
 import type { SchoolSettingsRepository } from '@domain/ports/repositories/SchoolSettingsRepository';
 import type { SchoolLanguageMode, AcademicCalendarType, SchoolCycle } from '@domain/constants/SystemeEducatifCameroun';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
+import { logActivity } from '../../utils/activitieslog';
 
 export interface MettreAJourParametresCommande {
   schoolId: string;
+  demandeurId?: string;
   demandeurRole: string;
 
   // Identité
@@ -117,6 +119,15 @@ export class MettreAJourParametresEcoleUseCase {
           : MINESEC_DEFAULTS.LOCALE_FR;
     }
 
+    const avant = await this.settingsRepository.getParametresEffectifs(commande.schoolId).catch(() => null);
     await this.settingsRepository.sauvegarder(commande.schoolId, settingsAMettreAJour);
+    if (commande.demandeurId) {
+      void logActivity({
+        userId: commande.demandeurId,
+        schoolId: commande.schoolId,
+        action: 'Configuration mise à jour',
+        details: JSON.stringify({ avant, apres: settingsAMettreAJour }),
+      });
+    }
   }
 }

@@ -25,6 +25,7 @@ export class SchoolSettingsController {
       const user = req.user;
       await this.mettreAJour.execute({
         schoolId: user.schoolId,
+        demandeurId: user.userId,
         demandeurRole: user.role,
         ...req.body,
       });

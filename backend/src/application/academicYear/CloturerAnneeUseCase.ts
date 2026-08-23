@@ -1,6 +1,7 @@
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { PromotionRepository } from '@domain/ports/repositories/PromotionRepository';
 import { VerifierPrerequisClotureUseCase } from './VerifierPrerequisClotureUseCase';
+import { logActivity } from '../../utils/activitieslog';
 
 export interface CloturerAnneeCommande {
   academicYearId: string;
@@ -49,6 +50,7 @@ export class CloturerAnneeUseCase {
       throw new Error('Cette année est déjà archivée');
     }
 
+    const anneeAvant = await this.anneeRepository.findById(commande.academicYearId);
     await this.anneeRepository.archiver(commande.academicYearId);
 
     const mappings = await this.promotionRepository.findMappingsPromotion(
@@ -107,6 +109,18 @@ export class CloturerAnneeUseCase {
         redoublants++;
       }
     }
+
+    void logActivity({
+      userId: commande.demandeurId,
+      schoolId: commande.schoolId,
+      action: 'Année clôturée',
+      details: JSON.stringify({
+        anneeId: commande.academicYearId,
+        avant: anneeAvant?.status,
+        apres: 'ARCHIVED',
+        promus, redoublants, nonTraites,
+      }),
+    });
 
     return {
       anneeId: commande.academicYearId,

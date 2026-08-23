@@ -17,6 +17,7 @@ import { VolumeHoraireAPError } from '@domain/errors/VolumeHoraireAPError';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { resolveLanguage } from '../../../utils/languageHelper';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import { logActivity } from '../../../utils/activitieslog';
 import { inngest } from '../../../inngest/index.ts';
 
 /** Schéma Zod des contraintes douces V2.5 — .strict() : toute clé inconnue → 400. */
@@ -124,6 +125,7 @@ export class TimetableController {
         actionName: 'publier_emploi_du_temps', targetType: 'Timetable', targetId: req.params['id'] as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { timetableId: req.params['id'] },
       });
+      void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Emploi du temps publié', details: `EDT ${req.params['id']} publié` });
       res.json({ success: true, message: 'Emploi du temps publié' });
     } catch (error) {
       const user = req.user;
@@ -228,6 +230,7 @@ export class TimetableController {
         origin: 'UI_DIRECT', outcome: 'SUCCES',
         parametersSummary: { creneauxCrees: resultat.creneauxCrees },
       });
+      void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Proposition EDT appliquée', details: `EDT ${req.params['id']} : ${resultat.creneauxCrees} créneaux` });
 
       // V2.5 — événement APRÈS la transaction (jamais dedans) : les séances sont écrites, on
       // notifie l'écosystème (AssessmentScheduled si une matière d'examen à venir est concernée).

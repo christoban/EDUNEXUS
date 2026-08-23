@@ -116,6 +116,10 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
   const [aiAuditLoading, setAiAuditLoading] = useState(false)
   const [aiAuditOutcome, setAiAuditOutcome] = useState<'' | 'SUCCES' | 'REFUSE' | 'ERREUR'>('')
 
+  // ── Frise chronologique unifiée (V3.6) ─────────────────────────────────────
+  const [timelineData, setTimelineData] = useState<{ id: string; type: string; timestamp: string; title: string; details: string | null }[] | null>(null)
+  const [timelineLoading, setTimelineLoading] = useState(false)
+
   // ── Structure ────────────────────────────────────────────────────────────
   const [structConfig, setStructConfig] = useState<{
     niveaux1erCycle: string[]; classesParNiveau: Record<string, number>
@@ -364,6 +368,17 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       .catch(() => onToast('Erreur chargement du journal Sécurité IA', 'error'))
       .finally(() => setAiAuditLoading(false))
   }, [activeTab, aiAuditOutcome]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Frise unifiée (V3.6) — 3 journaux fusionnés, triés chronologiquement ─────────
+  useEffect(() => {
+    if (activeTab !== 5) return
+    setTimelineLoading(true)
+    fetchApi('/api/v2/activities/timeline?limit=20', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setTimelineData(d.timeline ?? []))
+      .catch(() => onToast('Erreur chargement frise unifiée', 'error'))
+      .finally(() => setTimelineLoading(false))
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Email logs load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1003,6 +1018,27 @@ export default function SectionSettings({ onToast, schoolInfo, onLogoUpdate }: P
       {/* ── TAB 5: ACTIVITÉS ── */}
       {activeTab === 5 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* ── Frise chronologique unifiée (V3.6) — 3 journaux fusionnés ────────────────── */}
+          <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+            <div className={cardHeaderCls} style={cardHeader}>
+              <span className="text-[14px] md:text-[17px]" style={{ ...cardTitle, display: 'inline-flex', alignItems: 'center', gap: 8 }}><ClipboardList size={16} /> Frise chronologique — Activités · IA · Emails</span>
+            </div>
+            {timelineLoading && (<div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--green)', borderRadius: '50%', animation: 'edu-settings-spin 0.7s linear infinite' }} /></div>)}
+            {!timelineLoading && timelineData && timelineData.length === 0 && (<div className="text-[13.5px] md:text-[16px]" style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text3)' }}>Aucun événement récent</div>)}
+            {!timelineLoading && timelineData && timelineData.length > 0 && (
+              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                {timelineData.map((entry, i) => (
+                  <div key={entry.id} style={{ display: 'flex', gap: 12, padding: '10px 16px', borderBottom: i < timelineData.length - 1 ? '1px solid var(--bg)' : 'none', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: entry.type === 'ACTIVITY' ? 'var(--green)' : entry.type === 'AI_ACTION' ? 'var(--amber)' : 'var(--blue)', minWidth: 56 }}>{entry.type}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap', minWidth: 110 }}>{new Date(entry.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.title}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text3)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.details ?? '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', gap: 10 }}>
             <input placeholder={t('settings.activities.search_placeholder')} value={actSearchInput}
               onChange={e => setActSearchInput(e.target.value)}

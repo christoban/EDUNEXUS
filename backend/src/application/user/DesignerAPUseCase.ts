@@ -6,6 +6,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
+import { logActivity } from '../../utils/activitieslog';
 
 export interface DesignerAPCommande {
   userId: string;
@@ -87,6 +88,13 @@ export class DesignerAPUseCase {
         where: { userId: commande.userId },
         data: { supervisedSubjectIds: commande.departmentSubjectIds },
       });
+
+      void logActivity({
+        userId: commande.userId,
+        schoolId: commande.schoolId,
+        action: 'Permission AP assignée',
+        details: JSON.stringify({ userId: commande.userId, permissions: apPermissions, departmentSubjectIds: commande.departmentSubjectIds }),
+      });
     } else {
       // REMOVE — retirer les permissions AP du StaffProfile
       const profile = await this.prisma.staffProfile.findUnique({
@@ -115,6 +123,13 @@ export class DesignerAPUseCase {
       await this.prisma.teacherProfile.update({
         where: { userId: commande.userId },
         data: { supervisedSubjectIds: [] },
+      });
+
+      void logActivity({
+        userId: commande.userId,
+        schoolId: commande.schoolId,
+        action: 'Permission AP retirée',
+        details: JSON.stringify({ userId: commande.userId }),
       });
     }
   }

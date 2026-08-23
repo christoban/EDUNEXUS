@@ -31,6 +31,9 @@ export class ValiderDepenseAPEEUseCase {
     if (!transaction.justificatifUrl) {
       throw new Error('Impossible de valider : aucun justificatif joint à cette dépense.');
     }
+    if (transaction.creeParId === cmd.valideParId) {
+      throw new Error('Le créateur d\'une dépense ne peut pas la valider lui-même (séparation 4 yeux).');
+    }
 
     return this.prisma.aPEETransaction.update({
       where: { id: cmd.transactionId },
