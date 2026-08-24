@@ -4,7 +4,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useT } from '@/lib/i18n'
 import { useCachedFetch } from '@/hooks/useCachedFetch'
 import { AlertTriangle, Package } from 'lucide-react'
-import StudentFollowUpButtons from '@/components/StudentFollowUpButtons'
+import StudentFollowUpButtons from '@/features/suivi-eleves/StudentFollowUpButtons'
 
 interface AtRiskStudent {
   studentId: string

@@ -20,11 +20,11 @@ import { fetchApi } from '@/lib/fetchApi'
 import { OfflineIndicator } from '@/components/OfflineIndicator'
 import { putCachedData } from '@/lib/offline/db'
 import { useT } from '@/lib/i18n'
-import EventCenterWidget from '@/components/EventCenterWidget'
+import EventCenterWidget from '@/features/communication/EventCenterWidget'
 import AssistantWidget from '../../admin/dashboard/_components/AssistantWidget'
 import { useRouter } from 'next/navigation'
-import Babillard from '@/components/Babillard'
-import Messagerie from '@/components/Messagerie'
+import Babillard from '@/features/communication/Babillard'
+import Messagerie from '@/features/messagerie'
 
 interface SessionUser {
   userId: string
