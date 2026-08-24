@@ -9,7 +9,7 @@
 
     "migrate:phase5": "bun scripts/migrate-phase5.ts",
     "migrate:phase8": "bun scripts/migrate-phase8.ts",
-    "reset:master": "bun scripts/reset-master.ts",
+    "bootstrap:master": "bun scripts/bootstrap-master.ts",
 
     "script:backfill-groups": "bun scripts/backfill-student-groups.ts",
     "script:create-test-data": "bun scripts/create-test-data.ts",
