@@ -6,7 +6,7 @@
  * Ce script identifie les établissements qui ont encore une "LV2" générique non résolue
  * et loggue un avertissement — il NE SUPPRIME et NE MODIFIE rien.
  *
- * Usage : bun src/scripts/migrate-lv2-subjects.ts
+ * Usage : bun scripts/migrate-lv2-subjects.ts
  *
  * Aucune suppression automatique : la résolution se fait manuellement (ré-onboarding,
  * ou affectation des langues depuis le dashboard). Ce script est purement informatif.

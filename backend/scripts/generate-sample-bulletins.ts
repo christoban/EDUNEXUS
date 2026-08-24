@@ -1,14 +1,14 @@
 /**
  * Script de génération de bulletins PDF de démonstration
  * Couvre les cas limites : nom très long, 15+ matières, appréciations longues, décimales
- * Usage : bun src/scripts/generate-sample-bulletins.ts
+ * Usage : bun scripts/generate-sample-bulletins.ts
  */
 
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { generateBulletinPdf } from "../infrastructure/pdf/report-card/BulletinTemplates.ts";
+import { generateBulletinPdf } from "../src/infrastructure/pdf/report-card/BulletinTemplates.ts";
 
-const OUT_DIR = join(import.meta.dir, "..", "..", "..", "..", "bulletins-demo");
+const OUT_DIR = join(import.meta.dir, "..", "..", "bulletins-demo");
 
 // ─── Données de base ─────────────────────────────────────────
 

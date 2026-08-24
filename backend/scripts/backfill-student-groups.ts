@@ -8,7 +8,7 @@
  * Les use cases qui écrivent lv2SubjectId/pebsFiliere synchronisent déjà cette table pour toute
  * NOUVELLE écriture — ce script rattrape les données déjà présentes en base.
  *
- * Usage : bun src/scripts/backfill-student-groups.ts
+ * Usage : bun scripts/backfill-student-groups.ts
  *
  * Idempotent : peut être relancé sans effet de bord (find-or-create sur les GroupSet/Group par
  * code/nom, upsert sur les memberships par élève/GroupSet/année).

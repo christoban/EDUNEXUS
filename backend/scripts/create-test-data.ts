@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
-import { prisma } from "../config/prisma";
+import { prisma } from "../src/config/prisma";
 
 async function main() {
   const schoolName = "Lycée la Réussite";

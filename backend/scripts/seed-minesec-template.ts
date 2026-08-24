@@ -4,13 +4,13 @@
  * couverts, à but de documentation/audit — la résolution effective des valeurs se fait par
  * code, voir resolveAutoFields.ts / minesecEsgFieldMap.ts).
  *
- * À exécuter une fois : bun src/scripts/seed-minesec-template.ts
+ * À exécuter une fois : bun scripts/seed-minesec-template.ts
  */
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import { ESG_FIELD_MAPPING } from '../application/statisticalCampaign/minesecEsgFieldMap';
-import { IDENTIFICATION_FIELDS, INFRASTRUCTURE_FIELDS, FINANCEMENT_FIELDS } from '../application/statisticalCampaign/minesecFixedFieldMap';
+import { ESG_FIELD_MAPPING } from '../src/application/statisticalCampaign/minesecEsgFieldMap';
+import { IDENTIFICATION_FIELDS, INFRASTRUCTURE_FIELDS, FINANCEMENT_FIELDS } from '../src/application/statisticalCampaign/minesecFixedFieldMap';
 
 const prisma = new PrismaClient();
 

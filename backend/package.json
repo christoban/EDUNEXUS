@@ -6,12 +6,24 @@
   "scripts": {
     "dev": "nodemon --exec bun src/server.ts",
     "start": "bun --watch src/server.ts",
-    "migrate:phase5": "bun src/scripts/migrate-phase5.ts",
-    "migrate:phase8": "bun src/scripts/migrate-phase8.ts",
+
+    "migrate:phase5": "bun scripts/migrate-phase5.ts",
+    "migrate:phase8": "bun scripts/migrate-phase8.ts",
+    "reset:master": "bun scripts/reset-master.ts",
+
+    "script:backfill-groups": "bun scripts/backfill-student-groups.ts",
+    "script:create-test-data": "bun scripts/create-test-data.ts",
+    "script:delete-test-data": "bun scripts/delete-test-data.ts",
+    "script:generate-bulletins": "bun scripts/generate-sample-bulletins.ts",
+    "script:list-groq-models": "bun scripts/list-groq-models.ts",
+    "script:audit-lv2": "bun scripts/migrate-lv2-subjects.ts",
+    "script:remove-test-data": "bun scripts/remove-test-data.ts",
+    "script:seed-minesec": "bun scripts/seed-minesec-template.ts",
+    "script:seed-week4": "bun scripts/seed-week4.ts",
+
     "test": "bun test",
     "test:rules": "bun test tests/unit/domain/rules tests/unit/utils",
     "test:integration": "bun test --env-file .env.test tests/integration",
-    "reset:master": "bun src/scripts/reset-master.ts",
     "lint": "eslint ."
   },
   "prisma": {
