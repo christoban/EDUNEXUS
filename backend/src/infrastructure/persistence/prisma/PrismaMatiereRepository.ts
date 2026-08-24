@@ -23,6 +23,14 @@ export class PrismaMatiereRepository implements MatiereRepository {
     return data.map(d => this.toProps(d.subject));
   }
 
+  async findIdsLV2BySchool(schoolId: string): Promise<string[]> {
+    const subjects = await this.prisma.subject.findMany({
+      where: { schoolId, isLV2: true },
+      select: { id: true },
+    });
+    return subjects.map(subject => subject.id);
+  }
+
   async getCoefficientPourClasse(
     subjectId: string,
     classLevel: string,

@@ -14,8 +14,10 @@ import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/Annee
 import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
 import type { PdfService } from '@domain/ports/services/PdfService';
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { SectionRepository } from '@domain/ports/repositories/SectionRepository';
+import type { StudentProfileRepository } from '@domain/ports/repositories/StudentProfileRepository';
 import type { BulletinTemplate } from '@domain/types/enums';
-import type { PrismaClient } from '@prisma/client';
 import { resolveLanguage } from '../../domain/policies/LanguagePolicy';
 
 export interface GenererBulletinCommande {
@@ -46,7 +48,9 @@ export class GenererBulletinUseCase {
     private readonly presenceRepository: PresenceRepository,
     private readonly pdfService: PdfService,
     private readonly classCouncilRepository: ClassCouncilRepository,
-    private readonly prisma?: PrismaClient,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly sectionRepository: SectionRepository,
+    private readonly studentProfileRepository: StudentProfileRepository,
   ) {}
 
   async execute(commande: GenererBulletinCommande): Promise<GenererBulletinResultat> {
@@ -143,16 +147,20 @@ export class GenererBulletinUseCase {
     // 6. Résoudre la langue de rendu (sous-système + section pour le bilingue).
     //    Templates PARTAGÉS (PRIMARY/ANNUAL) : la langue vient d'ici. Les autres
     //    templates encodent déjà leur langue via commande.template.
-    let langue: 'fr' | 'en' = 'fr';
-    if (this.prisma) {
-      const ecole = await this.prisma.school.findUnique({ where: { id: commande.schoolId }, select: { subsystem: true } });
-      let sectionCode: string | null = null;
-      if (ecole?.subsystem === 'BILINGUAL') {
-        const cls = await this.prisma.class.findUnique({ where: { id: commande.classId }, select: { section: { select: { code: true } } } });
-        sectionCode = cls?.section?.code ?? null;
-      }
-      langue = resolveLanguage(ecole?.subsystem, sectionCode);
+    const school = await this.schoolRepository.findById(commande.schoolId);
+    if (!school) {
+      throw new Error(`Établissement ${commande.schoolId} introuvable`);
     }
+
+    let sectionCode: string | null = null;
+    if (classe?.sectionId) {
+      const section = await this.sectionRepository.findById(classe.sectionId);
+      if (section) {
+        sectionCode = section.code;
+      }
+    }
+
+    const langue = resolveLanguage(school.subsystem, sectionCode);
 
     // 6bis. Calculer la mention selon le template et la langue
     const mentionEn = (m: number): string =>
@@ -178,22 +186,22 @@ export class GenererBulletinUseCase {
     const lv2Map = new Map<string, string | null>(); // userId → lv2SubjectId
     const lv2SubjectIds = new Set<string>();          // subjectId des matières taggées isLV2
     const alevelMap = new Map<string, Set<string>>(); // userId → set des subjectId A-Level choisis
-    if (this.prisma) {
-      const profiles = await this.prisma.studentProfile.findMany({
-        where: { userId: { in: elevesClasse.map(e => e.id) } },
-        select: { userId: true, lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } },
-      });
-      for (const p of profiles) {
-        lv2Map.set(p.userId, p.lv2SubjectId ?? null);
-        const sel: string[] = (p.alevelSubjects ?? []).map((a: any) => a.subjectId);
-        if (sel.length > 0) alevelMap.set(p.userId, new Set(sel));
-      }
 
-      const lv2Subjects = await this.prisma.subject.findMany({
-        where: { schoolId: commande.schoolId, isLV2: true },
-        select: { id: true },
-      });
-      for (const s of lv2Subjects) lv2SubjectIds.add(s.id);
+    const profiles =
+      await this.studentProfileRepository.findBulletinOptionsByStudentIds(
+        elevesClasse.map(eleve => eleve.id),
+      );
+
+    for (const profile of profiles) {
+      lv2Map.set(profile.studentId, profile.lv2SubjectId);
+
+      if (profile.alevelSubjectIds.length > 0) {
+        alevelMap.set(profile.studentId, new Set(profile.alevelSubjectIds));
+      }
+    }
+
+    for (const subjectId of await this.matiereRepository.findIdsLV2BySchool(commande.schoolId)) {
+      lv2SubjectIds.add(subjectId);
     }
 
     // 7b. Générer le bulletin pour chaque élève

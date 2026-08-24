@@ -26,6 +26,8 @@ import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma
 import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
 import { PrismaClassRoomAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaClassRoomAssignmentRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
+import { PrismaSectionRepository } from '@infrastructure/persistence/prisma/PrismaSectionRepository';
+import { PrismaStudentProfileRepository } from '@infrastructure/persistence/prisma/PrismaStudentProfileRepository';
 
 // --- Adapters Audit ---
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
@@ -301,6 +303,8 @@ export function creerContainer() {
   const presenceRepository = new PrismaPresenceRepository(prisma);
   const bulletinRepository = new PrismaBulletinRepository(prisma);
   const matiereRepository = new PrismaMatiereRepository(prisma);
+  const sectionRepository = new PrismaSectionRepository(prisma);
+  const studentProfileRepository = new PrismaStudentProfileRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
   const roomRepository = new PrismaRoomRepository(prisma);
   const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
@@ -350,7 +354,8 @@ export function creerContainer() {
   const genererBulletinUseCase = new GenererBulletinUseCase(
     noteRepository, bulletinRepository, classeRepository,
     userRepository, matiereRepository, anneeRepository,
-    presenceRepository, pdfService, classCouncilRepository, prisma
+    presenceRepository, pdfService, classCouncilRepository,
+    schoolRepository, sectionRepository, studentProfileRepository,
   );
   const envoyerBulletinsUseCase = new EnvoyerBulletinsUseCase(
     bulletinRepository, userRepository, emailService

@@ -5,6 +5,7 @@ import { Note } from '@domain/entities/Note';
 import { Bulletin } from '@domain/entities/Bulletin';
 import { Classe } from '@domain/entities/Classe';
 import { User } from '@domain/entities/User';
+import { School } from '@domain/entities/School';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import { InMemoryNoteRepository } from '../../../helpers/repositories/InMemoryNoteRepository.ts';
 import { InMemoryBulletinRepository } from '../../../helpers/repositories/InMemoryBulletinRepository.ts';
@@ -13,6 +14,9 @@ import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUs
 import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemoryMatiereRepository.ts';
 import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
 import { InMemoryPresenceRepository } from '../../../helpers/repositories/InMemoryPresenceRepository.ts';
+import { InMemorySchoolRepository } from '../../../helpers/repositories/InMemorySchoolRepository.ts';
+import { InMemorySectionRepository } from '../../../helpers/repositories/InMemorySectionRepository.ts';
+import { InMemoryStudentProfileRepository } from '../../../helpers/repositories/InMemoryStudentProfileRepository.ts';
 import { InMemoryPdfService } from '../../../helpers/services/InMemoryPdfService.ts';
 import type { ClassCouncilRepository, ClassCouncilSessionData, ClassCouncilDecisionData } from '@domain/ports/repositories/ClassCouncilRepository';
 import type { CouncilDecision } from '@prisma/client';
@@ -73,6 +77,22 @@ function creerClasse() {
     capacity: 40,
     status: 'ACTIVE',
     createdAt: new Date(),
+  });
+}
+
+function creerEcole() {
+  return School.reconstituer({
+    id: SCHOOL_ID,
+    name: 'Lycée de Bastos',
+    subdomain: 'lycee-bastos',
+    status: 'ACTIVE',
+    plan: 'STANDARD',
+    subsystem: 'FRANCOPHONE',
+    educationType: 'GENERAL',
+    ownership: 'PRIVATE_SECULAR',
+    saturdaySchedule: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 }
 
@@ -180,6 +200,9 @@ describe('GenererBulletinUseCase', () => {
   let presenceRepo: InMemoryPresenceRepository;
   let pdfService: InMemoryPdfService;
   let classCouncilRepo: InMemoryClassCouncilRepository;
+  let schoolRepo: InMemorySchoolRepository;
+  let sectionRepo: InMemorySectionRepository;
+  let studentProfileRepo: InMemoryStudentProfileRepository;
   let useCase: GenererBulletinUseCase;
 
   beforeEach(() => {
@@ -192,15 +215,20 @@ describe('GenererBulletinUseCase', () => {
     presenceRepo = new InMemoryPresenceRepository();
     pdfService = new InMemoryPdfService();
     classCouncilRepo = new InMemoryClassCouncilRepository();
+    schoolRepo = new InMemorySchoolRepository();
+    sectionRepo = new InMemorySectionRepository();
+    studentProfileRepo = new InMemoryStudentProfileRepository();
 
     useCase = new GenererBulletinUseCase(
       noteRepo, bulletinRepo, classeRepo,
       userRepo, matiereRepo, anneeRepo,
       presenceRepo, pdfService, classCouncilRepo,
+      schoolRepo, sectionRepo, studentProfileRepo,
     );
 
     // Setup de base commun
     classeRepo.ajouter(creerClasse());
+    schoolRepo.ajouter(creerEcole());
     matiereRepo.ajouter(MATIERE);
     anneeRepo.ajouterAnnee(ANNEE);
     anneeRepo.ajouterPeriode(PERIODE);

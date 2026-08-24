@@ -24,6 +24,7 @@ export interface MatiereRepository {
   findById(id: string): Promise<MatiereProps | null>;
   findBySchool(schoolId: string): Promise<MatiereProps[]>;
   findByEnseignant(teacherProfileId: string): Promise<MatiereProps[]>;
+  findIdsLV2BySchool(schoolId: string): Promise<string[]>;
 
   /**
    * Anti-doublon sur le code (si fourni).

@@ -7,6 +7,11 @@ import type {
 export class InMemoryMatiereRepository implements MatiereRepository {
   private store = new Map<string, MatiereProps>();
   private assignments = new Set<string>();
+  private lv2SubjectIds = new Set<string>();
+
+  setLV2SubjectIds(ids: string[]): void {
+    this.lv2SubjectIds = new Set(ids);
+  }
 
   private coefficients: {
     schoolId: string;
@@ -51,6 +56,13 @@ export class InMemoryMatiereRepository implements MatiereRepository {
       .map(key => key.split(':')[1]);
 
     return [...this.store.values()].filter(m => subjectIds.includes(m.id));
+  }
+
+  async findIdsLV2BySchool(schoolId: string): Promise<string[]> {
+    return [...this.store.values()]
+      .filter(matiere => matiere.schoolId === schoolId)
+      .filter(matiere => this.lv2SubjectIds.has(matiere.id))
+      .map(matiere => matiere.id);
   }
 
   async getCoefficientPourClasse(
