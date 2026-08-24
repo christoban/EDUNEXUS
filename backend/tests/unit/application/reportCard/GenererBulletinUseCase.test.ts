@@ -14,7 +14,8 @@ import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemor
 import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
 import { InMemoryPresenceRepository } from '../../../helpers/repositories/InMemoryPresenceRepository.ts';
 import { InMemoryPdfService } from '../../../helpers/services/InMemoryPdfService.ts';
-import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
+import type { ClassCouncilRepository, ClassCouncilSessionData, ClassCouncilDecisionData } from '@domain/ports/repositories/ClassCouncilRepository';
+import type { CouncilDecision } from '@prisma/client';
 
 class InMemoryClassCouncilRepository implements ClassCouncilRepository {
   private locked = true;
@@ -22,6 +23,21 @@ class InMemoryClassCouncilRepository implements ClassCouncilRepository {
   async sessionVerrouilleeExiste(_classId: string, _periodId: string): Promise<boolean> {
     return this.locked;
   }
+  async listerSessions(): Promise<ClassCouncilSessionData[]> { return []; }
+  async obtenirSession(): Promise<ClassCouncilSessionData | null> { return null; }
+  async obtenirConfigAlertes() { return null; }
+  async obtenirEnfantsParent(): Promise<string[]> { return []; }
+  async creerSession(): Promise<ClassCouncilSessionData> { throw new Error('not implemented'); }
+  async preRemplirDecisions(): Promise<void> {}
+  async upsertDecision(): Promise<ClassCouncilDecisionData> { throw new Error('not implemented'); }
+  async upsertDecisionsEnBloc(): Promise<number> { return 0; }
+  async verrouillerSession(): Promise<ClassCouncilSessionData> { throw new Error('not implemented'); }
+  async publierBulletins(): Promise<{ id: string; studentId: string; student: { firstName: string; lastName: string } }[]> { return []; }
+  async compterNotesNonValidees(): Promise<number> { return 0; }
+  async classeExiste(): Promise<{ id: string; name: string } | null> { return null; }
+  async sessionExistente(): Promise<ClassCouncilSessionData | null> { return null; }
+  async compterDecisions(): Promise<number> { return 0; }
+  async eleveDansClasse(): Promise<boolean> { return false; }
 }
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────

@@ -51,6 +51,14 @@ import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletin
 // --- Use Cases : Conseil de Classe ---
 import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
 import { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';
+import { ListerSessionsConseilClasseUseCase } from '@application/classCouncil/ListerSessionsConseilClasseUseCase';
+import { ObtenirSessionConseilClasseUseCase } from '@application/classCouncil/ObtenirSessionConseilClasseUseCase';
+import { AjouterDecisionConseilClasseUseCase } from '@application/classCouncil/AjouterDecisionConseilClasseUseCase';
+import { AjouterDecisionsEnBlocUseCase } from '@application/classCouncil/AjouterDecisionsEnBlocUseCase';
+import { VerrouillerConseilClasseUseCase } from '@application/classCouncil/VerrouillerConseilClasseUseCase';
+import { PublierBulletinsConseilClasseUseCase } from '@application/classCouncil/PublierBulletinsConseilClasseUseCase';
+import { GenererProcesVerbalUseCase } from '@application/classCouncil/GenererProcesVerbalUseCase';
+import { GenererRapportConseilUseCase } from '@application/classCouncil/GenererRapportConseilUseCase';
 
 // --- Use Cases : Matricule ---
 import { ImporterMatriculesUseCase } from '@application/matricule/ImporterMatriculesUseCase';
@@ -348,6 +356,14 @@ export function creerContainer() {
   const preparerVueConseilClasseUseCase = new PreparerVueConseilClasseUseCase(
     new PrismaClassCouncilPreviewQueryPort(prisma)
   );
+  const listerSessionsConseilUseCase = new ListerSessionsConseilClasseUseCase(classCouncilRepository);
+  const obtenirSessionConseilUseCase = new ObtenirSessionConseilClasseUseCase(classCouncilRepository);
+  const ajouterDecisionConseilUseCase = new AjouterDecisionConseilClasseUseCase(classCouncilRepository);
+  const ajouterDecisionsEnBlocUseCase = new AjouterDecisionsEnBlocUseCase(classCouncilRepository);
+  const verrouillerConseilUseCase = new VerrouillerConseilClasseUseCase(classCouncilRepository);
+  const publierBulletinsConseilUseCase = new PublierBulletinsConseilClasseUseCase(classCouncilRepository);
+  const genererPVConseilUseCase = new GenererProcesVerbalUseCase(classCouncilRepository);
+  const genererRapportConseilUseCase = new GenererRapportConseilUseCase(classCouncilRepository);
 
   // Repositories supplémentaires
   const invitationRepository = new PrismaInvitationRepository(prisma);
@@ -571,6 +587,14 @@ export function creerContainer() {
     classCouncil: {
       tenir: tenirConseilClasseUseCase,
       preparerVue: preparerVueConseilClasseUseCase,
+      listerSessions: listerSessionsConseilUseCase,
+      obtenirSession: obtenirSessionConseilUseCase,
+      ajouterDecision: ajouterDecisionConseilUseCase,
+      ajouterDecisionsEnBloc: ajouterDecisionsEnBlocUseCase,
+      verrouiller: verrouillerConseilUseCase,
+      publierBulletins: publierBulletinsConseilUseCase,
+      genererPV: genererPVConseilUseCase,
+      genererRapport: genererRapportConseilUseCase,
     },
     user: {
       connecter: connecterUtilisateurUseCase,

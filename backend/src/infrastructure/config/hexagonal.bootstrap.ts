@@ -233,7 +233,17 @@ export function bootstrapHexagonal(app: Application): void {
     new GroqIAService(),
   );
 
-  const classCouncilController = new ClassCouncilController(container.classCouncil.preparerVue);
+  const classCouncilController = new ClassCouncilController(
+    container.classCouncil.preparerVue,
+    container.classCouncil.listerSessions,
+    container.classCouncil.obtenirSession,
+    container.classCouncil.ajouterDecision,
+    container.classCouncil.ajouterDecisionsEnBloc,
+    container.classCouncil.verrouiller,
+    container.classCouncil.publierBulletins,
+    container.classCouncil.genererPV,
+    container.classCouncil.genererRapport,
+  );
 
   // ── Routes publiques d'onboarding par invitation (pas d'auth requise) ──
   const inviteOnboardingController = new InviteOnboardingController(prisma);

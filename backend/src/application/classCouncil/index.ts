@@ -1,6 +1,10 @@
-export { TenirConseilClasseUseCase } from './TenirConseilClasseUseCase';
-export type {
-  TenirConseilCommande,
-  TenirConseilResultat,
-  ConseilSession,
-} from './TenirConseilClasseUseCase';
+export { TenirConseilClasseUseCase, type TenirConseilCommande, type TenirConseilResultat } from './TenirConseilClasseUseCase';
+export { PreparerVueConseilClasseUseCase, type PreparerVueConseilCommande, type VueConseilClasse } from './PreparerVueConseilClasseUseCase';
+export { ListerSessionsConseilClasseUseCase } from './ListerSessionsConseilClasseUseCase';
+export { ObtenirSessionConseilClasseUseCase } from './ObtenirSessionConseilClasseUseCase';
+export { AjouterDecisionConseilClasseUseCase } from './AjouterDecisionConseilClasseUseCase';
+export { AjouterDecisionsEnBlocUseCase } from './AjouterDecisionsEnBlocUseCase';
+export { VerrouillerConseilClasseUseCase } from './VerrouillerConseilClasseUseCase';
+export { PublierBulletinsConseilClasseUseCase } from './PublierBulletinsConseilClasseUseCase';
+export { GenererProcesVerbalUseCase } from './GenererProcesVerbalUseCase';
+export { GenererRapportConseilUseCase } from './GenererRapportConseilUseCase';
