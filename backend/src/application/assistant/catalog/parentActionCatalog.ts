@@ -15,7 +15,7 @@
  */
 import { z } from 'zod';
 import type { InitierPaiementMobileMoneyUseCase } from '@application/finance/InitierPaiementMobileMoneyUseCase';
-import { type ActionContext, type ActionDefinition, norm } from '@application/assistant/catalogShared';
+import { type ActionContext, type ActionDefinition, norm } from '@application/assistant/catalog/catalogShared';
 
 export interface ParentActionDeps {
   initierPaiement: InitierPaiementMobileMoneyUseCase;

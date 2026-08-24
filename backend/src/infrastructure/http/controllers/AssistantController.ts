@@ -9,7 +9,7 @@ import {
   selectRelevantActions,
   type ActionContext,
   type ActionDefinition,
-} from '@application/assistant/catalogShared';
+} from '@application/assistant/catalog/catalogShared';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';

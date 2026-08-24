@@ -26,7 +26,7 @@ import {
   resolveCurrentAcademicYear,
   resolveCurrentPeriod,
   resolveCurrentSequence,
-} from '@application/assistant/catalogShared';
+} from '@application/assistant/catalog/catalogShared';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export interface TeacherActionDeps {

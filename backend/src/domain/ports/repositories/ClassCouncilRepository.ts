@@ -3,7 +3,7 @@
  * Utilisé par GenererBulletinUseCase pour enforcer Loi 5b :
  * le conseil doit être LOCKED avant toute génération de bulletins.
  */
-import type { CouncilDecision, CouncilStatus } from '@prisma/client';
+import type { CouncilDecision, CouncilStatus } from '../../types/enums';
 
 export interface ClassCouncilSessionData {
   id: string;

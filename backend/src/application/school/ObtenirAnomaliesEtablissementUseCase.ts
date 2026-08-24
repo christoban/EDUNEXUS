@@ -7,7 +7,7 @@
  * (adminActionCatalog.ts) plutôt que d'inventer un nouveau calcul.
  */
 import type { PrismaClient } from '@prisma/client';
-import { resolveCurrentAcademicYear, resolveCurrentPeriod, type ActionContext } from '@application/assistant/catalogShared';
+import { resolveCurrentAcademicYear, resolveCurrentPeriod, type ActionContext } from '@application/assistant/catalog/catalogShared';
 
 export interface AnomaliesEtablissement {
   classesSansEdtPublie: string[];

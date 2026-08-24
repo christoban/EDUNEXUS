@@ -71,11 +71,11 @@ import {
   ObtenirEvenementsActifsUseCase,
 } from '@application/academicEvent';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
-import { buildAdminActionCatalog } from '@application/assistant/adminActionCatalog';
-import { buildTeacherActionCatalog } from '@application/assistant/teacherActionCatalog';
-import { buildStaffActionCatalog } from '@application/assistant/staffActionCatalog';
-import { buildParentActionCatalog } from '@application/assistant/parentActionCatalog';
-import { buildStudentActionCatalog } from '@application/assistant/studentActionCatalog';
+import { buildAdminActionCatalog } from '@application/assistant/catalog/adminActionCatalog';
+import { buildTeacherActionCatalog } from '@application/assistant/catalog/teacherActionCatalog';
+import { buildStaffActionCatalog } from '@application/assistant/catalog/staffActionCatalog';
+import { buildParentActionCatalog } from '@application/assistant/catalog/parentActionCatalog';
+import { buildStudentActionCatalog } from '@application/assistant/catalog/studentActionCatalog';
 import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
 import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
 import { AffecterLV2EleveUseCase } from '@application/student/AffecterLV2EleveUseCase';

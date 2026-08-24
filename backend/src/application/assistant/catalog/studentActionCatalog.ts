@@ -9,7 +9,7 @@
  * directes déjà scopées par construction), d'où l'absence de `Deps` en paramètre.
  */
 import { z } from 'zod';
-import { type ActionDefinition, resolveCurrentSequence } from '@application/assistant/catalogShared';
+import { type ActionDefinition, resolveCurrentSequence } from '@application/assistant/catalog/catalogShared';
 
 export function buildStudentActionCatalog(): ActionDefinition[] {
   return [

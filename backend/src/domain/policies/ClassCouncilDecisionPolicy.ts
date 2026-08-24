@@ -1,4 +1,4 @@
-import type { CouncilDecision } from '@prisma/client';
+import type { CouncilDecision } from '../types/enums';
 
 export const VALID_DECISIONS: CouncilDecision[] = ['PASS', 'REPEAT', 'DELIBERATION'];
 
