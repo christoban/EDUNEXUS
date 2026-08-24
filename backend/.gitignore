@@ -1,6 +1,9 @@
 node_modules
 # Keep environment variables out of version control
 .env
+.env.*
+!.env.example
+!.env.test.example
 
 # Cache incrémental tsc (accélère les tsc --noEmit répétés, notamment le hook pre-commit)
 *.tsbuildinfo

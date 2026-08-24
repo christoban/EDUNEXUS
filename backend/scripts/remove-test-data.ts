@@ -1,6 +1,10 @@
 import { prisma } from "../src/config/prisma";
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Ce script est interdit en production (destruction de données).");
+  }
+
   const schoolName = "Lycée la Réussite";
   const school = await prisma.school.findFirst({ where: { name: { contains: schoolName, mode: "insensitive" } } });
 

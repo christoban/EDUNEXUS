@@ -3,6 +3,10 @@ import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import { prisma } from "../src/config/prisma";
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Ce script est interdit en production (création de données de test).");
+  }
+
   const schoolName = "Lycée la Réussite";
   let school = await prisma.school.findFirst({ where: { name: { contains: schoolName, mode: "insensitive" } } });
 

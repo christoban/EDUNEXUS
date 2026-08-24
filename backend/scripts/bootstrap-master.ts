@@ -3,8 +3,8 @@
  *
  * Sécurisé par design :
  *  - idempotent : refuse de s'exécuter si un MasterUser existe déjà (jamais de reset à volonté)
- *  - aucun secret dans le code : email lu depuis MASTER_ALLOWED_EMAILS, mot de passe depuis
- *    MASTER_RESET_PASSWORD (ou généré aléatoirement et affiché UNE seule fois)
+ *  - aucun secret dans le code : email lu depuis MASTER_BOOTSTRAP_EMAIL, mot de passe depuis
+ *    MASTER_BOOTSTRAP_PASSWORD (ou généré aléatoirement et affiché UNE seule fois)
  *  - le mot de passe n'est jamais écrit dans les logs sauf au moment de la création
  *
  * Usage : bun scripts/bootstrap-master.ts
@@ -27,7 +27,7 @@ function requireEnv(name: string): string {
 }
 
 async function bootstrapMaster() {
-  const email = process.env.MASTER_ALLOWED_EMAILS?.split(",")[0]?.trim() ?? requireEnv("MASTER_ALLOWED_EMAILS");
+  const email = process.env.MASTER_BOOTSTRAP_EMAIL?.trim() ?? requireEnv("MASTER_BOOTSTRAP_EMAIL");
 
   // One-shot : refuser si le Master existe déjà — jamais de réinitialisation silencieuse.
   const existing = await prisma.masterUser.findUnique({ where: { email } });
@@ -39,7 +39,7 @@ async function bootstrapMaster() {
   }
 
   // Mot de passe : variable d'env, sinon génération aléatoire affichée une seule fois.
-  const password = process.env.MASTER_RESET_PASSWORD?.trim() || crypto.randomBytes(18).toString("base64url");
+  const password = process.env.MASTER_BOOTSTRAP_PASSWORD?.trim() || crypto.randomBytes(18).toString("base64url");
   const passwordHash = await bcrypt.hash(password, 12);
 
   const master = await prisma.masterUser.create({
@@ -60,7 +60,7 @@ async function bootstrapMaster() {
   console.log("✅ MasterUser créé avec succès.");
   console.log("─────────────────────────────────");
   console.log(`📧 Email : ${master.email}`);
-  if (!process.env.MASTER_RESET_PASSWORD) {
+  if (!process.env.MASTER_BOOTSTRAP_PASSWORD) {
     console.log(`🔑 Mot de passe temporaire : ${password}`);
   }
   console.log(`🆔 ID    : ${master.id}`);
