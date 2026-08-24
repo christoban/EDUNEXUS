@@ -27,6 +27,10 @@ import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persiste
 import { PrismaClassRoomAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaClassRoomAssignmentRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 
+// --- Adapters Audit ---
+import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
+
 // --- Use Cases : Notes ---
 import { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
 import { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
@@ -340,6 +344,8 @@ export function creerContainer() {
 
   // 7. Use Cases — Bulletins
   const classCouncilRepository = new PrismaClassCouncilRepository(prisma);
+  const activityLog = new ActivityLogAdapter();
+  const auditLog = new AIActionAuditAdapter(prisma);
 
   const genererBulletinUseCase = new GenererBulletinUseCase(
     noteRepository, bulletinRepository, classeRepository,
@@ -358,12 +364,12 @@ export function creerContainer() {
     new PrismaClassCouncilPreviewQueryPort(prisma),
     classCouncilRepository,
   );
-  const creerSessionConseilUseCase = new CreerSessionConseilClasseUseCase(classCouncilRepository, prisma);
+  const creerSessionConseilUseCase = new CreerSessionConseilClasseUseCase(classCouncilRepository, activityLog, auditLog);
   const listerSessionsConseilUseCase = new ListerSessionsConseilClasseUseCase(classCouncilRepository);
   const obtenirSessionConseilUseCase = new ObtenirSessionConseilClasseUseCase(classCouncilRepository);
   const ajouterDecisionConseilUseCase = new AjouterDecisionConseilClasseUseCase(classCouncilRepository);
   const ajouterDecisionsEnBlocUseCase = new AjouterDecisionsEnBlocUseCase(classCouncilRepository);
-  const verrouillerConseilUseCase = new VerrouillerConseilClasseUseCase(classCouncilRepository);
+  const verrouillerConseilUseCase = new VerrouillerConseilClasseUseCase(classCouncilRepository, activityLog);
   const publierBulletinsConseilUseCase = new PublierBulletinsConseilClasseUseCase(classCouncilRepository);
   const genererPVConseilUseCase = new GenererProcesVerbalUseCase(classCouncilRepository);
   const genererRapportConseilUseCase = new GenererRapportConseilUseCase(classCouncilRepository);

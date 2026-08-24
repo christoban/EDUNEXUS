@@ -46,6 +46,7 @@ export class ClassCouncilController {
         academicPeriodId: req.body.academicPeriodId,
         presidedById: user.userId,
         userRole: user.role,
+        userPermissions: user.permissions,
       });
       res.status(201).json(result);
     } catch (error) {

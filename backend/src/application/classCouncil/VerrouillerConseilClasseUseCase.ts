@@ -1,5 +1,5 @@
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 
 export interface VerrouillerCommande {
   sessionId: string;
@@ -8,7 +8,10 @@ export interface VerrouillerCommande {
 }
 
 export class VerrouillerConseilClasseUseCase {
-  constructor(private readonly repo: ClassCouncilRepository) {}
+  constructor(
+    private readonly repo: ClassCouncilRepository,
+    private readonly activityLog: ActivityLogPort,
+  ) {}
 
   async execute(commande: VerrouillerCommande) {
     const session = await this.repo.obtenirSession(commande.sessionId, commande.schoolId);
@@ -20,12 +23,12 @@ export class VerrouillerConseilClasseUseCase {
 
     const updated = await this.repo.verrouillerSession(commande.sessionId);
 
-    logActivity({
+    this.activityLog.log({
       userId: commande.userId,
       schoolId: commande.schoolId,
       action: 'Class council session locked',
       details: `Session ${commande.sessionId}`,
-    }).catch(() => {});
+    });
 
     return { session: updated, message: 'Session verrouillée' };
   }

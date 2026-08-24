@@ -1,7 +1,6 @@
-import type { PrismaClient } from '@prisma/client';
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
-import { journaliserActionIA } from '../../infrastructure/services/ai/AIActionAuditLogger';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 export interface CreerSessionCommande {
   schoolId: string;
@@ -9,6 +8,7 @@ export interface CreerSessionCommande {
   academicPeriodId: string;
   presidedById: string;
   userRole: string;
+  userPermissions?: string[];
 }
 
 export interface CreerSessionResultat {
@@ -20,18 +20,20 @@ export interface CreerSessionResultat {
 export class CreerSessionConseilClasseUseCase {
   constructor(
     private readonly repo: ClassCouncilRepository,
-    private readonly prisma: PrismaClient,
+    private readonly activityLog: ActivityLogPort,
+    private readonly auditLog: AIActionAuditPort,
   ) {}
 
   async execute(commande: CreerSessionCommande): Promise<CreerSessionResultat> {
-    const { schoolId, classId, academicPeriodId, presidedById, userRole } = commande;
+    const { schoolId, classId, academicPeriodId, presidedById, userRole, userPermissions } = commande;
 
     if (!classId || !academicPeriodId) {
       throw new Error('classId et academicPeriodId sont requis');
     }
 
-    const ecoleOk = userRole.toUpperCase() === 'ADMIN' || userRole === 'VALIDATE_GRADES';
-    if (!ecoleOk) {
+    const estAdmin = userRole.toUpperCase() === 'ADMIN';
+    const aPermission = (userPermissions ?? []).includes('VALIDATE_GRADES');
+    if (!estAdmin && !aPermission) {
       throw new ForbiddenError('Permission VALIDATE_GRADES requise');
     }
 
@@ -61,14 +63,14 @@ export class CreerSessionConseilClasseUseCase {
     const studentIds = await this.repo.elevesDansClasse(classId);
     await this.repo.preRemplirDecisions(session.id, studentIds);
 
-    logActivity({
+    this.activityLog.log({
       userId: presidedById,
       schoolId,
       action: 'Class council session created',
       details: `Classe ${schoolClass.name} — période ${academicPeriodId} — ${studentIds.length} élève(s) pré-peuplé(s)`,
-    }).catch(() => {});
+    });
 
-    journaliserActionIA(this.prisma, {
+    this.auditLog.journaliser({
       actorUserId: presidedById, actorRole: userRole, schoolId,
       actionName: 'ouvrir_conseil_classe', targetType: 'Class', targetId: classId,
       origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId },
