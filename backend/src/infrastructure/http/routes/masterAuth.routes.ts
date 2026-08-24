@@ -12,6 +12,9 @@ export function creerMasterAuthRoutes(controller: MasterAuthController): Router 
   router.post('/verify-otp', masterEmailOtpLimiter,                              controller.verifyOtp);
   router.post('/verify-mfa', masterMfaLimiter,                                   controller.verifyMfa);
   router.post('/resend-otp', masterEmailOtpLimiter,                              controller.resendOtp);
+  // Récupération de mot de passe oublié — OTP email, sans authentification préalable
+  router.post('/forgot-password',         masterEmailOtpLimiter, controller.forgotPassword);
+  router.post('/forgot-password/confirm', masterEmailOtpLimiter, controller.forgotPasswordConfirm);
   // Changement de mot de passe — 2 étapes : vérification identité → OTP email → nouveau mdp
   router.post('/password-change/initiate', protectMaster, requireMasterSensitiveAuth, controller.initiatePasswordChange);
   router.post('/change-password',          protectMaster,                             controller.changePassword);

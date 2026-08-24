@@ -135,6 +135,49 @@ export class LoginMasterUseCase {
 
   // Étape 2 — Vérifie l'OTP email et applique le nouveau mot de passe
   async executeChangePassword(masterUserId: string, newPassword: string, otp: string): Promise<void> {
+    await this.appliquerNouveauMotDePasse(masterUserId, newPassword, otp);
+  }
+
+  // Forgot password — Étape 1 : envoie un OTP email (sans authentification préalable)
+  async executeForgotPasswordOtp(email: string): Promise<{ email: string }> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const masterUser = await this.prisma.masterUser.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, email: true, isActive: true },
+    });
+    if (!masterUser || !masterUser.isActive) throw new Error('Email introuvable');
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpHashed = await bcrypt.hash(otp, 10);
+
+    await this.prisma.masterUser.update({
+      where: { id: masterUser.id },
+      data: {
+        passwordChangeEmailOtpHash: otpHashed,
+        passwordChangeEmailOtpExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        passwordChangeEmailOtpAttempts: 0,
+        passwordChangeEmailOtpSentAt: new Date(),
+      },
+    });
+
+    void this.sendEmail({ recipientEmail: masterUser.email, otp }).catch(err => console.error('[Email] Échec OTP forgot-password:', (err as Error)?.message));
+    return { email: masterUser.email };
+  }
+
+  // Forgot password — Étape 2 : vérifie l'OTP email et applique le nouveau mot de passe
+  async executeResetForgottenPassword(email: string, newPassword: string, otp: string): Promise<void> {
+    const normalizedEmail = email.toLowerCase().trim();
+    const masterUser = await this.prisma.masterUser.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, isActive: true },
+    });
+    if (!masterUser || !masterUser.isActive) throw new Error('Email introuvable');
+    await this.appliquerNouveauMotDePasse(masterUser.id, newPassword, otp);
+  }
+
+  // Partagé par change-password (authentifié) et forgot-password (publique) :
+  // vérifie l'OTP email stocké et applique le nouveau mot de passe.
+  private async appliquerNouveauMotDePasse(masterUserId: string, newPassword: string, otp: string): Promise<void> {
     if (newPassword.length < 12) {
       throw new Error('Le mot de passe doit contenir au moins 12 caractères');
     }

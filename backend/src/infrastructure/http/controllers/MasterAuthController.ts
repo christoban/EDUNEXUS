@@ -173,6 +173,40 @@ export class MasterAuthController {
     }
   };
 
+  // ── Forgot password — Étape 1 : envoie un OTP email (sans authentification) ──
+  forgotPassword = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        res.status(400).json({ success: false, message: 'Email requis' });
+        return;
+      }
+      const result = await this.loginUseCase.executeForgotPasswordOtp(email);
+      void logMasterAuthAudit({ req, outcome: 'success', reason: 'forgot_password_otp_sent', email });
+      res.json({ success: true, message: `Code de vérification envoyé à ${result.email}` });
+    } catch (error: any) {
+      void logMasterAuthAudit({ req, outcome: 'failure', reason: 'forgot_password_request_failed', email: req.body?.email });
+      res.status(400).json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
+  // ── Forgot password — Étape 2 : vérifie l'OTP email et applique le nouveau mot de passe ──
+  forgotPasswordConfirm = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const { email, otp, newPassword } = req.body;
+      if (!email || !otp || !newPassword) {
+        res.status(400).json({ success: false, message: 'Email, code OTP et nouveau mot de passe requis' });
+        return;
+      }
+      await this.loginUseCase.executeResetForgottenPassword(email, newPassword, String(otp).trim());
+      void logMasterAuthAudit({ req, outcome: 'success', reason: 'password_reset_via_forgot_password', email });
+      res.json({ success: true, message: 'Mot de passe réinitialisé avec succès' });
+    } catch (error: any) {
+      void logMasterAuthAudit({ req, outcome: 'failure', reason: 'forgot_password_confirm_failed', email: req.body?.email });
+      res.status(400).json({ success: false, message: error.message || 'Erreur' });
+    }
+  };
+
   // ── Étape 2 : vérifier OTP email + appliquer le nouveau mot de passe ────────
   changePassword = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
