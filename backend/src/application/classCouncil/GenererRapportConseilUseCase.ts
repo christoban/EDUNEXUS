@@ -19,8 +19,13 @@ export class GenererRapportConseilUseCase {
     const repeatCount = decisions.filter(d => d.decision === 'REPEAT').length;
     const deliberationCount = decisions.filter(d => d.decision === 'DELIBERATION').length;
 
+    const moyennes = await this.repo.obtenirMoyennesElevesParClasse(
+      session.classId,
+      session.academicPeriodId,
+    );
+
     const averages = decisions
-      .map(d => (d as any).healthScore as number | undefined)
+      .map(d => moyennes.get(d.studentId))
       .filter((a): a is number => a !== undefined);
     const classAverage = averages.length > 0 ? averages.reduce((a, b) => a + b, 0) / averages.length : 0;
     const highestAverage = averages.length > 0 ? Math.max(...averages) : 0;
@@ -44,7 +49,7 @@ export class GenererRapportConseilUseCase {
         studentId: d.studentId,
         lastName: d.student?.lastName ?? '',
         firstName: d.student?.firstName ?? '',
-        average: null,
+        average: moyennes.get(d.studentId) ?? null,
         decision: d.decision,
         observations: d.observations,
       })),

@@ -20,6 +20,11 @@ export class GenererProcesVerbalUseCase {
     const deliberationCount = decisions.filter(d => d.decision === 'DELIBERATION').length;
     const successRate = totalStudents > 0 ? Math.round(((passCount + deliberationCount) / totalStudents) * 100) : 0;
 
+    const moyennes = await this.repo.obtenirMoyennesElevesParClasse(
+      session.classId,
+      session.academicPeriodId,
+    );
+
     const dateConseil = session.validatedAt
       ? new Date(session.validatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
       : new Date(session.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -35,7 +40,7 @@ export class GenererProcesVerbalUseCase {
         studentId: d.studentId,
         lastName: d.student?.lastName ?? '',
         firstName: d.student?.firstName ?? '',
-        average: null,
+        average: moyennes.get(d.studentId) ?? null,
         decision: d.decision,
         observations: d.observations,
       })),

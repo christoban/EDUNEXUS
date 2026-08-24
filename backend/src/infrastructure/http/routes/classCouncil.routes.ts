@@ -8,7 +8,7 @@ export function creerClassCouncilRoutes(controller: ClassCouncilController): Rou
 
   router.get('/', requireAuth, controller.listerSessionsHandler);
   router.get('/preview', requireAuth, controller.preparerVueHandler);
-  router.post('/', sensitiveWriteLimiter, requireAuth, controller.creerSession);
+  router.post('/', sensitiveWriteLimiter, requireAuth, controller.creerSessionHandler);
   router.get('/:id', requireAuth, controller.obtenirSessionHandler);
   router.post('/:id/decisions', requireAuth, controller.ajouterDecisionHandler);
   router.post('/:id/decisions/bulk', requireAuth, controller.ajouterDecisionsEnBlocHandler);

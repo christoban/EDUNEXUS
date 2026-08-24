@@ -38,6 +38,8 @@ class InMemoryClassCouncilRepository implements ClassCouncilRepository {
   async sessionExistente(): Promise<ClassCouncilSessionData | null> { return null; }
   async compterDecisions(): Promise<number> { return 0; }
   async eleveDansClasse(): Promise<boolean> { return false; }
+  async obtenirMoyennesElevesParClasse(): Promise<Map<string, number>> { return new Map(); }
+  async elevesDansClasse(): Promise<string[]> { return []; }
 }
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@
  * l'ouverture de la session de conseil.
  */
 import type { ClassCouncilPreviewQueryPort, DonneesVueConseilParEleve } from '@domain/ports/repositories/ClassCouncilPreviewQueryPort';
+import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 
 export interface PreparerVueConseilCommande {
   schoolId: string;
@@ -53,9 +54,15 @@ export interface VueConseilClasse {
 }
 
 export class PreparerVueConseilClasseUseCase {
-  constructor(private readonly previewQuery: ClassCouncilPreviewQueryPort) {}
+  constructor(
+    private readonly previewQuery: ClassCouncilPreviewQueryPort,
+    private readonly repo: Pick<ClassCouncilRepository, 'classeExiste'>,
+  ) {}
 
   async execute(commande: PreparerVueConseilCommande): Promise<VueConseilClasse> {
+    const classe = await this.repo.classeExiste(commande.classId, commande.schoolId);
+    if (!classe) throw new NotFoundError('Classe introuvable');
+
     const donnees = await this.previewQuery.chargerDonneesVue(commande);
 
     const eleves = donnees.eleves.map((e) => this.analyserEleve(e));
@@ -111,3 +118,7 @@ const SEUIL_PASSAGE_EN = 40;      // 40% — sous-système anglophone
 const SEUIL_MATIERE_FR = 5;       // aucune matière < 5/20
 const SEUIL_MATIERE_EN = 25;      // équivalent 5/20 sur barème /100
 const SEUIL_BAISSE_SIGNIFICATIVE = 3; // pts de moyenne générale entre 2 périodes
+
+class NotFoundError extends Error {
+  constructor(message: string) { super(message); this.name = 'NotFoundError'; }
+}

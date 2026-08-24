@@ -234,6 +234,7 @@ export function bootstrapHexagonal(app: Application): void {
   );
 
   const classCouncilController = new ClassCouncilController(
+    container.classCouncil.creerSession,
     container.classCouncil.preparerVue,
     container.classCouncil.listerSessions,
     container.classCouncil.obtenirSession,

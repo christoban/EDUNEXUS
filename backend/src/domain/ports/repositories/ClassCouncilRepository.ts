@@ -69,4 +69,8 @@ export interface ClassCouncilRepository {
   compterDecisions(sessionId: string): Promise<number>;
 
   eleveDansClasse(studentId: string, classId: string): Promise<boolean>;
+
+  obtenirMoyennesElevesParClasse(classId: string, academicPeriodId: string): Promise<Map<string, number>>;
+
+  elevesDansClasse(classId: string): Promise<string[]>;
 }

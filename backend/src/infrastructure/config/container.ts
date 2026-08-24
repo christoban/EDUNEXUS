@@ -51,6 +51,7 @@ import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletin
 // --- Use Cases : Conseil de Classe ---
 import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
 import { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';
+import { CreerSessionConseilClasseUseCase } from '@application/classCouncil/CreerSessionConseilClasseUseCase';
 import { ListerSessionsConseilClasseUseCase } from '@application/classCouncil/ListerSessionsConseilClasseUseCase';
 import { ObtenirSessionConseilClasseUseCase } from '@application/classCouncil/ObtenirSessionConseilClasseUseCase';
 import { AjouterDecisionConseilClasseUseCase } from '@application/classCouncil/AjouterDecisionConseilClasseUseCase';
@@ -354,8 +355,10 @@ export function creerContainer() {
     noteRepository, classeRepository, userRepository
   );
   const preparerVueConseilClasseUseCase = new PreparerVueConseilClasseUseCase(
-    new PrismaClassCouncilPreviewQueryPort(prisma)
+    new PrismaClassCouncilPreviewQueryPort(prisma),
+    classCouncilRepository,
   );
+  const creerSessionConseilUseCase = new CreerSessionConseilClasseUseCase(classCouncilRepository, prisma);
   const listerSessionsConseilUseCase = new ListerSessionsConseilClasseUseCase(classCouncilRepository);
   const obtenirSessionConseilUseCase = new ObtenirSessionConseilClasseUseCase(classCouncilRepository);
   const ajouterDecisionConseilUseCase = new AjouterDecisionConseilClasseUseCase(classCouncilRepository);
@@ -585,6 +588,7 @@ export function creerContainer() {
       envoyer: envoyerBulletinsUseCase,
     },
     classCouncil: {
+      creerSession: creerSessionConseilUseCase,
       tenir: tenirConseilClasseUseCase,
       preparerVue: preparerVueConseilClasseUseCase,
       listerSessions: listerSessionsConseilUseCase,

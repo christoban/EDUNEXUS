@@ -178,4 +178,42 @@ export class PrismaClassCouncilRepository implements ClassCouncilRepository {
     });
     return count > 0;
   }
+
+  async obtenirMoyennesElevesParClasse(classId: string, academicPeriodId: string): Promise<Map<string, number>> {
+    const notes = await this.prisma.grade.findMany({
+      where: {
+        classId,
+        sequence: { academicPeriodId },
+        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+        sequenceAverage: { not: null },
+      },
+      select: { studentId: true, sequenceAverage: true, coefficient: true },
+    });
+
+    const accum = new Map<string, { somme: number; poids: number }>();
+    for (const n of notes) {
+      const cur = accum.get(n.studentId) ?? { somme: 0, poids: 0 };
+      cur.somme += (n.sequenceAverage ?? 0) * n.coefficient;
+      cur.poids += n.coefficient;
+      accum.set(n.studentId, cur);
+    }
+
+    const result = new Map<string, number>();
+    for (const [studentId, { somme, poids }] of accum) {
+      result.set(studentId, poids > 0 ? Math.round((somme / poids) * 100) / 100 : 0);
+    }
+    return result;
+  }
+
+  async elevesDansClasse(classId: string): Promise<string[]> {
+    const profiles = await this.prisma.studentProfile.findMany({
+      where: {
+        enrollmentsYearScoped: {
+          some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+        },
+      },
+      select: { userId: true },
+    });
+    return profiles.map(p => p.userId);
+  }
 }

@@ -1,3 +1,4 @@
+export { CreerSessionConseilClasseUseCase, type CreerSessionCommande, type CreerSessionResultat } from './CreerSessionConseilClasseUseCase';
 export { TenirConseilClasseUseCase, type TenirConseilCommande, type TenirConseilResultat } from './TenirConseilClasseUseCase';
 export { PreparerVueConseilClasseUseCase, type PreparerVueConseilCommande, type VueConseilClasse } from './PreparerVueConseilClasseUseCase';
 export { ListerSessionsConseilClasseUseCase } from './ListerSessionsConseilClasseUseCase';

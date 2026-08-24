@@ -1,4 +1,5 @@
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
+import { notifyBulletinSms } from '../../infrastructure/services/sms/SmsNotificationService';
 
 export interface PublierBulletinsCommande {
   sessionId: string;
@@ -22,11 +23,24 @@ export class PublierBulletinsConseilClasseUseCase {
       session.academicPeriodId,
     );
 
+    const periodName = session.academicPeriod?.name ?? 'cette période';
+
+    Promise.all(
+      bulletins.map(b =>
+        notifyBulletinSms({
+          schoolId: commande.schoolId,
+          studentId: b.studentId,
+          studentName: `${b.student.firstName} ${b.student.lastName}`,
+          periodName,
+        })
+      )
+    ).catch(() => {});
+
     return {
       count: bulletins.length,
       message: `${bulletins.length} bulletin${bulletins.length !== 1 ? 's' : ''} publié${bulletins.length !== 1 ? 's' : ''}`,
       bulletins,
-      periodName: session.academicPeriod?.name ?? 'cette période',
+      periodName,
     };
   }
 }

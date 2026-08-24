@@ -1,7 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { logActivity } from '../../services/audit/ActivityLogService';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { notifyBulletinSms } from '../../services/sms/SmsNotificationService.ts';
+import type { CreerSessionConseilClasseUseCase } from '@application/classCouncil/CreerSessionConseilClasseUseCase';
 import type { PreparerVueConseilClasseUseCase } from '@application/classCouncil/PreparerVueConseilClasseUseCase';
 import type { ListerSessionsConseilClasseUseCase } from '@application/classCouncil/ListerSessionsConseilClasseUseCase';
 import type { ObtenirSessionConseilClasseUseCase } from '@application/classCouncil/ObtenirSessionConseilClasseUseCase';
@@ -11,7 +9,6 @@ import type { VerrouillerConseilClasseUseCase } from '@application/classCouncil/
 import type { PublierBulletinsConseilClasseUseCase } from '@application/classCouncil/PublierBulletinsConseilClasseUseCase';
 import type { GenererProcesVerbalUseCase } from '@application/classCouncil/GenererProcesVerbalUseCase';
 import type { GenererRapportConseilUseCase } from '@application/classCouncil/GenererRapportConseilUseCase';
-import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { renderClassCouncilMinutesPdf } from '../../pdf/class-council/ClassCouncilMinutesPdfRenderer';
 import { renderClassCouncilReportPdf } from '../../pdf/class-council/ClassCouncilReportPdfRenderer';
 
@@ -19,6 +16,7 @@ type AuthUser = { schoolId: string; userId: string; role: string; permissions?: 
 
 export class ClassCouncilController {
   constructor(
+    private readonly creerSession: CreerSessionConseilClasseUseCase,
     private readonly preparerVueConseil: PreparerVueConseilClasseUseCase,
     private readonly listerSessions: ListerSessionsConseilClasseUseCase,
     private readonly obtenirSession: ObtenirSessionConseilClasseUseCase,
@@ -39,101 +37,30 @@ export class ClassCouncilController {
   }
 
   // POST /api/v2/class-councils
-  creerSession = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  creerSessionHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = this.user(req);
-      const { classId, academicPeriodId } = req.body;
-
-      if (!classId || !academicPeriodId) {
-        res.status(400).json({ message: 'classId et academicPeriodId sont requis' });
-        return;
-      }
-      if (!this.canManage(user)) {
-        res.status(403).json({ message: 'Permission VALIDATE_GRADES requise' });
-        return;
-      }
-
-      const schoolClass = await prisma.class.findFirst({
-        where: { id: classId, schoolId: user.schoolId },
-        select: { id: true, name: true },
-      });
-      if (!schoolClass) {
-        res.status(404).json({ message: 'Classe introuvable' });
-        return;
-      }
-
-      const unvalidated = await prisma.grade.count({
-        where: {
-          schoolId: user.schoolId,
-          classId,
-          sequence: { academicPeriodId },
-          validationStatus: { notIn: ['VALIDATED', 'LOCKED'] },
-        },
-      });
-      if (unvalidated > 0) {
-        res.status(409).json({
-          message: `${unvalidated} note(s) non encore validée(s). Validez toutes les notes avant de tenir le Conseil de Classe.`,
-          unvalidatedCount: unvalidated,
-          blocked: true,
-        });
-        return;
-      }
-
-      const existing = await prisma.classCouncilSession.findFirst({ where: { classId, academicPeriodId } });
-      if (existing) {
-        res.status(409).json({
-          message: 'Une session de Conseil de Classe existe déjà pour cette classe et cette période',
-          session: existing,
-        });
-        return;
-      }
-
-      const session = await prisma.classCouncilSession.create({
-        data: { schoolId: user.schoolId, classId, academicPeriodId, presidedById: user.userId, status: 'OPEN' },
-        include: {
-          class: { select: { id: true, name: true } },
-          academicPeriod: { select: { id: true, name: true } },
-          presidedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-      });
-
-      const { whereProfilesParClasse } = await import('@application/shared/studentEnrollment');
-      const students = await prisma.studentProfile.findMany({
-        where: { ...whereProfilesParClasse(classId) },
-        select: { userId: true },
-      });
-      if (students.length > 0) {
-        await prisma.classCouncilDecision.createMany({
-          data: students.map(s => ({
-            sessionId: session.id,
-            studentId: s.userId,
-            decision: 'DELIBERATION' as any,
-            observations: null,
-          })),
-          skipDuplicates: true,
-        });
-      }
-
-      await logActivity({
-        userId: user.userId,
+      const result = await this.creerSession.execute({
         schoolId: user.schoolId,
-        action: 'Class council session created',
-        details: `Classe ${schoolClass.name} — période ${academicPeriodId} — ${students.length} élève(s) pré-peuplé(s)`,
+        classId: req.body.classId,
+        academicPeriodId: req.body.academicPeriodId,
+        presidedById: user.userId,
+        userRole: user.role,
       });
-
-      journaliserActionIA(prisma, {
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'ouvrir_conseil_classe', targetType: 'Class', targetId: classId,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId },
-      });
-      res.status(201).json({ session });
+      res.status(201).json(result);
     } catch (error) {
-      const user = this.user(req);
-      journaliserActionIA(prisma, {
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'ouvrir_conseil_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
+      if (error instanceof Error && error.name === 'ConflictError') {
+        res.status(409).json({ message: error.message, ...(error as any).details });
+        return;
+      }
+      if (error instanceof Error && error.name === 'NotFoundError') {
+        res.status(404).json({ message: error.message });
+        return;
+      }
+      if (error instanceof Error && error.name === 'ForbiddenError') {
+        res.status(403).json({ message: error.message });
+        return;
+      }
       next(error);
     }
   };
@@ -170,15 +97,6 @@ export class ClassCouncilController {
         return;
       }
 
-      const classe = await prisma.class.findFirst({
-        where: { id: classId, schoolId: user.schoolId },
-        select: { id: true },
-      });
-      if (!classe) {
-        res.status(404).json({ message: 'Classe introuvable' });
-        return;
-      }
-
       const vue = await this.preparerVueConseil.execute({
         schoolId: user.schoolId,
         classId,
@@ -186,6 +104,10 @@ export class ClassCouncilController {
       });
       res.json({ vue });
     } catch (error) {
+      if (error instanceof Error && error.name === 'NotFoundError') {
+        res.status(404).json({ message: error.message });
+        return;
+      }
       next(error);
     }
   };
@@ -271,15 +193,8 @@ export class ClassCouncilController {
       const result = await this.verrouiller.execute({
         sessionId: req.params.id as string,
         schoolId: user.schoolId,
-      });
-
-      await logActivity({
         userId: user.userId,
-        schoolId: user.schoolId,
-        action: 'Class council session locked',
-        details: `Session ${req.params.id}`,
       });
-
       res.json(result);
     } catch (error) {
       next(error);
@@ -299,18 +214,6 @@ export class ClassCouncilController {
         sessionId: req.params.id as string,
         schoolId: user.schoolId,
       });
-
-      Promise.all(
-        result.bulletins.map(b =>
-          notifyBulletinSms({
-            schoolId: user.schoolId,
-            studentId: b.studentId,
-            studentName: `${b.student.firstName} ${b.student.lastName}`,
-            periodName: result.periodName,
-          })
-        )
-      ).catch(() => {});
-
       res.json({ count: result.count, message: result.message });
     } catch (error) {
       next(error);
