@@ -1,8 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
 import type { Language } from '../../domain/policies/LanguagePolicy';
-import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
 
 export interface DemanderRattrapageCommande {
   schoolId: string;
@@ -20,7 +19,7 @@ export class DemanderRattrapageUseCase {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
-    private readonly prisma: PrismaClient,
+    private readonly rattachementRepository: RattachementEnseignantRepository,
   ) {}
 
   async execute(commande: DemanderRattrapageCommande): Promise<void> {
@@ -30,8 +29,8 @@ export class DemanderRattrapageUseCase {
     // Aucune matière de précisée dans la demande passée = équivalent d'une demande "présences"
     // (professeur principal habilité) ; une matière précisée = doit être réellement assigné.
     if (!enseignant.estAdmin()) {
-      const rattache = await estRattacheALaClasse(
-        this.prisma, commande.teacherId, commande.classId, commande.subjectId,
+      const rattache = await this.rattachementRepository.estRattacheALaClasse(
+        commande.teacherId, commande.classId, commande.subjectId,
         { autoriserProfesseurPrincipal: true },
       );
       if (!rattache) {

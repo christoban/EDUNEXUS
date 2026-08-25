@@ -4,6 +4,7 @@ import { User } from '@domain/entities/User';
 import { InMemoryPresenceRepository } from '../../../helpers/repositories/InMemoryPresenceRepository.ts';
 import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 import { InMemoryNotificationService } from '../../../helpers/services/InMemoryNotificationService.ts';
+import { InMemoryRattachementEnseignantRepository } from '../../../helpers/repositories/InMemoryRattachementEnseignantRepository.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -50,31 +51,18 @@ function commandeBase() {
 // Fausse résolution du rattachement classe (professeur principal OU TeachingAssignment) — le
 // use case vérifie désormais que l'enseignant est réellement rattaché à la classe où il prend
 // les présences, pas seulement qu'il existe et soit actif.
-function creerPrismaFake(options: {
+function creerRattachementFake(options: {
   classesAvecPP?: { classId: string; professorPrincipalId: string }[];
   assignations?: { teacherId: string; classId: string; subjectId?: string }[];
 } = {}) {
-  const classesAvecPP = options.classesAvecPP ?? [];
-  const assignations = options.assignations ?? [];
-  return {
-    class: {
-      findFirst: async ({ where }: any) =>
-        classesAvecPP.some((c) => c.classId === where.id && c.professorPrincipalId === where.professorPrincipalId)
-          ? { id: where.id }
-          : null,
-    },
-    teachingAssignment: {
-      findFirst: async ({ where }: any) =>
-        assignations.some(
-          (a) =>
-            a.teacherId === where.teacherId &&
-            a.classId === where.classId &&
-            (where.subjectId === undefined || a.subjectId === where.subjectId)
-        )
-          ? { id: 'ta-1' }
-          : null,
-    },
-  } as any;
+  const repo = new InMemoryRattachementEnseignantRepository();
+  for (const pp of options.classesAvecPP ?? []) {
+    repo.ajouterProfesseurPrincipal(pp.classId, pp.professorPrincipalId);
+  }
+  for (const a of options.assignations ?? []) {
+    repo.ajouterAssignation(a.teacherId, a.classId, a.subjectId ?? '');
+  }
+  return repo;
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -83,6 +71,7 @@ describe('EnregistrerPresenceUseCase', () => {
   let presenceRepo: InMemoryPresenceRepository;
   let userRepo: InMemoryUserRepository;
   let notifService: InMemoryNotificationService;
+  let rattachementRepo: InMemoryRattachementEnseignantRepository;
   let useCase: EnregistrerPresenceUseCase;
 
   beforeEach(() => {
@@ -91,9 +80,10 @@ describe('EnregistrerPresenceUseCase', () => {
     notifService = new InMemoryNotificationService();
     // teacher-1 = professeur principal de CLASS_ID par défaut, pour que les tests nominaux
     // existants (qui ne portent pas sur le rattachement) restent inchangés.
+    rattachementRepo = creerRattachementFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: 'teacher-1' }] });
     useCase = new EnregistrerPresenceUseCase(
       presenceRepo, userRepo, notifService,
-      creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: 'teacher-1' }] }),
+      rattachementRepo,
     );
     userRepo.ajouter(creerEnseignant());
   });
@@ -165,7 +155,7 @@ describe('EnregistrerPresenceUseCase', () => {
     it('rejette si l\'enseignant n\'est ni professeur principal ni assigné à cette classe (régression)', async () => {
       const autreUseCase = new EnregistrerPresenceUseCase(
         presenceRepo, userRepo, notifService,
-        creerPrismaFake(), // aucune classe PP, aucune assignation
+        creerRattachementFake(), // aucune classe PP, aucune assignation
       );
       userRepo.ajouter(creerEnseignant('teacher-etranger'));
 
@@ -177,7 +167,7 @@ describe('EnregistrerPresenceUseCase', () => {
     it('autorise un enseignant de matière assigné à cette classe (TeachingAssignment) sans être professeur principal', async () => {
       const useCaseAssigne = new EnregistrerPresenceUseCase(
         presenceRepo, userRepo, notifService,
-        creerPrismaFake({ assignations: [{ teacherId: 'teacher-matiere', classId: CLASS_ID, subjectId: 'maths-1' }] }),
+        creerRattachementFake({ assignations: [{ teacherId: 'teacher-matiere', classId: CLASS_ID, subjectId: 'maths-1' }] }),
       );
       userRepo.ajouter(creerEnseignant('teacher-matiere'));
 

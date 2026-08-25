@@ -26,6 +26,7 @@ import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma
 import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
 import { PrismaClassRoomAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaClassRoomAssignmentRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
+import { PrismaRattachementEnseignantRepository } from '@infrastructure/persistence/prisma/PrismaRattachementEnseignantRepository';
 import { PrismaSectionRepository } from '@infrastructure/persistence/prisma/PrismaSectionRepository';
 import { PrismaStudentProfileRepository } from '@infrastructure/persistence/prisma/PrismaStudentProfileRepository';
 
@@ -306,6 +307,7 @@ export function creerContainer() {
   const sectionRepository = new PrismaSectionRepository(prisma);
   const studentProfileRepository = new PrismaStudentProfileRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
+  const rattachementRepository = new PrismaRattachementEnseignantRepository(prisma);
   const roomRepository = new PrismaRoomRepository(prisma);
   const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
   const studentGroupRepository = new PrismaStudentGroupRepository(prisma);
@@ -319,7 +321,7 @@ export function creerContainer() {
 
   // 4. Use Cases — Notes
   const saisirNoteUseCase = new SaisirNoteUseCase(
-    noteRepository, matiereRepository, userRepository, prisma
+    noteRepository, matiereRepository, userRepository, rattachementRepository
   );
   const soumettreNoteUseCase = new SoumettreNoteUseCase(noteRepository);
   const validerNoteUseCase = new ValiderNoteUseCase(noteRepository, userRepository);
@@ -335,7 +337,7 @@ export function creerContainer() {
 
   // 6. Use Cases — Présences
   const enregistrerPresenceUseCase = new EnregistrerPresenceUseCase(
-    presenceRepository, userRepository, notificationService, prisma
+    presenceRepository, userRepository, notificationService, rattachementRepository
   );
 
   // 6. Use Cases — School
@@ -489,7 +491,7 @@ export function creerContainer() {
   const demanderRattrapageUseCase = new DemanderRattrapageUseCase(
     userRepository,
     notificationService,
-    prisma,
+    rattachementRepository,
   );
   const genererSeancesGroupeUseCase = new GenererSeancesGroupeUseCase(
     timetableRepository, studentGroupRepository, studentGroupMembershipRepository,

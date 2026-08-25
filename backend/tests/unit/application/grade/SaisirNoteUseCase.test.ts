@@ -4,6 +4,7 @@ import { User } from '@domain/entities/User';
 import { InMemoryNoteRepository } from '../../../helpers/repositories/InMemoryNoteRepository.ts';
 import { InMemoryUserRepository } from '../../../helpers/repositories/InMemoryUserRepository.ts';
 import { InMemoryMatiereRepository } from '../../../helpers/repositories/InMemoryMatiereRepository.ts';
+import { InMemoryRattachementEnseignantRepository } from '../../../helpers/repositories/InMemoryRattachementEnseignantRepository.ts';
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -61,32 +62,20 @@ function commandeBase(recordedById = 'teacher-1') {
 
 // Fausse assignation classe+matière (TeachingAssignment) — le use case vérifie désormais que
 // l'enseignant est assigné à CETTE classe précise, pas seulement à la matière en général.
-function creerPrismaFake(assignations: { teacherId: string; classId: string; subjectId: string }[]) {
-  return {
-    teachingAssignment: {
-      findFirst: async ({ where }: any) => {
-        const trouve = assignations.find(
-          (a) => a.teacherId === where.teacherId && a.classId === where.classId && a.subjectId === where.subjectId
-        );
-        return trouve ? { id: 'ta-1' } : null;
-      },
-    },
-  } as any;
-}
 
 describe('SaisirNoteUseCase', () => {
   let noteRepo: InMemoryNoteRepository;
   let userRepo: InMemoryUserRepository;
   let matiereRepo: InMemoryMatiereRepository;
-  let assignations: { teacherId: string; classId: string; subjectId: string }[];
+  let rattachementRepo: InMemoryRattachementEnseignantRepository;
   let useCase: SaisirNoteUseCase;
 
   beforeEach(() => {
     noteRepo = new InMemoryNoteRepository();
     userRepo = new InMemoryUserRepository();
     matiereRepo = new InMemoryMatiereRepository();
-    assignations = [];
-    useCase = new SaisirNoteUseCase(noteRepo, matiereRepo, userRepo, creerPrismaFake(assignations));
+    rattachementRepo = new InMemoryRattachementEnseignantRepository();
+    useCase = new SaisirNoteUseCase(noteRepo, matiereRepo, userRepo, rattachementRepo);
 
     // Matière disponible dans l'établissement
     matiereRepo.ajouter({
@@ -102,7 +91,7 @@ describe('SaisirNoteUseCase', () => {
   /** Enregistre à la fois l'assignation matière (legacy) ET l'assignation classe+matière (TeachingAssignment). */
   async function assignerEnseignantALaClasse(teacherId = 'teacher-1', classId = CLASS_ID, subjectId = SUBJECT_ID) {
     await matiereRepo.assignerEnseignant(teacherId, subjectId);
-    assignations.push({ teacherId, classId, subjectId });
+    rattachementRepo.ajouterAssignation(teacherId, classId, subjectId);
   }
 
   describe('Cas nominal', () => {

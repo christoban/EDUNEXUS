@@ -3,13 +3,12 @@
  * Enregistre la présence de tous les élèves d'une classe en une opération.
  * Déclenche les alertes si le seuil d'absences est dépassé.
  */
-import type { PrismaClient } from '@prisma/client';
 import { Presence } from '@domain/entities/Presence';
 import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { NotificationService } from '@domain/ports/services/NotificationService';
+import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
 import type { AttendanceStatus, AttendancePeriod } from '@domain/types/enums';
-import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
 
 export interface PresenceEleve {
   studentId: string;
@@ -40,7 +39,7 @@ export class EnregistrerPresenceUseCase {
     private readonly presenceRepository: PresenceRepository,
     private readonly userRepository: UserRepository,
     private readonly notificationService: NotificationService,
-    private readonly prisma: PrismaClient,
+    private readonly rattachementRepository: RattachementEnseignantRepository,
   ) {}
 
   async execute(commande: EnregistrerPresenceCommande): Promise<EnregistrerPresenceResultat> {
@@ -56,8 +55,8 @@ export class EnregistrerPresenceUseCase {
     // contrôle, n'importe quel enseignant de l'école pouvait marquer présent/absent/en retard
     // n'importe quel élève d'une classe qu'il n'enseigne pas.
     if (!enseignant.estAdmin()) {
-      const rattache = await estRattacheALaClasse(
-        this.prisma, commande.teacherId, commande.classId, commande.subjectId,
+      const rattache = await this.rattachementRepository.estRattacheALaClasse(
+        commande.teacherId, commande.classId, commande.subjectId,
         { autoriserProfesseurPrincipal: true },
       );
       if (!rattache) {

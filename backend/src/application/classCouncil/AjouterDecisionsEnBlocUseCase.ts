@@ -1,4 +1,4 @@
-import type { CouncilDecision } from '@prisma/client';
+import type { CouncilDecision } from '@domain/types/enums';
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 import { isValidDecision } from '@domain/policies/ClassCouncilDecisionPolicy';
 

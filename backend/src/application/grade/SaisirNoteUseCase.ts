@@ -3,12 +3,11 @@
  * Un enseignant saisit une note pour un élève. Statut initial : DRAFT.
  * Vérifie que l'enseignant est bien assigné à la matière ET à la classe.
  */
-import type { PrismaClient } from '@prisma/client';
 import { Note } from '@domain/entities/Note';
 import type { NoteRepository } from '@domain/ports/repositories/NoteRepository';
 import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
-import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
+import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
 
 export interface SaisirNoteCommande {
   schoolId: string;
@@ -44,7 +43,7 @@ export class SaisirNoteUseCase {
     private readonly noteRepository: NoteRepository,
     private readonly matiereRepository: MatiereRepository,
     private readonly userRepository: UserRepository,
-    private readonly prisma: PrismaClient,
+    private readonly rattachementRepository: RattachementEnseignantRepository,
   ) {}
 
   async execute(commande: SaisirNoteCommande): Promise<SaisirNoteResultat> {
@@ -72,8 +71,8 @@ export class SaisirNoteUseCase {
     // Pas de bypass "professeur principal" ici : une note est toujours liée à UNE matière
     // précise, être PP de la classe ne rend pas légitime d'y noter une matière non enseignée.
     if (!enseignant.estAdmin()) {
-      const rattache = await estRattacheALaClasse(
-        this.prisma, commande.recordedById, commande.classId, commande.subjectId,
+      const rattache = await this.rattachementRepository.estRattacheALaClasse(
+        commande.recordedById, commande.classId, commande.subjectId,
         { autoriserProfesseurPrincipal: false },
       );
       if (!rattache) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { estRattacheALaClasse } from '@application/shared/verifierRattachementClasse';
+import { PrismaRattachementEnseignantRepository } from '../../../../../src/infrastructure/persistence/prisma/PrismaRattachementEnseignantRepository';
 
 const TEACHER_ID = 'teacher-1';
 const CLASS_ID = 'class-3e';
@@ -33,58 +33,58 @@ function creerPrismaFake(options: {
   } as any;
 }
 
-describe('estRattacheALaClasse', () => {
+describe('PrismaRattachementEnseignantRepository.estRattacheALaClasse', () => {
   describe('mode strict (autoriserProfesseurPrincipal: false — notes, cahier de texte)', () => {
     it('autorise un enseignant assigné à la bonne classe ET matière', async () => {
-      const prisma = creerPrismaFake({ assignations: [{ teacherId: TEACHER_ID, classId: CLASS_ID, subjectId: SUBJECT_ID }] });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({ assignations: [{ teacherId: TEACHER_ID, classId: CLASS_ID, subjectId: SUBJECT_ID }] }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
       expect(result).toBe(true);
     });
 
     it('refuse un enseignant assigné à la matière mais dans une AUTRE classe (régression du bug corrigé)', async () => {
-      const prisma = creerPrismaFake({ assignations: [{ teacherId: TEACHER_ID, classId: AUTRE_CLASSE_ID, subjectId: SUBJECT_ID }] });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({ assignations: [{ teacherId: TEACHER_ID, classId: AUTRE_CLASSE_ID, subjectId: SUBJECT_ID }] }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
       expect(result).toBe(false);
     });
 
     it('refuse un professeur principal de la classe qui ne porte pas la matière (pas de bypass en mode strict)', async () => {
-      const prisma = creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: TEACHER_ID }] });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: TEACHER_ID }] }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
       expect(result).toBe(false);
     });
 
     it('refuse un enseignant sans aucune assignation', async () => {
-      const prisma = creerPrismaFake();
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake());
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: false });
       expect(result).toBe(false);
     });
   });
 
   describe('mode souple (autoriserProfesseurPrincipal: true — présences, rattrapage)', () => {
     it('autorise le professeur principal de la classe, même sans assignation matière', async () => {
-      const prisma = creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: TEACHER_ID }] });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: true });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: TEACHER_ID }] }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: true });
       expect(result).toBe(true);
     });
 
     it('autorise un enseignant de matière assigné à cette classe, sans être professeur principal', async () => {
-      const prisma = creerPrismaFake({ assignations: [{ teacherId: TEACHER_ID, classId: CLASS_ID, subjectId: SUBJECT_ID }] });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: true });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({ assignations: [{ teacherId: TEACHER_ID, classId: CLASS_ID, subjectId: SUBJECT_ID }] }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: true });
       expect(result).toBe(true);
     });
 
     it('refuse un enseignant ni PP ni assigné à cette classe', async () => {
-      const prisma = creerPrismaFake({
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({
         assignations: [{ teacherId: TEACHER_ID, classId: AUTRE_CLASSE_ID, subjectId: SUBJECT_ID }],
         classesAvecPP: [{ classId: AUTRE_CLASSE_ID, professorPrincipalId: TEACHER_ID }],
-      });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: true });
+      }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, SUBJECT_ID, { autoriserProfesseurPrincipal: true });
       expect(result).toBe(false);
     });
 
     it('fonctionne sans subjectId précisé (rattrapage sans matière) — PP suffit', async () => {
-      const prisma = creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: TEACHER_ID }] });
-      const result = await estRattacheALaClasse(prisma, TEACHER_ID, CLASS_ID, undefined, { autoriserProfesseurPrincipal: true });
+      const repo = new PrismaRattachementEnseignantRepository(creerPrismaFake({ classesAvecPP: [{ classId: CLASS_ID, professorPrincipalId: TEACHER_ID }] }));
+      const result = await repo.estRattacheALaClasse(TEACHER_ID, CLASS_ID, undefined, { autoriserProfesseurPrincipal: true });
       expect(result).toBe(true);
     });
   });
