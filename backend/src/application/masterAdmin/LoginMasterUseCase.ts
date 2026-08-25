@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { MasterUserAuthRepository } from '@domain/ports/repositories/MasterUserAuthRepository';
 
 export interface SendEmailOTP {
   (params: { recipientEmail: string; otp: string }): Promise<void>;
@@ -8,16 +8,14 @@ export interface SendEmailOTP {
 
 export class LoginMasterUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly masterUserAuthRepository: MasterUserAuthRepository,
     private readonly sendEmail: SendEmailOTP,
   ) {}
 
   async executeLogin(email: string, password: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const masterUser = await this.masterUserAuthRepository.findByEmail(normalizedEmail);
 
     if (!masterUser || !masterUser.isActive) {
       throw new Error('Identifiants invalides');
@@ -32,14 +30,11 @@ export class LoginMasterUseCase {
     const otpHashed = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await this.prisma.masterUser.update({
-      where: { id: masterUser.id },
-      data: {
-        loginEmailOtpHash: otpHashed,
-        loginEmailOtpExpiresAt: expiresAt,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: new Date(),
-      },
+    await this.masterUserAuthRepository.updateLoginOtp(masterUser.id, {
+      loginEmailOtpHash: otpHashed,
+      loginEmailOtpExpiresAt: expiresAt,
+      loginEmailOtpAttempts: 0,
+      loginEmailOtpSentAt: new Date(),
     });
 
     void this.sendEmail({ recipientEmail: normalizedEmail, otp }).catch(err => console.error('[Email] Échec OTP login:', (err as Error)?.message));
@@ -58,9 +53,7 @@ export class LoginMasterUseCase {
   }> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const masterUser = await this.masterUserAuthRepository.findByEmail(normalizedEmail);
 
     if (!masterUser) {
       throw new Error('Code de vérification invalide');
@@ -80,22 +73,11 @@ export class LoginMasterUseCase {
 
     const otpOk = await bcrypt.compare(otp, masterUser.loginEmailOtpHash);
     if (!otpOk) {
-      await this.prisma.masterUser.update({
-        where: { id: masterUser.id },
-        data: { loginEmailOtpAttempts: { increment: 1 } },
-      });
+      await this.masterUserAuthRepository.incrementLoginOtpAttempts(masterUser.id);
       throw new Error('Code de vérification incorrect');
     }
 
-    await this.prisma.masterUser.update({
-      where: { id: masterUser.id },
-      data: {
-        loginEmailOtpHash: null,
-        loginEmailOtpExpiresAt: null,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: null,
-      },
-    });
+    await this.masterUserAuthRepository.clearLoginOtp(masterUser.id);
 
     return {
       masterUserId: masterUser.id,
@@ -110,23 +92,17 @@ export class LoginMasterUseCase {
   // Étape 1 — Envoie un OTP par email pour confirmer le changement de mot de passe
   // (appelé après que requireMasterSensitiveAuth a déjà vérifié l'ancien password + MFA)
   async executeSendPasswordChangeOtp(masterUserId: string): Promise<{ email: string }> {
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { id: masterUserId },
-      select: { id: true, email: true, isActive: true },
-    });
+    const masterUser = await this.masterUserAuthRepository.findById(masterUserId);
     if (!masterUser || !masterUser.isActive) throw new Error('Compte introuvable');
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpHashed = await bcrypt.hash(otp, 10);
 
-    await this.prisma.masterUser.update({
-      where: { id: masterUser.id },
-      data: {
-        passwordChangeEmailOtpHash: otpHashed,
-        passwordChangeEmailOtpExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
-        passwordChangeEmailOtpAttempts: 0,
-        passwordChangeEmailOtpSentAt: new Date(),
-      },
+    await this.masterUserAuthRepository.updatePasswordChangeOtp(masterUser.id, {
+      passwordChangeEmailOtpHash: otpHashed,
+      passwordChangeEmailOtpExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      passwordChangeEmailOtpAttempts: 0,
+      passwordChangeEmailOtpSentAt: new Date(),
     });
 
     void this.sendEmail({ recipientEmail: masterUser.email, otp }).catch(err => console.error('[Email] Échec OTP password-change:', (err as Error)?.message));
@@ -141,23 +117,17 @@ export class LoginMasterUseCase {
   // Forgot password — Étape 1 : envoie un OTP email (sans authentification préalable)
   async executeForgotPasswordOtp(email: string): Promise<{ email: string }> {
     const normalizedEmail = email.toLowerCase().trim();
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { email: normalizedEmail },
-      select: { id: true, email: true, isActive: true },
-    });
+    const masterUser = await this.masterUserAuthRepository.findByEmail(normalizedEmail);
     if (!masterUser || !masterUser.isActive) throw new Error('Email introuvable');
 
     const otp = crypto.randomInt(100000, 999999).toString();
     const otpHashed = await bcrypt.hash(otp, 10);
 
-    await this.prisma.masterUser.update({
-      where: { id: masterUser.id },
-      data: {
-        passwordChangeEmailOtpHash: otpHashed,
-        passwordChangeEmailOtpExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
-        passwordChangeEmailOtpAttempts: 0,
-        passwordChangeEmailOtpSentAt: new Date(),
-      },
+    await this.masterUserAuthRepository.updatePasswordChangeOtp(masterUser.id, {
+      passwordChangeEmailOtpHash: otpHashed,
+      passwordChangeEmailOtpExpiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      passwordChangeEmailOtpAttempts: 0,
+      passwordChangeEmailOtpSentAt: new Date(),
     });
 
     void this.sendEmail({ recipientEmail: masterUser.email, otp }).catch(err => console.error('[Email] Échec OTP forgot-password:', (err as Error)?.message));
@@ -167,10 +137,7 @@ export class LoginMasterUseCase {
   // Forgot password — Étape 2 : vérifie l'OTP email et applique le nouveau mot de passe
   async executeResetForgottenPassword(email: string, newPassword: string, otp: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { email: normalizedEmail },
-      select: { id: true, isActive: true },
-    });
+    const masterUser = await this.masterUserAuthRepository.findByEmail(normalizedEmail);
     if (!masterUser || !masterUser.isActive) throw new Error('Email introuvable');
     await this.appliquerNouveauMotDePasse(masterUser.id, newPassword, otp);
   }
@@ -182,15 +149,7 @@ export class LoginMasterUseCase {
       throw new Error('Le mot de passe doit contenir au moins 12 caractères');
     }
 
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { id: masterUserId },
-      select: {
-        id: true,
-        passwordChangeEmailOtpHash: true,
-        passwordChangeEmailOtpExpiresAt: true,
-        passwordChangeEmailOtpAttempts: true,
-      },
-    });
+    const masterUser = await this.masterUserAuthRepository.findById(masterUserId);
     if (!masterUser) throw new Error('Utilisateur introuvable');
 
     if (!masterUser.passwordChangeEmailOtpHash) {
@@ -205,32 +164,18 @@ export class LoginMasterUseCase {
 
     const otpOk = await bcrypt.compare(otp, masterUser.passwordChangeEmailOtpHash);
     if (!otpOk) {
-      await this.prisma.masterUser.update({
-        where: { id: masterUser.id },
-        data: { passwordChangeEmailOtpAttempts: { increment: 1 } },
-      });
+      await this.masterUserAuthRepository.incrementPasswordChangeOtpAttempts(masterUser.id);
       throw new Error('Code de vérification incorrect');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await this.prisma.masterUser.update({
-      where: { id: masterUser.id },
-      data: {
-        passwordHash,
-        passwordChangeEmailOtpHash: null,
-        passwordChangeEmailOtpExpiresAt: null,
-        passwordChangeEmailOtpAttempts: 0,
-        passwordChangeEmailOtpSentAt: null,
-      },
-    });
+    await this.masterUserAuthRepository.applyPasswordChange(masterUser.id, passwordHash);
   }
 
   async executeResendOtp(email: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const masterUser = await this.masterUserAuthRepository.findByEmail(normalizedEmail);
 
     if (!masterUser || !masterUser.isActive) {
       throw new Error('Email invalide');
@@ -240,14 +185,11 @@ export class LoginMasterUseCase {
     const otpHashed = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await this.prisma.masterUser.update({
-      where: { id: masterUser.id },
-      data: {
-        loginEmailOtpHash: otpHashed,
-        loginEmailOtpExpiresAt: expiresAt,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: new Date(),
-      },
+    await this.masterUserAuthRepository.updateLoginOtp(masterUser.id, {
+      loginEmailOtpHash: otpHashed,
+      loginEmailOtpExpiresAt: expiresAt,
+      loginEmailOtpAttempts: 0,
+      loginEmailOtpSentAt: new Date(),
     });
 
     void this.sendEmail({ recipientEmail: normalizedEmail, otp }).catch(err => console.error('[Email] Échec OTP resend:', (err as Error)?.message));

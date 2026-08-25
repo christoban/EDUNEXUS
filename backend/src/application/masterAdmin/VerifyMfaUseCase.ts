@@ -1,16 +1,12 @@
 import bcrypt from 'bcryptjs';
 import { verifySync } from 'otplib';
-import type { PrismaClient } from '@prisma/client';
+import type { MasterUserAuthRepository } from '@domain/ports/repositories/MasterUserAuthRepository';
 
 export class VerifyMfaUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly masterUserAuthRepository: MasterUserAuthRepository) {}
 
   async getMfaStatus(masterUserId: string): Promise<{ mfaEnabled: boolean }> {
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { id: masterUserId },
-      select: { mfaEnabled: true },
-    });
-    return { mfaEnabled: masterUser?.mfaEnabled ?? false };
+    return this.masterUserAuthRepository.getMfaStatus(masterUserId);
   }
 
   async execute(
@@ -22,19 +18,7 @@ export class VerifyMfaUseCase {
     role: string;
     isSuperAdmin: boolean;
   }> {
-    const masterUser = await this.prisma.masterUser.findUnique({
-      where: { id: masterUserId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isSuperAdmin: true,
-        mfaEnabled: true,
-        mfaSecret: true,
-        mfaRecoveryCodeHashes: true,
-      },
-    });
+    const masterUser = await this.masterUserAuthRepository.findById(masterUserId);
 
     if (!masterUser || !masterUser.mfaEnabled) {
       throw new Error('MFA non configuré');
@@ -66,10 +50,7 @@ export class VerifyMfaUseCase {
       if (matches) {
         const updated = [...hashes];
         updated.splice(i, 1);
-        await this.prisma.masterUser.update({
-          where: { id: masterUser.id },
-          data: { mfaRecoveryCodeHashes: updated },
-        });
+        await this.masterUserAuthRepository.updateMfaRecoveryCodes(masterUser.id, updated);
         return {
           email: masterUser.email,
           name: masterUser.name,

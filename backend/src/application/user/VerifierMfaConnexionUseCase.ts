@@ -5,16 +5,13 @@
  */
 import bcrypt from 'bcryptjs';
 import { verifySync } from 'otplib';
-import type { PrismaClient } from '@prisma/client';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 
 export class VerifierMfaConnexionUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly userRepository: UserRepository) {}
 
   async execute(userId: string, code: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, mfaEnabled: true, mfaSecret: true, mfaRecoveryCodeHashes: true },
-    });
+    const user = await this.userRepository.findAuthDataById(userId);
 
     if (!user || !user.mfaEnabled || !user.mfaSecret) {
       throw new Error('MFA non configuré');
@@ -37,10 +34,7 @@ export class VerifierMfaConnexionUseCase {
       if (matches) {
         const updated = [...hashes];
         updated.splice(i, 1);
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { mfaRecoveryCodeHashes: updated },
-        });
+        await this.userRepository.updateMfaRecoveryCodeHashes(user.id, updated);
         return;
       }
     }

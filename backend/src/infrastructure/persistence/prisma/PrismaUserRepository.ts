@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { User } from '@domain/entities/User';
-import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { UserRepository, AuthUserData } from '@domain/ports/repositories/UserRepository';
 import type { StaffPermissionType, UserRole } from '@domain/types/enums';
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
@@ -440,6 +440,61 @@ export class PrismaUserRepository implements UserRepository {
     return relations
       .map((r) => r.parentProfile.user.email)
       .filter((email): email is string => !!email);
+  }
+
+  async findAuthDataById(id: string): Promise<AuthUserData | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        isActive: true,
+        loginEmailOtpHash: true,
+        loginEmailOtpExpiresAt: true,
+        loginEmailOtpAttempts: true,
+        mfaEnabled: true,
+        mfaSecret: true,
+        mfaRecoveryCodeHashes: true,
+      },
+    });
+  }
+
+  async saveLoginEmailOtp(id: string, data: { hash: string; expiresAt: Date }): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        loginEmailOtpHash: data.hash,
+        loginEmailOtpExpiresAt: data.expiresAt,
+        loginEmailOtpAttempts: 0,
+        loginEmailOtpSentAt: new Date(),
+      },
+    });
+  }
+
+  async incrementLoginEmailOtpAttempts(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { loginEmailOtpAttempts: { increment: 1 } },
+    });
+  }
+
+  async clearLoginEmailOtp(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        loginEmailOtpHash: null,
+        loginEmailOtpExpiresAt: null,
+        loginEmailOtpAttempts: 0,
+        loginEmailOtpSentAt: null,
+      },
+    });
+  }
+
+  async updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { mfaRecoveryCodeHashes: hashes },
+    });
   }
 
   private toDomain(data: any): User {

@@ -196,4 +196,10 @@ export class InMemoryUserRepository implements UserRepository {
       .filter(user => parentIds.has(user.id) && user.email !== undefined && this.estActif(user))
       .map(user => user.email!);
   }
+
+  async findAuthDataById(_id: string) { return null; }
+  async saveLoginEmailOtp(_id: string, _data: { hash: string; expiresAt: Date }): Promise<void> {}
+  async incrementLoginEmailOtpAttempts(_id: string): Promise<void> {}
+  async clearLoginEmailOtp(_id: string): Promise<void> {}
+  async updateMfaRecoveryCodeHashes(_id: string, _hashes: string[]): Promise<void> {}
 }

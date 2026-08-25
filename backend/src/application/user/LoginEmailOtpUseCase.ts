@@ -7,7 +7,7 @@
  */
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 
 export interface SendEmailOTP {
   (params: { recipientEmail: string; otp: string }): Promise<void>;
@@ -15,15 +15,12 @@ export interface SendEmailOTP {
 
 export class LoginEmailOtpUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly userRepository: UserRepository,
     private readonly sendEmail: SendEmailOTP,
   ) {}
 
   async envoyer(userId: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, isActive: true },
-    });
+    const user = await this.userRepository.findAuthDataById(userId);
     if (!user || !user.isActive || !user.email) {
       throw new Error('Compte introuvable');
     }
@@ -32,15 +29,7 @@ export class LoginEmailOtpUseCase {
     const otpHashed = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        loginEmailOtpHash: otpHashed,
-        loginEmailOtpExpiresAt: expiresAt,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: new Date(),
-      },
-    });
+    await this.userRepository.saveLoginEmailOtp(user.id, { hash: otpHashed, expiresAt });
 
     void this.sendEmail({ recipientEmail: user.email, otp }).catch(err =>
       console.error('[Email] Échec OTP connexion utilisateur:', (err as Error)?.message),
@@ -48,15 +37,7 @@ export class LoginEmailOtpUseCase {
   }
 
   async verifier(userId: string, otp: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        loginEmailOtpHash: true,
-        loginEmailOtpExpiresAt: true,
-        loginEmailOtpAttempts: true,
-      },
-    });
+    const user = await this.userRepository.findAuthDataById(userId);
     if (!user) throw new Error('Code de vérification invalide');
 
     if (!user.loginEmailOtpHash || !user.loginEmailOtpExpiresAt) {
@@ -71,21 +52,10 @@ export class LoginEmailOtpUseCase {
 
     const otpOk = await bcrypt.compare(otp, user.loginEmailOtpHash);
     if (!otpOk) {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { loginEmailOtpAttempts: { increment: 1 } },
-      });
+      await this.userRepository.incrementLoginEmailOtpAttempts(user.id);
       throw new Error('Code de vérification incorrect');
     }
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        loginEmailOtpHash: null,
-        loginEmailOtpExpiresAt: null,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: null,
-      },
-    });
+    await this.userRepository.clearLoginEmailOtp(user.id);
   }
 }

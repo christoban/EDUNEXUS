@@ -42,6 +42,11 @@ function userRepositoryStub(user: User | null): UserRepository {
     restaurer: async () => {},
     transfererEleve: async () => {},
     findEmailsParentsParEleve: async () => [],
+    findAuthDataById: async () => null,
+    saveLoginEmailOtp: async () => {},
+    incrementLoginEmailOtpAttempts: async () => {},
+    clearLoginEmailOtp: async () => {},
+    updateMfaRecoveryCodeHashes: async () => {},
   };
 }
 

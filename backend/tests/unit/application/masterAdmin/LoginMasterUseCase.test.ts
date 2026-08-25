@@ -1,56 +1,63 @@
 import { describe, it, expect } from 'bun:test';
 import { LoginMasterUseCase } from '../../../../src/application/masterAdmin/LoginMasterUseCase.ts';
 import bcrypt from 'bcryptjs';
+import type { MasterUserAuthRepository, MasterUserAuthData } from '@domain/ports/repositories/MasterUserAuthRepository';
 
-type MasterStore = {
-  id: string;
-  email: string;
-  isActive: boolean;
-  passwordHash: string;
-  passwordChangeEmailOtpHash: string | null;
-  passwordChangeEmailOtpExpiresAt: Date | null;
-  passwordChangeEmailOtpAttempts: number;
-};
-
-function makeStore(overrides: Partial<MasterStore> = {}): MasterStore {
+function makeStore(overrides: Partial<MasterUserAuthData> = {}): MasterUserAuthData {
   return {
     id: 'm1',
     email: 'master@zekoulabia.cm',
+    name: 'Master',
+    role: 'SUPPORT',
     isActive: true,
+    isSuperAdmin: false,
     passwordHash: 'hash-initial',
+    mfaEnabled: false,
+    mfaSecret: null,
+    mfaRecoveryCodeHashes: [],
+    loginEmailOtpHash: null,
+    loginEmailOtpExpiresAt: null,
+    loginEmailOtpAttempts: 0,
+    loginEmailOtpSentAt: null,
     passwordChangeEmailOtpHash: null,
     passwordChangeEmailOtpExpiresAt: null,
     passwordChangeEmailOtpAttempts: 0,
+    passwordChangeEmailOtpSentAt: null,
     ...overrides,
   };
 }
 
-function prismaMock(store: MasterStore) {
+function authRepoMock(store: MasterUserAuthData): MasterUserAuthRepository {
   return {
-    masterUser: {
-      findUnique: async ({ where }: { where: { email?: string; id?: string } }) => {
-        if (where.id && where.id !== store.id) return null;
-        if (where.email && where.email !== store.email) return null;
-        return store;
-      },
-      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
-        for (const [key, value] of Object.entries(data)) {
-          if (typeof value === 'object' && value !== null && 'increment' in value) {
-            const record = store as unknown as Record<string, number>;
-            record[key] = record[key] + (value as { increment: number }).increment;
-          } else {
-            (store as unknown as Record<string, unknown>)[key] = value;
-          }
-        }
-        return store;
-      },
+    findByEmail: async (email) => (store.email === email ? store : null),
+    findById: async (id) => (store.id === id ? store : null),
+    getMfaStatus: async () => ({ mfaEnabled: store.mfaEnabled }),
+    updateLoginOtp: async () => {},
+    incrementLoginOtpAttempts: async () => {},
+    clearLoginOtp: async () => {},
+    updatePasswordChangeOtp: async (_id, data) => {
+      store.passwordChangeEmailOtpHash = data.passwordChangeEmailOtpHash;
+      store.passwordChangeEmailOtpExpiresAt = data.passwordChangeEmailOtpExpiresAt;
+      store.passwordChangeEmailOtpAttempts = data.passwordChangeEmailOtpAttempts;
+      store.passwordChangeEmailOtpSentAt = data.passwordChangeEmailOtpSentAt;
     },
-  } as unknown as import('@prisma/client').PrismaClient;
+    incrementPasswordChangeOtpAttempts: async () => {
+      store.passwordChangeEmailOtpAttempts += 1;
+    },
+    applyPasswordChange: async (_id, passwordHash) => {
+      store.passwordHash = passwordHash;
+      store.passwordChangeEmailOtpHash = null;
+      store.passwordChangeEmailOtpExpiresAt = null;
+      store.passwordChangeEmailOtpAttempts = 0;
+      store.passwordChangeEmailOtpSentAt = null;
+    },
+    updateMfaRecoveryCodes: async () => {},
+  };
 }
 
-function makeUseCase(store: MasterStore) {
+function makeUseCase(store: MasterUserAuthData) {
   const sent: string[] = [];
-  const useCase = new LoginMasterUseCase(prismaMock(store), async ({ otp }) => { sent.push(otp); });
+  const useCase = new LoginMasterUseCase(authRepoMock(store), async ({ otp }) => { sent.push(otp); });
   return { useCase, sent };
 }
 

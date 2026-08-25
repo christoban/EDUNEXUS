@@ -30,6 +30,8 @@ import { UserController } from '@infrastructure/http/controllers/UserController'
 import { MasterAdminHexController } from '@infrastructure/http/controllers/MasterAdminHexController';
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
+import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
+import { PrismaMasterUserAuthRepository } from '@infrastructure/persistence/prisma/PrismaMasterUserAuthRepository';
 import { creerUserRoutes } from '@infrastructure/http/routes/user.routes';
 import { creerMasterAdminHexRoutes } from '@infrastructure/http/routes/masterAdminHex.routes';
 import { FinanceController } from '@infrastructure/http/controllers/FinanceController';
@@ -956,8 +958,9 @@ export function bootstrapHexagonal(app: Application): void {
   const designerAPUseCase = new DesignerAPUseCase(prisma);
 
   // ── Connexion renforcée (email OTP pour tous les rôles + MFA obligatoire ADMIN/STAFF/TEACHER) ──
+  const userRepository = new PrismaUserRepository(prisma);
   const loginEmailOtpUseCase = new LoginEmailOtpUseCase(
-    prisma,
+    userRepository,
     async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
       const result = await sendTransactionalEmail({
         recipientEmail,
@@ -971,7 +974,7 @@ export function bootstrapHexagonal(app: Application): void {
       }
     },
   );
-  const verifierMfaConnexionUseCase = new VerifierMfaConnexionUseCase(prisma);
+  const verifierMfaConnexionUseCase = new VerifierMfaConnexionUseCase(userRepository);
 
   const userController = new UserController(
     container.user.connecter,
@@ -1002,8 +1005,9 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/users', creerUserRoutes(userController));
 
   // ── Master Auth (3FA) — monté AVANT /api/v2/master pour éviter protectMaster ──
+  const masterUserAuthRepository = new PrismaMasterUserAuthRepository(prisma);
   const loginMasterUseCase = new LoginMasterUseCase(
-    prisma,
+    masterUserAuthRepository,
     async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
       const result = await sendTransactionalEmail({
         recipientEmail,
@@ -1017,7 +1021,7 @@ export function bootstrapHexagonal(app: Application): void {
       }
     },
   );
-  const verifyMfaUseCase = new VerifyMfaUseCase(prisma);
+  const verifyMfaUseCase = new VerifyMfaUseCase(masterUserAuthRepository);
   const masterAuthController = new MasterAuthController(loginMasterUseCase, verifyMfaUseCase);
   app.use('/api/v2/master/auth', creerMasterAuthRoutes(masterAuthController));
 

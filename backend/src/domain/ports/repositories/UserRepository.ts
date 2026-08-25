@@ -5,6 +5,19 @@
 import type { User } from '@domain/entities/User';
 import type { UserRole } from '@domain/types/enums';
 
+/** Données d'authentification d'un compte école (OTP email + MFA). */
+export interface AuthUserData {
+  id: string;
+  email: string | null;
+  isActive: boolean;
+  loginEmailOtpHash: string | null;
+  loginEmailOtpExpiresAt: Date | null;
+  loginEmailOtpAttempts: number;
+  mfaEnabled: boolean;
+  mfaSecret: string | null;
+  mfaRecoveryCodeHashes: string[];
+}
+
 export interface UserRepository {
   // Lecture
   findById(id: string): Promise<User | null>;
@@ -81,4 +94,11 @@ export interface UserRepository {
    * Utilisé par EnvoyerBulletinsUseCase pour envoyer aux parents, pas à l'élève.
    */
   findEmailsParentsParEleve(studentId: string): Promise<string[]>;
+
+  // Auth OTP email + MFA (LoginEmailOtpUseCase, VerifierMfaConnexionUseCase)
+  findAuthDataById(id: string): Promise<AuthUserData | null>;
+  saveLoginEmailOtp(id: string, data: { hash: string; expiresAt: Date }): Promise<void>;
+  incrementLoginEmailOtpAttempts(id: string): Promise<void>;
+  clearLoginEmailOtp(id: string): Promise<void>;
+  updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void>;
 }
