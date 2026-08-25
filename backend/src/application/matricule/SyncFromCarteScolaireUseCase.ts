@@ -4,7 +4,8 @@
  * Pour tous les élèves avec matricule dans l'établissement,
  * vérifie le statut de paiement sur cartescolaire.cm et met à jour les PaiementMinesec.
  */
-import type { PrismaClient, OperateurMinesec } from '@prisma/client';
+import type { MatriculeImportRepository } from '@domain/ports/repositories/MatriculeImportRepository';
+import type { PaiementMinesecRepository } from '@domain/ports/repositories/PaiementMinesecRepository';
 import type { CarteScolaireService } from '@domain/ports/services/CarteScolaireService';
 
 export interface SyncReport {
@@ -22,7 +23,8 @@ export interface SyncReport {
 
 export class SyncFromCarteScolaireUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly matriculeRepository: MatriculeImportRepository,
+    private readonly paiementRepository: PaiementMinesecRepository,
     private readonly carteScolaireService: CarteScolaireService,
   ) {}
 
@@ -39,18 +41,9 @@ export class SyncFromCarteScolaireUseCase {
     };
 
     // Récupérer tous les élèves actifs avec matricule
-    const profiles = await this.prisma.studentProfile.findMany({
-      where: {
-        user: { schoolId },
-        matricule: { not: null },
-        studentStatus: 'ACTIVE',
-      },
-      select: { id: true, matricule: true },
-    });
+    const profiles = await this.matriculeRepository.listerProfilsActifsAvecMatricule(schoolId);
 
-    report.totalEleves = await this.prisma.studentProfile.count({
-      where: { user: { schoolId }, studentStatus: 'ACTIVE' },
-    });
+    report.totalEleves = await this.matriculeRepository.compterProfilsActifs(schoolId);
     report.elevesAvecMatricule = profiles.length;
 
     // Traiter par batch de 20
@@ -61,37 +54,24 @@ export class SyncFromCarteScolaireUseCase {
       for (const profile of batch) {
         try {
           const paymentStatus = await this.carteScolaireService.checkPaiementStatus(
-            profile.matricule!,
+            profile.matricule,
             anneeScolaire,
           );
 
           if (paymentStatus.paye) {
             // Chercher les PaiementMinesec IMPAYE pour cet élève
-            const impayes = await this.prisma.paiementMinesec.findMany({
-              where: {
-                studentId: profile.id,
-                anneeScolaire,
-                status: 'IMPAYE',
-              },
-            });
+            const impayes = await this.paiementRepository.listerImpayes(profile.id, anneeScolaire);
 
             for (const impaye of impayes) {
               // Vérifier si le type de frais correspond
-              await this.prisma.paiementMinesec.update({
-                where: { id: impaye.id },
-                data: {
-                  status: 'VERIFIE',
-                  recuVerifie: true,
-                  recuVerifieAt: new Date(),
-                  datePaiement: paymentStatus.datePaiement ?? new Date(),
-                  montantPaye: paymentStatus.montant ?? impaye.montantAttendu,
-                  // L'adaptateur cartescolaire.cm ne renseigne jamais ce champ à ce jour (opérateur
-                  // affiché en logo image côté source, non extrait avec fiabilité — voir
-                  // CarteScolaireScrapingAdapter). Cast conservé strictement informatif : ne
-                  // valide rien de plus que ce que le port autorisait déjà avant le retrait du cast.
-                  operateur: (paymentStatus.operateur as OperateurMinesec | undefined) ?? null,
-                  dataSource: 'SYNC_NIGHTLY',
-                },
+              await this.paiementRepository.mettreAJourPaiement(impaye.id, {
+                status: 'VERIFIE',
+                recuVerifie: true,
+                recuVerifieAt: new Date(),
+                datePaiement: paymentStatus.datePaiement ?? new Date(),
+                montantPaye: paymentStatus.montant ?? impaye.montantAttendu,
+                operateur: paymentStatus.operateur ?? null,
+                dataSource: 'SYNC_NIGHTLY',
               });
               report.nouveauxPaiements++;
             }

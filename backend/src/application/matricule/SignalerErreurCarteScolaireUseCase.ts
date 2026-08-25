@@ -7,7 +7,7 @@
  * autorité pour corriger cartescolaire.cm : ce use case se contente de retirer le
  * candidat du traitement automatique et de tracer le signalement.
  */
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { MatriculeImportRepository } from '@domain/ports/repositories/MatriculeImportRepository';
 import type { SignalerErreurCommande, FuzzyMatchCandidate } from './types';
 
 export interface SignalerErreurResultat {
@@ -15,10 +15,10 @@ export interface SignalerErreurResultat {
 }
 
 export class SignalerErreurCarteScolaireUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly matriculeRepository: MatriculeImportRepository) {}
 
   async execute(cmd: SignalerErreurCommande): Promise<SignalerErreurResultat> {
-    const job = await this.prisma.matriculeImportJob.findUnique({ where: { id: cmd.jobId } });
+    const job = await this.matriculeRepository.trouverJob(cmd.jobId);
     if (!job) throw new Error('Import introuvable');
     if (job.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
 
@@ -29,12 +29,9 @@ export class SignalerErreurCarteScolaireUseCase {
     if (entry.status !== 'PENDING') throw new Error(`Cette correspondance a déjà été traitée (statut : ${entry.status})`);
 
     entry.status = 'FLAGGED';
-    await this.prisma.matriculeImportJob.update({
-      where: { id: job.id },
-      data: {
-        resultDetails: { ...details, fuzzyMatches } as unknown as Prisma.InputJsonValue,
-        flaggedForCorrection: job.flaggedForCorrection + 1,
-      },
+    await this.matriculeRepository.mettreAJourJob(job.id, {
+      resultDetails: details,
+      flaggedForCorrection: job.flaggedForCorrection + 1,
     });
 
     return {

@@ -8,7 +8,7 @@
  * jamais d'association automatique sans validation humaine). La confirmation elle-même se
  * fait via l'endpoint existant PATCH /students/:id/matricule, pas ici.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { MatriculeImportRepository } from '@domain/ports/repositories/MatriculeImportRepository';
 import type { CarteScolaireService } from '@domain/ports/services/CarteScolaireService';
 
 export interface VerifierMatriculeResultat {
@@ -28,21 +28,15 @@ export interface VerifierMatriculeResultat {
 
 export class VerifierMatriculeUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly matriculeRepository: MatriculeImportRepository,
     private readonly carteScolaireService: CarteScolaireService,
   ) {}
 
   async execute(schoolId: string, studentProfileId: string): Promise<VerifierMatriculeResultat> {
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { id: studentProfileId, user: { schoolId } },
-      include: { user: { select: { firstName: true, lastName: true } } },
-    });
+    const profile = await this.matriculeRepository.trouverProfilParId(studentProfileId, schoolId);
     if (!profile) throw new Error('Élève introuvable');
 
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { minesecSchoolCode: true },
-    });
+    const school = await this.matriculeRepository.trouverEcoleCodeMinesec(schoolId);
     if (!school?.minesecSchoolCode) {
       throw new Error(
         "Le code établissement MINESEC n'est pas configuré pour cette école. " +
@@ -50,7 +44,7 @@ export class VerifierMatriculeUseCase {
       );
     }
 
-    const studentName = `${profile.user.lastName} ${profile.user.firstName}`.trim();
+    const studentName = `${profile.user?.lastName ?? ''} ${profile.user?.firstName ?? ''}`.trim();
     const result = await this.carteScolaireService.rechercherMatricule(studentName, school.minesecSchoolCode);
 
     if (!result.verified) {

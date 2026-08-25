@@ -3,47 +3,28 @@
  *
  * Retourne toutes les infos de paiement (MINESEC + établissement) pour un élève.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PaiementMinesecRepository } from '@domain/ports/repositories/PaiementMinesecRepository';
 import type { StudentPaymentDashboard } from './types';
 
 export class GetStudentPaymentDashboardUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly paiementRepository: PaiementMinesecRepository) {}
 
   async execute(schoolId: string, studentUserId: string): Promise<StudentPaymentDashboard> {
     // Récupérer le profil élève
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { user: { id: studentUserId, schoolId } },
-      include: {
-        user: { select: { firstName: true, lastName: true } },
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { name: true } } },
-          take: 1,
-        },
-      },
-    });
+    const profile = await this.paiementRepository.trouverProfileDashboard(studentUserId, schoolId);
     if (!profile) throw new Error('Élève introuvable');
 
     // Récupérer l'enrollment actif
-    const enrollment = await this.prisma.inscriptionMinesec.findFirst({
-      where: { studentId: profile.id, schoolId, status: 'ACTIVE' },
-      orderBy: { createdAt: 'desc' },
-    });
+    const enrollment = await this.paiementRepository.trouverEnrollmentActif(profile.id, schoolId);
 
     // Paiements MINESEC
     const paiementsMinesec = enrollment
-      ? await this.prisma.paiementMinesec.findMany({
-          where: { enrollmentId: enrollment.id },
-          orderBy: { typeFrais: 'asc' },
-        })
+      ? await this.paiementRepository.listerPaiementsEnrollment(enrollment.id)
       : [];
 
     // Paiements établissement
     const paiementsEtablissement = enrollment
-      ? await this.prisma.paiementEtablissement.findMany({
-          where: { enrollmentId: enrollment.id },
-          orderBy: { typeFrais: 'asc' },
-        })
+      ? await this.paiementRepository.listerPaiementsEtablissementEnrollment(enrollment.id)
       : [];
 
     // Calcul totaux
@@ -67,9 +48,9 @@ export class GetStudentPaymentDashboardUseCase {
     return {
       student: {
         id: profile.id,
-        nom: profile.user.lastName,
-        prenom: profile.user.firstName,
-        classe: profile.enrollmentsYearScoped?.[0]?.class?.name ?? '',
+        nom: profile.nom,
+        prenom: profile.prenom,
+        classe: profile.classe,
         matriculeNational: profile.matricule,
       },
       enrollment: enrollment ? {

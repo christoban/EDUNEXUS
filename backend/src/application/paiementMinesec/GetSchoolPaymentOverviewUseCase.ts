@@ -4,7 +4,7 @@
  * Extrait de PaiementMinesecController (qui accédait directement à Prisma) pour
  * respecter la séparation hexagonale — la logique métier n'appartient pas au controller.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PaiementMinesecRepository } from '@domain/ports/repositories/PaiementMinesecRepository';
 
 export interface SchoolPaymentOverview {
   anneeScolaire: string;
@@ -14,26 +14,12 @@ export interface SchoolPaymentOverview {
 }
 
 export class GetSchoolPaymentOverviewUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly paiementRepository: PaiementMinesecRepository) {}
 
   async execute(schoolId: string, anneeScolaire: string): Promise<SchoolPaymentOverview> {
-    const totalEleves = await this.prisma.inscriptionMinesec.count({
-      where: { schoolId, anneeScolaire, status: 'ACTIVE' },
-    });
-
-    const minesec = await this.prisma.paiementMinesec.groupBy({
-      by: ['status'],
-      where: { schoolId, anneeScolaire },
-      _count: { _all: true },
-      _sum: { montantAttendu: true, montantPaye: true },
-    });
-
-    const etablissement = await this.prisma.paiementEtablissement.groupBy({
-      by: ['status'],
-      where: { schoolId, anneeScolaire },
-      _count: { _all: true },
-      _sum: { montantAttendu: true, montantPaye: true },
-    });
+    const totalEleves = await this.paiementRepository.compterInscriptionsActives(schoolId, anneeScolaire);
+    const minesec = await this.paiementRepository.agregerPaiementsMinesec(schoolId, anneeScolaire);
+    const etablissement = await this.paiementRepository.agregerPaiementsEtablissement(schoolId, anneeScolaire);
 
     return { anneeScolaire, totalEleves, minesec, etablissement };
   }

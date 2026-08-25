@@ -10,11 +10,17 @@ import { PrismaClient } from '@prisma/client';
 import { softDeleteExtension } from '../../persistence/prisma/softDeleteExtension';
 import { CarteScolaireScrapingAdapter } from '../../services/scraping/CarteScolaireScrapingAdapter.ts';
 import { SyncFromCarteScolaireUseCase } from "@application/matricule/SyncFromCarteScolaireUseCase";
+import { PrismaMatriculeImportRepository } from "../../persistence/prisma/PrismaMatriculeImportRepository";
+import { PrismaPaiementMinesecRepository } from "../../persistence/prisma/PrismaPaiementMinesecRepository";
 import { notifyMinesecOverdueSms } from '../../services/sms/SmsNotificationService.ts';
 
 const prisma = new PrismaClient().$extends(softDeleteExtension) as unknown as PrismaClient;
 const carteScolaire = new CarteScolaireScrapingAdapter();
-const syncUseCase = new SyncFromCarteScolaireUseCase(prisma, carteScolaire);
+const syncUseCase = new SyncFromCarteScolaireUseCase(
+  new PrismaMatriculeImportRepository(prisma),
+  new PrismaPaiementMinesecRepository(prisma),
+  carteScolaire,
+);
 
 function yearLabelFor(year: { startDate: Date; endDate: Date | null }): string {
   return `${year.startDate.getFullYear()}-${year.endDate?.getFullYear() ?? year.startDate.getFullYear() + 1}`;

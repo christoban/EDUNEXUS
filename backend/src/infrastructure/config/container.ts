@@ -171,6 +171,8 @@ import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/Pr
 import { PrismaEntranceExamRepository } from '@infrastructure/persistence/prisma/PrismaEntranceExamRepository';
 import { PrismaPebsExamRepository } from '@infrastructure/persistence/prisma/PrismaPebsExamRepository';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
+import { PrismaMatriculeImportRepository } from '@infrastructure/persistence/prisma/PrismaMatriculeImportRepository';
+import { PrismaPaiementMinesecRepository } from '@infrastructure/persistence/prisma/PrismaPaiementMinesecRepository';
 import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 
 // --- Adapters Persistence AnneeAcademique + Promotion ---
@@ -324,6 +326,8 @@ export function creerContainer() {
   const entranceExamRepository = new PrismaEntranceExamRepository(prisma);
   const pebsExamRepository = new PrismaPebsExamRepository(prisma);
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
+  const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
+  const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
   const notifierEvenement = (schoolId: string, targetRoles: string[], titre: string, corps: string) =>
     notifierEvenementAcademique(prisma, schoolId, targetRoles, titre, corps);
   const classRoomAssignmentRepository = new PrismaClassRoomAssignmentRepository(prisma);
@@ -593,7 +597,7 @@ export function creerContainer() {
   const reactiverEcoleUseCase = new ReactiverEcoleUseCase(schoolRepository);
   const rejeterEcoleUseCase = new RejeterEcoleUseCase(schoolRepository, userRepository, emailService);
   const changerPlanUseCase = new ChangerPlanAbonnementUseCase(schoolRepository);
-  const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(prisma);
+  const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(paiementMinesecRepository);
   const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(prisma);
 
   return {
@@ -753,12 +757,12 @@ export function creerContainer() {
       configurerCheckpoint: configurerCheckpointOrientationUseCase,
     },
     matricule: {
-      importerMatricules: new ImporterMatriculesUseCase(prisma),
-      verifierMatricule: new VerifierMatriculeUseCase(prisma, new CarteScolaireScrapingAdapter()),
-      syncFromCarteScolaire: new SyncFromCarteScolaireUseCase(prisma, new CarteScolaireScrapingAdapter()),
-      verifierRecu: new VerifierRecuUseCase(prisma, new CarteScolaireScrapingAdapter()),
-      confirmerFuzzy: new ConfirmerCorrespondanceFuzzyUseCase(prisma),
-      signalerErreur: new SignalerErreurCarteScolaireUseCase(prisma),
+      importerMatricules: new ImporterMatriculesUseCase(matriculeImportRepository),
+      verifierMatricule: new VerifierMatriculeUseCase(matriculeImportRepository, new CarteScolaireScrapingAdapter()),
+      syncFromCarteScolaire: new SyncFromCarteScolaireUseCase(matriculeImportRepository, paiementMinesecRepository, new CarteScolaireScrapingAdapter()),
+      verifierRecu: new VerifierRecuUseCase(paiementMinesecRepository, new CarteScolaireScrapingAdapter()),
+      confirmerFuzzy: new ConfirmerCorrespondanceFuzzyUseCase(matriculeImportRepository),
+      signalerErreur: new SignalerErreurCarteScolaireUseCase(matriculeImportRepository),
     },
     eleveOnboarding: {
       creerSquelette: creerSqueletteOnboarding,
@@ -775,9 +779,9 @@ export function creerContainer() {
     },
     paiementMinesec: {
       genererPaiements: genererPaiementsMinesec,
-      genererPaiementsEcole: new GenererPaiementsMinesecPourEcoleUseCase(prisma, genererPaiementsMinesec),
-      getDashboard: new GetStudentPaymentDashboardUseCase(prisma),
-      getOverview: new GetSchoolPaymentOverviewUseCase(prisma),
+      genererPaiementsEcole: new GenererPaiementsMinesecPourEcoleUseCase(paiementMinesecRepository, genererPaiementsMinesec),
+      getDashboard: new GetStudentPaymentDashboardUseCase(paiementMinesecRepository),
+      getOverview: new GetSchoolPaymentOverviewUseCase(paiementMinesecRepository),
     },
     examen: {
       prepareDossier: new PrepareExamDossierUseCase(prisma),

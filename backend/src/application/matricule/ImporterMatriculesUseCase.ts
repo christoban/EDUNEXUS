@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { MatriculeImportRepository, StudentProfileMatriculeData } from '@domain/ports/repositories/MatriculeImportRepository';
 import type { ImportMatriculeRow, ImportMatriculeResult, FuzzyMatchCandidate } from './types';
 import { normalizeForMatch, compareNames } from './stringSimilarity';
 import { parseDateFR as parseDateNaissance } from '../../shared/date/parseDateFR';
@@ -12,7 +12,7 @@ import { parseDateFR as parseDateNaissance } from '../../shared/date/parseDateFR
 const FUZZY_SIMILARITY_THRESHOLD = 0.85;
 
 export class ImporterMatriculesUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly matriculeRepository: MatriculeImportRepository) {}
 
   async execute(
     schoolId: string,
@@ -21,21 +21,15 @@ export class ImporterMatriculesUseCase {
     fileName: string,
   ): Promise<ImportMatriculeResult> {
     // Créer le job de suivi
-    const job = await this.prisma.matriculeImportJob.create({
-      data: {
-        schoolId,
-        uploadedBy,
-        fileName,
-        status: 'PROCESSING',
-        totalRows: rows.length,
-      },
+    const job = await this.matriculeRepository.creerJob({
+      schoolId,
+      uploadedBy,
+      fileName,
+      totalRows: rows.length,
     });
 
     // Charger tous les profils de l'école une seule fois (réutilisé pour exact ET fuzzy).
-    const profiles: any[] = await this.prisma.studentProfile.findMany({
-      where: { user: { schoolId } },
-      include: { user: { select: { firstName: true, lastName: true } } },
-    });
+    const profiles = await this.matriculeRepository.listerProfilsEcole(schoolId);
 
     let matchedExact = 0;
     let conflicts = 0;
@@ -73,19 +67,16 @@ export class ImporterMatriculesUseCase {
     const unmatched = unmatchedDetails.filter(d => !d.raison.includes('Conflit')).length;
 
     // Mettre à jour le job — matchedRows compte exact + fuzzy déjà confirmés (aucun à l'import).
-    await this.prisma.matriculeImportJob.update({
-      where: { id: job.id },
-      data: {
-        status: 'COMPLETED',
-        matchedRows: matchedExact,
-        matchedRowsExact: matchedExact,
-        matchedRowsFuzzyConfirmed: 0,
-        flaggedForCorrection: 0,
-        unmatchedRows: unmatched,
-        errorRows: errors,
-        resultDetails: { unmatched: unmatchedDetails, fuzzyMatches } as unknown as Prisma.InputJsonValue,
-        processedAt: new Date(),
-      },
+    await this.matriculeRepository.mettreAJourJob(job.id, {
+      status: 'COMPLETED',
+      matchedRows: matchedExact,
+      matchedRowsExact: matchedExact,
+      matchedRowsFuzzyConfirmed: 0,
+      flaggedForCorrection: 0,
+      unmatchedRows: unmatched,
+      errorRows: errors,
+      resultDetails: { unmatched: unmatchedDetails, fuzzyMatches },
+      processedAt: new Date(),
     });
 
     return {
@@ -104,7 +95,7 @@ export class ImporterMatriculesUseCase {
 
   private async processRow(
     row: ImportMatriculeRow,
-    profiles: any[],
+    profiles: StudentProfileMatriculeData[],
   ): Promise<
     | { action: 'UPDATED' | 'CONFLICT' | 'ALREADY_MATCHED'; studentProfileId: string; userId: string; nom: string; prenom: string; matriculeActuel: string | null; matriculeNouveau: string }
     | { action: 'FUZZY_PENDING'; fuzzyMatch: FuzzyMatchCandidate }
@@ -113,9 +104,9 @@ export class ImporterMatriculesUseCase {
     const targetPrenom = normalizeForMatch(row.prenom);
 
     // ── NIVEAU 1 : correspondance exacte (comportement inchangé) ──────────────
-    const exact = profiles.find((p: any) => {
-      const userNom = normalizeForMatch(p.user.lastName ?? '');
-      const userPrenom = normalizeForMatch(p.user.firstName ?? '');
+    const exact = profiles.find((p) => {
+      const userNom = normalizeForMatch(p.user?.lastName ?? '');
+      const userPrenom = normalizeForMatch(p.user?.firstName ?? '');
       if (userNom !== targetNom || userPrenom !== targetPrenom) return false;
       if (row.dateNaissance && p.dateOfBirth) {
         const rowDate = parseDateNaissance(row.dateNaissance);
@@ -137,9 +128,10 @@ export class ImporterMatriculesUseCase {
           nom: row.nom, prenom: row.prenom, matriculeActuel: exact.matricule, matriculeNouveau: row.matricule,
         };
       }
-      await this.prisma.studentProfile.update({
-        where: { id: exact.id },
-        data: { matricule: row.matricule, matriculeSource: 'EXCEL_IMPORT', matriculeMatchType: 'EXACT' },
+      await this.matriculeRepository.mettreAJourMatricule(exact.id, {
+        matricule: row.matricule,
+        matriculeSource: 'EXCEL_IMPORT',
+        matriculeMatchType: 'EXACT',
       });
       return {
         action: 'UPDATED', studentProfileId: exact.id, userId: exact.userId,
@@ -151,15 +143,15 @@ export class ImporterMatriculesUseCase {
     // Signal le plus fiable (peu de coïncidences) ; sans elle, jamais de fuzzy match.
     const rowDate = row.dateNaissance ? parseDateNaissance(row.dateNaissance) : null;
     if (rowDate) {
-      const dateCandidats = profiles.filter((p: any) => {
+      const dateCandidats = profiles.filter((p) => {
         if (!p.dateOfBirth) return false;
         return new Date(p.dateOfBirth).getTime() === rowDate.getTime();
       });
 
-      let best: { profile: any; score: number } | null = null;
+      let best: { profile: StudentProfileMatriculeData; score: number } | null = null;
       for (const cand of dateCandidats) {
-        const nom = cand.user.lastName ?? '';
-        const prenom = cand.user.firstName ?? '';
+        const nom = cand.user?.lastName ?? '';
+        const prenom = cand.user?.firstName ?? '';
         const score = compareNames(row.nom, row.prenom, nom, prenom);
         if (!best || score > best.score) best = { profile: cand, score };
       }
@@ -173,8 +165,8 @@ export class ImporterMatriculesUseCase {
             userId: best.profile.userId,
             nomFichier: row.nom,
             prenomFichier: row.prenom,
-            nomBase: best.profile.user.lastName ?? '',
-            prenomBase: best.profile.user.firstName ?? '',
+            nomBase: best.profile.user?.lastName ?? '',
+            prenomBase: best.profile.user?.firstName ?? '',
             dateNaissance: row.dateNaissance ?? null,
             matriculeNouveau: row.matricule,
             similarityPercent: Math.round(best.score * 100),

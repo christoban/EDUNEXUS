@@ -12,7 +12,7 @@
  * - Tle : + EXAMEN_BAC (francophone) ou EXAMEN_GCE_AL (anglophone)
  * - Form 5 : + EXAMEN_GCE_OL (anglophone)
  */
-import type { PrismaClient, TypeFraisMinesec } from '@prisma/client';
+import type { PaiementMinesecRepository, TypeFraisMinesec } from '@domain/ports/repositories/PaiementMinesecRepository';
 
 // Niveaux par cycle
 const PREMIER_CYCLE = ['6ème', '5ème', '4ème', '3ème', '6e', '5e', '4e', '3e', 'Form1', 'Form2', 'Form3', 'Form4', 'Form5'];
@@ -24,7 +24,7 @@ const NIVEAUX_GCE_OL = ['Form5'];
 const NIVEAUX_GCE_AL = ['UpperSixth'];
 
 export class GenererPaiementsMinesecUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly paiementRepository: PaiementMinesecRepository) {}
 
   async execute(cmd: {
     schoolId: string;
@@ -32,30 +32,21 @@ export class GenererPaiementsMinesecUseCase {
     anneeScolaire: string;
   }): Promise<{ generated: number; skipped: number; enrollmentCreated: boolean }> {
     // Récupérer l'élève et sa classe (source du niveau — le champ Enrollment.classe en est dérivé)
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { id: cmd.studentProfileId, user: { schoolId: cmd.schoolId } },
-      include: {
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { level: true, name: true } } },
-          take: 1,
-        },
-      },
-    });
+    const profile = await this.paiementRepository.trouverProfileAvecClasse(cmd.studentProfileId, cmd.schoolId);
     if (!profile) throw new Error('Élève introuvable');
-    const classeActuelle = profile.enrollmentsYearScoped?.[0]?.class;
-    const niveau = classeActuelle?.level ?? classeActuelle?.name;
+    const niveau = profile.niveau;
     if (!niveau) throw new Error("Cet élève n'est affecté à aucune classe — impossible de déterminer les frais applicables");
 
     // Trouver ou créer l'Enrollment de l'année — aucun mécanisme ne le créait auparavant,
     // ce qui rendait ce use case définitivement inatteignable (jamais d'enrollmentId valide).
-    let enrollment = await this.prisma.inscriptionMinesec.findUnique({
-      where: { studentId_schoolId_anneeScolaire: { studentId: profile.id, schoolId: cmd.schoolId, anneeScolaire: cmd.anneeScolaire } },
-    });
+    let enrollment = await this.paiementRepository.trouverEnrollment(profile.id, cmd.schoolId, cmd.anneeScolaire);
     let enrollmentCreated = false;
     if (!enrollment) {
-      enrollment = await this.prisma.inscriptionMinesec.create({
-        data: { studentId: profile.id, schoolId: cmd.schoolId, anneeScolaire: cmd.anneeScolaire, classe: niveau, status: 'ACTIVE' },
+      enrollment = await this.paiementRepository.creerEnrollment({
+        studentId: profile.id,
+        schoolId: cmd.schoolId,
+        anneeScolaire: cmd.anneeScolaire,
+        classe: niveau,
       });
       enrollmentCreated = true;
     }
@@ -70,29 +61,14 @@ export class GenererPaiementsMinesecUseCase {
 
     for (const typeFrais of typesFrais) {
       // Vérifier si un paiement existe déjà pour ce type + enrollment
-      const existing = await this.prisma.paiementMinesec.findFirst({
-        where: {
-          enrollmentId: enrollment.id,
-          typeFrais,
-        },
-      });
+      const existing = await this.paiementRepository.trouverPaiementExistant(enrollment.id, typeFrais);
       if (existing) {
         skipped++;
         continue;
       }
 
       // Récupérer le tarif depuis la base
-      const tarif = await this.prisma.tarifMinesecReference.findFirst({
-        where: {
-          typeFrais,
-          anneeScolaire: cmd.anneeScolaire,
-          actif: true,
-          OR: [
-            { niveau: null },
-            { niveau: this.getNiveauCategory(niveau) },
-          ],
-        },
-      });
+      const tarif = await this.paiementRepository.trouverTarif(typeFrais, cmd.anneeScolaire, this.getNiveauCategory(niveau));
 
       if (!tarif) {
         skipped++;
@@ -100,17 +76,13 @@ export class GenererPaiementsMinesecUseCase {
       }
 
       // Créer le paiement
-      await this.prisma.paiementMinesec.create({
-        data: {
-          studentId: enrollment.studentId,
-          enrollmentId: enrollment.id,
-          schoolId: cmd.schoolId,
-          anneeScolaire: cmd.anneeScolaire,
-          typeFrais,
-          montantAttendu: tarif.montantFCFA,
-          status: 'IMPAYE',
-          dataSource: 'MANUAL',
-        },
+      await this.paiementRepository.creerPaiement({
+        studentId: enrollment.studentId,
+        enrollmentId: enrollment.id,
+        schoolId: cmd.schoolId,
+        anneeScolaire: cmd.anneeScolaire,
+        typeFrais,
+        montantAttendu: tarif.montantFCFA,
       });
       generated++;
     }
@@ -155,10 +127,7 @@ export class GenererPaiementsMinesecUseCase {
   }
 
   private async isEcoleAnglophone(schoolId: string): Promise<boolean> {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { subsystem: true },
-    });
+    const school = await this.paiementRepository.trouverEcoleSubsystem(schoolId);
     return school?.subsystem === 'ANGLOPHONE' || school?.subsystem === 'BILINGUAL';
   }
 }

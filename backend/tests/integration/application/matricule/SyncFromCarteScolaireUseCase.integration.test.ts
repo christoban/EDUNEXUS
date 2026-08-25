@@ -15,6 +15,8 @@ import { SyncFromCarteScolaireUseCase } from '../../../../src/application/matric
 import type { CarteScolaireService, CarteScolairePaymentStatus } from '@domain/ports/services/CarteScolaireService';
 import { prismaTest } from '../../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../../helpers/dbFixtures.ts';
+import { PrismaMatriculeImportRepository } from '../../../../src/infrastructure/persistence/prisma/PrismaMatriculeImportRepository.ts';
+import { PrismaPaiementMinesecRepository } from '../../../../src/infrastructure/persistence/prisma/PrismaPaiementMinesecRepository.ts';
 
 const ANNEE_SCOLAIRE = '2025-2026';
 
@@ -106,7 +108,11 @@ describe('SyncFromCarteScolaireUseCase — écriture PaiementMinesec.operateur (
       'SYNC-IMPAYE-002': { paye: false, verified: true },
       'SYNC-ECHEC-003': { paye: false, verified: false },
     });
-    const useCase = new SyncFromCarteScolaireUseCase(prismaTest, fakeService);
+    const useCase = new SyncFromCarteScolaireUseCase(
+    new PrismaMatriculeImportRepository(prismaTest),
+    new PrismaPaiementMinesecRepository(prismaTest),
+    fakeService,
+  );
 
     const report = await useCase.execute(schoolId, ANNEE_SCOLAIRE);
 

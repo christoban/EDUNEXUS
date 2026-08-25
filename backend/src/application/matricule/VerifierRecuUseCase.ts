@@ -4,7 +4,7 @@
  * Le secrétariat saisit le numéro de reçu → statut passe à PAYE.
  * Optionnellement, vérification en ligne via cartescolaire.cm.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PaiementMinesecRepository } from '@domain/ports/repositories/PaiementMinesecRepository';
 import type { CarteScolaireService } from '@domain/ports/services/CarteScolaireService';
 
 export interface VerifierRecuResult {
@@ -16,7 +16,7 @@ export interface VerifierRecuResult {
 
 export class VerifierRecuUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly paiementRepository: PaiementMinesecRepository,
     private readonly carteScolaireService: CarteScolaireService,
   ) {}
 
@@ -27,10 +27,7 @@ export class VerifierRecuUseCase {
     verifyOnline: boolean = false,
   ): Promise<VerifierRecuResult> {
     // Récupérer le paiement
-    const paiement = await this.prisma.paiementMinesec.findUnique({
-      where: { id: paiementId },
-      include: { student: { select: { matricule: true } } },
-    });
+    const paiement = await this.paiementRepository.trouverPaiement(paiementId);
     if (!paiement) throw new Error('Paiement introuvable');
     if (paiement.schoolId !== schoolId) throw new Error('Accès refusé');
 
@@ -54,16 +51,13 @@ export class VerifierRecuUseCase {
       }
     }
 
-    await this.prisma.paiementMinesec.update({
-      where: { id: paiementId },
-      data: {
-        numeroRecu,
-        status,
-        recuVerifie: status === 'VERIFIE',
-        recuVerifieAt: status === 'VERIFIE' ? new Date() : null,
-        datePaiement: new Date(),
-        dataSource: source,
-      },
+    await this.paiementRepository.mettreAJourPaiement(paiementId, {
+      numeroRecu,
+      status,
+      recuVerifie: status === 'VERIFIE',
+      recuVerifieAt: status === 'VERIFIE' ? new Date() : null,
+      datePaiement: new Date(),
+      dataSource: source,
     });
 
     return {

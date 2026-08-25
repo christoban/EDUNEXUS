@@ -6,21 +6,18 @@
  * élèves actifs et réutilise GenererPaiementsMinesecUseCase (qui crée l'Enrollment
  * manquant au passage) pour chacun d'eux.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { PaiementMinesecRepository } from '@domain/ports/repositories/PaiementMinesecRepository';
 import { GenererPaiementsMinesecUseCase } from './GenererPaiementsMinesecUseCase';
 import type { GenererPaiementsEcoleCommande, GenererPaiementsEcoleResultat } from './types';
 
 export class GenererPaiementsMinesecPourEcoleUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly paiementRepository: PaiementMinesecRepository,
     private readonly genererPourEleve: GenererPaiementsMinesecUseCase,
   ) {}
 
   async execute(cmd: GenererPaiementsEcoleCommande): Promise<GenererPaiementsEcoleResultat> {
-    const eleves = await this.prisma.studentProfile.findMany({
-      where: { user: { schoolId: cmd.schoolId }, studentStatus: 'ACTIVE', enrollmentsYearScoped: { some: { status: 'ACTIVE', academicYear: { isCurrent: true } } } },
-      select: { id: true },
-    });
+    const eleves = await this.paiementRepository.listerProfilsActifs(cmd.schoolId);
 
     const resultat: GenererPaiementsEcoleResultat = {
       elevesTraites: 0,
