@@ -1,4 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
+import type { StudentAffectationRepository } from '@domain/ports/repositories/StudentAffectationRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
@@ -12,30 +13,25 @@ export interface AffecterPEBSEleveCommande {
 
 export class AffecterPEBSEleveUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly affectationRepository: StudentAffectationRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly groupSetRepository: StudentGroupSetRepository,
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
   ) {}
 
   async execute(cmd: AffecterPEBSEleveCommande): Promise<void> {
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { userId: cmd.studentUserId, user: { schoolId: cmd.schoolId } },
-      select: { id: true },
-    });
+    const profile = await this.affectationRepository.trouverProfilParUserId(cmd.studentUserId, cmd.schoolId);
     if (!profile) throw new Error('Élève introuvable dans cet établissement');
 
     if (cmd.pebsFiliere !== null && !['FR_PEBS', 'EN_PEBS'].includes(cmd.pebsFiliere)) {
       throw new Error('Valeur pebsFiliere invalide. Utilisez FR_PEBS, EN_PEBS ou null');
     }
 
-    await this.prisma.studentProfile.update({
-      where: { id: profile.id },
-      data: { pebsFiliere: cmd.pebsFiliere },
-    });
+    await this.affectationRepository.mettreAJourPEBS(profile.id, cmd.pebsFiliere);
 
     await synchroniserAppartenanceProgramme(
-      { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository },
+      { anneeRepository: this.anneeRepository, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository },
       { schoolId: cmd.schoolId, studentProfileId: profile.id, pebsFiliere: cmd.pebsFiliere }
     );
   }

@@ -15,6 +15,11 @@ import { notifierEvenementAcademique } from "../../services/notification/Academi
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "@application/academicEvent";
 import { PrismaOrientationRepository } from "../../persistence/prisma/PrismaOrientationRepository";
 import { PrismaAnnouncementRepository } from "../../persistence/prisma/PrismaAnnouncementRepository";
+import { PrismaLv2ChoiceRepository } from "../../persistence/prisma/PrismaLv2ChoiceRepository";
+import { PrismaAnneeAcademiqueRepository } from "../../persistence/prisma/PrismaAnneeAcademiqueRepository";
+
+const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
+const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
 import { GenererRecommandationOrientationUseCase } from "@application/orientation/GenererRecommandationOrientationUseCase";
 import { RelancerElevesEnAttenteUseCase } from "@application/orientation/RelancerElevesEnAttenteUseCase";
 import { FinaliserParDefautUseCase } from "@application/orientation/FinaliserParDefautUseCase";
@@ -1295,7 +1300,7 @@ export const checkAcademicEvents = inngest.createFunction(
           // d'afficher un menu pour une fonctionnalité qui n'est pas vraiment ouverte.
           let linkedResourceId: string | null = null;
           try {
-            linkedResourceId = await activerRessourceLieeSiApplicable(prisma, ev);
+            linkedResourceId = await activerRessourceLieeSiApplicable(lv2ChoiceRepository, anneeRepository, ev);
           } catch (err: any) {
             console.error(`[AcademicEvent] activation ressource liée (${ev.id}):`, err?.message);
             continue;
@@ -1335,7 +1340,7 @@ export const checkAcademicEvents = inngest.createFunction(
           const nouvelleCloture = await prolongerSiFermetureAujourdhui(prisma, school.id, ev.closeDate, maintenant);
           if (nouvelleCloture) {
             await prisma.academicEvent.update({ where: { id: ev.id }, data: { closeDate: nouvelleCloture } });
-            await synchroniserClotureRessourceLiee(prisma, ev.type, ev.linkedResourceId, nouvelleCloture);
+            await synchroniserClotureRessourceLiee(lv2ChoiceRepository, ev.type, ev.linkedResourceId, nouvelleCloture);
           }
         }
 
@@ -1347,7 +1352,7 @@ export const checkAcademicEvents = inngest.createFunction(
           select: { id: true, type: true, linkedResourceId: true },
         });
         for (const ev of aCloturer) {
-          await cloturerRessourceLiee(prisma, ev.type, ev.linkedResourceId);
+          await cloturerRessourceLiee(lv2ChoiceRepository, ev.type, ev.linkedResourceId);
         }
         await prisma.academicEvent.updateMany({
           where: { id: { in: aCloturer.map((e: any) => e.id) } },

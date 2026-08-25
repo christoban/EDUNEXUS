@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
@@ -52,6 +53,7 @@ export class ImporterUtilisateursUseCase {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly userRepository: UserRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly groupSetRepository: StudentGroupSetRepository,
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
@@ -197,7 +199,7 @@ export class ImporterUtilisateursUseCase {
       })
       importedProfileId = importedProfile?.id
     }
-    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository }
+    const syncRepos = { anneeRepository: this.anneeRepository, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository }
 
     if (pebsVal) {
       if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {

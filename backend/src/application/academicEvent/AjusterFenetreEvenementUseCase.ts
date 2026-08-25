@@ -4,6 +4,7 @@
  * calendrier programmé, un MANUAL_TRIGGER se clôture par le même mécanisme que son ouverture.
  */
 import type { PrismaClient } from '@prisma/client';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import { synchroniserClotureRessourceLiee } from './activerRessourceLiee';
 
 export interface AjusterFenetreCommande {
@@ -13,7 +14,10 @@ export interface AjusterFenetreCommande {
 }
 
 export class AjusterFenetreEvenementUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
+  ) {}
 
   async execute(cmd: AjusterFenetreCommande): Promise<{ id: string }> {
     const evenement = await this.prisma.academicEvent.findFirst({
@@ -34,7 +38,7 @@ export class AjusterFenetreEvenementUseCase {
       where: { id: cmd.eventId },
       data: { closeDate: cmd.nouvelleCloture, reminderSentAt: null },
     });
-    await synchroniserClotureRessourceLiee(this.prisma, evenement.type, evenement.linkedResourceId, cmd.nouvelleCloture);
+    await synchroniserClotureRessourceLiee(this.lv2ChoiceRepository, evenement.type, evenement.linkedResourceId, cmd.nouvelleCloture);
     return { id: cmd.eventId };
   }
 }

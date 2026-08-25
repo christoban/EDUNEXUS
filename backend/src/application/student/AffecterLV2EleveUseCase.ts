@@ -1,4 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
+import type { StudentAffectationRepository } from '@domain/ports/repositories/StudentAffectationRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
@@ -12,34 +13,26 @@ export interface AffecterLV2EleveCommande {
 
 export class AffecterLV2EleveUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly affectationRepository: StudentAffectationRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly groupSetRepository: StudentGroupSetRepository,
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
   ) {}
 
   async execute(cmd: AffecterLV2EleveCommande): Promise<void> {
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { userId: cmd.studentUserId, user: { schoolId: cmd.schoolId } },
-      select: { id: true },
-    });
+    const profile = await this.affectationRepository.trouverProfilParUserId(cmd.studentUserId, cmd.schoolId);
     if (!profile) throw new Error('Élève introuvable dans cet établissement');
 
     if (cmd.lv2SubjectId !== null) {
-      const subject = await this.prisma.subject.findFirst({
-        where: { id: cmd.lv2SubjectId, schoolId: cmd.schoolId },
-        select: { id: true },
-      });
+      const subject = await this.affectationRepository.trouverMatiere(cmd.lv2SubjectId, cmd.schoolId);
       if (!subject) throw new Error('Matière LV2 introuvable dans cet établissement');
     }
 
-    await this.prisma.studentProfile.update({
-      where: { id: profile.id },
-      data: { lv2SubjectId: cmd.lv2SubjectId },
-    });
+    await this.affectationRepository.mettreAJourLV2(profile.id, cmd.lv2SubjectId);
 
     await synchroniserAppartenanceLV2(
-      { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository },
+      { anneeRepository: this.anneeRepository, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository },
       { schoolId: cmd.schoolId, studentProfileId: profile.id, lv2SubjectId: cmd.lv2SubjectId }
     );
   }

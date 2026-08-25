@@ -1,6 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
 import type { SuivreFenetreCommande } from './types';
-import { whereProfilesParClasses } from '@application/shared/studentEnrollment';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 
 interface EleveSuivi {
   studentProfileId: string;
@@ -14,7 +13,7 @@ interface EleveSuivi {
 }
 
 export class SuivreFenetreChoixLV2UseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly lv2ChoiceRepository: Lv2ChoiceRepository) {}
 
   async execute(cmd: SuivreFenetreCommande): Promise<{
     window: { id: string; level: string; status: string; openDate: Date; closeDate: Date };
@@ -23,64 +22,6 @@ export class SuivreFenetreChoixLV2UseCase {
     pending: number;
     students: EleveSuivi[];
   }> {
-    const window = await this.prisma.lv2ChoiceWindow.findUnique({
-      where: { id: cmd.windowId },
-    });
-    if (!window) throw new Error('Fenêtre de choix introuvable');
-    if (window.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
-
-    // Récupérer tous les élèves du niveau concerné
-    const classes = await this.prisma.class.findMany({
-      where: { schoolId: cmd.schoolId, level: window.level },
-      select: { id: true, name: true },
-    });
-    const classIds = classes.map(c => c.id);
-    const classByName = new Map(classes.map(c => [c.id, c.name]));
-
-    const profiles = await this.prisma.studentProfile.findMany({
-      where: { ...whereProfilesParClasses(classIds), studentStatus: 'ACTIVE' },
-      select: {
-        id: true,
-        userId: true,
-        enrollmentsYearScoped: {
-          where: { classId: { in: classIds }, status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { classId: true },
-          take: 1,
-        },
-        user: { select: { firstName: true, lastName: true } },
-      },
-    });
-
-    // Récupérer les soumissions existantes
-    const submissions: any[] = await this.prisma.lv2ChoiceSubmission.findMany({
-      where: { windowId: cmd.windowId },
-      include: { chosenSubject: { select: { name: true } } },
-    });
-    const subByStudent = new Map(submissions.map((s: any) => [s.studentProfileId, s]));
-
-    const students: EleveSuivi[] = profiles.map((p: any) => {
-      const sub = subByStudent.get(p.id);
-      const studentClassId = p.enrollmentsYearScoped?.[0]?.classId;
-      return {
-        studentProfileId: p.id,
-        userId: p.userId,
-        firstName: p.user.firstName,
-        lastName: p.user.lastName,
-        className: (studentClassId ? classByName.get(studentClassId) : '') ?? '',
-        hasSubmitted: !!sub,
-        submissionMethod: sub?.submissionMethod,
-        chosenSubjectName: sub?.chosenSubject?.name,
-      };
-    });
-
-    const submitted = students.filter(s => s.hasSubmitted).length;
-
-    return {
-      window: { id: window.id, level: window.level, status: window.status, openDate: window.openDate, closeDate: window.closeDate },
-      total: students.length,
-      submitted,
-      pending: students.length - submitted,
-      students,
-    };
+    return this.lv2ChoiceRepository.suivreFenetre(cmd.windowId, cmd.schoolId);
   }
 }

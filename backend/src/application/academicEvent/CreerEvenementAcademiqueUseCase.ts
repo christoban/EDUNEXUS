@@ -8,6 +8,8 @@
  *    (ajustable ensuite via AjusterFenetreEvenementUseCase).
  */
 import type { PrismaClient } from '@prisma/client';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
 export interface CreerEvenementCommande {
@@ -24,7 +26,11 @@ export interface CreerEvenementCommande {
 }
 
 export class CreerEvenementAcademiqueUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+  ) {}
 
   async execute(cmd: CreerEvenementCommande): Promise<{ id: string }> {
     if (cmd.category === 'FIXED_DATE' && (!cmd.openDate || !cmd.closeDate)) {
@@ -49,7 +55,7 @@ export class CreerEvenementAcademiqueUseCase {
     // "actif" sans que la fonctionnalité qu'il représente ne le soit vraiment.
     let linkedResourceId: string | null = null;
     if (status === 'ACTIVE') {
-      linkedResourceId = await activerRessourceLieeSiApplicable(this.prisma, {
+      linkedResourceId = await activerRessourceLieeSiApplicable(this.lv2ChoiceRepository, this.anneeRepository, {
         id: '', schoolId: cmd.schoolId, type: cmd.type,
         level: cmd.level ?? null, openDate: cmd.openDate ?? null, closeDate: cmd.closeDate ?? null,
       });

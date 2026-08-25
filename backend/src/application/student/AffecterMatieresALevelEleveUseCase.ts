@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { StudentAffectationRepository } from '@domain/ports/repositories/StudentAffectationRepository';
 
 /**
  * Choix individuel des matières A-Level d'un élève (GCE Advanced Level).
@@ -15,7 +15,7 @@ export interface AffecterMatieresALevelCommande {
 }
 
 export class AffecterMatieresALevelEleveUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly affectationRepository: StudentAffectationRepository) {}
 
   async execute(cmd: AffecterMatieresALevelCommande): Promise<{ count: number }> {
     // Dédoublonnage
@@ -29,35 +29,23 @@ export class AffecterMatieresALevelEleveUseCase {
     }
 
     // L'élève doit appartenir à cet établissement
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { userId: cmd.studentUserId, user: { schoolId: cmd.schoolId } },
-      select: { id: true },
-    });
+    const profile = await this.affectationRepository.trouverProfilParUserId(cmd.studentUserId, cmd.schoolId);
     if (!profile) throw new Error('Élève introuvable dans cet établissement');
 
     // Les matières doivent appartenir à l'établissement ET être des matières A-Level officielles
-    const schoolSubjects = await this.prisma.subject.findMany({
-      where: { id: { in: subjectIds }, schoolId: cmd.schoolId },
-      select: { id: true, name: true },
-    });
+    const schoolSubjects = await this.affectationRepository.listerMatieresParIds(subjectIds, cmd.schoolId);
     if (schoolSubjects.length !== subjectIds.length) {
       throw new Error('Une ou plusieurs matières sont introuvables dans cet établissement');
     }
 
-    const officialALevel = await this.prisma.aLevelSubject.findMany({ select: { subjectName: true } });
-    const officialNames = new Set<string>(officialALevel.map((a: any) => a.subjectName));
+    const officialNames = new Set<string>(await this.affectationRepository.listerNomsMatieresALevelOfficielles());
     const invalides = schoolSubjects.filter((s) => !officialNames.has(s.name));
     if (invalides.length > 0) {
       throw new Error(`Matière(s) non A-Level : ${invalides.map((s) => s.name).join(', ')}`);
     }
 
     // Remplacement idempotent de la sélection
-    await this.prisma.$transaction(async (tx) => {
-      await tx.studentALevelSubject.deleteMany({ where: { studentId: profile.id } });
-      await tx.studentALevelSubject.createMany({
-        data: subjectIds.map((subjectId) => ({ studentId: profile.id, subjectId })),
-      });
-    });
+    await this.affectationRepository.remplacerMatieresALevel(profile.id, subjectIds);
 
     return { count: subjectIds.length };
   }

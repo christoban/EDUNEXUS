@@ -166,6 +166,8 @@ import { EnregistrerPaiementCashUseCase } from '@application/finance/Enregistrer
 // --- Adapters Persistence Classe + Matière ---
 import { PrismaSousGroupeRepository } from '@infrastructure/persistence/prisma/PrismaSousGroupeRepository';
 import { PrismaMessagerieRepository } from '@infrastructure/persistence/prisma/PrismaMessagerieRepository';
+import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/prisma/PrismaStudentAffectationRepository';
+import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
 
 // --- Adapters Persistence AnneeAcademique + Promotion ---
 import { PrismaPromotionRepository } from '@infrastructure/persistence/prisma/PrismaPromotionRepository';
@@ -313,6 +315,8 @@ export function creerContainer() {
   const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
   const studentGroupRepository = new PrismaStudentGroupRepository(prisma);
   const studentGroupMembershipRepository = new PrismaStudentGroupMembershipRepository(prisma);
+  const studentAffectationRepository = new PrismaStudentAffectationRepository(prisma);
+  const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
   const classRoomAssignmentRepository = new PrismaClassRoomAssignmentRepository(prisma);
 
   // 3. Services (adaptateurs réels)
@@ -333,7 +337,7 @@ export function creerContainer() {
 
   // 5. Use Cases — Import
   const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
-    prisma, userRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository
+    prisma, userRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository
   );
 
   // 6. Use Cases — Présences
@@ -770,11 +774,11 @@ export function creerContainer() {
       prepareDossier: new PrepareExamDossierUseCase(prisma),
     },
     lv2Choice: {
-      ouvrirFenetre: new OuvrirFenetreChoixLV2UseCase(prisma),
-      soumettreChoix: new SoumettreChoixLV2EleveUseCase(prisma),
-      saisirManuel: new SaisirChoixLV2ManuelUseCase(prisma),
-      appliquerChoix: new AppliquerChoixLV2UseCase(prisma, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
-      suivreFenetre: new SuivreFenetreChoixLV2UseCase(prisma),
+      ouvrirFenetre: new OuvrirFenetreChoixLV2UseCase(lv2ChoiceRepository),
+      soumettreChoix: new SoumettreChoixLV2EleveUseCase(lv2ChoiceRepository, studentAffectationRepository),
+      saisirManuel: new SaisirChoixLV2ManuelUseCase(lv2ChoiceRepository, studentAffectationRepository),
+      appliquerChoix: new AppliquerChoixLV2UseCase(lv2ChoiceRepository, studentAffectationRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
+      suivreFenetre: new SuivreFenetreChoixLV2UseCase(lv2ChoiceRepository),
     },
     entranceExam: {
       creerSession: new CreerSessionConcoursUseCase(prisma),
@@ -789,7 +793,7 @@ export function creerContainer() {
       creerSession: new CreerSessionPebsUseCase(prisma),
       ajouterCandidats: new AjouterCandidatsPebsUseCase(prisma),
       calculerSelection: new CalculerSelectionPebsUseCase(prisma),
-      appliquerTransfert: new AppliquerTransfertPebsUseCase(prisma, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
+      appliquerTransfert: new AppliquerTransfertPebsUseCase(prisma, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
       resumeSession: new ResumeSessionPebsUseCase(prisma),
       scannerListe: new ScannerListeCandidatsPebsUseCase(prisma),
       detecterAnomalies: new DetecterAnomaliesPebsUseCase(prisma),

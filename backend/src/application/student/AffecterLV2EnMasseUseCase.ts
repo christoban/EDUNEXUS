@@ -1,4 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
+import type { StudentAffectationRepository } from '@domain/ports/repositories/StudentAffectationRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
@@ -16,7 +17,8 @@ export interface AffecterLV2EnMasseResultat {
 
 export class AffecterLV2EnMasseUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly affectationRepository: StudentAffectationRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly groupSetRepository: StudentGroupSetRepository,
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
@@ -26,35 +28,23 @@ export class AffecterLV2EnMasseUseCase {
     if (cmd.studentUserIds.length === 0) return { modifies: 0 };
 
     if (cmd.lv2SubjectId !== null) {
-      const subject = await this.prisma.subject.findFirst({
-        where: { id: cmd.lv2SubjectId, schoolId: cmd.schoolId },
-        select: { id: true },
-      });
+      const subject = await this.affectationRepository.trouverMatiere(cmd.lv2SubjectId, cmd.schoolId);
       if (!subject) throw new Error('Matière LV2 introuvable dans cet établissement');
     }
 
     // Vérifier que tous les élèves appartiennent à cette école
-    const profiles = await this.prisma.studentProfile.findMany({
-      where: {
-        userId: { in: cmd.studentUserIds },
-        user: { schoolId: cmd.schoolId },
-      },
-      select: { id: true },
-    });
+    const profiles = await this.affectationRepository.listerProfilsParUserIds(cmd.studentUserIds, cmd.schoolId);
 
     if (profiles.length === 0) return { modifies: 0 };
 
-    const profileIds = profiles.map((p: any) => p.id);
-    const result = await this.prisma.studentProfile.updateMany({
-      where: { id: { in: profileIds } },
-      data: { lv2SubjectId: cmd.lv2SubjectId },
-    });
+    const profileIds = profiles.map((p) => p.id);
+    const result = await this.affectationRepository.mettreAJourLV2EnMasse(profileIds, cmd.lv2SubjectId);
 
-    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
+    const syncRepos = { anneeRepository: this.anneeRepository, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
     for (const profileId of profileIds) {
       await synchroniserAppartenanceLV2(syncRepos, { schoolId: cmd.schoolId, studentProfileId: profileId, lv2SubjectId: cmd.lv2SubjectId });
     }
 
-    return { modifies: result.count };
+    return { modifies: result };
   }
 }

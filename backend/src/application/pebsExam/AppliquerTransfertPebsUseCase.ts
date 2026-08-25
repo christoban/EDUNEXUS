@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AppliquerTransfertPebsCommande } from './types';
 import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
@@ -12,6 +13,7 @@ interface NotifieCandidat { studentUserId: string; studentName: string }
 export class AppliquerTransfertPebsUseCase {
   constructor(
     private readonly prisma: PrismaClient,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly groupSetRepository: StudentGroupSetRepository,
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
@@ -62,7 +64,7 @@ export class AppliquerTransfertPebsUseCase {
     const enrolledById = adminUser?.id ?? 'SYSTEM';
 
     // Appliquer les transferts
-    const syncRepos = { prisma: this.prisma, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
+    const syncRepos = { anneeRepository: this.anneeRepository, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository };
     let transferred = 0;
     const selectionnes: NotifieCandidat[] = [];
     for (const c of selected) {

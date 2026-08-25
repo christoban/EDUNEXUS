@@ -10,7 +10,8 @@
  * signalé en revue : le menu ne doit jamais s'afficher pour une fonctionnalité qui n'est pas
  * réellement ouverte).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import { OuvrirFenetreChoixLV2UseCase } from '../lv2Choice/OuvrirFenetreChoixLV2UseCase';
 import { notifyLv2WindowOpenSms } from '../../infrastructure/services/sms/SmsNotificationService.ts';
 
@@ -30,7 +31,8 @@ export interface EvenementPourActivation {
  * rappels/notifications, rien à ouvrir automatiquement pour eux aujourd'hui).
  */
 export async function activerRessourceLieeSiApplicable(
-  prisma: PrismaClient,
+  lv2ChoiceRepository: Lv2ChoiceRepository,
+  anneeRepository: AnneeAcademiqueRepository,
   event: EvenementPourActivation,
 ): Promise<string | null> {
   if (event.type !== 'CHOIX_LV2') return null;
@@ -42,15 +44,12 @@ export async function activerRessourceLieeSiApplicable(
     throw new Error('Un événement CHOIX_LV2 requiert une date d\'ouverture et de clôture pour ouvrir la fenêtre réelle.');
   }
 
-  const anneeCourante = await prisma.academicYear.findFirst({
-    where: { schoolId: event.schoolId, isCurrent: true },
-    select: { id: true },
-  });
+  const anneeCourante = await anneeRepository.findCourante(event.schoolId);
   if (!anneeCourante) {
     throw new Error('Aucune année scolaire courante configurée — impossible d\'ouvrir la fenêtre de choix LV2.');
   }
 
-  const resultat = await new OuvrirFenetreChoixLV2UseCase(prisma).execute({
+  const resultat = await new OuvrirFenetreChoixLV2UseCase(lv2ChoiceRepository).execute({
     schoolId: event.schoolId,
     level: event.level,
     academicYearId: anneeCourante.id,
@@ -81,27 +80,23 @@ export async function activerRessourceLieeSiApplicable(
  * vraie fenêtre LV2 divergeraient silencieusement l'un de l'autre.
  */
 export async function synchroniserClotureRessourceLiee(
-  prisma: PrismaClient,
+  lv2ChoiceRepository: Lv2ChoiceRepository,
   type: string,
   linkedResourceId: string | null,
   nouvelleCloture: Date,
 ): Promise<void> {
   if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
-  await prisma.lv2ChoiceWindow.update({
-    where: { id: linkedResourceId },
-    data: { closeDate: nouvelleCloture },
-  }).catch((err: any) => console.error('[AcademicEvent] sync clôture Lv2ChoiceWindow:', err?.message));
+  await lv2ChoiceRepository.mettreAJourCloture(linkedResourceId, nouvelleCloture)
+    .catch((err: any) => console.error('[AcademicEvent] sync clôture Lv2ChoiceWindow:', err?.message));
 }
 
 /** Clôture la ressource liée quand l'AcademicEvent lui-même passe CLOSED. */
 export async function cloturerRessourceLiee(
-  prisma: PrismaClient,
+  lv2ChoiceRepository: Lv2ChoiceRepository,
   type: string,
   linkedResourceId: string | null,
 ): Promise<void> {
   if (type !== 'CHOIX_LV2' || !linkedResourceId) return;
-  await prisma.lv2ChoiceWindow.update({
-    where: { id: linkedResourceId },
-    data: { status: 'CLOSED' },
-  }).catch((err: any) => console.error('[AcademicEvent] clôture Lv2ChoiceWindow:', err?.message));
+  await lv2ChoiceRepository.cloreFenetre(linkedResourceId)
+    .catch((err: any) => console.error('[AcademicEvent] clôture Lv2ChoiceWindow:', err?.message));
 }

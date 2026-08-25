@@ -1,53 +1,34 @@
-import type { PrismaClient } from '@prisma/client';
 import type { OuvrirFenetreCommande } from './types';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 
 interface EleveConcerne { studentUserId: string; studentName: string }
 
 export class OuvrirFenetreChoixLV2UseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly lv2ChoiceRepository: Lv2ChoiceRepository) {}
 
   async execute(cmd: OuvrirFenetreCommande): Promise<{ windowId: string; level: string; closeDate: Date; eleves: EleveConcerne[] }> {
     // Vérifier qu'aucune fenêtre OPEN n'existe déjà pour ce niveau + année
-    const existing = await this.prisma.lv2ChoiceWindow.findFirst({
-      where: {
-        schoolId: cmd.schoolId,
-        level: cmd.level,
-        academicYearId: cmd.academicYearId,
-        status: 'OPEN',
-      },
-    });
+    const existing = await this.lv2ChoiceRepository.trouverFenetreOuverteParNiveau(cmd.schoolId, cmd.level, cmd.academicYearId);
     if (existing) {
       throw new Error(`Une fenêtre de choix LV2 est déjà ouverte pour le niveau ${cmd.level}`);
     }
 
-    const window = await this.prisma.lv2ChoiceWindow.create({
-      data: {
-        schoolId: cmd.schoolId,
-        level: cmd.level,
-        academicYearId: cmd.academicYearId,
-        openDate: cmd.openDate,
-        closeDate: cmd.closeDate,
-        status: 'OPEN',
-      },
+    const window = await this.lv2ChoiceRepository.creerFenetre({
+      schoolId: cmd.schoolId,
+      level: cmd.level,
+      academicYearId: cmd.academicYearId,
+      openDate: cmd.openDate,
+      closeDate: cmd.closeDate,
     });
 
-    // Élèves du niveau concerné — pour notification (SMS aux parents). StudentProfile n'a pas
-    // de schoolId propre : l'établissement se filtre via la relation user.
-    const eleves: any[] = await this.prisma.studentProfile.findMany({
-      where: {
-        user: { schoolId: cmd.schoolId },
-        enrollmentsYearScoped: {
-          some: { status: 'ACTIVE', academicYear: { isCurrent: true }, class: { level: cmd.level } },
-        },
-      },
-      include: { user: { select: { id: true, firstName: true, lastName: true } } },
-    });
+    // Élèves du niveau concerné — pour notification (SMS aux parents).
+    const eleves = await this.lv2ChoiceRepository.listerElevesDuNiveau(cmd.schoolId, cmd.level);
 
     return {
       windowId: window.id,
       level: cmd.level,
       closeDate: cmd.closeDate,
-      eleves: eleves.filter(e => e.user).map(e => ({ studentUserId: e.user.id, studentName: `${e.user.firstName} ${e.user.lastName}` })),
+      eleves,
     };
   }
 }

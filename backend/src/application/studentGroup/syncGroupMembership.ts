@@ -9,20 +9,20 @@
  * connu, on ne fait rien plutôt que de faire échouer l'action utilisateur réelle (affectation
  * LV2/PEBS) pour une table de synchronisation annexe.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 
 export interface SyncRepositories {
-  prisma: PrismaClient;
+  anneeRepository: AnneeAcademiqueRepository;
   groupSetRepository: StudentGroupSetRepository;
   groupRepository: StudentGroupRepository;
   membershipRepository: StudentGroupMembershipRepository;
 }
 
-async function resoudreAnneeCouranteId(prisma: PrismaClient, schoolId: string): Promise<string | null> {
-  const annee = await prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+async function resoudreAnneeCouranteId(anneeRepository: AnneeAcademiqueRepository, schoolId: string): Promise<string | null> {
+  const annee = await anneeRepository.findCourante(schoolId);
   return annee?.id ?? null;
 }
 
@@ -30,7 +30,7 @@ export async function synchroniserAppartenanceLV2(
   repos: SyncRepositories,
   params: { schoolId: string; studentProfileId: string; lv2SubjectId: string | null; academicYearId?: string }
 ): Promise<void> {
-  const academicYearId = params.academicYearId ?? await resoudreAnneeCouranteId(repos.prisma, params.schoolId);
+  const academicYearId = params.academicYearId ?? await resoudreAnneeCouranteId(repos.anneeRepository, params.schoolId);
   if (!academicYearId) return;
 
   const groupSet = await repos.groupSetRepository.findByCode(params.schoolId, 'LV2');
@@ -52,7 +52,7 @@ export async function synchroniserAppartenanceProgramme(
   repos: SyncRepositories,
   params: { schoolId: string; studentProfileId: string; pebsFiliere: string | null; academicYearId?: string }
 ): Promise<void> {
-  const academicYearId = params.academicYearId ?? await resoudreAnneeCouranteId(repos.prisma, params.schoolId);
+  const academicYearId = params.academicYearId ?? await resoudreAnneeCouranteId(repos.anneeRepository, params.schoolId);
   if (!academicYearId) return;
 
   const groupSet = await repos.groupSetRepository.findByCode(params.schoolId, 'PROGRAMME');

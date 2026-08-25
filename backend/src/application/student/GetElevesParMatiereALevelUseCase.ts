@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { StudentAffectationRepository } from '@domain/ports/repositories/StudentAffectationRepository';
 
 /**
  * Regroupement A-Level : tous les élèves ayant une matière A-Level donnée dans leur sélection,
@@ -19,52 +19,13 @@ export interface GetElevesParMatiereResultat {
 }
 
 export class GetElevesParMatiereALevelUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly affectationRepository: StudentAffectationRepository) {}
 
   async execute(subjectId: string, schoolId: string, classId?: string): Promise<GetElevesParMatiereResultat> {
-    const subject = await this.prisma.subject.findFirst({
-      where: { id: subjectId, schoolId },
-      select: { id: true, name: true },
-    });
+    const subject = await this.affectationRepository.trouverMatiere(subjectId, schoolId);
     if (!subject) throw new Error('Matière introuvable dans cet établissement');
 
-    const links = await this.prisma.studentALevelSubject.findMany({
-      where: {
-        subjectId,
-        student: {
-          user: { schoolId, isActive: true },
-          ...(classId
-            ? {
-                enrollmentsYearScoped: {
-                  some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
-                },
-              }
-            : {}),
-        },
-      },
-      select: {
-        student: {
-          select: {
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-              select: { class: { select: { name: true } } },
-              take: 1,
-            },
-            user: { select: { id: true, firstName: true, lastName: true } },
-          },
-        },
-      },
-    });
-
-    const eleves: EleveALevel[] = links
-      .map((l: any) => ({
-        id: l.student.user.id,
-        firstName: l.student.user.firstName,
-        lastName: l.student.user.lastName,
-        className: l.student.enrollmentsYearScoped?.[0]?.class?.name ?? null,
-      }))
-      .sort((a: EleveALevel, b: EleveALevel) =>
-        a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
+    const eleves = await this.affectationRepository.listerElevesParMatiereALevel(subjectId, schoolId, classId);
 
     return { subjectId: subject.id, subjectName: subject.name, eleves };
   }

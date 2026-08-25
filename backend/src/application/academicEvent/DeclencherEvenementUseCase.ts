@@ -5,6 +5,8 @@
  * Notifie immédiatement les rôles cibles à l'ouverture.
  */
 import type { PrismaClient } from '@prisma/client';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
@@ -19,7 +21,11 @@ export interface DeclencherEvenementCommande {
 }
 
 export class DeclencherEvenementUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+  ) {}
 
   async execute(cmd: DeclencherEvenementCommande): Promise<{ id: string }> {
     const evenement = await this.prisma.academicEvent.findFirst({
@@ -38,7 +44,7 @@ export class DeclencherEvenementUseCase {
 
     // Ouvre la ressource réelle AVANT de faire passer l'événement à ACTIVE — si ça échoue,
     // l'événement reste UPCOMING plutôt que de mentir sur son propre statut.
-    const linkedResourceId = await activerRessourceLieeSiApplicable(this.prisma, {
+    const linkedResourceId = await activerRessourceLieeSiApplicable(this.lv2ChoiceRepository, this.anneeRepository, {
       id: evenement.id, schoolId: cmd.schoolId, type: evenement.type,
       level: evenement.level, openDate: maintenant, closeDate,
     });

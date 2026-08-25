@@ -43,6 +43,9 @@ import { ResoudreParticipantsSeanceUseCase } from '@application/timetable/Resoud
 import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
 import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupRepository';
 import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
+import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/prisma/PrismaStudentAffectationRepository';
+import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
+import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 import { AcademicYearController } from '@infrastructure/http/controllers/AcademicYearController';
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
@@ -1421,10 +1424,13 @@ export function bootstrapHexagonal(app: Application): void {
     new ListerHistoriqueSuiviEleveUseCase(studentFollowUpRepo, prisma),
     prisma,
   );
+  const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
+  const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
+  const studentAffectationRepository = new PrismaStudentAffectationRepository(prisma);
   const academicEventController = new AcademicEventController(
-    new CreerEvenementAcademiqueUseCase(prisma),
-    new DeclencherEvenementUseCase(prisma),
-    new AjusterFenetreEvenementUseCase(prisma),
+    new CreerEvenementAcademiqueUseCase(prisma, lv2ChoiceRepository, anneeRepository),
+    new DeclencherEvenementUseCase(prisma, lv2ChoiceRepository, anneeRepository),
+    new AjusterFenetreEvenementUseCase(prisma, lv2ChoiceRepository),
     new ListerEvenementsUseCase(prisma),
     new ObtenirEvenementsActifsUseCase(prisma),
   );
@@ -1635,10 +1641,10 @@ export function bootstrapHexagonal(app: Application): void {
     transfererEleve: container.user.transferer,
     modifierMatiere: container.subject.modifier,
     // Constructeurs légers (prisma uniquement) — pas encore exposés dans le container.
-    affecterLV2Eleve: new AffecterLV2EleveUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
-    affecterLV2Masse: new AffecterLV2EnMasseUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
-    affecterPEBSEleve: new AffecterPEBSEleveUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
-    affecterPEBSMasse: new AffecterPEBSEnMasseUseCase(prisma, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterLV2Eleve: new AffecterLV2EleveUseCase(studentAffectationRepository, anneeRepository, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterLV2Masse: new AffecterLV2EnMasseUseCase(studentAffectationRepository, anneeRepository, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterPEBSEleve: new AffecterPEBSEleveUseCase(studentAffectationRepository, anneeRepository, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
+    affecterPEBSMasse: new AffecterPEBSEnMasseUseCase(studentAffectationRepository, anneeRepository, groupSetRepositoryLeger, groupRepositoryLeger, membershipRepositoryLeger),
     genererBulletins: container.reportCard.generer,
     envoyerBulletins: container.reportCard.envoyer,
     validerNotesEnBloc: container.grade.validerEnBloc,
@@ -2889,9 +2895,9 @@ export function bootstrapHexagonal(app: Application): void {
   });
 
   // ── Module A-Level — choix individuel des matières par élève (max 5) ──────
-  const affecterALevelUseCase   = new AffecterMatieresALevelEleveUseCase(prisma);
-  const preremplirALevelUseCase = new PreremplirDepuisCombinaisonUseCase(prisma);
-  const getElevesALevelUseCase  = new GetElevesParMatiereALevelUseCase(prisma);
+  const affecterALevelUseCase   = new AffecterMatieresALevelEleveUseCase(studentAffectationRepository);
+  const preremplirALevelUseCase = new PreremplirDepuisCombinaisonUseCase(studentAffectationRepository);
+  const getElevesALevelUseCase  = new GetElevesParMatiereALevelUseCase(studentAffectationRepository);
 
   // PUT /api/v2/students/:id/alevel-subjects — remplacer la sélection A-Level (3 à 5 matières)
   app.put('/api/v2/students/:id/alevel-subjects', requireAuth, requireRole('ADMIN', 'STAFF'), async (req, res, next) => {
