@@ -32,6 +32,7 @@ import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
 import { PrismaMasterUserAuthRepository } from '@infrastructure/persistence/prisma/PrismaMasterUserAuthRepository';
+import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
 import { creerUserRoutes } from '@infrastructure/http/routes/user.routes';
 import { creerMasterAdminHexRoutes } from '@infrastructure/http/routes/masterAdminHex.routes';
 import { FinanceController } from '@infrastructure/http/controllers/FinanceController';
@@ -955,7 +956,7 @@ export function bootstrapHexagonal(app: Application): void {
   const studentDocumentController = new StudentDocumentController(prisma);
   app.use('/api/v2', creerStudentDocumentRoutes(studentDocumentController));
 
-  const designerAPUseCase = new DesignerAPUseCase(prisma);
+  const designerAPUseCase = new DesignerAPUseCase(new PrismaStaffProfileRepository(prisma));
 
   // ── Connexion renforcée (email OTP pour tous les rôles + MFA obligatoire ADMIN/STAFF/TEACHER) ──
   const userRepository = new PrismaUserRepository(prisma);

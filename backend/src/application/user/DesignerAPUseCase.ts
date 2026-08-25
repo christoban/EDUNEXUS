@@ -4,7 +4,7 @@
  * Mécanisme : création d'un StaffProfile avec les permissions AP + mise à jour
  * de TeacherProfile.supervisedSubjectIds.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { StaffProfileRepository } from '@domain/ports/repositories/StaffProfileRepository';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
 import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
@@ -17,17 +17,14 @@ export interface DesignerAPCommande {
 }
 
 export class DesignerAPUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly staffProfileRepository: StaffProfileRepository) {}
 
   async execute(commande: DesignerAPCommande): Promise<void> {
     if (commande.demandeurRole !== 'ADMIN') {
       throw new Error('Accès refusé : seul un Admin peut désigner un Animateur Pédagogique');
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: commande.userId },
-      select: { id: true, role: true, schoolId: true, firstName: true, lastName: true },
-    });
+    const user = await this.staffProfileRepository.findUserPourDesignationAP(commande.userId);
 
     if (!user) throw new Error('Utilisateur introuvable');
     if (user.schoolId !== commande.schoolId) {
@@ -42,52 +39,7 @@ export class DesignerAPUseCase {
     const apPermissions = getPermissionsPourTitre('Animateur Pédagogique');
 
     if (commande.action === 'ASSIGN') {
-      // Upsert StaffProfile avec les permissions AP
-      const existingProfile = await this.prisma.staffProfile.findUnique({
-        where: { userId: commande.userId },
-      });
-
-      if (existingProfile) {
-        // Ajouter les permissions AP manquantes
-        const existingPerms = await this.prisma.staffPermission.findMany({
-          where: { staffProfileId: existingProfile.id },
-          select: { permission: true },
-        });
-        const existingPermSet = new Set(existingPerms.map(p => p.permission));
-        const toAdd = apPermissions.filter(p => !existingPermSet.has(p));
-
-        if (toAdd.length > 0) {
-          await this.prisma.staffPermission.createMany({
-            data: toAdd.map(permission => ({
-              staffProfileId: existingProfile.id,
-              permission,
-            })),
-            skipDuplicates: true,
-          });
-        }
-      } else {
-        // Créer un StaffProfile dédié AP pour cet enseignant
-        const profile = await this.prisma.staffProfile.create({
-          data: {
-            schoolId: commande.schoolId,
-            userId: commande.userId,
-            title: 'Animateur Pédagogique',
-          },
-        });
-        await this.prisma.staffPermission.createMany({
-          data: apPermissions.map(permission => ({
-            staffProfileId: profile.id,
-            permission,
-          })),
-          skipDuplicates: true,
-        });
-      }
-
-      // Mettre à jour les matières supervisées
-      await this.prisma.teacherProfile.update({
-        where: { userId: commande.userId },
-        data: { supervisedSubjectIds: commande.departmentSubjectIds },
-      });
+      await this.staffProfileRepository.assignerAP(commande.userId, commande.schoolId, apPermissions, commande.departmentSubjectIds);
 
       void logActivity({
         userId: commande.userId,
@@ -96,34 +48,7 @@ export class DesignerAPUseCase {
         details: JSON.stringify({ userId: commande.userId, permissions: apPermissions, departmentSubjectIds: commande.departmentSubjectIds }),
       });
     } else {
-      // REMOVE — retirer les permissions AP du StaffProfile
-      const profile = await this.prisma.staffProfile.findUnique({
-        where: { userId: commande.userId },
-        include: { permissions: true },
-      });
-
-      if (profile) {
-        await this.prisma.staffPermission.deleteMany({
-          where: {
-            staffProfileId: profile.id,
-            permission: { in: apPermissions },
-          },
-        });
-
-        // Si plus aucune permission, supprimer le profil entier
-        const remaining = await this.prisma.staffPermission.count({
-          where: { staffProfileId: profile.id },
-        });
-        if (remaining === 0) {
-          await this.prisma.staffProfile.delete({ where: { id: profile.id } });
-        }
-      }
-
-      // Vider les matières supervisées
-      await this.prisma.teacherProfile.update({
-        where: { userId: commande.userId },
-        data: { supervisedSubjectIds: [] },
-      });
+      await this.staffProfileRepository.retirerAP(commande.userId, apPermissions);
 
       void logActivity({
         userId: commande.userId,

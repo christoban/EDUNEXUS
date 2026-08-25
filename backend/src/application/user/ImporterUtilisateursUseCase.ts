@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { User } from '@domain/entities/User';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
@@ -6,6 +5,7 @@ import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/Annee
 import type { StudentGroupSetRepository } from '@domain/ports/repositories/StudentGroupSetRepository';
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
+import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
 import { synchroniserAppartenanceLV2, synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 import { parseDateFR } from '../../shared/date/parseDateFR';
 export interface ImportRow {
@@ -51,7 +51,7 @@ const DEV_PASS = 'chris123456789'
 
 export class ImporterUtilisateursUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly importRepository: ImportUtilisateursRepository,
     private readonly userRepository: UserRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly groupSetRepository: StudentGroupSetRepository,
@@ -83,26 +83,18 @@ export class ImporterUtilisateursUseCase {
     }
 
     // Résoudre le nom de l'école une seule fois pour éviter N requêtes dans la boucle
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { name: true, subdomain: true, hasPEBSFrancophone: true, hasPEBSAnglophone: true },
-    })
-    const schoolName = school?.name ?? 'ZekoulABia'
+    const contexte = await this.importRepository.chargerContexte(schoolId)
+    const schoolName = contexte.schoolName
 
     // Cache classes : 1 requête pour toutes au lieu de 1 par ligne
-    const allClasses = await this.prisma.class.findMany({ where: { schoolId }, select: { id: true, name: true } })
-    const classeCache = new Map(allClasses.map(c => [c.name, c.id]))
+    const classeCache = new Map(contexte.classes.map(c => [c.name, c.id]))
 
     // Cache LV2 subjects : nom → id
-    const lv2Subjects = await this.prisma.subject.findMany({
-      where: { schoolId, isLV2: true },
-      select: { id: true, name: true },
-    })
     const lv2NameToId = new Map<string, string>()
-    for (const s of lv2Subjects) {
+    for (const s of contexte.lv2Subjects) {
       lv2NameToId.set(s.name.toLowerCase().trim(), s.id)
     }
-    const hasPEBS = !!(school?.hasPEBSFrancophone || school?.hasPEBSAnglophone)
+    const hasPEBS = contexte.hasPEBS
 
     for (const row of rows) {
       try {
@@ -150,12 +142,9 @@ export class ImporterUtilisateursUseCase {
     let parentUserId: string | undefined
     if (row.emailParent?.trim()) {
       const parentEmail = row.emailParent.trim().toLowerCase()
-      const existingParent = await this.prisma.user.findFirst({
-        where: { schoolId, email: parentEmail, role: 'PARENT' },
-        select: { id: true },
-      })
-      if (existingParent) {
-        parentUserId = existingParent.id
+      const existingParentId = await this.importRepository.findParentParEmail(schoolId, parentEmail)
+      if (existingParentId) {
+        parentUserId = existingParentId
       } else {
         const parentUser = User.create({
           schoolId,
@@ -194,10 +183,7 @@ export class ImporterUtilisateursUseCase {
     const lv2Val = row.lv2?.trim() ?? ''
     let importedProfileId: string | undefined
     if (pebsVal || lv2Val) {
-      const importedProfile = await this.prisma.studentProfile.findUnique({
-        where: { userId: studentUser.id }, select: { id: true },
-      })
-      importedProfileId = importedProfile?.id
+      importedProfileId = await this.importRepository.findStudentProfileId(studentUser.id) ?? undefined
     }
     const syncRepos = { anneeRepository: this.anneeRepository, groupSetRepository: this.groupSetRepository, groupRepository: this.groupRepository, membershipRepository: this.membershipRepository }
 
@@ -205,10 +191,7 @@ export class ImporterUtilisateursUseCase {
       if (!['FR_PEBS', 'EN_PEBS'].includes(pebsVal)) {
         throw new Error(`Valeur PEBS invalide : "${row.pebs?.trim()}" (attendu FR_PEBS ou EN_PEBS)`)
       }
-      await this.prisma.studentProfile.updateMany({
-        where: { userId: studentUser.id },
-        data: { pebsFiliere: pebsVal },
-      })
+      await this.importRepository.updatePeBSFiliere(studentUser.id, pebsVal)
       if (importedProfileId) {
         await synchroniserAppartenanceProgramme(syncRepos, { schoolId, studentProfileId: importedProfileId, pebsFiliere: pebsVal })
       }
@@ -220,10 +203,7 @@ export class ImporterUtilisateursUseCase {
       if (!subjectId) {
         throw new Error(`Langue LV2 introuvable : "${lv2Val}" — consultez la liste des langues disponibles dans votre établissement`)
       }
-      await this.prisma.studentProfile.updateMany({
-        where: { userId: studentUser.id },
-        data: { lv2SubjectId: subjectId },
-      })
+      await this.importRepository.updateLv2Subject(studentUser.id, subjectId)
       if (importedProfileId) {
         await synchroniserAppartenanceLV2(syncRepos, { schoolId, studentProfileId: importedProfileId, lv2SubjectId: subjectId })
       }
@@ -257,10 +237,7 @@ export class ImporterUtilisateursUseCase {
     let subjectIds: string[] = []
     if (row.matieres?.trim()) {
       const matiereNames = row.matieres.split(',').map(m => m.trim()).filter(Boolean)
-      const found = await this.prisma.subject.findMany({
-        where: { schoolId, name: { in: matiereNames } },
-        select: { id: true, name: true },
-      })
+      const found = await this.importRepository.findSubjectsParNoms(schoolId, matiereNames)
       const foundNames = new Set(found.map(s => s.name))
       const missing = matiereNames.filter(m => !foundNames.has(m))
       if (missing.length > 0) {
@@ -292,32 +269,19 @@ export class ImporterUtilisateursUseCase {
     let ppError: string | undefined
     if (row.classePrincipale?.trim()) {
       const className = row.classePrincipale.trim()
-      const classe = await this.prisma.class.findFirst({
-        where: { schoolId, name: className },
-        select: { id: true, professorPrincipalId: true },
-      })
+      const classe = await this.importRepository.findClassePourPP(schoolId, className)
       if (!classe) {
         ppError = `Classe '${className}' introuvable pour classe_principale`
       } else if (classe.professorPrincipalId) {
-        const existingPP = await this.prisma.user.findUnique({
-          where: { id: classe.professorPrincipalId },
-          select: { firstName: true, lastName: true },
-        })
-        const ppName = existingPP ? `${existingPP.firstName} ${existingPP.lastName}` : 'inconnu'
+        const ppName = await this.importRepository.findNomProfesseurPrincipal(classe.professorPrincipalId) ?? 'inconnu'
         ppError = `Classe '${className}' a déjà un Professeur Principal (${ppName})`
       } else {
         // Vérifier que cet enseignant n'est pas déjà PP d'une autre classe
-        const autreClasse = await this.prisma.class.findFirst({
-          where: { professorPrincipalId: teacherUser.id, schoolId, id: { not: classe.id } },
-          select: { name: true },
-        })
+        const autreClasse = await this.importRepository.findAutreClasseDePP(teacherUser.id, schoolId, classe.id)
         if (autreClasse) {
           ppError = `Cet enseignant est déjà Professeur Principal de '${autreClasse.name}'. Un enseignant ne peut être PP que d'une seule classe.`
         } else {
-          await this.prisma.class.update({
-            where: { id: classe.id },
-            data: { professorPrincipalId: teacherUser.id },
-          })
+          await this.importRepository.assignerProfesseurPrincipal(classe.id, teacherUser.id)
           ppAssigned = true
         }
       }
@@ -328,43 +292,23 @@ export class ImporterUtilisateursUseCase {
     // matière qui fait partie du programme de la classe_principale
     let affectationsCreees = 0
     if (ppAssigned && subjectIds.length > 0 && row.classePrincipale?.trim()) {
-      const classe = await this.prisma.class.findFirst({
-        where: { schoolId, name: row.classePrincipale.trim() },
-        select: { id: true, level: true, serie: true, filiere: true, academicYearId: true },
-      })
+      const classe = await this.importRepository.findClasseProgramme(schoolId, row.classePrincipale.trim())
       if (classe) {
         // Matières du programme de cette classe (serie pour 2nd cycle, filiere pour 1er cycle)
         // + overrides spécifiques à la classe (ClassSubjectOverride)
         const codeSerie = classe.serie ?? classe.filiere ?? null
-        const [coefficients, overrides] = await Promise.all([
-          this.prisma.subjectCoefficient.findMany({
-            where: {
-              schoolId,
-              classLevel: classe.level ?? undefined,
-              OR: [{ serieCode: codeSerie }, { serieCode: null }],
-            },
-            select: { subjectId: true },
-          }),
-          this.prisma.classSubjectOverride.findMany({
-            where: { classId: classe.id, schoolId },
-            select: { subjectId: true },
-          }),
-        ])
-        const programmSubjectIds = new Set([
-          ...coefficients.map(c => c.subjectId),
-          ...overrides.map(o => o.subjectId),
-        ])
+        const programmSubjectIds = new Set(
+          await this.importRepository.findSubjectsDuProgramme(schoolId, classe.level, codeSerie, classe.id),
+        )
 
         const subjectsInProgramme = subjectIds.filter(id => programmSubjectIds.has(id))
         if (subjectsInProgramme.length > 0) {
-          const result = await this.prisma.teachingAssignment.createMany({
-            data: subjectsInProgramme.map(subjectId => ({
+          affectationsCreees = await this.importRepository.creerAffectations(
+            subjectsInProgramme.map(subjectId => ({
               classId: classe.id, subjectId, teacherId: teacherUser.id, schoolId,
               academicYearId: classe.academicYearId,
             })),
-            skipDuplicates: true, // ignore si matière déjà affectée à quelqu'un d'autre
-          })
-          affectationsCreees = result.count
+          )
         }
       }
     }

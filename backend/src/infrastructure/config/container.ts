@@ -279,6 +279,7 @@ import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/
 import { PrismaGradeOrientationRepository } from '@infrastructure/persistence/prisma/PrismaGradeOrientationRepository';
 import { PrismaExamDossierRepository } from '@infrastructure/persistence/prisma/PrismaExamDossierRepository';
 import { PrismaEleveOnboardingRepository } from '@infrastructure/persistence/prisma/PrismaEleveOnboardingRepository';
+import { PrismaImportUtilisateursRepository } from '@infrastructure/persistence/prisma/PrismaImportUtilisateursRepository';
 
 // --- Use Cases : Orientation ---
 import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
@@ -335,6 +336,7 @@ export function creerContainer() {
   const pebsExamRepository = new PrismaPebsExamRepository(prisma);
   const examDossierRepository = new PrismaExamDossierRepository(prisma);
   const eleveOnboardingRepository = new PrismaEleveOnboardingRepository(prisma);
+  const importUtilisateursRepository = new PrismaImportUtilisateursRepository(prisma);
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
   const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
@@ -360,7 +362,7 @@ export function creerContainer() {
 
   // 5. Use Cases — Import
   const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
-    prisma, userRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository
+    importUtilisateursRepository, userRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository
   );
 
   // 6. Use Cases — Présences
