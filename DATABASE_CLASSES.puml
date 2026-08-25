@@ -2,7 +2,7 @@
 skinparam classAttributeIconSize 0
 skinparam classFontStyle bold
 skinparam linetype ortho
-hide circle
+hide circle 
 
 ' =====================================================
 '  ENUMS

@@ -6,8 +6,10 @@
  * logique que les actions copilot `classes_sans_edt_publie` et `classes_sans_conseil_tenu`
  * (adminActionCatalog.ts) plutôt que d'inventer un nouveau calcul.
  */
-import type { PrismaClient } from '@prisma/client';
-import { resolveCurrentAcademicYear, resolveCurrentPeriod, type ActionContext } from '@application/assistant/catalog/catalogShared';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
+import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
 
 export interface AnomaliesEtablissement {
   classesSansEdtPublie: string[];
@@ -15,39 +17,36 @@ export interface AnomaliesEtablissement {
 }
 
 export class ObtenirAnomaliesEtablissementUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly classeRepository: ClasseRepository,
+    private readonly timetableRepository: TimetableRepository,
+    private readonly classCouncilRepository: ClassCouncilRepository,
+  ) {}
 
   async execute(params: { schoolId: string; userId: string }): Promise<AnomaliesEtablissement> {
-    const ctx: ActionContext = { schoolId: params.schoolId, userId: params.userId, role: 'ADMIN', prisma: this.prisma };
-    const classes = await this.prisma.class.findMany({ where: { schoolId: ctx.schoolId }, select: { id: true, name: true } });
+    const classes = await this.classeRepository.findBySchool(params.schoolId);
+    const classesLite = classes.map((c) => ({ id: c.id, name: c.name }));
 
     const [classesSansEdtPublie, classesSansConseilTenu] = await Promise.all([
-      this.sansEdtPublie(ctx, classes),
-      this.sansConseilTenu(ctx, classes),
+      this.sansEdtPublie(params.schoolId, classesLite),
+      this.sansConseilTenu(params.schoolId, classesLite),
     ]);
 
     return { classesSansEdtPublie, classesSansConseilTenu };
   }
 
-  private async sansEdtPublie(ctx: ActionContext, classes: { id: string; name: string }[]): Promise<string[]> {
-    const year = await resolveCurrentAcademicYear(ctx).catch(() => null);
+  private async sansEdtPublie(schoolId: string, classes: { id: string; name: string }[]): Promise<string[]> {
+    const year = await this.anneeRepository.findCourante(schoolId).catch(() => null);
     if (!year) return [];
-    const timetables = await this.prisma.timetable.findMany({
-      where: { schoolId: ctx.schoolId, academicYearId: year.id, status: 'PUBLISHED' },
-      select: { classId: true },
-    });
-    const publishedIds = new Set(timetables.map((t) => t.classId));
+    const publishedIds = new Set(await this.timetableRepository.findClassIdsAvecEdtPublie(schoolId, year.id));
     return classes.filter((c) => !publishedIds.has(c.id)).map((c) => c.name);
   }
 
-  private async sansConseilTenu(ctx: ActionContext, classes: { id: string; name: string }[]): Promise<string[]> {
-    const period = await resolveCurrentPeriod(ctx).catch(() => null);
+  private async sansConseilTenu(schoolId: string, classes: { id: string; name: string }[]): Promise<string[]> {
+    const period = await this.anneeRepository.findPeriodeCourante(schoolId).catch(() => null);
     if (!period) return [];
-    const sessions = await this.prisma.classCouncilSession.findMany({
-      where: { schoolId: ctx.schoolId, academicPeriodId: period.id, status: 'LOCKED' },
-      select: { classId: true },
-    });
-    const lockedIds = new Set(sessions.map((s: any) => s.classId));
+    const lockedIds = new Set(await this.classCouncilRepository.findClassIdsAvecConseilVerrouille(schoolId, period.id));
     return classes.filter((c) => !lockedIds.has(c.id)).map((c) => c.name);
   }
 }

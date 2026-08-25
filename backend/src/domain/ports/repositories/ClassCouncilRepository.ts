@@ -73,4 +73,7 @@ export interface ClassCouncilRepository {
   obtenirMoyennesElevesParClasse(classId: string, academicPeriodId: string): Promise<Map<string, number>>;
 
   elevesDansClasse(classId: string): Promise<string[]>;
+
+  /** Ids de classes ayant un conseil LOCKED pour une période — anomalies établissement. */
+  findClassIdsAvecConseilVerrouille(schoolId: string, academicPeriodId: string): Promise<string[]>;
 }

@@ -44,6 +44,7 @@ class InMemoryClassCouncilRepository implements ClassCouncilRepository {
   async eleveDansClasse(): Promise<boolean> { return false; }
   async obtenirMoyennesElevesParClasse(): Promise<Map<string, number>> { return new Map(); }
   async elevesDansClasse(): Promise<string[]> { return []; }
+  async findClassIdsAvecConseilVerrouille(): Promise<string[]> { return []; }
 }
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────

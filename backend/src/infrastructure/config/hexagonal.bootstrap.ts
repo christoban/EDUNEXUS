@@ -49,6 +49,9 @@ import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persiste
 import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/prisma/PrismaStudentAffectationRepository';
 import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
+import { PrismaClasseRepository } from '@infrastructure/persistence/prisma/PrismaClasseRepository';
+import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/PrismaTimetableRepository';
+import { PrismaClassCouncilRepository } from '@infrastructure/persistence/prisma/PrismaClassCouncilRepository';
 import { AcademicYearController } from '@infrastructure/http/controllers/AcademicYearController';
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
@@ -341,7 +344,12 @@ export function bootstrapHexagonal(app: Application): void {
   });
 
   // Assistant proactif (Section 6.3) — bannière ADMIN, anomalies d'établissement.
-  const obtenirAnomaliesEtablissementUseCase = new ObtenirAnomaliesEtablissementUseCase(prisma);
+  const obtenirAnomaliesEtablissementUseCase = new ObtenirAnomaliesEtablissementUseCase(
+    new PrismaAnneeAcademiqueRepository(prisma),
+    new PrismaClasseRepository(prisma),
+    new PrismaTimetableRepository(prisma),
+    new PrismaClassCouncilRepository(prisma),
+  );
   app.get('/api/v2/school/anomalies', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
     try {
       const anomalies = await obtenirAnomaliesEtablissementUseCase.execute({

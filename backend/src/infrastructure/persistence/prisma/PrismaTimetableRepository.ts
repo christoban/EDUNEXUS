@@ -523,6 +523,14 @@ export class PrismaTimetableRepository implements TimetableRepository {
     return this.prisma.subject.count({ where: { id: { in: ids }, schoolId } });
   }
 
+  async findClassIdsAvecEdtPublie(schoolId: string, academicYearId: string): Promise<string[]> {
+    const timetables = await this.prisma.timetable.findMany({
+      where: { schoolId, academicYearId, status: 'PUBLISHED' },
+      select: { classId: true },
+    });
+    return timetables.map((t) => t.classId);
+  }
+
   // --- Conversion ---
 
   private creneauToDomain(data: any): CreneauHoraire {

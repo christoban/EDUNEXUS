@@ -197,6 +197,9 @@ export interface TimetableRepository {
 
   /** Isolation multi-tenant : nombre de matières trouvées parmi les ids donnés dans l'école. */
   compterMatieres(ids: string[], schoolId: string): Promise<number>;
+
+  /** Ids de classes ayant un emploi du temps PUBLISHED pour une année — anomalies établissement. */
+  findClassIdsAvecEdtPublie(schoolId: string, academicYearId: string): Promise<string[]>;
 }
 
 /**

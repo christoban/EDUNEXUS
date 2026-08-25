@@ -198,4 +198,5 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   async compterEnseignants(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async compterSalles(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async compterMatieres(_ids: string[], _schoolId: string): Promise<number> { return 0; }
+  async findClassIdsAvecEdtPublie(_schoolId: string, _academicYearId: string): Promise<string[]> { return []; }
 }
