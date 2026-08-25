@@ -278,6 +278,7 @@ import { RetirerAssignationSalleUseCase } from '@application/studentGroup/Retire
 import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
 import { PrismaGradeOrientationRepository } from '@infrastructure/persistence/prisma/PrismaGradeOrientationRepository';
 import { PrismaExamDossierRepository } from '@infrastructure/persistence/prisma/PrismaExamDossierRepository';
+import { PrismaEleveOnboardingRepository } from '@infrastructure/persistence/prisma/PrismaEleveOnboardingRepository';
 
 // --- Use Cases : Orientation ---
 import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
@@ -333,6 +334,7 @@ export function creerContainer() {
   const entranceExamRepository = new PrismaEntranceExamRepository(prisma);
   const pebsExamRepository = new PrismaPebsExamRepository(prisma);
   const examDossierRepository = new PrismaExamDossierRepository(prisma);
+  const eleveOnboardingRepository = new PrismaEleveOnboardingRepository(prisma);
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
   const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
@@ -613,7 +615,7 @@ export function creerContainer() {
   const rejeterEcoleUseCase = new RejeterEcoleUseCase(schoolRepository, userRepository, emailService);
   const changerPlanUseCase = new ChangerPlanAbonnementUseCase(schoolRepository);
   const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(paiementMinesecRepository);
-  const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(prisma);
+  const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(eleveOnboardingRepository);
 
   return {
     grade: {
@@ -783,9 +785,9 @@ export function creerContainer() {
     },
     eleveOnboarding: {
       creerSquelette: creerSqueletteOnboarding,
-      soumettreFormulaire: new SoumettreFormulaireOnboardingUseCase(prisma),
-      valider: new ValiderOnboardingUseCase(prisma),
-      rejeter: new RejeterOnboardingUseCase(prisma),
+      soumettreFormulaire: new SoumettreFormulaireOnboardingUseCase(eleveOnboardingRepository),
+      valider: new ValiderOnboardingUseCase(eleveOnboardingRepository),
+      rejeter: new RejeterOnboardingUseCase(eleveOnboardingRepository),
     },
     statisticalCampaign: {
       verifierCompletude: new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),

@@ -43,13 +43,13 @@
  * pleinement fonctionnel pour tout le reste du système (notes, présence...), mais son
  * activation se fait en présentiel à l'établissement plutôt que via un lien envoyé par SMS.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import { randomBytes, createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { parseDateFR } from '../../shared/date/parseDateFR';
 import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
-import type { ValiderOnboardingCommande, ValiderOnboardingResultat, ValiderOnboardingCompteResultat } from './types';
+import type { ValiderOnboardingCommande, ValiderOnboardingResultat } from './types';
 
 const RESET_TOKEN_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours pour configurer le mot de passe
 
@@ -60,18 +60,16 @@ function genererIdentifiants() {
 }
 
 export class ValiderOnboardingUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
 
   async execute(cmd: ValiderOnboardingCommande): Promise<ValiderOnboardingResultat> {
-    const onboarding = await this.prisma.studentOnboarding.findFirst({
-      where: { id: cmd.onboardingId, schoolId: cmd.schoolId },
-    });
+    const onboarding = await this.eleveOnboardingRepository.findOnboardingById(cmd.onboardingId, cmd.schoolId);
     if (!onboarding) throw new Error('Dossier introuvable');
     if (!peutTransitionnerDepuisPendingValidation(onboarding.status)) {
       throw new Error(`Ce dossier ne peut pas être validé depuis son statut actuel (${onboarding.status}) — seul PENDING_VALIDATION peut passer à VALIDATED`);
     }
 
-    const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
+    const settings = await this.eleveOnboardingRepository.findSettings(cmd.schoolId);
     const responsableRole = settings?.responsableRole ?? 'ADMIN';
     if (cmd.validatorRole !== responsableRole) {
       throw new Error(`Seul un utilisateur avec le rôle ${responsableRole} peut valider ce dossier`);
@@ -114,137 +112,27 @@ export class ValiderOnboardingUseCase {
     const studentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
     const studentReset = eleveRecoitContact && eleveAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
 
-    const { studentProfile, comptesCrees } = await this.prisma.$transaction(async (tx) => {
-      const studentUser = await tx.user.create({
-        data: {
-          schoolId: cmd.schoolId,
-          role: 'STUDENT',
-          firstName: prenom,
-          lastName: nom,
-          email: eleveContactEmail,
-          phone: eleveContactTelephone,
-          passwordHash: studentPassword,
-          resetPasswordToken: studentReset?.resetTokenHash ?? null,
-          resetPasswordTokenExpiry: studentReset?.resetTokenExpiry ?? null,
-          accessMode: eleveAccessMode,
-          isActive: true,
-        },
-      });
-
-      const studentProfile = await tx.studentProfile.create({
-        data: {
-          userId: studentUser.id,
-          studentStatus: 'ACTIVE',
-          dateOfBirth,
-          gender,
-        },
-      });
-
-      // Inscription year-scoped : la classe vit désormais dans Enrollment
-      const classeCible = await tx.class.findUniqueOrThrow({
-        where: { id: classId },
-        select: { schoolId: true, academicYearId: true },
-      });
-      await tx.enrollment.create({
-        data: {
-          studentId: studentProfile.id,
-          classId,
-          academicYearId: classeCible.academicYearId,
-          schoolId: classeCible.schoolId,
-          enrolledById: cmd.validatedById,
-          status: 'ACTIVE',
-        },
-      });
-
-      const comptesCrees: ValiderOnboardingCompteResultat[] = [{
-        role: 'STUDENT',
-        userId: studentUser.id,
-        resetToken: studentReset?.resetToken ?? null,
-        contactEmail: eleveContactEmail,
-        contactTelephone: eleveContactTelephone,
-        compteExistant: false,
-        accessMode: eleveAccessMode,
-      }];
-
-      if (parentRecoitContact) {
-        const contactFilters = [
-          parentContactEmailUtilise ? { email: parentContactEmailUtilise } : null,
-          parentContactTelephoneUtilise ? { phone: parentContactTelephoneUtilise } : null,
-        ].filter(Boolean) as Record<string, string>[];
-
-        const existingParentUser = contactFilters.length > 0
-          ? await tx.user.findFirst({ where: { schoolId: cmd.schoolId, role: 'PARENT', OR: contactFilters } })
-          : null;
-
-        let parentProfileId: string;
-        let parentUserId: string;
-        let parentReset: ReturnType<typeof genererIdentifiants> | null;
-        let compteExistant: boolean;
-
-        if (existingParentUser) {
-          const existingProfile = await tx.parentProfile.findUnique({ where: { userId: existingParentUser.id } });
-          parentProfileId = existingProfile.id;
-          parentUserId = existingParentUser.id;
-          parentReset = null;
-          compteExistant = true;
-        } else {
-          parentReset = parentAccessMode === 'FULL_ACCESS' ? genererIdentifiants() : null;
-          const parentPassword = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
-          const parentUser = await tx.user.create({
-            data: {
-              schoolId: cmd.schoolId,
-              role: 'PARENT',
-              firstName: 'Parent de',
-              lastName: nom,
-              email: parentContactEmailUtilise,
-              phone: parentContactTelephoneUtilise,
-              passwordHash: parentPassword,
-              resetPasswordToken: parentReset?.resetTokenHash ?? null,
-              resetPasswordTokenExpiry: parentReset?.resetTokenExpiry ?? null,
-              accessMode: parentAccessMode,
-              isActive: true,
-            },
-          });
-          const parentProfile = await tx.parentProfile.create({ data: { userId: parentUser.id } });
-          parentProfileId = parentProfile.id;
-          parentUserId = parentUser.id;
-          compteExistant = false;
-        }
-
-        await tx.parentStudent.create({
-          data: { parentProfileId, studentProfileId: studentProfile.id },
-        });
-
-        comptesCrees.push({
-          role: 'PARENT',
-          userId: parentUserId,
-          resetToken: parentReset?.resetToken ?? null,
-          contactEmail: parentContactEmailUtilise,
-          contactTelephone: parentContactTelephoneUtilise,
-          compteExistant,
-          accessMode: parentAccessMode,
-        });
-      }
-
-      await tx.studentOnboarding.update({
-        where: { id: onboarding.id },
-        data: {
-          status: 'ACTIVATED',
-          validatedById: cmd.validatedById,
-          validatedAt: new Date(),
-          createdStudentId: studentProfile.id,
-          classId,
-        },
-      });
-
-      if (onboarding.examCandidateId) {
-        await tx.entranceExamCandidate.update({
-          where: { id: onboarding.examCandidateId },
-          data: { studentProfileId: studentProfile.id },
-        });
-      }
-
-      return { studentProfile, comptesCrees };
+    const { studentProfileId, comptesCrees } = await this.eleveOnboardingRepository.validerOnboarding({
+      schoolId: cmd.schoolId,
+      onboardingId: onboarding.id,
+      validatedById: cmd.validatedById,
+      classId,
+      nom,
+      prenom,
+      dateOfBirth,
+      gender,
+      eleveContactEmail,
+      eleveContactTelephone,
+      parentContactEmail: parentContactEmailUtilise,
+      parentContactTelephone: parentContactTelephoneUtilise,
+      parentRecoitContact,
+      eleveAccessMode,
+      parentAccessMode,
+      studentPasswordHash: studentPassword,
+      studentResetTokenHash: studentReset?.resetTokenHash ?? null,
+      studentResetTokenExpiry: studentReset?.resetTokenExpiry ?? null,
+      studentResetToken: studentReset?.resetToken ?? null,
+      examCandidateId: onboarding.examCandidateId,
     });
 
     await logActivity({
@@ -256,7 +144,7 @@ export class ValiderOnboardingUseCase {
 
     return {
       onboardingId: onboarding.id,
-      studentProfileId: studentProfile.id,
+      studentProfileId,
       recipientType,
       comptesCrees,
     };

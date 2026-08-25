@@ -7,7 +7,7 @@
  * L'envoi effectif de l'email/SMS est délégué au contrôleur (pas de dépendance infra ici,
  * cohérent avec EntranceExamController/PebsExamController qui notifient après coup).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import { randomBytes } from 'crypto';
 import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { determinerRecipientType } from './rules';
@@ -16,12 +16,12 @@ import { isNiveauPrimaireOuMaternelle } from '../../lib/classSerieValidator';
 import type { CreerSqueletteOnboardingCommande, CreerSqueletteOnboardingResultat } from './types';
 
 export class CreerSqueletteOnboardingUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
 
   async execute(cmd: CreerSqueletteOnboardingCommande): Promise<CreerSqueletteOnboardingResultat> {
     const sourceType = cmd.sourceType ?? 'AUTOSERVICE';
 
-    const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
+    const settings = await this.eleveOnboardingRepository.findSettings(cmd.schoolId);
 
     // L'auto-service classique peut être désactivé par établissement, mais JAMAIS les flux
     // CONCOURS ou GROUPE_TRANSFERT — dans les deux cas, c'est un Admin (pas une famille) qui
@@ -54,14 +54,11 @@ export class CreerSqueletteOnboardingUseCase {
     // mono-cycle).
     let sectionCycle: 'primaire' | 'secondaire' | null = null;
     if (cmd.classId) {
-      const classe = await this.prisma.class.findUnique({
-        where: { id: cmd.classId },
-        select: { level: true, school: { select: { templateCode: true } } },
-      });
-      if (classe?.school) {
+      const classe = await this.eleveOnboardingRepository.findClassOnboardingInfo(cmd.classId);
+      if (classe) {
         sectionCycle = isNiveauPrimaireOuMaternelle(classe.level)
           ? 'primaire'
-          : getTemplateMeta(classe.school.templateCode).isPrimaire ? 'primaire' : 'secondaire';
+          : getTemplateMeta(classe.templateCode ?? undefined).isPrimaire ? 'primaire' : 'secondaire';
       }
     }
 
@@ -79,26 +76,23 @@ export class CreerSqueletteOnboardingUseCase {
     const tokenExpiryDays = settings?.tokenExpiryDays ?? 14;
     const tokenExpiresAt = new Date(Date.now() + tokenExpiryDays * 24 * 60 * 60 * 1000);
 
-    const onboarding = await this.prisma.studentOnboarding.create({
-      data: {
-        schoolId: cmd.schoolId,
-        nomProvisoire: cmd.nomProvisoire,
-        classId: cmd.classId ?? null,
-        contactEmail: cmd.contactEmail ?? null,
-        contactTelephone: cmd.contactTelephone ?? null,
-        parentContactEmail: cmd.parentContactEmail ?? null,
-        parentContactTelephone: cmd.parentContactTelephone ?? null,
-        recipientType,
-        sourceType,
-        examCandidateId: cmd.examCandidateId ?? null,
-        eleveADispositif: cmd.eleveADispositif ?? null,
-        eleveDispositifOS: cmd.eleveDispositifOS ?? null,
-        parentADispositif: cmd.parentADispositif ?? null,
-        parentDispositifOS: cmd.parentDispositifOS ?? null,
-        token,
-        tokenExpiresAt,
-        status: 'LINK_SENT',
-      },
+    const onboarding = await this.eleveOnboardingRepository.createSquelette({
+      schoolId: cmd.schoolId,
+      nomProvisoire: cmd.nomProvisoire,
+      classId: cmd.classId ?? null,
+      contactEmail: cmd.contactEmail ?? null,
+      contactTelephone: cmd.contactTelephone ?? null,
+      parentContactEmail: cmd.parentContactEmail ?? null,
+      parentContactTelephone: cmd.parentContactTelephone ?? null,
+      recipientType,
+      sourceType,
+      examCandidateId: cmd.examCandidateId ?? null,
+      eleveADispositif: cmd.eleveADispositif ?? null,
+      eleveDispositifOS: cmd.eleveDispositifOS ?? null,
+      parentADispositif: cmd.parentADispositif ?? null,
+      parentDispositifOS: cmd.parentDispositifOS ?? null,
+      token,
+      tokenExpiresAt,
     });
 
     await logActivity({

@@ -1,39 +1,33 @@
 /**
  * APPLICATION — Use case : Rejeter un onboarding élève (doublon, erreur de saisie, etc.)
  */
-import type { PrismaClient } from '@prisma/client';
+import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
 import type { RejeterOnboardingCommande, RejeterOnboardingResultat } from './types';
 
 export class RejeterOnboardingUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
 
   async execute(cmd: RejeterOnboardingCommande): Promise<RejeterOnboardingResultat> {
     if (!cmd.rejectionReason?.trim()) throw new Error('Un motif de rejet est requis');
 
-    const onboarding = await this.prisma.studentOnboarding.findFirst({
-      where: { id: cmd.onboardingId, schoolId: cmd.schoolId },
-    });
+    const onboarding = await this.eleveOnboardingRepository.findOnboardingById(cmd.onboardingId, cmd.schoolId);
     if (!onboarding) throw new Error('Dossier introuvable');
     if (!peutTransitionnerDepuisPendingValidation(onboarding.status)) {
       throw new Error(`Ce dossier ne peut pas être rejeté depuis son statut actuel (${onboarding.status}) — seul PENDING_VALIDATION peut être rejeté`);
     }
 
-    const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId: cmd.schoolId } });
+    const settings = await this.eleveOnboardingRepository.findSettings(cmd.schoolId);
     const responsableRole = settings?.responsableRole ?? 'ADMIN';
     if (cmd.validatorRole !== responsableRole) {
       throw new Error(`Seul un utilisateur avec le rôle ${responsableRole} peut rejeter ce dossier`);
     }
 
-    await this.prisma.studentOnboarding.update({
-      where: { id: onboarding.id },
-      data: {
-        status: 'REJECTED',
-        rejectionReason: cmd.rejectionReason,
-        validatedById: cmd.rejectedById,
-        validatedAt: new Date(),
-      },
+    await this.eleveOnboardingRepository.rejeterOnboarding(onboarding.id, {
+      rejectionReason: cmd.rejectionReason,
+      rejectedById: cmd.rejectedById,
+      rejectedAt: new Date(),
     });
 
     // Rejet d'un dossier GROUPE_TRANSFERT : l'Admin cible avait déjà accepté la demande de
@@ -43,12 +37,9 @@ export class RejeterOnboardingUseCase {
     // GroupTransferRequest reste ACCEPTED (fait historique : l'Admin a bien accepté le principe
     // du transfert), l'échec réel se lit sur le statut REJECTED du StudentOnboarding lui-même.
     if (onboarding.sourceType === 'GROUPE_TRANSFERT') {
-      const demande = await this.prisma.groupTransferRequest.findFirst({ where: { onboardingId: onboarding.id } });
+      const demande = await this.eleveOnboardingRepository.findGroupTransferRequestByOnboarding(onboarding.id);
       if (demande) {
-        await this.prisma.studentProfile.updateMany({
-          where: { userId: demande.sourceUserId, studentStatus: 'TRANSFERRED' },
-          data: { studentStatus: 'ACTIVE' },
-        });
+        await this.eleveOnboardingRepository.reactiverStudentProfilesTransferes(demande.sourceUserId);
       }
     }
 

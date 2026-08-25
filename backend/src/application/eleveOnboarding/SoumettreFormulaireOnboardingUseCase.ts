@@ -9,7 +9,7 @@
  * Ne crée JAMAIS de compte ici, même en cas de score parfait — la validation humaine
  * (PENDING_VALIDATION → VALIDATED) reste une étape obligatoire (règle métier n°1).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
 import { compareNames } from '../matricule/stringSimilarity';
 import { parseDateFR } from '../../shared/date/parseDateFR';
 import { peutSoumettreFormulaire } from './rules';
@@ -18,16 +18,16 @@ import type { SoumettreFormulaireOnboardingCommande, SoumettreFormulaireOnboardi
 const FUZZY_SIMILARITY_THRESHOLD = 0.85; // aligné sur ImporterMatriculesUseCase — même seuil dans tout le projet
 
 export class SoumettreFormulaireOnboardingUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
 
   async execute(cmd: SoumettreFormulaireOnboardingCommande): Promise<SoumettreFormulaireOnboardingResultat> {
-    const onboarding = await this.prisma.studentOnboarding.findUnique({ where: { token: cmd.token } });
+    const onboarding = await this.eleveOnboardingRepository.findOnboardingByToken(cmd.token);
     if (!onboarding) throw new Error('Lien invalide');
     if (onboarding.tokenUsedAt) throw new Error('Ce lien a déjà été utilisé');
 
     if (onboarding.tokenExpiresAt.getTime() < Date.now()) {
       if (onboarding.status !== 'EXPIRED') {
-        await this.prisma.studentOnboarding.update({ where: { id: onboarding.id }, data: { status: 'EXPIRED' } });
+        await this.eleveOnboardingRepository.marquerOnboardingExpire(onboarding.id);
       }
       throw new Error('Ce lien a expiré — demandez à votre établissement de le renvoyer');
     }
@@ -42,20 +42,17 @@ export class SoumettreFormulaireOnboardingUseCase {
 
     const dateNaissance = cmd.dateNaissance ? parseDateFR(cmd.dateNaissance) : null;
     if (dateNaissance) {
-      const profiles: any[] = await this.prisma.studentProfile.findMany({
-        where: { user: { schoolId: onboarding.schoolId }, dateOfBirth: dateNaissance },
-        include: { user: { select: { firstName: true, lastName: true } } },
-      });
+      const profiles = await this.eleveOnboardingRepository.findProfilesParDateNaissance(onboarding.schoolId, dateNaissance);
 
-      let best: { profile: any; score: number } | null = null;
+      let best: { profileId: string; score: number } | null = null;
       for (const p of profiles) {
-        const score = compareNames(cmd.nom, cmd.prenom, p.user.lastName ?? '', p.user.firstName ?? '');
-        if (!best || score > best.score) best = { profile: p, score };
+        const score = compareNames(cmd.nom, cmd.prenom, p.lastName, p.firstName);
+        if (!best || score > best.score) best = { profileId: p.id, score };
       }
 
       if (best && best.score >= FUZZY_SIMILARITY_THRESHOLD) {
         matchScore = Math.round(best.score * 100);
-        matchedStudentId = best.profile.id;
+        matchedStudentId = best.profileId;
       }
     }
 
@@ -66,20 +63,16 @@ export class SoumettreFormulaireOnboardingUseCase {
       ...(cmd.donneesComplementaires ?? {}),
     };
 
-    const updated = await this.prisma.studentOnboarding.update({
-      where: { id: onboarding.id },
-      data: {
-        submittedData,
-        submittedAt: new Date(),
-        tokenUsedAt: new Date(),
-        status: 'PENDING_VALIDATION',
-        matchScore,
-        matchedStudentId,
-        ...(cmd.eleveADispositif !== undefined && { eleveADispositif: cmd.eleveADispositif }),
-        ...(cmd.parentADispositif !== undefined && { parentADispositif: cmd.parentADispositif }),
-      },
+    await this.eleveOnboardingRepository.soumettreFormulaire(onboarding.id, {
+      submittedData,
+      submittedAt: new Date(),
+      tokenUsedAt: new Date(),
+      matchScore,
+      matchedStudentId,
+      ...(cmd.eleveADispositif !== undefined && { eleveADispositif: cmd.eleveADispositif }),
+      ...(cmd.parentADispositif !== undefined && { parentADispositif: cmd.parentADispositif }),
     });
 
-    return { id: updated.id, status: updated.status, matchScore, matchedStudentId };
+    return { id: onboarding.id, status: 'PENDING_VALIDATION', matchScore, matchedStudentId };
   }
 }

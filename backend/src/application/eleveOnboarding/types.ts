@@ -1,8 +1,6 @@
-export type OnboardingRecipient = 'ELEVE' | 'PARENT' | 'LES_DEUX';
-export type OnboardingSource = 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS' | 'GROUPE_TRANSFERT';
-export type OnboardingStatus =
-  | 'DRAFT' | 'LINK_SENT' | 'SUBMITTED' | 'PENDING_VALIDATION'
-  | 'VALIDATED' | 'ACTIVATED' | 'REJECTED' | 'EXPIRED';
+import type { OnboardingRecipient, OnboardingSource, OnboardingStatus } from '@domain/types/enums';
+
+export type { OnboardingRecipient, OnboardingSource, OnboardingStatus };
 
 export type DispositifOS = 'ANDROID' | 'IOS' | 'AUTRE';
 
