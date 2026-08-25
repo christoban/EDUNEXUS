@@ -1,5 +1,5 @@
 import { Presence } from '@domain/entities/Presence';
-import type { PresenceRepository, StatistiquesPresence } from '@domain/ports/repositories/PresenceRepository';
+import type { PresenceRepository, StatistiquesPresence, PresenceSmsRecord } from '@domain/ports/repositories/PresenceRepository';
 import type { AttendancePeriod } from '@domain/types/enums';
 
 export class InMemoryPresenceRepository implements PresenceRepository {
@@ -131,6 +131,8 @@ export class InMemoryPresenceRepository implements PresenceRepository {
   async update(p: Presence): Promise<void> {
     this.store.set(p.id, p);
   }
+
+  async synchroniserPresencesSms(_records: PresenceSmsRecord[]): Promise<void> {}
 
   async findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]> {
     return [...this.store.values()].filter(

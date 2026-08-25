@@ -28,6 +28,15 @@ export class PrismaEnrollmentRepository implements EnrollmentRepository {
     return rows.map((r) => r.student.userId);
   }
 
+  async getEleveUserIdsParClasseOrdonnes(classId: string): Promise<string[]> {
+    const rows = await this.prisma.enrollment.findMany({
+      where: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },
+      select: { student: { select: { userId: true, user: { select: { lastName: true } } } } },
+      orderBy: { student: { user: { lastName: 'asc' } } },
+    });
+    return rows.map((r) => r.student.userId);
+  }
+
   async countElevesParClasse(classId: string): Promise<number> {
     return this.prisma.enrollment.count({
       where: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } },

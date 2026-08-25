@@ -41,6 +41,12 @@ export class InMemoryUserRepository implements UserRepository {
     ) ?? null;
   }
 
+  async findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null> {
+    return [...this.store.values()].find(
+      u => (u.phone ?? '').includes(phoneFragment) && u.schoolId === schoolId && this.estActif(u)
+    ) ?? null;
+  }
+
   async findBySchool(schoolId: string): Promise<User[]> {
     return [...this.store.values()].filter(u => u.schoolId === schoolId && this.estActif(u));
   }

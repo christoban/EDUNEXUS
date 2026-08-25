@@ -121,6 +121,14 @@ export class PrismaClasseRepository implements ClasseRepository {
     return data ? this.toDomain(data) : null;
   }
 
+  async findByNameContient(schoolId: string, name: string): Promise<{ id: string; name: string } | null> {
+    const data = await this.prisma.class.findFirst({
+      where: { schoolId, name: { contains: name, mode: 'insensitive' } },
+      select: { id: true, name: true },
+    });
+    return data;
+  }
+
   /**
    * Nom historique conservé ("avecCascade"), comportement changé (Couche 1,
    * PLAN_IMPLEMENTATION_BACKUP.md) : pose deletedAt sur la classe elle-même, ne supprime plus

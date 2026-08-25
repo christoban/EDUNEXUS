@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { Presence } from '@domain/entities/Presence';
-import type { PresenceRepository, StatistiquesPresence } from '@domain/ports/repositories/PresenceRepository';
+import type { PresenceRepository, StatistiquesPresence, PresenceSmsRecord } from '@domain/ports/repositories/PresenceRepository';
 import type { AttendanceStatus, AttendancePeriod } from '@domain/types/enums';
 
 export class PrismaPresenceRepository implements PresenceRepository {
@@ -171,6 +171,48 @@ export class PrismaPresenceRepository implements PresenceRepository {
         syncedAt: data.syncedAt ?? null,
       },
     });
+  }
+
+  async synchroniserPresencesSms(records: PresenceSmsRecord[]): Promise<void> {
+    for (const record of records) {
+      const existing = await this.prisma.attendance.findFirst({
+        where: {
+          schoolId: record.schoolId,
+          studentId: record.studentId,
+          classId: record.classId,
+          date: record.date,
+          period: record.period,
+        },
+      });
+
+      if (existing) {
+        await this.prisma.attendance.update({
+          where: { id: existing.id },
+          data: {
+            status: record.status,
+            recordedById: record.recordedById,
+            teacherId: record.teacherId,
+          },
+        });
+      } else {
+        await this.prisma.attendance.create({
+          data: {
+            schoolId: record.schoolId,
+            studentId: record.studentId,
+            classId: record.classId,
+            date: record.date,
+            status: record.status,
+            period: record.period,
+            recordedById: record.recordedById,
+            academicPeriodId: null,
+            subjectId: null,
+            teacherId: record.teacherId,
+            isOfflineSync: false,
+            syncedAt: new Date(),
+          },
+        });
+      }
+    }
   }
 
   async findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]> {

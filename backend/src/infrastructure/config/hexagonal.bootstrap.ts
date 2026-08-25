@@ -1445,7 +1445,7 @@ export function bootstrapHexagonal(app: Application): void {
   );
   const coreDomainController = new CoreDomainController(prisma);
   const publicController     = new PublicController(prisma);
-  const smsController        = new SMSController(prisma);
+  const smsController        = new SMSController(prisma, container.attendance.traiterSmsPresence);
 
   const orientationController = new OrientationController(
     container.orientation.creerFiche,

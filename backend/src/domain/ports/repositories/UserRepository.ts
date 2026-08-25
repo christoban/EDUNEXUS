@@ -10,6 +10,8 @@ export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string, schoolId: string): Promise<User | null>;
   findByPhone(phone: string, schoolId: string): Promise<User | null>;
+  /** Recherche floue par téléphone (contains) — SMS de présence. */
+  findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null>;
   findBySchool(schoolId: string): Promise<User[]>;
   findByRole(schoolId: string, role: UserRole): Promise<User[]>;
   /** Élèves (role STUDENT) inscrits dans une classe donnée, via StudentProfile.classId. */

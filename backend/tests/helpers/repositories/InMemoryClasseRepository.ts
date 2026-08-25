@@ -51,4 +51,5 @@ export class InMemoryClasseRepository implements ClasseRepository {
   }
   async restaurer(_classeId: string) {}
   async findClasseDeProfPrincipal(_teacherUserId: string) { return null; }
+  async findByNameContient(_schoolId: string, _name: string) { return null; }
 }

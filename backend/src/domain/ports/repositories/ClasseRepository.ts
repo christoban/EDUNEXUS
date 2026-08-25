@@ -36,6 +36,9 @@ export interface ClasseRepository {
    */
   findClasseDeProfPrincipal(teacherUserId: string): Promise<Classe | null>;
 
+  /** Recherche floue par nom (contains) — SMS de présence : PRES#CLASSE#1,0,1. */
+  findByNameContient(schoolId: string, name: string): Promise<{ id: string; name: string } | null>;
+
   // Écriture
   save(classe: Classe): Promise<void>;
   update(classe: Classe): Promise<void>;

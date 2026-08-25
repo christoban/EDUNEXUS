@@ -34,6 +34,15 @@ export class PrismaUserRepository implements UserRepository {
     return this.toDomain(data);
   }
 
+  async findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null> {
+    const data = await this.prisma.user.findFirst({
+      where: { phone: { contains: phoneFragment }, schoolId },
+      include: { staffProfile: { include: { permissions: true } } },
+    });
+    if (!data) return null;
+    return this.toDomain(data);
+  }
+
   async findBySchool(schoolId: string): Promise<User[]> {
     const data = await this.prisma.user.findMany({
       where: { schoolId },

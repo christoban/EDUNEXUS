@@ -1,4 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PresenceRepository } from '@domain/ports/repositories/PresenceRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 
 /**
  * Use case — Traite un SMS de présence entrant (format PRES#CLASSE#1,0,1,...) envoyé par un
@@ -38,7 +41,12 @@ export function parseSMSAttendance(message: string, senderPhone: string): Parsed
 }
 
 export class TraiterSmsPresenceUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly classeRepository: ClasseRepository,
+    private readonly enrollmentRepository: EnrollmentRepository,
+    private readonly userRepository: UserRepository,
+    private readonly presenceRepository: PresenceRepository,
+  ) {}
 
   async execute(
     message: string,
@@ -51,81 +59,33 @@ export class TraiterSmsPresenceUseCase {
       return { success: false, message: 'Format SMS invalide. Utilisez: PRES#CLASSE#1,0,1,...' };
     }
 
-    const cls = await this.prisma.class.findFirst({
-      where: {
-        schoolId,
-        name: { contains: parsed.className, mode: 'insensitive' },
-      },
-      select: { id: true, name: true },
-    });
+    const cls = await this.classeRepository.findByNameContient(schoolId, parsed.className);
 
     if (!cls) {
       return { success: false, message: `Classe "${parsed.className}" introuvable` };
     }
 
-    const enrollments = await this.prisma.enrollment.findMany({
-      where: {
-        classId: cls.id,
-        status: 'ACTIVE',
-        academicYear: { isCurrent: true },
-      },
-      include: { student: { include: { user: true } } },
-      orderBy: { student: { user: { lastName: 'asc' } } },
-    });
+    const studentUserIds = await this.enrollmentRepository.getEleveUserIdsParClasseOrdonnes(cls.id);
 
-    const students = enrollments.map((e) => e.student);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const teacher = await this.prisma.user.findFirst({
-      where: { schoolId, phone: { contains: senderPhone.replace('237', '') } },
-    });
+    const teacher = await this.userRepository.findByPhoneContient(senderPhone.replace('237', ''), schoolId);
 
     const attendanceRecords = parsed.records
-      .filter((record) => record.index < students.length)
+      .filter((record) => record.index < studentUserIds.length)
       .map((record) => ({
         schoolId,
-        studentId: students[record.index].userId,
+        studentId: studentUserIds[record.index],
         classId: cls.id,
         date: today,
         status: record.status,
         period: 'MORNING' as const,
-        recordedById: teacher?.id,
-        isOfflineSync: false,
+        recordedById: teacher?.id ?? null,
+        teacherId: teacher?.id ?? null,
       }));
 
-    for (const record of attendanceRecords) {
-      const existing = await this.prisma.attendance.findFirst({
-        where: {
-          schoolId,
-          studentId: record.studentId,
-          classId: record.classId,
-          date: today,
-          period: record.period,
-        },
-      });
-
-      if (existing) {
-        await this.prisma.attendance.update({
-          where: { id: existing.id },
-          data: {
-            status: record.status,
-            recordedById: record.recordedById,
-            teacherId: teacher?.id ?? null,
-          },
-        });
-      } else {
-        await this.prisma.attendance.create({
-          data: {
-            ...record,
-            academicPeriodId: null,
-            subjectId: null,
-            teacherId: teacher?.id ?? null,
-            syncedAt: new Date(),
-          },
-        });
-      }
-    }
+    await this.presenceRepository.synchroniserPresencesSms(attendanceRecords);
 
     return {
       success: true,

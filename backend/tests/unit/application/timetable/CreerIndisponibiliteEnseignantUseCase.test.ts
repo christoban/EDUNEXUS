@@ -25,6 +25,7 @@ function userRepositoryStub(user: User | null): UserRepository {
     findById: async () => user,
     findByEmail: async () => null,
     findByPhone: async () => null,
+    findByPhoneContient: async () => null,
     findBySchool: async () => [],
     findByRole: async () => [],
     findByClass: async () => [],

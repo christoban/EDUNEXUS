@@ -1,9 +1,12 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
-import { TraiterSmsPresenceUseCase } from '@application/attendance/TraiterSmsPresenceUseCase';
+import type { TraiterSmsPresenceUseCase } from '@application/attendance/TraiterSmsPresenceUseCase';
 
 export class SMSController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly traiterSmsPresence: TraiterSmsPresenceUseCase,
+  ) {}
 
   incoming = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -13,7 +16,7 @@ export class SMSController {
       const school = await this.prisma.school.findFirst({ where: { status: 'ACTIVE' }, select: { id: true } });
       if (!school) { res.status(404).json({ message: 'École introuvable' }); return; }
 
-      const result = await new TraiterSmsPresenceUseCase(this.prisma).execute(text, from, school.id);
+      const result = await this.traiterSmsPresence.execute(text, from, school.id);
       console.log(`SMS from ${from}: ${text} → ${result.message}`);
       res.json(result);
     } catch (error) {

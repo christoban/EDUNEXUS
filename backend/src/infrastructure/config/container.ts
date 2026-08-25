@@ -43,6 +43,7 @@ import { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
 
 // --- Use Cases : Présences ---
 import { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
+import { TraiterSmsPresenceUseCase } from '@application/attendance/TraiterSmsPresenceUseCase';
 
 // --- Use Cases : School ---
 import { OnboarderEcoleUseCase } from '@application/school/OnboarderEcoleUseCase';
@@ -364,6 +365,9 @@ export function creerContainer() {
   const enregistrerPresenceUseCase = new EnregistrerPresenceUseCase(
     presenceRepository, userRepository, notificationService, rattachementRepository
   );
+  const traiterSmsPresenceUseCase = new TraiterSmsPresenceUseCase(
+    classeRepository, enrollmentRepository, userRepository, presenceRepository
+  );
 
   // 6. Use Cases — School
   const onboarderEcoleUseCase = new OnboarderEcoleUseCase(
@@ -621,6 +625,7 @@ export function creerContainer() {
     },
     attendance: {
       enregistrerPresence: enregistrerPresenceUseCase,
+      traiterSmsPresence: traiterSmsPresenceUseCase,
     },
     school: {
       onboarder: onboarderEcoleUseCase,

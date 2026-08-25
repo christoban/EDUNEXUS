@@ -38,6 +38,8 @@ export interface EnrollmentRepository {
   // Pattern A : élèves d'une classe
   getStudentProfileIdsParClasse(classId: string): Promise<string[]>;
   getEleveUserIdsParClasse(classId: string): Promise<string[]>;
+  /** userIds des élèves actifs d'une classe, triés par nom de famille (SMS de présence). */
+  getEleveUserIdsParClasseOrdonnes(classId: string): Promise<string[]>;
   countElevesParClasse(classId: string): Promise<number>;
 
   // Pattern B : classe actuelle d'un élève

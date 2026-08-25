@@ -12,6 +12,18 @@ export interface StatistiquesPresence {
   tauxPresence: number; // pourcentage 0-100
 }
 
+/** Enregistrement de présence à synchroniser (SMS) — upsert dans l'adapter. */
+export interface PresenceSmsRecord {
+  schoolId: string;
+  studentId: string;
+  classId: string;
+  date: Date;
+  status: AttendanceStatus;
+  period: AttendancePeriod;
+  recordedById: string | null;
+  teacherId: string | null;
+}
+
 export interface PresenceRepository {
   // Lecture
   findById(id: string): Promise<Presence | null>;
@@ -33,6 +45,9 @@ export interface PresenceRepository {
   save(presence: Presence): Promise<void>;
   saveMany(presences: Presence[]): Promise<void>; // Enregistrement en bloc d'une classe
   update(presence: Presence): Promise<void>;
+
+  /** Upsert d'enregistrements de présence (SMS) : crée ou met à jour selon l'existant. */
+  synchroniserPresencesSms(records: PresenceSmsRecord[]): Promise<void>;
 
   // Sync hors ligne
   findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]>;
