@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
 import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
 
 interface ScannedCandidate {
@@ -24,13 +24,11 @@ Format attendu :
 {"candidats": [{"firstName": "...", "lastName": "...", "dateOfBirth": null, "examScore": null, "confidence": "high"}]}`;
 
 export class ScannerListeCandidatsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly entranceRepository: EntranceExamRepository) {}
 
   async execute(schoolId: string, sessionId: string, imageBase64: string, mimeType?: string): Promise<{ candidats: ScannedCandidate[]; warnings: string[] }> {
     // Vérifier la session
-    const session = await this.prisma.entranceExamSession.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.entranceRepository.trouverSession(sessionId);
     if (!session) throw new Error('Session de concours introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 

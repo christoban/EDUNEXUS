@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
 
 interface Anomalie {
   type: 'DOUBLON' | 'SCORE_SUSPECT' | 'CAS_LIMITE' | 'SCORE_MANQUANT';
@@ -8,19 +8,14 @@ interface Anomalie {
 }
 
 export class DetecterAnomaliesConcoursUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly entranceRepository: EntranceExamRepository) {}
 
   async execute(schoolId: string, sessionId: string): Promise<{ anomalies: Anomalie[] }> {
-    const session = await this.prisma.entranceExamSession.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.entranceRepository.trouverSession(sessionId);
     if (!session) throw new Error('Session de concours introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 
-    const candidates: any[] = await this.prisma.entranceExamCandidate.findMany({
-      where: { sessionId },
-      orderBy: { lastName: 'asc' },
-    });
+    const candidates = await this.entranceRepository.listerCandidats(sessionId);
 
     const anomalies: Anomalie[] = [];
     const threshold = session.admissionThreshold;

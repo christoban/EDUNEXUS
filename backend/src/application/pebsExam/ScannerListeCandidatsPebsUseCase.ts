@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
 import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
 
 interface ScannedCandidate {
@@ -21,12 +21,10 @@ Ne fabrique jamais de données.
 Format : {"candidats": [{"firstName": "...", "lastName": "...", "examScore": null, "confidence": "high"}]}`;
 
 export class ScannerListeCandidatsPebsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly pebsRepository: PebsExamRepository) {}
 
   async execute(schoolId: string, sessionId: string, imageBase64: string, mimeType?: string): Promise<{ candidats: ScannedCandidate[]; warnings: string[] }> {
-    const session = await this.prisma.pebsExamSession.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.pebsRepository.trouverSession(sessionId);
     if (!session) throw new Error('Session PEBS introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 

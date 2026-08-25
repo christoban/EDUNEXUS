@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
 
 interface Anomalie {
   type: 'DOUBLON' | 'SCORE_SUSPECT' | 'CAS_LIMITE' | 'SCORE_MANQUANT';
@@ -8,20 +8,15 @@ interface Anomalie {
 }
 
 export class DetecterAnomaliesPebsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly pebsRepository: PebsExamRepository) {}
 
   async execute(schoolId: string, sessionId: string): Promise<{ anomalies: Anomalie[] }> {
-    const session = await this.prisma.pebsExamSession.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.pebsRepository.trouverSession(sessionId);
     if (!session) throw new Error('Session PEBS introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 
     // Récupérer les candidats avec noms
-    const rawCandidates: any[] = await this.prisma.pebsExamCandidate.findMany({
-      where: { sessionId },
-      include: { studentProfile: { include: { user: { select: { firstName: true, lastName: true } } } } },
-    });
+    const rawCandidates = await this.pebsRepository.listerCandidatsAvecProfil(sessionId);
 
     const candidates = rawCandidates.map(c => ({
       id: c.id,

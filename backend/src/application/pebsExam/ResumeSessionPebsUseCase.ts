@@ -1,33 +1,16 @@
-import type { PrismaClient } from '@prisma/client';
 import type { SessionPebsSummary } from './types';
+import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
 
 export class ResumeSessionPebsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly pebsRepository: PebsExamRepository) {}
 
   async execute(schoolId: string, sessionId: string): Promise<SessionPebsSummary> {
-    const session = await this.prisma.pebsExamSession.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.pebsRepository.trouverSession(sessionId);
     if (!session) throw new Error('Session PEBS introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 
     // Récupérer les candidats avec infos profil
-    const rawCandidates: any[] = await this.prisma.pebsExamCandidate.findMany({
-      where: { sessionId },
-      include: {
-        studentProfile: {
-          include: {
-            user: { select: { firstName: true, lastName: true } },
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-              select: { class: { select: { name: true } } },
-              take: 1,
-            },
-          },
-        },
-      },
-      orderBy: { id: 'asc' },
-    });
+    const rawCandidates = await this.pebsRepository.listerCandidatsAvecProfil(sessionId);
 
     const candidates = rawCandidates.map(c => ({
       id: c.id,

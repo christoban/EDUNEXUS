@@ -1,20 +1,15 @@
-import type { PrismaClient } from '@prisma/client';
 import type { SessionSummary } from './types';
+import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
 
 export class ResumeSessionConcoursUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly entranceRepository: EntranceExamRepository) {}
 
   async execute(schoolId: string, sessionId: string): Promise<SessionSummary> {
-    const session = await this.prisma.entranceExamSession.findUnique({
-      where: { id: sessionId },
-    });
+    const session = await this.entranceRepository.trouverSession(sessionId);
     if (!session) throw new Error('Session de concours introuvable');
     if (session.schoolId !== schoolId) throw new Error('Accès refusé');
 
-    const candidates: any[] = await this.prisma.entranceExamCandidate.findMany({
-      where: { sessionId },
-      orderBy: { lastName: 'asc' },
-    });
+    const candidates = await this.entranceRepository.listerCandidats(sessionId);
 
     const pending = candidates.filter(c => c.admissionStatus === 'PENDING').length;
     const admisProvisoire = candidates.filter(c => c.admissionStatus === 'ADMIS_PROVISOIRE').length;

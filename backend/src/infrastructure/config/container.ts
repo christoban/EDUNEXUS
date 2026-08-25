@@ -168,6 +168,10 @@ import { PrismaSousGroupeRepository } from '@infrastructure/persistence/prisma/P
 import { PrismaMessagerieRepository } from '@infrastructure/persistence/prisma/PrismaMessagerieRepository';
 import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/prisma/PrismaStudentAffectationRepository';
 import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
+import { PrismaEntranceExamRepository } from '@infrastructure/persistence/prisma/PrismaEntranceExamRepository';
+import { PrismaPebsExamRepository } from '@infrastructure/persistence/prisma/PrismaPebsExamRepository';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
+import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 
 // --- Adapters Persistence AnneeAcademique + Promotion ---
 import { PrismaPromotionRepository } from '@infrastructure/persistence/prisma/PrismaPromotionRepository';
@@ -317,6 +321,11 @@ export function creerContainer() {
   const studentGroupMembershipRepository = new PrismaStudentGroupMembershipRepository(prisma);
   const studentAffectationRepository = new PrismaStudentAffectationRepository(prisma);
   const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
+  const entranceExamRepository = new PrismaEntranceExamRepository(prisma);
+  const pebsExamRepository = new PrismaPebsExamRepository(prisma);
+  const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
+  const notifierEvenement = (schoolId: string, targetRoles: string[], titre: string, corps: string) =>
+    notifierEvenementAcademique(prisma, schoolId, targetRoles, titre, corps);
   const classRoomAssignmentRepository = new PrismaClassRoomAssignmentRepository(prisma);
 
   // 3. Services (adaptateurs réels)
@@ -781,22 +790,22 @@ export function creerContainer() {
       suivreFenetre: new SuivreFenetreChoixLV2UseCase(lv2ChoiceRepository),
     },
     entranceExam: {
-      creerSession: new CreerSessionConcoursUseCase(prisma),
-      ajouterCandidats: new AjouterCandidatsConcoursUseCase(prisma),
-      calculerAdmission: new CalculerAdmissionConcoursUseCase(prisma),
-      enregistrerCep: new EnregistrerResultatCepUseCase(prisma, creerSqueletteOnboarding),
-      resumeSession: new ResumeSessionConcoursUseCase(prisma),
-      scannerListe: new ScannerListeCandidatsUseCase(prisma),
-      detecterAnomalies: new DetecterAnomaliesConcoursUseCase(prisma),
+      creerSession: new CreerSessionConcoursUseCase(entranceExamRepository, notifierEvenement),
+      ajouterCandidats: new AjouterCandidatsConcoursUseCase(entranceExamRepository),
+      calculerAdmission: new CalculerAdmissionConcoursUseCase(entranceExamRepository),
+      enregistrerCep: new EnregistrerResultatCepUseCase(entranceExamRepository, creerSqueletteOnboarding, notifierEvenement),
+      resumeSession: new ResumeSessionConcoursUseCase(entranceExamRepository),
+      scannerListe: new ScannerListeCandidatsUseCase(entranceExamRepository),
+      detecterAnomalies: new DetecterAnomaliesConcoursUseCase(entranceExamRepository),
     },
     pebsExam: {
-      creerSession: new CreerSessionPebsUseCase(prisma),
-      ajouterCandidats: new AjouterCandidatsPebsUseCase(prisma),
-      calculerSelection: new CalculerSelectionPebsUseCase(prisma),
-      appliquerTransfert: new AppliquerTransfertPebsUseCase(prisma, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository),
-      resumeSession: new ResumeSessionPebsUseCase(prisma),
-      scannerListe: new ScannerListeCandidatsPebsUseCase(prisma),
-      detecterAnomalies: new DetecterAnomaliesPebsUseCase(prisma),
+      creerSession: new CreerSessionPebsUseCase(pebsExamRepository, notifierEvenement),
+      ajouterCandidats: new AjouterCandidatsPebsUseCase(pebsExamRepository),
+      calculerSelection: new CalculerSelectionPebsUseCase(pebsExamRepository),
+      appliquerTransfert: new AppliquerTransfertPebsUseCase(pebsExamRepository, anneeRepository, enrollmentRepository, studentAffectationRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository, notifierEvenement),
+      resumeSession: new ResumeSessionPebsUseCase(pebsExamRepository),
+      scannerListe: new ScannerListeCandidatsPebsUseCase(pebsExamRepository),
+      detecterAnomalies: new DetecterAnomaliesPebsUseCase(pebsExamRepository),
     },
     pushNotification: {
       souscrire: new SouscrirePushUseCase(prisma),

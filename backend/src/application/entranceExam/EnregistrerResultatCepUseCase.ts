@@ -1,7 +1,10 @@
-import type { PrismaClient } from '@prisma/client';
 import type { EnregistrerResultatCepCommande } from './types';
+import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
 import { CreerSqueletteOnboardingUseCase } from '../eleveOnboarding/CreerSqueletteOnboardingUseCase';
-import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
+
+export interface NotifierEvenementAcademique {
+  (schoolId: string, targetRoles: string[], titre: string, corps: string): Promise<void>;
+}
 
 /**
  * Phase 5 de la spec onboarding auto-service élève (spec-onboarding-eleve-autoservice.md
@@ -17,20 +20,18 @@ import { notifierEvenementAcademique } from '@infrastructure/services/notificati
  */
 export class EnregistrerResultatCepUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly entranceRepository: EntranceExamRepository,
     private readonly creerSqueletteOnboarding: CreerSqueletteOnboardingUseCase,
+    private readonly notifier: NotifierEvenementAcademique,
   ) {}
 
   async execute(cmd: EnregistrerResultatCepCommande): Promise<{
     status: string; onboardingCreated: boolean; candidateName: string; parentPhone: string | null;
     onboarding?: { id: string; token: string; tokenExpiresAt: Date; contactEmail: string | null; contactTelephone: string | null };
   }> {
-    const candidate = await this.prisma.entranceExamCandidate.findUnique({
-      where: { id: cmd.candidateId },
-      include: { session: true },
-    });
+    const candidate = await this.entranceRepository.trouverCandidatAvecSession(cmd.candidateId);
     if (!candidate) throw new Error('Candidat introuvable');
-    if (candidate.session.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
+    if (candidate.session?.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
     if (candidate.admissionStatus !== 'ADMIS_PROVISOIRE') {
       throw new Error('Seuls les candidats ADMIS_PROVISOIRE peuvent recevoir un résultat CEP');
     }
@@ -40,26 +41,18 @@ export class EnregistrerResultatCepUseCase {
     const parentPhone: string | null = candidate.parentPhone ?? null;
 
     if (cmd.cepResult === 'REUSSI') {
-      await this.prisma.entranceExamCandidate.update({
-        where: { id: cmd.candidateId },
-        data: {
-          cepResult: 'REUSSI',
-          cepResultDate: now,
-          admissionStatus: 'CONFIRME',
-        },
+      await this.entranceRepository.mettreAJourResultatCEP(cmd.candidateId, {
+        cepResult: 'REUSSI',
+        admissionStatus: 'CONFIRME',
       });
 
       // Suggestion de classe — targetClassId si configuré sur la session (déterministe),
       // sinon repli sur l'heuristique par niveau (comportement historique, mais désormais
       // seulement une suggestion éditable, jamais une assignation directe).
-      let classId: string | undefined = candidate.session.targetClassId ?? undefined;
+      let classId: string | undefined = candidate.session?.targetClassId ?? undefined;
       if (!classId) {
-        const classes6e = await this.prisma.class.findMany({
-          where: { schoolId: cmd.schoolId, level: { contains: '6' } },
-          orderBy: { name: 'asc' },
-          take: 1,
-        });
-        classId = classes6e[0]?.id;
+        const classe6e = await this.entranceRepository.trouverClasseNiveau(cmd.schoolId, '6');
+        classId = classe6e?.id;
       }
 
       // L'admission est déjà confirmée ci-dessus — la création du squelette d'onboarding est
@@ -73,7 +66,7 @@ export class EnregistrerResultatCepUseCase {
       let onboarding: { id: string; token: string; tokenExpiresAt: Date; contactEmail: string | null; contactTelephone: string | null } | undefined;
       try {
         onboarding = await this.creerSqueletteOnboarding.execute({
-          schoolId: candidate.session.schoolId,
+          schoolId: candidate.session!.schoolId,
           createdById: cmd.enregistreParId,
           nomProvisoire: candidateName,
           classId,
@@ -87,18 +80,14 @@ export class EnregistrerResultatCepUseCase {
         console.error('[EnregistrerResultatCepUseCase] Échec création squelette onboarding:', err?.message);
       }
 
-      await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session.schoolId);
+      await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session!.schoolId);
       return { status: 'CONFIRME', onboardingCreated: Boolean(onboarding), candidateName, parentPhone, onboarding };
     } else {
-      await this.prisma.entranceExamCandidate.update({
-        where: { id: cmd.candidateId },
-        data: {
-          cepResult: 'ECHOUE',
-          cepResultDate: now,
-          admissionStatus: 'ANNULE',
-        },
+      await this.entranceRepository.mettreAJourResultatCEP(cmd.candidateId, {
+        cepResult: 'ECHOUE',
+        admissionStatus: 'ANNULE',
       });
-      await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session.schoolId);
+      await this.cloturerSessionSiTousTraites(candidate.sessionId, candidate.session!.schoolId);
       return { status: 'ANNULE', onboardingCreated: false, candidateName, parentPhone };
     }
   }
@@ -111,16 +100,11 @@ export class EnregistrerResultatCepUseCase {
    * de source de vérité pour la visibilité du menu « Concours d'entrée » côté Admin.
    */
   private async cloturerSessionSiTousTraites(sessionId: string, schoolId: string): Promise<void> {
-    const enAttente = await this.prisma.entranceExamCandidate.count({
-      where: { sessionId, admissionStatus: { in: ['PENDING', 'ADMIS_PROVISOIRE'] } },
-    });
+    const enAttente = await this.entranceRepository.compterCandidatsEnAttente(sessionId);
     if (enAttente === 0) {
-      await this.prisma.entranceExamSession.update({
-        where: { id: sessionId },
-        data: { status: 'CLOSED' },
-      });
-      void notifierEvenementAcademique(
-        this.prisma, schoolId, ['ADMIN', 'STAFF'],
+      await this.entranceRepository.mettreAJourStatutSession(sessionId, 'CLOSED');
+      void this.notifier(
+        schoolId, ['ADMIN', 'STAFF'],
         'Concours d\'entrée clôturé',
         'Tous les candidats ont été traités — la session de concours est clôturée et le menu Concours d\'entrée n\'est plus mis en avant.',
       ).catch((err) => console.error('[EntranceExam] notification clôture:', err?.message));

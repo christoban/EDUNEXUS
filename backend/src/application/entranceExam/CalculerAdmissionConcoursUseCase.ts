@@ -1,13 +1,11 @@
-import type { PrismaClient } from '@prisma/client';
 import type { CalculerAdmissionCommande } from './types';
+import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
 
 export class CalculerAdmissionConcoursUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly entranceRepository: EntranceExamRepository) {}
 
   async execute(cmd: CalculerAdmissionCommande): Promise<{ admis: number; nonAdmis: number; admisCandidats: { id: string; firstName: string; lastName: string; parentPhone: string | null }[] }> {
-    const session = await this.prisma.entranceExamSession.findUnique({
-      where: { id: cmd.sessionId },
-    });
+    const session = await this.entranceRepository.trouverSession(cmd.sessionId);
     if (!session) throw new Error('Session de concours introuvable');
     if (session.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
 
@@ -15,10 +13,7 @@ export class CalculerAdmissionConcoursUseCase {
     const seats = session.availableSeats;
 
     // Récupérer tous les candidats avec une note
-    const candidates: any[] = await this.prisma.entranceExamCandidate.findMany({
-      where: { sessionId: cmd.sessionId, examScore: { not: null } },
-      orderBy: { examScore: 'desc' },
-    });
+    const candidates = await this.entranceRepository.listerCandidats(cmd.sessionId, { avecNote: true, orderBy: 'score' });
 
     if (candidates.length === 0) {
       throw new Error('Aucun candidat avec une note à traiter');
@@ -46,10 +41,7 @@ export class CalculerAdmissionConcoursUseCase {
 
       const newStatus = qualifies ? 'ADMIS_PROVISOIRE' : 'PENDING';
 
-      await this.prisma.entranceExamCandidate.update({
-        where: { id: c.id },
-        data: { admissionStatus: newStatus },
-      });
+      await this.entranceRepository.mettreAJourStatutAdmission(c.id, newStatus);
 
       if (qualifies) {
         seatsUsed++;

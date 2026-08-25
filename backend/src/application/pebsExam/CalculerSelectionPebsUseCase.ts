@@ -1,23 +1,18 @@
-import type { PrismaClient } from '@prisma/client';
 import type { CalculerSelectionPebsCommande } from './types';
+import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
 
 export class CalculerSelectionPebsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly pebsRepository: PebsExamRepository) {}
 
   async execute(cmd: CalculerSelectionPebsCommande): Promise<{ selectionnes: number; nonSelectionnes: number }> {
-    const session = await this.prisma.pebsExamSession.findUnique({
-      where: { id: cmd.sessionId },
-    });
+    const session = await this.pebsRepository.trouverSession(cmd.sessionId);
     if (!session) throw new Error('Session PEBS introuvable');
     if (session.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
 
     const threshold = session.selectionThreshold;
     const seats = session.availableSeats;
 
-    const candidates: any[] = await this.prisma.pebsExamCandidate.findMany({
-      where: { sessionId: cmd.sessionId, examScore: { not: null } },
-      orderBy: { examScore: 'desc' },
-    });
+    const candidates = await this.pebsRepository.listerCandidatsAvecNote(cmd.sessionId);
 
     if (candidates.length === 0) {
       throw new Error('Aucun candidat avec une note à traiter');
@@ -42,10 +37,7 @@ export class CalculerSelectionPebsUseCase {
 
       const newResult = qualifies ? 'SELECTIONNE' : 'NON_SELECTIONNE';
 
-      await this.prisma.pebsExamCandidate.update({
-        where: { id: c.id },
-        data: { selectionResult: newResult },
-      });
+      await this.pebsRepository.mettreAJourResultatCandidat(c.id, newResult);
 
       if (qualifies) {
         seatsUsed++;

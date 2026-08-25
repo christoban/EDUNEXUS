@@ -1,13 +1,11 @@
-import type { PrismaClient } from '@prisma/client';
 import type { AjouterCandidatsPebsCommande } from './types';
+import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
 
 export class AjouterCandidatsPebsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly pebsRepository: PebsExamRepository) {}
 
   async execute(cmd: AjouterCandidatsPebsCommande): Promise<{ added: number }> {
-    const session = await this.prisma.pebsExamSession.findUnique({
-      where: { id: cmd.sessionId },
-    });
+    const session = await this.pebsRepository.trouverSession(cmd.sessionId);
     if (!session) throw new Error('Session PEBS introuvable');
     if (session.schoolId !== cmd.schoolId) throw new Error('Accès refusé');
     if (session.status === 'APPLIED') throw new Error('La session a déjà été appliquée');
@@ -16,32 +14,17 @@ export class AjouterCandidatsPebsUseCase {
     for (const profileId of cmd.studentProfileIds) {
       try {
         // Vérifier que le profil appartient à l'école
-        const profile = await this.prisma.studentProfile.findFirst({
-          where: { id: profileId, user: { schoolId: cmd.schoolId } },
-          select: {
-            id: true,
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-              select: { classId: true },
-              take: 1,
-            },
-          },
-        });
+        const profile = await this.pebsRepository.trouverProfilAvecClasse(profileId, cmd.schoolId);
         if (!profile) continue;
 
         // Vérifier doublon
-        const existing = await this.prisma.pebsExamCandidate.findFirst({
-          where: { sessionId: cmd.sessionId, studentProfileId: profileId },
-        });
+        const existing = await this.pebsRepository.trouverCandidatParProfil(cmd.sessionId, profileId);
         if (existing) continue;
 
-        await this.prisma.pebsExamCandidate.create({
-          data: {
-            sessionId: cmd.sessionId,
-            studentProfileId: profileId,
-            currentClassId: profile.enrollmentsYearScoped?.[0]?.classId ?? null,
-            selectionResult: 'PENDING',
-          },
+        await this.pebsRepository.creerCandidat({
+          sessionId: cmd.sessionId,
+          studentProfileId: profileId,
+          currentClassId: profile.classId,
         });
         added++;
       } catch {
@@ -50,10 +33,7 @@ export class AjouterCandidatsPebsUseCase {
     }
 
     if (session.status === 'DRAFT' && added > 0) {
-      await this.prisma.pebsExamSession.update({
-        where: { id: cmd.sessionId },
-        data: { status: 'RESULTS_PENDING' },
-      });
+      await this.pebsRepository.mettreAJourStatutSession(cmd.sessionId, 'RESULTS_PENDING');
     }
 
     return { added };
