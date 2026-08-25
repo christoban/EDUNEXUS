@@ -6,7 +6,7 @@
  */
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { SchoolGroupOwnerAuthRepository } from '@domain/ports/repositories/SchoolGroupOwnerAuthRepository';
 
 export interface SendEmailOTP {
   (params: { recipientEmail: string; otp: string }): Promise<void>;
@@ -14,16 +14,14 @@ export interface SendEmailOTP {
 
 export class LoginGroupOwnerUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly ownerRepository: SchoolGroupOwnerAuthRepository,
     private readonly sendEmail: SendEmailOTP,
   ) {}
 
   async executeLogin(email: string, password: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const owner = await this.prisma.schoolGroupOwner.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const owner = await this.ownerRepository.findByEmail(normalizedEmail);
 
     if (!owner || !owner.isActive) {
       throw new Error('Identifiants invalides');
@@ -38,14 +36,11 @@ export class LoginGroupOwnerUseCase {
     const otpHashed = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await this.prisma.schoolGroupOwner.update({
-      where: { id: owner.id },
-      data: {
-        loginEmailOtpHash: otpHashed,
-        loginEmailOtpExpiresAt: expiresAt,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: new Date(),
-      },
+    await this.ownerRepository.updateLoginOtp(owner.id, {
+      loginEmailOtpHash: otpHashed,
+      loginEmailOtpExpiresAt: expiresAt,
+      loginEmailOtpAttempts: 0,
+      loginEmailOtpSentAt: new Date(),
     });
 
     void this.sendEmail({ recipientEmail: normalizedEmail, otp }).catch(err =>
@@ -64,9 +59,7 @@ export class LoginGroupOwnerUseCase {
   }> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const owner = await this.prisma.schoolGroupOwner.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const owner = await this.ownerRepository.findByEmail(normalizedEmail);
 
     if (!owner) {
       throw new Error('Code de vérification invalide');
@@ -86,22 +79,11 @@ export class LoginGroupOwnerUseCase {
 
     const otpOk = await bcrypt.compare(otp, owner.loginEmailOtpHash);
     if (!otpOk) {
-      await this.prisma.schoolGroupOwner.update({
-        where: { id: owner.id },
-        data: { loginEmailOtpAttempts: { increment: 1 } },
-      });
+      await this.ownerRepository.incrementLoginOtpAttempts(owner.id);
       throw new Error('Code de vérification incorrect');
     }
 
-    await this.prisma.schoolGroupOwner.update({
-      where: { id: owner.id },
-      data: {
-        loginEmailOtpHash: null,
-        loginEmailOtpExpiresAt: null,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: null,
-      },
-    });
+    await this.ownerRepository.clearLoginOtp(owner.id);
 
     return {
       ownerId: owner.id,
@@ -114,9 +96,7 @@ export class LoginGroupOwnerUseCase {
   async executeResendOtp(email: string): Promise<void> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    const owner = await this.prisma.schoolGroupOwner.findUnique({
-      where: { email: normalizedEmail },
-    });
+    const owner = await this.ownerRepository.findByEmail(normalizedEmail);
 
     if (!owner || !owner.isActive) {
       throw new Error('Email invalide');
@@ -126,14 +106,11 @@ export class LoginGroupOwnerUseCase {
     const otpHashed = await bcrypt.hash(otp, 10);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    await this.prisma.schoolGroupOwner.update({
-      where: { id: owner.id },
-      data: {
-        loginEmailOtpHash: otpHashed,
-        loginEmailOtpExpiresAt: expiresAt,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: new Date(),
-      },
+    await this.ownerRepository.updateLoginOtp(owner.id, {
+      loginEmailOtpHash: otpHashed,
+      loginEmailOtpExpiresAt: expiresAt,
+      loginEmailOtpAttempts: 0,
+      loginEmailOtpSentAt: new Date(),
     });
 
     void this.sendEmail({ recipientEmail: normalizedEmail, otp }).catch(err =>

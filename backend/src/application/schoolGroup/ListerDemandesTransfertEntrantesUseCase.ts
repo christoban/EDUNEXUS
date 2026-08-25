@@ -3,23 +3,24 @@
  * de l'école CIBLE). Sert aussi à déterminer la visibilité de l'entrée sidebar (même principe
  * de gating que LV2/concours/PEBS — visible seulement s'il y a une demande en attente).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { GroupTransferRepository } from '@domain/ports/repositories/GroupTransferRepository';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 
 export class ListerDemandesTransfertEntrantesUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly transfertRepository: GroupTransferRepository,
+    private readonly queryRepository: GroupeScolaireQueryRepository,
+  ) {}
 
   async execute(targetSchoolId: string) {
-    const demandes = await this.prisma.groupTransferRequest.findMany({
-      where: { targetSchoolId, status: 'PENDING_TARGET_ADMIN' },
-      orderBy: { createdAt: 'asc' },
-    });
+    const demandes = await this.transfertRepository.listerEntrantesEnAttente(targetSchoolId);
 
     const sourceSchoolIds = Array.from(new Set(demandes.map((d) => d.sourceSchoolId)));
     const userIds = demandes.map((d) => d.sourceUserId);
 
     const [schools, users] = await Promise.all([
-      this.prisma.school.findMany({ where: { id: { in: sourceSchoolIds } }, select: { id: true, name: true } }),
-      this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, firstName: true, lastName: true, role: true } }),
+      this.queryRepository.listerNomsEcoles(sourceSchoolIds),
+      this.queryRepository.listerNomsUsers(userIds),
     ]);
     const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
     const userById = new Map(users.map((u) => [u.id, u]));

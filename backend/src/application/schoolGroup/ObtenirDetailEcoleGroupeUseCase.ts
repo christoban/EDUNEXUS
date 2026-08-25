@@ -5,22 +5,18 @@
  * req.groupOwner.schoolIds — ce use case ne refait pas cette vérification, il fait confiance
  * à la frontière déjà posée par protectGroupOwner + le contrôleur.
  */
-import type { PrismaClient } from '@prisma/client';
-import { calculerKpisEcole } from './calculerKpisEcole';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 
 export class ObtenirDetailEcoleGroupeUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly queryRepository: GroupeScolaireQueryRepository) {}
 
   async execute(schoolId: string) {
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      select: { id: true, name: true, city: true, region: true, type: true, plan: true, status: true },
-    });
+    const school = await this.queryRepository.trouverEcoleDetail(schoolId);
     if (!school) {
       throw new Error('École introuvable');
     }
 
-    const kpis = await calculerKpisEcole(this.prisma, schoolId);
+    const kpis = await this.queryRepository.calculerKpisEcole(schoolId);
 
     return { ...school, ...kpis };
   }

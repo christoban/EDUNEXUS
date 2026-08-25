@@ -2,23 +2,24 @@
  * APPLICATION LAYER — Liste des demandes de transfert du groupe (toutes, tous statuts),
  * vue du Fondateur de Groupe.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { GroupTransferRepository } from '@domain/ports/repositories/GroupTransferRepository';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 
 export class ListerDemandesTransfertGroupeUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly transfertRepository: GroupTransferRepository,
+    private readonly queryRepository: GroupeScolaireQueryRepository,
+  ) {}
 
   async execute(groupId: string) {
-    const demandes = await this.prisma.groupTransferRequest.findMany({
-      where: { groupId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const demandes = await this.transfertRepository.listerParGroupe(groupId);
 
     const schoolIds = Array.from(new Set(demandes.flatMap((d) => [d.sourceSchoolId, d.targetSchoolId])));
     const userIds = demandes.map((d) => d.sourceUserId);
 
     const [schools, users] = await Promise.all([
-      this.prisma.school.findMany({ where: { id: { in: schoolIds } }, select: { id: true, name: true } }),
-      this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, firstName: true, lastName: true } }),
+      this.queryRepository.listerNomsEcoles(schoolIds),
+      this.queryRepository.listerNomsUsers(userIds),
     ]);
     const schoolNameById = new Map(schools.map((s) => [s.id, s.name]));
     const userNameById = new Map(users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]));

@@ -6,7 +6,8 @@
  */
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { GroupTransferRepository } from '@domain/ports/repositories/GroupTransferRepository';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 import { InscrireUtilisateurUseCase } from '../user/InscrireUtilisateurUseCase';
 
 export interface AccepterTransfertEnseignantCommande {
@@ -16,21 +17,19 @@ export interface AccepterTransfertEnseignantCommande {
 
 export class AccepterTransfertEnseignantUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly transfertRepository: GroupTransferRepository,
+    private readonly queryRepository: GroupeScolaireQueryRepository,
     private readonly inscrire: InscrireUtilisateurUseCase,
   ) {}
 
   async execute(cmd: AccepterTransfertEnseignantCommande) {
-    const demande = await this.prisma.groupTransferRequest.findUnique({ where: { id: cmd.demandeId } });
+    const demande = await this.transfertRepository.trouverParId(cmd.demandeId);
     if (!demande) throw new Error('Demande de transfert introuvable');
     if (demande.targetSchoolId !== cmd.targetSchoolId) throw new Error('Accès refusé');
     if (demande.status !== 'PENDING_TARGET_ADMIN') throw new Error(`Cette demande est déjà au statut ${demande.status}`);
     if (demande.type !== 'STAFF') throw new Error('Cette demande ne concerne pas un enseignant');
 
-    const sourceTeacher = await this.prisma.user.findUnique({
-      where: { id: demande.sourceUserId },
-      select: { firstName: true, lastName: true, email: true, phone: true },
-    });
+    const sourceTeacher = await this.queryRepository.trouverSourceEnseignant(demande.sourceUserId);
     if (!sourceTeacher) throw new Error('Enseignant introuvable dans l\'école source');
     if (!sourceTeacher.email) throw new Error('Cet enseignant n\'a pas d\'email — impossible de lui envoyer un lien de création de compte');
 
@@ -49,10 +48,7 @@ export class AccepterTransfertEnseignantUseCase {
       passwordHash,
     });
 
-    await this.prisma.groupTransferRequest.update({
-      where: { id: demande.id },
-      data: { status: 'ACCEPTED', decidedAt: new Date() },
-    });
+    await this.transfertRepository.accepterEnseignant(demande.id);
 
     return { userId: resultat.userId, email: sourceTeacher.email, firstName: sourceTeacher.firstName, lastName: sourceTeacher.lastName };
   }

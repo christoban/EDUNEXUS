@@ -6,7 +6,8 @@
  * l'école source, marqué studentStatus=TRANSFERRED pour que son historique reste consultable
  * là où il a eu lieu (Section 5 du plan).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { GroupTransferRepository } from '@domain/ports/repositories/GroupTransferRepository';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 import { CreerSqueletteOnboardingUseCase } from '../eleveOnboarding/CreerSqueletteOnboardingUseCase';
 
 export interface AccepterTransfertEleveCommande {
@@ -17,49 +18,31 @@ export interface AccepterTransfertEleveCommande {
 
 export class AccepterTransfertEleveUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly transfertRepository: GroupTransferRepository,
+    private readonly queryRepository: GroupeScolaireQueryRepository,
     private readonly creerSquelette: CreerSqueletteOnboardingUseCase,
   ) {}
 
   async execute(cmd: AccepterTransfertEleveCommande) {
-    const demande = await this.prisma.groupTransferRequest.findUnique({ where: { id: cmd.demandeId } });
+    const demande = await this.transfertRepository.trouverParId(cmd.demandeId);
     if (!demande) throw new Error('Demande de transfert introuvable');
     if (demande.targetSchoolId !== cmd.targetSchoolId) throw new Error('Accès refusé');
     if (demande.status !== 'PENDING_TARGET_ADMIN') throw new Error(`Cette demande est déjà au statut ${demande.status}`);
     if (demande.type !== 'STUDENT') throw new Error('Cette demande ne concerne pas un élève');
 
-    const sourceUser = await this.prisma.user.findUnique({
-      where: { id: demande.sourceUserId },
-      select: {
-        id: true, firstName: true, lastName: true, email: true, phone: true,
-        studentProfile: {
-          select: {
-            id: true,
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-              select: { class: { select: { level: true } } },
-              take: 1,
-            },
-            parents: { select: { parentProfile: { select: { user: { select: { email: true, phone: true } } } } } },
-          },
-        },
-      },
-    });
+    const sourceUser = await this.queryRepository.trouverSourceUserAvecProfil(demande.sourceUserId);
     if (!sourceUser || !sourceUser.studentProfile) throw new Error("Élève introuvable dans l'école source");
 
     // Suggestion de classe — best-effort par niveau, toujours éditable par l'Admin cible avant
     // que la famille ne valide (jamais une assignation automatique définitive).
     let classId: string | undefined;
-    const niveau = sourceUser.studentProfile.enrollmentsYearScoped?.[0]?.class?.level;
+    const niveau = sourceUser.studentProfile.niveau;
     if (niveau) {
-      const classeCorrespondante = await this.prisma.class.findFirst({
-        where: { schoolId: cmd.targetSchoolId, level: niveau },
-        orderBy: { name: 'asc' },
-      });
+      const classeCorrespondante = await this.queryRepository.trouverClasseParNiveau(cmd.targetSchoolId, niveau);
       classId = classeCorrespondante?.id;
     }
 
-    const parentContact = sourceUser.studentProfile.parents[0]?.parentProfile.user;
+    const parentContact = sourceUser.studentProfile.parentContacts?.[0] ?? null;
     const contactEmail = parentContact?.email ?? sourceUser.email ?? null;
     const contactTelephone = parentContact?.phone ?? sourceUser.phone ?? null;
     const recipientType = parentContact ? 'PARENT' : 'ELEVE';
@@ -76,16 +59,7 @@ export class AccepterTransfertEleveUseCase {
       aucunContactDisponible: !contactEmail && !contactTelephone,
     });
 
-    await this.prisma.$transaction([
-      this.prisma.groupTransferRequest.update({
-        where: { id: demande.id },
-        data: { status: 'ACCEPTED', onboardingId: onboarding.id, decidedAt: new Date() },
-      }),
-      this.prisma.studentProfile.update({
-        where: { id: sourceUser.studentProfile.id },
-        data: { studentStatus: 'TRANSFERRED' },
-      }),
-    ]);
+    await this.transfertRepository.accepterEleve(demande.id, onboarding.id, sourceUser.studentProfile.id);
 
     return { ...onboarding, nomProvisoire: `${sourceUser.firstName} ${sourceUser.lastName}` };
   }

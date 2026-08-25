@@ -5,7 +5,7 @@
  * agrégé, c'est un formulaire de sélection ciblé, limité à nom+id+rôle — rien de plus (pas de
  * notes, pas de finances, pas de présence).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 
 export interface RechercherPersonneEcoleGroupeCommande {
   groupId: string;
@@ -15,27 +15,18 @@ export interface RechercherPersonneEcoleGroupeCommande {
 }
 
 export class RechercherPersonneEcoleGroupeUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly queryRepository: GroupeScolaireQueryRepository) {}
 
   async execute(cmd: RechercherPersonneEcoleGroupeCommande) {
-    const school = await this.prisma.school.findFirst({ where: { id: cmd.schoolId, groupId: cmd.groupId } });
-    if (!school) throw new Error("Cette école n'appartient pas à votre groupe");
+    const appartient = await this.queryRepository.ecoleAppartientAuGroupe(cmd.groupId, cmd.schoolId);
+    if (!appartient) throw new Error("Cette école n'appartient pas à votre groupe");
 
     if (cmd.recherche.trim().length < 2) return [];
 
-    const users = await this.prisma.user.findMany({
-      where: {
-        schoolId: cmd.schoolId,
-        role: cmd.role,
-        OR: [
-          { firstName: { contains: cmd.recherche, mode: 'insensitive' } },
-          { lastName: { contains: cmd.recherche, mode: 'insensitive' } },
-        ],
-      },
-      select: { id: true, firstName: true, lastName: true },
-      take: 20,
+    return this.queryRepository.rechercherPersonne({
+      schoolId: cmd.schoolId,
+      role: cmd.role,
+      recherche: cmd.recherche,
     });
-
-    return users.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}` }));
   }
 }

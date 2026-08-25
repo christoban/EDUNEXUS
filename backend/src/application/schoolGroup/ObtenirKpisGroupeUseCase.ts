@@ -3,20 +3,19 @@
  * Principe non négociable (Plan_Groupe_Scolaire_ZekoulABia.md Section 4) : chaque école est
  * interrogée séparément puis agrégée — jamais un `schoolId IN (...)` sur une table individuelle.
  */
-import type { PrismaClient } from '@prisma/client';
-import { calculerKpisEcole } from './calculerKpisEcole';
+import type { GroupeScolaireQueryRepository } from '@domain/ports/repositories/GroupeScolaireQueryRepository';
 
 export class ObtenirKpisGroupeUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly queryRepository: GroupeScolaireQueryRepository) {}
 
   async execute(groupId: string) {
-    const schools = await this.prisma.school.findMany({ where: { groupId } });
+    const schools = await this.queryRepository.listerEcolesDuGroupe(groupId);
 
     const parEcole = await Promise.all(
       schools.map(async (school) => ({
         schoolId: school.id,
         schoolName: school.name,
-        ...(await calculerKpisEcole(this.prisma, school.id)),
+        ...(await this.queryRepository.calculerKpisEcole(school.id)),
       })),
     );
 

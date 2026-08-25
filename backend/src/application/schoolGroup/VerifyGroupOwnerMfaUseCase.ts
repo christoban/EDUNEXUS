@@ -4,34 +4,20 @@
  */
 import bcrypt from 'bcryptjs';
 import { verifySync } from 'otplib';
-import type { PrismaClient } from '@prisma/client';
+import type { SchoolGroupOwnerAuthRepository } from '@domain/ports/repositories/SchoolGroupOwnerAuthRepository';
 
 export class VerifyGroupOwnerMfaUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly ownerRepository: SchoolGroupOwnerAuthRepository) {}
 
   async getMfaStatus(ownerId: string): Promise<{ mfaEnabled: boolean }> {
-    const owner = await this.prisma.schoolGroupOwner.findUnique({
-      where: { id: ownerId },
-      select: { mfaEnabled: true },
-    });
-    return { mfaEnabled: owner?.mfaEnabled ?? false };
+    return this.ownerRepository.getMfaStatus(ownerId);
   }
 
   async execute(
     ownerId: string,
     code: string,
   ): Promise<{ email: string; name: string }> {
-    const owner = await this.prisma.schoolGroupOwner.findUnique({
-      where: { id: ownerId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        mfaEnabled: true,
-        mfaSecret: true,
-        mfaRecoveryCodeHashes: true,
-      },
-    });
+    const owner = await this.ownerRepository.findById(ownerId);
 
     if (!owner || !owner.mfaEnabled) {
       throw new Error('MFA non configuré');
@@ -58,10 +44,7 @@ export class VerifyGroupOwnerMfaUseCase {
       if (matches) {
         const updated = [...hashes];
         updated.splice(i, 1);
-        await this.prisma.schoolGroupOwner.update({
-          where: { id: owner.id },
-          data: { mfaRecoveryCodeHashes: updated },
-        });
+        await this.ownerRepository.updateMfaRecoveryCodes(owner.id, updated);
         return { email: owner.email, name: owner.name };
       }
     }

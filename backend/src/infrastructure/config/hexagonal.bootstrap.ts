@@ -163,6 +163,9 @@ import { ListerDemandesTransfertEntrantesUseCase } from '@application/schoolGrou
 import { AccepterTransfertEleveUseCase } from '@application/schoolGroup/AccepterTransfertEleveUseCase';
 import { AccepterTransfertEnseignantUseCase } from '@application/schoolGroup/AccepterTransfertEnseignantUseCase';
 import { RejeterTransfertGroupeUseCase } from '@application/schoolGroup/RejeterTransfertGroupeUseCase';
+import { PrismaSchoolGroupOwnerAuthRepository } from '@infrastructure/persistence/prisma/PrismaSchoolGroupOwnerAuthRepository';
+import { PrismaGroupTransferRepository } from '@infrastructure/persistence/prisma/PrismaGroupTransferRepository';
+import { PrismaGroupeScolaireQueryRepository } from '@infrastructure/persistence/prisma/PrismaGroupeScolaireQueryRepository';
 import { GroupTransferController } from '@infrastructure/http/controllers/GroupTransferController';
 import { creerGroupTransferRoutes } from '@infrastructure/http/routes/groupTransfer.routes';
 import { AdminGroupTransferController } from '@infrastructure/http/controllers/AdminGroupTransferController';
@@ -1014,8 +1017,12 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/master', creerMasterAdminHexRoutes(masterAdminHexController));
 
   // ── Group Owner Auth — Fondateur de Groupe scolaire (compte séparé, cf. Plan_Groupe_Scolaire) ──
+  const schoolGroupOwnerAuthRepository = new PrismaSchoolGroupOwnerAuthRepository(prisma);
+  const groupTransferRepository = new PrismaGroupTransferRepository(prisma);
+  const groupeScolaireQueryRepository = new PrismaGroupeScolaireQueryRepository(prisma);
+
   const loginGroupOwnerUseCase = new LoginGroupOwnerUseCase(
-    prisma,
+    schoolGroupOwnerAuthRepository,
     async ({ recipientEmail, otp }: { recipientEmail: string; otp: string }) => {
       const result = await sendTransactionalEmail({
         recipientEmail,
@@ -1029,30 +1036,30 @@ export function bootstrapHexagonal(app: Application): void {
       }
     },
   );
-  const verifyGroupOwnerMfaUseCase = new VerifyGroupOwnerMfaUseCase(prisma);
+  const verifyGroupOwnerMfaUseCase = new VerifyGroupOwnerMfaUseCase(schoolGroupOwnerAuthRepository);
   const groupAuthController = new GroupAuthController(loginGroupOwnerUseCase, verifyGroupOwnerMfaUseCase);
   app.use('/api/v2/group/auth', creerGroupAuthRoutes(groupAuthController));
 
   const groupDashboardController = new GroupDashboardController(
-    new ObtenirKpisGroupeUseCase(prisma),
-    new ListerEcolesGroupeUseCase(prisma),
-    new ObtenirDetailEcoleGroupeUseCase(prisma),
+    new ObtenirKpisGroupeUseCase(groupeScolaireQueryRepository),
+    new ListerEcolesGroupeUseCase(groupeScolaireQueryRepository),
+    new ObtenirDetailEcoleGroupeUseCase(groupeScolaireQueryRepository),
   );
   app.use('/api/v2/group/dashboard', creerGroupDashboardRoutes(groupDashboardController));
 
   const groupTransferController = new GroupTransferController(
-    new CreerDemandeTransfertGroupeUseCase(prisma),
-    new ListerDemandesTransfertGroupeUseCase(prisma),
-    new RechercherPersonneEcoleGroupeUseCase(prisma),
+    new CreerDemandeTransfertGroupeUseCase(groupTransferRepository, groupeScolaireQueryRepository),
+    new ListerDemandesTransfertGroupeUseCase(groupTransferRepository, groupeScolaireQueryRepository),
+    new RechercherPersonneEcoleGroupeUseCase(groupeScolaireQueryRepository),
   );
   app.use('/api/v2/group/transfers', creerGroupTransferRoutes(groupTransferController));
 
   const adminGroupTransferController = new AdminGroupTransferController(
     prisma,
-    new ListerDemandesTransfertEntrantesUseCase(prisma),
-    new AccepterTransfertEleveUseCase(prisma, container.eleveOnboarding.creerSquelette),
-    new AccepterTransfertEnseignantUseCase(prisma, container.user.inscrire),
-    new RejeterTransfertGroupeUseCase(prisma),
+    new ListerDemandesTransfertEntrantesUseCase(groupTransferRepository, groupeScolaireQueryRepository),
+    new AccepterTransfertEleveUseCase(groupTransferRepository, groupeScolaireQueryRepository, container.eleveOnboarding.creerSquelette),
+    new AccepterTransfertEnseignantUseCase(groupTransferRepository, groupeScolaireQueryRepository, container.user.inscrire),
+    new RejeterTransfertGroupeUseCase(groupTransferRepository),
   );
   app.use('/api/v2/group-transfers', creerAdminGroupTransferRoutes(adminGroupTransferController));
 
