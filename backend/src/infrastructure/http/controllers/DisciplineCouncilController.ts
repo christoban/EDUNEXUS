@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient, DisciplineCouncilStatus } from '@prisma/client';
 import { ConvoquerConseilDisciplineUseCase, type CompositionConseil } from '@application/discipline/ConvoquerConseilDisciplineUseCase';
 import { TenirConseilDisciplineUseCase } from '@application/discipline/TenirConseilDisciplineUseCase';
+import { PrismaDisciplineRepository } from '../../persistence/prisma/PrismaDisciplineRepository';
 import { generatePVConseilDisciplinePdf } from '../../pdf/discipline/DisciplineCouncilMinutesPdfRenderer';
 
 /**
@@ -14,8 +15,9 @@ export class DisciplineCouncilController {
   private readonly tenir: TenirConseilDisciplineUseCase;
 
   constructor(private readonly prisma: PrismaClient) {
-    this.convoquer = new ConvoquerConseilDisciplineUseCase(prisma);
-    this.tenir = new TenirConseilDisciplineUseCase(prisma);
+    const disciplineRepo = new PrismaDisciplineRepository(prisma);
+    this.convoquer = new ConvoquerConseilDisciplineUseCase(disciplineRepo);
+    this.tenir = new TenirConseilDisciplineUseCase(disciplineRepo);
   }
 
   // POST /api/v2/discipline-council/convoquer

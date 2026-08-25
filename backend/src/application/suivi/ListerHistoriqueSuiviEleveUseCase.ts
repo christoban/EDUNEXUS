@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { SuiviRBACRepository } from '@domain/ports/repositories/SuiviRBACRepository';
 import type { StudentFollowUpRepository, FollowUpActionDetail } from '@domain/ports/repositories/StudentFollowUpRepository';
 import type { AppelantSuivi } from './CreerActionSuiviEleveUseCase';
 
@@ -14,23 +14,13 @@ import type { AppelantSuivi } from './CreerActionSuiviEleveUseCase';
 export class ListerHistoriqueSuiviEleveUseCase {
   constructor(
     private readonly repo: StudentFollowUpRepository,
-    private readonly prisma: PrismaClient,
+    private readonly suiviRBACRepository: SuiviRBACRepository,
   ) {}
 
   async execute(appelant: AppelantSuivi, studentId: string): Promise<FollowUpActionDetail[]> {
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { userId: studentId, user: { schoolId: appelant.schoolId } },
-      select: {
-        id: true,
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { classId: true },
-          take: 1,
-        },
-      },
-    });
+    const profile = await this.suiviRBACRepository.trouverProfileEleve(studentId, appelant.schoolId);
     if (!profile) throw new Error('Élève introuvable');
-    const classId = profile.enrollmentsYearScoped?.[0]?.classId ?? null;
+    const classId = profile.classId;
 
     if (!(await this.peutConsulterFiche(appelant, classId))) {
       throw new Error('Vous n\'avez pas accès au suivi de cet élève');
@@ -62,11 +52,11 @@ export class ListerHistoriqueSuiviEleveUseCase {
 
     if (role === 'TEACHER') {
       if (!studentClassId) return false;
-      const [assignment, estProfPrincipal] = await Promise.all([
-        this.prisma.teachingAssignment.findFirst({ where: { teacherId: appelant.userId, classId: studentClassId }, select: { id: true } }),
-        this.prisma.class.findFirst({ where: { id: studentClassId, professorPrincipalId: appelant.userId }, select: { id: true } }),
+      const [estEnseignant, estProfPrincipal] = await Promise.all([
+        this.suiviRBACRepository.verifierEnseignantClasse(appelant.userId, studentClassId),
+        this.suiviRBACRepository.verifierProfPrincipal(studentClassId, appelant.userId),
       ]);
-      return !!assignment || !!estProfPrincipal;
+      return estEnseignant || estProfPrincipal;
     }
 
     return false;

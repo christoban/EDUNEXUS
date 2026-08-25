@@ -7,7 +7,7 @@
  *  - SLIDING_WINDOW : openDate obligatoire (fenêtre par défaut), closeDate optionnelle
  *    (ajustable ensuite via AjusterFenetreEvenementUseCase).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { AcademicEventRepository } from '@domain/ports/repositories/AcademicEventRepository';
 import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
@@ -27,7 +27,7 @@ export interface CreerEvenementCommande {
 
 export class CreerEvenementAcademiqueUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly academicEventRepository: AcademicEventRepository,
     private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
   ) {}
@@ -61,21 +61,19 @@ export class CreerEvenementAcademiqueUseCase {
       });
     }
 
-    const evenement = await this.prisma.academicEvent.create({
-      data: {
-        schoolId: cmd.schoolId,
-        createdById: cmd.createdById,
-        type: cmd.type,
-        category: cmd.category,
-        title: cmd.title,
-        description: cmd.description ?? null,
-        targetRoles: cmd.targetRoles,
-        level: cmd.level ?? null,
-        openDate: cmd.category === 'MANUAL_TRIGGER' ? null : cmd.openDate,
-        closeDate: cmd.closeDate ?? null,
-        status,
-        linkedResourceId,
-      },
+    const evenement = await this.academicEventRepository.creer({
+      schoolId: cmd.schoolId,
+      createdById: cmd.createdById,
+      type: cmd.type,
+      category: cmd.category,
+      title: cmd.title,
+      description: cmd.description,
+      targetRoles: cmd.targetRoles,
+      level: cmd.level,
+      openDate: cmd.category === 'MANUAL_TRIGGER' ? undefined : cmd.openDate,
+      closeDate: cmd.closeDate,
+      status,
+      linkedResourceId,
     });
     return { id: evenement.id };
   }

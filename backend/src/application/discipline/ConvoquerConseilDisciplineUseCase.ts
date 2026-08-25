@@ -4,7 +4,7 @@
  * compter de la notification aux parents (fixée à l'instant de la convocation), et exige la
  * composition légale complète du conseil.
  */
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { DisciplineRepository } from '@domain/ports/repositories/DisciplineRepository';
 
 const DELAI_LEGAL_HEURES = 72;
 
@@ -31,7 +31,7 @@ const ROLES_OBLIGATOIRES: (keyof CompositionConseil)[] = [
 ];
 
 export class ConvoquerConseilDisciplineUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly disciplineRepository: DisciplineRepository) {}
 
   async execute(cmd: ConvoquerConseilDisciplineCommande) {
     if (!cmd.motif.trim()) {
@@ -53,23 +53,17 @@ export class ConvoquerConseilDisciplineUseCase {
       );
     }
 
-    const student = await this.prisma.user.findFirst({
-      where: { id: cmd.studentId, schoolId: cmd.schoolId, role: 'STUDENT' },
-    });
-    if (!student) throw new Error('Élève introuvable.');
+    const studentExists = await this.disciplineRepository.verifierEleve(cmd.studentId, cmd.schoolId);
+    if (!studentExists) throw new Error('Élève introuvable.');
 
-    return this.prisma.disciplineCouncilSession.create({
-      data: {
-        schoolId: cmd.schoolId,
-        studentId: cmd.studentId,
-        presidedById: cmd.presidedById,
-        motif: cmd.motif.trim(),
-        // Déjà validée champ par champ ci-dessus (ROLES_OBLIGATOIRES) — cast précis pour la
-        // colonne JSON, pas un `any` qui masquerait une composition invalide.
-        composition: cmd.composition as unknown as Prisma.InputJsonValue,
-        parentNotifiedAt,
-        scheduledAt: cmd.scheduledAt,
-      },
+    return this.disciplineRepository.creerSession({
+      schoolId: cmd.schoolId,
+      studentId: cmd.studentId,
+      presidedById: cmd.presidedById,
+      motif: cmd.motif.trim(),
+      composition: cmd.composition,
+      parentNotifiedAt,
+      scheduledAt: cmd.scheduledAt,
     });
   }
 }

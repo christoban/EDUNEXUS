@@ -81,6 +81,7 @@ import { buildParentActionCatalog } from '@application/assistant/catalog/parentA
 import { buildStudentActionCatalog } from '@application/assistant/catalog/studentActionCatalog';
 import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
 import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
+import { PrismaApeeRepository } from '@infrastructure/persistence/prisma/PrismaApeeRepository';
 import { AffecterLV2EleveUseCase } from '@application/student/AffecterLV2EleveUseCase';
 import { AffecterLV2EnMasseUseCase } from '@application/student/AffecterLV2EnMasseUseCase';
 import { AffecterPEBSEleveUseCase } from '@application/student/AffecterPEBSEleveUseCase';
@@ -134,6 +135,9 @@ import { creerAIRoutes } from '@infrastructure/http/routes/ai.routes';
 import { StudentFollowUpController } from '@infrastructure/http/controllers/StudentFollowUpController';
 import { creerStudentFollowUpRoutes } from '@infrastructure/http/routes/studentFollowUp.routes';
 import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
+import { PrismaSuiviRBACRepository } from '@infrastructure/persistence/prisma/PrismaSuiviRBACRepository';
+import { PrismaAcademicEventRepository } from '@infrastructure/persistence/prisma/PrismaAcademicEventRepository';
+import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 import { CreerActionSuiviEleveUseCase } from '@application/suivi/CreerActionSuiviEleveUseCase';
 import { ClorreActionSuiviUseCase } from '@application/suivi/ClorreActionSuiviUseCase';
 import { ListerActionsEnCoursUseCase } from '@application/suivi/ListerActionsEnCoursUseCase';
@@ -1416,23 +1420,27 @@ export function bootstrapHexagonal(app: Application): void {
   const searchController     = new SearchController(prisma);
   const aiController         = new AIController(prisma, container.prediction.comparerRisque);
   const studentFollowUpRepo  = new PrismaStudentFollowUpRepository(prisma);
+  const suiviRBACRepository    = new PrismaSuiviRBACRepository(prisma);
   const studentFollowUpController = new StudentFollowUpController(
-    new CreerActionSuiviEleveUseCase(studentFollowUpRepo, prisma),
+    new CreerActionSuiviEleveUseCase(studentFollowUpRepo, suiviRBACRepository),
     new ClorreActionSuiviUseCase(studentFollowUpRepo),
     new ListerActionsEnCoursUseCase(studentFollowUpRepo),
-    new AssignerActionSuiviUseCase(studentFollowUpRepo, prisma),
-    new ListerHistoriqueSuiviEleveUseCase(studentFollowUpRepo, prisma),
+    new AssignerActionSuiviUseCase(studentFollowUpRepo, suiviRBACRepository),
+    new ListerHistoriqueSuiviEleveUseCase(studentFollowUpRepo, suiviRBACRepository),
     prisma,
   );
   const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
   const studentAffectationRepository = new PrismaStudentAffectationRepository(prisma);
+  const academicEventRepository = new PrismaAcademicEventRepository(prisma);
+  const notifierEvenement = (schoolId: string, roles: string[], titre: string, corps: string) =>
+    notifierEvenementAcademique(prisma, schoolId, roles, titre, corps);
   const academicEventController = new AcademicEventController(
-    new CreerEvenementAcademiqueUseCase(prisma, lv2ChoiceRepository, anneeRepository),
-    new DeclencherEvenementUseCase(prisma, lv2ChoiceRepository, anneeRepository),
-    new AjusterFenetreEvenementUseCase(prisma, lv2ChoiceRepository),
-    new ListerEvenementsUseCase(prisma),
-    new ObtenirEvenementsActifsUseCase(prisma),
+    new CreerEvenementAcademiqueUseCase(academicEventRepository, lv2ChoiceRepository, anneeRepository),
+    new DeclencherEvenementUseCase(academicEventRepository, lv2ChoiceRepository, anneeRepository, notifierEvenement),
+    new AjusterFenetreEvenementUseCase(academicEventRepository, lv2ChoiceRepository),
+    new ListerEvenementsUseCase(academicEventRepository),
+    new ObtenirEvenementsActifsUseCase(academicEventRepository),
   );
   const coreDomainController = new CoreDomainController(prisma);
   const publicController     = new PublicController(prisma);
@@ -1681,8 +1689,8 @@ export function bootstrapHexagonal(app: Application): void {
   // de classe...) est déjà dans adminActionCatalog.ts et devient accessible à STAFF via son
   // requiredPermission dès que la route l'autorise, sans duplication.
   const staffActionCatalog = buildStaffActionCatalog({
-    creerTransactionAPEE: new CreerTransactionAPEEUseCase(prisma),
-    validerDepenseAPEE: new ValiderDepenseAPEEUseCase(prisma),
+    creerTransactionAPEE: new CreerTransactionAPEEUseCase(new PrismaApeeRepository(prisma)),
+    validerDepenseAPEE: new ValiderDepenseAPEEUseCase(new PrismaApeeRepository(prisma)),
     ajouterSuiviOrientation: container.orientation.ajouterSuivi,
     notifierSanctionDisciplinaire: async (schoolId, studentId, studentName, type, reason) => {
       const { phonesSansPush } = await notifierParentsPushDabord({

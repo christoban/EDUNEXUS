@@ -4,7 +4,7 @@
  * justifier). Une DEPENSE démarre toujours non validée — voir ValiderDepenseAPEEUseCase, qui
  * exige un justificatif joint avant de pouvoir la valider (règle du Module 11 de la carte).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { ApeeRepository } from '@domain/ports/repositories/ApeeRepository';
 
 export interface CreerTransactionAPEECommande {
   schoolId: string;
@@ -17,25 +17,23 @@ export interface CreerTransactionAPEECommande {
 }
 
 export class CreerTransactionAPEEUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly apeeRepository: ApeeRepository) {}
 
   async execute(cmd: CreerTransactionAPEECommande) {
     if (cmd.montant <= 0) {
       throw new Error('Le montant doit être strictement positif.');
     }
 
-    return this.prisma.aPEETransaction.create({
-      data: {
-        schoolId: cmd.schoolId,
-        creeParId: cmd.creeParId,
-        type: cmd.type,
-        montant: cmd.montant,
-        categorie: cmd.categorie?.trim() || null,
-        description: cmd.description?.trim() || null,
-        date: cmd.date ?? new Date(),
-        // Une collecte n'a rien à justifier — considérée valide dès la saisie.
-        valide: cmd.type === 'COLLECTE',
-      },
+    return this.apeeRepository.creer({
+      schoolId: cmd.schoolId,
+      creeParId: cmd.creeParId,
+      type: cmd.type,
+      montant: cmd.montant,
+      categorie: cmd.categorie,
+      description: cmd.description,
+      date: cmd.date ?? new Date(),
+      // Une collecte n'a rien à justifier — considérée valide dès la saisie.
+      valide: cmd.type === 'COLLECTE',
     });
   }
 }

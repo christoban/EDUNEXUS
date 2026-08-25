@@ -5,7 +5,7 @@
  * conseil immédiatement quand même. C'est cette vérification-ci, pas celle de la convocation,
  * qui protège réellement contre le contournement.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { DisciplineRepository } from '@domain/ports/repositories/DisciplineRepository';
 
 const DELAI_LEGAL_HEURES = 72;
 
@@ -19,12 +19,10 @@ export interface TenirConseilDisciplineCommande {
 }
 
 export class TenirConseilDisciplineUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly disciplineRepository: DisciplineRepository) {}
 
   async execute(cmd: TenirConseilDisciplineCommande) {
-    const session = await this.prisma.disciplineCouncilSession.findFirst({
-      where: { id: cmd.sessionId, schoolId: cmd.schoolId },
-    });
+    const session = await this.disciplineRepository.trouverSession(cmd.sessionId, cmd.schoolId);
     if (!session) throw new Error('Conseil de discipline introuvable.');
     if (session.status !== 'CONVOQUE') {
       throw new Error('Ce conseil a déjà été tenu ou annulé.');
@@ -42,28 +40,22 @@ export class TenirConseilDisciplineUseCase {
       );
     }
 
-    const record = await this.prisma.disciplineRecord.create({
-      data: {
-        schoolId: cmd.schoolId,
-        studentId: session.studentId,
-        type: cmd.decision,
-        reason: session.motif,
-        decidedById: session.presidedById,
-        ...(cmd.startDate ? { startDate: cmd.startDate } : {}),
-        ...(cmd.endDate ? { endDate: cmd.endDate } : {}),
-      },
+    const record = await this.disciplineRepository.creerRecord({
+      schoolId: cmd.schoolId,
+      studentId: session.studentId,
+      type: cmd.decision,
+      reason: session.motif,
+      decidedById: session.presidedById,
+      ...(cmd.startDate ? { startDate: cmd.startDate } : {}),
+      ...(cmd.endDate ? { endDate: cmd.endDate } : {}),
     });
 
-    return this.prisma.disciplineCouncilSession.update({
-      where: { id: session.id },
-      data: {
-        heldAt: now,
-        decision: cmd.decision,
-        pv: cmd.pv.trim(),
-        status: 'TENU',
-        disciplineRecordId: record.id,
-      },
-      include: { disciplineRecord: true },
+    return this.disciplineRepository.mettreAJourSession(session.id, {
+      heldAt: now,
+      decision: cmd.decision,
+      pv: cmd.pv.trim(),
+      status: 'TENU',
+      disciplineRecordId: record.id,
     });
   }
 }

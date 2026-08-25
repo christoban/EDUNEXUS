@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { SuiviRBACRepository } from '@domain/ports/repositories/SuiviRBACRepository';
 import type { StudentFollowUpRepository, FollowUpActionDetail } from '@domain/ports/repositories/StudentFollowUpRepository';
 import type { AppelantSuivi } from './CreerActionSuiviEleveUseCase';
 import { PERMISSIONS_CONSEILLER } from './CreerActionSuiviEleveUseCase';
@@ -29,7 +29,7 @@ export interface AssignerActionSuiviCommande {
 export class AssignerActionSuiviUseCase {
   constructor(
     private readonly repo: StudentFollowUpRepository,
-    private readonly prisma: PrismaClient,
+    private readonly suiviRBACRepository: SuiviRBACRepository,
   ) {}
 
   async execute(cmd: AssignerActionSuiviCommande): Promise<FollowUpActionDetail> {
@@ -48,14 +48,7 @@ export class AssignerActionSuiviUseCase {
     // réattribuer un cas à un utilisateur non-conseiller ou d'une autre école, qui hériterait
     // alors de la capacité "conseiller escaladé" et recevrait une notification exposant le nom de
     // l'élève (trouvé en revue de code — même classe de vulnérabilité que la création).
-    const destinataireValide = await this.prisma.staffProfile.findFirst({
-      where: {
-        userId: cmd.nouvelAssigneId,
-        schoolId: cmd.appelant.schoolId,
-        permissions: { some: { permission: { in: [...PERMISSIONS_CONSEILLER] } } },
-      },
-      select: { id: true },
-    });
+    const destinataireValide = await this.suiviRBACRepository.verifierDestinataireConseiller(cmd.nouvelAssigneId, cmd.appelant.schoolId);
     if (!destinataireValide) {
       throw new Error('Le nouveau destinataire n\'est pas un conseiller pédagogique valide de votre établissement');
     }

@@ -3,7 +3,7 @@
  * justificatif n'a été joint (règle du Module 11 de la carte : "chaque dépense APEE exige un
  * justificatif joint avant validation") — protège contre une dépense fantôme ou non tracée.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { ApeeRepository } from '@domain/ports/repositories/ApeeRepository';
 
 export interface ValiderDepenseAPEECommande {
   schoolId: string;
@@ -12,12 +12,10 @@ export interface ValiderDepenseAPEECommande {
 }
 
 export class ValiderDepenseAPEEUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly apeeRepository: ApeeRepository) {}
 
   async execute(cmd: ValiderDepenseAPEECommande) {
-    const transaction = await this.prisma.aPEETransaction.findFirst({
-      where: { id: cmd.transactionId, schoolId: cmd.schoolId },
-    });
+    const transaction = await this.apeeRepository.trouverParId(cmd.transactionId, cmd.schoolId);
 
     if (!transaction) {
       throw new Error('Transaction APEE introuvable.');
@@ -35,9 +33,6 @@ export class ValiderDepenseAPEEUseCase {
       throw new Error('Le créateur d\'une dépense ne peut pas la valider lui-même (séparation 4 yeux).');
     }
 
-    return this.prisma.aPEETransaction.update({
-      where: { id: cmd.transactionId },
-      data: { valide: true, valideParId: cmd.valideParId, valideAt: new Date() },
-    });
+    return this.apeeRepository.valider(cmd.transactionId, cmd.valideParId);
   }
 }

@@ -3,19 +3,12 @@
  * Admin), tous statuts confondus — à l'inverse d'ObtenirEvenementsActifsUseCase qui alimente le
  * centre d'événements (actifs/à venir uniquement, filtré par rôle de l'appelant).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { AcademicEventRepository } from '@domain/ports/repositories/AcademicEventRepository';
 
 export class ListerEvenementsUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly academicEventRepository: AcademicEventRepository) {}
 
   async execute(schoolId: string) {
-    return this.prisma.academicEvent.findMany({
-      where: { schoolId },
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      include: {
-        createdBy: { select: { firstName: true, lastName: true } },
-        triggeredBy: { select: { firstName: true, lastName: true } },
-      },
-    });
+    return this.academicEventRepository.listerTous(schoolId);
   }
 }

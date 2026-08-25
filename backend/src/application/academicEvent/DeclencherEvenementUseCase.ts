@@ -4,11 +4,12 @@
  * réel où le fait externe imprévisible se produit (ex. publication des résultats d'un examen).
  * Notifie immédiatement les rôles cibles à l'ouverture.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { AcademicEventRepository } from '@domain/ports/repositories/AcademicEventRepository';
 import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
-import { notifierEvenementAcademique } from '@infrastructure/services/notification/AcademicEventNotificationService';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
+
+export type NotifierEvenementFn = (schoolId: string, roles: string[], titre: string, corps: string) => Promise<void>;
 
 export interface DeclencherEvenementCommande {
   eventId: string;
@@ -22,15 +23,14 @@ export interface DeclencherEvenementCommande {
 
 export class DeclencherEvenementUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly academicEventRepository: AcademicEventRepository,
     private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly notifier: NotifierEvenementFn,
   ) {}
 
   async execute(cmd: DeclencherEvenementCommande): Promise<{ id: string }> {
-    const evenement = await this.prisma.academicEvent.findFirst({
-      where: { id: cmd.eventId, schoolId: cmd.schoolId },
-    });
+    const evenement = await this.academicEventRepository.trouverParId(cmd.eventId, cmd.schoolId);
     if (!evenement) throw new Error('Événement introuvable');
     if (evenement.category !== 'MANUAL_TRIGGER') {
       throw new Error('Seuls les événements à déclenchement manuel peuvent être ouverts de cette façon.');
@@ -49,20 +49,16 @@ export class DeclencherEvenementUseCase {
       level: evenement.level, openDate: maintenant, closeDate,
     });
 
-    await this.prisma.academicEvent.update({
-      where: { id: cmd.eventId },
-      data: {
-        status: 'ACTIVE',
-        openDate: maintenant,
-        closeDate,
-        triggeredById: cmd.declencheParId,
-        triggeredAt: maintenant,
-        linkedResourceId,
-      },
+    await this.academicEventRepository.mettreAJour(cmd.eventId, {
+      status: 'ACTIVE',
+      openDate: maintenant,
+      closeDate,
+      triggeredById: cmd.declencheParId,
+      triggeredAt: maintenant,
+      linkedResourceId,
     });
 
-    await notifierEvenementAcademique(
-      this.prisma,
+    await this.notifier(
       cmd.schoolId,
       evenement.targetRoles,
       evenement.title,

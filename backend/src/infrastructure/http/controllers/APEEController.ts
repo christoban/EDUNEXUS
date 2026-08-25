@@ -5,6 +5,7 @@ import type { PrismaClient } from '@prisma/client';
 import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
 import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import { PrismaApeeRepository } from '@infrastructure/persistence/prisma/PrismaApeeRepository';
 import { generateRapportAPEEPdf } from '../../pdf/apee/ApeeReportPdfRenderer';
 
 const JUSTIFICATIFS_DIR = path.resolve(process.cwd(), 'storage', 'apee-justificatifs');
@@ -20,8 +21,9 @@ export class APEEController {
   private readonly validerDepense: ValiderDepenseAPEEUseCase;
 
   constructor(private readonly prisma: PrismaClient) {
-    this.creerTransaction = new CreerTransactionAPEEUseCase(prisma);
-    this.validerDepense = new ValiderDepenseAPEEUseCase(prisma);
+    const apeeRepository = new PrismaApeeRepository(prisma);
+    this.creerTransaction = new CreerTransactionAPEEUseCase(apeeRepository);
+    this.validerDepense = new ValiderDepenseAPEEUseCase(apeeRepository);
   }
 
   // POST /api/v2/apee/transactions

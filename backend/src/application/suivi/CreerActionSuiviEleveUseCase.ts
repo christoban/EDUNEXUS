@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { SuiviRBACRepository } from '@domain/ports/repositories/SuiviRBACRepository';
 import type {
   StudentFollowUpRepository,
   FollowUpActionDetail,
@@ -80,23 +80,13 @@ interface Capacites {
 export class CreerActionSuiviEleveUseCase {
   constructor(
     private readonly repo: StudentFollowUpRepository,
-    private readonly prisma: PrismaClient,
+    private readonly suiviRBACRepository: SuiviRBACRepository,
   ) {}
 
   async execute(cmd: CreerActionSuiviCommande): Promise<FollowUpActionDetail> {
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { userId: cmd.studentId, user: { schoolId: cmd.appelant.schoolId } },
-      select: {
-        id: true,
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { classId: true },
-          take: 1,
-        },
-      },
-    });
+    const profile = await this.suiviRBACRepository.trouverProfileEleve(cmd.studentId, cmd.appelant.schoolId);
     if (!profile) throw new Error('Élève introuvable');
-    const currentClassId = profile.enrollmentsYearScoped?.[0]?.classId ?? null;
+    const currentClassId = profile.classId;
     if (!currentClassId) throw new Error("Cet élève n'est inscrit dans aucune classe");
 
     const cap = await this.calculerCapacites(cmd.appelant, currentClassId);
@@ -118,10 +108,7 @@ export class CreerActionSuiviEleveUseCase {
           if (!cmd.subjectId) {
             throw new Error('Précisez la matière concernée par votre observation');
           }
-          const assignation = await this.prisma.teachingAssignment.findFirst({
-            where: { teacherId: cmd.appelant.userId, classId: currentClassId, subjectId: cmd.subjectId },
-            select: { id: true },
-          });
+          const assignation = await this.suiviRBACRepository.verifierEnseignantMatiere(cmd.appelant.userId, currentClassId, cmd.subjectId);
           if (!assignation) {
             throw new Error('Vous n\'enseignez pas cette matière dans la classe de cet élève');
           }
@@ -144,14 +131,7 @@ export class CreerActionSuiviEleveUseCase {
         // "conseiller escaladé" (CONVOCATION_ELEVE, ENTRETIEN_PARENT, OBSERVATION via
         // casEscaladeVersMoi) et recevrait une notification contenant le nom de l'élève —
         // escalade de privilège + fuite de données inter-établissements (trouvé en revue de code).
-        const destinataireValide = await this.prisma.staffProfile.findFirst({
-          where: {
-            userId: cmd.assignedToId,
-            schoolId: cmd.appelant.schoolId,
-            permissions: { some: { permission: { in: [...PERMISSIONS_CONSEILLER] } } },
-          },
-          select: { id: true },
-        });
+        const destinataireValide = await this.suiviRBACRepository.verifierDestinataireConseiller(cmd.assignedToId, cmd.appelant.schoolId);
         if (!destinataireValide) {
           throw new Error('Le destinataire choisi n\'est pas un conseiller pédagogique valide de votre établissement');
         }
@@ -217,12 +197,12 @@ export class CreerActionSuiviEleveUseCase {
     }
 
     if (role === 'TEACHER' && studentClassId) {
-      const [estProfPrincipal, assignation] = await Promise.all([
-        this.prisma.class.findFirst({ where: { id: studentClassId, professorPrincipalId: appelant.userId }, select: { id: true } }),
-        this.prisma.teachingAssignment.findFirst({ where: { teacherId: appelant.userId, classId: studentClassId }, select: { id: true } }),
+      const [estProfPrincipal, estEnseignant] = await Promise.all([
+        this.suiviRBACRepository.verifierProfPrincipal(studentClassId, appelant.userId),
+        this.suiviRBACRepository.verifierEnseignantClasse(appelant.userId, studentClassId),
       ]);
-      capacites.estProfPrincipal = !!estProfPrincipal;
-      capacites.estEnseignantMatiere = !estProfPrincipal && !!assignation;
+      capacites.estProfPrincipal = estProfPrincipal;
+      capacites.estEnseignantMatiere = !estProfPrincipal && estEnseignant;
     }
 
     return capacites;
@@ -235,10 +215,6 @@ export class CreerActionSuiviEleveUseCase {
    * réel de l'escalade, pas de porter telle ou telle permission.
    */
   private async casEscaladeVersMoi(studentProfileId: string, userId: string): Promise<boolean> {
-    const signalement = await this.prisma.studentFollowUpAction.findFirst({
-      where: { studentProfileId, type: 'SIGNALEMENT_CONSEILLER', assignedToId: userId, status: { in: ['OUVERT', 'EN_COURS'] } },
-      select: { id: true },
-    });
-    return !!signalement;
+    return this.suiviRBACRepository.verifierCasEscalade(studentProfileId, userId);
   }
 }
