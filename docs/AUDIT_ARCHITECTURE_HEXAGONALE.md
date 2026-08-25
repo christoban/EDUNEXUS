@@ -21,42 +21,32 @@
 
 ---
 
-## 1.1 🔴 VIOLATION MAJEURE : `application/` dépend de `PrismaClient` (Dependency Inversion cassée)
+## 1.1 ✅ RÉSOLU — `application/` dépendait de `PrismaClient` (Dependency Inversion cassée)
 
-**Règle violée (SOLID D) :** le domaine/application ne doit jamais dépendre d'un détail technique (Prisma, SDK externe). Toute communication passe par un `Port` implémenté par un `Adapter`.
+> **Statut : résolu** par le chantier **P1** (`docs/PLAN_P1_SUPPRESSION_PRISMA_APPLICATION.md`, Vagues 0 → 13).
+> La règle violée (SOLID D) est rétablie : `application/` ne dépend plus que de ports (`domain/ports/`).
 
-### Preuve
+### Preuve (état final P1)
 
 ```
-grep -rln "@prisma/client" src/application   → 115 fichiers
-grep -rln "prisma\." src/application         → 116 fichiers
+grep -rln "@prisma/client" src/application   → 0 fichier
+grep -rln "prisma\." src/application         → 0 fichier
+./node_modules/.bin/tsc --noEmit             → clean
+bun test                                     → 716 pass, 0 fail
 ```
 
-Exemples concrets :
-- `src/application/academicEvent/AjusterFenetreEvenementUseCase.ts`
-- `src/application/announcement/CreerAnnonceUseCase.ts`
-- `src/application/apee/CreerTransactionAPEEUseCase.ts`
-- `src/application/attendance/EnregistrerPresenceUseCase.ts`
-- `src/application/eleveOnboarding/ValiderOnboardingUseCase.ts`
-- `src/application/entranceExam/CalculerAdmissionConcoursUseCase.ts`
-- `src/application/school/ActiverEtablissementUseCase.ts` (1094 lignes, `this.prisma.$transaction` à la ligne 107)
-- `src/application/user/ImporterUtilisateursUseCase.ts`
-- `src/application/assistant/catalog/adminActionCatalog.ts`
-- `src/application/statisticalCampaign/resolveAutoFields.ts`
-- `src/application/shared/studentEnrollment.ts` (fonctions libres qui prennent `prisma` en paramètre)
+- **115 fichiers** ont été portés vers ~20 ports (`domain/ports/repositories/`, 61 ports au total) + adapters `Prisma*`.
+- **Transactions multi-tables** encapsulées en méthodes de port atomiques (§4.12) : `SchoolActivationRepository.activerEtablissement` (Unit of Work, la tx géante de 1095 lignes), `EleveOnboardingRepository.validerOnboarding`, `StaffProfileRepository.assignerAP`…
+- **Garde-fou CI** : `backend/tests/unit/p1ArchitectureGuard.test.ts` échoue si `@prisma/client` / `this.prisma` / `ctx.prisma` réapparaît dans `application/`.
 
-**Cas déjà corrigés (à ne pas régresser) :** `GenererBulletinUseCase` (100 % ports), `ClassCouncil*` (ports + adapters), `LoginMasterUseCase` (prisma injecté — acceptable, usine à config).
+### Notes d'exécution (décisions déviant du plan initial)
 
-### Diagnostic
+- `ActiverEtablissement` : port **Unit of Work** (`SchoolActivationTx`, ~30 méthodes) plutôt que « `activerEtablissement(donneesCompletes)` » — préserve la logique verbatim et l'atomicité.
+- **Catalogues du copilot IA** (`assistant/catalog/*`) : déplacés `application/` → `infrastructure/` (usines à outils consommées uniquement par l'infra) plutôt qu'un `AssistantCatalogQueryPort` — le plan sous-estimait de 13× l'ampleur (106 sites `ctx.prisma`, pas 8).
 
-La majorité des bounded contexts ont été écrits avant la mise en place des ports. La couche `application` est devenue une **grosse couche qui parle directement à Prisma**, en plus des 33 adapters prisma `Prisma*Repository`.
+### Historique (diagnostic d'origine)
 
-### Propositions (voir PARTIE 3 pour le détail)
-
-- **A. Par bounded context, dans l'ordre de risque métier** : school (multi-tenant), grade, finance, attendance, puis le reste.
-- **B. Créer les ports manquants** (`StudentRepository`, `GradeRepository`, `SchoolConfigRepository`, `SequenceRepository`, `EnrollmentRepository`...) et les adapters `Prisma*`.
-- **C. Injection** : passer les ports via le constructeur (`hexagonal.bootstrap.ts`), supprimer `this.prisma` des use cases.
-- **D. Cas `studentEnrollment.ts`** (helpers partagés qui prennent `prisma`) : les transformer en use cases ou en repository `EnrollmentRepository` (un seul endroit qui connaît Prisma).
+La majorité des bounded contexts avaient été écrits avant la mise en place des ports. La couche `application` parlait directement à Prisma (115 fichiers, en plus des 33 adapters `Prisma*`).
 
 ---
 

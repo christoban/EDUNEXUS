@@ -1,7 +1,7 @@
 # PLAN P1 — Éliminer la dépendance Prisma de la couche `application/`
 
 > Chantier P1 de l'audit `AUDIT_ARCHITECTURE_HEXAGONALE.md` (§1.1).
-> **Date** : 2026-08-24 · **Statut** : plan validé à produire avant toute implémentation.
+> **Date** : 2026-08-24 · **Statut** : ✅ **TERMINÉ** (2026-08-25) — `grep "@prisma/client" src/application` → 0, `grep "prisma\." src/application` → 0, 716 tests pass, garde-fou CI en place (`backend/tests/unit/p1ArchitectureGuard.test.ts`).
 
 ---
 

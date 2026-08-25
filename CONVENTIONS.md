@@ -46,7 +46,7 @@
 ## 4. Backend — règles hexagonales
 
 1. **Sens des dépendances** : `domain` ne dépend de rien ; `application` dépend de `domain` (ports + entités) ; `infrastructure` dépend des deux. **Jamais l'inverse.**
-2. **Use cases** : dépendances par **injection de constructeur** (interfaces/ports uniquement). Méthode publique `execute(commande)`. Pas d'accès direct à Prisma/HTTP (exception documentée : `prisma?` optionnel pour lectures ponctuelles).
+2. **Use cases** : dépendances par **injection de constructeur** (interfaces/ports uniquement). Méthode publique `execute(commande)`. **Zéro accès direct à Prisma/HTTP** — `application/` ne dépend que de ports (`domain/ports/`). Règle exécutable : `backend/tests/unit/p1ArchitectureGuard.test.ts` échoue si `@prisma/client` / `this.prisma` / `ctx.prisma` réapparaît dans `application/`.
 3. **Validation d'autorisation** dans le use case quand c'est du métier (ex. `if (commande.demandeurRole !== 'ADMIN') throw`), + `requireRole` au niveau route (défense en profondeur).
 4. **Multi-tenant** : toute requête Prisma **doit** filtrer par `schoolId` (`req.user!.schoolId`). Vérifier l'appartenance avant toute mutation/suppression.
 5. **Câblage** : un nouveau use case s'instancie dans `infra/config/container.ts` ; une nouvelle route se monte dans `infra/config/hexagonal.bootstrap.ts`.
