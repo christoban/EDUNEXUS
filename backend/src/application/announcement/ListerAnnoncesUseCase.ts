@@ -1,4 +1,4 @@
-import type { PrismaClient, UserRole } from '@prisma/client';
+import type { AnnouncementRepository } from '@domain/ports/repositories/AnnouncementRepository';
 
 export interface ListerAnnoncesCommande {
   schoolId: string;
@@ -6,43 +6,9 @@ export interface ListerAnnoncesCommande {
 }
 
 export class ListerAnnoncesUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly announcementRepository: AnnouncementRepository) {}
 
   async execute(cmd: ListerAnnoncesCommande) {
-    const role = cmd.role.toUpperCase() as UserRole;
-    const now = new Date();
-
-    const conditionExpiration = {
-      OR: [
-        { expiresAt: null },
-        { expiresAt: { gt: now } },
-      ],
-    };
-
-    const where: Record<string, unknown> = {
-      schoolId: cmd.schoolId,
-      AND: role === 'ADMIN'
-        ? [conditionExpiration]
-        : [
-            conditionExpiration,
-            {
-              OR: [
-                { targetRoles: { has: role } },
-                { targetRoles: { isEmpty: true } },
-              ],
-            },
-          ],
-    };
-
-    return this.prisma.announcement.findMany({
-      where,
-      orderBy: [
-        { isPinned: 'desc' },
-        { createdAt: 'desc' },
-      ],
-      include: {
-        author: { select: { id: true, firstName: true, lastName: true, role: true } },
-      },
-    });
+    return this.announcementRepository.lister(cmd.schoolId, cmd.role.toUpperCase());
   }
 }

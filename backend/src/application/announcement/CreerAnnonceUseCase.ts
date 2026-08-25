@@ -1,4 +1,5 @@
-import type { PrismaClient, UserRole } from '@prisma/client';
+import type { UserRole } from '@domain/types/enums';
+import type { AnnouncementRepository } from '@domain/ports/repositories/AnnouncementRepository';
 
 export interface CreerAnnonceCommande {
   schoolId: string;
@@ -12,7 +13,7 @@ export interface CreerAnnonceCommande {
 }
 
 export class CreerAnnonceUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly announcementRepository: AnnouncementRepository) {}
 
   async execute(cmd: CreerAnnonceCommande) {
     if (!['ADMIN', 'STAFF'].includes(cmd.role.toUpperCase())) {
@@ -35,16 +36,14 @@ export class CreerAnnonceUseCase {
       throw new Error('La date d\'expiration doit être future ou absente.');
     }
 
-    return this.prisma.announcement.create({
-      data: {
-        schoolId: cmd.schoolId,
-        authorId: cmd.authorId,
-        title,
-        content,
-        targetRoles: cmd.targetRoles,
-        isPinned: cmd.isPinned ?? false,
-        expiresAt: cmd.expiresAt ?? null,
-      },
+    return this.announcementRepository.creer({
+      schoolId: cmd.schoolId,
+      authorId: cmd.authorId,
+      title,
+      content,
+      targetRoles: cmd.targetRoles,
+      isPinned: cmd.isPinned ?? false,
+      expiresAt: cmd.expiresAt ?? null,
     });
   }
 }

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { AnnouncementRepository } from '@domain/ports/repositories/AnnouncementRepository';
 
 export interface SupprimerAnnonceCommande {
   schoolId: string;
@@ -8,13 +8,13 @@ export interface SupprimerAnnonceCommande {
 }
 
 export class SupprimerAnnonceUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly announcementRepository: AnnouncementRepository) {}
 
   async execute(cmd: SupprimerAnnonceCommande) {
-    const annonce = await this.prisma.announcement.findFirst({
-      where: { id: cmd.announcementId, schoolId: cmd.schoolId },
-      select: { id: true, authorId: true },
-    });
+    const annonce = await this.announcementRepository.trouverParId(
+      cmd.announcementId,
+      cmd.schoolId,
+    );
 
     if (!annonce) {
       throw new Error('Annonce introuvable.');
@@ -27,8 +27,6 @@ export class SupprimerAnnonceUseCase {
       throw new Error('Seul l\'auteur ou l\'Admin peut supprimer une annonce.');
     }
 
-    return this.prisma.announcement.delete({
-      where: { id: annonce.id },
-    });
+    return this.announcementRepository.supprimer(annonce.id);
   }
 }

@@ -1,4 +1,5 @@
-import type { PrismaClient, UserRole } from '@prisma/client';
+import type { UserRole } from '@domain/types/enums';
+import type { AnnouncementRepository } from '@domain/ports/repositories/AnnouncementRepository';
 
 export interface ModifierAnnonceCommande {
   schoolId: string;
@@ -13,13 +14,13 @@ export interface ModifierAnnonceCommande {
 }
 
 export class ModifierAnnonceUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly announcementRepository: AnnouncementRepository) {}
 
   async execute(cmd: ModifierAnnonceCommande) {
-    const annonce = await this.prisma.announcement.findFirst({
-      where: { id: cmd.announcementId, schoolId: cmd.schoolId },
-      select: { id: true, authorId: true },
-    });
+    const annonce = await this.announcementRepository.trouverParId(
+      cmd.announcementId,
+      cmd.schoolId,
+    );
 
     if (!annonce) {
       throw new Error('Annonce introuvable.');
@@ -48,15 +49,12 @@ export class ModifierAnnonceUseCase {
       throw new Error('La date d\'expiration doit être future ou absente.');
     }
 
-    return this.prisma.announcement.update({
-      where: { id: annonce.id },
-      data: {
-        title,
-        content,
-        targetRoles: cmd.targetRoles,
-        isPinned: cmd.isPinned ?? false,
-        expiresAt: cmd.expiresAt ?? null,
-      },
+    return this.announcementRepository.modifier(annonce.id, {
+      title,
+      content,
+      targetRoles: cmd.targetRoles,
+      isPinned: cmd.isPinned ?? false,
+      expiresAt: cmd.expiresAt ?? null,
     });
   }
 }

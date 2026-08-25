@@ -14,6 +14,7 @@ import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermeture
 import { notifierEvenementAcademique } from "../../services/notification/AcademicEventNotificationService";
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "@application/academicEvent";
 import { PrismaOrientationRepository } from "../../persistence/prisma/PrismaOrientationRepository";
+import { PrismaAnnouncementRepository } from "../../persistence/prisma/PrismaAnnouncementRepository";
 import { GenererRecommandationOrientationUseCase } from "@application/orientation/GenererRecommandationOrientationUseCase";
 import { RelancerElevesEnAttenteUseCase } from "@application/orientation/RelancerElevesEnAttenteUseCase";
 import { FinaliserParDefautUseCase } from "@application/orientation/FinaliserParDefautUseCase";
@@ -1177,7 +1178,9 @@ export const purgeAnnoncesExpirees = inngest.createFunction(
   { id: "purge-annonces-expirees", name: "Purge quotidienne babillard", triggers: [{ cron: "0 1 * * *" }] },
   async ({ step }) => {
     return await step.run("purge-annonces-expirees", async () => {
-      const useCase = new PurgerAnnoncesExpireesUseCase(prisma);
+      const useCase = new PurgerAnnoncesExpireesUseCase(
+        new PrismaAnnouncementRepository(prisma),
+      );
       return await useCase.execute();
     });
   }

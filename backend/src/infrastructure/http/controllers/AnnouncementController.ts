@@ -1,23 +1,21 @@
 import type { PrismaClient, UserRole } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
-import { CreerAnnonceUseCase } from '@application/announcement/CreerAnnonceUseCase';
-import { ListerAnnoncesUseCase } from '@application/announcement/ListerAnnoncesUseCase';
-import { ModifierAnnonceUseCase } from '@application/announcement/ModifierAnnonceUseCase';
-import { SupprimerAnnonceUseCase } from '@application/announcement/SupprimerAnnonceUseCase';
+import type { CreerAnnonceUseCase } from '@application/announcement/CreerAnnonceUseCase';
+import type { ListerAnnoncesUseCase } from '@application/announcement/ListerAnnoncesUseCase';
+import type { ModifierAnnonceUseCase } from '@application/announcement/ModifierAnnonceUseCase';
+import type { SupprimerAnnonceUseCase } from '@application/announcement/SupprimerAnnonceUseCase';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
 export class AnnouncementController {
-  private readonly creerAnnonce: CreerAnnonceUseCase;
-  private readonly listerAnnonces: ListerAnnoncesUseCase;
-  private readonly modifierAnnonce: ModifierAnnonceUseCase;
-  private readonly supprimerAnnonce: SupprimerAnnonceUseCase;
   private readonly notificationService: SocketNotificationService;
 
-  constructor(private readonly prisma: PrismaClient) {
-    this.creerAnnonce = new CreerAnnonceUseCase(prisma);
-    this.listerAnnonces = new ListerAnnoncesUseCase(prisma);
-    this.modifierAnnonce = new ModifierAnnonceUseCase(prisma);
-    this.supprimerAnnonce = new SupprimerAnnonceUseCase(prisma);
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly creerAnnonce: CreerAnnonceUseCase,
+    private readonly listerAnnonces: ListerAnnoncesUseCase,
+    private readonly modifierAnnonce: ModifierAnnonceUseCase,
+    private readonly supprimerAnnonce: SupprimerAnnonceUseCase,
+  ) {
     this.notificationService = new SocketNotificationService();
   }
 

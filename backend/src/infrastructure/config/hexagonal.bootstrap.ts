@@ -197,6 +197,11 @@ import { creerPushNotificationRoutes } from '@infrastructure/http/routes/pushNot
 import { NotificationController } from '@infrastructure/http/controllers/NotificationController';
 import { creerNotificationRoutes } from '@infrastructure/http/routes/notification.routes';
 import { AnnouncementController } from '@infrastructure/http/controllers/AnnouncementController';
+import { PrismaAnnouncementRepository } from '@infrastructure/persistence/prisma/PrismaAnnouncementRepository';
+import { CreerAnnonceUseCase } from '@application/announcement/CreerAnnonceUseCase';
+import { ListerAnnoncesUseCase } from '@application/announcement/ListerAnnoncesUseCase';
+import { ModifierAnnonceUseCase } from '@application/announcement/ModifierAnnonceUseCase';
+import { SupprimerAnnonceUseCase } from '@application/announcement/SupprimerAnnonceUseCase';
 import { creerAnnouncementRoutes } from '@infrastructure/http/routes/announcement.routes';
 import { MessagerieController } from '@infrastructure/http/controllers/MessagerieController';
 import { creerMessagerieRoutes } from '@infrastructure/http/routes/messagerie.routes';
@@ -1540,7 +1545,18 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/notifications', creerNotificationRoutes(notificationController));
 
   // ── Babillard numérique ─────────────────────────────────────────────────────
-  const announcementController = new AnnouncementController(prisma);
+  const announcementRepository = new PrismaAnnouncementRepository(prisma);
+  const creerAnnonceUseCase = new CreerAnnonceUseCase(announcementRepository);
+  const listerAnnoncesUseCase = new ListerAnnoncesUseCase(announcementRepository);
+  const modifierAnnonceUseCase = new ModifierAnnonceUseCase(announcementRepository);
+  const supprimerAnnonceUseCase = new SupprimerAnnonceUseCase(announcementRepository);
+  const announcementController = new AnnouncementController(
+    prisma,
+    creerAnnonceUseCase,
+    listerAnnoncesUseCase,
+    modifierAnnonceUseCase,
+    supprimerAnnonceUseCase,
+  );
   app.use('/api/v2/announcements', creerAnnouncementRoutes(announcementController));
 
   // ── Messagerie bidirectionnelle ──────────────────────────────────────────────
