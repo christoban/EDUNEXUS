@@ -5,7 +5,7 @@
  * vérifiés/ajustés à chaque campagne — jamais ressaisis depuis zéro (règle métier centrale
  * de ce chantier).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { StatisticalCampaignRepository } from '@domain/ports/repositories/StatisticalCampaignRepository';
 import type {
   ChampSupplementManquant,
   VerifierCompletudeSupplementCommande,
@@ -21,12 +21,10 @@ const CHAMPS_OBLIGATOIRES: { champ: string; label: string }[] = [
 ];
 
 export class VerifierCompletudeSupplementUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly campaignRepository: StatisticalCampaignRepository) {}
 
   async execute(cmd: VerifierCompletudeSupplementCommande): Promise<VerifierCompletudeSupplementResultat> {
-    const supplement = await this.prisma.schoolStatisticalSupplement.findUnique({
-      where: { schoolId: cmd.schoolId },
-    });
+    const supplement = await this.campaignRepository.trouverSupplement(cmd.schoolId);
 
     if (!supplement) {
       return {

@@ -6,7 +6,7 @@
  * diplomes) sont passés tels quels avec un avertissement : leur conformité aux listes
  * déroulantes officielles MINESEC n'est pas garantie.
  */
-import type { PrismaClient } from '@prisma/client';
+import type { StatisticalQueryPort } from '@domain/ports/repositories/StatisticalQueryPort';
 import type { ChampNonResolu } from './types';
 import type { ResolvedCell } from './resolveAutoFields';
 
@@ -35,20 +35,10 @@ function excelDate(d: Date): number {
 }
 
 export async function resolvePersonnelFields(
-  prisma: PrismaClient,
+  query: StatisticalQueryPort,
   schoolId: string,
 ): Promise<{ cells: ResolvedCell[]; nonCouverts: ChampNonResolu[] }> {
-  const staff: any[] = await prisma.user.findMany({
-    where: { schoolId, isActive: true, role: { in: ['TEACHER', 'STAFF', 'ADMIN'] } },
-    select: {
-      firstName: true,
-      lastName: true,
-      staffProfile: { select: { title: true } },
-      teacherProfile: { select: { specialization: true } },
-      employeeFile: { select: { dateNaissance: true, gender: true, diplomes: true, numeroCNPS: true, typeContrat: true, echelonActuel: true, dateEmbauche: true } },
-    },
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-  });
+  const staff = await query.listerPersonnel(schoolId);
 
   const cells: ResolvedCell[] = [];
   const nonCouverts: ChampNonResolu[] = [];
@@ -87,16 +77,14 @@ export async function resolvePersonnelFields(
       nonCouverts.push({ fieldCode: 'PERSONNEL_STATUT', sheetName: 'Personnels', cellReference: `${COLS.statut}${row}`, fieldLabel: `Statut — ${nomComplet}`, raison: 'Type de contrat non renseigné (EmployeeFile.typeContrat).' });
     }
 
-    const diplomes = Array.isArray(file?.diplomes) ? file!.diplomes : [];
+    const diplomes = file?.diplomes ?? [];
     if (diplomes[0]) {
       cells.push({ sheetName: 'Personnels', cellReference: `${COLS.diplomeAcademique}${row}`, value: String(diplomes[0]), dataType: 'TEXT' });
     } else {
       nonCouverts.push({ fieldCode: 'PERSONNEL_DIPLOME_ACAD', sheetName: 'Personnels', cellReference: `${COLS.diplomeAcademique}${row}`, fieldLabel: `Diplôme académique — ${nomComplet}`, raison: 'Aucun diplôme renseigné dans la fiche employé.' });
     }
 
-    const disciplineEnseignee = Array.isArray(u.teacherProfile?.specialization) && u.teacherProfile.specialization.length > 0
-      ? u.teacherProfile.specialization[0]
-      : null;
+    const disciplineEnseignee = u.specialization?.length > 0 ? u.specialization[0] : null;
     if (disciplineEnseignee) {
       cells.push({ sheetName: 'Personnels', cellReference: `${COLS.disciplineEnseignee}${row}`, value: disciplineEnseignee, dataType: 'TEXT' });
     } else {
@@ -109,8 +97,8 @@ export async function resolvePersonnelFields(
       nonCouverts.push({ fieldCode: 'PERSONNEL_GRADE', sheetName: 'Personnels', cellReference: `${COLS.grade}${row}`, fieldLabel: `Grade — ${nomComplet}`, raison: 'Échelon non renseigné (EmployeeFile.echelonActuel).' });
     }
 
-    if (u.staffProfile?.title) {
-      cells.push({ sheetName: 'Personnels', cellReference: `${COLS.fonction}${row}`, value: u.staffProfile.title, dataType: 'TEXT' });
+    if (u.staffTitle) {
+      cells.push({ sheetName: 'Personnels', cellReference: `${COLS.fonction}${row}`, value: u.staffTitle, dataType: 'TEXT' });
     }
 
     if (file?.dateEmbauche) {

@@ -7,7 +7,8 @@
 import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { StatisticalQueryPort } from '@domain/ports/repositories/StatisticalQueryPort';
+import type { MinedubReportRepository } from '@domain/ports/repositories/MinedubReportRepository';
 import { resolveEffectifsParNiveau, resolveEffectifsParAge, resolvePersonnelPrimaire } from './resolvePrimaryAutoFields';
 import type { ChampNonResoluMinedub, GenererRapportMinedubCommande, GenererRapportMinedubResultat } from './types';
 
@@ -34,17 +35,20 @@ const INFRA_SUB_KEYS = [
 ];
 
 export class GenererRapportSyntheseMinedubUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly query: StatisticalQueryPort,
+    private readonly minedubReportRepository: MinedubReportRepository,
+  ) {}
 
   async execute(cmd: GenererRapportMinedubCommande): Promise<GenererRapportMinedubResultat> {
-    const school = await this.prisma.school.findUnique({ where: { id: cmd.schoolId } });
+    const school = await this.query.trouverEcole(cmd.schoolId);
     if (!school) throw new Error('École introuvable');
-    const supplement = await this.prisma.minedubSchoolSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
+    const supplement = await this.minedubReportRepository.trouverSupplementPrimaire(cmd.schoolId);
 
     const champsNonResolus: ChampNonResoluMinedub[] = [];
-    const effectifsNiveau = await resolveEffectifsParNiveau(this.prisma, cmd.schoolId);
-    const effectifsAge = await resolveEffectifsParAge(this.prisma, cmd.schoolId);
-    const { rows: personnel, champsNonResolus: personnelGaps } = await resolvePersonnelPrimaire(this.prisma, cmd.schoolId);
+    const effectifsNiveau = await resolveEffectifsParNiveau(this.query, cmd.schoolId);
+    const effectifsAge = await resolveEffectifsParAge(this.query, cmd.schoolId);
+    const { rows: personnel, champsNonResolus: personnelGaps } = await resolvePersonnelPrimaire(this.query, cmd.schoolId);
     for (const g of personnelGaps) champsNonResolus.push({ section: 'Personnel enseignant', champ: '—', raison: g });
 
     if (effectifsNiveau.length === 0) {
@@ -66,8 +70,11 @@ export class GenererRapportSyntheseMinedubUseCase {
     const outputPath = path.join(outDir, fileName);
     fs.writeFileSync(outputPath, buffer);
 
-    const report = await this.prisma.minedubStatisticalReport.create({
-      data: { schoolId: cmd.schoolId, generatedBy: cmd.generatedByUserId, filePath: outputPath, champsNonResolus: champsNonResolus as unknown as Prisma.InputJsonValue },
+    const report = await this.minedubReportRepository.creerRapport({
+      schoolId: cmd.schoolId,
+      generatedBy: cmd.generatedByUserId,
+      filePath: outputPath,
+      champsNonResolus,
     });
 
     return { reportId: report.id, filePath: outputPath, champsNonResolus };

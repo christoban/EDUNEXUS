@@ -5,7 +5,8 @@
  */
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { StatisticalQueryPort } from '@domain/ports/repositories/StatisticalQueryPort';
+import type { StatisticalCampaignRepository } from '@domain/ports/repositories/StatisticalCampaignRepository';
 import { decryptTemplate, setCellValue, writeWorkbookToFile, cleanupSession, type WorkbookSession } from './xlsEngine';
 import { resolveEsgFields, resolveIdentificationAutoFields, resolveFeeAutoFields, type ResolvedCell } from './resolveAutoFields';
 import { resolvePersonnelFields } from './resolvePersonnelFields';
@@ -29,21 +30,20 @@ const STORAGE_DIR = path.resolve(process.cwd(), 'storage', 'statistical-submissi
 
 export class GenererDeclarationStatistiqueMinesecUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly query: StatisticalQueryPort,
+    private readonly campaignRepository: StatisticalCampaignRepository,
     private readonly verifierCompletude: VerifierCompletudeSupplementUseCase,
   ) {}
 
   async execute(cmd: GenererDeclarationStatistiqueCommande): Promise<GenererDeclarationStatistiqueResultat> {
     const completude = await this.verifierCompletude.execute({ schoolId: cmd.schoolId });
     if (!completude.complet) {
-      const submission = await this.prisma.statisticalSubmission.create({
-        data: {
-          schoolId: cmd.schoolId,
-          templateId: (await this.getActiveTemplate()).id,
-          generatedBy: cmd.generatedByUserId,
-          status: 'PENDING_MANUAL_DATA',
-          filePath: null,
-        },
+      const template = await this.campaignRepository.trouverTemplateActif('MINESEC');
+      const submission = await this.campaignRepository.creerSubmission({
+        schoolId: cmd.schoolId,
+        templateId: template?.id ?? '',
+        generatedBy: cmd.generatedByUserId,
+        status: 'PENDING_MANUAL_DATA',
       });
       return {
         status: 'PENDING_MANUAL_DATA',
@@ -55,8 +55,8 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     }
 
     const template = await this.getActiveTemplate();
-    const supplement = await this.prisma.schoolStatisticalSupplement.findUnique({ where: { schoolId: cmd.schoolId } });
-    const school = await this.prisma.school.findUnique({ where: { id: cmd.schoolId } });
+    const supplement = await this.campaignRepository.trouverSupplement(cmd.schoolId);
+    const school = await this.query.trouverEcole(cmd.schoolId);
 
     const session = await decryptTemplate(template.filePath);
     try {
@@ -86,12 +86,12 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     };
 
     // ── Catégorie A_AUTO ──
-    applyCells(await resolveIdentificationAutoFields(this.prisma, cmd.schoolId));
-    const esg = await resolveEsgFields(this.prisma, cmd.schoolId);
+    applyCells(await resolveIdentificationAutoFields(this.query, cmd.schoolId));
+    const esg = await resolveEsgFields(this.query, cmd.schoolId);
     applyCells(esg.cells);
     champsNonResolus.push(...esg.nonCouverts);
-    applyCells(await resolveFeeAutoFields(this.prisma, cmd.schoolId));
-    const personnel = await resolvePersonnelFields(this.prisma, cmd.schoolId);
+    applyCells(await resolveFeeAutoFields(this.query, cmd.schoolId));
+    const personnel = await resolvePersonnelFields(this.query, cmd.schoolId);
     applyCells(personnel.cells);
     champsNonResolus.push(...personnel.nonCouverts);
 
@@ -190,15 +190,13 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     const outputPath = path.join(outDir, fileName);
     await writeWorkbookToFile(session, outputPath);
 
-    const submission = await this.prisma.statisticalSubmission.create({
-      data: {
-        schoolId: cmd.schoolId,
-        templateId: template.id,
-        generatedBy: cmd.generatedByUserId,
-        status: 'DRAFT',
-        filePath: outputPath,
-        unresolvedFieldsReport: champsNonResolus as unknown as Prisma.InputJsonValue,
-      },
+    const submission = await this.campaignRepository.creerSubmission({
+      schoolId: cmd.schoolId,
+      templateId: template.id,
+      generatedBy: cmd.generatedByUserId,
+      status: 'DRAFT',
+      filePath: outputPath,
+      unresolvedFieldsReport: champsNonResolus,
     });
 
     return {
@@ -211,10 +209,7 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
   }
 
   private async getActiveTemplate() {
-    const template = await this.prisma.statisticalCampaignTemplate.findFirst({
-      where: { ministry: 'MINESEC', isActive: true },
-      orderBy: { uploadedAt: 'desc' },
-    });
+    const template = await this.campaignRepository.trouverTemplateActif('MINESEC');
     if (!template) throw new Error("Aucun template de campagne MINESEC actif — contactez l'équipe technique.");
     return template;
   }

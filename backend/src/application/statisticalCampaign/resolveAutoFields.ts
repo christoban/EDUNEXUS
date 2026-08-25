@@ -2,7 +2,7 @@
  * Résolution des champs Catégorie A_AUTO (dérivés automatiquement des données ZekoulABia)
  * et B_PARTIAL (dérivés si la donnée RH existe, sinon signalés comme gap — jamais inventés).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { StatisticalQueryPort } from '@domain/ports/repositories/StatisticalQueryPort';
 import { ESG_FIELD_MAPPING, type EsgFieldEntry } from './minesecEsgFieldMap';
 import { AGE_LEVEL_COLUMNS, AGE_ROWS } from './minesecAgeDistributionMap';
 import { FEE_AUTO_FIELDS } from './minesecFixedFieldMap';
@@ -34,46 +34,14 @@ function matchLv2(subjectName: string | null | undefined): 'ESP' | 'ALL' | 'ARAB
 interface StudentRow {
   gender: string | null;
   dateOfBirth: Date | null;
-  niveau: string; // Class.level
+  niveau: string;
   serie: string | null;
   filiere: string | null;
   lv2Name: string | null;
 }
 
-async function fetchEsgStudents(prisma: PrismaClient, schoolId: string): Promise<StudentRow[]> {
-  const students = await prisma.studentProfile.findMany({
-    where: {
-      studentStatus: 'ACTIVE',
-      user: { schoolId },
-      enrollmentsYearScoped: {
-        some: {
-          status: 'ACTIVE',
-          academicYear: { isCurrent: true },
-          class: { level: { in: ['6e', '5e', '4e', '3e', '2nde', '1ere', 'Tle'] } },
-        },
-      },
-    },
-    select: {
-      gender: true,
-      dateOfBirth: true,
-      enrollmentsYearScoped: {
-        where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-        select: { class: { select: { level: true, serie: true, filiere: true } } },
-        take: 1,
-      },
-      lv2Subject: { select: { name: true } },
-    },
-  });
-  return students
-    .filter((s: any) => s.enrollmentsYearScoped?.[0]?.class)
-    .map((s: any) => ({
-      gender: s.gender,
-      dateOfBirth: s.dateOfBirth,
-      niveau: s.enrollmentsYearScoped[0].class.level,
-      serie: s.enrollmentsYearScoped[0].class.serie,
-      filiere: s.enrollmentsYearScoped[0].class.filiere,
-      lv2Name: s.lv2Subject?.name ?? null,
-    }));
+async function fetchEsgStudents(query: StatisticalQueryPort, schoolId: string): Promise<StudentRow[]> {
+  return query.listerElevesEsg(schoolId);
 }
 
 function studentMatchesEsgEntry(student: StudentRow, meta: EsgFieldEntry['meta']): boolean {
@@ -115,10 +83,10 @@ function computeAge(dateOfBirth: Date | null, referenceDate: Date): number | nul
 }
 
 export async function resolveEsgFields(
-  prisma: PrismaClient,
+  query: StatisticalQueryPort,
   schoolId: string,
 ): Promise<{ cells: ResolvedCell[]; nonCouverts: ChampNonResolu[] }> {
-  const students = await fetchEsgStudents(prisma, schoolId);
+  const students = await fetchEsgStudents(query, schoolId);
   const cells: ResolvedCell[] = [];
   const nonCouverts: ChampNonResolu[] = [];
   const seenNonCouvert = new Set<string>();
@@ -202,10 +170,10 @@ const EDUCATION_TYPE_LABEL: Record<string, string> = {
 };
 
 export async function resolveIdentificationAutoFields(
-  prisma: PrismaClient,
+  query: StatisticalQueryPort,
   schoolId: string,
 ): Promise<ResolvedCell[]> {
-  const school = await prisma.school.findUnique({ where: { id: schoolId } });
+  const school = await query.trouverEcole(schoolId);
   if (!school) return [];
   const cells: ResolvedCell[] = [
     { sheetName: 'Identification', cellReference: 'C3', value: school.name ?? '', dataType: 'TEXT' },
@@ -224,14 +192,12 @@ export async function resolveIdentificationAutoFields(
  * FeePlan existent pour un même cycle (niveaux différents), on prend le montant le plus
  * fréquent ; en cas d'égalité, le plus élevé — signalé dans le rapport si ambigu.
  */
-export async function resolveFeeAutoFields(prisma: PrismaClient, schoolId: string): Promise<ResolvedCell[]> {
-  const school = await prisma.school.findUnique({ where: { id: schoolId } });
+export async function resolveFeeAutoFields(query: StatisticalQueryPort, schoolId: string): Promise<ResolvedCell[]> {
+  const school = await query.trouverEcole(schoolId);
   if (!school) return [];
   const isPublic = school.ownership === 'PUBLIC';
 
-  const feePlans: any[] = await prisma.feePlan.findMany({
-    where: { schoolId, feeType: { in: ['APEE_PTA', 'INSCRIPTION'] } },
-  });
+  const feePlans = await query.listerFeePlans(schoolId);
 
   const FIRST_CYCLE_LEVELS = ['6e', '5e', '4e', '3e'];
   const SECOND_CYCLE_LEVELS = ['2nde', '1ere', 'Tle'];

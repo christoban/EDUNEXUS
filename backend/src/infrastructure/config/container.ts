@@ -85,6 +85,9 @@ import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOn
 import { VerifierCompletudeSupplementUseCase } from '@application/statisticalCampaign/VerifierCompletudeSupplementUseCase';
 import { GenererDeclarationStatistiqueMinesecUseCase } from '@application/statisticalCampaign/GenererDeclarationStatistiqueMinesecUseCase';
 import { GenererRapportSyntheseMinedubUseCase } from '@application/statisticalCampaignMinedub/GenererRapportSyntheseMinedubUseCase';
+import { PrismaStatisticalQueryAdapter } from '@infrastructure/persistence/prisma/PrismaStatisticalQueryAdapter';
+import { PrismaStatisticalCampaignRepository } from '@infrastructure/persistence/prisma/PrismaStatisticalCampaignRepository';
+import { PrismaMinedubReportRepository } from '@infrastructure/persistence/prisma/PrismaMinedubReportRepository';
 
 // --- Use Cases : Paiement MINESEC ---
 import { GenererPaiementsMinesecUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecUseCase';
@@ -771,11 +774,18 @@ export function creerContainer() {
       rejeter: new RejeterOnboardingUseCase(prisma),
     },
     statisticalCampaign: {
-      verifierCompletude: new VerifierCompletudeSupplementUseCase(prisma),
-      genererDeclaration: new GenererDeclarationStatistiqueMinesecUseCase(prisma, new VerifierCompletudeSupplementUseCase(prisma)),
+      verifierCompletude: new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),
+      genererDeclaration: new GenererDeclarationStatistiqueMinesecUseCase(
+        new PrismaStatisticalQueryAdapter(prisma),
+        new PrismaStatisticalCampaignRepository(prisma),
+        new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),
+      ),
     },
     statisticalCampaignMinedub: {
-      genererRapport: new GenererRapportSyntheseMinedubUseCase(prisma),
+      genererRapport: new GenererRapportSyntheseMinedubUseCase(
+        new PrismaStatisticalQueryAdapter(prisma),
+        new PrismaMinedubReportRepository(prisma),
+      ),
     },
     paiementMinesec: {
       genererPaiements: genererPaiementsMinesec,

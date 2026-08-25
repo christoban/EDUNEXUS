@@ -1,0 +1,517 @@
+@startuml ZEKOULABIA_Diagramme_Classes
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam linetype ortho
+hide circle
+
+' =====================================================
+'  ENUMS
+' =====================================================
+enum UserRole {
+  ADMIN
+  STAFF
+  TEACHER
+  PARENT
+  STUDENT
+}
+
+enum SchoolType {
+  PRESCHOOL
+  PRIMARY
+  SECONDARY
+  MULTI
+}
+
+enum SchoolStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum GradingSystem {
+  OUT_OF_20
+  OUT_OF_100
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ABSENT_JUSTIFIED
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  MTN_MOMO
+  ORANGE_MONEY
+  BANK_TRANSFER
+  EXPRESS_UNION
+}
+
+enum FeeType {
+  TUITION
+  APEE_PTA
+  EXAM
+  UNIFORM
+  CAUTION
+  WORKSHOP
+  INSCRIPTION
+}
+
+' =====================================================
+'  CLASSES
+' =====================================================
+abstract class User {
+  - id : String
+  - firstName : String
+  - lastName : String
+  - email : String
+  - phone : String
+  - role : UserRole
+  - isActive : Boolean
+  - accessMode : UserAccessMode
+  --
+  + getFullName() : String
+  + hasPermission(permission) : Boolean
+  + deactivate() : void
+}
+
+class School {
+  - id : String
+  - name : String
+  - subdomain : String
+  - type : SchoolType
+  - plan : PlanType
+  - status : SchoolStatus
+  - subsystem : SchoolSubsystem
+  - educationType : EducationType
+  - ownership : SchoolOwnership
+  - features : Json
+  --
+  + approve() : void
+  + suspend() : void
+  + getConfig() : SchoolConfig
+}
+
+class StudentProfile {
+  - id : String
+  - matricule : String
+  - dateOfBirth : DateTime
+  - gender : String
+  - studentStatus : StudentStatus
+  - healthScore : Int
+  - photoUrl : String
+  --
+  + getAge() : Int
+  + getMatricule() : String
+  + updateHealthScore(score : Int) : void
+}
+
+class TeacherProfile {
+  - id : String
+  - specialization : String[]
+  - supervisedSubjectIds : String[]
+  --
+  + getSpecializations() : String[]
+  + addSpecialization(spec : String) : void
+}
+
+class StaffProfile {
+  - id : String
+  - title : String
+  --
+  + getTitle() : String
+}
+
+class Section {
+  - id : String
+  - name : String
+  - code : SectionLanguage
+  - gradingSystem : GradingSystem
+  - passmark : Float
+  - isActive : Boolean
+  --
+  + getPassmark() : Float
+  + getGradingSystem() : GradingSystem
+}
+
+class Department {
+  - id : String
+  - name : String
+  - color : String
+  --
+  + getName() : String
+  + getSubjects() : Subject[]
+}
+
+class Subject {
+  - id : String
+  - name : String
+  - code : String
+  - coefficient : Float
+  - hoursPerWeek : Int
+  - subjectType : SubjectType
+  - isLV2 : Boolean
+  --
+  + getCoefficient() : Float
+  + getHoursPerWeek() : Int
+  + isLV2() : Boolean
+}
+
+class Class {
+  - id : String
+  - name : String
+  - level : String
+  - capacity : Int
+  - filiere : String
+  - serie : String
+  - status : ClassStatus
+  --
+  + getEnrolledStudents() : StudentProfile[]
+  + getTimetable() : Timetable
+  + isFull() : Boolean
+  + getRemainingCapacity() : Int
+}
+
+class AcademicYear {
+  - id : String
+  - name : String
+  - startDate : DateTime
+  - endDate : DateTime
+  - isCurrent : Boolean
+  - status : AcademicYearStatus
+  --
+  + isActive() : Boolean
+  + getDuration() : Int
+  + getCurrentPeriod() : AcademicPeriod
+}
+
+class AcademicPeriod {
+  - id : String
+  - name : String
+  - type : PeriodType
+  - orderIndex : Int
+  - startDate : DateTime
+  - endDate : DateTime
+  - isCurrent : Boolean
+  --
+  + isActive() : Boolean
+  + getSequences() : AcademicSequence[]
+}
+
+class AcademicSequence {
+  - id : String
+  - name : String
+  - type : SequenceType
+  - orderIndex : Int
+  - startDate : DateTime
+  - endDate : DateTime
+  - isCurrent : Boolean
+  --
+  + isCurrent() : Boolean
+  + getGrades() : Grade[]
+}
+
+class Grade {
+  - id : String
+  - sequenceScore : Float
+  - classTestScore : Float
+  - terminalExamScore : Float
+  - coefficient : Float
+  - maxValue : Float
+  - sequenceAverage : Float
+  - validationStatus : GradeValidationStatus
+  - observation : String
+  --
+  + calculateAverage() : Float
+  + validate() : void
+  + reject(reason : String) : void
+  + getCoefWeightedScore() : Float
+}
+
+class Enrollment {
+  - id : String
+  - status : EnrollmentStatus
+  - enrolledAt : DateTime
+  - exitedAt : DateTime
+  - exitReason : String
+  --
+  + transfer(newClass : Class) : void
+  + withdraw(reason : String) : void
+  + isActive() : Boolean
+}
+
+class Attendance {
+  - id : String
+  - date : DateTime
+  - status : AttendanceStatus
+  - period : AttendancePeriod
+  - justification : String
+  - justifiedAt : DateTime
+  --
+  + justify(reason : String) : void
+  + isAbsent() : Boolean
+  + isLate() : Boolean
+}
+
+class Timetable {
+  - id : String
+  - status : TimetableStatus
+  - generatedByAI : Boolean
+  --
+  + publish() : void
+  + getSlots() : TimetableSlot[]
+  + getSlotsByDay(dayOfWeek : Int) : TimetableSlot[]
+  + autoGenerate() : void
+}
+
+class TimetableSlot {
+  - id : String
+  - dayOfWeek : Int
+  - startTime : String
+  - endTime : String
+  - kind : SlotKind
+  - isLV2Slot : Boolean
+  --
+  + getSubject() : Subject
+  + getTeacher() : User
+  + getRoom() : Room
+  + getDuration() : Int
+}
+
+class Room {
+  - id : String
+  - name : String
+  - type : RoomType
+  - status : RoomStatus
+  - capacity : Int
+  - equipment : String[]
+  --
+  + isAvailable(day : Int, time : String) : Boolean
+  + getCapacity() : Int
+}
+
+class ReportCard {
+  - id : String
+  - generalAverage : Float
+  - rank : Int
+  - mention : String
+  - template : BulletinTemplate
+  - pdfUrl : String
+  - validationStatus : ReportCardStatus
+  - absenceCount : Int
+  - conductGrade : String
+  - aiComment : String
+  - classMasterComment : String
+  --
+  + generatePDF() : void
+  + calculateGeneralAverage() : Float
+  + calculateRank() : Int
+  + validate() : void
+  + getMention() : String
+  + send() : void
+}
+
+class ReportCardSubjectLine {
+  - id : String
+  - subjectName : String
+  - coefficient : Float
+  - seq1Score : Float
+  - seq2Score : Float
+  - compositionScore : Float
+  - subjectAverage : Float
+  - weightedScore : Float
+  - subjectRank : Int
+  - teacherComment : String
+  --
+  + calculateSubjectAverage() : Float
+  + calculateWeightedScore() : Float
+}
+
+class FeePlan {
+  - id : String
+  - name : String
+  - amount : Float
+  - currency : String
+  - feeType : FeeType
+  - dueDate : DateTime
+  - isRefundable : Boolean
+  - status : FeePlanStatus
+  --
+  + getAmount() : Float
+  + isExpired() : Boolean
+  + getFeeType() : FeeType
+}
+
+class Invoice {
+  - id : String
+  - amount : Float
+  - currency : String
+  - status : InvoiceStatus
+  - dueDate : DateTime
+  - description : String
+  --
+  + getRemainingAmount() : Float
+  + isPaid() : Boolean
+  + isOverdue() : Boolean
+  + cancel() : void
+}
+
+class Payment {
+  - id : String
+  - amount : Float
+  - currency : String
+  - method : PaymentMethod
+  - status : PaymentStatus
+  - transactionId : String
+  - receiptUrl : String
+  - paidAt : DateTime
+  --
+  + process() : void
+  + refund() : void
+  + getReceipt() : String
+  + isSuccessful() : Boolean
+}
+
+class DisciplineRecord {
+  - id : String
+  - type : DisciplineType
+  - reason : String
+  - startDate : DateTime
+  - endDate : DateTime
+  - status : DisciplineStatus
+  --
+  + lift() : void
+  + appeal() : void
+  + isActive() : Boolean
+}
+
+' =====================================================
+'  HÉRITAGE (is-a)
+' =====================================================
+User <|-- StudentProfile : hérite
+User <|-- TeacherProfile : hérite
+User <|-- StaffProfile : hérite
+
+' =====================================================
+'  ASSOCIATIONS (lignes continues)
+' =====================================================
+
+' School <-> User
+School "1" -- "*" User : contient >
+
+' School <-> Section
+School "1" -- "*" Section : regroupe >
+
+' School <-> Department
+School "1" -- "*" Department : possède >
+
+' Department <-> Subject
+Department "1" -- "*" Subject : contient >
+
+' User <-> Section (staff dans section)
+User "1" -- "0..1" StaffProfile : est un >
+
+' User <-> TeacherProfile
+User "1" -- "0..1" TeacherProfile : est un >
+
+' User <-> StudentProfile
+User "1" -- "0..1" StudentProfile : est un >
+
+' TeacherProfile <-> Subject (many-to-many via TeacherSubject)
+TeacherProfile "*" -- "*" Subject : enseigne >
+
+' TeachingAssignment
+Class "1" -- "*" Subject : contient >
+User "1" -- "*" Class : enseigne dans >
+
+' AcademicYear
+School "1" -- "*" AcademicYear : possède >
+AcademicYear "1" -- "*" AcademicPeriod : subdivise >
+AcademicPeriod "1" -- "*" AcademicSequence : contient >
+
+' Class <-> AcademicYear
+AcademicYear "1" -- "*" Class : contient >
+
+' Section <-> Class
+Section "1" -- "*" Class : regroupe >
+
+' Enrollment
+User "1" -- "*" Enrollment : s'inscrit >
+Class "1" -- "*" Enrollment : accueille >
+AcademicYear "1" -- "*" Enrollment : pour l'année >
+
+' Grade
+User "1" -- "*" Grade : obtient >
+Subject "1" -- "*" Grade : évaluée dans >
+AcademicSequence "1" -- "*" Grade : pendant >
+
+' Attendance
+User "1" -- "*" Attendance : concerne >
+Class "1" -- "*" Attendance : pour classe >
+
+' Timetable
+Class "1" -- "1" Timetable : possède >
+AcademicYear "1" -- "*" Timetable : pour année >
+Timetable "1" -- "*" TimetableSlot : compose >
+Subject "0..1" -- "*" TimetableSlot : matière >
+User "0..1" -- "*" TimetableSlot : enseignant >
+Room "0..1" -- "*" TimetableSlot : salle >
+
+' ReportCard
+User "1" -- "*" ReportCard : concerne >
+AcademicPeriod "1" -- "*" ReportCard : pour période >
+
+' FeePlan
+School "1" -- "*" FeePlan : définit >
+
+' Invoice
+User "1" -- "*" Invoice : reçoit >
+FeePlan "0..1" -- "*" Invoice : basée sur >
+
+' Payment
+Invoice "1" -- "*" Payment : reçoit >
+
+' Discipline
+User "1" -- "*" DisciplineRecord : concerne >
+
+' =====================================================
+'  COMPOSITION (losange plein)
+' =====================================================
+
+' ReportCard contient ses lignes (vivent et meurent avec le bulletin)
+ReportCard "1" *-- "1..*" ReportCardSubjectLine : contient >
+
+' Timetable contient ses créneaux (vivent et meurent avec l'emploi du temps)
+Timetable "1" *-- "1..*" TimetableSlot : contient >
+
+' =====================================================
+'  AGRÉGATION (losange creux)
+' =====================================================
+
+' Invoice agrège Payment (un paiement peut exister sans facture)
+Invoice "1" o-- "*" Payment : agrège >
+
+' =====================================================
+'  DÉPENDANCE (flèche pointillée)
+' =====================================================
+
+' Enrollment utilise Temporairement Class et AcademicYear
+Enrollment ..> Class : utilise >
+Enrollment ..> AcademicYear : pour année >
+
+' Grade utilise Temporairement AcademicSequence
+Grade ..> AcademicSequence : pendant >
+
+@enduml

@@ -3,7 +3,8 @@
  * élèves par niveau/sexe/âge, dérivés de StudentProfile/Class comme pour resolveEsgFields
  * (MINESEC), mais sans distinction série/LV2/PEBS (non pertinente au primaire).
  */
-import type { PrismaClient } from '@prisma/client';
+import type { StatisticalQueryPort } from '@domain/ports/repositories/StatisticalQueryPort';
+import { NIVEAUX_PRIMAIRES } from '@domain/ports/repositories/StatisticalQueryPort';
 
 export const PRIMARY_LEVELS_FR = ['SIL', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'] as const;
 export const PRIMARY_LEVELS_EN = ['Class1', 'Class2', 'Class3', 'Class4', 'Class5', 'Class6'] as const;
@@ -35,33 +36,12 @@ function isGarcon(gender: string | null): boolean {
   return gender === 'M' || gender === 'MALE' || gender === 'Garçon';
 }
 
-async function fetchPrimaryStudents(prisma: PrismaClient, schoolId: string): Promise<PrimaryStudentRow[]> {
-  const students = await prisma.studentProfile.findMany({
-    where: {
-      studentStatus: 'ACTIVE',
-      user: { schoolId },
-      enrollmentsYearScoped: {
-        some: {
-          status: 'ACTIVE',
-          academicYear: { isCurrent: true },
-          class: { level: { in: ALL_PRIMARY_LEVELS } },
-        },
-      },
-    },
-    select: {
-      gender: true, dateOfBirth: true,
-      enrollmentsYearScoped: {
-        where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-        select: { class: { select: { level: true } } },
-        take: 1,
-      },
-    },
-  });
-  return students.filter((s: any) => s.enrollmentsYearScoped?.[0]?.class).map((s: any) => ({ gender: s.gender, dateOfBirth: s.dateOfBirth, niveau: s.enrollmentsYearScoped[0].class.level }));
+async function fetchPrimaryStudents(query: StatisticalQueryPort, schoolId: string): Promise<PrimaryStudentRow[]> {
+  return query.listerElevesPrimaire(schoolId);
 }
 
-export async function resolveEffectifsParNiveau(prisma: PrismaClient, schoolId: string): Promise<NiveauEffectif[]> {
-  const students = await fetchPrimaryStudents(prisma, schoolId);
+export async function resolveEffectifsParNiveau(query: StatisticalQueryPort, schoolId: string): Promise<NiveauEffectif[]> {
+  const students = await fetchPrimaryStudents(query, schoolId);
   const levelsPresent = [...new Set(students.map((s) => s.niveau))];
   const orderedLevels = ALL_PRIMARY_LEVELS.filter((l) => levelsPresent.includes(l));
 
@@ -92,8 +72,8 @@ function computeAge(dateOfBirth: Date | null, referenceDate: Date): number | nul
   return age;
 }
 
-export async function resolveEffectifsParAge(prisma: PrismaClient, schoolId: string): Promise<EffectifsParAge[]> {
-  const students = await fetchPrimaryStudents(prisma, schoolId);
+export async function resolveEffectifsParAge(query: StatisticalQueryPort, schoolId: string): Promise<EffectifsParAge[]> {
+  const students = await fetchPrimaryStudents(query, schoolId);
   const now = new Date();
   const refYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
   const referenceDate = new Date(refYear, 8, 1);
@@ -122,25 +102,16 @@ export interface PersonnelPrimaireRow {
   diplome: string | null;
 }
 
-export async function resolvePersonnelPrimaire(prisma: PrismaClient, schoolId: string): Promise<{ rows: PersonnelPrimaireRow[]; champsNonResolus: string[] }> {
-  const staff: any[] = await prisma.user.findMany({
-    where: { schoolId, isActive: true, role: { in: ['TEACHER', 'STAFF', 'ADMIN'] } },
-    select: {
-      firstName: true,
-      lastName: true,
-      staffProfile: { select: { title: true } },
-      employeeFile: { select: { typeContrat: true, diplomes: true, gender: true } },
-    },
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-  });
+export async function resolvePersonnelPrimaire(query: StatisticalQueryPort, schoolId: string): Promise<{ rows: PersonnelPrimaireRow[]; champsNonResolus: string[] }> {
+  const allStaff = await query.listerPersonnel(schoolId);
 
   const champsNonResolus: string[] = [];
-  if (staff.length === 0) {
+  if (allStaff.length === 0) {
     champsNonResolus.push('Aucun membre du personnel actif trouvé pour cette école.');
   }
 
-  const rows: PersonnelPrimaireRow[] = staff.map((u) => {
-    const diplomes = Array.isArray(u.employeeFile?.diplomes) ? u.employeeFile.diplomes : [];
+  const rows: PersonnelPrimaireRow[] = allStaff.map((u) => {
+    const diplomes = u.employeeFile?.diplomes ?? [];
     const gender = u.employeeFile?.gender;
     if (gender !== 'F' && gender !== 'M') {
       champsNonResolus.push(`Sexe non renseigné pour ${u.lastName} ${u.firstName} — profil RH self-service non complété.`);
@@ -148,7 +119,7 @@ export async function resolvePersonnelPrimaire(prisma: PrismaClient, schoolId: s
     return {
       nomComplet: `${u.lastName} ${u.firstName}`,
       genre: gender === 'F' ? 'Féminin' : gender === 'M' ? 'Masculin' : null,
-      fonction: u.staffProfile?.title ?? null,
+      fonction: u.staffTitle ?? null,
       typeContrat: u.employeeFile?.typeContrat ?? null,
       diplome: diplomes[0] ? String(diplomes[0]) : null,
     };
