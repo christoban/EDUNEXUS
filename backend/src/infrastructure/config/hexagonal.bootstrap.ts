@@ -129,6 +129,7 @@ import {
   parseSerie as syncParseSerie,
 } from '@application/school/SubjectAssignmentHelper';
 import { PrismaSubjectAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaSubjectAssignmentRepository';
+import { PrismaSchoolActivationRepository } from '@infrastructure/persistence/prisma/PrismaSchoolActivationRepository';
 import { creerSchoolConfigRoutes } from '@infrastructure/http/routes/school-config.routes';
 import { OrientationController } from '@infrastructure/http/controllers/OrientationController';
 import { creerActivitiesRoutes } from '@infrastructure/http/routes/activities.routes';
@@ -1395,11 +1396,12 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/school-settings', creerSchoolSettingsRoutes(schoolSettingsController));
 
   // ── Activation de l'établissement (Admin, après configuration) ─────
-  const activerEtablissementUseCase = new ActiverEtablissementUseCase(prisma);
+  const schoolActivationRepository = new PrismaSchoolActivationRepository(prisma);
+  const activerEtablissementUseCase = new ActiverEtablissementUseCase(schoolActivationRepository);
   app.use('/api/v2', creerSchoolConfigRoutes(activerEtablissementUseCase));
 
   // ── Onboarding conversationnel Phase 2 : exécution déterministe ────
-  const configurerEtablissementUseCase = new ConfigurerEtablissementUseCase(prisma);
+  const configurerEtablissementUseCase = new ConfigurerEtablissementUseCase(schoolActivationRepository, activerEtablissementUseCase);
   const onboardingPEBSController = new OnboardingPEBSController();
   app.post('/api/v2/onboarding/execute', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
     try {

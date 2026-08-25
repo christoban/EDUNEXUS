@@ -18,10 +18,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import type { Prisma } from '@prisma/client';
 import { ActiverEtablissementUseCase } from '../../../../src/application/school/ActiverEtablissementUseCase.ts';
+import { PrismaSchoolActivationRepository } from '../../../../src/infrastructure/persistence/prisma/PrismaSchoolActivationRepository.ts';
 import { prismaTest } from '../../../helpers/prismaTestClient.ts';
 import { nettoyerEcole } from '../../../helpers/dbFixtures.ts';
 
-const useCase = new ActiverEtablissementUseCase(prismaTest);
+const useCase = new ActiverEtablissementUseCase(new PrismaSchoolActivationRepository(prismaTest));
 const ecolesCreees: string[] = [];
 
 /** Crée une école APPROVED prête à être activée, avec la config d'onboarding fournie. */

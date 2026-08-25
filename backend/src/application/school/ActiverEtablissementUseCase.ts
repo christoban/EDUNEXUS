@@ -5,8 +5,7 @@
  * Transaction atomique : crée l'année scolaire, les périodes, séquences, classes,
  * et copie les formules/mentions du template dans l'école.
  */
-import type { PrismaClient, SubjectType, FeeType, Prisma } from '@prisma/client';
-import { PrismaSubjectAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaSubjectAssignmentRepository';
+import type { SchoolActivationRepository } from '@domain/ports/repositories/SchoolActivationRepository';
 import {
   assignerMatieresPourClasse,
   parseSerie,
@@ -30,18 +29,12 @@ export interface ActiverEtablissementResultat {
 const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export class ActiverEtablissementUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly schoolActivationRepository: SchoolActivationRepository) {}
 
   async execute(commande: ActiverEtablissementCommande): Promise<ActiverEtablissementResultat> {
     const { schoolId } = commande;
 
-    const school = await this.prisma.school.findUnique({
-      where: { id: schoolId },
-      include: {
-        template: true,
-        configurationForm: true,
-      },
-    });
+    const school = await this.schoolActivationRepository.findSchoolForActivation(schoolId);
     if (!school) throw new Error(`École introuvable : ${schoolId}`);
     if (school.status !== 'APPROVED') {
       throw new Error(`L'établissement doit être approuvé avant d'être activé (statut actuel : ${school.status})`);
@@ -105,7 +98,7 @@ export class ActiverEtablissementUseCase {
     let subjectCount = 0;
     let academicYearName = '';
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.schoolActivationRepository.activerEtablissement(schoolId, async (tx) => {
       // 1. Créer l'année académique
       // Calendrier configurable (onboarding conversationnel) avec repli sur les valeurs par défaut
       // pour l'ancien chemin d'activation (config sans champs calendrier).
@@ -114,16 +107,7 @@ export class ActiverEtablissementUseCase {
       const startYear = yStart.getFullYear();
       const yEnd = config.academicYearEnd ? new Date(config.academicYearEnd as string) : new Date(`${startYear + 1}-06-30`);
       academicYearName = `${startYear}-${yEnd.getFullYear()}`;
-      const academicYear = await tx.academicYear.create({
-        data: {
-          schoolId,
-          name: academicYearName,
-          startDate: yStart,
-          endDate: yEnd,
-          isCurrent: true,
-          status: 'ACTIVE',
-        },
-      });
+      const academicYear = await tx.creerAnnee({ name: academicYearName, startDate: yStart, endDate: yEnd });
 
       // 2. Créer les périodes.
       // Primaire (APC) et anglophone restent sur 3 périodes (l'APC dépend d'un découpage en 3 trimestres).
@@ -147,16 +131,14 @@ export class ActiverEtablissementUseCase {
       for (let i = 0; i < periodsCount; i++) {
         const pStart = i === 0 ? yStart : new Date(yStart.getTime() + Math.round((msTotal * i) / periodsCount));
         const pEnd = i === periodsCount - 1 ? yEnd : new Date(yStart.getTime() + Math.round((msTotal * (i + 1)) / periodsCount) - 86400000);
-        const period = await tx.academicPeriod.create({
-          data: {
-            academicYearId: academicYear.id,
-            name: `${periodLabel} ${i + 1}`,
-            type: periodType,
-            orderIndex: i + 1,
-            startDate: pStart,
-            endDate: pEnd,
-            isCurrent: i === 0,
-          },
+        const period = await tx.creerPeriode({
+          academicYearId: academicYear.id,
+          name: `${periodLabel} ${i + 1}`,
+          type: periodType,
+          orderIndex: i + 1,
+          startDate: pStart,
+          endDate: pEnd,
+          isCurrent: i === 0,
         });
 
         // 3. Créer les séquences/UA par période
@@ -197,17 +179,12 @@ export class ActiverEtablissementUseCase {
         }
 
         for (let j = 0; j < seqDefs.length; j++) {
-          await tx.academicSequence.create({
-            data: {
-              academicPeriodId: period.id,
-              schoolId,
-              name:       seqDefs[j].name,
-              type:       seqDefs[j].type,
-              orderIndex: j + 1,
-              startDate:  null,
-              endDate:    null,
-              isCurrent:  i === 0 && j === 0,
-            },
+          await tx.creerSequence({
+            academicPeriodId: period.id,
+            name:       seqDefs[j].name,
+            type:       seqDefs[j].type,
+            orderIndex: j + 1,
+            isCurrent:  i === 0 && j === 0,
           });
         }
       }
@@ -300,10 +277,7 @@ export class ActiverEtablissementUseCase {
           const nbClasses = classesParFiliere === '3+' ? 3 : parseInt(classesParFiliere ?? '1');
 
           // Pré-charger les combinaisons (niveauBac, serie) valides — source de vérité MINESEC
-          const bacCombosRaw = await tx.bacCoefficient.findMany({
-            select: { serie: true, niveau: true },
-            distinct: ['serie', 'niveau'],
-          });
+          const bacCombosRaw = await tx.findBacCombos();
           const validBacCombos = new Set(bacCombosRaw.map(b => `${b.niveau}|${b.serie}`));
 
           // Issue #7: enStreamStartLevel — niveaux anglophone avant ce seuil = classe générale
@@ -451,16 +425,13 @@ export class ActiverEtablissementUseCase {
 
         // Sauvegarder toutes les classes (avec serie pour le 2e cycle, filiere pour le 1er cycle/PEBS)
         for (const c of classesACreer) {
-          await tx.class.create({
-            data: {
-              name: c.name,
-              level: c.level,
-              schoolId: c.schoolId,
-              academicYearId: academicYear.id,
-              serie: c.serie ?? null,
-              filiere: c.filiere ?? null,
-              pebsMixte: c.pebsMixte ?? false,
-            },
+          await tx.creerClasse({
+            name: c.name,
+            level: c.level,
+            academicYearId: academicYear.id,
+            serie: c.serie ?? null,
+            filiere: c.filiere ?? null,
+            pebsMixte: c.pebsMixte ?? false,
           });
         }
         classCount = classesACreer.length;
@@ -473,15 +444,11 @@ export class ActiverEtablissementUseCase {
       if (isPrimaire || (isComplexe && hasPrimaireContent)) {
         for (const comp of APC_COMPETENCES) {
           for (const sc of comp.sousCompetences) {
-            const created = await tx.subject.create({
-              data: {
-                schoolId,
-                name:         sc.label,
-                code:         sc.code,
-                coefficient:  sc.totalPoints,
-                hoursPerWeek: 0,
-                subjectType:  'THEORETICAL',
-              },
+            const created = await tx.creerMatiere({
+              name:         sc.label,
+              code:         sc.code,
+              coefficient:  sc.totalPoints,
+              hoursPerWeek: 0,
             });
             apcSubjectIds.push(created.id);
             subjectCount++;
@@ -492,9 +459,9 @@ export class ActiverEtablissementUseCase {
       // 4f-bis. Secondaire/Technique — créer les matières depuis template.config.defaultSubjects
       // Fallback : si school.templateCode n'était pas renseigné au moment de l'activation,
       // on récupère le template via onboardingConfig.templateCode
-      let effectiveTemplate: any = school.template;
+      let effectiveTemplate: { config: unknown } | null = school.template;
       if (!effectiveTemplate && templateCode) {
-        effectiveTemplate = await tx.schoolTemplate.findUnique({ where: { code: templateCode } });
+        effectiveTemplate = await tx.findSchoolTemplate(templateCode);
       }
       // Templates with full reference data (CycleCoefficients, BacCoefficients, AnglophoneSubjectLoad)
       // skip 4f-bis — section 4g below creates subjects on-demand from correct reference data instead.
@@ -508,28 +475,22 @@ export class ActiverEtablissementUseCase {
         const enSubjects = (tCfg.defaultSubjectsEN as TemplateSubjectDef[] | undefined) ?? [];
 
         for (const s of frSubjects) {
-          await tx.subject.create({
-            data: {
-              schoolId,
-              name:        s.name,
-              code:        s.code,
-              coefficient: s.coefficient,
-              hoursPerWeek: s.hoursPerWeek ?? 2,
-              subjectType: (s.subjectType ?? 'THEORETICAL') as SubjectType,
-            },
+          await tx.creerMatiere({
+            name:        s.name,
+            code:        s.code,
+            coefficient: s.coefficient,
+            hoursPerWeek: s.hoursPerWeek ?? 2,
+            subjectType: s.subjectType ?? 'THEORETICAL',
           });
         }
         // Section anglophone des lycées/primaires bilingues — suffixe _EN pour différencier
         for (const s of enSubjects) {
-          await tx.subject.create({
-            data: {
-              schoolId,
-              name:        frSubjects.length > 0 ? `${s.name} (EN)` : s.name,
-              code:        frSubjects.length > 0 ? `${s.code}_EN`   : s.code,
-              coefficient: s.coefficient,
-              hoursPerWeek: s.hoursPerWeek ?? 2,
-              subjectType: (s.subjectType ?? 'THEORETICAL') as SubjectType,
-            },
+          await tx.creerMatiere({
+            name:        frSubjects.length > 0 ? `${s.name} (EN)` : s.name,
+            code:        frSubjects.length > 0 ? `${s.code}_EN`   : s.code,
+            coefficient: s.coefficient,
+            hoursPerWeek: s.hoursPerWeek ?? 2,
+            subjectType: s.subjectType ?? 'THEORETICAL',
           });
         }
         subjectCount = frSubjects.length + enSubjects.length;
@@ -544,7 +505,7 @@ export class ActiverEtablissementUseCase {
       // SubjectAssignmentHelper.ts B.1/B.2), donc il est sûr de laisser la boucle parcourir
       // classesACreer en entier même s'il contient des classes primaire et secondaire mélangées.
       if (classesACreer.length > 0 && !isPrimaire) {
-        const schoolSubjects = await tx.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
+        const schoolSubjects = await tx.findMatieres();
         const subjectByName  = new Map(schoolSubjects.map(s => [s.name, s.id]));
         const subjectCountRef = { value: 0 };
 
@@ -566,7 +527,7 @@ export class ActiverEtablissementUseCase {
           processedKeys.add(dedupKey);
 
           await assignerMatieresPourClasse(
-            new PrismaSubjectAssignmentRepository(tx), c, schoolId, config, isAnglophone, subjectByName, subjectCountRef, school.templateCode ?? '',
+            tx.subjectAssignment(), c, schoolId, config, isAnglophone, subjectByName, subjectCountRef, school.templateCode ?? '',
           );
         }
         subjectCount += subjectCountRef.value;
@@ -580,16 +541,14 @@ export class ActiverEtablissementUseCase {
           ? (config.niveauxSixth as string[])
           : ['LowerSixth', 'UpperSixth'];
 
-        const combos = await tx.anglophoneStreamCombination.findMany({ where: { filiere: { in: comboCodes } } });
+        const combos = await tx.findAnglophoneStreamCombinations(comboCodes);
 
-        const existingSubjects = await tx.subject.findMany({ where: { schoolId }, select: { id: true, name: true } });
+        const existingSubjects = await tx.findMatieres();
         const subjectByName = new Map(existingSubjects.map(s => [s.name, s.id]));
 
         for (const niveau of sixthLevels) {
           const levelNorm = niveau.replace(/\s+/g, '');
-          const loads = await tx.anglophoneSubjectLoad.findMany({
-            where: { templateCode, classLevel: levelNorm, filiere: 'EN_GENERAL' },
-          });
+          const loads = await tx.findAnglophoneSubjectLoads(templateCode, levelNorm, 'EN_GENERAL');
           const loadMap = new Map(loads.map(l => [l.subjectName, l]));
 
           for (const combo of combos) {
@@ -607,29 +566,20 @@ export class ActiverEtablissementUseCase {
 
               let subjectId = subjectByName.get(name);
               if (!subjectId) {
-                const created = await tx.subject.create({
-                  data: {
-                    schoolId,
-                    name,
-                    code: name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
-                    coefficient: coeff,
-                    hoursPerWeek: hours,
-                    subjectType: 'THEORETICAL',
-                  },
+                const created = await tx.creerMatiere({
+                  name,
+                  code: name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
+                  coefficient: coeff,
+                  hoursPerWeek: hours,
                 });
                 subjectId = created.id;
                 subjectByName.set(name, subjectId);
                 subjectCount++;
               }
 
-              const existing = await tx.subjectCoefficient.findFirst({
-                where: { schoolId, subjectId, classLevel: levelNorm, serieCode: combo.filiere },
-                select: { id: true },
-              });
+              const existing = await tx.findCoefficient(subjectId, levelNorm, combo.filiere);
               if (!existing) {
-                await tx.subjectCoefficient.create({
-                  data: { schoolId, subjectId, classLevel: levelNorm, serieCode: combo.filiere, coefficient: coeff },
-                });
+                await tx.creerCoefficient({ subjectId, classLevel: levelNorm, serieCode: combo.filiere, coefficient: coeff });
               }
             }
           }
@@ -641,9 +591,7 @@ export class ActiverEtablissementUseCase {
       // départements par compétence en 4h-APC ci-dessous) — sinon chaque sous-compétence
       // se retrouverait aussi dans un département parasite ici, avant d'être réassignée.
       if (templateCode && !isPrimaire) {
-        const schoolSubjects = await tx.subject.findMany({
-          where: { schoolId, ...(apcSubjectIds.length > 0 ? { id: { notIn: apcSubjectIds } } : {}) },
-        });
+        const schoolSubjects = await tx.findMatieres(apcSubjectIds.length > 0 ? { excludeIds: apcSubjectIds } : undefined);
         const DEPT_MERGE: Record<string, string> = {
           'Sciences':                                    'SVT',
           'SVTEEHB':                                     'SVT',
@@ -681,14 +629,9 @@ export class ActiverEtablissementUseCase {
         for (const deptName of sortedDeptNames) {
           const color = DEPT_COLORS[colorIdx % DEPT_COLORS.length];
           colorIdx++;
-          const department = await tx.department.create({
-            data: { schoolId, name: deptName, color },
-          });
+          const department = await tx.creerDepartement({ name: deptName, color });
           for (const subjectId of deptGroups.get(deptName)!) {
-            await tx.subject.update({
-              where: { id: subjectId },
-              data: { departmentId: department.id },
-            });
+            await tx.mettreAJourMatiere(subjectId, { departmentId: department.id });
           }
         }
       }
@@ -697,28 +640,19 @@ export class ActiverEtablissementUseCase {
       // Les Sujets (sous-compétences) créés à l'étape 4f sont rattachés à leur compétence.
       if (isPrimaire || (isComplexe && hasPrimaireContent)) {
         const APC_DEPT_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#10b981', '#f97316'];
-        const apcSubjects = await tx.subject.findMany({
-          where: { schoolId },
-          select: { id: true, code: true },
-        });
+        const apcSubjects = await tx.findMatieres();
         const subjectByCode = new Map(apcSubjects.map(s => [s.code, s.id]));
 
         for (let ci = 0; ci < APC_COMPETENCES.length; ci++) {
           const comp = APC_COMPETENCES[ci];
-          const dept = await tx.department.create({
-            data: {
-              schoolId,
-              name:  `Compétence ${comp.numero}`,
-              color: APC_DEPT_COLORS[ci] ?? '#9ca3af',
-            },
+          const dept = await tx.creerDepartement({
+            name:  `Compétence ${comp.numero}`,
+            color: APC_DEPT_COLORS[ci] ?? '#9ca3af',
           });
           for (const sc of comp.sousCompetences) {
             const subjectId = subjectByCode.get(sc.code);
             if (subjectId) {
-              await tx.subject.update({
-                where: { id: subjectId },
-                data:  { departmentId: dept.id },
-              });
+              await tx.mettreAJourMatiere(subjectId, { departmentId: dept.id });
             }
           }
         }
@@ -730,11 +664,9 @@ export class ActiverEtablissementUseCase {
           : isAnglophone                 ? 'default-en'
           : 'default-fr';
 
-        const formula = await tx.gradeFormula.findUnique({ where: { id: formulaId } });
+        const formula = await tx.findGradeFormula(formulaId);
         if (formula) {
-          await tx.gradeFormula.create({
-            data: { schoolId, label: formula.label, evaluations: formula.evaluations, isDefault: true },
-          });
+          await tx.creerGradeFormula({ label: formula.label, evaluations: formula.evaluations });
         }
 
         // 6. Cloner la MentionRule adaptée
@@ -744,37 +676,29 @@ export class ActiverEtablissementUseCase {
           : isAnglophone                ? 'default-en-mentions'
           : 'default-fr-mentions';
 
-        const rule = await tx.mentionRule.findUnique({ where: { id: mentionId } });
+        const rule = await tx.findMentionRule(mentionId);
         if (rule) {
-          await tx.mentionRule.create({
-            data: { schoolId, rules: rule.rules, isDefault: true },
-          });
+          await tx.creerMentionRule({ rules: rule.rules });
         }
       }
 
       // 7. Créer SchoolConfig (valeurs MINESEC + overrides depuis onboarding)
-      await tx.schoolConfig.create({
-        data: {
-          schoolId,
-          passMark: finalPassMark,
-          councilPassMark: finalPassMark,
-          termsPerYear: periodsCount,
-          maxAbsences: 10,
-          gradesPerTerm,
-          attendanceLateAsAbsence: false,
-          schoolLanguageMode: langMode,
-          bulletinTemplate,
-        },
+      await tx.creerSchoolConfig({
+        passMark: finalPassMark,
+        councilPassMark: finalPassMark,
+        termsPerYear: periodsCount,
+        maxAbsences: 10,
+        gradesPerTerm,
+        attendanceLateAsAbsence: false,
+        schoolLanguageMode: langMode,
+        bulletinTemplate,
       });
 
       // 8. Créer SchoolSettings
-      await tx.schoolSettings.create({
-        data: {
-          schoolId,
-          timezone: 'Africa/Douala',
-          locale: 'fr-CM',
-          currency: 'XAF',
-        },
+      await tx.creerSchoolSettings({
+        timezone: 'Africa/Douala',
+        locale: 'fr-CM',
+        currency: 'XAF',
       });
 
       // ── 8b. Onboarding conversationnel — étapes additionnelles ──────────────
@@ -790,13 +714,11 @@ export class ActiverEtablissementUseCase {
       //     Les langues du 2e cycle (A4…) sont déjà des matières réelles gérées par SubjectAssignmentHelper.
       {
         const PREMIER_CYCLE_LV2_LEVELS = ['4e', '3e'];
-        const abstractLV2 = await tx.subject.findFirst({ where: { schoolId, name: 'LV2' } });
+        const abstractLV2 = await tx.findMatiereParNom('LV2');
 
         if (abstractLV2) {
           // Coefficients LV2 du premier cycle uniquement (4e/3e) — jamais 6e/5e, jamais 2nd cycle
-          const premierCoeffs = await tx.subjectCoefficient.findMany({
-            where: { schoolId, subjectId: abstractLV2.id, classLevel: { in: PREMIER_CYCLE_LV2_LEVELS } },
-          });
+          const premierCoeffs = await tx.findCoefficientsMatiere(abstractLV2.id, PREMIER_CYCLE_LV2_LEVELS);
 
           const languesActives: string[] = config?.lv2Active === true && Array.isArray(config?.lv2Languages)
             ? (config.lv2Languages as unknown[])
@@ -807,33 +729,23 @@ export class ActiverEtablissementUseCase {
           // ── CAS A : matières-langues réelles (partagées entre tous les niveaux, créées une seule fois) ──
           // Uniquement s'il existe réellement une LV2 de premier cycle (4e/3e) à transformer.
           if (languesActives.length > 0 && premierCoeffs.length > 0) {
-            const langDept = await tx.department.findFirst({
-              where: { schoolId, name: { in: ['Langues Vivantes', 'Languages'] } },
-              select: { id: true },
-            });
+            const langDept = await tx.findDepartementParNom(['Langues Vivantes', 'Languages']);
             const lv2Coeff = abstractLV2.coefficient ?? 2;
             const lv2Hours = abstractLV2.hoursPerWeek ?? 2;
 
             for (const langue of languesActives) {
               // Anti-doublon : réutiliser une matière existante du même nom (ex. "Allemand" déjà créée en A4)
-              const existing = await tx.subject.findFirst({ where: { schoolId, name: langue } });
-              const langSubject = existing ?? await tx.subject.create({
-                data: {
-                  schoolId,
-                  name: langue,
-                  code: langue.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
-                  coefficient: lv2Coeff,
-                  hoursPerWeek: lv2Hours,
-                  subjectType: 'THEORETICAL',
-                  departmentId: langDept?.id ?? null,
-                  isLV2: true,
-                },
+              const existing = await tx.findMatiereParNom(langue);
+              const langSubject = existing ?? await tx.creerMatiere({
+                name: langue,
+                code: langue.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
+                coefficient: lv2Coeff,
+                hoursPerWeek: lv2Hours,
+                departmentId: langDept?.id ?? null,
+                isLV2: true,
               });
               if (existing) {
-                await tx.subject.update({
-                  where: { id: langSubject.id },
-                  data: { isLV2: true, ...(langDept ? { departmentId: langDept.id } : {}) },
-                });
+                await tx.mettreAJourMatiere(langSubject.id, { isLV2: true, ...(langDept ? { departmentId: langDept.id } : {}) });
               }
             }
 
@@ -843,15 +755,9 @@ export class ActiverEtablissementUseCase {
 
             if (hasPerClassConfig) {
               // PER-CLASS : ClassSubjectOverride — chaque classe reçoit UNIQUEMENT ses langues
-              const classes = await tx.class.findMany({
-                where: { schoolId, level: { in: PREMIER_CYCLE_LV2_LEVELS } },
-                select: { id: true, name: true, level: true },
-              });
+              const classes = await tx.findClasses(PREMIER_CYCLE_LV2_LEVELS);
               // Build a lookup map of language subjects by name
-              const langSubjects = await tx.subject.findMany({
-                where: { schoolId, isLV2: true },
-                select: { id: true, name: true },
-              });
+              const langSubjects = await tx.findMatieres({ onlyLV2: true });
               const langSubjectByName = new Map(langSubjects.map(s => [s.name, s.id]));
 
               for (const cls of classes) {
@@ -866,14 +772,9 @@ export class ActiverEtablissementUseCase {
                 for (const langue of targetLangues) {
                   const sid = langSubjectByName.get(langue);
                   if (!sid) continue;
-                  const exists = await tx.classSubjectOverride.findUnique({
-                    where: { classId_subjectId: { classId: cls.id, subjectId: sid } },
-                    select: { id: true },
-                  });
+                  const exists = await tx.findClassSubjectOverride(cls.id, sid);
                   if (!exists) {
-                    await tx.classSubjectOverride.create({
-                      data: { schoolId, classId: cls.id, subjectId: sid, coefficient: lv2Coeff },
-                    });
+                    await tx.creerClassSubjectOverride({ classId: cls.id, subjectId: sid, coefficient: lv2Coeff });
                   }
                 }
               }
@@ -886,19 +787,11 @@ export class ActiverEtablissementUseCase {
               const globalLangues = globalRule?.langue ? [globalRule.langue] : languesActives;
               for (const pc of premierCoeffs) {
                 for (const langue of globalLangues) {
-                  const langSubject = await tx.subject.findFirst({
-                    where: { schoolId, name: langue, isLV2: true },
-                    select: { id: true },
-                  });
+                  const langSubject = await tx.findMatiereParNom(langue, true);
                   if (!langSubject) continue;
-                  const already = await tx.subjectCoefficient.findFirst({
-                    where: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode },
-                    select: { id: true },
-                  });
+                  const already = await tx.findCoefficient(langSubject.id, pc.classLevel, pc.serieCode);
                   if (!already) {
-                    await tx.subjectCoefficient.create({
-                      data: { schoolId, subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode, coefficient: pc.coefficient },
-                    });
+                    await tx.creerCoefficient({ subjectId: langSubject.id, classLevel: pc.classLevel, serieCode: pc.serieCode, coefficient: pc.coefficient });
                   }
                 }
               }
@@ -907,15 +800,13 @@ export class ActiverEtablissementUseCase {
 
           // ── CAS A & CAS B : retirer les coefficients LV2 du premier cycle de la matière générique ──
           if (premierCoeffs.length > 0) {
-            await tx.subjectCoefficient.deleteMany({
-              where: { schoolId, subjectId: abstractLV2.id, classLevel: { in: PREMIER_CYCLE_LV2_LEVELS } },
-            });
+            await tx.supprimerCoefficientsMatiere(abstractLV2.id, PREMIER_CYCLE_LV2_LEVELS);
           }
           // Supprimer la matière générique seulement si plus AUCUN coefficient ne la référence
           // (préserve un éventuel usage 2nd cycle A2/A5/ABI — CAS C).
-          const remaining = await tx.subjectCoefficient.count({ where: { schoolId, subjectId: abstractLV2.id } });
+          const remaining = await tx.compterCoefficientsMatiere(abstractLV2.id);
           if (remaining === 0) {
-            await tx.subject.delete({ where: { id: abstractLV2.id } });
+            await tx.supprimerMatiere(abstractLV2.id);
           }
         }
       }
@@ -933,11 +824,8 @@ export class ActiverEtablissementUseCase {
         const pebsOrg = (config?.pebsOrganisation ?? []) as Array<{ className: string; level: string; statut: string }>;
         const mixteRules = pebsOrg.filter(r => r.statut === 'MIXTE');
         if (mixteRules.length > 0 && hasPEBSFrancophone) {
-          const schoolClasses = await tx.class.findMany({
-            where: { schoolId },
-            select: { id: true, name: true, level: true, serie: true },
-          });
-          const allSubjects = await tx.subject.findMany({ where: { schoolId } });
+          const schoolClasses = await tx.findClasses();
+          const allSubjects = await tx.findMatieres();
           const subjectByName = new Map(allSubjects.map(s => [s.name, s.id]));
 
           for (const rule of mixteRules) {
@@ -954,41 +842,30 @@ export class ActiverEtablissementUseCase {
 
             if (isSecondCycle) {
               // 2nd cycle : matières spécifiques ABI (série bilingue intensive) via BacCoefficient
-              const bacCoeffs = await tx.bacCoefficient.findMany({
-                where: { serie: 'ABI', niveau: niveauBac, templateCode: { in: [templateCode ?? '', '__ALL__'] } },
-              });
+              const bacCoeffs = await tx.subjectAssignment().findBacCoefficients('ABI', niveauBac, templateCode ?? '');
               pebsSubjects = bacCoeffs.map(bc => ({ subjectName: bc.subjectName, coefficient: bc.coefficient, weeklyPeriods: null }));
               generalSerieCode = cls.serie ?? '';
             } else {
               // 1er cycle : matières FR_PEBS via CycleCoefficient
-              const cycleCoeffs = await tx.cycleCoefficient.findMany({
-                where: { templateCode: templateCode ?? '', classLevel: cls.level, filiere: 'FR_PEBS' },
-              });
+              const cycleCoeffs = await tx.subjectAssignment().findCycleCoefficients(templateCode ?? '', cls.level, 'FR_PEBS');
               pebsSubjects = cycleCoeffs.map(cc => ({ subjectName: cc.subjectName, coefficient: cc.coefficient, weeklyPeriods: cc.weeklyPeriods }));
               generalSerieCode = 'FR_GENERAL';
             }
             if (pebsSubjects.length === 0) continue;
 
             // Lister les sujets déjà disponibles via le curriculum général de la classe (déduplication)
-            const generalSubjIds = await tx.subjectCoefficient.findMany({
-              where: { schoolId, classLevel: cls.level, serieCode: generalSerieCode },
-              select: { subjectId: true },
-            });
+            const generalSubjIds = await tx.findSubjectsCoefficient(cls.level, generalSerieCode);
             const generalSubjSet = new Set(generalSubjIds.map(s => s.subjectId));
 
             for (const ps of pebsSubjects) {
               // Créer la matière PEBS si elle n'existe pas encore dans l'école
               let subjId = subjectByName.get(ps.subjectName);
               if (!subjId) {
-                const created = await tx.subject.create({
-                  data: {
-                    schoolId,
-                    name: ps.subjectName,
-                    code: ps.subjectName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
-                    coefficient: ps.coefficient,
-                    hoursPerWeek: ps.weeklyPeriods ?? 2,
-                    subjectType: 'THEORETICAL',
-                  },
+                const created = await tx.creerMatiere({
+                  name: ps.subjectName,
+                  code: ps.subjectName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8),
+                  coefficient: ps.coefficient,
+                  hoursPerWeek: ps.weeklyPeriods ?? 2,
                 });
                 subjId = created.id;
                 subjectByName.set(ps.subjectName, subjId);
@@ -998,14 +875,9 @@ export class ActiverEtablissementUseCase {
               // Ne pas dupliquer une matière déjà présente dans le curriculum général
               if (generalSubjSet.has(subjId)) continue;
 
-              const exists = await tx.classSubjectOverride.findUnique({
-                where: { classId_subjectId: { classId: cls.id, subjectId: subjId } },
-                select: { id: true },
-              });
+              const exists = await tx.findClassSubjectOverride(cls.id, subjId);
               if (!exists) {
-                await tx.classSubjectOverride.create({
-                  data: { schoolId, classId: cls.id, subjectId: subjId, coefficient: ps.coefficient },
-                });
+                await tx.creerClassSubjectOverride({ classId: cls.id, subjectId: subjId, coefficient: ps.coefficient });
               }
             }
           }
@@ -1027,17 +899,14 @@ export class ActiverEtablissementUseCase {
         for (const t of config.feesTypes as string[]) {
           const def = FEE_MAP[t];
           if (!def) continue;
-          const exists = await tx.feePlan.findFirst({ where: { schoolId, feeType: def.feeType as FeeType }, select: { id: true } });
+          const exists = await tx.findFeePlan(def.feeType);
           if (exists) continue;
-          await tx.feePlan.create({
-            data: {
-              schoolId,
-              name: def.name,
-              amount: 0,
-              feeType: def.feeType as FeeType,
-              isRefundable: def.refundable ?? false,
-              description: 'Créé à la configuration — montant à définir',
-            },
+          await tx.creerFeePlan({
+            name: def.name,
+            amount: 0,
+            feeType: def.feeType,
+            isRefundable: def.refundable ?? false,
+            description: 'Créé à la configuration — montant à définir',
           });
         }
       }
@@ -1065,22 +934,16 @@ export class ActiverEtablissementUseCase {
       const mergedFeatures = Object.keys(featuresPatch).length > 0
         ? { ...(typeof school.features === 'object' && school.features ? school.features as Record<string, unknown> : {}), ...featuresPatch }
         : undefined;
-      await tx.school.update({
-        where: { id: schoolId },
-        data: {
-          status: 'ACTIVE',
-          hasPEBSFrancophone,
-          hasPEBSAnglophone,
-          ...(mergedFeatures ? { features: mergedFeatures as Prisma.InputJsonValue } : {}),
-        },
+      await tx.mettreAJourEcole({
+        status: 'ACTIVE',
+        hasPEBSFrancophone,
+        hasPEBSAnglophone,
+        ...(mergedFeatures ? { features: mergedFeatures } : {}),
       });
 
       // 10. Marquer le formulaire de configuration comme complété
       if (school.configurationForm) {
-        await tx.schoolConfigurationForm.update({
-          where: { schoolId },
-          data: { completedAt: new Date() },
-        });
+        await tx.marquerFormulaireComplet();
       }
     });
 

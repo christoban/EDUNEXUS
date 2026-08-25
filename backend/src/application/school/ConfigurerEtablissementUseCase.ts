@@ -10,7 +10,7 @@
  * (source de vérité MINESEC : CycleCoefficient / BacCoefficient). Aucun coefficient n'est
  * généré par le LLM.
  */
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { SchoolActivationRepository } from '@domain/ports/repositories/SchoolActivationRepository';
 import { ActiverEtablissementUseCase } from './ActiverEtablissementUseCase';
 
 // ── OnboardingState (miroir du frontend) ─────────────────────────────────────
@@ -109,7 +109,10 @@ function deriveAngloCombos(state: OnboardingState): string[] {
 }
 
 export class ConfigurerEtablissementUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly schoolActivationRepository: SchoolActivationRepository,
+    private readonly activerEtablissement: ActiverEtablissementUseCase,
+  ) {}
 
   /** Traduit l'OnboardingState vers le format onboardingConfig historique. */
   static mapStateToConfig(state: OnboardingState): Record<string, unknown> {
@@ -195,10 +198,7 @@ export class ConfigurerEtablissementUseCase {
   async execute(state: OnboardingState): Promise<ConfigurerEtablissementResultat> {
     if (!state.schoolId) throw new Error('schoolId requis');
 
-    const school = await this.prisma.school.findUnique({
-      where: { id: state.schoolId },
-      select: { id: true, status: true, onboardingConfig: true },
-    });
+    const school = await this.schoolActivationRepository.findSchoolForActivation(state.schoolId);
     if (!school) throw new Error(`École introuvable : ${state.schoolId}`);
     if (school.status === 'ACTIVE') {
       throw new Error('Cet établissement est déjà configuré et actif.');
@@ -214,17 +214,13 @@ export class ConfigurerEtablissementUseCase {
     const mergedConfig = { ...existing, ...config };
 
     // Persister le config + le templateCode avant l'activation (l'activation les lit)
-    await this.prisma.school.update({
-      where: { id: state.schoolId },
-      data: {
-        onboardingConfig: mergedConfig as Prisma.InputJsonValue,
-        ...(state.template ? { templateCode: state.template } : {}),
-      },
+    await this.schoolActivationRepository.mettreAJourOnboardingConfig(state.schoolId, {
+      onboardingConfig: mergedConfig,
+      ...(state.template ? { templateCode: state.template } : {}),
     });
 
     // Déléguer la construction atomique au moteur déterministe existant
-    const activer = new ActiverEtablissementUseCase(this.prisma);
-    const result = await activer.execute({ schoolId: state.schoolId });
+    const result = await this.activerEtablissement.execute({ schoolId: state.schoolId });
 
     return {
       schoolId: result.schoolId,
