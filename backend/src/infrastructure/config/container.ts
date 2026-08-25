@@ -280,6 +280,7 @@ import { PrismaGradeOrientationRepository } from '@infrastructure/persistence/pr
 import { PrismaExamDossierRepository } from '@infrastructure/persistence/prisma/PrismaExamDossierRepository';
 import { PrismaEleveOnboardingRepository } from '@infrastructure/persistence/prisma/PrismaEleveOnboardingRepository';
 import { PrismaImportUtilisateursRepository } from '@infrastructure/persistence/prisma/PrismaImportUtilisateursRepository';
+import { PrismaPushSubscriptionRepository } from '@infrastructure/persistence/prisma/PrismaPushSubscriptionRepository';
 
 // --- Use Cases : Orientation ---
 import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
@@ -337,6 +338,7 @@ export function creerContainer() {
   const examDossierRepository = new PrismaExamDossierRepository(prisma);
   const eleveOnboardingRepository = new PrismaEleveOnboardingRepository(prisma);
   const importUtilisateursRepository = new PrismaImportUtilisateursRepository(prisma);
+  const pushSubscriptionRepository = new PrismaPushSubscriptionRepository(prisma);
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
   const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
@@ -840,8 +842,8 @@ export function creerContainer() {
       detecterAnomalies: new DetecterAnomaliesPebsUseCase(pebsExamRepository),
     },
     pushNotification: {
-      souscrire: new SouscrirePushUseCase(prisma),
-      desinscrire: new DesinscrirePushUseCase(prisma),
+      souscrire: new SouscrirePushUseCase(pushSubscriptionRepository),
+      desinscrire: new DesinscrirePushUseCase(pushSubscriptionRepository),
     },
     notification: {
       service: notificationService,

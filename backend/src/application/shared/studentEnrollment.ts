@@ -16,9 +16,7 @@ import type { EnrollmentRepository, ChangerClasseParams } from '@domain/ports/re
  * dans une classe donnée. À étaler dans un findMany sur User.
  *
  * @example
- * const students = await prisma.user.findMany({
- *   where: { schoolId, role: 'STUDENT', isActive: true, ...whereElevesParClasse(classId) },
- * });
+ * const students = await userRepository.findByClass(schoolId, classId);
  */
 export function whereElevesParClasse(classId: string) {
   return {
@@ -39,10 +37,7 @@ export function whereElevesParClasse(classId: string) {
  * qui sont actifs dans une classe.
  *
  * @example
- * const profiles = await prisma.studentProfile.findMany({
- *   where: { ...whereProfilesParClasse(classId), studentStatus: 'ACTIVE' },
- *   select: { userId: true, pebsFiliere: true },
- * });
+ * const profiles = await studentProfileRepository.findByClasse(classId);
  */
 export function whereProfilesParClasse(classId: string) {
   return {

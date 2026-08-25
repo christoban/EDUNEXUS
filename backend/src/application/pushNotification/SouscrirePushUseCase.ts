@@ -1,3 +1,5 @@
+import type { PushSubscriptionRepository } from '@domain/ports/repositories/PushSubscriptionRepository';
+
 export interface SouscrirePushCommande {
   userId: string;
   endpoint: string;
@@ -7,35 +9,26 @@ export interface SouscrirePushCommande {
 }
 
 export class SouscrirePushUseCase {
-  constructor(private readonly prisma: any) {}
+  constructor(private readonly pushSubscriptionRepository: PushSubscriptionRepository) {}
 
   async execute(commande: SouscrirePushCommande): Promise<{ id: string }> {
-    const existing = await this.prisma.pushSubscription.findFirst({
-      where: { userId: commande.userId, endpoint: commande.endpoint },
-    });
+    const existing = await this.pushSubscriptionRepository.findExisting(commande.userId, commande.endpoint);
 
     if (existing) {
-      const updated = await this.prisma.pushSubscription.update({
-        where: { id: existing.id },
-        data: {
-          p256dh: commande.p256dh,
-          auth: commande.auth,
-          userAgent: commande.userAgent ?? existing.userAgent,
-          lastSeenAt: new Date(),
-        },
-      });
-      return { id: updated.id };
-    }
-
-    const created = await this.prisma.pushSubscription.create({
-      data: {
-        userId: commande.userId,
-        endpoint: commande.endpoint,
+      return this.pushSubscriptionRepository.update(existing.id, {
         p256dh: commande.p256dh,
         auth: commande.auth,
-        userAgent: commande.userAgent,
-      },
+        ...(commande.userAgent !== undefined ? { userAgent: commande.userAgent } : { userAgent: existing.userAgent ?? undefined }),
+        lastSeenAt: new Date(),
+      });
+    }
+
+    return this.pushSubscriptionRepository.create({
+      userId: commande.userId,
+      endpoint: commande.endpoint,
+      p256dh: commande.p256dh,
+      auth: commande.auth,
+      ...(commande.userAgent !== undefined ? { userAgent: commande.userAgent } : {}),
     });
-    return { id: created.id };
   }
 }

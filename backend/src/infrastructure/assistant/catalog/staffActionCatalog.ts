@@ -31,7 +31,7 @@ import {
   resolveClass,
   resolveStudent,
   resolveCurrentAcademicYear,
-} from '@application/assistant/catalog/catalogShared';
+} from '@infrastructure/assistant/catalog/catalogShared';
 
 export interface StaffActionDeps {
   creerTransactionAPEE: CreerTransactionAPEEUseCase;

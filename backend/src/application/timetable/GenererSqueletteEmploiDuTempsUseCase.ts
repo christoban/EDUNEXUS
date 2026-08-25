@@ -19,8 +19,8 @@ export interface GenererSqueletteResultat {
  * Crée la grille horaire VIDE d'une classe (un créneau par jour actif × période de cours, sans
  * matière ni enseignant) — l'admin la remplit ensuite manuellement, ou la laisse au solveur.
  *
- * Extrait d'un handler inline qui écrivait via `prisma.timetable.create({ slots: { create: … } })`
- * en contournant l'entité, et numérotait les jours en 1-6 alors que le domaine valide 0-5.
+ * Extrait d'un handler inline qui écrivait directement en base (contournant l'entité)
+ * et numérotait les jours en 1-6 alors que le domaine valide 0-5.
  * Passe désormais par CreneauHoraire.create() (via creerCreneauxEnLot), donc le format est
  * validé et la numérotation est la seule du domaine.
  *

@@ -29,7 +29,7 @@ import {
   resolveCurrentPeriod,
   resolveCurrentSequence,
   calculerMoyennesClasseSequence,
-} from '@application/assistant/catalog/catalogShared';
+} from '@infrastructure/assistant/catalog/catalogShared';
 import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 import type { CreerClasseUseCase } from '@application/class/CreerClasseUseCase';

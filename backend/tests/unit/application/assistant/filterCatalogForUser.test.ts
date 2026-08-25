@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'bun:test';
 import { z } from 'zod';
-import { filterCatalogForUser, type ActionDefinition } from '../../../../src/application/assistant/catalog/catalogShared.ts';
+import { filterCatalogForUser, type ActionDefinition } from '../../../../src/infrastructure/assistant/catalog/catalogShared.ts';
 
 /** Fabrique une action minimale — seuls les champs qui pèsent sur le filtrage sont paramétrés. */
 function action(
