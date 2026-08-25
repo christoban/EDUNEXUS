@@ -1,5 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
-import { destinatairesAutorises } from './MessagerieAccessHelpers';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 
 export interface ListerContactsMessagerieCommande {
   schoolId: string;
@@ -14,10 +13,10 @@ export interface ListerContactsMessagerieCommande {
  * autre parent/élève dans la liste, pas juste être bloqué à l'envoi.
  */
 export class ListerContactsMessagerieUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: ListerContactsMessagerieCommande) {
-    const autorises = await destinatairesAutorises(this.prisma, cmd.schoolId, cmd.appelantId, cmd.appelantRole);
+    const autorises = await this.messagerieRepository.destinatairesAutorises(cmd.schoolId, cmd.appelantId, cmd.appelantRole);
 
     const where: Record<string, unknown> = {
       schoolId: cmd.schoolId,
@@ -25,10 +24,6 @@ export class ListerContactsMessagerieUseCase {
       id: { not: cmd.appelantId, ...(autorises ? { in: Array.from(autorises) } : {}) },
     };
 
-    return this.prisma.user.findMany({
-      where,
-      select: { id: true, firstName: true, lastName: true, role: true },
-      orderBy: [{ role: 'asc' }, { firstName: 'asc' }],
-    });
+    return this.messagerieRepository.listerContacts(where);
   }
 }

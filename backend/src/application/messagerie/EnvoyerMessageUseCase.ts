@@ -1,8 +1,6 @@
-import type { PrismaClient } from '@prisma/client';
-import { verifierAppartenanceConversation, destinatairesAutorises } from './MessagerieAccessHelpers';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 import { getIO } from '../../infrastructure/socket/SocketServer';
-import { whereProfilesParClasse } from '@application/shared/studentEnrollment';
 
 export interface EnvoyerMessageCommande {
   schoolId: string;
@@ -17,7 +15,7 @@ export interface EnvoyerMessageCommande {
 const notificationService = new SocketNotificationService();
 
 export class EnvoyerMessageUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: EnvoyerMessageCommande) {
     const content = cmd.content.trim();
@@ -27,14 +25,11 @@ export class EnvoyerMessageUseCase {
     // Défense en profondeur en plus de l'idempotence HTTP générique (Idempotency-Key) déjà en
     // place — un retry ou un bug frontend qui rejoue le même clientMessageId ne doit jamais créer
     // de doublon : on renvoie simplement le message déjà persisté.
-    const existant = await this.prisma.message.findUnique({
-      where: { id: cmd.clientMessageId },
-      include: { sender: { select: { id: true, firstName: true, lastName: true, role: true } } },
-    });
+    const existant = await this.messagerieRepository.trouverMessage(cmd.clientMessageId);
     if (existant) return existant;
 
     const conversation = cmd.conversationId
-      ? await verifierAppartenanceConversation(this.prisma, {
+      ? await this.messagerieRepository.verifierAppartenanceConversation({
           conversationId: cmd.conversationId,
           schoolId: cmd.schoolId,
           userId: cmd.appelantId,
@@ -44,22 +39,16 @@ export class EnvoyerMessageUseCase {
 
     let moderationStatus: 'APPROVED' | 'PENDING' = 'APPROVED';
     if (conversation.type === 'CLASS_CHANNEL' || conversation.type === 'PARENT_CHANNEL') {
-      const config = await this.prisma.schoolConfig.findUnique({
-        where: { schoolId: cmd.schoolId },
-        select: { messageModeration: true },
-      });
+      const config = await this.messagerieRepository.trouverConfigModeration(cmd.schoolId);
       if (config?.messageModeration) moderationStatus = 'PENDING';
     }
 
-    const message = await this.prisma.message.create({
-      data: {
-        id: cmd.clientMessageId,
-        conversationId: conversation.id,
-        senderId: cmd.appelantId,
-        content,
-        moderationStatus,
-      },
-      include: { sender: { select: { id: true, firstName: true, lastName: true, role: true } } },
+    const message = await this.messagerieRepository.creerMessage({
+      id: cmd.clientMessageId,
+      conversationId: conversation.id,
+      senderId: cmd.appelantId,
+      content,
+      moderationStatus,
     });
 
     getIO()?.to(`conversation:${conversation.id}`).emit('message:new', message);
@@ -79,43 +68,26 @@ export class EnvoyerMessageUseCase {
       throw new Error('Vous ne pouvez pas vous écrire à vous-même.');
     }
 
-    const autorises = await destinatairesAutorises(this.prisma, cmd.schoolId, cmd.appelantId, cmd.appelantRole);
+    const autorises = await this.messagerieRepository.destinatairesAutorises(cmd.schoolId, cmd.appelantId, cmd.appelantRole);
     if (autorises && !autorises.has(cmd.destinataireId)) {
       throw new Error("Vous ne pouvez pas écrire à ce destinataire.");
     }
 
-    const destinataire = await this.prisma.user.findFirst({
-      where: { id: cmd.destinataireId, schoolId: cmd.schoolId, isActive: true },
-      select: { id: true },
-    });
+    const destinataire = await this.messagerieRepository.trouverUtilisateurActif(cmd.destinataireId, cmd.schoolId);
     if (!destinataire) throw new Error('Destinataire introuvable.');
 
-    const existante = await this.prisma.conversation.findFirst({
-      where: {
-        schoolId: cmd.schoolId,
-        type: 'PRIVATE',
-        AND: [
-          { participants: { some: { userId: cmd.appelantId } } },
-          { participants: { some: { userId: cmd.destinataireId } } },
-        ],
-      },
-      select: { id: true, type: true, classId: true, schoolId: true },
-    });
+    const existante = await this.messagerieRepository.trouverConversationPriveeExistante(
+      cmd.schoolId,
+      cmd.appelantId,
+      cmd.destinataireId,
+    );
     if (existante) return existante;
 
-    return this.prisma.$transaction(async (tx) => {
-      const conversation = await tx.conversation.create({
-        data: {
-          schoolId: cmd.schoolId,
-          type: 'PRIVATE',
-          participants: {
-            create: [{ userId: cmd.appelantId }, { userId: cmd.destinataireId! }],
-          },
-        },
-        select: { id: true, type: true, classId: true, schoolId: true },
-      });
-      return conversation;
-    });
+    return this.messagerieRepository.creerConversationPrivee(
+      cmd.schoolId,
+      cmd.appelantId,
+      cmd.destinataireId,
+    );
   }
 
   /** Notifie (push + cloche) les autres participants d'une conversation qu'un message est arrivé. */
@@ -128,34 +100,24 @@ export class EnvoyerMessageUseCase {
     let destinataireIds: string[] = [];
 
     if (conversation.type === 'PRIVATE') {
-      const participants = await this.prisma.conversationParticipant.findMany({
-        where: { conversationId: conversation.id, userId: { not: expediteurId } },
-        select: { userId: true },
-      });
-      destinataireIds = participants.map((p: any) => p.userId);
+      destinataireIds = await this.messagerieRepository.listerParticipantsConversation(conversation.id, expediteurId);
     } else if (conversation.classId) {
-      const [assignments, classe, students, parentsLinks] = await Promise.all([
-        this.prisma.teachingAssignment.findMany({ where: { classId: conversation.classId }, select: { teacherId: true } }),
-        this.prisma.class.findUnique({ where: { id: conversation.classId }, select: { professorPrincipalId: true } }),
+      const [enseignants, professeurPrincipal, students, parentsLinks] = await Promise.all([
+        this.messagerieRepository.listerEnseignantsClasse(conversation.classId),
+        this.messagerieRepository.trouverProfesseurPrincipalClasse(conversation.classId),
         conversation.type === 'CLASS_CHANNEL'
-          ? this.prisma.studentProfile.findMany({
-              where: { ...whereProfilesParClasse(conversation.classId) },
-              select: { userId: true },
-            })
+          ? this.messagerieRepository.listerElevesClasse(conversation.classId)
           : Promise.resolve([]),
         conversation.type === 'PARENT_CHANNEL'
-          ? this.prisma.parentStudent.findMany({
-              where: { studentProfile: whereProfilesParClasse(conversation.classId) },
-              select: { parentProfile: { select: { userId: true } } },
-            })
+          ? this.messagerieRepository.listerParentsClasse(conversation.classId)
           : Promise.resolve([]),
       ]);
 
       destinataireIds = [
-        ...assignments.map((a: any) => a.teacherId),
-        ...(classe?.professorPrincipalId ? [classe.professorPrincipalId] : []),
-        ...students.map((s: any) => s.userId),
-        ...parentsLinks.map((p: any) => p.parentProfile.userId),
+        ...enseignants,
+        ...(professeurPrincipal ? [professeurPrincipal] : []),
+        ...students,
+        ...parentsLinks,
       ].filter((id) => id !== expediteurId);
       destinataireIds = Array.from(new Set(destinataireIds));
     }

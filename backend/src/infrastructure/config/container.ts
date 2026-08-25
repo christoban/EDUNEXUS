@@ -165,6 +165,7 @@ import { EnregistrerPaiementCashUseCase } from '@application/finance/Enregistrer
 
 // --- Adapters Persistence Classe + Matière ---
 import { PrismaSousGroupeRepository } from '@infrastructure/persistence/prisma/PrismaSousGroupeRepository';
+import { PrismaMessagerieRepository } from '@infrastructure/persistence/prisma/PrismaMessagerieRepository';
 
 // --- Adapters Persistence AnneeAcademique + Promotion ---
 import { PrismaPromotionRepository } from '@infrastructure/persistence/prisma/PrismaPromotionRepository';
@@ -430,11 +431,12 @@ export function creerContainer() {
 
   // 11. Use Cases — Classe + Matière
   const sousGroupeRepository = new PrismaSousGroupeRepository(prisma);
+  const messagerieRepository = new PrismaMessagerieRepository(prisma);
 
   const creerClasseUseCase = new CreerClasseUseCase(
     classeRepository,
-    new CreerCanalClasseUseCase(prisma),
-    new CreerCanalParentsUseCase(prisma),
+    new CreerCanalClasseUseCase(messagerieRepository),
+    new CreerCanalParentsUseCase(messagerieRepository),
   );
   const modifierClasseUseCase = new ModifierClasseUseCase(classeRepository);
   const supprimerClasseUseCase = new SupprimerClasseUseCase(classeRepository);

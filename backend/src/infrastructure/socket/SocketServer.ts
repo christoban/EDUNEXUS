@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import { parse as parseCookie } from "cookie";
 import type { AuthPayload } from '../http/middlewares/auth.ts';
 import { prisma } from "@infrastructure/persistence/prisma/prisma.client";
-import { verifierAppartenanceConversation } from "@application/messagerie/MessagerieAccessHelpers";
+import { PrismaMessagerieRepository } from "@infrastructure/persistence/prisma/PrismaMessagerieRepository";
 
 let io: Server | null = null;
 
@@ -53,7 +53,8 @@ export const initSocket = (httpServer: HttpServer, origin?: string) => {
     socket.on("conversation:join", async (conversationId: string, callback?: (ok: boolean) => void) => {
       if (!auth || typeof conversationId !== "string") { callback?.(false); return; }
       try {
-        await verifierAppartenanceConversation(prisma, {
+        const messagerieRepository = new PrismaMessagerieRepository(prisma);
+        await messagerieRepository.verifierAppartenanceConversation({
           conversationId,
           schoolId: auth.schoolId,
           userId: auth.userId,

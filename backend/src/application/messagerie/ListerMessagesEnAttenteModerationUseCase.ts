@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 
 export interface ListerMessagesEnAttenteModerationCommande {
   schoolId: string;
@@ -7,20 +7,13 @@ export interface ListerMessagesEnAttenteModerationCommande {
 
 /** File d'attente de modération pour le Staff/Admin — n'a de sens que si activée pour l'école. */
 export class ListerMessagesEnAttenteModerationUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: ListerMessagesEnAttenteModerationCommande) {
     if (!['ADMIN', 'STAFF'].includes(cmd.appelantRole.toUpperCase())) {
       throw new Error('Seuls Admin et Staff peuvent consulter la file de modération.');
     }
 
-    return this.prisma.message.findMany({
-      where: { moderationStatus: 'PENDING', conversation: { schoolId: cmd.schoolId } },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        sender: { select: { id: true, firstName: true, lastName: true, role: true } },
-        conversation: { select: { id: true, type: true, name: true, classId: true } },
-      },
-    });
+    return this.messagerieRepository.listerEnAttenteModeration(cmd.schoolId);
   }
 }

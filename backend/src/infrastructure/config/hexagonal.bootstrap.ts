@@ -205,6 +205,15 @@ import { SupprimerAnnonceUseCase } from '@application/announcement/SupprimerAnno
 import { creerAnnouncementRoutes } from '@infrastructure/http/routes/announcement.routes';
 import { MessagerieController } from '@infrastructure/http/controllers/MessagerieController';
 import { creerMessagerieRoutes } from '@infrastructure/http/routes/messagerie.routes';
+import { PrismaMessagerieRepository } from '@infrastructure/persistence/prisma/PrismaMessagerieRepository';
+import { EnvoyerMessageUseCase } from '@application/messagerie/EnvoyerMessageUseCase';
+import { ListerConversationsUseCase } from '@application/messagerie/ListerConversationsUseCase';
+import { ListerMessagesUseCase } from '@application/messagerie/ListerMessagesUseCase';
+import { MarquerMessagesLusUseCase } from '@application/messagerie/MarquerMessagesLusUseCase';
+import { ModererMessageUseCase } from '@application/messagerie/ModererMessageUseCase';
+import { ListerMessagesEnAttenteModerationUseCase } from '@application/messagerie/ListerMessagesEnAttenteModerationUseCase';
+import { ListerContactsMessagerieUseCase } from '@application/messagerie/ListerContactsMessagerieUseCase';
+import { CompterMessagesNonLusUseCase } from '@application/messagerie/CompterMessagesNonLusUseCase';
 import { APEEController } from '@infrastructure/http/controllers/APEEController';
 import { creerApeeRoutes } from '@infrastructure/http/routes/apee.routes';
 import { DisciplineCouncilController } from '@infrastructure/http/controllers/DisciplineCouncilController';
@@ -1560,7 +1569,25 @@ export function bootstrapHexagonal(app: Application): void {
   app.use('/api/v2/announcements', creerAnnouncementRoutes(announcementController));
 
   // ── Messagerie bidirectionnelle ──────────────────────────────────────────────
-  const messagerieController = new MessagerieController(prisma);
+  const messagerieRepository = new PrismaMessagerieRepository(prisma);
+  const envoyerMessageUseCase = new EnvoyerMessageUseCase(messagerieRepository);
+  const listerConversationsUseCase = new ListerConversationsUseCase(messagerieRepository);
+  const listerMessagesUseCase = new ListerMessagesUseCase(messagerieRepository);
+  const marquerLusUseCase = new MarquerMessagesLusUseCase(messagerieRepository);
+  const modererMessageUseCase = new ModererMessageUseCase(messagerieRepository);
+  const listerEnAttenteModerationUseCase = new ListerMessagesEnAttenteModerationUseCase(messagerieRepository);
+  const listerContactsMessagerieUseCase = new ListerContactsMessagerieUseCase(messagerieRepository);
+  const compterMessagesNonLusUseCase = new CompterMessagesNonLusUseCase(messagerieRepository);
+  const messagerieController = new MessagerieController(
+    envoyerMessageUseCase,
+    listerConversationsUseCase,
+    listerMessagesUseCase,
+    marquerLusUseCase,
+    modererMessageUseCase,
+    listerEnAttenteModerationUseCase,
+    listerContactsMessagerieUseCase,
+    compterMessagesNonLusUseCase,
+  );
   app.use('/api/v2/messagerie', creerMessagerieRoutes(messagerieController));
 
   // ── Transparence financière APEE ─────────────────────────────────────────────

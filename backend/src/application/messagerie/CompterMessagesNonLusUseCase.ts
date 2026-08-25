@@ -1,5 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
-import { classIdsPertinents } from './MessagerieAccessHelpers';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 
 export interface CompterMessagesNonLusCommande {
   schoolId: string;
@@ -13,12 +12,12 @@ export interface CompterMessagesNonLusCommande {
  * à l'affichage détaillé dans la liste elle-même).
  */
 export class CompterMessagesNonLusUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: CompterMessagesNonLusCommande): Promise<{ count: number }> {
     const role = cmd.appelantRole.toUpperCase();
     const estSupervision = role === 'ADMIN' || role === 'STAFF';
-    const classIds = estSupervision ? [] : await classIdsPertinents(this.prisma, cmd.appelantId, role);
+    const classIds = estSupervision ? [] : await this.messagerieRepository.classIdsPertinents(cmd.appelantId, role);
 
     const conversationWhere: Record<string, unknown> = {
       schoolId: cmd.schoolId,
@@ -35,13 +34,11 @@ export class CompterMessagesNonLusUseCase {
       ],
     };
 
-    const count = await this.prisma.message.count({
-      where: {
-        senderId: { not: cmd.appelantId },
-        moderationStatus: 'APPROVED',
-        readStatuses: { none: { userId: cmd.appelantId } },
-        conversation: conversationWhere,
-      },
+    const count = await this.messagerieRepository.compterMessagesNonLus({
+      senderId: { not: cmd.appelantId },
+      moderationStatus: 'APPROVED',
+      readStatuses: { none: { userId: cmd.appelantId } },
+      conversation: conversationWhere,
     });
 
     return { count };

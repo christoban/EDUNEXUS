@@ -1,5 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
-import { verifierAppartenanceConversation } from './MessagerieAccessHelpers';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 
 export interface MarquerMessagesLusCommande {
   schoolId: string;
@@ -10,10 +9,10 @@ export interface MarquerMessagesLusCommande {
 }
 
 export class MarquerMessagesLusUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: MarquerMessagesLusCommande): Promise<{ count: number }> {
-    await verifierAppartenanceConversation(this.prisma, {
+    await this.messagerieRepository.verifierAppartenanceConversation({
       conversationId: cmd.conversationId,
       schoolId: cmd.schoolId,
       userId: cmd.appelantId,
@@ -22,10 +21,7 @@ export class MarquerMessagesLusUseCase {
 
     let seuilDate: Date;
     if (cmd.jusquAMessageId) {
-      const message = await this.prisma.message.findUnique({
-        where: { id: cmd.jusquAMessageId },
-        select: { createdAt: true, conversationId: true },
-      });
+      const message = await this.messagerieRepository.trouverMessage(cmd.jusquAMessageId);
       if (!message || message.conversationId !== cmd.conversationId) {
         throw new Error('Message de référence introuvable dans cette conversation.');
       }
@@ -34,23 +30,19 @@ export class MarquerMessagesLusUseCase {
       seuilDate = new Date();
     }
 
-    const nonLus = await this.prisma.message.findMany({
-      where: {
-        conversationId: cmd.conversationId,
-        createdAt: { lte: seuilDate },
-        senderId: { not: cmd.appelantId },
-        readStatuses: { none: { userId: cmd.appelantId } },
-      },
-      select: { id: true },
-    });
+    const nonLus = await this.messagerieRepository.trouverMessagesNonLus(
+      cmd.conversationId,
+      seuilDate,
+      cmd.appelantId,
+    );
 
     if (nonLus.length === 0) return { count: 0 };
 
-    const resultat = await this.prisma.messageReadStatus.createMany({
-      data: nonLus.map((m: { id: string }) => ({ messageId: m.id, userId: cmd.appelantId })),
-      skipDuplicates: true,
-    });
+    const count = await this.messagerieRepository.marquerMessagesLus(
+      nonLus.map((m) => m.id),
+      cmd.appelantId,
+    );
 
-    return { count: resultat.count };
+    return { count };
   }
 }

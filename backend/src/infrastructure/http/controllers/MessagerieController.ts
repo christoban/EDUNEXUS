@@ -1,34 +1,24 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
-import { EnvoyerMessageUseCase } from '@application/messagerie/EnvoyerMessageUseCase';
-import { ListerConversationsUseCase } from '@application/messagerie/ListerConversationsUseCase';
-import { ListerMessagesUseCase } from '@application/messagerie/ListerMessagesUseCase';
-import { MarquerMessagesLusUseCase } from '@application/messagerie/MarquerMessagesLusUseCase';
-import { ModererMessageUseCase } from '@application/messagerie/ModererMessageUseCase';
-import { ListerMessagesEnAttenteModerationUseCase } from '@application/messagerie/ListerMessagesEnAttenteModerationUseCase';
-import { ListerContactsMessagerieUseCase } from '@application/messagerie/ListerContactsMessagerieUseCase';
-import { CompterMessagesNonLusUseCase } from '@application/messagerie/CompterMessagesNonLusUseCase';
+import type { EnvoyerMessageUseCase } from '@application/messagerie/EnvoyerMessageUseCase';
+import type { ListerConversationsUseCase } from '@application/messagerie/ListerConversationsUseCase';
+import type { ListerMessagesUseCase } from '@application/messagerie/ListerMessagesUseCase';
+import type { MarquerMessagesLusUseCase } from '@application/messagerie/MarquerMessagesLusUseCase';
+import type { ModererMessageUseCase } from '@application/messagerie/ModererMessageUseCase';
+import type { ListerMessagesEnAttenteModerationUseCase } from '@application/messagerie/ListerMessagesEnAttenteModerationUseCase';
+import type { ListerContactsMessagerieUseCase } from '@application/messagerie/ListerContactsMessagerieUseCase';
+import type { CompterMessagesNonLusUseCase } from '@application/messagerie/CompterMessagesNonLusUseCase';
 
 export class MessagerieController {
-  private readonly envoyerMessage: EnvoyerMessageUseCase;
-  private readonly listerConversations: ListerConversationsUseCase;
-  private readonly listerMessages: ListerMessagesUseCase;
-  private readonly marquerLus: MarquerMessagesLusUseCase;
-  private readonly modererMessage: ModererMessageUseCase;
-  private readonly listerEnAttenteModeration: ListerMessagesEnAttenteModerationUseCase;
-  private readonly listerContacts: ListerContactsMessagerieUseCase;
-  private readonly compterMessagesNonLus: CompterMessagesNonLusUseCase;
-
-  constructor(private readonly prisma: PrismaClient) {
-    this.envoyerMessage = new EnvoyerMessageUseCase(prisma);
-    this.listerConversations = new ListerConversationsUseCase(prisma);
-    this.listerMessages = new ListerMessagesUseCase(prisma);
-    this.marquerLus = new MarquerMessagesLusUseCase(prisma);
-    this.modererMessage = new ModererMessageUseCase(prisma);
-    this.listerEnAttenteModeration = new ListerMessagesEnAttenteModerationUseCase(prisma);
-    this.listerContacts = new ListerContactsMessagerieUseCase(prisma);
-    this.compterMessagesNonLus = new CompterMessagesNonLusUseCase(prisma);
-  }
+  constructor(
+    private readonly envoyerMessage: EnvoyerMessageUseCase,
+    private readonly listerConversations: ListerConversationsUseCase,
+    private readonly listerMessages: ListerMessagesUseCase,
+    private readonly marquerLus: MarquerMessagesLusUseCase,
+    private readonly modererMessage: ModererMessageUseCase,
+    private readonly listerEnAttenteModeration: ListerMessagesEnAttenteModerationUseCase,
+    private readonly listerContacts: ListerContactsMessagerieUseCase,
+    private readonly compterMessagesNonLus: CompterMessagesNonLusUseCase,
+  ) {}
 
   envoyer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

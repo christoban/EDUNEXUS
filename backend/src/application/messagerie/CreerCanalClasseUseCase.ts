@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 
 export interface CreerCanalClasseCommande {
   schoolId: string;
@@ -12,21 +12,9 @@ export interface CreerCanalClasseCommande {
  * pour cette classe, le retourne tel quel plutôt que d'en créer un second.
  */
 export class CreerCanalClasseUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: CreerCanalClasseCommande) {
-    const existant = await this.prisma.conversation.findFirst({
-      where: { schoolId: cmd.schoolId, classId: cmd.classId, type: 'CLASS_CHANNEL' },
-    });
-    if (existant) return existant;
-
-    return this.prisma.conversation.create({
-      data: {
-        schoolId: cmd.schoolId,
-        classId: cmd.classId,
-        type: 'CLASS_CHANNEL',
-        name: `Classe — ${cmd.className}`,
-      },
-    });
+    return this.messagerieRepository.creerCanalClasse(cmd.schoolId, cmd.classId, cmd.className);
   }
 }

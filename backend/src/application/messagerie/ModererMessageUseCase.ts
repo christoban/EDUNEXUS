@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
 export interface ModererMessageCommande {
@@ -13,30 +13,23 @@ export interface ModererMessageCommande {
 const notificationService = new SocketNotificationService();
 
 export class ModererMessageUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly messagerieRepository: MessagerieRepository) {}
 
   async execute(cmd: ModererMessageCommande) {
     if (!['ADMIN', 'STAFF'].includes(cmd.moderateurRole.toUpperCase())) {
       throw new Error('Seuls Admin et Staff peuvent modérer un message.');
     }
 
-    const message = await this.prisma.message.findFirst({
-      where: { id: cmd.messageId, conversation: { schoolId: cmd.schoolId } },
-      select: { id: true, senderId: true, moderationStatus: true, conversationId: true },
-    });
+    const message = await this.messagerieRepository.trouverMessagePourModeration(cmd.messageId, cmd.schoolId);
     if (!message) throw new Error('Message introuvable.');
     if (message.moderationStatus !== 'PENDING') {
       throw new Error('Ce message a déjà été modéré.');
     }
 
-    const misAJour = await this.prisma.message.update({
-      where: { id: cmd.messageId },
-      data: {
-        moderationStatus: cmd.decision,
-        moderatedById: cmd.moderateurId,
-        moderationReason: cmd.decision === 'REJECTED' ? (cmd.motif ?? null) : null,
-      },
-      include: { sender: { select: { id: true, firstName: true, lastName: true, role: true } } },
+    const misAJour = await this.messagerieRepository.modererMessage(cmd.messageId, {
+      moderationStatus: cmd.decision,
+      moderatedById: cmd.moderateurId,
+      moderationReason: cmd.decision === 'REJECTED' ? (cmd.motif ?? null) : null,
     });
 
     if (cmd.decision === 'REJECTED') {
