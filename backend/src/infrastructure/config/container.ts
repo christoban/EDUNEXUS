@@ -276,6 +276,7 @@ import { RetirerAssignationSalleUseCase } from '@application/studentGroup/Retire
 // --- Adapter Persistence Orientation ---
 import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
 import { PrismaGradeOrientationRepository } from '@infrastructure/persistence/prisma/PrismaGradeOrientationRepository';
+import { PrismaExamDossierRepository } from '@infrastructure/persistence/prisma/PrismaExamDossierRepository';
 
 // --- Use Cases : Orientation ---
 import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
@@ -330,6 +331,7 @@ export function creerContainer() {
   const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
   const entranceExamRepository = new PrismaEntranceExamRepository(prisma);
   const pebsExamRepository = new PrismaPebsExamRepository(prisma);
+  const examDossierRepository = new PrismaExamDossierRepository(prisma);
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
   const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
@@ -801,7 +803,7 @@ export function creerContainer() {
       getOverview: new GetSchoolPaymentOverviewUseCase(paiementMinesecRepository),
     },
     examen: {
-      prepareDossier: new PrepareExamDossierUseCase(prisma),
+      prepareDossier: new PrepareExamDossierUseCase(examDossierRepository),
     },
     lv2Choice: {
       ouvrirFenetre: new OuvrirFenetreChoixLV2UseCase(lv2ChoiceRepository),

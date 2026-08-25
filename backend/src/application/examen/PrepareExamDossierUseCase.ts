@@ -6,7 +6,8 @@
  * 2. Le paiement MINESEC pour cet examen est PAYE ou VERIFIE → sinon avertissement
  * 3. La classe correspond au type d'examen
  */
-import type { PrismaClient, TypeExamen, TypeFraisMinesec } from '@prisma/client';
+import type { TypeExamen, TypeFraisMinesec } from '@domain/types/enums';
+import type { ExamDossierRepository } from '@domain/ports/repositories/ExamDossierRepository';
 import type { PrepareExamDossierCommande, ExamDossier } from './types';
 
 // Correspondance niveau → type d'examen
@@ -25,21 +26,11 @@ const EXAMEN_TO_FRAIS: Record<string, string> = {
 };
 
 export class PrepareExamDossierUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly examDossierRepository: ExamDossierRepository) {}
 
   async execute(cmd: PrepareExamDossierCommande): Promise<ExamDossier> {
     // Récupérer le profil élève
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { user: { id: cmd.studentUserId, schoolId: cmd.schoolId } },
-      include: {
-        user: { select: { firstName: true, lastName: true } },
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { name: true, level: true } } },
-          take: 1,
-        },
-      },
-    });
+    const profile = await this.examDossierRepository.findStudentProfileForExam(cmd.schoolId, cmd.studentUserId);
     if (!profile) throw new Error('Élève introuvable');
 
     // Validation 1 : matricule obligatoire
@@ -48,21 +39,14 @@ export class PrepareExamDossierUseCase {
     }
 
     // Validation 2 : vérifier que le type d'examen est cohérent avec la classe
-    const classeActuelle = profile.enrollmentsYearScoped[0]?.class ?? null;
-    const niveau = classeActuelle?.level ?? '';
+    const niveau = profile.classeActuelle?.level ?? '';
     const examensApplicables = NIVEAU_TO_EXAMEN[niveau] ?? [];
     if (examensApplicables.length > 0 && !examensApplicables.includes(cmd.typeExamen)) {
       throw new Error(`Le type d'examen ${cmd.typeExamen} n'est pas applicable pour le niveau ${niveau}`);
     }
 
     // Vérifier si une inscription existe déjà
-    const existing = await this.prisma.examRegistration.findFirst({
-      where: {
-        studentId: profile.id,
-        anneeScolaire: cmd.anneeScolaire,
-        typeExamen: cmd.typeExamen as TypeExamen,
-      },
-    });
+    const existing = await this.examDossierRepository.findExamRegistration(profile.id, cmd.anneeScolaire, cmd.typeExamen as TypeExamen);
     if (existing) {
       throw new Error('Cet élève est déjà inscrit à cet examen');
     }
@@ -72,13 +56,7 @@ export class PrepareExamDossierUseCase {
     let paiementStatus: string | null = null;
     let paiementId: string | null = null;
     if (fraisKey) {
-      const paiement = await this.prisma.paiementMinesec.findFirst({
-        where: {
-          studentId: profile.id,
-          typeFrais: fraisKey as TypeFraisMinesec,
-          anneeScolaire: cmd.anneeScolaire,
-        },
-      });
+      const paiement = await this.examDossierRepository.findPaiementMinesec(profile.id, fraisKey as TypeFraisMinesec, cmd.anneeScolaire);
       paiementStatus = paiement?.status ?? null;
       paiementId = paiement?.id ?? null;
     }
@@ -86,31 +64,20 @@ export class PrepareExamDossierUseCase {
     // Vérifier la date de vérification du matricule
     const matriculeVerifie = profile.matriculeVerifieAt !== null;
 
-    // Trouver ou créer l'Enrollment de l'année (même logique que GenererPaiementsMinesecUseCase —
-    // avant ce correctif, enrollmentId était laissé à '' faute de mécanisme de création).
-    let enrollment = await this.prisma.inscriptionMinesec.findUnique({
-      where: { studentId_schoolId_anneeScolaire: { studentId: profile.id, schoolId: cmd.schoolId, anneeScolaire: cmd.anneeScolaire } },
-    });
-    if (!enrollment) {
-      enrollment = await this.prisma.inscriptionMinesec.create({
-        data: { studentId: profile.id, schoolId: cmd.schoolId, anneeScolaire: cmd.anneeScolaire, classe: niveau, status: 'ACTIVE' },
-      });
-    }
+    // Trouver ou créer l'Enrollment de l'année
+    const enrollment = await this.examDossierRepository.findOrCreateInscriptionMinesec(profile.id, cmd.schoolId, cmd.anneeScolaire, niveau);
 
     // Créer l'inscription
     const session = new Date().getFullYear();
-    const registration = await this.prisma.examRegistration.create({
-      data: {
-        studentId: profile.id,
-        enrollmentId: enrollment.id,
-        schoolId: cmd.schoolId,
-        anneeScolaire: cmd.anneeScolaire,
-        typeExamen: cmd.typeExamen as TypeExamen,
-        session,
-        matriculeNational: profile.matricule,
-        paiementMinesecId: paiementId,
-        status: 'DRAFT',
-      },
+    const registration = await this.examDossierRepository.createExamRegistration({
+      studentId: profile.id,
+      enrollmentId: enrollment.id,
+      schoolId: cmd.schoolId,
+      anneeScolaire: cmd.anneeScolaire,
+      typeExamen: cmd.typeExamen as TypeExamen,
+      session,
+      matriculeNational: profile.matricule,
+      paiementMinesecId: paiementId,
     });
 
     // Construire le message
@@ -130,7 +97,7 @@ export class PrepareExamDossierUseCase {
         nom: profile.user.lastName,
         prenom: profile.user.firstName,
         matricule: profile.matricule,
-        classe: classeActuelle?.name ?? '',
+        classe: profile.classeActuelle?.name ?? '',
       },
       typeExamen: cmd.typeExamen,
       anneeScolaire: cmd.anneeScolaire,
