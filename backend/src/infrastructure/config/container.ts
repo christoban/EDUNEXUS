@@ -541,7 +541,7 @@ export function creerContainer() {
   );
 
   // 13. Use Cases — AnneeAcademique
-  const promotionRepository = new PrismaPromotionRepository(prisma);
+  const promotionRepository = new PrismaPromotionRepository(prisma, enrollmentRepository);
 
   const creerAnneeUseCase = new CreerAnneeAcademiqueUseCase(anneeRepository);
   const definirPeriodeUseCase = new DefinirPeriodeCouranteUseCase(anneeRepository);

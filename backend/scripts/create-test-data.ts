@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
 import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
+import { PrismaEnrollmentRepository } from '../src/infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { prisma } from "../src/config/prisma";
+
+const enrollmentRepo = new PrismaEnrollmentRepository(prisma);
 
 async function main() {
   if (process.env.NODE_ENV === "production") {
@@ -110,7 +113,7 @@ async function main() {
     // create StudentProfile linking to class
     const existingProfile = await prisma.studentProfile.findFirst({ where: { userId: user.id } });
     if (!existingProfile) {
-      await creerEleveAvecClasse(prisma, { userId: user.id, classId: cls.id, enrolledById: user.id });
+      await creerEleveAvecClasse(enrollmentRepo, { userId: user.id, classId: cls.id, enrolledById: user.id });
       console.log("Created StudentProfile for", user.id);
     }
   }

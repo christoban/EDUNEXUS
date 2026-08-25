@@ -5,10 +5,11 @@ import type {
   DecisionConseil,
   PromotionEleveParams,
 } from '@domain/ports/repositories/PromotionRepository';
+import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
 import { changerClasseEleve } from '@application/shared/studentEnrollment';
 
 export class PrismaPromotionRepository implements PromotionRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient, private readonly enrollmentRepository: EnrollmentRepository) {}
 
   async findMappingsPromotion(
     schoolId: string,
@@ -116,7 +117,7 @@ export class PrismaPromotionRepository implements PromotionRepository {
     if (!profile) throw new Error(`StudentProfile introuvable pour userId=${studentId}`);
     if (!classe) throw new Error(`Classe introuvable: ${newClassId}`);
 
-    await changerClasseEleve(this.prisma, {
+    await changerClasseEleve(this.enrollmentRepository, {
       studentId: profile.id,
       newClassId,
       academicYearId: classe.academicYearId,

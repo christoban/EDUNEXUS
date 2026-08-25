@@ -20,8 +20,11 @@ import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
+
+const enrollmentRepo = new PrismaEnrollmentRepository(prismaTest);
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET non défini — requis dans .env.test pour ce test.');
@@ -73,7 +76,7 @@ beforeAll(async () => {
 
   const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
   studentUserId = student.id;
-  const profile = await creerEleveAvecClasse(prismaTest, {
+  const profile = await creerEleveAvecClasse(enrollmentRepo, {
     userId: student.id, classId: classe.id, enrolledById: student.id,
     extraProfileData: { matricule: 'MAT-2025-0001', matriculeVerifieAt: new Date() },
   });

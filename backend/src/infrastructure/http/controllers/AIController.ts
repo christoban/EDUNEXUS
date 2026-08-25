@@ -4,11 +4,13 @@ import { generateWithGroq } from '../../services/ai/GroqClient.ts';
 import { resolveLanguage, type Language } from '../../../domain/policies/LanguagePolicy';
 import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
 import type { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
+import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
 import { getClassIdActuelEleve, whereProfilesParClasse, whereProfilesParClasses } from '@application/shared/studentEnrollment';
 
 export class AIController {
   constructor(
     private readonly prisma: PrismaClient,
+    private readonly enrollmentRepository: EnrollmentRepository,
     private readonly compareRisquePredictions?: CompareRisquePredictionsUseCase,
   ) {}
 
@@ -49,7 +51,7 @@ export class AIController {
     }
 
     if (role === 'TEACHER') {
-      const classId = await getClassIdActuelEleve(this.prisma, studentId);
+      const classId = await getClassIdActuelEleve(this.enrollmentRepository, studentId);
       if (!classId) return false;
       const [assignment, estProfPrincipal] = await Promise.all([
         this.prisma.teachingAssignment.findFirst({ where: { teacherId: user.userId, classId }, select: { id: true } }),

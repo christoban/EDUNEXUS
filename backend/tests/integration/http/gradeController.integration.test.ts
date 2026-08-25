@@ -22,8 +22,11 @@ import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
+
+const enrollmentRepo = new PrismaEnrollmentRepository(prismaTest);
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET non défini — requis dans .env.test pour ce test.');
@@ -416,7 +419,7 @@ describe("Bulletin (GenererBulletinUseCase) — vérification via le VRAI flux d
     const subjectFort = await prismaTest.subject.create({ data: { schoolId, name: 'Maths (bulletin)', coefficient: 4 } });
     const subjectFaible = await prismaTest.subject.create({ data: { schoolId, name: 'Dessin (bulletin)', coefficient: 1 } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
-    await creerEleveAvecClasse(prismaTest, { userId: student.id, classId: classeBulletin.id, enrolledById: student.id });
+    await creerEleveAvecClasse(enrollmentRepo, { userId: student.id, classId: classeBulletin.id, enrolledById: student.id });
 
     // 1. Saisie via le VRAI flux enseignant (grille de saisie en masse), pas saisir/modifier —
     //    c'est ce que le frontend appelle réellement (POST /grades/draft, un appel par matière).
@@ -472,7 +475,7 @@ describe("GradeController.importerDepuisExcel — troisième voie de saisie, sta
     const classeImport = await prismaTest.class.create({ data: { schoolId, name: '4ème Import', academicYearId } });
     const subjectImport = await prismaTest.subject.create({ data: { schoolId, name: 'SVT (import)', coefficient: 3 } });
     const student = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT' });
-    await creerEleveAvecClasse(prismaTest, { userId: student.id, classId: classeImport.id, enrolledById: student.id, extraProfileData: { matricule: 'IMP-0001' } });
+    await creerEleveAvecClasse(enrollmentRepo, { userId: student.id, classId: classeImport.id, enrolledById: student.id, extraProfileData: { matricule: 'IMP-0001' } });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([

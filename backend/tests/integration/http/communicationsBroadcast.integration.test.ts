@@ -20,8 +20,11 @@ import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import * as smsServiceReel from '../../../src/infrastructure/services/sms/SmsService.ts';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
+
+const enrollmentRepo = new PrismaEnrollmentRepository(prismaTest);
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET non défini — requis dans .env.test pour ce test.');
@@ -78,7 +81,7 @@ beforeAll(async () => {
   // Élève A : facture PARTIAL de 50000, déjà 20000 payés (SUCCESS) → solde attendu 30000.
   const studentPartiel = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'bcast-partiel' });
   studentPartielUserId = studentPartiel.id;
-  const profilePartiel = await creerEleveAvecClasse(prismaTest, { userId: studentPartiel.id, classId, enrolledById: studentPartiel.id });
+  const profilePartiel = await creerEleveAvecClasse(enrollmentRepo, { userId: studentPartiel.id, classId, enrolledById: studentPartiel.id });
   const parentPartielUser = await creerUtilisateurTest(prismaTest, schoolId, { role: 'PARENT', suffix: 'bcast-partiel-parent' });
   await prismaTest.user.update({ where: { id: parentPartielUser.id }, data: { phone: '677000001' } });
   const parentPartielProfile = await prismaTest.parentProfile.create({ data: { userId: parentPartielUser.id } });
@@ -98,7 +101,7 @@ beforeAll(async () => {
   // Élève B : facture PENDING de 30000, aucun paiement → solde attendu 30000, mais statut PENDING (pas PARTIAL).
   const studentAttente = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'bcast-attente' });
   studentAttenteUserId = studentAttente.id;
-  const profileAttente = await creerEleveAvecClasse(prismaTest, { userId: studentAttente.id, classId, enrolledById: studentAttente.id });
+  const profileAttente = await creerEleveAvecClasse(enrollmentRepo, { userId: studentAttente.id, classId, enrolledById: studentAttente.id });
   const parentAttenteUser = await creerUtilisateurTest(prismaTest, schoolId, { role: 'PARENT', suffix: 'bcast-attente-parent' });
   await prismaTest.user.update({ where: { id: parentAttenteUser.id }, data: { phone: '677000002' } });
   const parentAttenteProfile = await prismaTest.parentProfile.create({ data: { userId: parentAttenteUser.id } });

@@ -29,6 +29,7 @@ import { creerDevRoutes } from '@infrastructure/http/routes/dev.routes';
 import { UserController } from '@infrastructure/http/controllers/UserController';
 import { MasterAdminHexController } from '@infrastructure/http/controllers/MasterAdminHexController';
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { creerUserRoutes } from '@infrastructure/http/routes/user.routes';
 import { creerMasterAdminHexRoutes } from '@infrastructure/http/routes/masterAdminHex.routes';
 import { FinanceController } from '@infrastructure/http/controllers/FinanceController';
@@ -1413,11 +1414,12 @@ export function bootstrapHexagonal(app: Application): void {
   app.post('/api/v2/onboarding/analyze-pebs', requireAuth, requireRole('ADMIN'), onboardingPEBSController.analyze);
 
   // ── Thin controllers (pas de use case — Prisma direct, aucune logique métier) ──
+  const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const activitiesController = new ActivitiesLogController(prisma);
-  const dashboardController  = new DashboardController(prisma);
+  const dashboardController  = new DashboardController(prisma, enrollmentRepository);
   const emailLogController   = new EmailLogController(prisma);
   const searchController     = new SearchController(prisma);
-  const aiController         = new AIController(prisma, container.prediction.comparerRisque);
+  const aiController         = new AIController(prisma, enrollmentRepository, container.prediction.comparerRisque);
   const studentFollowUpRepo  = new PrismaStudentFollowUpRepository(prisma);
   const suiviRBACRepository    = new PrismaSuiviRBACRepository(prisma);
   const studentFollowUpController = new StudentFollowUpController(

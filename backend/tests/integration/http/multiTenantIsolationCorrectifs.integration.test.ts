@@ -27,9 +27,12 @@ import jwt from 'jsonwebtoken';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
 import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
+
+const enrollmentRepo = new PrismaEnrollmentRepository(prismaTest);
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET non défini — requis dans .env.test pour ce test.');
@@ -84,7 +87,7 @@ beforeAll(async () => {
   });
 
   studentUserB = await creerUtilisateurTest(prismaTest, schoolB.id, { role: 'STUDENT' });
-  studentProfileB = await creerEleveAvecClasse(prismaTest, { userId: studentUserB.id, classId: classB.id, enrolledById: studentUserB.id });
+  studentProfileB = await creerEleveAvecClasse(enrollmentRepo, { userId: studentUserB.id, classId: classB.id, enrolledById: studentUserB.id });
   conseillerB = await creerUtilisateurTest(prismaTest, schoolB.id, { role: 'STAFF' });
 
   // 2.5 — AcademicPeriod ne porte PAS de schoolId : sa tenancy vient de son AcademicYear. C'est

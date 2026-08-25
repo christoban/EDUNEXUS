@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
+import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
 import { getClasseActuelleEleve } from '@application/shared/studentEnrollment';
 
 const formatPercent = (n: number, d: number) =>
@@ -8,7 +9,10 @@ const formatPercent = (n: number, d: number) =>
 const getTodayIndex = () => new Date().getDay();
 
 export class DashboardController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly enrollmentRepository: EnrollmentRepository,
+  ) {}
 
   getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -62,7 +66,7 @@ export class DashboardController {
         stats = { myClassesCount: myClasses.length, myClassNames: myClasses.map((c) => c.name), nextClass, recentActivity: formattedActivity };
 
       } else if (user.role === 'STUDENT') {
-        const classeActuelle = await getClasseActuelleEleve(this.prisma, user.userId);
+        const classeActuelle = await getClasseActuelleEleve(this.enrollmentRepository, user.userId);
         const [presenceCount, totalPresence, grades] = await Promise.all([
           this.prisma.attendance.count({ where: { studentId: user.userId, status: { in: ['PRESENT', 'LATE'] } } }),
           this.prisma.attendance.count({ where: { studentId: user.userId } }),

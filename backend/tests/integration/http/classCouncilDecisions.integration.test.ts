@@ -17,8 +17,11 @@ import { creerEleveAvecClasse } from '@application/shared/studentEnrollment';
 import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import { bootstrapHexagonal } from '@infrastructure/config/hexagonal.bootstrap';
+import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
+
+const enrollmentRepo = new PrismaEnrollmentRepository(prismaTest);
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET non défini — requis dans .env.test pour ce test.');
@@ -68,11 +71,11 @@ beforeAll(async () => {
 
   const studentA = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'conseil-a' });
   studentAId = studentA.id;
-  await creerEleveAvecClasse(prismaTest, { userId: studentA.id, classId, enrolledById: studentA.id });
+  await creerEleveAvecClasse(enrollmentRepo, { userId: studentA.id, classId, enrolledById: studentA.id });
 
   const studentB = await creerUtilisateurTest(prismaTest, schoolId, { role: 'STUDENT', suffix: 'conseil-b' });
   studentBId = studentB.id;
-  await creerEleveAvecClasse(prismaTest, { userId: studentB.id, classId, enrolledById: studentB.id });
+  await creerEleveAvecClasse(enrollmentRepo, { userId: studentB.id, classId, enrolledById: studentB.id });
 });
 
 afterAll(async () => {
