@@ -1,46 +1,53 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { assignerMatieresPourClasse, parseSerie } from '../../../../src/application/school/SubjectAssignmentHelper.ts';
+import type { SubjectAssignmentRepository } from '@domain/ports/repositories/SubjectAssignmentRepository';
 
-function mockDb() {
-  const calls: { method: string; args: any }[] = [];
+function mockRepo() {
+  const calls: { method: string; args: any[] }[] = [];
   let hasCoeffs = false;
   let subjCounter = 0;
-  const track = (method: string) => (args: any) => {
-    calls.push({ method, args });
-    return Promise.resolve([]);
+  const repo: SubjectAssignmentRepository = {
+    createSubject: async (_schoolId, data) => {
+      calls.push({ method: 'createSubject', args: [_schoolId, data] });
+      subjCounter++;
+      return { id: `subj-${subjCounter}` };
+    },
+    upsertSubjectCoefficient: async (...args) => {
+      calls.push({ method: 'upsertSubjectCoefficient', args });
+    },
+    findSubjectCoefficient: async (...args) => {
+      calls.push({ method: 'findSubjectCoefficient', args });
+      return null;
+    },
+    findSubjects: async (schoolId) => {
+      calls.push({ method: 'findSubjects', args: [schoolId] });
+      return [];
+    },
+    findAnySubjectCoefficient: async (schoolId, classLevel) => {
+      calls.push({ method: 'findAnySubjectCoefficient', args: [schoolId, classLevel] });
+      return hasCoeffs ? { id: 'existing-coeff' } : null;
+    },
+    findAnglophoneSubjectLoads: async (templateCode, classLevel, filiere) => {
+      calls.push({ method: 'findAnglophoneSubjectLoads', args: [templateCode, classLevel, filiere] });
+      return [];
+    },
+    findAnglophoneSubjectLoadExists: async (templateCode, classLevel) => {
+      calls.push({ method: 'findAnglophoneSubjectLoadExists', args: [templateCode, classLevel] });
+      return false;
+    },
+    findCycleCoefficients: async (templateCode, classLevel, filiere) => {
+      calls.push({ method: 'findCycleCoefficients', args: [templateCode, classLevel, filiere] });
+      return [];
+    },
+    findBacCoefficients: async (serie, niveau, templateCode) => {
+      calls.push({ method: 'findBacCoefficients', args: [serie, niveau, templateCode] });
+      return [];
+    },
   };
   return {
     calls,
-    hasCoeffs: () => hasCoeffs,
+    repo,
     setHasCoeffs: (v: boolean) => { hasCoeffs = v; },
-    db: {
-      subject: {
-        create: (args: any) => {
-          calls.push({ method: 'subject.create', args });
-          subjCounter++;
-          return Promise.resolve({ id: `subj-${subjCounter}` });
-        },
-        findMany: () => Promise.resolve([]),
-      } as any,
-      subjectCoefficient: {
-        findFirst: (_args: any) => {
-          calls.push({ method: 'subjectCoefficient.findFirst', args: _args });
-          return Promise.resolve(hasCoeffs ? { id: 'existing-coeff' } : null);
-        },
-        create: track('subjectCoefficient.create'),
-        upsert: track('subjectCoefficient.upsert'),
-        update: track('subjectCoefficient.update'),
-      } as any,
-      cycleCoefficient: {
-        findMany: track('cycleCoefficient.findMany'),
-      } as any,
-      bacCoefficient: {
-        findMany: track('bacCoefficient.findMany'),
-      } as any,
-      anglophoneSubjectLoad: {
-        findMany: track('anglophoneSubjectLoad.findMany'),
-      } as any,
-    },
   };
 }
 
@@ -49,7 +56,7 @@ const EMPTY_CONFIG = {};
 const EMPTY_SUBJECT_MAP = new Map<string, string>();
 const SUBJECT_COUNT_REF = { value: 0 };
 
-function beforeEachTest(mock: ReturnType<typeof mockDb>) {
+function beforeEachTest(mock: ReturnType<typeof mockRepo>) {
   mock.calls.length = 0;
   mock.setHasCoeffs(false);
   SUBJECT_COUNT_REF.value = 0;
@@ -60,11 +67,11 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
   describe('assignerMatieresPourClasse — 1er cycle FR', () => {
     describe('cycleCoefficient query', () => {
       it('filtre par filiere=FR_PEBS quand la classe a filiere=FR_PEBS', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
 
         await assignerMatieresPourClasse(
-          mock.db,
+          mock.repo,
           { name: '6e A', level: '6e', filiere: 'FR_PEBS' },
           SCHOOL_ID,
           { niveaux1erCycle: ['6e'] },
@@ -74,21 +81,17 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'LYCEE_FR',
         );
 
-        const cycleCall = mock.calls.find(c => c.method === 'cycleCoefficient.findMany');
+        const cycleCall = mock.calls.find(c => c.method === 'findCycleCoefficients');
         expect(cycleCall).toBeDefined();
-        expect(cycleCall!.args.where).toMatchObject({
-          templateCode: 'LYCEE_FR',
-          classLevel: '6e',
-          filiere: 'FR_PEBS',
-        });
+        expect(cycleCall!.args).toEqual(['LYCEE_FR', '6e', 'FR_PEBS']);
       });
 
       it('filtre par filiere=FR_GENERAL quand la classe a filiere=FR_GENERAL', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
 
         await assignerMatieresPourClasse(
-          mock.db,
+          mock.repo,
           { name: '6e B', level: '6e', filiere: 'FR_GENERAL' },
           SCHOOL_ID,
           { niveaux1erCycle: ['6e'] },
@@ -98,21 +101,17 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'CES_FR',
         );
 
-        const cycleCall = mock.calls.find(c => c.method === 'cycleCoefficient.findMany');
+        const cycleCall = mock.calls.find(c => c.method === 'findCycleCoefficients');
         expect(cycleCall).toBeDefined();
-        expect(cycleCall!.args.where).toMatchObject({
-          templateCode: 'CES_FR',
-          classLevel: '6e',
-          filiere: 'FR_GENERAL',
-        });
+        expect(cycleCall!.args).toEqual(['CES_FR', '6e', 'FR_GENERAL']);
       });
 
       it('utilise FR_GENERAL par défaut quand filiere est null', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
 
         await assignerMatieresPourClasse(
-          mock.db,
+          mock.repo,
           { name: '5e A', level: '5e' },
           SCHOOL_ID,
           { niveaux1erCycle: ['5e'] },
@@ -122,13 +121,9 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'PRIVE_FR',
         );
 
-        const cycleCall = mock.calls.find(c => c.method === 'cycleCoefficient.findMany');
+        const cycleCall = mock.calls.find(c => c.method === 'findCycleCoefficients');
         expect(cycleCall).toBeDefined();
-        expect(cycleCall!.args.where).toMatchObject({
-          templateCode: 'PRIVE_FR',
-          classLevel: '5e',
-          filiere: 'FR_GENERAL',
-        });
+        expect(cycleCall!.args).toEqual(['PRIVE_FR', '5e', 'FR_GENERAL']);
       });
     });
   });
@@ -136,18 +131,15 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
   describe('assignerMatieresPourClasse — Anglophone', () => {
     describe('anglophoneSubjectLoad query', () => {
       it('filtre par filiere=EN_PEBS quand la classe a filiere=EN_PEBS', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
-        const { db, calls } = mock;
-        (db.anglophoneSubjectLoad.findMany as any) = (args: any) => {
-          calls.push({ method: 'anglophoneSubjectLoad.findMany', args });
-          return Promise.resolve([
-            { subjectName: 'English Language', coefficient: 4, weeklyPeriods: 4 },
-          ]);
+        mock.repo.findAnglophoneSubjectLoads = async (templateCode, classLevel, filiere) => {
+          mock.calls.push({ method: 'findAnglophoneSubjectLoads', args: [templateCode, classLevel, filiere] });
+          return [{ subjectName: 'English Language', coefficient: 4, weeklyPeriods: 4 }];
         };
 
         await assignerMatieresPourClasse(
-          db,
+          mock.repo,
           { name: 'Form1 EN', level: 'Form1', filiere: 'EN_PEBS' },
           SCHOOL_ID,
           EMPTY_CONFIG,
@@ -157,28 +149,21 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'GHS_EN',
         );
 
-        const aslCall = calls.find(c => c.method === 'anglophoneSubjectLoad.findMany');
+        const aslCall = mock.calls.find(c => c.method === 'findAnglophoneSubjectLoads');
         expect(aslCall).toBeDefined();
-        expect(aslCall!.args.where).toMatchObject({
-          templateCode: 'GHS_EN',
-          classLevel: 'Form1',
-          filiere: 'EN_PEBS',
-        });
+        expect(aslCall!.args).toEqual(['GHS_EN', 'Form1', 'EN_PEBS']);
       });
 
       it('filtre par filiere=EN_GENERAL quand la classe a filiere=EN_GENERAL', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
-        const { db, calls } = mock;
-        (db.anglophoneSubjectLoad.findMany as any) = (args: any) => {
-          calls.push({ method: 'anglophoneSubjectLoad.findMany', args });
-          return Promise.resolve([
-            { subjectName: 'English Language', coefficient: 3, weeklyPeriods: 5 },
-          ]);
+        mock.repo.findAnglophoneSubjectLoads = async (templateCode, classLevel, filiere) => {
+          mock.calls.push({ method: 'findAnglophoneSubjectLoads', args: [templateCode, classLevel, filiere] });
+          return [{ subjectName: 'English Language', coefficient: 3, weeklyPeriods: 5 }];
         };
 
         await assignerMatieresPourClasse(
-          db,
+          mock.repo,
           { name: 'Form2 A', level: 'Form2', filiere: 'EN_GENERAL' },
           SCHOOL_ID,
           EMPTY_CONFIG,
@@ -188,28 +173,21 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'GSS_EN',
         );
 
-        const aslCall = calls.find(c => c.method === 'anglophoneSubjectLoad.findMany');
+        const aslCall = mock.calls.find(c => c.method === 'findAnglophoneSubjectLoads');
         expect(aslCall).toBeDefined();
-        expect(aslCall!.args.where).toMatchObject({
-          templateCode: 'GSS_EN',
-          classLevel: 'Form2',
-          filiere: 'EN_GENERAL',
-        });
+        expect(aslCall!.args).toEqual(['GSS_EN', 'Form2', 'EN_GENERAL']);
       });
 
       it('utilise EN_GENERAL par défaut quand filiere est null (classe anglophone)', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
-        const { db, calls } = mock;
-        (db.anglophoneSubjectLoad.findMany as any) = (args: any) => {
-          calls.push({ method: 'anglophoneSubjectLoad.findMany', args });
-          return Promise.resolve([
-            { subjectName: 'French', coefficient: 3, weeklyPeriods: 5 },
-          ]);
+        mock.repo.findAnglophoneSubjectLoads = async (templateCode, classLevel, filiere) => {
+          mock.calls.push({ method: 'findAnglophoneSubjectLoads', args: [templateCode, classLevel, filiere] });
+          return [{ subjectName: 'French', coefficient: 3, weeklyPeriods: 5 }];
         };
 
         await assignerMatieresPourClasse(
-          db,
+          mock.repo,
           { name: 'Form3 A', level: 'Form3' },
           SCHOOL_ID,
           EMPTY_CONFIG,
@@ -219,35 +197,28 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'PRIVE_EN',
         );
 
-        const aslCall = calls.find(c => c.method === 'anglophoneSubjectLoad.findMany');
+        const aslCall = mock.calls.find(c => c.method === 'findAnglophoneSubjectLoads');
         expect(aslCall).toBeDefined();
-        expect(aslCall!.args.where).toMatchObject({
-          templateCode: 'PRIVE_EN',
-          classLevel: 'Form3',
-          filiere: 'EN_GENERAL',
-        });
+        expect(aslCall!.args).toEqual(['PRIVE_EN', 'Form3', 'EN_GENERAL']);
       });
 
       it('utilise EN_GENERAL par défaut pour LYCEE_BILINGUE section EN (filiere null)', async () => {
-        const mock = mockDb();
+        const mock = mockRepo();
         beforeEachTest(mock);
-        const { db, calls } = mock;
-
-        let aslCallCount = 0;
-        (db.anglophoneSubjectLoad.findMany as any) = (args: any) => {
-          calls.push({ method: 'anglophoneSubjectLoad.findMany', args });
-          aslCallCount++;
-          if (aslCallCount === 1) {
-            return Promise.resolve([{ id: 'exists' }]);
-          }
-          return Promise.resolve([
+        mock.repo.findAnglophoneSubjectLoadExists = async (templateCode, classLevel) => {
+          mock.calls.push({ method: 'findAnglophoneSubjectLoadExists', args: [templateCode, classLevel] });
+          return true;
+        };
+        mock.repo.findAnglophoneSubjectLoads = async (templateCode, classLevel, filiere) => {
+          mock.calls.push({ method: 'findAnglophoneSubjectLoads', args: [templateCode, classLevel, filiere] });
+          return [
             { subjectName: 'English Language', coefficient: 4, weeklyPeriods: 4 },
             { subjectName: 'French', coefficient: 3, weeklyPeriods: 5 },
-          ]);
+          ];
         };
 
         await assignerMatieresPourClasse(
-          db,
+          mock.repo,
           { name: 'Form1 EN', level: 'Form1' },
           SCHOOL_ID,
           EMPTY_CONFIG,
@@ -257,14 +228,9 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
           'LYCEE_BILINGUE',
         );
 
-        const aslCalls = calls.filter(c => c.method === 'anglophoneSubjectLoad.findMany');
-        expect(aslCalls.length).toBeGreaterThanOrEqual(2);
-        const secondCall = aslCalls[1];
-        expect(secondCall.args.where).toMatchObject({
-          templateCode: 'LYCEE_BILINGUE',
-          classLevel: 'Form1',
-          filiere: 'EN_GENERAL',
-        });
+        const aslCall = mock.calls.find(c => c.method === 'findAnglophoneSubjectLoads');
+        expect(aslCall).toBeDefined();
+        expect(aslCall!.args).toEqual(['LYCEE_BILINGUE', 'Form1', 'EN_GENERAL']);
       });
     });
   });
@@ -290,25 +256,25 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
   });
 
   describe('Fallback ensureCoefficients', () => {
-    function mockDbWithSubjects(subjects: { name: string; coefficient: number }[]) {
-      const base = mockDb();
-      base.db.subject.findMany = () => Promise.resolve(
-        subjects.map(s => ({ id: `subj-${s.name}`, name: s.name, coefficient: s.coefficient, code: '', hoursPerWeek: 2, subjectType: 'THEORETICAL', schoolId: SCHOOL_ID, createdAt: new Date() }))
-      ) as any;
+    function mockRepoWithSubjects(subjects: { name: string; coefficient: number }[]) {
+      const base = mockRepo();
+      base.repo.findSubjects = async (schoolId) => {
+        base.calls.push({ method: 'findSubjects', args: [schoolId] });
+        return subjects.map(s => ({ id: `subj-${s.name}`, name: s.name, coefficient: s.coefficient }));
+      };
       return base;
     }
 
     it('crée SubjectCoefficients pour toutes les matières (niveau technique CAP1)', async () => {
-      const mock = mockDbWithSubjects([
+      const mock = mockRepoWithSubjects([
         { name: 'Français', coefficient: 2 },
         { name: 'Mathématiques', coefficient: 2 },
         { name: 'Anglais', coefficient: 2 },
       ]);
       beforeEachTest(mock);
-      const { db, calls } = mock;
 
       await assignerMatieresPourClasse(
-        db,
+        mock.repo,
         { name: 'CAP1 F1', level: 'CAP1' },
         SCHOOL_ID,
         EMPTY_CONFIG,
@@ -318,24 +284,21 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
         'LYCEE_TECHNIQUE_FR',
       );
 
-      const createCalls = calls.filter(c =>
-        c.method === 'subjectCoefficient.create' || c.method === 'subjectCoefficient.upsert'
-      );
+      const createCalls = mock.calls.filter(c => c.method === 'upsertSubjectCoefficient');
       expect(createCalls.length).toBe(3);
-      expect(createCalls[0].args.data?.classLevel ?? createCalls[0].args.create?.classLevel).toBe('CAP1');
+      expect(createCalls[0].args[2]).toBe('CAP1');
     });
 
     it('crée SubjectCoefficients pour niveau primaire (CP)', async () => {
-      const mock = mockDbWithSubjects([
+      const mock = mockRepoWithSubjects([
         { name: 'Français', coefficient: 5 },
         { name: 'Mathématiques', coefficient: 5 },
         { name: 'Lecture', coefficient: 3 },
       ]);
       beforeEachTest(mock);
-      const { db, calls } = mock;
 
       await assignerMatieresPourClasse(
-        db,
+        mock.repo,
         { name: 'CP A', level: 'CP' },
         SCHOOL_ID,
         EMPTY_CONFIG,
@@ -345,27 +308,22 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
         'PRIMAIRE_FR',
       );
 
-      const createCalls = calls.filter(c =>
-        c.method === 'subjectCoefficient.create' || c.method === 'subjectCoefficient.upsert'
-      );
+      const createCalls = mock.calls.filter(c => c.method === 'upsertSubjectCoefficient');
       expect(createCalls.length).toBe(3);
     });
 
     it('ne duplique pas — ensureCoefficients ne crée rien si des coeffs existent déjà', async () => {
-      const mock = mockDbWithSubjects([
+      const mock = mockRepoWithSubjects([
         { name: 'Français', coefficient: 6 },
         { name: 'Mathématiques', coefficient: 4 },
       ]);
       beforeEachTest(mock);
       mock.setHasCoeffs(true);
-      const { db, calls } = mock;
 
-      const ccBefore = calls.filter(c =>
-        c.method === 'subjectCoefficient.create' || c.method === 'subjectCoefficient.upsert'
-      ).length;
+      const ccBefore = mock.calls.filter(c => c.method === 'upsertSubjectCoefficient').length;
 
       await assignerMatieresPourClasse(
-        db,
+        mock.repo,
         { name: 'CAP1 F1', level: 'CAP1' },
         SCHOOL_ID,
         EMPTY_CONFIG,
@@ -375,9 +333,7 @@ describe('SubjectAssignmentHelper — PEBS filiere filtering', () => {
         'LYCEE_TECHNIQUE_FR',
       );
 
-      const ccAfter = calls.filter(c =>
-        c.method === 'subjectCoefficient.create' || c.method === 'subjectCoefficient.upsert'
-      ).length;
+      const ccAfter = mock.calls.filter(c => c.method === 'upsertSubjectCoefficient').length;
       expect(ccAfter).toBe(ccBefore);
     });
   });

@@ -3,9 +3,7 @@
  * Utilisé par ActiverEtablissementUseCase (activation) et
  * la route POST /api/v2/schools/:id/sync-subjects (rattrapage).
  */
-import type { PrismaClient } from '@prisma/client';
-
-type DbClient = Pick<PrismaClient, 'subject' | 'subjectCoefficient' | 'bacCoefficient' | 'cycleCoefficient' | 'anglophoneSubjectLoad'>;
+import type { SubjectAssignmentRepository } from '@domain/ports/repositories/SubjectAssignmentRepository';
 
 export const CYCLE1_ORDER: ReadonlyArray<string> = ['6e', '5e', '4e', '3e'];
 export const CYCLE2_LEVELS: ReadonlyArray<string> = ['2nde', '1ere', '1ère', 'Tle'];
@@ -54,7 +52,7 @@ const MATIERES_SIXTH_SCIENCES = [
  * Retourne l'id dans tous les cas.
  */
 export async function getOrCreateSubject(
-  db: DbClient,
+  repo: SubjectAssignmentRepository,
   schoolId: string,
   name: string,
   coefficient: number,
@@ -65,46 +63,12 @@ export async function getOrCreateSubject(
   let id = subjectByName.get(name);
   if (!id) {
     const code = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 8);
-    const created = await db.subject.create({
-      data: { schoolId, name, code, coefficient, hoursPerWeek, subjectType: 'THEORETICAL' },
-    });
+    const created = await repo.createSubject(schoolId, { name, code, coefficient, hoursPerWeek });
     id = created.id;
     subjectByName.set(name, id);
     subjectCountRef.value++;
   }
   return id;
-}
-
-/**
- * Prisma ne supporte pas `null` dans le `where` d'un upsert sur une contrainte unique composée.
- * Pour les classes sans série (1er cycle, anglophone), on utilise findFirst + create/update.
- */
-async function upsertSubjectCoeff(
-  db: DbClient,
-  schoolId: string,
-  subjectId: string,
-  classLevel: string,
-  serieCode: string | null,
-  coefficient: number,
-): Promise<void> {
-  if (serieCode !== null) {
-    await db.subjectCoefficient.upsert({
-      where: { schoolId_subjectId_classLevel_serieCode: { schoolId, subjectId, classLevel, serieCode } },
-      update: { coefficient },
-      create: { schoolId, subjectId, classLevel, serieCode, coefficient },
-    });
-    return;
-  }
-  // serieCode est null → upsert impossible, on fait findFirst + create/update
-  const existing = await db.subjectCoefficient.findFirst({
-    where: { schoolId, subjectId, classLevel, serieCode: null },
-    select: { id: true },
-  });
-  if (existing) {
-    await db.subjectCoefficient.update({ where: { id: existing.id }, data: { coefficient } });
-  } else {
-    await db.subjectCoefficient.create({ data: { schoolId, subjectId, classLevel, serieCode: null, coefficient } });
-  }
 }
 
 /**
@@ -117,7 +81,7 @@ async function upsertSubjectCoeff(
  * Idempotent grâce aux upserts (safe à appeler plusieurs fois pour le même niveau).
  */
 export async function assignerMatieresPourClasse(
-  db: DbClient,
+  repo: SubjectAssignmentRepository,
   classe: { name: string; level: string; filiere?: string | null },
   schoolId: string,
   config: Record<string, unknown>,
@@ -130,9 +94,7 @@ export async function assignerMatieresPourClasse(
 
   async function assignerMatieresAnglophones() {
     if (!templateCode) return;
-    const loads = await db.anglophoneSubjectLoad.findMany({
-      where: { templateCode, classLevel: level, filiere: filiere ?? 'EN_GENERAL' },
-    });
+    const loads = await repo.findAnglophoneSubjectLoads(templateCode, level, filiere ?? 'EN_GENERAL');
     if (loads.length === 0) return;
 
     const loadMap = new Map<string, { coefficient: number; weeklyPeriods: number | null }>();
@@ -156,23 +118,20 @@ export async function assignerMatieresPourClasse(
     for (const nomMatiere of subjectNames) {
       const entry = loadMap.get(nomMatiere);
       if (!entry) continue;
-      const subjectId = await getOrCreateSubject(db, schoolId, nomMatiere, entry.coefficient, subjectByName, subjectCountRef, entry.weeklyPeriods ?? 2);
-      await upsertSubjectCoeff(db, schoolId, subjectId, level, null, entry.coefficient);
+      const subjectId = await getOrCreateSubject(repo, schoolId, nomMatiere, entry.coefficient, subjectByName, subjectCountRef, entry.weeklyPeriods ?? 2);
+      await repo.upsertSubjectCoefficient(schoolId, subjectId, level, null, entry.coefficient);
     }
   }
 
   // ── Fonction de rattrapage : crée SubjectCoefficients depuis toutes les matières ──
   // si aucune référence n'a matché (utile pour technique, primaire, etc.)
   async function ensureCoefficients() {
-    const existing = await db.subjectCoefficient.findFirst({
-      where: { schoolId, classLevel: level },
-      select: { id: true },
-    });
+    const existing = await repo.findAnySubjectCoefficient(schoolId, level);
     if (!existing) {
-      const allSubjects = await db.subject.findMany({ where: { schoolId } });
+      const allSubjects = await repo.findSubjects(schoolId);
       for (const subj of allSubjects) {
-        const subjectId = await getOrCreateSubject(db, schoolId, subj.name, subj.coefficient, subjectByName, subjectCountRef);
-        await upsertSubjectCoeff(db, schoolId, subjectId, level, null, subj.coefficient);
+        const subjectId = await getOrCreateSubject(repo, schoolId, subj.name, subj.coefficient, subjectByName, subjectCountRef);
+        await repo.upsertSubjectCoefficient(schoolId, subjectId, level, null, subj.coefficient);
       }
     }
   }
@@ -186,12 +145,8 @@ export async function assignerMatieresPourClasse(
 
   // ── B.3b Bilingual EN section (LYCEE_BILINGUE classes with EN levels) ──
   if (templateCode === 'LYCEE_BILINGUE') {
-    const enLoads = await db.anglophoneSubjectLoad.findMany({
-      where: { templateCode, classLevel: level },
-      select: { id: true },
-      take: 1,
-    });
-    if (enLoads.length > 0) {
+    const hasEnLoads = await repo.findAnglophoneSubjectLoadExists(templateCode, level);
+    if (hasEnLoads) {
       await assignerMatieresAnglophones();
       await ensureCoefficients();
       return;
@@ -202,21 +157,19 @@ export async function assignerMatieresPourClasse(
   const niveaux1er: string[] = (config['niveaux1erCycle'] as string[] | undefined) ?? [...CYCLE1_ORDER];
   if (niveaux1er.includes(level)) {
     const filiere1er = filiere ?? 'FR_GENERAL';
-    const cycleCoeffs = await db.cycleCoefficient.findMany({
-      where: { templateCode, classLevel: level, filiere: filiere1er },
-    });
+    const cycleCoeffs = await repo.findCycleCoefficients(templateCode, level, filiere1er);
 
     if (cycleCoeffs.length > 0) {
       // Données officielles depuis CycleCoefficient (DB)
       for (const cc of cycleCoeffs) {
-        const subjectId = await getOrCreateSubject(db, schoolId, cc.subjectName, cc.coefficient, subjectByName, subjectCountRef, cc.weeklyPeriods ?? 2);
-        await upsertSubjectCoeff(db, schoolId, subjectId, level, filiere1er, cc.coefficient);
+        const subjectId = await getOrCreateSubject(repo, schoolId, cc.subjectName, cc.coefficient, subjectByName, subjectCountRef, cc.weeklyPeriods ?? 2);
+        await repo.upsertSubjectCoefficient(schoolId, subjectId, level, filiere1er, cc.coefficient);
       }
     } else if (!isAnglophone && CYCLE1_FR_SUBJECTS[level]) {
       // Fallback : programme 1er cycle FR en dur (CycleCoefficient non encore seedé)
       for (const def of CYCLE1_FR_SUBJECTS[level]!) {
-        const subjectId = await getOrCreateSubject(db, schoolId, def.name, def.coefficient, subjectByName, subjectCountRef, def.hoursPerWeek);
-        await upsertSubjectCoeff(db, schoolId, subjectId, level, filiere1er, def.coefficient);
+        const subjectId = await getOrCreateSubject(repo, schoolId, def.name, def.coefficient, subjectByName, subjectCountRef, def.hoursPerWeek);
+        await repo.upsertSubjectCoefficient(schoolId, subjectId, level, filiere1er, def.coefficient);
       }
     }
     // Si aucune donnée disponible → on ne touche rien (évite la contamination cross-niveau)
@@ -243,9 +196,7 @@ export async function assignerMatieresPourClasse(
   const seriePart = dashIdx >= 0 ? serieRaw.slice(0, dashIdx) : serieRaw;
   const langueA4  = seriePart === 'A4' && dashIdx >= 0 ? serieRaw.slice(dashIdx + 1) : null;
 
-  const bacCoeffs = await db.bacCoefficient.findMany({
-    where: { serie: seriePart, niveau: niveauBac, templateCode: { in: [templateCode, '__ALL__'] } },
-  });
+  const bacCoeffs = await repo.findBacCoefficients(seriePart, niveauBac, templateCode);
 
   for (const bc of bacCoeffs) {
     // Pour A4 : "LV2" → langue réelle (ex. "Arabe")
@@ -253,9 +204,9 @@ export async function assignerMatieresPourClasse(
       ? langueA4
       : bc.subjectName;
 
-    const subjectId = await getOrCreateSubject(db, schoolId, subjectName, bc.coefficient, subjectByName, subjectCountRef);
+    const subjectId = await getOrCreateSubject(repo, schoolId, subjectName, bc.coefficient, subjectByName, subjectCountRef);
     const effectiveSerieCode = seriePart === 'A4' ? serieRaw : seriePart;
-    await upsertSubjectCoeff(db, schoolId, subjectId, level, effectiveSerieCode, bc.coefficient);
+    await repo.upsertSubjectCoefficient(schoolId, subjectId, level, effectiveSerieCode, bc.coefficient);
   }
   // Pas de fallback ensureCoefficients() ici — évite la contamination cross-série
 }

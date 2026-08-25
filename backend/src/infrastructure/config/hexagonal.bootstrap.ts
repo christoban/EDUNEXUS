@@ -128,6 +128,7 @@ import {
   CYCLE2_LEVELS as SYNC_CYCLE2_LEVELS,
   parseSerie as syncParseSerie,
 } from '@application/school/SubjectAssignmentHelper';
+import { PrismaSubjectAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaSubjectAssignmentRepository';
 import { creerSchoolConfigRoutes } from '@infrastructure/http/routes/school-config.routes';
 import { OrientationController } from '@infrastructure/http/controllers/OrientationController';
 import { creerActivitiesRoutes } from '@infrastructure/http/routes/activities.routes';
@@ -624,7 +625,7 @@ export function bootstrapHexagonal(app: Application): void {
         const beforeCoeffs = await prisma.subjectCoefficient.count({ where: { schoolId } });
 
         await assignerMatieresPourClasse(
-          prisma, { name: cls.name, level: cls.level, filiere: cls.filiere ?? undefined }, schoolId,
+          new PrismaSubjectAssignmentRepository(prisma), { name: cls.name, level: cls.level, filiere: cls.filiere ?? undefined }, schoolId,
           config, isAnglophone, subjectByName, subjectCountRef, templateCode,
         );
 
@@ -805,7 +806,7 @@ export function bootstrapHexagonal(app: Application): void {
           const existingCoeffs = await prisma.subjectCoefficient.count({ where: { schoolId, classLevel: cls.level } });
           if (existingCoeffs === 0) {
             await assignerMatieresPourClasse(
-              prisma, { name: cls.name, level: cls.level, filiere: null },
+              new PrismaSubjectAssignmentRepository(prisma), { name: cls.name, level: cls.level, filiere: null },
               schoolId, newConfig, isAnglophone, subjectByName, subjectCountRef, templateCode,
             );
           }

@@ -6,6 +6,7 @@
  * et copie les formules/mentions du template dans l'école.
  */
 import type { PrismaClient, SubjectType, FeeType, Prisma } from '@prisma/client';
+import { PrismaSubjectAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaSubjectAssignmentRepository';
 import {
   assignerMatieresPourClasse,
   parseSerie,
@@ -565,7 +566,7 @@ export class ActiverEtablissementUseCase {
           processedKeys.add(dedupKey);
 
           await assignerMatieresPourClasse(
-            tx, c, schoolId, config, isAnglophone, subjectByName, subjectCountRef, school.templateCode ?? '',
+            new PrismaSubjectAssignmentRepository(tx), c, schoolId, config, isAnglophone, subjectByName, subjectCountRef, school.templateCode ?? '',
           );
         }
         subjectCount += subjectCountRef.value;
