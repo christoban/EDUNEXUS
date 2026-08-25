@@ -1,14 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
+import type { IOrientationRepository, EleveAOrienterDetail } from '@domain/ports/repositories/IOrientationRepository';
 import type { OrientationCheckpointType } from '@domain/entities/FicheOrientation';
 
-export interface EleveAOrienter {
-  studentId: string;
-  firstName: string;
-  lastName: string;
-  className: string;
-  hasRecommendation: boolean;
-  recommendationStatus: string | null;
-}
+export type { EleveAOrienterDetail as EleveAOrienter };
 
 /**
  * Détermine les élèves éligibles à un checkpoint (niveau/série de leur classe actuelle) et
@@ -16,7 +9,7 @@ export interface EleveAOrienter {
  * conseiller (A.1.3 point 5) et de base au déclenchement automatique du moteur (Phase 4).
  */
 export class ListerElevesAOrienterUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly orientationRepo: IOrientationRepository) {}
 
   static eligibiliteWhere(checkpointType: OrientationCheckpointType) {
     return checkpointType === 'FIN_TROISIEME'
@@ -24,49 +17,7 @@ export class ListerElevesAOrienterUseCase {
       : { level: '2nde', serie: 'C' };
   }
 
-  async execute(params: { schoolId: string; checkpointType: OrientationCheckpointType; academicYearId: string }): Promise<EleveAOrienter[]> {
-    const eleves = await this.prisma.studentProfile.findMany({
-      where: {
-        studentStatus: 'ACTIVE',
-        enrollmentsYearScoped: {
-          some: {
-            status: 'ACTIVE',
-            academicYear: { isCurrent: true },
-            class: ListerElevesAOrienterUseCase.eligibiliteWhere(params.checkpointType),
-          },
-        },
-        user: { schoolId: params.schoolId },
-      },
-      select: {
-        userId: true,
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { name: true } } },
-          take: 1,
-        },
-        user: { select: { firstName: true, lastName: true } },
-      },
-    });
-    if (eleves.length === 0) return [];
-
-    const studentIds = eleves.map((e) => e.userId);
-    const recommandations = await this.prisma.recommandationSerie.findMany({
-      where: {
-        studentId: { in: studentIds },
-        checkpointType: params.checkpointType,
-        fiche: { academicYearId: params.academicYearId },
-      },
-      select: { studentId: true, status: true },
-    });
-    const recoByStudent = new Map(recommandations.map((r) => [r.studentId, r.status]));
-
-    return eleves.map((e) => ({
-      studentId: e.userId,
-      firstName: e.user.firstName,
-      lastName: e.user.lastName,
-      className: e.enrollmentsYearScoped[0]?.class?.name ?? '—',
-      hasRecommendation: recoByStudent.has(e.userId),
-      recommendationStatus: recoByStudent.get(e.userId) ?? null,
-    }));
+  async execute(params: { schoolId: string; checkpointType: OrientationCheckpointType; academicYearId: string }): Promise<EleveAOrienterDetail[]> {
+    return this.orientationRepo.listElevesAOrienter(params.schoolId, params.checkpointType, params.academicYearId);
   }
 }

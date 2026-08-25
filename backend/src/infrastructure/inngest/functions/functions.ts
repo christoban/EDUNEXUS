@@ -14,6 +14,7 @@ import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermeture
 import { notifierEvenementAcademique } from "../../services/notification/AcademicEventNotificationService";
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "@application/academicEvent";
 import { PrismaOrientationRepository } from "../../persistence/prisma/PrismaOrientationRepository";
+import { PrismaGradeOrientationRepository } from "../../persistence/prisma/PrismaGradeOrientationRepository";
 import { PrismaAnnouncementRepository } from "../../persistence/prisma/PrismaAnnouncementRepository";
 import { PrismaLv2ChoiceRepository } from "../../persistence/prisma/PrismaLv2ChoiceRepository";
 import { PrismaAnneeAcademiqueRepository } from "../../persistence/prisma/PrismaAnneeAcademiqueRepository";
@@ -1395,10 +1396,11 @@ export const checkOrientationCheckpoints = inngest.createFunction(
       const schools = await prisma.school.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
       const now = new Date();
       const orientationRepo = new PrismaOrientationRepository(prisma);
-      const genererUseCase = new GenererRecommandationOrientationUseCase(prisma, orientationRepo);
+      const gradeOrientationRepo = new PrismaGradeOrientationRepository(prisma);
+      const genererUseCase = new GenererRecommandationOrientationUseCase(orientationRepo, gradeOrientationRepo);
       const relancerUseCase = new RelancerElevesEnAttenteUseCase(orientationRepo);
       const finaliserUseCase = new FinaliserParDefautUseCase(orientationRepo);
-      const listerUseCase = new ListerElevesAOrienterUseCase(prisma);
+      const listerUseCase = new ListerElevesAOrienterUseCase(orientationRepo);
 
       for (const school of schools) {
         try {

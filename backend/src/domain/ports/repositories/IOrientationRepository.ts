@@ -145,6 +145,23 @@ export interface ListeFichesFilters {
   limit?:         number;
 }
 
+// ── DTOs lecture —.Orientation board / moteur ────────────────────────────────
+
+export interface SerieActuelleDetail {
+  name: string | null;
+  level: string | null;
+  serie: string | null;
+}
+
+export interface EleveAOrienterDetail {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  className: string;
+  hasRecommendation: boolean;
+  recommendationStatus: string | null;
+}
+
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 export interface IOrientationRepository {
@@ -232,4 +249,8 @@ export interface IOrientationRepository {
 
   // Stats
   getStats(schoolId: string, academicYearId?: string): Promise<OrientationStats>;
+
+  // Moteur / board
+  findSerieActuelle(studentId: string): Promise<SerieActuelleDetail | null>;
+  listElevesAOrienter(schoolId: string, checkpointType: OrientationCheckpointType, academicYearId: string): Promise<EleveAOrienterDetail[]>;
 }

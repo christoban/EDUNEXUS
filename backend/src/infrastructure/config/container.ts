@@ -275,6 +275,7 @@ import { RetirerAssignationSalleUseCase } from '@application/studentGroup/Retire
 
 // --- Adapter Persistence Orientation ---
 import { PrismaOrientationRepository } from '@infrastructure/persistence/prisma/PrismaOrientationRepository';
+import { PrismaGradeOrientationRepository } from '@infrastructure/persistence/prisma/PrismaGradeOrientationRepository';
 
 // --- Use Cases : Orientation ---
 import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
@@ -581,6 +582,7 @@ export function creerContainer() {
 
   // 16. Use Cases — Orientation
   const orientationRepository = new PrismaOrientationRepository(prisma);
+  const gradeOrientationRepository = new PrismaGradeOrientationRepository(prisma);
   const creerFicheOrientationUseCase = new CreerFicheOrientationUseCase(orientationRepository);
   const ajouterEntretienUseCase = new AjouterEntretienUseCase(orientationRepository);
   const ajouterTestAptitudeUseCase = new AjouterTestAptitudeUseCase(orientationRepository);
@@ -589,11 +591,11 @@ export function creerContainer() {
   const listerFichesOrientationUseCase = new ListerFichesOrientationUseCase(orientationRepository);
   const getStatsOrientationUseCase = new GetStatsOrientationUseCase(orientationRepository);
   const saisirAspirationsEleveUseCase = new SaisirAspirationsEleveUseCase(orientationRepository);
-  const genererRecommandationOrientationUseCase = new GenererRecommandationOrientationUseCase(prisma, orientationRepository);
+  const genererRecommandationOrientationUseCase = new GenererRecommandationOrientationUseCase(orientationRepository, gradeOrientationRepository);
   const validerRecommandationConseillerUseCase = new ValiderRecommandationConseillerUseCase(orientationRepository);
   const proposerRecommandationEleveUseCase = new ProposerRecommandationEleveUseCase(orientationRepository);
   const choisirPisteEleveUseCase = new ChoisirPisteEleveUseCase(orientationRepository);
-  const listerElevesAOrienterUseCase = new ListerElevesAOrienterUseCase(prisma);
+  const listerElevesAOrienterUseCase = new ListerElevesAOrienterUseCase(orientationRepository);
   const configurerCheckpointOrientationUseCase = new ConfigurerCheckpointOrientationUseCase(orientationRepository);
 
   // 17. Use Cases — MasterAdmin

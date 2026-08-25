@@ -9,8 +9,8 @@
  * n'existe encore pour cet élève cette année (contrairement au déclenchement "à risque" qui
  * n'ouvre JAMAIS de fiche automatiquement — ici c'est un processus systématique, pas exceptionnel).
  */
-import type { PrismaClient } from '@prisma/client';
 import type { IOrientationRepository, RecommandationDetail, TestDetail, AspirationDetail } from '@domain/ports/repositories/IOrientationRepository';
+import type { GradeOrientationRepository } from '@domain/ports/repositories/GradeOrientationRepository';
 import type { OrientationCheckpointType, ConfidenceLevel } from '@domain/entities/FicheOrientation';
 import { defaultConfigFor, type CheckpointScoringConfig, type TrackWeights } from './checkpointScoringConfig';
 
@@ -26,8 +26,8 @@ const SEUIL_PISTE_RETENUE = 55;
 
 export class GenererRecommandationOrientationUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
     private readonly orientationRepo: IOrientationRepository,
+    private readonly gradeRepo: GradeOrientationRepository,
   ) {}
 
   async execute(cmd: GenererRecommandationCommande): Promise<RecommandationDetail> {
@@ -95,17 +95,7 @@ export class GenererRecommandationOrientationUseCase {
   }
 
   private async determinerSerieActuelle(studentId: string): Promise<string> {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      select: {
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { name: true, level: true, serie: true } } },
-          take: 1,
-        },
-      },
-    });
-    const classe = profile?.enrollmentsYearScoped[0]?.class ?? null;
+    const classe = await this.orientationRepo.findSerieActuelle(studentId);
     return classe?.serie || classe?.level || classe?.name || 'Non renseignée';
   }
 
@@ -118,28 +108,15 @@ export class GenererRecommandationOrientationUseCase {
     for (const w of Object.values(config)) for (const s of w.subjects) subjectNames.add(s);
     if (subjectNames.size === 0) return {};
 
-    const grades = await this.prisma.grade.findMany({
-      where: {
-        schoolId, studentId,
-        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
-        subject: { name: { in: [...subjectNames] } },
-        sequenceAverage: { not: null },
-      },
-      select: {
-        sequenceAverage: true, maxValue: true,
-        subject: { select: { name: true } },
-        sequence: { select: { academicPeriod: { select: { orderIndex: true, academicYear: { select: { startDate: true } } } } } },
-      },
-    });
+    const grades = await this.gradeRepo.findGradesPourTendances(schoolId, studentId, [...subjectNames]);
 
     const bySubject = new Map<string, { value: number; ts: number }[]>();
     for (const g of grades) {
-      if (g.sequenceAverage == null || !g.sequence?.academicPeriod) continue;
       const normalized = (g.sequenceAverage / (g.maxValue || 20)) * 100;
-      const ts = g.sequence.academicPeriod.academicYear.startDate.getTime() + g.sequence.academicPeriod.orderIndex;
-      const arr = bySubject.get(g.subject.name) ?? [];
+      const ts = g.yearStartTs + g.orderIndex;
+      const arr = bySubject.get(g.subjectName) ?? [];
       arr.push({ value: normalized, ts });
-      bySubject.set(g.subject.name, arr);
+      bySubject.set(g.subjectName, arr);
     }
 
     const tendances: Record<string, number> = {};
@@ -155,13 +132,9 @@ export class GenererRecommandationOrientationUseCase {
 
   /** Profondeur de données disponibles, en mois — pilote le niveau de confiance (A.4.4). */
   private async calculerProfondeurDonnees(schoolId: string, studentId: string): Promise<number> {
-    const earliest = await this.prisma.grade.findFirst({
-      where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
-      orderBy: { academicYear: { startDate: 'asc' } },
-      select: { academicYear: { select: { startDate: true } } },
-    });
-    if (!earliest) return 0;
-    const months = (Date.now() - earliest.academicYear.startDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    const startDate = await this.gradeRepo.findEarliestGradeYearStart(schoolId, studentId);
+    if (!startDate) return 0;
+    const months = (Date.now() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
     return Math.max(0, Math.round(months));
   }
 

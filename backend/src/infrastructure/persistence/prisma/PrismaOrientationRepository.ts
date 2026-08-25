@@ -1,5 +1,5 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
-import type { IOrientationRepository, FicheListItem, FicheDetail, EntretienDetail, TestDetail, RecommandationDetail, SuiviDetail, OrientationStats, ListeFichesFilters, CheckpointConfigDetail, AspirationDetail } from '@domain/ports/repositories/IOrientationRepository';
+import type { IOrientationRepository, FicheListItem, FicheDetail, EntretienDetail, TestDetail, RecommandationDetail, SuiviDetail, OrientationStats, ListeFichesFilters, CheckpointConfigDetail, AspirationDetail, SerieActuelleDetail, EleveAOrienterDetail } from '@domain/ports/repositories/IOrientationRepository';
 import { FicheOrientation } from '@domain/entities/FicheOrientation';
 import type { NiveauRisque, TypePreoccupation, TypeEntretien, MotifEntretien, StatutEntretien, TypeTest, StatutRecommandation, OrientationCheckpointType, ConfidenceLevel } from '@domain/entities/FicheOrientation';
 
@@ -515,6 +515,74 @@ export class PrismaOrientationRepository implements IOrientationRepository {
         ? { class: student.studentProfile.enrollmentsYearScoped[0]?.class ?? null }
         : null,
     };
+  }
+
+  // ── Moteur / board ──────────────────────────────────────────────────────────
+
+  async findSerieActuelle(studentId: string): Promise<SerieActuelleDetail | null> {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId: studentId },
+      select: {
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true, level: true, serie: true } } },
+          take: 1,
+        },
+      },
+    });
+    const classe = profile?.enrollmentsYearScoped[0]?.class ?? null;
+    if (!classe) return null;
+    return { name: classe.name, level: classe.level, serie: classe.serie };
+  }
+
+  async listElevesAOrienter(schoolId: string, checkpointType: OrientationCheckpointType, academicYearId: string): Promise<EleveAOrienterDetail[]> {
+    const eligibiliteWhere = checkpointType === 'FIN_TROISIEME'
+      ? { level: '3e' }
+      : { level: '2nde', serie: 'C' };
+
+    const eleves = await this.prisma.studentProfile.findMany({
+      where: {
+        studentStatus: 'ACTIVE',
+        enrollmentsYearScoped: {
+          some: {
+            status: 'ACTIVE',
+            academicYear: { isCurrent: true },
+            class: eligibiliteWhere,
+          },
+        },
+        user: { schoolId },
+      },
+      select: {
+        userId: true,
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true } } },
+          take: 1,
+        },
+        user: { select: { firstName: true, lastName: true } },
+      },
+    });
+    if (eleves.length === 0) return [];
+
+    const studentIds = eleves.map(e => e.userId);
+    const recommandations = await this.prisma.recommandationSerie.findMany({
+      where: {
+        studentId: { in: studentIds },
+        checkpointType,
+        fiche: { academicYearId },
+      },
+      select: { studentId: true, status: true },
+    });
+    const recoByStudent = new Map(recommandations.map(r => [r.studentId, r.status]));
+
+    return eleves.map(e => ({
+      studentId: e.userId,
+      firstName: e.user.firstName,
+      lastName: e.user.lastName,
+      className: e.enrollmentsYearScoped[0]?.class?.name ?? '—',
+      hasRecommendation: recoByStudent.has(e.userId),
+      recommendationStatus: recoByStudent.get(e.userId) ?? null,
+    }));
   }
 
   private toDomain(data: any): FicheOrientation {
