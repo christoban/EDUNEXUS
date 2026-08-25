@@ -5,6 +5,11 @@ import type {
   TimetableRepository,
   CreneauConflitInfo,
   CreneauALoter,
+  GridConfig,
+  SlotContexte,
+  EleveClasseAvecProfil,
+  AffectationSolver,
+  NomEnseignant,
 } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 import type { TimetableStatus, SlotKind } from '@domain/types/enums';
@@ -395,6 +400,127 @@ export class PrismaTimetableRepository implements TimetableRepository {
   ): Promise<string | undefined> {
     const room = await tx.room.findUnique({ where: { id: roomId }, select: { name: true } });
     return room?.name;
+  }
+  // --- Scheduling Engine (V2.5) — lectures solveur ---
+
+  async getGridConfig(schoolId: string): Promise<GridConfig | null> {
+    const config = await this.prisma.timetableGridConfig.findUnique({ where: { schoolId } });
+    return config;
+  }
+
+  async classeAppartientAEcole(classId: string, schoolId: string): Promise<boolean> {
+    const classe = await this.prisma.class.findFirst({
+      where: { id: classId, schoolId },
+      select: { id: true },
+    });
+    return !!classe;
+  }
+
+  async findSlotAvecContexte(slotId: string): Promise<SlotContexte | null> {
+    const slot = await this.prisma.timetableSlot.findUnique({
+      where: { id: slotId },
+      include: {
+        timetable: { select: { schoolId: true, classId: true, academicYearId: true } },
+        subject: { select: { name: true, restrictedToGroupId: true } },
+      },
+    });
+    if (!slot) return null;
+    return {
+      schoolId: slot.timetable.schoolId,
+      classId: slot.timetable.classId,
+      academicYearId: slot.timetable.academicYearId,
+      subjectId: slot.subjectId,
+      groupId: slot.groupId,
+      isLV2Slot: slot.isLV2Slot,
+      isElectiveSlot: slot.isElectiveSlot,
+      subjectName: slot.subject?.name ?? null,
+      restrictedToGroupId: slot.subject?.restrictedToGroupId ?? null,
+    };
+  }
+
+  async findElevesClasseAvecProfils(schoolId: string, classId: string): Promise<EleveClasseAvecProfil[]> {
+    const eleves = await this.prisma.user.findMany({
+      where: {
+        schoolId,
+        role: 'STUDENT',
+        isActive: true,
+        studentProfile: {
+          enrollmentsYearScoped: {
+            some: {
+              classId,
+              status: 'ACTIVE',
+              academicYear: { isCurrent: true },
+            },
+          },
+        },
+      },
+      select: {
+        id: true, firstName: true, lastName: true,
+        studentProfile: { select: { id: true, lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } } },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return eleves.map(e => ({
+      id: e.id,
+      firstName: e.firstName,
+      lastName: e.lastName,
+      studentProfileId: e.studentProfile?.id ?? null,
+      lv2SubjectId: e.studentProfile?.lv2SubjectId ?? null,
+      alevelSubjectIds: e.studentProfile?.alevelSubjects.map(a => a.subjectId) ?? [],
+    }));
+  }
+
+  async findAffectationsSolver(classId: string, schoolId: string): Promise<AffectationSolver[]> {
+    const affectations = await this.prisma.teachingAssignment.findMany({
+      where: {
+        classId,
+        schoolId,
+        subject: {
+          restrictedToGroupId: null,
+          studentGroups: { none: {} },
+        },
+      },
+      select: {
+        teacherId: true,
+        subjectId: true,
+        subject: {
+          select: {
+            subjectType: true,
+            hoursPerWeek: true,
+            name: true,
+            blocDureeCases: true,
+          },
+        },
+      },
+    });
+    return affectations.map(a => ({
+      teacherId: a.teacherId,
+      subjectId: a.subjectId,
+      subjectType: a.subject.subjectType,
+      hoursPerWeek: a.subject.hoursPerWeek,
+      name: a.subject.name,
+      blocDureeCases: a.subject.blocDureeCases,
+    }));
+  }
+
+  async findNomsEnseignants(teacherIds: string[]): Promise<NomEnseignant[]> {
+    const enseignants = await this.prisma.user.findMany({
+      where: { id: { in: teacherIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    return enseignants.map(u => ({ id: u.id, nomComplet: `${u.firstName} ${u.lastName}` }));
+  }
+
+  async compterEnseignants(ids: string[], schoolId: string): Promise<number> {
+    return this.prisma.user.count({ where: { id: { in: ids }, schoolId } });
+  }
+
+  async compterSalles(ids: string[], schoolId: string): Promise<number> {
+    return this.prisma.room.count({ where: { id: { in: ids }, schoolId } });
+  }
+
+  async compterMatieres(ids: string[], schoolId: string): Promise<number> {
+    return this.prisma.subject.count({ where: { id: { in: ids }, schoolId } });
   }
 
   // --- Conversion ---

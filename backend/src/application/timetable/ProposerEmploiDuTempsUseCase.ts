@@ -1,7 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
 import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
 import type { RoomRepository } from '@domain/ports/repositories/RoomRepository';
 import type { ClassRoomAssignmentRepository } from '@domain/ports/repositories/ClassRoomAssignmentRepository';
+import type { TeacherUnavailabilityRepository } from '@domain/ports/repositories/TeacherUnavailabilityRepository';
 import type {
   SchedulingSolverPort,
   PropositionEmploiDuTemps,
@@ -41,8 +41,8 @@ export class ProposerEmploiDuTempsUseCase {
     private readonly timetableRepository: TimetableRepository,
     private readonly roomRepository: RoomRepository,
     private readonly classRoomAssignmentRepository: ClassRoomAssignmentRepository,
+    private readonly teacherUnavailabilityRepository: TeacherUnavailabilityRepository,
     private readonly solver: SchedulingSolverPort,
-    private readonly prisma: PrismaClient,
   ) {}
 
   async execute(commande: ProposerEmploiDuTempsCommande): Promise<PropositionEmploiDuTemps> {
@@ -134,11 +134,8 @@ export class ProposerEmploiDuTempsUseCase {
 
   /** Plages actives où un enseignant est indisponible — contrainte DURE du solveur (V2.4). */
   private async chargerIndisponibilitesEnseignants(schoolId: string): Promise<IndisponibiliteEnseignant[]> {
-    const items = await this.prisma.teacherUnavailability.findMany({
-      where: { schoolId, active: true },
-      select: { teacherId: true, dayOfWeek: true, startTime: true, endTime: true },
-    });
-    return items.map(i => ({
+    const indisponibilites = await this.teacherUnavailabilityRepository.findBySchool(schoolId);
+    return indisponibilites.map(i => ({
       teacherId: i.teacherId,
       dayOfWeek: i.dayOfWeek,
       startTime: i.startTime,
@@ -160,28 +157,7 @@ export class ProposerEmploiDuTempsUseCase {
    */
   private async chargerExigences(classId: string, schoolId: string, dureeCase: number): Promise<ExigenceSeance[]> {
     // Récupération des affectations avec les informations de la matière
-    const affectations = await this.prisma.teachingAssignment.findMany({
-      where: {
-        classId,
-        schoolId,
-        subject: {
-          restrictedToGroupId: null,
-          studentGroups: { none: {} },
-        },
-      },
-      select: {
-        teacherId: true,
-        subjectId: true,
-        subject: {
-          select: {
-            subjectType: true,
-            hoursPerWeek: true,
-            name: true,
-            blocDureeCases: true,
-          },
-        },
-      },
-    });
+    const affectations = await this.timetableRepository.findAffectationsSolver(classId, schoolId);
 
     // Regroupement par matière (subjectId) pour gérer hoursPerWeek
     const groupedBySubject = new Map<string, {
@@ -201,22 +177,19 @@ export class ProposerEmploiDuTempsUseCase {
       } else {
         groupedBySubject.set(key, {
           subjectId: a.subjectId,
-          subjectType: a.subject.subjectType as SubjectType,
+          subjectType: a.subjectType as SubjectType,
           teacherIds: [a.teacherId],
-          subjectName: a.subject.name || `Matière ${a.subjectId}`,
-          hoursPerWeek: a.subject.hoursPerWeek ?? 2,
-          blocDureeCases: a.subject.blocDureeCases ?? null,
+          subjectName: a.name || `Matière ${a.subjectId}`,
+          hoursPerWeek: a.hoursPerWeek ?? 2,
+          blocDureeCases: a.blocDureeCases ?? null,
         });
       }
     }
 
     // Noms des enseignants — UNE seule requête groupée (pas de N+1).
     const teacherIds = [...new Set(affectations.map(a => a.teacherId))];
-    const enseignants = await this.prisma.user.findMany({
-      where: { id: { in: teacherIds } },
-      select: { id: true, firstName: true, lastName: true },
-    });
-    const nomParEnseignant = new Map(enseignants.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
+    const enseignants = await this.timetableRepository.findNomsEnseignants(teacherIds);
+    const nomParEnseignant = new Map(enseignants.map(u => [u.id, u.nomComplet]));
 
     const exigences: ExigenceSeance[] = [];
 
@@ -254,7 +227,7 @@ export class ProposerEmploiDuTempsUseCase {
 
   /** Grille = jours actifs × périodes de COURS (les pauses ne sont jamais des cases plaçables). */
   private async chargerGrille(schoolId: string): Promise<CaseGrille[]> {
-    const config = await this.prisma.timetableGridConfig.findUnique({ where: { schoolId } });
+    const config = await this.timetableRepository.getGridConfig(schoolId);
     if (!config) return [];
 
     const periodesCours = calculerSqelette(config).filter(p => p.type === 'COURS');

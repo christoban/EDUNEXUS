@@ -1,5 +1,5 @@
-import type { PrismaClient } from '@prisma/client';
-import { whereElevesParClasse } from '@application/shared/studentEnrollment';
+import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
+import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 
 /**
  * Généralise l'ancienne logique inline de GET /timetable-slots/:id/students (LV2 uniquement) et
@@ -33,65 +33,53 @@ export interface ResoudreParticipantsResultat {
 }
 
 export class ResoudreParticipantsSeanceUseCase {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly timetableRepository: TimetableRepository,
+    private readonly studentGroupMembershipRepository: StudentGroupMembershipRepository,
+  ) {}
 
   async execute(timetableSlotId: string, schoolId: string): Promise<ResoudreParticipantsResultat> {
-    const slot = await this.prisma.timetableSlot.findUnique({
-      where: { id: timetableSlotId },
-      include: {
-        timetable: { select: { schoolId: true, classId: true, academicYearId: true } },
-        subject: { select: { id: true, name: true, restrictedToGroupId: true } },
-      },
-    });
+    const slot = await this.timetableRepository.findSlotAvecContexte(timetableSlotId);
 
     if (!slot) throw new Error('Créneau introuvable');
-    if (slot.timetable.schoolId !== schoolId) throw new Error('Accès refusé');
+    if (slot.schoolId !== schoolId) throw new Error('Accès refusé');
 
-    const classId = slot.timetable.classId;
-    const academicYearId = slot.timetable.academicYearId;
-    const isElective = slot.isElectiveSlot ?? false;
-    const isLV2 = slot.isLV2Slot ?? false;
+    const classId = slot.classId;
+    const academicYearId = slot.academicYearId;
+    const isElective = slot.isElectiveSlot;
+    const isLV2 = slot.isLV2Slot;
 
-    const tousLesEleves = await this.prisma.user.findMany({
-      where: { schoolId, role: 'STUDENT', isActive: true, ...(classId ? whereElevesParClasse(classId) : {}) },
-      select: {
-        id: true, firstName: true, lastName: true,
-        studentProfile: { select: { id: true, lv2SubjectId: true, alevelSubjects: { select: { subjectId: true } } } },
-      },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    });
+    const tousLesEleves = await this.timetableRepository.findElevesClasseAvecProfils(schoolId, classId);
 
     let eleves = tousLesEleves;
     let label: string | null = null;
 
     if (isElective && slot.subjectId) {
       eleves = tousLesEleves.filter(e =>
-        (e.studentProfile?.alevelSubjects ?? []).some(a => a.subjectId === slot.subjectId)
+        e.alevelSubjectIds.some(subjectId => subjectId === slot.subjectId)
       );
-      label = slot.subject
-        ? `A-Level — ${slot.subject.name} (${eleves.length} élèves sur ${tousLesEleves.length})`
+      label = slot.subjectName
+        ? `A-Level — ${slot.subjectName} (${eleves.length} élèves sur ${tousLesEleves.length})`
         : null;
     } else {
-      const groupeCible = slot.groupId ?? slot.subject?.restrictedToGroupId ?? null;
+      const groupeCible = slot.groupId ?? slot.restrictedToGroupId ?? null;
       if (groupeCible) {
-        const membres = await this.prisma.studentGroupMembership.findMany({
-          where: { groupId: groupeCible, academicYearId },
-          select: { studentProfileId: true },
-        });
-        const profilIdsMembres = new Set(membres.map(m => m.studentProfileId));
-        eleves = tousLesEleves.filter(e => e.studentProfile && profilIdsMembres.has(e.studentProfile.id));
+        const profilIdsMembres = new Set(
+          await this.studentGroupMembershipRepository.findStudentIdsByGroup(groupeCible, academicYearId),
+        );
+        eleves = tousLesEleves.filter(e => e.studentProfileId && profilIdsMembres.has(e.studentProfileId));
       } else if (isLV2 && slot.subjectId) {
-        eleves = tousLesEleves.filter(e => e.studentProfile?.lv2SubjectId === slot.subjectId);
-        label = slot.subject
-          ? `Cours LV2 — ${slot.subject.name} (${eleves.length} élèves sur ${tousLesEleves.length})`
+        eleves = tousLesEleves.filter(e => e.lv2SubjectId === slot.subjectId);
+        label = slot.subjectName
+          ? `Cours LV2 — ${slot.subjectName} (${eleves.length} élèves sur ${tousLesEleves.length})`
           : null;
       }
     }
 
     return {
       classId,
-      subjectId: slot.subjectId ?? null,
-      groupId: slot.groupId ?? null,
+      subjectId: slot.subjectId,
+      groupId: slot.groupId,
       isLV2Slot: isLV2,
       isElectiveSlot: isElective,
       label,

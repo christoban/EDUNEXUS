@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
 import type { SchedulingSolverPort, PropositionEmploiDuTemps, SeanceProposee } from '@domain/ports/services/SchedulingSolverPort';
 import type { ProposerEmploiDuTempsUseCase, ContexteEmploiDuTemps } from './ProposerEmploiDuTempsUseCase';
 import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
@@ -30,7 +30,7 @@ export class SimulerEmploiDuTempsUseCase {
   constructor(
     private readonly proposer: ProposerEmploiDuTempsUseCase,
     private readonly solver: SchedulingSolverPort,
-    private readonly prisma: PrismaClient,
+    private readonly timetableRepository: TimetableRepository,
   ) {}
 
   async execute(commande: SimulerEmploiDuTempsCommande): Promise<ResultatSimulation> {
@@ -60,16 +60,16 @@ export class SimulerEmploiDuTempsUseCase {
     const subjectIds = s.retraitHeures?.map(r => r.subjectId) ?? [];
 
     if (teacherIds.length > 0) {
-      const trouves = await this.prisma.user.findMany({ where: { id: { in: teacherIds }, schoolId }, select: { id: true } });
-      if (trouves.length !== new Set(teacherIds).size) throw new Error('Enseignant introuvable dans votre établissement');
+      const compteur = await this.timetableRepository.compterEnseignants(teacherIds, schoolId);
+      if (compteur !== new Set(teacherIds).size) throw new Error('Enseignant introuvable dans votre établissement');
     }
     if (roomIds.length > 0) {
-      const trouves = await this.prisma.room.findMany({ where: { id: { in: roomIds }, schoolId }, select: { id: true } });
-      if (trouves.length !== new Set(roomIds).size) throw new Error('Salle introuvable dans votre établissement');
+      const compteur = await this.timetableRepository.compterSalles(roomIds, schoolId);
+      if (compteur !== new Set(roomIds).size) throw new Error('Salle introuvable dans votre établissement');
     }
     if (subjectIds.length > 0) {
-      const trouves = await this.prisma.subject.findMany({ where: { id: { in: subjectIds }, schoolId }, select: { id: true } });
-      if (trouves.length !== new Set(subjectIds).size) throw new Error('Matière introuvable dans votre établissement');
+      const compteur = await this.timetableRepository.compterMatieres(subjectIds, schoolId);
+      if (compteur !== new Set(subjectIds).size) throw new Error('Matière introuvable dans votre établissement');
     }
   }
 }

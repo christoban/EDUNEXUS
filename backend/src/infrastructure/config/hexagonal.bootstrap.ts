@@ -39,7 +39,6 @@ import { RoomController } from '@infrastructure/http/controllers/RoomController'
 import { TeacherUnavailabilityController } from '@infrastructure/http/controllers/TeacherUnavailabilityController';
 import { creerTeacherUnavailabilityRoutes } from '@infrastructure/http/routes/teacher-unavailability.routes';
 import { StudentGroupController } from '@infrastructure/http/controllers/StudentGroupController';
-import { ResoudreParticipantsSeanceUseCase } from '@application/timetable/ResoudreParticipantsSeanceUseCase';
 import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
 import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupRepository';
 import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
@@ -2884,7 +2883,7 @@ export function bootstrapHexagonal(app: Application): void {
 
   // GET /api/v2/timetable-slots/:id/students — participants d'un créneau, résolus
   // automatiquement (électif A-Level > StudentGroup > LV2 legacy > toute la classe).
-  const resoudreParticipantsSeanceUseCase = new ResoudreParticipantsSeanceUseCase(prisma);
+  const resoudreParticipantsSeanceUseCase = container.timetable.resoudreParticipantsSeance;
   app.get('/api/v2/timetable-slots/:id/students', requireAuth, async (req, res, next) => {
     try {
       const schoolId = req.user!.schoolId;

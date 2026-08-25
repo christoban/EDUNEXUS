@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'bun:test';
-import type { PrismaClient } from '@prisma/client';
 import { ProposerEmploiDuTempsUseCase } from '../../../../src/application/timetable/ProposerEmploiDuTempsUseCase.ts';
 import { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import { Room } from '@domain/entities/Room';
+import { TeacherUnavailability } from '@domain/entities/TeacherUnavailability';
 import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
 import type { RoomRepository } from '@domain/ports/repositories/RoomRepository';
 import type { ClassRoomAssignmentRepository } from '@domain/ports/repositories/ClassRoomAssignmentRepository';
+import type { TeacherUnavailabilityRepository } from '@domain/ports/repositories/TeacherUnavailabilityRepository';
 import type {
   CreneauOccupe,
   ProposerEmploiDuTempsInput,
@@ -45,8 +46,29 @@ function classRoomAssignmentRepositoryStub(): ClassRoomAssignmentRepository {
   };
 }
 
-/** Stub complet de TimetableRepository : toutes les méthodes en no-op, sauf findById/findOccupationEcole. */
-function timetableRepositoryStub(edt: EmploiDuTemps, occupation: CreneauOccupe[] = []): TimetableRepository {
+/** Stub complet de TimetableRepository : toutes les méthodes en no-op, sauf celles du solveur. */
+function timetableRepositoryStub(edt: EmploiDuTemps, occupation: CreneauOccupe[] = [], options: {
+  affectations?: unknown[];
+  gridConfig?: unknown;
+  nomsEnseignants?: { id: string; nomComplet: string }[];
+} = {}): TimetableRepository {
+  const {
+    affectations = [
+      { teacherId: 'prof-1', subjectId: 'maths', subjectType: 'THEORETICAL', hoursPerWeek: 2, name: 'Maths', blocDureeCases: null },
+    ],
+    gridConfig = {
+      joursActifs: ['LUNDI'],
+      heureDebut: '08:00',
+      dureePeriode: 60,
+      periodesAvantP1: 2,
+      dureePetitePause: 0,
+      periodesAvantP2: 0,
+      dureeGrandePause: 0,
+      periodesApresP2: 0,
+    },
+    nomsEnseignants = [{ id: 'prof-1', nomComplet: 'Prof Un' }],
+  } = options;
+
   return {
     findById: async () => edt,
     findByClasse: async () => null,
@@ -66,44 +88,34 @@ function timetableRepositoryStub(edt: EmploiDuTemps, occupation: CreneauOccupe[]
     sousGroupeAppartientAClasse: async () => false,
     findOccupationEcole: async () => occupation,
     creerCreneauxEnLot: async () => ({ creneauxCrees: 0 }),
+    getGridConfig: async () => gridConfig as never,
+    classeAppartientAEcole: async () => true,
+    findSlotAvecContexte: async () => null,
+    findElevesClasseAvecProfils: async () => [],
+    findAffectationsSolver: async () => affectations as never,
+    findNomsEnseignants: async () => nomsEnseignants,
+    compterEnseignants: async () => 0,
+    compterSalles: async () => 0,
+    compterMatieres: async () => 0,
   };
 }
 
-function prismaStub(options: {
-  indisponibilites?: unknown[];
-  hoursPerWeek?: number | null;
-  blocDureeCases?: number | null;
-  nbPeriodesParJour?: number;
-  joursActifs?: string[];
-} = {}): PrismaClient {
-  const {
-    indisponibilites = [],
-    hoursPerWeek = 2,
-    blocDureeCases = null,
-    nbPeriodesParJour = 2,
-    joursActifs = ['LUNDI'],
-  } = options;
+function teacherUnavailabilityRepositoryStub(
+  indisponibilites: { teacherId: string; dayOfWeek: number; startTime: string; endTime: string }[] = [],
+): TeacherUnavailabilityRepository {
   return {
-    teachingAssignment: {
-      findMany: async () => [
-        { teacherId: 'prof-1', subjectId: 'maths', subject: { subjectType: 'THEORETICAL', hoursPerWeek, name: 'Maths', blocDureeCases } },
-      ],
-    },
-    timetableGridConfig: {
-      findUnique: async () => ({
-        joursActifs,
-        heureDebut: '08:00',
-        dureePeriode: 60,
-        periodesAvantP1: nbPeriodesParJour,
-        dureePetitePause: 0,
-        periodesAvantP2: 0,
-        dureeGrandePause: 0,
-        periodesApresP2: 0,
+    findById: async () => null,
+    findBySchool: async () => indisponibilites.map((i, idx) =>
+      TeacherUnavailability.reconstituer({
+        id: `u-${idx}`, schoolId: 'school-1', teacherId: i.teacherId, dayOfWeek: i.dayOfWeek,
+        startTime: i.startTime, endTime: i.endTime, reason: null, active: true, createdAt: new Date(),
       }),
-    },
-    teacherUnavailability: { findMany: async () => indisponibilites },
-    user: { findMany: async () => [{ id: 'prof-1', firstName: 'Prof', lastName: 'Un' }] },
-  } as unknown as PrismaClient;
+    ),
+    findByTeacher: async () => [],
+    save: async () => {},
+    update: async () => {},
+    delete: async () => {},
+  };
 }
 
 describe('ProposerEmploiDuTempsUseCase — chargement des indisponibilités (V2.4)', () => {
@@ -120,8 +132,8 @@ describe('ProposerEmploiDuTempsUseCase — chargement des indisponibilités (V2.
       timetableRepositoryStub(edtDraft()),
       roomRepositoryStub(),
       classRoomAssignmentRepositoryStub(),
+      teacherUnavailabilityRepositoryStub([{ teacherId: "prof-1", dayOfWeek: 0, startTime: "08:00", endTime: "09:00" }]),
       solver,
-      prismaStub({ indisponibilites: [{ teacherId: "prof-1", dayOfWeek: 0, startTime: "08:00", endTime: "09:00" }] }),
     );
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
@@ -144,8 +156,8 @@ describe('ProposerEmploiDuTempsUseCase — chargement des indisponibilités (V2.
       timetableRepositoryStub(edtDraft()),
       roomRepositoryStub(),
       classRoomAssignmentRepositoryStub(),
+      teacherUnavailabilityRepositoryStub(),
       solver,
-      prismaStub(),
     );
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
@@ -168,19 +180,46 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
     };
   }
 
-  function construireUseCase(solver: SchedulingSolverPort, prisma: PrismaClient) {
+  function construireUseCase(solver: SchedulingSolverPort, options: {
+    hoursPerWeek?: number | null;
+    blocDureeCases?: number | null;
+    nbPeriodesParJour?: number;
+    joursActifs?: string[];
+  } = {}) {
+    const {
+      hoursPerWeek = 2,
+      blocDureeCases = null,
+      nbPeriodesParJour = 2,
+      joursActifs = ['LUNDI'],
+    } = options;
+
+    const affectations = [{
+      teacherId: 'prof-1', subjectId: 'maths', subjectType: 'THEORETICAL',
+      hoursPerWeek, name: 'Maths', blocDureeCases,
+    }];
+    const gridConfig = {
+      joursActifs,
+      heureDebut: '08:00',
+      dureePeriode: 60,
+      periodesAvantP1: nbPeriodesParJour,
+      dureePetitePause: 0,
+      periodesAvantP2: 0,
+      dureeGrandePause: 0,
+      periodesApresP2: 0,
+    };
+
     return new ProposerEmploiDuTempsUseCase(
-      timetableRepositoryStub(edtDraft()),
+      timetableRepositoryStub(edtDraft(), [], { affectations, gridConfig }),
       roomRepositoryStub(),
       classRoomAssignmentRepositoryStub(),
+      teacherUnavailabilityRepositoryStub(),
       solver,
-      prisma,
     );
   }
 
   it('hoursPerWeek=4 sur cases d\'1 h → 4 exigences pour cette matière', async () => {
     const { solver, input } = solverCapturant();
-    const useCase = construireUseCase(solver, prismaStub({ hoursPerWeek: 4, nbPeriodesParJour: 4 }));
+    const useCase = construireUseCase(solver, { hoursPerWeek: 4, nbPeriodesParJour: 4 });
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
 
@@ -193,7 +232,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
 
   it('hoursPerWeek non renseigné → défaut 2 (schéma Prisma)', async () => {
     const { solver, input } = solverCapturant();
-    const useCase = construireUseCase(solver, prismaStub({ hoursPerWeek: null, nbPeriodesParJour: 4 }));
+    const useCase = construireUseCase(solver, { hoursPerWeek: null, nbPeriodesParJour: 4 });
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
 
@@ -203,7 +242,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
   it('volume > capacité de la grille → erreur explicite (Fail Fast)', async () => {
     const { solver } = solverCapturant();
     // Grille : 1 jour × 2 cases = 2 cases plaçables, mais hoursPerWeek=4 → 4 séances.
-    const useCase = construireUseCase(solver, prismaStub({ hoursPerWeek: 4, nbPeriodesParJour: 2, joursActifs: ['LUNDI'] }));
+    const useCase = construireUseCase(solver, { hoursPerWeek: 4, nbPeriodesParJour: 2, joursActifs: ['LUNDI'] });
 
     await expect(useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' }))
       .rejects.toThrow('Le volume hebdomadaire des matières (4 séances) dépasse la capacité de la grille (2 cases)');
@@ -211,7 +250,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
 
   it('expansion remplit subjectName, teacherName et durationMinutes', async () => {
     const { solver, input } = solverCapturant();
-    const useCase = construireUseCase(solver, prismaStub({ hoursPerWeek: 2, nbPeriodesParJour: 2 }));
+    const useCase = construireUseCase(solver, { hoursPerWeek: 2, nbPeriodesParJour: 2 });
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
 
@@ -224,7 +263,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
   it('bloc=2 : nombre de séances arrondi au pair inférieur, champ propagé', async () => {
     const { solver, input } = solverCapturant();
     // 3 h/semaine sur cases d'1 h → 3 séances, arrondies à 2 (pair) pour former un bloc.
-    const useCase = construireUseCase(solver, prismaStub({ hoursPerWeek: 3, blocDureeCases: 2, nbPeriodesParJour: 4 }));
+    const useCase = construireUseCase(solver, { hoursPerWeek: 3, blocDureeCases: 2, nbPeriodesParJour: 4 });
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
 
@@ -235,7 +274,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
 
   it('contraintes douces transmises telles quelles au solveur', async () => {
     const { solver, input } = solverCapturant();
-    const useCase = construireUseCase(solver, prismaStub({ nbPeriodesParJour: 2 }));
+    const useCase = construireUseCase(solver, { nbPeriodesParJour: 2 });
 
     await useCase.execute({
       timetableId: 'edt-1', schoolId: 'school-1',
@@ -247,7 +286,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
 
   it('sans contraintes → le solveur ne reçoit pas de champ contraintes', async () => {
     const { solver, input } = solverCapturant();
-    const useCase = construireUseCase(solver, prismaStub({ nbPeriodesParJour: 2 }));
+    const useCase = construireUseCase(solver, { nbPeriodesParJour: 2 });
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
 

@@ -1,6 +1,6 @@
-import type { PrismaClient } from '@prisma/client';
 import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauALoter } from '@domain/ports/repositories/TimetableRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import { joursActifsVersIndex } from '@domain/types/joursSemaine';
 import { calculerSqelette } from '@infrastructure/http/controllers/TimetableGridConfigController';
@@ -30,27 +30,19 @@ export interface GenererSqueletteResultat {
 export class GenererSqueletteEmploiDuTempsUseCase {
   constructor(
     private readonly timetableRepository: TimetableRepository,
-    private readonly prisma: PrismaClient,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
   ) {}
 
   async execute(commande: GenererSqueletteCommande): Promise<GenererSqueletteResultat> {
-    const gridConfig = await this.prisma.timetableGridConfig.findUnique({
-      where: { schoolId: commande.schoolId },
-    });
+    const gridConfig = await this.timetableRepository.getGridConfig(commande.schoolId);
     if (!gridConfig) {
       throw new Error("Veuillez d'abord configurer la grille horaire.");
     }
 
-    const classe = await this.prisma.class.findFirst({
-      where: { id: commande.classId, schoolId: commande.schoolId },
-      select: { id: true },
-    });
-    if (!classe) throw new Error('Classe introuvable.');
+    const classeExiste = await this.timetableRepository.classeAppartientAEcole(commande.classId, commande.schoolId);
+    if (!classeExiste) throw new Error('Classe introuvable.');
 
-    const annee = await this.prisma.academicYear.findFirst({
-      where: { schoolId: commande.schoolId, isCurrent: true },
-      select: { id: true },
-    });
+    const annee = await this.anneeRepository.findCourante(commande.schoolId);
     if (!annee) {
       throw new Error("Aucune année scolaire courante. Configurez une année scolaire d'abord.");
     }

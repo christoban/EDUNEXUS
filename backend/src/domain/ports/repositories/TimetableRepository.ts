@@ -9,6 +9,56 @@ export interface CreneauConflitInfo {
   classeNom: string;
 }
 
+/** Configuration de grille horaire d'une école (source unique pour calculer le squelette). */
+export interface GridConfig {
+  heureDebut: string;
+  dureePeriode: number;
+  periodesAvantP1: number;
+  dureePetitePause: number;
+  periodesAvantP2: number;
+  dureeGrandePause: number;
+  periodesApresP2: number;
+  joursActifs: string[];
+}
+
+/** Contexte d'un créneau résolu pour la résolution de participants (séance → classe/groupe). */
+export interface SlotContexte {
+  schoolId: string;
+  classId: string;
+  academicYearId: string;
+  subjectId: string | null;
+  groupId: string | null;
+  isLV2Slot: boolean;
+  isElectiveSlot: boolean;
+  subjectName: string | null;
+  restrictedToGroupId: string | null;
+}
+
+/** Élève d'une classe avec son profil LV2/A-Level (résolution de participants). */
+export interface EleveClasseAvecProfil {
+  id: string;
+  firstName: string;
+  lastName: string;
+  studentProfileId: string | null;
+  lv2SubjectId: string | null;
+  alevelSubjectIds: string[];
+}
+
+/** Affectation pédagogique classe-entière avec les infos matière du solveur. */
+export interface AffectationSolver {
+  teacherId: string;
+  subjectId: string;
+  subjectType: string;
+  hoursPerWeek: number | null;
+  name: string | null;
+  blocDureeCases: number | null;
+}
+
+export interface NomEnseignant {
+  id: string;
+  nomComplet: string;
+}
+
 export interface TimetableRepository {
   // --- EmploiDuTemps ---
   findById(id: string): Promise<EmploiDuTemps | null>;
@@ -114,6 +164,39 @@ export interface TimetableRepository {
     creneaux: CreneauALoter[],
     options?: { verifierConflits?: boolean }
   ): Promise<{ creneauxCrees: number }>;
+
+  /**
+   * Configuration de grille horaire de l'école (pour calculer le squelette + la grille du
+   * solveur). Null si aucune grille configurée.
+   */
+  getGridConfig(schoolId: string): Promise<GridConfig | null>;
+
+  /** Vérifie qu'une classe appartient bien à l'école (isolation multi-tenant). */
+  classeAppartientAEcole(classId: string, schoolId: string): Promise<boolean>;
+
+  /** Contexte complet d'un créneau (timetable + subject) pour résoudre ses participants. */
+  findSlotAvecContexte(slotId: string): Promise<SlotContexte | null>;
+
+  /** Élèves actifs d'une classe avec profil LV2/A-Level, ordonnés par nom. */
+  findElevesClasseAvecProfils(schoolId: string, classId: string): Promise<EleveClasseAvecProfil[]>;
+
+  /**
+   * Affectations pédagogiques classe-entière (hors StudentGroup et hors matière restreinte à un
+   * groupe) avec les infos matière nécessaires au solveur (type, volume horaire, bloc).
+   */
+  findAffectationsSolver(classId: string, schoolId: string): Promise<AffectationSolver[]>;
+
+  /** Noms complets d'enseignants par id (une seule requête groupée, pas de N+1). */
+  findNomsEnseignants(teacherIds: string[]): Promise<NomEnseignant[]>;
+
+  /** Isolation multi-tenant : nombre d'enseignants trouvés parmi les ids donnés dans l'école. */
+  compterEnseignants(ids: string[], schoolId: string): Promise<number>;
+
+  /** Isolation multi-tenant : nombre de salles trouvées parmi les ids donnés dans l'école. */
+  compterSalles(ids: string[], schoolId: string): Promise<number>;
+
+  /** Isolation multi-tenant : nombre de matières trouvées parmi les ids donnés dans l'école. */
+  compterMatieres(ids: string[], schoolId: string): Promise<number>;
 }
 
 /**

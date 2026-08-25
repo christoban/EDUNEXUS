@@ -218,6 +218,7 @@ import { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUs
 import { PublierEmploiDuTempsUseCase } from '@application/timetable/PublierEmploiDuTempsUseCase';
 import { DemanderRattrapageUseCase } from '@application/timetable/DemanderRattrapageUseCase';
 import { GenererSeancesGroupeUseCase } from '@application/timetable/GenererSeancesGroupeUseCase';
+import { ResoudreParticipantsSeanceUseCase } from '@application/timetable/ResoudreParticipantsSeanceUseCase';
 import { ProposerEmploiDuTempsUseCase } from '@application/timetable/ProposerEmploiDuTempsUseCase';
 import { GenererSqueletteEmploiDuTempsUseCase } from '@application/timetable/GenererSqueletteEmploiDuTempsUseCase';
 import { AppliquerPropositionEmploiDuTempsUseCase } from '@application/timetable/AppliquerPropositionEmploiDuTempsUseCase';
@@ -519,20 +520,23 @@ export function creerContainer() {
     timetableRepository, studentGroupRepository, studentGroupMembershipRepository,
     classRoomAssignmentRepository, roomRepository,
   );
+  const resoudreParticipantsSeanceUseCase = new ResoudreParticipantsSeanceUseCase(
+    timetableRepository, studentGroupMembershipRepository,
+  );
 
   // Scheduling Engine (V2.5) — port hexagonal : le solveur OR-Tools/CP-SAT est interchangeable.
   const schedulingSolver = new ORToolsWasmAdapter();
   const proposerEmploiDuTempsUseCase = new ProposerEmploiDuTempsUseCase(
-    timetableRepository, roomRepository, classRoomAssignmentRepository, schedulingSolver, prisma,
+    timetableRepository, roomRepository, classRoomAssignmentRepository, teacherUnavailabilityRepository, schedulingSolver,
   );
   const appliquerPropositionEmploiDuTempsUseCase = new AppliquerPropositionEmploiDuTempsUseCase(
     timetableRepository,
   );
   const simulerEmploiDuTempsUseCase = new SimulerEmploiDuTempsUseCase(
-    proposerEmploiDuTempsUseCase, schedulingSolver, prisma,
+    proposerEmploiDuTempsUseCase, schedulingSolver, timetableRepository,
   );
   const genererSqueletteEmploiDuTempsUseCase = new GenererSqueletteEmploiDuTempsUseCase(
-    timetableRepository, prisma,
+    timetableRepository, anneeRepository,
   );
 
   // 13. Use Cases — AnneeAcademique
@@ -697,6 +701,7 @@ export function creerContainer() {
       publier: publierEmploiDuTempsUseCase,
       demanderRattrapage: demanderRattrapageUseCase,
       genererSeancesGroupe: genererSeancesGroupeUseCase,
+      resoudreParticipantsSeance: resoudreParticipantsSeanceUseCase,
       proposerEmploiDuTemps: proposerEmploiDuTempsUseCase,
       appliquerProposition: appliquerPropositionEmploiDuTempsUseCase,
       simulerEmploiDuTemps: simulerEmploiDuTempsUseCase,

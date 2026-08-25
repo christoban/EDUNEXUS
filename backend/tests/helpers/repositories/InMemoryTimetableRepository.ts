@@ -186,4 +186,16 @@ export class InMemoryTimetableRepository implements TimetableRepository {
     for (const creneau of aInserer) this.creneaux.set(creneau.id, creneau);
     return { creneauxCrees: aInserer.length };
   }
+
+  // --- Lectures solveur (no-op par défaut — les tests concernés stubent ce qu'ils exercent) ---
+
+  async getGridConfig(_schoolId: string) { return null; }
+  async classeAppartientAEcole(_classId: string, _schoolId: string): Promise<boolean> { return true; }
+  async findSlotAvecContexte(_slotId: string) { return null; }
+  async findElevesClasseAvecProfils(_schoolId: string, _classId: string) { return []; }
+  async findAffectationsSolver(_classId: string, _schoolId: string) { return []; }
+  async findNomsEnseignants(_teacherIds: string[]) { return []; }
+  async compterEnseignants(_ids: string[], _schoolId: string): Promise<number> { return 0; }
+  async compterSalles(_ids: string[], _schoolId: string): Promise<number> { return 0; }
+  async compterMatieres(_ids: string[], _schoolId: string): Promise<number> { return 0; }
 }
