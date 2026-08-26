@@ -9,6 +9,7 @@
  * directes déjà scopées par construction), d'où l'absence de `Deps` en paramètre.
  */
 import { z } from 'zod';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import { type ActionDefinition, resolveCurrentSequence } from '@infrastructure/assistant/catalog/catalogShared';
 
 export function buildStudentActionCatalog(): ActionDefinition[] {
@@ -60,10 +61,17 @@ export function buildStudentActionCatalog(): ActionDefinition[] {
         if (grades.length === 0) {
           return { resultLabel: `Aucune note calculée pour la séquence ${sequence.name} pour le moment.`, section: 'grades' };
         }
-        const poidsTotal = grades.reduce((s, g) => s + g.coefficient, 0);
-        const moyenne = poidsTotal > 0
-          ? Math.round((grades.reduce((s, g) => s + (g.sequenceAverage as number) * g.coefficient, 0) / poidsTotal) * 100) / 100
-          : null;
+        const moyenne =
+          grades.length > 0
+            ? calculateAverageScoreOn20(
+                grades.map((g) => ({
+                  scoreOn20: g.sequenceAverage as number,
+                  percentage: (g.sequenceAverage as number) * 5,
+                  coefficient: g.coefficient,
+                })),
+                true,
+              )
+            : null;
         return {
           resultLabel: moyenne !== null
             ? `Votre moyenne pour la séquence ${sequence.name} : ${moyenne}/20 (${grades.length} matière(s) notée(s)).`

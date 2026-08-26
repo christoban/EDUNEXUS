@@ -158,25 +158,25 @@ grep -n "prisma" src/infrastructure/http/controllers/GradeController.ts → 3 (p
 
 ---
 
-## 1.5 🟠 Duplication de calcul métier (DRY — calcul de moyenne)
+## 1.5 ✅ Résolu — Duplication de calcul métier (DRY — moyenne pondérée centralisée, ponytail)
 
-**Règle violée (DRY) :** une seule source de vérité par calcul métier. L'incident historique des 8 implémentations dupliquées du calcul de moyenne ne doit pas se reproduire.
+> **Statut : résolu (ponytail full)** — moyennes **pondérées** (avec `coefficient`) centralisées sur `domain/rules/GradingEngine.calculateAverageScoreOn20`, moyennes **simples** gardées en 1-liner stdlib avec `// ponytail`.
 
-### Preuve
+**Règle (DRY) :** une seule source de vérité par calcul pondéré (bug historique 8 implémentations divergentes).
+
+### Preuve (2026-08-26)
 
 ```
-grep -rn "reduce((s, g) => s +\|reduce((s, n) => s +" src → 9 occurrences
+grep -rn "reduce((s, g) => s +\|reduce((s, n) => s +" src → 3 occurrences (9 → 3, -6)
+  AIController.ts:105,600 + DashboardController.ts:80 — simples, ponytail 1-liner
 ```
 
-- `src/application/reportCard/GenererBulletinUseCase.ts` (sommePonderee/sommeCoefficients)
-- `src/infrastructure/persistence/prisma/PrismaSanteEleveRepository.ts`
-- `src/application/assistant/catalogShared.ts`
-- `src/application/assistant/teacherActionCatalog.ts`, `parentActionCatalog.ts`, `adminActionCatalog.ts`
-- `src/infrastructure/http/controllers/ClasseController.ts`, `GradeController.ts`, `StatisticsController.ts`, `DepartmentController.ts`, `DashboardController.ts`
-
-### Proposition
-
-- `domain/entities/Note.ts` expose déjà `sequenceAverage` calculé par le `GradingEngine`. Centraliser TOUT calcul de moyenne générale pondérée dans un seul helper `domain/` (ex. `domain/rules/moyenneGenerale.ts`), consommé par les use cases et adapters.
+- [x] `GenererBulletinUseCase.ts:123` `sommePonderee/sommeCoefficients` → `GradingEngine.calculateAverageScoreOn20(..., true)`
+- [x] `PrismaSanteEleveRepository.ts:37,81` `sommePonderee/sommeCoefficients` → `GradingEngine` (2 blocs)
+- [x] `studentActionCatalog.ts:63` `poidsTotal`+`moyenne pondérée` → `GradingEngine` (`true`)
+- [x] `adminActionCatalog.ts:1105` / `teacherActionCatalog.ts:176` / `ClasseController.ts:380` → `GradingEngine` (`false`/`true` selon `coefficient` dans `select`)
+- [x] `GradeController.ts` déjà via `GradingEngine.calculerMoyenneSequence` (§1.4)
+- Ponytail gardé : `AIController.ts:104,598`, `DashboardController.ts:79`, `StatisticsController.ts:69,137,286`, `DepartmentController.ts:265`, `ClasseController.ts:663` — `// ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge` (3 `reduce` restants, non pondérés)
 
 ---
 

@@ -18,6 +18,7 @@ import type { SchoolRepository } from '@domain/ports/repositories/SchoolReposito
 import type { SectionRepository } from '@domain/ports/repositories/SectionRepository';
 import type { StudentProfileRepository } from '@domain/ports/repositories/StudentProfileRepository';
 import type { BulletinTemplate } from '@domain/types/enums';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import { resolveLanguage } from '../../domain/policies/LanguagePolicy';
 
 export interface GenererBulletinCommande {
@@ -120,19 +121,17 @@ export class GenererBulletinUseCase {
         (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED')
       );
 
-      let sommeCoefficients = 0;
-      let sommePonderee = 0;
-
-      for (const note of notesEleve) {
-        if (note.sequenceAverage !== undefined) {
-          sommePonderee += note.sequenceAverage * note.coefficient;
-          sommeCoefficients += note.coefficient;
-        }
-      }
-
-      const moyenne = sommeCoefficients > 0
-        ? Math.round((sommePonderee / sommeCoefficients) * 100) / 100
-        : 0;
+      const moyenneBrute = calculateAverageScoreOn20(
+        notesEleve
+          .filter((n) => n.sequenceAverage !== undefined)
+          .map((n) => ({
+            scoreOn20: n.sequenceAverage!,
+            percentage: n.sequenceAverage! * 5,
+            coefficient: n.coefficient,
+          })),
+        true,
+      );
+      const moyenne = Number.isNaN(moyenneBrute) ? 0 : moyenneBrute === 0 ? 0 : moyenneBrute;
 
       moyennesEleves.push({ studentId: eleve.id, moyenne });
     }

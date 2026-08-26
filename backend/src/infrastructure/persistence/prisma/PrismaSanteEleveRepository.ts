@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import type {
   SanteEleveRepository,
   DonneesSanteEleve,
@@ -28,15 +29,14 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
       select: { sequenceAverage: true, coefficient: true },
     });
 
-    let moyenneGenerale = 0;
-    if (notes.length > 0) {
-      const sommePonderee = notes.reduce(
-        (s, n) => s + (n.sequenceAverage ?? 0) * n.coefficient,
-        0
-      );
-      const sommeCoefficients = notes.reduce((s, n) => s + n.coefficient, 0);
-      moyenneGenerale = sommeCoefficients > 0 ? sommePonderee / sommeCoefficients : 0;
-    }
+    const moyenneGenerale = calculateAverageScoreOn20(
+      notes.map((n) => ({
+        scoreOn20: n.sequenceAverage ?? 0,
+        percentage: (n.sequenceAverage ?? 0) * 5,
+        coefficient: n.coefficient,
+      })),
+      true,
+    );
 
     // 2. Assiduité (30 derniers jours)
     const dateDebut = new Date();
@@ -74,12 +74,16 @@ export class PrismaSanteEleveRepository implements SanteEleveRepository {
         select: { sequenceAverage: true, coefficient: true },
       });
       if (notesPeriode.length > 0) {
-        const sp = notesPeriode.reduce(
-          (s, n) => s + (n.sequenceAverage ?? 0) * n.coefficient,
-          0
+        moyennesPrecedentes.push(
+          calculateAverageScoreOn20(
+            notesPeriode.map((n) => ({
+              scoreOn20: n.sequenceAverage ?? 0,
+              percentage: (n.sequenceAverage ?? 0) * 5,
+              coefficient: n.coefficient,
+            })),
+            true,
+          ),
         );
-        const sc = notesPeriode.reduce((s, n) => s + n.coefficient, 0);
-        moyennesPrecedentes.push(sc > 0 ? sp / sc : 0);
       }
     }
 

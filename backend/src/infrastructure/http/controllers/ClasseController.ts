@@ -12,6 +12,7 @@ import type { RetirerAssignationSalleUseCase } from '@application/studentGroup/R
 import { CYCLE2_LEVELS, NIVEAU_MAP, parseSerie } from '@application/school/SubjectAssignmentHelper';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { whereElevesParClasse, whereProfilesParClasse } from '@application/shared/studentEnrollment';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 
 export class ClasseController {
   constructor(
@@ -376,9 +377,12 @@ export class ClasseController {
 
       const result = students.map(s => {
         const sg = gradesByStudent.get(s.id) ?? [];
-        const totalCoeff = sg.reduce((acc, g) => acc + (g.coefficient ?? 0), 0);
-        const totalW = sg.reduce((acc, g) => acc + ((g.sequenceAverage ?? 0) * (g.coefficient ?? 0)), 0);
-        const moyenne = totalCoeff > 0 ? Math.round((totalW / totalCoeff) * 100) / 100 : null;
+        const moyenne = sg.length > 0
+          ? calculateAverageScoreOn20(
+              sg.map((g) => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: g.coefficient ?? 1 })),
+              true,
+            )
+          : null;
 
         const att = attByStudent.get(s.id) ?? [];
         const presents = att.filter(a => a === 'PRESENT').length;
@@ -660,6 +664,7 @@ export class ClasseController {
 
       const ranked = Array.from(byStudent.entries())
         .filter(([, d]) => d.avgs.length > 0)
+        // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         .map(([, d]) => ({ name: d.name, annualAvg: d.avgs.reduce((a, b) => a + b, 0) / d.avgs.length }))
         .sort((a, b) => b.annualAvg - a.annualAvg)
         .slice(0, top);

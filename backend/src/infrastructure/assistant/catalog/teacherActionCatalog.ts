@@ -13,6 +13,7 @@
  * contexte personnel d'un enseignant connecté — voir catalogShared.ts pour le mécanisme).
  */
 import { z } from 'zod';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import type { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
 import type { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
 import type { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
@@ -173,7 +174,10 @@ export function buildTeacherActionCatalog(deps: TeacherActionDeps): ActionDefini
         if (grades.length === 0) {
           return { resultLabel: `Aucune note calculée pour ${subject.name} en ${classe.name} (séquence ${sequence.name}).`, section: 'grades' };
         }
-        const moyenne = Math.round((grades.reduce((s, g) => s + (g.sequenceAverage as number), 0) / grades.length) * 100) / 100;
+        const moyenne = calculateAverageScoreOn20(
+          grades.map((g) => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: 1 })),
+          false,
+        );
         return {
           resultLabel: `Moyenne de ${classe.name} en ${subject.name} (séquence ${sequence.name}) : ${moyenne}/20 (${grades.length} note(s)).`,
           section: 'grades',

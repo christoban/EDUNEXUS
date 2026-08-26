@@ -66,6 +66,7 @@ export class StatisticsController {
           sequenceName: s.name,
           periodName: s.periodName,
           orderIndex: s.orderIndex,
+          // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
           moyenne: Math.round((s.values.reduce((a, b) => a + b, 0) / s.values.length) * 100) / 100,
           nbNotes: s.values.length,
         }))
@@ -133,6 +134,7 @@ export class StatisticsController {
 
       const data = classes.map((c) => {
         const entry = index.get(c.id);
+        // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         const moyenne = entry && entry.values.length > 0
           ? Math.round((entry.values.reduce((a, b) => a + b, 0) / entry.values.length) * 100) / 100
           : null;
@@ -283,6 +285,7 @@ export class StatisticsController {
       const moyennesParClasse = assignments.map((a) => {
         const key = `${a.subjectId}__${a.classId}`;
         const avgs = gradeIndex.get(key) ?? [];
+        // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         const moyenne = avgs.length > 0 ? Math.round((avgs.reduce((s, v) => s + v, 0) / avgs.length) * 100) / 100 : null;
         return { subjectName: a.subject.name, className: a.class.name, moyenne, nbEleves: avgs.length };
       });

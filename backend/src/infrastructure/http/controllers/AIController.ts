@@ -101,6 +101,7 @@ export class AIController {
           this.prisma.grade.findMany({ where: { schoolId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } }, select: { sequenceAverage: true }, take: 100 }),
           this.prisma.attendance.groupBy({ by: ['status'], where: { schoolId, date: { gte: new Date(Date.now() - 7 * 86400000) } }, _count: true }),
         ]);
+        // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         const avgGrade = grades.length ? (grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length).toFixed(1) : 'N/A';
         const present = attendance.find((a) => a.status === 'PRESENT')?._count ?? 0;
         const total = attendance.reduce((s, a) => s + a._count, 0);
@@ -595,6 +596,7 @@ export class AIController {
 
       if (!studentProfile) { res.status(404).json({ message: 'Élève introuvable' }); return; }
 
+      // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
       const avgGrade = grades.length ? grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length : 0;
       const absentCount = attendance.filter((a) => a.status === 'ABSENT').length;
       const attendanceRate = attendance.length ? ((attendance.length - absentCount) / attendance.length) * 100 : 100;

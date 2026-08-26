@@ -262,6 +262,7 @@ export class DepartmentController {
       const data = assignments.map(a => {
         const key = `${a.subjectId}__${a.classId}`;
         const avgs = gradeIndex.get(key) ?? [];
+        // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         const moyenne = avgs.length > 0 ? Math.round((avgs.reduce((s, v) => s + v, 0) / avgs.length) * 100) / 100 : null;
         return {
           teacherName: `${a.teacher.firstName} ${a.teacher.lastName}`,

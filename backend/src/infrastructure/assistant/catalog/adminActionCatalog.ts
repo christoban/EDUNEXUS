@@ -15,6 +15,7 @@
  * exécution (protection des données, aucune exception).
  */
 import { z } from 'zod';
+import { calculateAverageScoreOn20 } from '@domain/rules/GradingEngine';
 import type { StaffPermissionType } from '@domain/types/enums';
 import {
   type ActionContext,
@@ -1102,7 +1103,10 @@ export function buildAdminActionCatalog(deps: AdminActionDeps): ActionDefinition
         if (grades.length === 0) {
           return { resultLabel: `Aucune note de ${subject.name} enregistrée pour ${classe.name} (séquence ${sequence.name}).`, section: 'grades', entity: 'grade' };
         }
-        const moyenne = grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length;
+        const moyenne = calculateAverageScoreOn20(
+          grades.map((g) => ({ scoreOn20: g.sequenceAverage ?? 0, percentage: 0, coefficient: 1 })),
+          false,
+        );
         return {
           resultLabel: `Moyenne de ${classe.name} en ${subject.name} (séquence ${sequence.name}) : ${moyenne.toFixed(2)}/20 (${grades.length} note(s))`,
           section: 'grades',

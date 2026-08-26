@@ -76,6 +76,7 @@ export class DashboardController {
             take: 10,
           }),
         ]);
+        // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         const avgGrade = grades.length ? (grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length).toFixed(1) : 'N/A';
         stats = { className: classeActuelle?.className || 'Non assigné', avgAttendance: formatPercent(presenceCount, totalPresence), avgGrade, recentActivity: formattedActivity };
 
