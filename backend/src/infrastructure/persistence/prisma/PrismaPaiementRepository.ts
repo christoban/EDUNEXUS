@@ -175,6 +175,17 @@ export class PrismaPaiementRepository implements PaiementRepository {
     });
   }
 
+  async findRecuData(paymentId: string): Promise<any | null> {
+    return (this.prisma as any).payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        student: { include: { studentProfile: true } },
+        invoice: { include: { feePlan: true, payments: true } },
+        school: true,
+      },
+    });
+  }
+
   private toDomain(data: any): Paiement {
     return Paiement.reconstituer({
       id: data.id,

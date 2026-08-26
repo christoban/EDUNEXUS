@@ -26,4 +26,5 @@ export class InMemorySchoolRepository implements SchoolRepository {
     return [...this.store.values()].filter(s => s.status === status).length;
   }
   async countEleves(_schoolId: string) { return 0; }
+  async isEmailDigestAdminEnabled(_schoolId: string) { return false; }
 }

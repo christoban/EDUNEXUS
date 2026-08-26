@@ -31,6 +31,8 @@ import { MasterAdminHexController } from '@infrastructure/http/controllers/Maste
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
+import { PrismaPaiementRepository } from '@infrastructure/persistence/prisma/PrismaPaiementRepository';
+import { PrismaSchoolRepository } from '@infrastructure/persistence/prisma/PrismaSchoolRepository';
 import { PrismaMasterUserAuthRepository } from '@infrastructure/persistence/prisma/PrismaMasterUserAuthRepository';
 import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
 import { creerUserRoutes } from '@infrastructure/http/routes/user.routes';
@@ -1113,6 +1115,12 @@ export function bootstrapHexagonal(app: Application): void {
   );
   app.use('/api/v2/group-transfers', creerAdminGroupTransferRoutes(adminGroupTransferController));
 
+  const paiementRepositoryForFinance = new PrismaPaiementRepository(prisma);
+  const schoolRepositoryForFinance = new PrismaSchoolRepository(prisma);
+  const userRepositoryForFinance = new PrismaUserRepository(prisma);
+  const auditForFinance = new AIActionAuditAdapter(prisma);
+  const notifForFinance = new SocketNotificationService();
+
   const financeController = new FinanceController(
     container.finance.creerPlanFrais,
     container.finance.genererFacture,
@@ -1124,6 +1132,11 @@ export function bootstrapHexagonal(app: Application): void {
     container.finance.enregistrerPaiementCash,
     container.finance.copierPlansFraisAnneePrecedente,
     container.finance.changerStatutPlanFrais,
+    paiementRepositoryForFinance,
+    schoolRepositoryForFinance,
+    userRepositoryForFinance,
+    auditForFinance,
+    notifForFinance,
   );
 
   app.use('/api/v2/finance', creerFinanceRoutes(financeController));

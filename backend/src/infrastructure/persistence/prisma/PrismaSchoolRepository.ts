@@ -98,6 +98,11 @@ export class PrismaSchoolRepository implements SchoolRepository {
     });
   }
 
+  async isEmailDigestAdminEnabled(schoolId: string): Promise<boolean> {
+    const s = await (this.prisma as any).schoolNotificationSettings.findUnique({ where: { schoolId }, select: { emailDigestAdmin: true } });
+    return s?.emailDigestAdmin ?? false;
+  }
+
   private toDomain(data: any): School {
     return School.reconstituer({
       id: data.id,

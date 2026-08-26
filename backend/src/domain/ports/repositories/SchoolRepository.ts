@@ -17,6 +17,9 @@ export interface SchoolRepository {
   update(school: School): Promise<void>;
   delete(id: string): Promise<void>;
 
+  // Notif. frais — FinanceController.notifierCreationPlanFrais
+  isEmailDigestAdminEnabled(schoolId: string): Promise<boolean>;
+
   // Statistiques pour le MasterAdmin
   countByStatus(status: SchoolStatus): Promise<number>;
   countEleves(schoolId: string): Promise<number>;

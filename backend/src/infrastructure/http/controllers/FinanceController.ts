@@ -14,14 +14,14 @@ import { SeparationOrdonnateurError } from '@domain/errors/SeparationOrdonnateur
 import { ConflitVersionPaiementError } from '@domain/errors/ConflitVersionPaiementError';
 import { TransitionStatutPlanFraisError } from '@domain/errors/TransitionStatutPlanFraisError';
 import type { FeePlanStatus, PaymentMethod } from '@domain/types/enums';
-import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { notifyPaymentSms } from '@infrastructure/services/sms/SmsNotificationService';
-import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 import PDFDocument from 'pdfkit';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
-
-const notificationService = new SocketNotificationService();
+import type { PaiementRepository } from '@domain/ports/repositories/PaiementRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
+import type { NotificationService } from '@domain/ports/services/NotificationService';
 
 const METHOD_LABELS: Record<string, string> = {
   CASH: 'Espèces',
@@ -146,35 +146,9 @@ async function buildRecuPdf(payment: {
   });
 }
 
-async function envoyerRecuParEmail(paymentId: string): Promise<void> {
+async function envoyerRecuParEmail(paiementRepository: PaiementRepository, paymentId: string): Promise<void> {
   try {
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      include: {
-        student: {
-          select: {
-            id: true, firstName: true, lastName: true, email: true,
-            studentProfile: {
-              select: {
-                matricule: true,
-                enrollmentsYearScoped: {
-                  where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-                  take: 1,
-                  select: { class: { select: { name: true } } },
-                },
-              },
-            },
-          },
-        },
-        invoice: {
-          include: {
-            feePlan: { select: { name: true } },
-            payments: { where: { status: 'SUCCESS' }, select: { amount: true } },
-          },
-        },
-        school: { select: { name: true } },
-      },
-    });
+    const payment = await paiementRepository.findRecuData(paymentId) as any;
     if (!payment || !payment.student?.email) return;
 
     const pdfBuffer = await buildRecuPdf(payment);
@@ -212,6 +186,11 @@ export class FinanceController {
     private readonly enregistrerPaiementCash: EnregistrerPaiementCashUseCase,
     private readonly copierPlansFraisAnneePrecedente: CopierPlansFraisAnneePrecedenteUseCase,
     private readonly changerStatutPlanFrais: ChangerStatutPlanFraisUseCase,
+    private readonly paiementRepository: PaiementRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly userRepository: UserRepository,
+    private readonly audit: AIActionAuditPort,
+    private readonly notificationService: NotificationService,
   ) {}
 
   // Même pattern que OrientationController.checkPermission — ADMIN passe toujours,
@@ -235,15 +214,12 @@ export class FinanceController {
   ): Promise<void> {
     if (createur.role === 'ADMIN') return;
     try {
-      const auteur = await prisma.user.findUnique({
-        where: { id: createur.userId },
-        select: { firstName: true, lastName: true },
-      });
-      const nomAuteur = auteur ? `${auteur.firstName ?? ''} ${auteur.lastName ?? ''}`.trim() : 'Un membre du personnel';
+      const auteur = await this.userRepository.findById(createur.userId);
+      const nomAuteur = auteur ? `${auteur.firstName} ${auteur.lastName}`.trim() : 'Un membre du personnel';
       const titre = 'Nouveau plan de frais créé';
       const corps = `${nomAuteur} a ${resume} le ${new Date().toLocaleDateString('fr-FR')}.`;
 
-      await notificationService.envoyerAuRole({
+      await this.notificationService.envoyerAuRole({
         schoolId,
         role: 'ADMIN',
         type: 'FEE_PLAN_CREATED',
@@ -252,12 +228,9 @@ export class FinanceController {
         canal: 'IN_APP',
       });
 
-      const settings = await prisma.schoolNotificationSettings.findUnique({ where: { schoolId } });
-      if (settings?.emailDigestAdmin) {
-        const admins = await prisma.user.findMany({
-          where: { schoolId, role: 'ADMIN', isActive: true, email: { not: null } },
-          select: { email: true },
-        });
+      const digest = await this.schoolRepository.isEmailDigestAdminEnabled(schoolId);
+      if (digest) {
+        const admins = await this.userRepository.findByRole(schoolId, 'ADMIN');
         for (const admin of admins) {
           if (!admin.email) continue;
           await sendTransactionalEmail({
@@ -282,33 +255,7 @@ export class FinanceController {
       const user = req.user;
       const paymentId = req.params.paymentId as string;
 
-      const payment = await prisma.payment.findUnique({
-        where: { id: paymentId },
-        include: {
-          student: {
-            select: {
-              firstName: true, lastName: true, email: true,
-              studentProfile: {
-                select: {
-                  matricule: true,
-                  enrollmentsYearScoped: {
-                    where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-                    take: 1,
-                    select: { class: { select: { name: true } } },
-                  },
-                },
-              },
-            },
-          },
-          invoice: {
-            include: {
-              feePlan: { select: { name: true } },
-              payments: { where: { status: 'SUCCESS' }, select: { amount: true } },
-            },
-          },
-          school: { select: { name: true } },
-        },
-      });
+      const payment = await this.paiementRepository.findRecuData(paymentId);
 
       if (!payment) {
         res.status(404).json({ success: false, message: 'Paiement introuvable' });
@@ -342,7 +289,7 @@ export class FinanceController {
         demandeurRole: user.role,
         ...req.body,
       });
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         // Bug indépendant : CreerPlanFraisResultat expose `planId`, jamais `id` — le cast `as
         // any` masquait un ciblage d'audit toujours undefined pour cette action.
@@ -357,7 +304,7 @@ export class FinanceController {
       );
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_plan_frais', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -425,7 +372,7 @@ export class FinanceController {
         feePlanId: id,
         statutCible,
       });
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'changer_statut_plan_frais', targetType: 'FeePlan', targetId: resultat.planId,
         origin: 'UI_DIRECT', outcome: 'SUCCES',
@@ -434,7 +381,7 @@ export class FinanceController {
       res.json({ success: true, data: resultat });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'changer_statut_plan_frais', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined,
@@ -484,7 +431,7 @@ export class FinanceController {
         classId,
         studentIds,
       });
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'generer_factures_masse', targetType: 'FeePlan', targetId: feePlanId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { feePlanId, classId, studentIds },
@@ -492,7 +439,7 @@ export class FinanceController {
       res.json({ success: true, data: resultat });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'generer_factures_masse', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -559,19 +506,17 @@ export class FinanceController {
       if (status === 'SUCCESSFUL') {
         void (async () => {
           try {
-            const payment = await prisma.payment.findFirst({
-              where: { campayRef: reference },
-              include: { student: { select: { id: true, firstName: true, lastName: true } } },
-            })
-            if (!payment) return
+            const paiement = await this.paiementRepository.findByCampayRef(reference);
+            if (!paiement) return;
+            const student = await this.userRepository.findById(paiement.studentId);
             await notifyPaymentSms({
-              schoolId: payment.schoolId,
-              studentId: payment.studentId,
-              studentName: `${payment.student?.firstName ?? ''} ${payment.student?.lastName ?? ''}`.trim(),
-              amount: payment.amount,
-              parentPhone: phone_number ?? payment.phoneNumber ?? undefined,
+              schoolId: paiement.schoolId,
+              studentId: paiement.studentId,
+              studentName: student ? `${student.firstName} ${student.lastName}`.trim() : '',
+              amount: paiement.amount,
+              parentPhone: phone_number ?? (paiement as any).phoneNumber ?? undefined,
             })
-            void envoyerRecuParEmail(payment.id)
+            void envoyerRecuParEmail(this.paiementRepository, paiement.id)
           } catch (err) {
             console.error('[SMS Payment fire-and-forget]', err)
           }
@@ -660,7 +605,7 @@ export class FinanceController {
         baseUpdatedAt: baseUpdatedAt ? new Date(baseUpdatedAt) : undefined,
       });
 
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'enregistrer_paiement_cash', targetType: 'Payment', targetId: resultat.paiementId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { factureId, studentId, montant },
@@ -668,10 +613,10 @@ export class FinanceController {
       res.status(201).json({ success: true, data: resultat });
 
       // Fire-and-forget : envoyer reçu PDF par email
-      void envoyerRecuParEmail(resultat.paiementId);
+      void envoyerRecuParEmail(this.paiementRepository, resultat.paiementId);
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'enregistrer_paiement_cash', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,

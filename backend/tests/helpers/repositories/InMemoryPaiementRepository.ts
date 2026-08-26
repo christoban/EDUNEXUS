@@ -46,4 +46,5 @@ export class InMemoryPaiementRepository implements PaiementRepository {
     facture.mettreAJourStatut(nouveauTotal);
     return nouveauTotal;
   }
+  async findRecuData(_paymentId: string) { return null; }
 }

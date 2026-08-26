@@ -41,6 +41,9 @@ export interface PaiementRepository {
   save(paiement: Paiement): Promise<void>;
   update(paiement: Paiement): Promise<void>;
 
+  // Reçu — FinanceController.genererRecu / envoyerRecuParEmail (même include)
+  findRecuData(paymentId: string): Promise<any | null>;
+
   /**
    * Encaissement en espèces ATOMIQUE (V3.2) : crée le paiement SUCCESS et met à jour
    * la facture dans une MÊME transaction, en re-vérifiant à l'intérieur que la facture
