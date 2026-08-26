@@ -454,6 +454,7 @@ export class PrismaUserRepository implements UserRepository {
         loginEmailOtpAttempts: true,
         mfaEnabled: true,
         mfaSecret: true,
+        mfaTempSecret: true,
         mfaRecoveryCodeHashes: true,
       },
     });
@@ -493,8 +494,37 @@ export class PrismaUserRepository implements UserRepository {
   async updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void> {
     await this.prisma.user.update({
       where: { id },
-      data: { mfaRecoveryCodeHashes: hashes },
+      data: { mfaRecoveryCodeHashes: hashes, mfaRecoveryCodeGeneratedAt: new Date() },
     });
+  }
+
+  async updateMfaTempSecret(id: string, secret: string | null): Promise<void> {
+    await this.prisma.user.update({ where: { id }, data: { mfaTempSecret: secret } });
+  }
+
+  async updateMfa(params: {
+    userId: string;
+    mfaEnabled?: boolean;
+    mfaSecret?: string | null;
+    mfaTempSecret?: string | null;
+    mfaRecoveryCodeHashes?: string[];
+    mfaRecoveryCodeGeneratedAt?: Date;
+  }): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: params.userId },
+      data: {
+        ...(params.mfaEnabled !== undefined && { mfaEnabled: params.mfaEnabled }),
+        ...(params.mfaSecret !== undefined && { mfaSecret: params.mfaSecret }),
+        ...(params.mfaTempSecret !== undefined && { mfaTempSecret: params.mfaTempSecret }),
+        ...(params.mfaRecoveryCodeHashes !== undefined && { mfaRecoveryCodeHashes: params.mfaRecoveryCodeHashes }),
+        ...(params.mfaRecoveryCodeGeneratedAt !== undefined && { mfaRecoveryCodeGeneratedAt: params.mfaRecoveryCodeGeneratedAt }),
+      },
+    });
+  }
+
+  async isMfaEnabled(id: string): Promise<boolean> {
+    const row = await this.prisma.user.findUnique({ where: { id }, select: { mfaEnabled: true } });
+    return row?.mfaEnabled ?? false;
   }
 
   private toDomain(data: any): User {

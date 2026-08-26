@@ -34,6 +34,9 @@ function userRepoMock(user: AuthUserData | null): UserRepository {
     updateMfaRecoveryCodeHashes: async (_id, hashes) => {
       if (store.user) store.user.mfaRecoveryCodeHashes = hashes;
     },
+    updateMfaTempSecret: async () => {},
+    updateMfa: async () => {},
+    isMfaEnabled: async () => store.user?.mfaEnabled ?? false,
   };
 }
 
@@ -47,6 +50,7 @@ function authUser(overrides: Partial<AuthUserData>): AuthUserData {
     loginEmailOtpAttempts: 0,
     mfaEnabled: false,
     mfaSecret: null,
+    mfaTempSecret: null,
     mfaRecoveryCodeHashes: [],
     ...overrides,
   };

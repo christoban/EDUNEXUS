@@ -47,6 +47,9 @@ function userRepositoryStub(user: User | null): UserRepository {
     incrementLoginEmailOtpAttempts: async () => {},
     clearLoginEmailOtp: async () => {},
     updateMfaRecoveryCodeHashes: async () => {},
+    updateMfaTempSecret: async () => {},
+    updateMfa: async () => {},
+    isMfaEnabled: async () => false,
   };
 }
 

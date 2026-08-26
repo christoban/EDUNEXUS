@@ -2,12 +2,9 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import type { UserRole, StaffPermissionType } from '@domain/types/enums';
 import jwt from 'jsonwebtoken';
-import { generateSecret, generateURI, verifySync } from 'otplib';
-import QRCode from 'qrcode';
 import { passwordError } from '../../../domain/security/PasswordPolicy';
 import { parseDateFR } from '../../../shared/date/parseDateFR';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
-import { genererCodesRecuperation } from '../../services/auth/MfaRecoveryCodeService';
 import { verifierMotDePasseEtMfa } from '../middlewares/requireUserSensitiveAuth.ts';
 import { emettreJetonReauth } from '../middlewares/requireReauthToken.ts';
 import { createHash, randomBytes } from 'crypto';
@@ -22,8 +19,10 @@ import type { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import type { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisateursUseCase';
 import type { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import type { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
+import type { MfaUseCase } from '@application/user/MfaUseCase';
 import type { TokenService, PayloadToken } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
@@ -89,6 +88,8 @@ export class UserController {
     private readonly loginEmailOtp: LoginEmailOtpUseCase,
     private readonly verifierMfaConnexion: VerifierMfaConnexionUseCase,
     private readonly prisma: PrismaClient,
+    private readonly userRepository: UserRepository,
+    private readonly mfaUseCase: MfaUseCase,
   ) {}
 
   // ── Pending login token (cookie temporaire entre les étapes de connexion) ──
@@ -220,9 +221,9 @@ export class UserController {
       const base = { ...decoded };
 
       if (MFA_REQUIRED_ROLES.includes(decoded.role)) {
-        const user = await this.prisma.user.findUnique({ where: { id: decoded.userId }, select: { mfaEnabled: true } });
+        const mfaEnabled = await this.userRepository.isMfaEnabled(decoded.userId);
 
-        if (user?.mfaEnabled) {
+        if (mfaEnabled) {
           const token = this.signPendingToken(base, 'pending_mfa', '10m');
           this.setPendingCookie(res, token, 10 * 60 * 1000);
           res.json({ success: true, step: 'totp_required' });
@@ -281,24 +282,12 @@ export class UserController {
   firstMfaSetup = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       const decoded = this.readPendingToken(req, 'pending_mfa_setup');
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: { id: true, email: true, mfaEnabled: true },
-      });
-      if (!user) { res.status(404).json({ success: false, message: 'Compte introuvable' }); return; }
-      if (user.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA déjà activé sur ce compte.' }); return; }
-
-      const secret: string = generateSecret();
-      await this.prisma.user.update({ where: { id: user.id }, data: { mfaTempSecret: secret } });
-
-      const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia', label: user.email || decoded.userId, secret });
-      const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
-
-      res.json({ success: true, data: { qrDataUri, manualKey: secret } });
+      const data = await this.mfaUseCase.firstMfaSetup(decoded.userId);
+      res.json({ success: true, data });
     } catch (error: any) {
-      res.status(error.message?.includes('expirée') || error.message?.includes('invalide') ? 401 : 500)
-        .json({ success: false, message: error.message || 'Erreur' });
+      const msg: string = error.message || 'Erreur';
+      const status = msg.includes('introuvable') ? 404 : msg.includes('déjà activé') ? 400 : msg.includes('expirée') || msg.includes('invalide') ? 401 : 500;
+      res.status(status).json({ success: false, message: msg });
     }
   };
 
@@ -309,39 +298,13 @@ export class UserController {
       const { totpCode } = req.body;
       if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: { id: true, mfaTempSecret: true, mfaEnabled: true },
-      });
-      if (!user?.mfaTempSecret) {
-        res.status(400).json({ success: false, message: "Aucune configuration MFA en cours. Recommencez depuis l'étape 1." });
-        return;
-      }
-      if (user.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA déjà activé.' }); return; }
-
-      const valid: boolean = verifySync({ token: String(totpCode).trim(), secret: user.mfaTempSecret }).valid;
-      if (!valid) {
-        res.status(401).json({ success: false, message: 'Code TOTP invalide. Vérifiez que votre application est synchronisée.' });
-        return;
-      }
-
-      const { formatted, hashed } = await genererCodesRecuperation();
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          mfaEnabled: true,
-          mfaSecret: user.mfaTempSecret,
-          mfaTempSecret: null,
-          mfaRecoveryCodeHashes: hashed,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
-      });
-
+      const { recoveryCodes } = await this.mfaUseCase.firstMfaEnable(decoded.userId, totpCode);
       const data = this.issueFinalSession(res, decoded);
-      res.json({ success: true, data: { ...data, recoveryCodes: formatted } });
+      res.json({ success: true, data: { ...data, recoveryCodes } });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+      const msg: string = error.message || 'Erreur';
+      const status = msg.includes('Aucune configuration') ? 400 : msg.includes('déjà activé') ? 400 : msg.includes('TOTP invalide') ? 401 : 500;
+      res.status(status).json({ success: false, message: msg });
     }
   };
 
@@ -349,8 +312,8 @@ export class UserController {
   mfaStatus = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { mfaEnabled: true } });
-      res.json({ success: true, data: { mfaEnabled: user?.mfaEnabled ?? false } });
+      const data = await this.mfaUseCase.mfaStatus(userId);
+      res.json({ success: true, data });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -360,21 +323,12 @@ export class UserController {
   mfaReconfigureStart = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, mfaEnabled: true } });
-      if (!user?.mfaEnabled) {
-        res.status(400).json({ success: false, message: 'Configurez d\'abord le MFA depuis la connexion.' });
-        return;
-      }
-
-      const secret: string = generateSecret();
-      await this.prisma.user.update({ where: { id: user.id }, data: { mfaTempSecret: secret } });
-
-      const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia', label: user.email || userId, secret });
-      const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
-
-      res.json({ success: true, data: { qrDataUri, manualKey: secret } });
+      const data = await this.mfaUseCase.mfaReconfigureStart(userId);
+      res.json({ success: true, data });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+      const msg: string = error.message || 'Erreur';
+      const status = msg.includes("Configurez d'abord") ? 400 : 500;
+      res.status(status).json({ success: false, message: msg });
     }
   };
 
@@ -384,34 +338,12 @@ export class UserController {
       const userId = req.user?.userId;
       const { totpCode } = req.body;
       if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
-
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, mfaTempSecret: true } });
-      if (!user?.mfaTempSecret) {
-        res.status(400).json({ success: false, message: "Aucune reconfiguration en cours. Recommencez depuis l'étape 1." });
-        return;
-      }
-
-      const valid: boolean = verifySync({ token: String(totpCode).trim(), secret: user.mfaTempSecret }).valid;
-      if (!valid) {
-        res.status(401).json({ success: false, message: 'Code TOTP invalide.' });
-        return;
-      }
-
-      const { formatted, hashed } = await genererCodesRecuperation();
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          mfaSecret: user.mfaTempSecret,
-          mfaTempSecret: null,
-          mfaRecoveryCodeHashes: hashed,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
-      });
-
-      res.json({ success: true, data: { recoveryCodes: formatted } });
+      const data = await this.mfaUseCase.mfaReconfigureConfirm(userId, totpCode);
+      res.json({ success: true, data });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+      const msg: string = error.message || 'Erreur';
+      const status = msg.includes('Aucune reconfiguration') ? 400 : msg.includes('TOTP invalide') ? 401 : 500;
+      res.status(status).json({ success: false, message: msg });
     }
   };
 
@@ -419,19 +351,12 @@ export class UserController {
   mfaRegenCodes = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, mfaEnabled: true } });
-      if (!user?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif.' }); return; }
-
-      const { formatted, hashed } = await genererCodesRecuperation();
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { mfaRecoveryCodeHashes: hashed, mfaRecoveryCodeGeneratedAt: new Date() },
-      });
-
-      res.json({ success: true, data: { recoveryCodes: formatted } });
+      const data = await this.mfaUseCase.mfaRegenCodes(userId);
+      res.json({ success: true, data });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message || 'Erreur' });
+      const msg: string = error.message || 'Erreur';
+      const status = msg.includes('MFA non actif') ? 400 : 500;
+      res.status(status).json({ success: false, message: msg });
     }
   };
 

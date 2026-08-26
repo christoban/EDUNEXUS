@@ -147,6 +147,7 @@ import { NodemailerEmailService } from '@infrastructure/services/email/Nodemaile
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 import { PdfKitBulletinService } from '@infrastructure/services/pdf/PdfKitBulletinService';
 import { JwtTokenService } from '@infrastructure/services/auth/JwtTokenService';
+import { MfaServiceAdapter } from '@infrastructure/services/auth/MfaServiceAdapter';
 
 // --- Adapters Persistence (suite) ---
 import { PrismaInvitationRepository } from '@infrastructure/persistence/prisma/PrismaInvitationRepository';
@@ -159,6 +160,7 @@ import { DeconnecterUtilisateurUseCase } from '@application/user/DeconnecterUtil
 import { ModifierUtilisateurUseCase } from '@application/user/ModifierUtilisateurUseCase';
 import { SupprimerUtilisateurUseCase } from '@application/user/SupprimerUtilisateurUseCase';
 import { TransfererEleveUseCase } from '@application/user/TransfererEleveUseCase';
+import { MfaUseCase } from '@application/user/MfaUseCase';
 
 // --- Adapters Persistence Finance ---
 import { PrismaPlanFraisRepository } from '@infrastructure/persistence/prisma/PrismaPlanFraisRepository';
@@ -438,8 +440,9 @@ export function creerContainer() {
   // Repositories supplémentaires
   const invitationRepository = new PrismaInvitationRepository(prisma);
 
-  // Service token
+  // Service token + MFA
   const tokenService = new JwtTokenService();
+  const mfaService = new MfaServiceAdapter();
 
   // 9. Use Cases — User
   const connecterUtilisateurUseCase = new ConnecterUtilisateurUseCase(
@@ -453,6 +456,7 @@ export function creerContainer() {
   const modifierUtilisateurUseCase = new ModifierUtilisateurUseCase(userRepository);
   const supprimerUtilisateurUseCase = new SupprimerUtilisateurUseCase(userRepository);
   const transfererEleveUseCase = new TransfererEleveUseCase(userRepository, classeRepository);
+  const mfaUseCase = new MfaUseCase(userRepository, mfaService);
 
   // 10. Use Cases — Finance
   const planFraisRepository = new PrismaPlanFraisRepository(prisma);
@@ -702,6 +706,7 @@ export function creerContainer() {
       supprimer: supprimerUtilisateurUseCase,
       transferer: transfererEleveUseCase,
       importer: importerUtilisateursUseCase,
+      mfa: mfaUseCase,
       tokenService,
       schoolRepository,
     },

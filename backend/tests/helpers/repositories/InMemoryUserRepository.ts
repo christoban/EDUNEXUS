@@ -197,9 +197,51 @@ export class InMemoryUserRepository implements UserRepository {
       .map(user => user.email!);
   }
 
-  async findAuthDataById(_id: string) { return null; }
+  private authData = new Map<string, { mfaEnabled: boolean; mfaSecret: string | null; mfaTempSecret: string | null; mfaRecoveryCodeHashes: string[] }>();
+
+  async findAuthDataById(id: string) {
+    const base = this.store.get(id);
+    const extra = this.authData.get(id);
+    if (!base) return null;
+    return {
+      id: base.id,
+      email: base.email ?? null,
+      isActive: base.isActive,
+      loginEmailOtpHash: null,
+      loginEmailOtpExpiresAt: null,
+      loginEmailOtpAttempts: 0,
+      mfaEnabled: extra?.mfaEnabled ?? false,
+      mfaSecret: extra?.mfaSecret ?? null,
+      mfaTempSecret: extra?.mfaTempSecret ?? null,
+      mfaRecoveryCodeHashes: extra?.mfaRecoveryCodeHashes ?? [],
+    };
+  }
   async saveLoginEmailOtp(_id: string, _data: { hash: string; expiresAt: Date }): Promise<void> {}
   async incrementLoginEmailOtpAttempts(_id: string): Promise<void> {}
   async clearLoginEmailOtp(_id: string): Promise<void> {}
-  async updateMfaRecoveryCodeHashes(_id: string, _hashes: string[]): Promise<void> {}
+  async updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void> {
+    const cur = this.authData.get(id) ?? { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] };
+    this.authData.set(id, { ...cur, mfaRecoveryCodeHashes: hashes });
+  }
+  async updateMfaTempSecret(id: string, secret: string | null): Promise<void> {
+    const cur = this.authData.get(id) ?? { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] };
+    this.authData.set(id, { ...cur, mfaTempSecret: secret });
+  }
+  async updateMfa(params: { userId: string; mfaEnabled?: boolean; mfaSecret?: string | null; mfaTempSecret?: string | null; mfaRecoveryCodeHashes?: string[]; mfaRecoveryCodeGeneratedAt?: Date }): Promise<void> {
+    const cur = this.authData.get(params.userId) ?? { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] };
+    this.authData.set(params.userId, {
+      mfaEnabled: params.mfaEnabled ?? cur.mfaEnabled,
+      mfaSecret: params.mfaSecret !== undefined ? params.mfaSecret : cur.mfaSecret,
+      mfaTempSecret: params.mfaTempSecret !== undefined ? params.mfaTempSecret : cur.mfaTempSecret,
+      mfaRecoveryCodeHashes: params.mfaRecoveryCodeHashes ?? cur.mfaRecoveryCodeHashes,
+    });
+  }
+  async isMfaEnabled(id: string): Promise<boolean> {
+    return this.authData.get(id)?.mfaEnabled ?? false;
+  }
+  // helper de test
+  definirMfa(id: string, data: Partial<{ mfaEnabled: boolean; mfaSecret: string | null; mfaTempSecret: string | null; mfaRecoveryCodeHashes: string[] }>): void {
+    const cur = this.authData.get(id) ?? { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] };
+    this.authData.set(id, { ...cur, ...data });
+  }
 }

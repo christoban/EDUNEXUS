@@ -192,6 +192,8 @@ import { AdminGroupTransferController } from '@infrastructure/http/controllers/A
 import { creerAdminGroupTransferRoutes } from '@infrastructure/http/routes/adminGroupTransfer.routes';
 import { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
+import { MfaUseCase } from '@application/user/MfaUseCase';
+import { MfaServiceAdapter } from '@infrastructure/services/auth/MfaServiceAdapter';
 import { sendTransactionalEmail } from '../services/email/EmailService.ts';
 import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../services/sms/SmsNotificationService.ts';
 import { notifierParentsPushDabord } from '../services/notification/PushFirstNotifier.ts';
@@ -1002,6 +1004,8 @@ export function bootstrapHexagonal(app: Application): void {
     },
   );
   const verifierMfaConnexionUseCase = new VerifierMfaConnexionUseCase(userRepository);
+  const mfaService = new MfaServiceAdapter();
+  const mfaUseCase = new MfaUseCase(userRepository, mfaService);
 
   const userController = new UserController(
     container.user.connecter,
@@ -1018,6 +1022,8 @@ export function bootstrapHexagonal(app: Application): void {
     loginEmailOtpUseCase,
     verifierMfaConnexionUseCase,
     prisma,
+    userRepository,
+    mfaUseCase,
   );
 
   const masterAdminHexController = new MasterAdminHexController(

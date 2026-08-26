@@ -15,6 +15,7 @@ export interface AuthUserData {
   loginEmailOtpAttempts: number;
   mfaEnabled: boolean;
   mfaSecret: string | null;
+  mfaTempSecret: string | null;
   mfaRecoveryCodeHashes: string[];
 }
 
@@ -101,4 +102,14 @@ export interface UserRepository {
   incrementLoginEmailOtpAttempts(id: string): Promise<void>;
   clearLoginEmailOtp(id: string): Promise<void>;
   updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void>;
+  updateMfaTempSecret(id: string, secret: string | null): Promise<void>;
+  updateMfa(params: {
+    userId: string;
+    mfaEnabled?: boolean;
+    mfaSecret?: string | null;
+    mfaTempSecret?: string | null;
+    mfaRecoveryCodeHashes?: string[];
+    mfaRecoveryCodeGeneratedAt?: Date;
+  }): Promise<void>;
+  isMfaEnabled(id: string): Promise<boolean>;
 }
