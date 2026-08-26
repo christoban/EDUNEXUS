@@ -1,5 +1,5 @@
 import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
-import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
+import type { DocumentAiPort } from '@domain/ports/services/DocumentAiPort';
 
 interface ScannedCandidate {
   firstName: string;
@@ -21,7 +21,10 @@ Ne fabrique jamais de données.
 Format : {"candidats": [{"firstName": "...", "lastName": "...", "examScore": null, "confidence": "high"}]}`;
 
 export class ScannerListeCandidatsPebsUseCase {
-  constructor(private readonly pebsRepository: PebsExamRepository) {}
+  constructor(
+    private readonly pebsRepository: PebsExamRepository,
+    private readonly documentAi: DocumentAiPort,
+  ) {}
 
   async execute(schoolId: string, sessionId: string, imageBase64: string, mimeType?: string): Promise<{ candidats: ScannedCandidate[]; warnings: string[] }> {
     const session = await this.pebsRepository.trouverSession(sessionId);
@@ -31,7 +34,7 @@ export class ScannerListeCandidatsPebsUseCase {
     // Passe par l'orchestrateur OCR-d'abord (DocumentAiOrchestrator) — même logique que
     // ScannerListeCandidatsUseCase (entranceExam) : une liste de candidats est un document
     // texte, PaddleOCR suffit dans la grande majorité des cas.
-    const resultat = await extraireDocument({
+    const resultat = await this.documentAi.extraireDocument({
       imageBase64,
       mimeType,
       maxTokens: 2048,

@@ -159,6 +159,10 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
+import { SmsNotificationAdapter } from '@infrastructure/services/sms/SmsNotificationAdapter';
+import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter';
+import { RealtimeSocketAdapter } from '@infrastructure/socket/RealtimeSocketAdapter';
+import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 import { LoginMasterUseCase } from '@application/masterAdmin/LoginMasterUseCase';
 import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
 import { MasterAuthController } from '@infrastructure/http/controllers/MasterAuthController';
@@ -1453,9 +1457,10 @@ export function bootstrapHexagonal(app: Application): void {
   const academicEventRepository = new PrismaAcademicEventRepository(prisma);
   const notifierEvenement = (schoolId: string, roles: string[], titre: string, corps: string) =>
     notifierEvenementAcademique(prisma, schoolId, roles, titre, corps);
+  const smsNotificationAdapter = new SmsNotificationAdapter();
   const academicEventController = new AcademicEventController(
-    new CreerEvenementAcademiqueUseCase(academicEventRepository, lv2ChoiceRepository, anneeRepository),
-    new DeclencherEvenementUseCase(academicEventRepository, lv2ChoiceRepository, anneeRepository, notifierEvenement),
+    new CreerEvenementAcademiqueUseCase(academicEventRepository, lv2ChoiceRepository, anneeRepository, smsNotificationAdapter),
+    new DeclencherEvenementUseCase(academicEventRepository, lv2ChoiceRepository, anneeRepository, notifierEvenement, smsNotificationAdapter),
     new AjusterFenetreEvenementUseCase(academicEventRepository, lv2ChoiceRepository),
     new ListerEvenementsUseCase(academicEventRepository),
     new ObtenirEvenementsActifsUseCase(academicEventRepository),
@@ -1609,11 +1614,13 @@ export function bootstrapHexagonal(app: Application): void {
 
   // ── Messagerie bidirectionnelle ──────────────────────────────────────────────
   const messagerieRepository = new PrismaMessagerieRepository(prisma);
-  const envoyerMessageUseCase = new EnvoyerMessageUseCase(messagerieRepository);
+  const notificationService = new SocketNotificationService();
+  const realtimeSocketAdapter = new RealtimeSocketAdapter();
+  const envoyerMessageUseCase = new EnvoyerMessageUseCase(messagerieRepository, notificationService, realtimeSocketAdapter);
   const listerConversationsUseCase = new ListerConversationsUseCase(messagerieRepository);
   const listerMessagesUseCase = new ListerMessagesUseCase(messagerieRepository);
   const marquerLusUseCase = new MarquerMessagesLusUseCase(messagerieRepository);
-  const modererMessageUseCase = new ModererMessageUseCase(messagerieRepository);
+  const modererMessageUseCase = new ModererMessageUseCase(messagerieRepository, notificationService);
   const listerEnAttenteModerationUseCase = new ListerMessagesEnAttenteModerationUseCase(messagerieRepository);
   const listerContactsMessagerieUseCase = new ListerContactsMessagerieUseCase(messagerieRepository);
   const compterMessagesNonLusUseCase = new CompterMessagesNonLusUseCase(messagerieRepository);

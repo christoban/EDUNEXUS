@@ -7,6 +7,7 @@
 import type { AcademicEventRepository } from '@domain/ports/repositories/AcademicEventRepository';
 import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
 export type NotifierEvenementFn = (schoolId: string, roles: string[], titre: string, corps: string) => Promise<void>;
@@ -27,6 +28,7 @@ export class DeclencherEvenementUseCase {
     private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly notifier: NotifierEvenementFn,
+    private readonly smsNotification: SmsNotificationPort,
   ) {}
 
   async execute(cmd: DeclencherEvenementCommande): Promise<{ id: string }> {
@@ -47,7 +49,7 @@ export class DeclencherEvenementUseCase {
     const linkedResourceId = await activerRessourceLieeSiApplicable(this.lv2ChoiceRepository, this.anneeRepository, {
       id: evenement.id, schoolId: cmd.schoolId, type: evenement.type,
       level: evenement.level, openDate: maintenant, closeDate,
-    });
+    }, this.smsNotification);
 
     await this.academicEventRepository.mettreAJour(cmd.eventId, {
       status: 'ACTIVE',

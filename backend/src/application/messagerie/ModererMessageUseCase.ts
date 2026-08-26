@@ -1,5 +1,5 @@
 import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
-import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
+import type { NotificationService } from '@domain/ports/services/NotificationService';
 
 export interface ModererMessageCommande {
   schoolId: string;
@@ -10,10 +10,11 @@ export interface ModererMessageCommande {
   motif?: string;
 }
 
-const notificationService = new SocketNotificationService();
-
 export class ModererMessageUseCase {
-  constructor(private readonly messagerieRepository: MessagerieRepository) {}
+  constructor(
+    private readonly messagerieRepository: MessagerieRepository,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   async execute(cmd: ModererMessageCommande) {
     if (!['ADMIN', 'STAFF'].includes(cmd.moderateurRole.toUpperCase())) {
@@ -33,7 +34,7 @@ export class ModererMessageUseCase {
     });
 
     if (cmd.decision === 'REJECTED') {
-      await notificationService
+      await this.notificationService
         .envoyer({
           schoolId: cmd.schoolId,
           userId: message.senderId,

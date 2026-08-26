@@ -34,6 +34,13 @@ import { PrismaStudentProfileRepository } from '@infrastructure/persistence/pris
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 
+// --- Adapters Services (ports) ---
+import { SmsNotificationAdapter } from '@infrastructure/services/sms/SmsNotificationAdapter';
+import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter';
+import { EmailTemplateAdapter } from '@infrastructure/services/email/EmailTemplateAdapter';
+import { RealtimeSocketAdapter } from '@infrastructure/socket/RealtimeSocketAdapter';
+import { SchedulingGridAdapter } from '@infrastructure/scheduling/SchedulingGridAdapter';
+
 // --- Use Cases : Notes ---
 import { SaisirNoteUseCase } from '@application/grade/SaisirNoteUseCase';
 import { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
@@ -387,6 +394,11 @@ export function creerContainer() {
   const classCouncilRepository = new PrismaClassCouncilRepository(prisma);
   const activityLog = new ActivityLogAdapter();
   const auditLog = new AIActionAuditAdapter(prisma);
+  const smsNotificationAdapter = new SmsNotificationAdapter();
+  const documentAiAdapter = new DocumentAiAdapter();
+  const emailTemplateAdapter = new EmailTemplateAdapter();
+  const realtimeSocketAdapter = new RealtimeSocketAdapter();
+  const schedulingGridAdapter = new SchedulingGridAdapter();
 
   const genererBulletinUseCase = new GenererBulletinUseCase(
     noteRepository, bulletinRepository, classeRepository,
@@ -412,7 +424,7 @@ export function creerContainer() {
   const ajouterDecisionConseilUseCase = new AjouterDecisionConseilClasseUseCase(classCouncilRepository);
   const ajouterDecisionsEnBlocUseCase = new AjouterDecisionsEnBlocUseCase(classCouncilRepository);
   const verrouillerConseilUseCase = new VerrouillerConseilClasseUseCase(classCouncilRepository, activityLog);
-  const publierBulletinsConseilUseCase = new PublierBulletinsConseilClasseUseCase(classCouncilRepository);
+  const publierBulletinsConseilUseCase = new PublierBulletinsConseilClasseUseCase(classCouncilRepository, smsNotificationAdapter);
   const genererPVConseilUseCase = new GenererProcesVerbalUseCase(classCouncilRepository);
   const genererRapportConseilUseCase = new GenererRapportConseilUseCase(classCouncilRepository);
 
@@ -540,7 +552,7 @@ export function creerContainer() {
   // Scheduling Engine (V2.5) — port hexagonal : le solveur OR-Tools/CP-SAT est interchangeable.
   const schedulingSolver = new ORToolsWasmAdapter();
   const proposerEmploiDuTempsUseCase = new ProposerEmploiDuTempsUseCase(
-    timetableRepository, roomRepository, classRoomAssignmentRepository, teacherUnavailabilityRepository, schedulingSolver,
+    timetableRepository, roomRepository, classRoomAssignmentRepository, teacherUnavailabilityRepository, schedulingSolver, schedulingGridAdapter,
   );
   const appliquerPropositionEmploiDuTempsUseCase = new AppliquerPropositionEmploiDuTempsUseCase(
     timetableRepository,
@@ -549,7 +561,7 @@ export function creerContainer() {
     proposerEmploiDuTempsUseCase, schedulingSolver, timetableRepository,
   );
   const genererSqueletteEmploiDuTempsUseCase = new GenererSqueletteEmploiDuTempsUseCase(
-    timetableRepository, anneeRepository,
+    timetableRepository, anneeRepository, schedulingGridAdapter,
   );
 
   // 13. Use Cases — AnneeAcademique
@@ -612,7 +624,7 @@ export function creerContainer() {
 
   // 17. Use Cases — MasterAdmin
   const inviterEcoleUseCase = new InviterEcoleUseCase(
-    schoolRepository, invitationRepository, emailService
+    schoolRepository, invitationRepository, emailService, emailTemplateAdapter
   );
   const suspendreEcoleUseCase = new SuspendreEcoleUseCase(schoolRepository, invitationRepository);
   const reactiverEcoleUseCase = new ReactiverEcoleUseCase(schoolRepository);
@@ -829,7 +841,7 @@ export function creerContainer() {
       calculerAdmission: new CalculerAdmissionConcoursUseCase(entranceExamRepository),
       enregistrerCep: new EnregistrerResultatCepUseCase(entranceExamRepository, creerSqueletteOnboarding, notifierEvenement),
       resumeSession: new ResumeSessionConcoursUseCase(entranceExamRepository),
-      scannerListe: new ScannerListeCandidatsUseCase(entranceExamRepository),
+      scannerListe: new ScannerListeCandidatsUseCase(entranceExamRepository, documentAiAdapter),
       detecterAnomalies: new DetecterAnomaliesConcoursUseCase(entranceExamRepository),
     },
     pebsExam: {
@@ -838,7 +850,7 @@ export function creerContainer() {
       calculerSelection: new CalculerSelectionPebsUseCase(pebsExamRepository),
       appliquerTransfert: new AppliquerTransfertPebsUseCase(pebsExamRepository, anneeRepository, enrollmentRepository, studentAffectationRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository, notifierEvenement),
       resumeSession: new ResumeSessionPebsUseCase(pebsExamRepository),
-      scannerListe: new ScannerListeCandidatsPebsUseCase(pebsExamRepository),
+      scannerListe: new ScannerListeCandidatsPebsUseCase(pebsExamRepository, documentAiAdapter),
       detecterAnomalies: new DetecterAnomaliesPebsUseCase(pebsExamRepository),
     },
     pushNotification: {

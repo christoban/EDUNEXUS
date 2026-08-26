@@ -1,5 +1,5 @@
 import type { ClassCouncilRepository } from '@domain/ports/repositories/ClassCouncilRepository';
-import { notifyBulletinSms } from '../../infrastructure/services/sms/SmsNotificationService';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 
 export interface PublierBulletinsCommande {
   sessionId: string;
@@ -7,7 +7,10 @@ export interface PublierBulletinsCommande {
 }
 
 export class PublierBulletinsConseilClasseUseCase {
-  constructor(private readonly repo: ClassCouncilRepository) {}
+  constructor(
+    private readonly repo: ClassCouncilRepository,
+    private readonly smsNotification: SmsNotificationPort,
+  ) {}
 
   async execute(commande: PublierBulletinsCommande) {
     const session = await this.repo.obtenirSession(commande.sessionId, commande.schoolId);
@@ -27,7 +30,7 @@ export class PublierBulletinsConseilClasseUseCase {
 
     Promise.all(
       bulletins.map(b =>
-        notifyBulletinSms({
+        this.smsNotification.notifyBulletinSms({
           schoolId: commande.schoolId,
           studentId: b.studentId,
           studentName: `${b.student.firstName} ${b.student.lastName}`,

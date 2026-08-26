@@ -13,6 +13,7 @@ import { GroqIAService } from '../../services/ai/GroqIAService.ts';
 import { estJourOuvreScolaire, ajouterJoursOuvresScolaires, prolongerSiFermetureAujourdhui } from "../../services/school-calendar/SchoolCalendarService";
 import { notifierEvenementAcademique } from "../../services/notification/AcademicEventNotificationService";
 import { activerRessourceLieeSiApplicable, synchroniserClotureRessourceLiee, cloturerRessourceLiee } from "@application/academicEvent";
+import { SmsNotificationAdapter } from '../../services/sms/SmsNotificationAdapter';
 import { PrismaOrientationRepository } from "../../persistence/prisma/PrismaOrientationRepository";
 import { PrismaGradeOrientationRepository } from "../../persistence/prisma/PrismaGradeOrientationRepository";
 import { PrismaAnnouncementRepository } from "../../persistence/prisma/PrismaAnnouncementRepository";
@@ -1301,7 +1302,7 @@ export const checkAcademicEvents = inngest.createFunction(
           // d'afficher un menu pour une fonctionnalité qui n'est pas vraiment ouverte.
           let linkedResourceId: string | null = null;
           try {
-            linkedResourceId = await activerRessourceLieeSiApplicable(lv2ChoiceRepository, anneeRepository, ev);
+            linkedResourceId = await activerRessourceLieeSiApplicable(lv2ChoiceRepository, anneeRepository, ev, new SmsNotificationAdapter());
           } catch (err: any) {
             console.error(`[AcademicEvent] activation ressource liée (${ev.id}):`, err?.message);
             continue;

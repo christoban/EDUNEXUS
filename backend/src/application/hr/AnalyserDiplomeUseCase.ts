@@ -1,4 +1,4 @@
-import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
+import type { DocumentAiPort } from '@domain/ports/services/DocumentAiPort';
 
 /**
  * APPLICATION — Use case : analyse par IA d'une photo/scan de diplôme, pour PRÉ-REMPLIR le
@@ -37,8 +37,10 @@ Si le document n'est manifestement pas un diplôme/attestation, retourne tous le
 Ne fabrique JAMAIS une information absente — préfère null à une supposition.`;
 
 export class AnalyserDiplomeUseCase {
+  constructor(private readonly documentAi: DocumentAiPort) {}
+
   async execute(imageBase64: string, mimeType?: string): Promise<{ analyse: DiplomeAnalyse | null; warnings: string[] }> {
-    const resultat = await extraireDocument({
+    const resultat = await this.documentAi.extraireDocument({
       imageBase64,
       mimeType,
       maxTokens: 512,

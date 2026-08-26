@@ -10,6 +10,7 @@
 import type { AcademicEventRepository } from '@domain/ports/repositories/AcademicEventRepository';
 import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 import { activerRessourceLieeSiApplicable } from './activerRessourceLiee';
 
 export interface CreerEvenementCommande {
@@ -30,6 +31,7 @@ export class CreerEvenementAcademiqueUseCase {
     private readonly academicEventRepository: AcademicEventRepository,
     private readonly lv2ChoiceRepository: Lv2ChoiceRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly smsNotification: SmsNotificationPort,
   ) {}
 
   async execute(cmd: CreerEvenementCommande): Promise<{ id: string }> {
@@ -58,7 +60,7 @@ export class CreerEvenementAcademiqueUseCase {
       linkedResourceId = await activerRessourceLieeSiApplicable(this.lv2ChoiceRepository, this.anneeRepository, {
         id: '', schoolId: cmd.schoolId, type: cmd.type,
         level: cmd.level ?? null, openDate: cmd.openDate ?? null, closeDate: cmd.closeDate ?? null,
-      });
+      }, this.smsNotification);
     }
 
     const evenement = await this.academicEventRepository.creer({

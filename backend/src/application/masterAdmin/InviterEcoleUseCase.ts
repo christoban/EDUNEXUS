@@ -10,8 +10,8 @@ import { School } from '@domain/entities/School';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { InvitationRepository, InvitationProps } from '@domain/ports/repositories/InvitationRepository';
 import type { EmailService } from '@domain/ports/services/EmailService';
+import type { EmailTemplatePort } from '@domain/ports/services/EmailTemplatePort';
 import type { PlanType, SchoolSubsystem } from '@domain/types/enums';
-import { buildSchoolInviteTemplate } from '../../infrastructure/services/email/templates/emailTemplates';
 
 export interface InviterEcoleCommande {
   email: string;
@@ -35,6 +35,7 @@ export class InviterEcoleUseCase {
     private readonly schoolRepository: SchoolRepository,
     private readonly invitationRepository: InvitationRepository,
     private readonly emailService: EmailService,
+    private readonly emailTemplate: EmailTemplatePort,
   ) {}
 
   async execute(commande: InviterEcoleCommande): Promise<InviterEcoleResultat> {
@@ -94,7 +95,7 @@ export class InviterEcoleUseCase {
     // 4. Envoyer l'email d'invitation (fire-and-forget — ne bloque pas la réponse HTTP)
     const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
     const activationUrl = `${frontendUrl}/onboarding/${invitation.token}`;
-    const inviteTemplate = buildSchoolInviteTemplate({
+    const inviteTemplate = this.emailTemplate.buildSchoolInviteTemplate({
       schoolName: commande.schoolName,
       requestedAdminName: 'Administrateur',
       activationUrl,

@@ -1,6 +1,6 @@
 import type { MessagerieRepository } from '@domain/ports/repositories/MessagerieRepository';
-import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
-import { getIO } from '../../infrastructure/socket/SocketServer';
+import type { NotificationService } from '@domain/ports/services/NotificationService';
+import type { RealtimeSocketPort } from '@domain/ports/services/RealtimeSocketPort';
 
 export interface EnvoyerMessageCommande {
   schoolId: string;
@@ -12,10 +12,12 @@ export interface EnvoyerMessageCommande {
   destinataireId?: string;
 }
 
-const notificationService = new SocketNotificationService();
-
 export class EnvoyerMessageUseCase {
-  constructor(private readonly messagerieRepository: MessagerieRepository) {}
+  constructor(
+    private readonly messagerieRepository: MessagerieRepository,
+    private readonly notificationService: NotificationService,
+    private readonly realtimeSocket: RealtimeSocketPort,
+  ) {}
 
   async execute(cmd: EnvoyerMessageCommande) {
     const content = cmd.content.trim();
@@ -51,7 +53,7 @@ export class EnvoyerMessageUseCase {
       moderationStatus,
     });
 
-    getIO()?.to(`conversation:${conversation.id}`).emit('message:new', message);
+    this.realtimeSocket.emitter(`conversation:${conversation.id}`, 'message:new', message);
 
     if (moderationStatus === 'APPROVED') {
       await this.notifierParticipants(conversation, cmd.appelantId, cmd.schoolId, message.content);
@@ -126,7 +128,7 @@ export class EnvoyerMessageUseCase {
 
     await Promise.allSettled(
       destinataireIds.map((userId) =>
-        notificationService.envoyer({
+        this.notificationService.envoyer({
           schoolId,
           userId,
           type: 'COMMUNICATION',

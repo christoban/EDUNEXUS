@@ -1,9 +1,9 @@
 import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauALoter } from '@domain/ports/repositories/TimetableRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { SchedulingGridPort } from '@domain/ports/services/SchedulingGridPort';
 import { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import { joursActifsVersIndex } from '@domain/types/joursSemaine';
-import { calculerSqelette } from '@infrastructure/http/controllers/TimetableGridConfigController';
 
 export interface GenererSqueletteCommande {
   schoolId: string;
@@ -31,6 +31,7 @@ export class GenererSqueletteEmploiDuTempsUseCase {
   constructor(
     private readonly timetableRepository: TimetableRepository,
     private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly schedulingGrid: SchedulingGridPort,
   ) {}
 
   async execute(commande: GenererSqueletteCommande): Promise<GenererSqueletteResultat> {
@@ -60,7 +61,7 @@ export class GenererSqueletteEmploiDuTempsUseCase {
     });
     await this.timetableRepository.save(emploiDuTemps);
 
-    const periodesCours = calculerSqelette(gridConfig).filter(p => p.type === 'COURS');
+    const periodesCours = this.schedulingGrid.calculerSqelette(gridConfig).filter(p => p.type === 'COURS');
     const jours = joursActifsVersIndex(gridConfig.joursActifs);
 
     const creneaux: CreneauALoter[] = jours.flatMap(dayOfWeek =>

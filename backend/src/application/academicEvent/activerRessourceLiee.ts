@@ -12,8 +12,8 @@
  */
 import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 import { OuvrirFenetreChoixLV2UseCase } from '../lv2Choice/OuvrirFenetreChoixLV2UseCase';
-import { notifyLv2WindowOpenSms } from '../../infrastructure/services/sms/SmsNotificationService.ts';
 
 export interface EvenementPourActivation {
   id: string;
@@ -34,6 +34,7 @@ export async function activerRessourceLieeSiApplicable(
   lv2ChoiceRepository: Lv2ChoiceRepository,
   anneeRepository: AnneeAcademiqueRepository,
   event: EvenementPourActivation,
+  smsNotification: SmsNotificationPort,
 ): Promise<string | null> {
   if (event.type !== 'CHOIX_LV2') return null;
 
@@ -62,7 +63,7 @@ export async function activerRessourceLieeSiApplicable(
   // rappelé ici explicitement — sinon un parent sans push activé ne serait jamais informé
   // qu'une fenêtre de choix LV2 vient de s'ouvrir pour son enfant.
   for (const eleve of resultat.eleves) {
-    void notifyLv2WindowOpenSms({
+    void smsNotification.notifyLv2WindowOpenSms({
       schoolId: event.schoolId,
       studentUserId: eleve.studentUserId,
       studentName: eleve.studentName,

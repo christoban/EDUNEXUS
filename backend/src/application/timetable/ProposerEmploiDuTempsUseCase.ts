@@ -12,7 +12,7 @@ import type {
   CreneauOccupe,
   SalleDisponible,
 } from '@domain/ports/services/SchedulingSolverPort';
-import { calculerSqelette } from '@infrastructure/http/controllers/TimetableGridConfigController';
+import type { SchedulingGridPort } from '@domain/ports/services/SchedulingGridPort';
 import { joursActifsVersIndex } from '@domain/types/joursSemaine';
 import type { SubjectType } from '@domain/types/enums';
 import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
@@ -43,6 +43,7 @@ export class ProposerEmploiDuTempsUseCase {
     private readonly classRoomAssignmentRepository: ClassRoomAssignmentRepository,
     private readonly teacherUnavailabilityRepository: TeacherUnavailabilityRepository,
     private readonly solver: SchedulingSolverPort,
+    private readonly schedulingGrid: SchedulingGridPort,
   ) {}
 
   async execute(commande: ProposerEmploiDuTempsCommande): Promise<PropositionEmploiDuTemps> {
@@ -230,7 +231,7 @@ export class ProposerEmploiDuTempsUseCase {
     const config = await this.timetableRepository.getGridConfig(schoolId);
     if (!config) return [];
 
-    const periodesCours = calculerSqelette(config).filter(p => p.type === 'COURS');
+    const periodesCours = this.schedulingGrid.calculerSqelette(config).filter(p => p.type === 'COURS');
     const jours = joursActifsVersIndex(config.joursActifs);
 
     return jours.flatMap(dayOfWeek =>

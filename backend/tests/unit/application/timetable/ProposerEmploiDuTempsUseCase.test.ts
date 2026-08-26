@@ -13,6 +13,22 @@ import type {
   PropositionEmploiDuTemps,
   SchedulingSolverPort,
 } from '@domain/ports/services/SchedulingSolverPort';
+import type { SchedulingGridPort } from '@domain/ports/services/SchedulingGridPort';
+
+const stubSchedulingGrid: SchedulingGridPort = {
+  calculerSqelette: (cfg) => {
+    const periods: Array<{ ordre: number; debut: string; fin: string; type: 'COURS' | 'PETITE_PAUSE' | 'GRANDE_PAUSE'; duree: number }> = [];
+    let ordre = 1;
+    let minutes = parseInt(cfg.heureDebut.split(':')[0]) * 60 + parseInt(cfg.heureDebut.split(':')[1]);
+    for (let i = 0; i < cfg.periodesAvantP1; i++) {
+      const debut = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      minutes += cfg.dureePeriode;
+      const fin = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      periods.push({ ordre: ordre++, debut, fin, type: 'COURS', duree: cfg.dureePeriode });
+    }
+    return periods;
+  },
+};
 
 function edtDraft() {
   return EmploiDuTemps.reconstituer({
@@ -135,6 +151,7 @@ describe('ProposerEmploiDuTempsUseCase — chargement des indisponibilités (V2.
       classRoomAssignmentRepositoryStub(),
       teacherUnavailabilityRepositoryStub([{ teacherId: "prof-1", dayOfWeek: 0, startTime: "08:00", endTime: "09:00" }]),
       solver,
+      stubSchedulingGrid,
     );
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
@@ -159,6 +176,7 @@ describe('ProposerEmploiDuTempsUseCase — chargement des indisponibilités (V2.
       classRoomAssignmentRepositoryStub(),
       teacherUnavailabilityRepositoryStub(),
       solver,
+      stubSchedulingGrid,
     );
 
     await useCase.execute({ timetableId: 'edt-1', schoolId: 'school-1' });
@@ -215,6 +233,7 @@ describe('ProposerEmploiDuTempsUseCase — volume horaire exact multi-séances (
       classRoomAssignmentRepositoryStub(),
       teacherUnavailabilityRepositoryStub(),
       solver,
+      stubSchedulingGrid,
     );
   }
 

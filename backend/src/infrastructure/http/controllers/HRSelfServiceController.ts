@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { AnalyserDiplomeUseCase } from '@application/hr/AnalyserDiplomeUseCase';
+import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter';
 
 interface EmployeeDocumentEntry {
   type: string;
@@ -26,7 +27,7 @@ const DOCUMENTS_DIR = path.resolve(process.cwd(), 'storage', 'hr-documents');
 const ALLOWED_DOCUMENT_TYPES = ['DIPLOME_ACADEMIQUE', 'DIPLOME_PROFESSIONNEL', 'PIECE_IDENTITE', 'AUTRE'] as const;
 
 export class HRSelfServiceController {
-  private readonly analyserDiplome = new AnalyserDiplomeUseCase();
+  private readonly analyserDiplome = new AnalyserDiplomeUseCase(new DocumentAiAdapter());
 
   constructor(private readonly prisma: PrismaClient) {}
 

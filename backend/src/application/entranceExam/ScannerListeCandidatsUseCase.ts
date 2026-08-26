@@ -1,5 +1,5 @@
 import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
-import { extraireDocument } from '@infrastructure/services/ai/DocumentAiOrchestrator';
+import type { DocumentAiPort } from '@domain/ports/services/DocumentAiPort';
 
 interface ScannedCandidate {
   firstName: string;
@@ -24,7 +24,10 @@ Format attendu :
 {"candidats": [{"firstName": "...", "lastName": "...", "dateOfBirth": null, "examScore": null, "confidence": "high"}]}`;
 
 export class ScannerListeCandidatsUseCase {
-  constructor(private readonly entranceRepository: EntranceExamRepository) {}
+  constructor(
+    private readonly entranceRepository: EntranceExamRepository,
+    private readonly documentAi: DocumentAiPort,
+  ) {}
 
   async execute(schoolId: string, sessionId: string, imageBase64: string, mimeType?: string): Promise<{ candidats: ScannedCandidate[]; warnings: string[] }> {
     // Vérifier la session
@@ -35,7 +38,7 @@ export class ScannerListeCandidatsUseCase {
     // Passe par l'orchestrateur OCR-d'abord (DocumentAiOrchestrator) — une liste de candidats
     // est un document texte, PaddleOCR suffit dans la grande majorité des cas ; le modèle vision
     // Groq ne sert que si l'OCR échoue à lire correctement (photo floue, écriture peu lisible).
-    const resultat = await extraireDocument({
+    const resultat = await this.documentAi.extraireDocument({
       imageBase64,
       mimeType,
       maxTokens: 2048,

@@ -3,6 +3,15 @@ import { InviterEcoleUseCase } from '../../../../src/application/masterAdmin/Inv
 import { InMemorySchoolRepository } from '../../../helpers/repositories/InMemorySchoolRepository.ts';
 import { InMemoryInvitationRepository } from '../../../helpers/repositories/InMemoryInvitationRepository.ts';
 import { FakeEmailService } from '../../../helpers/services/FakeEmailService.ts';
+import type { EmailTemplatePort } from '@domain/ports/services/EmailTemplatePort';
+
+const stubEmailTemplate: EmailTemplatePort = {
+  buildSchoolInviteTemplate: (payload) => ({
+    subject: `Invitation ${payload.schoolName}`,
+    html: '<p>test</p>',
+    text: `Invitation ${payload.schoolName}`,
+  }),
+};
 
 describe('InviterEcoleUseCase', () => {
   let schoolRepo: InMemorySchoolRepository;
@@ -14,7 +23,7 @@ describe('InviterEcoleUseCase', () => {
     schoolRepo = new InMemorySchoolRepository();
     invitationRepo = new InMemoryInvitationRepository();
     emailService = new FakeEmailService();
-    useCase = new InviterEcoleUseCase(schoolRepo, invitationRepo, emailService);
+    useCase = new InviterEcoleUseCase(schoolRepo, invitationRepo, emailService, stubEmailTemplate);
   });
 
   it('devrait créer une école DRAFT et une invitation valide 72h', async () => {
