@@ -56,6 +56,7 @@ export interface CreerNoteProps {
   coefficient?: number;
   maxValue?: number;
   sequenceScore?: number;
+  sequenceAverage?: number;
   classTestScore?: number;
   terminalExamScore?: number;
   theoreticalScore?: number;
@@ -78,6 +79,7 @@ export class Note {
       id: crypto.randomUUID(),
       coefficient: props.coefficient ?? 1,
       maxValue: props.maxValue ?? 20,
+      sequenceAverage: props.sequenceAverage ?? props.sequenceScore,
       validationStatus: 'DRAFT',
       isOfflineSync: false,
       createdAt: new Date(),
@@ -192,6 +194,15 @@ export class Note {
   }
 
   // --- Méthodes de calcul ---
+
+  definirScore(score: number): void {
+    if (score < 0 || score > this.props.maxValue) {
+      throw new Error(
+        `Le score ${score} est hors limites (0 - ${this.props.maxValue})`
+      );
+    }
+    this.props.sequenceScore = score;
+  }
 
   definirMoyenne(moyenne: number): void {
     if (moyenne < 0 || moyenne > this.props.maxValue) {

@@ -34,6 +34,7 @@ export interface MatriculeImportRepository {
   trouverProfilMatricule(userId: string, schoolId: string): Promise<StudentProfileMatriculeData | null>;
   mettreAJourMatricule(profileId: string, data: { matricule: string; matriculeSource: string; matriculeMatchType: string }): Promise<void>;
   listerProfilsActifsAvecMatricule(schoolId: string): Promise<{ id: string; matricule: string }[]>;
+  findByMatricules(schoolId: string, matricules: string[], classId: string): Promise<{ matricule: string; userId: string }[]>;
   compterProfilsActifs(schoolId: string): Promise<number>;
   trouverEcoleCodeMinesec(schoolId: string): Promise<{ minesecSchoolCode: string | null } | null>;
 }

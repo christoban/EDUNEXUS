@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { Note } from '@domain/entities/Note';
-import type { NoteRepository, NoteNonValideeInfo } from '@domain/ports/repositories/NoteRepository';
+import type { NoteRepository, NoteNonValideeInfo, NoteFilters, PaginatedResult } from '@domain/ports/repositories/NoteRepository';
 import type { GradeValidationStatus } from '@domain/types/enums';
 
 export class PrismaNoteRepository implements NoteRepository {
@@ -58,6 +58,40 @@ export class PrismaNoteRepository implements NoteRepository {
     return data.map(d => this.toDomain(d));
   }
 
+  async findByStatuts(
+    classId: string,
+    sequenceId: string,
+    statuts: GradeValidationStatus[]
+  ): Promise<Note[]> {
+    const data = await this.prisma.grade.findMany({
+      where: { classId, sequenceId, validationStatus: { in: statuts } },
+    });
+    return data.map(d => this.toDomain(d));
+  }
+
+  async findClassmatesAverages(
+    classId: string,
+    sequenceId: string,
+    schoolId: string
+  ): Promise<{ studentId: string; average: number }[]> {
+    const rows = await this.prisma.grade.groupBy({
+      by: ['studentId'],
+      where: {
+        schoolId,
+        classId,
+        sequenceId,
+        validationStatus: { in: ['VALIDATED', 'LOCKED'] },
+      },
+      _avg: { sequenceAverage: true },
+      orderBy: { _avg: { sequenceAverage: 'desc' } },
+    });
+
+    return rows.map(r => ({
+      studentId: r.studentId,
+      average: r._avg.sequenceAverage ?? 0,
+    }));
+  }
+
   async findNotesNonValideesParClasse(
     classId: string,
     academicPeriodId: string
@@ -95,6 +129,35 @@ export class PrismaNoteRepository implements NoteRepository {
   ): Promise<boolean> {
     const nonValidees = await this.findNotesNonValideesParClasse(classId, academicPeriodId);
     return nonValidees.length === 0;
+  }
+
+  async find(filters: NoteFilters, page: number, limit: number): Promise<PaginatedResult<Note>> {
+    const where: any = { schoolId: filters.schoolId };
+    if (filters.classId) where.classId = filters.classId;
+    if (filters.subjectId) where.subjectId = filters.subjectId;
+    if (filters.subjectIds) where.subjectId = { in: filters.subjectIds };
+    if (filters.sequenceId) where.sequenceId = filters.sequenceId;
+    if (filters.studentId) where.studentId = filters.studentId;
+    if (filters.studentIds) where.studentId = { in: filters.studentIds };
+    if (filters.validationStatus) where.validationStatus = filters.validationStatus;
+
+    const [total, data] = await Promise.all([
+      this.prisma.grade.count({ where }),
+      this.prisma.grade.findMany({
+        where,
+        orderBy: [{ classId: 'asc' }, { subjectId: 'asc' }, { studentId: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      items: data.map(d => this.toDomain(d)),
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      limit,
+    };
   }
 
   async save(note: Note): Promise<void> {
@@ -141,6 +204,8 @@ export class PrismaNoteRepository implements NoteRepository {
         oralScore: data.oralScore,
         selfDevelopmentScore: data.selfDevelopmentScore,
         sequenceAverage: data.sequenceAverage,
+        coefficient: data.coefficient,
+        maxValue: data.maxValue,
         validationStatus: data.validationStatus,
         validatedById: data.validatedById ?? null,
         validatedAt: data.validatedAt ?? null,

@@ -47,6 +47,13 @@ import { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCase';
 import { ValiderNoteUseCase } from '@application/grade/ValiderNoteUseCase';
 import { RejeterNoteUseCase } from '@application/grade/RejeterNoteUseCase';
 import { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
+import { ModifierNoteUseCase } from '@application/grade/ModifierNoteUseCase';
+import { DraftEnMasseUseCase } from '@application/grade/DraftEnMasseUseCase';
+import { ListerNotesUseCase } from '@application/grade/ListerNotesUseCase';
+import { ListerNotesEnAttenteUseCase } from '@application/grade/ListerNotesEnAttenteUseCase';
+import { StatutParClasseUseCase } from '@application/grade/StatutParClasseUseCase';
+import { CalculerMoyenneUseCase } from '@application/grade/CalculerMoyenneUseCase';
+import { ImporterNotesExcelUseCase } from '@application/grade/ImporterNotesExcelUseCase';
 
 // --- Use Cases : Présences ---
 import { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
@@ -604,6 +611,15 @@ export function creerContainer() {
   const obtenirParametresUseCase = new ObtenirParametresEcoleUseCase(schoolSettingsRepository);
   const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository, activityLog);
 
+  // 15b. Use Cases — Notes (suite)
+  const modifierNoteUseCase = new ModifierNoteUseCase(noteRepository, matiereRepository, schoolSettingsRepository);
+  const draftEnMasseUseCase = new DraftEnMasseUseCase(noteRepository, matiereRepository);
+  const listerNotesUseCase = new ListerNotesUseCase(noteRepository, userRepository, matiereRepository, parentRepository);
+  const listerNotesEnAttenteUseCase = new ListerNotesEnAttenteUseCase(noteRepository, userRepository);
+  const statutParClasseUseCase = new StatutParClasseUseCase(noteRepository);
+  const calculerMoyenneUseCase = new CalculerMoyenneUseCase(noteRepository, matiereRepository);
+  const importerNotesExcelUseCase = new ImporterNotesExcelUseCase(noteRepository, matiereRepository, matriculeImportRepository, rattachementRepository);
+
   // 16. Use Cases — Orientation
   const orientationRepository = new PrismaOrientationRepository(prisma);
   const gradeOrientationRepository = new PrismaGradeOrientationRepository(prisma);
@@ -640,6 +656,13 @@ export function creerContainer() {
       validerNote: validerNoteUseCase,
       rejeterNote: rejeterNoteUseCase,
       validerEnBloc: validerEnBlocUseCase,
+      modifierNote: modifierNoteUseCase,
+      draftEnMasse: draftEnMasseUseCase,
+      listerNotes: listerNotesUseCase,
+      listerNotesEnAttente: listerNotesEnAttenteUseCase,
+      statutParClasse: statutParClasseUseCase,
+      calculerMoyenne: calculerMoyenneUseCase,
+      importerNotesExcel: importerNotesExcelUseCase,
     },
     attendance: {
       enregistrerPresence: enregistrerPresenceUseCase,
@@ -648,6 +671,10 @@ export function creerContainer() {
     school: {
       onboarder: onboarderEcoleUseCase,
       approuver: approuverEcoleUseCase,
+      schoolRepository,
+      anneeRepository,
+      classeRepository,
+      matiereRepository,
     },
     reportCard: {
       generer: genererBulletinUseCase,

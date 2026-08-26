@@ -50,6 +50,9 @@ export interface SchoolSettingsComplets {
   offlineModeEnabled: boolean;
   aiAlertsEnabled: boolean;
   messageModeration: boolean;
+
+  // Calcul des moyennes
+  sequenceCalculationMode: 'single' | 'triple' | 'weighted';
 }
 
 export interface SchoolSettingsRepository {

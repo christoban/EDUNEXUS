@@ -27,6 +27,17 @@ export function creerApp(): Application {
     container.grade.validerNote,
     container.grade.rejeterNote,
     container.grade.validerEnBloc,
+    container.grade.modifierNote,
+    container.grade.draftEnMasse,
+    container.grade.listerNotes,
+    container.grade.listerNotesEnAttente,
+    container.grade.statutParClasse,
+    container.grade.calculerMoyenne,
+    container.grade.importerNotesExcel,
+    container.school.schoolRepository,
+    container.school.anneeRepository,
+    container.school.classeRepository,
+    container.school.matiereRepository,
   );
 
   const attendanceController = new AttendanceController(

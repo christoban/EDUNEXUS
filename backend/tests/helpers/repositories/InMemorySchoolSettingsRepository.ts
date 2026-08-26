@@ -34,6 +34,7 @@ export class InMemorySchoolSettingsRepository implements SchoolSettingsRepositor
       offlineModeEnabled: true,
       aiAlertsEnabled: true,
       messageModeration: false,
+      sequenceCalculationMode: 'single',
       ...settings,
     });
   }

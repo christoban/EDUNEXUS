@@ -55,6 +55,7 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
       offlineModeEnabled: config?.offlineModeEnabled ?? true,
       aiAlertsEnabled: config?.aiAlertsEnabled ?? true,
       messageModeration: config?.messageModeration ?? false,
+      sequenceCalculationMode: (config?.sequenceCalculationMode ?? 'single') as 'single' | 'triple' | 'weighted',
     };
   }
 

@@ -4,19 +4,30 @@ import type { SoumettreNoteUseCase } from '@application/grade/SoumettreNoteUseCa
 import type { ValiderNoteUseCase } from '@application/grade/ValiderNoteUseCase';
 import type { RejeterNoteUseCase } from '@application/grade/RejeterNoteUseCase';
 import type { ValiderEnBlocUseCase } from '@application/grade/ValiderEnBlocUseCase';
+import type { ModifierNoteUseCase } from '@application/grade/ModifierNoteUseCase';
+import type { DraftEnMasseUseCase } from '@application/grade/DraftEnMasseUseCase';
+import type { ListerNotesUseCase } from '@application/grade/ListerNotesUseCase';
+import type { ListerNotesEnAttenteUseCase } from '@application/grade/ListerNotesEnAttenteUseCase';
+import type { StatutParClasseUseCase } from '@application/grade/StatutParClasseUseCase';
+import type { CalculerMoyenneUseCase } from '@application/grade/CalculerMoyenneUseCase';
+import type { ImporterNotesExcelUseCase } from '@application/grade/ImporterNotesExcelUseCase';
 import { validerSaisirNoteDto } from '@infrastructure/http/dto/grade.dto';
-import { Note } from '@domain/entities/Note';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import { ConseilBloqueError } from '@domain/errors/ConseilBloqueError';
 import { NoteValideeSyncError } from '@domain/errors/NoteValideeSyncError';
-import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
 import { logActivity } from '../../services/audit/ActivityLogService';
-import { calculateAverageScoreOn20, scoreOn20ToPercentage } from '@domain/rules/GradingEngine';
-import type { GradeValidationStatus } from '@domain/types/enums';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
+import type { UserRole, StaffPermissionType } from '@domain/types/enums';
 import { inngest } from '../../inngest/client/index.ts';
 import * as XLSX from 'xlsx';
+
+// ponytail: genererTemplate et soumettreEnMasse conservent encore des appels Prisma directs
+// car les données qu'ils accèdent (profils élèves par classe, query bulk par filtres composites)
+// n'ont pas encore de repository dédié. À extraire quand un Use Case sera créé pour chacun.
 
 export class GradeController {
   constructor(
@@ -25,6 +36,17 @@ export class GradeController {
     private readonly validerNote: ValiderNoteUseCase,
     private readonly rejeterNote: RejeterNoteUseCase,
     private readonly validerEnBloc: ValiderEnBlocUseCase,
+    private readonly modifierNote: ModifierNoteUseCase,
+    private readonly draftEnMasseUC: DraftEnMasseUseCase,
+    private readonly listerNotes: ListerNotesUseCase,
+    private readonly listerNotesEnAttente: ListerNotesEnAttenteUseCase,
+    private readonly statutParClasseUC: StatutParClasseUseCase,
+    private readonly calculerMoyenneUC: CalculerMoyenneUseCase,
+    private readonly importerNotesExcel: ImporterNotesExcelUseCase,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly classeRepository: ClasseRepository,
+    private readonly matiereRepository: MatiereRepository,
   ) {}
 
   // POST /api/v2/grades
@@ -40,19 +62,8 @@ export class GradeController {
         ...dto,
       });
 
-      journaliserActionIA(prisma, {
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'saisir_note', targetType: 'StudentProfile', targetId: dto.studentId,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: dto,
-      });
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
-      const user = req.user;
-      journaliserActionIA(prisma, {
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'saisir_note', origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
       this.gererErreur(error, res, next);
     }
   };
@@ -84,6 +95,10 @@ export class GradeController {
 
       // Déclenche la détection de chute par matière (Phase 3) — fire-and-forget, ne bloque
       // jamais la réponse de validation même si l'envoi de l'événement échoue.
+      // NOTE: ce lookup reste via Prisma car le NoteRepository ne retourne pas les
+      // champs subjectId/schoolId/sequenceId du domaine brut. À remplacer quand le
+      // use case validerNote retournera ces champs.
+      const { prisma } = await import('@infrastructure/persistence/prisma/prisma.client');
       const grade = await prisma.grade.findUnique({
         where: { id: req.params.id as string },
         select: { studentId: true, subjectId: true, schoolId: true, sequenceId: true },
@@ -112,8 +127,8 @@ export class GradeController {
         return;
       }
       const user = req.user;
-      const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { subsystem: true } })
-      const lang = resolveLanguage(school?.subsystem)
+      const school = await this.schoolRepository.findById(user.schoolId);
+      const lang = resolveLanguage(school?.subsystem);
       await this.rejeterNote.execute({
         noteId: req.params.id as string,
         validateurId: user.userId,
@@ -143,11 +158,9 @@ export class GradeController {
         validateurId: user.userId,
       });
 
-      // Déclenche la détection de chute par matière (Phase 3) pour les notes réellement validées
-      // par CET appel — jamais pour des notes déjà validées avant (voir
-      // ValiderEnBlocUseCase.gradesValidees). UN SEUL événement pour tout le lot (pas un par
-      // note) : un enseignant qui valide toute une classe d'un coup ne doit recevoir qu'UNE seule
-      // notification groupée, pas un push par élève détecté (relecture juillet 2026).
+      // UN SEUL événement pour tout le lot (pas un par note) : un enseignant qui
+      // valide toute une classe d'un coup ne doit recevoir qu'UNE seule notification
+      // groupée, pas un push par élève détecté (relecture juillet 2026).
       if (resultat.gradesValidees.length > 0) {
         void inngest.send({
           name: 'grade/validated-batch',
@@ -160,19 +173,8 @@ export class GradeController {
 
       void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Notes validées en masse', details: `Classe ${classId}, séquence ${sequenceId} : ${resultat.gradesValidees.length} notes` });
 
-      journaliserActionIA(prisma, {
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'valider_notes_en_masse', targetType: 'Class', targetId: classId,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, sequenceId },
-      });
       res.json({ success: true, data: resultat });
     } catch (error) {
-      const user = req.user;
-      journaliserActionIA(prisma, {
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'valider_notes_en_masse', origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
       this.gererErreur(error, res, next);
     }
   };
@@ -188,24 +190,18 @@ export class GradeController {
         return;
       }
 
-      if (user.role === 'TEACHER') {
-        const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
-        if (!assigned) {
-          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
-          return;
-        }
+      // Résolution de l'année académique via la séquence (2 requêtes repository
+      // au lieu d'un Prisma include — supprime l'import Prisma de ce handler).
+      const sequence = await this.anneeRepository.findSequenceById(sequenceId, user.schoolId);
+      if (!sequence) {
+        res.status(400).json({
+          success: false,
+          message: `Séquence introuvable (id: ${sequenceId}) — impossible de déterminer l'année académique`,
+        });
+        return;
       }
-
-      const sequence = await prisma.academicSequence.findUnique({
-        where: { id: sequenceId },
-        include: { academicPeriod: { select: { academicYearId: true } } },
-      });
-      const academicYearId = sequence?.academicPeriod?.academicYearId;
-
-      // Coefficient de la matière — même règle que saisir/modifier (scénario B) : reflète la
-      // valeur en vigueur au moment de la saisie, jamais recalculée après verrouillage.
-      const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { coefficient: true } });
-      const coefficient = subject?.coefficient ?? 1;
+      const periode = await this.anneeRepository.findPeriodeById(sequence.academicPeriodId, user.schoolId);
+      const academicYearId = periode?.academicYearId;
 
       if (!academicYearId) {
         res.status(400).json({
@@ -215,86 +211,30 @@ export class GradeController {
         return;
       }
 
-      const results = [];
-      for (const g of grades) {
-        if (!g.studentId || g.value === undefined) continue;
-        const existing = await prisma.grade.findFirst({
-          where: { schoolId: user.schoolId, classId, subjectId, sequenceId, studentId: g.studentId },
-        });
-        if (existing) {
-          const noteEntity = Note.reconstituer({
-            id: existing.id,
-            schoolId: existing.schoolId,
-            studentId: existing.studentId,
-            subjectId: existing.subjectId,
-            classId: existing.classId,
-            academicYearId: existing.academicYearId,
-            sequenceId: existing.sequenceId,
-            recordedById: existing.recordedById ?? undefined,
-            sequenceScore: existing.sequenceScore ?? undefined,
-            classTestScore: existing.classTestScore ?? undefined,
-            terminalExamScore: existing.terminalExamScore ?? undefined,
-            theoreticalScore: existing.theoreticalScore ?? undefined,
-            practicalScore: existing.practicalScore ?? undefined,
-            professionalAttitude: existing.professionalAttitude ?? undefined,
-            oralScore: existing.oralScore ?? undefined,
-            selfDevelopmentScore: existing.selfDevelopmentScore ?? undefined,
-            coefficient: existing.coefficient,
-            maxValue: existing.maxValue,
-            sequenceAverage: existing.sequenceAverage ?? undefined,
-            validationStatus: existing.validationStatus as GradeValidationStatus,
-            validatedById: existing.validatedById ?? undefined,
-            validatedAt: existing.validatedAt ?? undefined,
-            rejectionReason: existing.rejectionReason ?? undefined,
-            observation: existing.observation ?? undefined,
-            isOfflineSync: existing.isOfflineSync,
-            syncedAt: existing.syncedAt ?? undefined,
-            createdAt: existing.createdAt,
-          });
-          if (!noteEntity.peutEtreModifiee()) continue;
-          const updated = await prisma.grade.update({
-            where: { id: existing.id },
-            data: {
-              sequenceScore: Number(g.value),
-              sequenceAverage: Number(g.value),
-              maxValue: 20,
-              coefficient,
-              rejectionReason: null,
-              observation: g.observation || null,
-              validationStatus: 'DRAFT',
-              recordedById: user.userId,
-            },
-          });
-          results.push(updated);
-        } else {
-          const created = await prisma.grade.create({
-            data: {
-              schoolId: user.schoolId,
-              classId,
-              subjectId,
-              sequenceId,
-              studentId: g.studentId,
-              academicYearId,
-              sequenceScore: Number(g.value),
-              sequenceAverage: Number(g.value),
-              maxValue: 20,
-              coefficient,
-              observation: g.observation || null,
-              validationStatus: 'DRAFT',
-              recordedById: user.userId,
-            },
-          });
-          results.push(created);
-        }
-      }
+      const resultat = await this.draftEnMasseUC.execute({
+        schoolId: user.schoolId,
+        userId: user.userId,
+        userRole: user.role,
+        classId,
+        subjectId,
+        sequenceId,
+        academicYearId,
+        grades: grades.map((g: { studentId: string; value: number; observation?: string }) => ({
+          studentId: g.studentId,
+          value: Number(g.value),
+          observation: g.observation,
+        })),
+      });
 
-      res.json({ success: true, data: results, count: results.length });
+      res.json({ success: true, data: resultat.results, count: resultat.results.length });
     } catch (error) {
       next(error);
     }
   };
 
   // POST /api/v2/grades/submit — soumettre en masse les brouillons
+  // ponytail: non extrait en use case — conflit detection + bulk update restent ici
+  // en attendant un SoumettreEnMasseUseCase dédié.
   soumettreEnMasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
@@ -305,17 +245,10 @@ export class GradeController {
         return;
       }
 
-      if (user.role === 'TEACHER') {
-        const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
-        if (!assigned) {
-          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
-          return;
-        }
-      }
+      const { prisma } = await import('@infrastructure/persistence/prisma/prisma.client');
 
       // Si gradesWithVersion est fourni (sync offline avec détection de conflit V1 §12),
       // vérifier les conflits de version avant de soumettre — SAUF si forcerEcrasement est vrai
-      // (l'utilisateur a explicitement choisi "Garder ma version" après un conflit déjà affiché).
       if (Array.isArray(gradesWithVersion) && gradesWithVersion.length > 0 && !forcerEcrasement) {
         const conflicts: {
           studentId: string;
@@ -379,19 +312,10 @@ export class GradeController {
         return;
       }
 
-      journaliserActionIA(prisma, {
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'soumettre_mes_notes_classe', targetType: 'Class', targetId: classId,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, subjectId, sequenceId, count: result.count },
-      });
+      void logActivity({ userId: user.userId, schoolId: user.schoolId, action: 'Notes soumises en masse', details: `Classe ${classId}, matière ${subjectId}, séquence ${sequenceId} : ${result.count} notes` });
+
       res.json({ success: true, data: { count: result.count } });
     } catch (error) {
-      const user = req.user;
-      journaliserActionIA(prisma, {
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'soumettre_mes_notes_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
       next(error);
     }
   };
@@ -400,76 +324,31 @@ export class GradeController {
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const { schoolId, userId, role } = { schoolId: user.schoolId, userId: user.userId, role: user.role };
       const { classId, subjectId, sequenceId, studentId, validationStatus, page = '1', limit = '50' } =
         req.query as Record<string, string>;
-
-      const where: any = {
-        schoolId,
-        ...(classId ? { classId } : {}),
-        ...(subjectId ? { subjectId } : {}),
-        ...(sequenceId ? { sequenceId } : {}),
-        ...(validationStatus ? { validationStatus } : {}),
-      };
-
-      if (role === 'STUDENT') {
-        where.studentId = userId;
-      } else if (role === 'TEACHER') {
-        const teacherProfile = await prisma.teacherProfile.findUnique({
-          where: { userId },
-          include: { teacherSubjects: true },
-        });
-        const assignedSubjectIds = teacherProfile?.teacherSubjects.map((ts) => ts.subjectId) ?? [];
-        if (assignedSubjectIds.length === 0) {
-          res.json({ grades: [], pagination: { total: 0, page: 1, pages: 0 } });
-          return;
-        }
-        if (subjectId) {
-          if (!assignedSubjectIds.includes(subjectId)) {
-            res.json({ grades: [], pagination: { total: 0, page: 1, pages: 0 } });
-            return;
-          }
-        } else {
-          where.subjectId = { in: assignedSubjectIds };
-        }
-      } else if (role === 'PARENT') {
-        const parentProfile = await prisma.parentProfile.findUnique({
-          where: { userId },
-          include: { children: { include: { studentProfile: true } } },
-        });
-        const childIds =
-          parentProfile?.children
-            .map((c) => c.studentProfile?.userId)
-            .filter((id): id is string => Boolean(id)) ?? [];
-        if (childIds.length === 0) {
-          res.json({ grades: [], pagination: { total: 0, page: 1, pages: 0 } });
-          return;
-        }
-        where.studentId = studentId && childIds.includes(studentId) ? studentId : { in: childIds };
-      } else if (studentId) {
-        where.studentId = studentId;
-      }
 
       const pageNum = Math.max(1, parseInt(page));
       const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
 
-      const [total, grades] = await Promise.all([
-        prisma.grade.count({ where }),
-        prisma.grade.findMany({
-          where,
-          include: {
-            subject: { select: { id: true, name: true, code: true, coefficient: true } },
-            student: { select: { id: true, firstName: true, lastName: true } },
-            validatedBy: { select: { id: true, firstName: true, lastName: true } },
-            recordedBy: { select: { id: true, firstName: true, lastName: true } },
-          },
-          orderBy: [{ classId: 'asc' }, { subjectId: 'asc' }, { studentId: 'asc' }],
-          skip: (pageNum - 1) * limitNum,
-          take: limitNum,
-        }),
-      ]);
+      const result = await this.listerNotes.execute({
+        schoolId: user.schoolId,
+        userId: user.userId,
+        userRole: user.role as UserRole,
+        userPermissions: user.permissions as StaffPermissionType[],
+        filters: {
+          classId,
+          subjectId,
+          sequenceId,
+          studentId,
+          ...(validationStatus ? { validationStatus } : {}),
+        },
+        pagination: { page: pageNum, limit: limitNum },
+      });
 
-      res.json({ grades, pagination: { total, page: pageNum, pages: Math.ceil(total / limitNum), limit: limitNum } });
+      res.json({
+        grades: result.items,
+        pagination: { total: result.total, page: result.page, pages: result.pages, limit: result.limit },
+      });
     } catch (error) {
       next(error);
     }
@@ -480,41 +359,16 @@ export class GradeController {
     try {
       const user = req.user;
       const permissions: string[] = user.permissions ?? [];
-
-      if (user.role !== 'ADMIN' && !permissions.includes('VALIDATE_GRADES')) {
-        res.status(403).json({ success: false, message: 'Permission VALIDATE_GRADES requise' });
-        return;
-      }
-
       const { classId, subjectId, sequenceId } = req.query as Record<string, string>;
 
-      const where: any = {
+      const resultat = await this.listerNotesEnAttente.execute({
         schoolId: user.schoolId,
-        validationStatus: 'SUBMITTED',
-        ...(classId ? { classId } : {}),
-        ...(subjectId ? { subjectId } : {}),
-        ...(sequenceId ? { sequenceId } : {}),
-      };
-
-      const grades = await prisma.grade.findMany({
-        where,
-        include: {
-          subject: { select: { id: true, name: true, code: true } },
-          student: { select: { id: true, firstName: true, lastName: true } },
-          recordedBy: { select: { id: true, firstName: true, lastName: true } },
-          class: { select: { id: true, name: true } },
-        },
-        orderBy: [{ classId: 'asc' }, { subjectId: 'asc' }],
+        userRole: user.role,
+        userPermissions: permissions,
+        filters: { classId, subjectId, sequenceId },
       });
 
-      const grouped: Record<string, Record<string, typeof grades>> = {};
-      for (const grade of grades) {
-        if (!grouped[grade.classId]) grouped[grade.classId] = {};
-        if (!grouped[grade.classId][grade.subjectId]) grouped[grade.classId][grade.subjectId] = [];
-        grouped[grade.classId][grade.subjectId].push(grade);
-      }
-
-      res.json({ grades, grouped, total: grades.length });
+      res.json({ grades: resultat.grades, grouped: resultat.grouped, total: resultat.total });
     } catch (error) {
       next(error);
     }
@@ -524,50 +378,22 @@ export class GradeController {
   statutParClasse = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const { classId } = req.params;
+      const { classId } = req.params as { classId: string };
       const { sequenceId } = req.query as { sequenceId?: string };
 
-      const where: any = {
+      const resultat = await this.statutParClasseUC.execute({
         schoolId: user.schoolId,
         classId,
-        ...(sequenceId ? { sequenceId } : {}),
-      };
-
-      const grades = await prisma.grade.findMany({
-        where,
-        select: {
-          id: true,
-          subjectId: true,
-          studentId: true,
-          validationStatus: true,
-          sequenceAverage: true,
-          subject: { select: { name: true } },
-          student: { select: { firstName: true, lastName: true } },
-        },
+        sequenceId,
       });
 
-      const stats = {
-        total: grades.length,
-        DRAFT: grades.filter((g) => g.validationStatus === 'DRAFT').length,
-        SUBMITTED: grades.filter((g) => g.validationStatus === 'SUBMITTED').length,
-        VALIDATED: grades.filter((g) => g.validationStatus === 'VALIDATED').length,
-        LOCKED: grades.filter((g) => g.validationStatus === 'LOCKED').length,
-        REJECTED: grades.filter((g) => g.validationStatus === 'REJECTED').length,
-      };
-
-      const bySubject: Record<string, { subjectName: string; grades: typeof grades }> = {};
-      for (const grade of grades) {
-        if (!bySubject[grade.subjectId]) {
-          bySubject[grade.subjectId] = { subjectName: grade.subject.name, grades: [] };
-        }
-        bySubject[grade.subjectId].grades.push(grade);
-      }
-
-      const canGenerateReportCard =
-        grades.length > 0 &&
-        grades.every((g) => g.validationStatus === 'VALIDATED' || g.validationStatus === 'LOCKED');
-
-      res.json({ classId, stats, bySubject, canGenerateReportCard, grades });
+      res.json({
+        classId: resultat.classId,
+        stats: resultat.stats,
+        bySubject: resultat.bySubject,
+        canGenerateReportCard: resultat.canGenerateReportCard,
+        grades: resultat.grades,
+      });
     } catch (error) {
       next(error);
     }
@@ -586,7 +412,13 @@ export class GradeController {
         return;
       }
 
-      const result = await this.calculerMoyenne(studentId, classId, sequenceId, user.schoolId);
+      const result = await this.calculerMoyenneUC.execute({
+        schoolId: user.schoolId,
+        studentId,
+        classId,
+        sequenceId,
+      });
+
       res.json(result);
     } catch (error) {
       next(error);
@@ -598,83 +430,33 @@ export class GradeController {
     try {
       const user = req.user;
 
-      const grade = await prisma.grade.findFirst({
-        where: { id: req.params.id as string, schoolId: user.schoolId },
-        include: { subject: { select: { coefficient: true } } },
+      const resultat = await this.modifierNote.execute({
+        schoolId: user.schoolId,
+        userId: user.userId,
+        userRole: user.role,
+        gradeId: req.params.id as string,
+        sequenceScore: req.body.sequenceScore !== undefined ? Number(req.body.sequenceScore) : undefined,
+        classTestScore: req.body.classTestScore !== undefined ? Number(req.body.classTestScore) : undefined,
+        terminalExamScore: req.body.terminalExamScore !== undefined ? Number(req.body.terminalExamScore) : undefined,
+        theoreticalScore: req.body.theoreticalScore !== undefined ? Number(req.body.theoreticalScore) : undefined,
+        practicalScore: req.body.practicalScore !== undefined ? Number(req.body.practicalScore) : undefined,
+        professionalAttitude: req.body.professionalAttitude !== undefined ? Number(req.body.professionalAttitude) : undefined,
+        oralScore: req.body.oralScore !== undefined ? Number(req.body.oralScore) : undefined,
+        selfDevelopmentScore: req.body.selfDevelopmentScore !== undefined ? Number(req.body.selfDevelopmentScore) : undefined,
+        maxValue: req.body.maxValue !== undefined ? Number(req.body.maxValue) : undefined,
+        seq1Score: req.body.seq1Score !== undefined ? Number(req.body.seq1Score) : undefined,
+        seq2Score: req.body.seq2Score !== undefined ? Number(req.body.seq2Score) : undefined,
+        compositionScore: req.body.compositionScore !== undefined ? Number(req.body.compositionScore) : undefined,
       });
 
-      if (!grade) {
-        res.status(404).json({ success: false, message: 'Note introuvable' });
-        return;
-      }
-
-      if (grade.validationStatus !== 'DRAFT' && grade.validationStatus !== 'REJECTED') {
-        res.status(409).json({
-          success: false,
-          message: `Impossible de modifier une note en statut ${grade.validationStatus}`,
-        });
-        return;
-      }
-
-      if (user.role === 'TEACHER') {
-        const assigned = await this.enseignantAssigneAMatiere(user.userId, grade.subjectId);
-        if (!assigned) {
-          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
-          return;
-        }
-      }
-
-      const schoolConfig = await prisma.schoolConfig.findUnique({
-        where: { schoolId: user.schoolId },
-        select: { sequenceCalculationMode: true },
-      });
-      const calcMode = (schoolConfig?.sequenceCalculationMode ?? 'single') as 'single' | 'triple' | 'weighted';
-
-      const gradeData = {
-        sequenceScore: req.body.sequenceScore !== undefined ? Number(req.body.sequenceScore) : grade.sequenceScore,
-        classTestScore: req.body.classTestScore !== undefined ? Number(req.body.classTestScore) : grade.classTestScore,
-        terminalExamScore: req.body.terminalExamScore !== undefined ? Number(req.body.terminalExamScore) : grade.terminalExamScore,
-        theoreticalScore: req.body.theoreticalScore !== undefined ? Number(req.body.theoreticalScore) : grade.theoreticalScore,
-        practicalScore: req.body.practicalScore !== undefined ? Number(req.body.practicalScore) : grade.practicalScore,
-        professionalAttitude: req.body.professionalAttitude !== undefined ? Number(req.body.professionalAttitude) : grade.professionalAttitude,
-        oralScore: req.body.oralScore !== undefined ? Number(req.body.oralScore) : grade.oralScore,
-        selfDevelopmentScore: req.body.selfDevelopmentScore !== undefined ? Number(req.body.selfDevelopmentScore) : grade.selfDevelopmentScore,
-        maxValue: req.body.maxValue !== undefined ? Number(req.body.maxValue) : Number(grade.maxValue),
-      };
-
-      const sequenceAverage = this.calculerMoyenneSequence(
-        {
-          ...gradeData,
-          seq1Score: req.body.seq1Score !== undefined ? Number(req.body.seq1Score) : null,
-          seq2Score: req.body.seq2Score !== undefined ? Number(req.body.seq2Score) : null,
-          compositionScore: req.body.compositionScore !== undefined ? Number(req.body.compositionScore) : null,
-        },
-        calcMode,
-      );
-
-      // Re-stampe le coefficient depuis la matière tant que la note est DRAFT/REJECTED (donc
-      // encore modifiable par construction : ce bloc n'est atteint que passé le garde-fou de
-      // statut ci-dessus). Volontairement DIFFÉRENT du comportement une fois VALIDATED/LOCKED :
-      // Note.ts (Loi 6) verrouille alors la note dans son intégralité, coefficient inclus — à
-      // partir de ce moment le coefficient reflète définitivement la valeur en vigueur au
-      // dernier instant de saisie, et un changement ultérieur du coefficient de la matière ne
-      // doit jamais être répercuté rétroactivement sur une note déjà validée.
-      const updated = await prisma.grade.update({
-        where: { id: grade.id },
-        data: { ...gradeData, sequenceAverage, coefficient: grade.subject.coefficient, validationStatus: 'DRAFT', rejectionReason: null, recordedById: user.userId },
-        include: {
-          subject: { select: { id: true, name: true } },
-          student: { select: { id: true, firstName: true, lastName: true } },
-        },
-      });
-
-      res.json({ success: true, grade: updated });
+      res.json({ success: true, grade: { sequenceAverage: resultat.sequenceAverage } });
     } catch (error) {
       next(error);
     }
   };
 
   // GET /api/v2/grades/template?classId=&subjectId=&sequenceId=
+  // ponytail: génération d'Excel depuis données brutes — pas de use case nécessaire.
   genererTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
@@ -685,12 +467,16 @@ export class GradeController {
         return;
       }
 
-      const [classe, subject, sequence] = await Promise.all([
-        prisma.class.findUnique({ where: { id: classId }, select: { name: true } }),
-        prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
-        prisma.academicSequence.findUnique({ where: { id: sequenceId }, select: { name: true } }),
+      const [classe, matiere, sequence] = await Promise.all([
+        this.classeRepository.findById(classId),
+        this.matiereRepository.findById(subjectId),
+        this.anneeRepository.findSequenceById(sequenceId, user.schoolId),
       ]);
 
+      // ponytail: la query studentProfile reste en Prisma — aucun repository ne couvre
+      // les profils élèves par classe avec matricule + nom. À extraire si un Use Case
+      // template ou un StudentProfileRepository.findByClasse est ajouté.
+      const { prisma } = await import('@infrastructure/persistence/prisma/prisma.client');
       const students = await prisma.studentProfile.findMany({
         where: {
           user: { schoolId: user.schoolId },
@@ -717,7 +503,7 @@ export class GradeController {
 
       const ws2 = XLSX.utils.aoa_to_sheet([
         [`Classe : ${classe?.name ?? classId}`],
-        [`Matière : ${subject?.name ?? subjectId}`],
+        [`Matière : ${matiere?.name ?? subjectId}`],
         [`Séquence : ${sequence?.name ?? sequenceId}`],
         [''],
         ['Instructions :'],
@@ -736,7 +522,7 @@ export class GradeController {
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="notes-${safeName(classe?.name)}-${safeName(subject?.name)}.xlsx"`,
+        `attachment; filename="notes-${safeName(classe?.name)}-${safeName(matiere?.name)}.xlsx"`,
       );
       res.send(buffer);
     } catch (error) {
@@ -761,14 +547,6 @@ export class GradeController {
         return;
       }
 
-      if (user.role === 'TEACHER') {
-        const assigned = await this.enseignantAssigneAMatiere(user.userId, subjectId);
-        if (!assigned) {
-          res.status(403).json({ success: false, message: "Tu n'es pas assigné à cette matière" });
-          return;
-        }
-      }
-
       const wb = XLSX.read(file.buffer, { type: 'buffer' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
@@ -791,46 +569,16 @@ export class GradeController {
         return;
       }
 
-      const sequence = await prisma.academicSequence.findUnique({
-        where: { id: sequenceId },
-        include: { academicPeriod: { select: { academicYearId: true } } },
-      });
+      const sequence = await this.anneeRepository.findSequenceById(sequenceId, user.schoolId);
       if (!sequence) {
         res.status(400).json({ success: false, message: 'Séquence introuvable' });
         return;
       }
-      const academicYearId = sequence.academicPeriod.academicYearId;
+      const periode = await this.anneeRepository.findPeriodeById(sequence.academicPeriodId, user.schoolId);
+      const academicYearId = periode?.academicYearId;
 
-      // Coefficient de la matière — même règle que saisir/modifier/draftEnMasse (scénario B) :
-      // troisième voie de saisie de notes qui ne le stampait pas encore.
-      const subject = await prisma.subject.findUnique({ where: { id: subjectId }, select: { coefficient: true } });
-      const coefficient = subject?.coefficient ?? 1;
-
-      const studentProfiles = await prisma.studentProfile.findMany({
-        where: {
-          user: { schoolId: user.schoolId },
-          enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } },
-        },
-        select: { matricule: true, userId: true },
-      });
-      const matriculeToUserId = new Map(
-        studentProfiles.filter((s) => s.matricule).map((s) => [s.matricule!.trim(), s.userId]),
-      );
-
-      const existingGrades = await prisma.grade.findMany({
-        where: { schoolId: user.schoolId, classId, subjectId, sequenceId },
-      });
-      const existingByStudentId = new Map(existingGrades.map((g) => [g.studentId, g]));
-
-      interface GradeRow {
-        studentUserId: string;
-        matricule: string;
-        value: number;
-        observation: string;
-        line: number;
-      }
-      const toProcess: GradeRow[] = [];
-      const errors: { line: number; matricule: string; error: string }[] = [];
+      const parsedRows: { matricule: string; value: number | null; observation: string; line: number }[] = [];
+      const parseErrors: { line: number; matricule: string; error: string }[] = [];
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
@@ -841,109 +589,42 @@ export class GradeController {
         if (!matricule && (noteRaw === '' || noteRaw === undefined || noteRaw === null)) continue;
 
         if (!matricule) {
-          errors.push({ line: i + 1, matricule: '', error: 'Matricule manquant' });
+          parseErrors.push({ line: i + 1, matricule: '', error: 'Matricule manquant' });
           continue;
         }
 
-        const studentUserId = matriculeToUserId.get(matricule);
-        if (!studentUserId) {
-          errors.push({ line: i + 1, matricule, error: `Élève introuvable pour ce matricule dans la classe` });
+        if (noteRaw === '' || noteRaw === undefined || noteRaw === null) {
+          parsedRows.push({ matricule, value: null, observation, line: i + 1 });
           continue;
         }
-
-        if (noteRaw === '' || noteRaw === undefined || noteRaw === null) continue;
 
         const value = Number(noteRaw);
         if (isNaN(value) || value < 0 || value > 20) {
-          errors.push({ line: i + 1, matricule, error: `Note invalide : "${noteRaw}" (doit être entre 0 et 20)` });
+          parseErrors.push({ line: i + 1, matricule, error: `Note invalide : "${noteRaw}" (doit être entre 0 et 20)` });
           continue;
         }
 
-        toProcess.push({ studentUserId, matricule, value, observation, line: i + 1 });
+        parsedRows.push({ matricule, value, observation, line: i + 1 });
       }
 
-      let imported = 0;
-      for (const g of toProcess) {
-        const existing = existingByStudentId.get(g.studentUserId);
-        if (existing) {
-          const noteEntity = Note.reconstituer({
-            id: existing.id,
-            schoolId: existing.schoolId,
-            studentId: existing.studentId,
-            subjectId: existing.subjectId,
-            classId: existing.classId,
-            academicYearId: existing.academicYearId,
-            sequenceId: existing.sequenceId,
-            recordedById: existing.recordedById ?? undefined,
-            sequenceScore: existing.sequenceScore ?? undefined,
-            classTestScore: existing.classTestScore ?? undefined,
-            terminalExamScore: existing.terminalExamScore ?? undefined,
-            theoreticalScore: existing.theoreticalScore ?? undefined,
-            practicalScore: existing.practicalScore ?? undefined,
-            professionalAttitude: existing.professionalAttitude ?? undefined,
-            oralScore: existing.oralScore ?? undefined,
-            selfDevelopmentScore: existing.selfDevelopmentScore ?? undefined,
-            coefficient: existing.coefficient,
-            maxValue: existing.maxValue,
-            sequenceAverage: existing.sequenceAverage ?? undefined,
-            validationStatus: existing.validationStatus as GradeValidationStatus,
-            validatedById: existing.validatedById ?? undefined,
-            validatedAt: existing.validatedAt ?? undefined,
-            rejectionReason: existing.rejectionReason ?? undefined,
-            observation: existing.observation ?? undefined,
-            isOfflineSync: existing.isOfflineSync,
-            syncedAt: existing.syncedAt ?? undefined,
-            createdAt: existing.createdAt,
-          });
-          if (!noteEntity.peutEtreModifiee()) {
-            errors.push({
-              line: g.line,
-              matricule: g.matricule,
-              error: `Note en statut ${existing.validationStatus} — non modifiable`,
-            });
-            continue;
-          }
-          await prisma.grade.update({
-            where: { id: existing.id },
-            data: {
-              sequenceScore: g.value,
-              sequenceAverage: g.value,
-              maxValue: 20,
-              coefficient,
-              rejectionReason: null,
-              observation: g.observation || null,
-              validationStatus: 'DRAFT',
-              recordedById: user.userId,
-            },
-          });
-        } else {
-          await prisma.grade.create({
-            data: {
-              schoolId: user.schoolId,
-              classId,
-              subjectId,
-              sequenceId,
-              studentId: g.studentUserId,
-              academicYearId,
-              sequenceScore: g.value,
-              sequenceAverage: g.value,
-              maxValue: 20,
-              coefficient,
-              observation: g.observation || null,
-              validationStatus: 'DRAFT',
-              recordedById: user.userId,
-            },
-          });
-        }
-        imported++;
-      }
+      const resultat = await this.importerNotesExcel.execute({
+        schoolId: user.schoolId,
+        userId: user.userId,
+        userRole: user.role,
+        classId,
+        subjectId,
+        sequenceId,
+        academicYearId,
+        rows: parsedRows,
+      });
 
       res.json({
         success: true,
-        imported,
-        errors,
-        total: toProcess.length + errors.length,
-        skipped: errors.length,
+        imported: resultat.imported,
+        updated: resultat.updated,
+        errors: [...parseErrors, ...resultat.errors],
+        total: parsedRows.length + parseErrors.length,
+        skipped: resultat.skipped + parseErrors.length,
       });
     } catch (error) {
       next(error);
@@ -951,94 +632,6 @@ export class GradeController {
   };
 
   // ─── Helpers privés ───────────────────────────────────────────────────────────
-
-  private calculerMoyenneSequence(
-    grade: {
-      sequenceScore?: number | null;
-      classTestScore?: number | null;
-      terminalExamScore?: number | null;
-      theoreticalScore?: number | null;
-      practicalScore?: number | null;
-      maxValue: number;
-      seq1Score?: number | null;
-      seq2Score?: number | null;
-      compositionScore?: number | null;
-    },
-    mode: 'single' | 'triple' | 'weighted' = 'single',
-  ): number {
-    const max = grade.maxValue || 20;
-
-    if (mode === 'weighted' && grade.classTestScore != null && grade.terminalExamScore != null) {
-      return Math.min(grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7, max);
-    }
-
-    if (mode === 'triple') {
-      const ds1 = grade.seq1Score ?? grade.sequenceScore;
-      const ds2 = grade.seq2Score;
-      const compo = grade.compositionScore;
-      if (ds1 != null && ds2 != null && compo != null) {
-        return Math.min((ds1 + ds2 + compo * 2) / 4, max);
-      }
-    }
-
-    if (grade.sequenceScore != null) return Math.min(grade.sequenceScore, max);
-    if (grade.theoreticalScore != null && grade.practicalScore != null) {
-      return Math.min((grade.theoreticalScore + grade.practicalScore) / 2, max);
-    }
-    if (grade.classTestScore != null && grade.terminalExamScore != null) {
-      return Math.min(grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7, max);
-    }
-
-    return 0;
-  }
-
-  private async enseignantAssigneAMatiere(teacherUserId: string, subjectId: string): Promise<boolean> {
-    const teacherProfile = await prisma.teacherProfile.findUnique({
-      where: { userId: teacherUserId },
-      include: { teacherSubjects: { where: { subjectId } } },
-    });
-    return (teacherProfile?.teacherSubjects.length ?? 0) > 0;
-  }
-
-  private async calculerMoyenne(
-    studentId: string,
-    classId: string,
-    sequenceId: string,
-    schoolId: string,
-  ): Promise<{ average: number; rank: number; totalStudents: number }> {
-    const grades = await prisma.grade.findMany({
-      where: { schoolId, studentId, classId, sequenceId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
-      include: { subject: { select: { coefficient: true } } },
-    });
-
-    if (!grades.length) return { average: 0, rank: 0, totalStudents: 0 };
-
-    // Résolution du coefficient (override par note, sinon coefficient de la matière) : logique
-    // propre à ce schéma Prisma, donc faite ici avant de passer au moteur de calcul du domaine
-    // (qui reste générique et ignore d'où vient le coefficient).
-    const average = calculateAverageScoreOn20(
-      grades.map((g) => {
-        const scoreOn20 = g.sequenceAverage ?? 0;
-        return {
-          scoreOn20,
-          percentage: scoreOn20ToPercentage(scoreOn20),
-          coefficient: g.coefficient ?? g.subject.coefficient ?? 1,
-        };
-      }),
-      true,
-    );
-
-    const classmatesAverages = await prisma.grade.groupBy({
-      by: ['studentId'],
-      where: { schoolId, classId, sequenceId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
-      _avg: { sequenceAverage: true },
-      orderBy: { _avg: { sequenceAverage: 'desc' } },
-    });
-
-    const rank = classmatesAverages.findIndex((c) => c.studentId === studentId) + 1;
-
-    return { average, rank: rank || 0, totalStudents: classmatesAverages.length };
-  }
 
   private gererErreur(error: unknown, res: Response, next: NextFunction): void {
     if (error instanceof NoteValideeSyncError) {

@@ -119,4 +119,19 @@ export class PrismaParentRepository implements ParentRepository {
 
     return resultats;
   }
+
+  async findStudentIdsByParent(parentUserId: string): Promise<string[]> {
+    const parent = await this.prisma.parentProfile.findUnique({
+      where: { userId: parentUserId },
+      include: {
+        children: {
+          include: { studentProfile: { select: { userId: true } } },
+        },
+      },
+    });
+    if (!parent) return [];
+    return parent.children
+      .map(c => c.studentProfile?.userId)
+      .filter((id): id is string => Boolean(id));
+  }
 }

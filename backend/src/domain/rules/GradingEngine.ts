@@ -94,3 +94,56 @@ export const calculateAverageScoreOn20 = (
   const coefficientTotal = grades.reduce((sum, grade) => sum + Number(grade.coefficient ?? 1), 0) || 1;
   return Number(clamp(weightedTotal / coefficientTotal, 0, 20).toFixed(2));
 };
+
+// ─── Calcul moyenne séquence ─────────────────────────────────────────────────
+
+export type SequenceCalculationMode = 'single' | 'triple' | 'weighted';
+
+export type SequenceAverageInput = {
+  sequenceScore?: number | null;
+  classTestScore?: number | null;
+  terminalExamScore?: number | null;
+  theoreticalScore?: number | null;
+  practicalScore?: number | null;
+  maxValue: number;
+  seq1Score?: number | null;
+  seq2Score?: number | null;
+  compositionScore?: number | null;
+};
+
+/**
+ * Calcule la moyenne d'une séquence selon le mode de calcul configuré pour l'école.
+ *
+ * - `weighted` : 30% devoir + 70% composition (si les deux existent)
+ * - `triple`   : (DS1 + DS2 + Composition×2) / 4 (si les trois existent)
+ * - `single`   : sequenceScore, ou (theoretical+practical)/2, ou weighted fallback
+ */
+export function calculerMoyenneSequence(
+  grade: SequenceAverageInput,
+  mode: SequenceCalculationMode = 'single',
+): number {
+  const max = grade.maxValue || 20;
+
+  if (mode === 'weighted' && grade.classTestScore != null && grade.terminalExamScore != null) {
+    return clamp(grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7, 0, max);
+  }
+
+  if (mode === 'triple') {
+    const ds1 = grade.seq1Score ?? grade.sequenceScore;
+    const ds2 = grade.seq2Score;
+    const compo = grade.compositionScore;
+    if (ds1 != null && ds2 != null && compo != null) {
+      return clamp((ds1 + ds2 + compo * 2) / 4, 0, max);
+    }
+  }
+
+  if (grade.sequenceScore != null) return clamp(grade.sequenceScore, 0, max);
+  if (grade.theoreticalScore != null && grade.practicalScore != null) {
+    return clamp((grade.theoreticalScore + grade.practicalScore) / 2, 0, max);
+  }
+  if (grade.classTestScore != null && grade.terminalExamScore != null) {
+    return clamp(grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7, 0, max);
+  }
+
+  return 0;
+}

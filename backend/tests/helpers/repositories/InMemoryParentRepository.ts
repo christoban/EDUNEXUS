@@ -39,4 +39,8 @@ export class InMemoryParentRepository implements ParentRepository {
       .map(enfant => this.statsEleves.get(enfant.studentId))
       .filter((stats): stats is EnfantAvecStats => stats !== undefined);
   }
+
+  async findStudentIdsByParent(parentUserId: string): Promise<string[]> {
+    return this.relations.get(parentUserId)?.map(e => e.studentId) ?? [];
+  }
 }

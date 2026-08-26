@@ -63,6 +63,18 @@ export class PrismaMatriculeImportRepository implements MatriculeImportRepositor
     }) as Promise<{ id: string; matricule: string }[]>;
   }
 
+  async findByMatricules(schoolId: string, matricules: string[], classId: string): Promise<{ matricule: string; userId: string }[]> {
+    const profiles = await this.prisma.studentProfile.findMany({
+      where: {
+        user: { schoolId },
+        matricule: { in: matricules },
+        enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } },
+      },
+      select: { matricule: true, userId: true },
+    });
+    return profiles.filter((p): p is { matricule: string; userId: string } => p.matricule !== null);
+  }
+
   async compterProfilsActifs(schoolId: string): Promise<number> {
     return this.prisma.studentProfile.count({
       where: { user: { schoolId }, studentStatus: 'ACTIVE' },

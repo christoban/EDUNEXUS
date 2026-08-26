@@ -1,5 +1,5 @@
 import { Note } from '@domain/entities/Note';
-import type { NoteRepository, NoteNonValideeInfo } from '@domain/ports/repositories/NoteRepository';
+import type { NoteRepository, NoteNonValideeInfo, NoteFilters, PaginatedResult } from '@domain/ports/repositories/NoteRepository';
 import type { GradeValidationStatus } from '@domain/types/enums';
 
 export class InMemoryNoteRepository implements NoteRepository {
@@ -59,6 +59,23 @@ export class InMemoryNoteRepository implements NoteRepository {
     );
   }
 
+  async find(filters: NoteFilters, page: number, limit: number): Promise<PaginatedResult<Note>> {
+    let items = [...this.store.values()].filter(n => n.schoolId === filters.schoolId);
+    if (filters.classId) items = items.filter(n => n.toObject().classId === filters.classId);
+    if (filters.subjectId) items = items.filter(n => n.toObject().subjectId === filters.subjectId);
+    if (filters.subjectIds) items = items.filter(n => filters.subjectIds!.includes(n.toObject().subjectId));
+    if (filters.sequenceId) items = items.filter(n => n.toObject().sequenceId === filters.sequenceId);
+    if (filters.studentId) items = items.filter(n => n.toObject().studentId === filters.studentId);
+    if (filters.studentIds) items = items.filter(n => filters.studentIds!.includes(n.toObject().studentId));
+    if (filters.validationStatus) items = items.filter(n => n.validationStatus === filters.validationStatus);
+
+    const total = items.length;
+    const start = (page - 1) * limit;
+    const paged = items.slice(start, start + limit);
+
+    return { items: paged, total, page, pages: Math.ceil(total / limit), limit };
+  }
+
   async findByStatut(
     classId: string,
     sequenceId: string,
@@ -70,6 +87,47 @@ export class InMemoryNoteRepository implements NoteRepository {
         n.toObject().sequenceId === sequenceId &&
         n.validationStatus === statut
     );
+  }
+
+  async findByStatuts(
+    classId: string,
+    sequenceId: string,
+    statuts: GradeValidationStatus[]
+  ): Promise<Note[]> {
+    return [...this.store.values()].filter(
+      n =>
+        n.toObject().classId === classId &&
+        n.toObject().sequenceId === sequenceId &&
+        statuts.includes(n.validationStatus)
+    );
+  }
+
+  async findClassmatesAverages(
+    classId: string,
+    sequenceId: string,
+    _schoolId: string
+  ): Promise<{ studentId: string; average: number }[]> {
+    const notes = [...this.store.values()].filter(
+      n =>
+        n.toObject().classId === classId &&
+        n.toObject().sequenceId === sequenceId &&
+        (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED')
+    );
+
+    const byStudent = new Map<string, number[]>();
+    for (const n of notes) {
+      const avg = n.sequenceAverage ?? 0;
+      const existing = byStudent.get(n.studentId) ?? [];
+      existing.push(avg);
+      byStudent.set(n.studentId, existing);
+    }
+
+    return [...byStudent.entries()]
+      .map(([studentId, avgs]) => ({
+        studentId,
+        average: avgs.reduce((s, a) => s + a, 0) / avgs.length,
+      }))
+      .sort((a, b) => b.average - a.average);
   }
 
   async findNotesNonValideesParClasse(

@@ -32,4 +32,6 @@ export interface ParentRepository {
    * Vérifie si un parent a accès à un élève donné (sans lever d'erreur).
    */
   aAccesEleve(parentUserId: string, studentId: string): Promise<boolean>;
+
+  findStudentIdsByParent(parentUserId: string): Promise<string[]>;
 }

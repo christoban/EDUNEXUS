@@ -5,6 +5,25 @@
 import type { Note } from '@domain/entities/Note';
 import type { GradeValidationStatus } from '@domain/types/enums';
 
+export interface NoteFilters {
+  schoolId: string;
+  classId?: string;
+  subjectId?: string;
+  subjectIds?: string[];
+  sequenceId?: string;
+  studentId?: string;
+  studentIds?: string[];
+  validationStatus?: GradeValidationStatus;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pages: number;
+  limit: number;
+}
+
 // Ce que retourne la vérification des prérequis bulletin/conseil
 export interface NoteNonValideeInfo {
   matiereNom: string;
@@ -24,9 +43,12 @@ export interface NoteRepository {
   findByClasse(classId: string, sequenceId: string): Promise<Note[]>;
   findByEnseignant(teacherId: string, sequenceId: string): Promise<Note[]>;
   findByEleveEtMatiere(studentId: string, subjectId: string, sequenceId: string): Promise<Note | null>;
+  find(filters: NoteFilters, page: number, limit: number): Promise<PaginatedResult<Note>>;
 
   // Workflow validation
   findByStatut(classId: string, sequenceId: string, statut: GradeValidationStatus): Promise<Note[]>;
+  findByStatuts(classId: string, sequenceId: string, statuts: GradeValidationStatus[]): Promise<Note[]>;
+  findClassmatesAverages(classId: string, sequenceId: string, schoolId: string): Promise<{ studentId: string; average: number }[]>;
 
   /**
    * Retourne les notes non encore VALIDATED pour une classe sur une période.
