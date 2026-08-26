@@ -8,8 +8,7 @@
  *   Titres EN    → utilisés dans les templates anglophones
  *   Titres MIXTE → utilisés dans les templates bilingues (les deux sections)
  */
-import type { StaffPermissionType } from '@domain/types/enums';
-import type { TemplateMeta } from '@application/school/schoolTemplateConfig';
+import type { StaffPermissionType, TemplateMeta } from '@domain/types/enums';
 
 // ─── Mapping titre → permissions ──────────────────────────────────────────────
 

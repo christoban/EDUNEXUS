@@ -1,9 +1,5 @@
-export type TemplateMeta = {
-  isAnglophone: boolean;
-  isPrimaire: boolean;
-  isTechnique: boolean;
-  langMode: 'anglophone' | 'francophone' | 'bilingual';
-};
+import type { TemplateMeta } from '@domain/types/enums';
+export type { TemplateMeta };
 
 const TEMPLATE_CONFIG: Record<string, TemplateMeta> = {
   GHS_EN:            { isAnglophone: true,  isPrimaire: false, isTechnique: false, langMode: 'anglophone' },

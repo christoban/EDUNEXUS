@@ -89,3 +89,10 @@ export type OnboardingSource = 'IMPORT_MASSE' | 'AUTOSERVICE' | 'CONCOURS' | 'GR
 export type OnboardingStatus =
   | 'DRAFT' | 'LINK_SENT' | 'SUBMITTED' | 'PENDING_VALIDATION'
   | 'VALIDATED' | 'ACTIVATED' | 'REJECTED' | 'EXPIRED';
+
+export type TemplateMeta = {
+  isAnglophone: boolean;
+  isPrimaire: boolean;
+  isTechnique: boolean;
+  langMode: 'anglophone' | 'francophone' | 'bilingual';
+};

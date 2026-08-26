@@ -102,17 +102,16 @@ bun test → 717 pass, 0 fail
 
 ---
 
-## 1.3 🟠 `domain/` qui importe depuis `application/` (1 fichier)
+## 1.3 ✅ RÉSOLU — `domain/` qui importe depuis `application/` (1 fichier)
 
-**Règle violée :** le domaine ne doit jamais dépendre de la couche application.
+> **Statut : résolu** — `TemplateMeta` déplacé dans `domain/types/enums.ts` (type pur = concept domaine).
+> `schoolTemplateConfig.ts` ré-exporte le type depuis `domain/` pour rétrocompatibilité.
 
 ### Preuve
 
-- `src/domain/rules/StaffPermissionRules.ts:12` → `import type { TemplateMeta } from '@application/school/schoolTemplateConfig'`
-
-### Proposition
-
-Déplacer `TemplateMeta` (ou le type nécessaire) dans `domain/types/enums.ts` ou un fichier `domain/types/` dédié, puis mettre à jour l'import.
+```
+grep -rln "from '@application|from '../../application" src/domain → 0
+```
 
 ---
 
@@ -367,7 +366,7 @@ En dessous de 800, les candidats "une seule tâche mais grosse" :
 | P1 | application/ dépend de Prisma (115 fichiers) | Par bounded context, créer ports + adapters + injection | Élevée | Claude Code (Tech Lead) | ✅ RÉSOLU |
 | P2 | Controllers god-objects (46/66) | Extraire use cases (pattern ClassCouncil) + sortir GradingEngine | Élevée | Claude Code | Grade, User, Finance d'abord |
 | P3 | application → infrastructure (22 fichiers) | Étendre ActivityLogPort, créer SmsScrapingGroqPorts | Moyenne | DeepSeek | ✅ RÉSOLU (logActivity + SMS + Email + Socket + Scheduling + AI) |
-| P4 | domain → application (StaffPermissionRules) | Déplacer TemplateMeta dans domain/types | Faible | DeepSeek | 1 commit |
+| P4 | domain → application (StaffPermissionRules) | Déplacer TemplateMeta dans domain/types | Faible | DeepSeek | ✅ RÉSOLU |
 | P5 | Inngest 1744 lignes / 21 fonctions | Split par domaine + use cases au lieu de prisma inline | Moyenne | DeepSeek | ~5 commits |
 | P6 | bootstrap/container monolithiques | Composition roots par bounded context | Élevée | Claude Code | Chantier dédié |
 | P7 | Duplication calcul moyenne (9 sites) | Centraliser dans domain/rules/moyenneGenerale.ts | Moyenne | DeepSeek | Chantier DRY |
