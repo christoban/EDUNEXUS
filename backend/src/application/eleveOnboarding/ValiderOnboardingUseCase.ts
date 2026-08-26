@@ -44,10 +44,10 @@
  * activation se fait en présentiel à l'établissement plutôt que via un lien envoyé par SMS.
  */
 import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { randomBytes, createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { parseDateFR } from '../../shared/date/parseDateFR';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
 import type { ValiderOnboardingCommande, ValiderOnboardingResultat } from './types';
 
@@ -60,7 +60,10 @@ function genererIdentifiants() {
 }
 
 export class ValiderOnboardingUseCase {
-  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
+  constructor(
+    private readonly eleveOnboardingRepository: EleveOnboardingRepository,
+    private readonly activityLog: ActivityLogPort,
+  ) {}
 
   async execute(cmd: ValiderOnboardingCommande): Promise<ValiderOnboardingResultat> {
     const onboarding = await this.eleveOnboardingRepository.findOnboardingById(cmd.onboardingId, cmd.schoolId);
@@ -135,7 +138,7 @@ export class ValiderOnboardingUseCase {
       examCandidateId: onboarding.examCandidateId,
     });
 
-    await logActivity({
+    await this.activityLog.log({
       userId: cmd.validatedById,
       schoolId: cmd.schoolId,
       action: 'ONBOARDING_VALIDATED',

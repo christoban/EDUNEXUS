@@ -8,15 +8,18 @@
  * cohérent avec EntranceExamController/PebsExamController qui notifient après coup).
  */
 import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { randomBytes } from 'crypto';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 import { determinerRecipientType } from './rules';
 import { getTemplateMeta } from '../school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../lib/classSerieValidator';
 import type { CreerSqueletteOnboardingCommande, CreerSqueletteOnboardingResultat } from './types';
 
 export class CreerSqueletteOnboardingUseCase {
-  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
+  constructor(
+    private readonly eleveOnboardingRepository: EleveOnboardingRepository,
+    private readonly activityLog: ActivityLogPort,
+  ) {}
 
   async execute(cmd: CreerSqueletteOnboardingCommande): Promise<CreerSqueletteOnboardingResultat> {
     const sourceType = cmd.sourceType ?? 'AUTOSERVICE';
@@ -95,7 +98,7 @@ export class CreerSqueletteOnboardingUseCase {
       tokenExpiresAt,
     });
 
-    await logActivity({
+    await this.activityLog.log({
       userId: cmd.createdById,
       schoolId: cmd.schoolId,
       action: 'ONBOARDING_LINK_CREATED',

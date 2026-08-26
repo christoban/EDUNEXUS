@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { CloturerAnneeUseCase } from '../../../../src/application/academicYear/CloturerAnneeUseCase.ts';
 import { InMemoryAnneeAcademiqueRepository } from '../../../helpers/repositories/InMemoryAnneeAcademiqueRepository.ts';
 import { InMemoryPromotionRepository } from '../../../helpers/repositories/InMemoryPromotionRepository.ts';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
+
+const stubActivityLog: ActivityLogPort = { log: async () => {} };
 
 describe('CloturerAnneeUseCase', () => {
   let anneeRepo: InMemoryAnneeAcademiqueRepository;
@@ -11,7 +14,7 @@ describe('CloturerAnneeUseCase', () => {
   beforeEach(() => {
     anneeRepo = new InMemoryAnneeAcademiqueRepository();
     promotionRepo = new InMemoryPromotionRepository();
-    useCase = new CloturerAnneeUseCase(anneeRepo, promotionRepo);
+    useCase = new CloturerAnneeUseCase(anneeRepo, promotionRepo, stubActivityLog);
 
     anneeRepo.ajouterAnnee({
       id: 'annee-1',

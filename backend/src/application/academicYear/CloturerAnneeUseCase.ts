@@ -1,7 +1,7 @@
 import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
 import type { PromotionRepository } from '@domain/ports/repositories/PromotionRepository';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { VerifierPrerequisClotureUseCase } from './VerifierPrerequisClotureUseCase';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
 export interface CloturerAnneeCommande {
   academicYearId: string;
@@ -24,6 +24,7 @@ export class CloturerAnneeUseCase {
   constructor(
     private readonly anneeRepository: AnneeAcademiqueRepository,
     private readonly promotionRepository: PromotionRepository,
+    private readonly activityLog: ActivityLogPort,
   ) {
     this.verifierPrerequis = new VerifierPrerequisClotureUseCase(anneeRepository);
   }
@@ -110,7 +111,7 @@ export class CloturerAnneeUseCase {
       }
     }
 
-    void logActivity({
+    void this.activityLog.log({
       userId: commande.demandeurId,
       schoolId: commande.schoolId,
       action: 'Année clôturée',

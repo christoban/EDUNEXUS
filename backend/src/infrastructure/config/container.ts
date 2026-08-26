@@ -558,7 +558,7 @@ export function creerContainer() {
   const creerAnneeUseCase = new CreerAnneeAcademiqueUseCase(anneeRepository);
   const definirPeriodeUseCase = new DefinirPeriodeCouranteUseCase(anneeRepository);
   const verifierPrerequisUseCase = new VerifierPrerequisClotureUseCase(anneeRepository);
-  const cloturerAnneeUseCase = new CloturerAnneeUseCase(anneeRepository, promotionRepository);
+  const cloturerAnneeUseCase = new CloturerAnneeUseCase(anneeRepository, promotionRepository, activityLog);
   const mettreAJourCalendrierUseCase = new MettreAJourCalendrierUseCase(anneeRepository);
   const proposerStructureAnneeSuivanteUseCase = new ProposerStructureAnneeSuivanteUseCase(
     anneeRepository, classeRepository, promotionRepository,
@@ -590,7 +590,7 @@ export function creerContainer() {
   const verifierAccesUseCase = new VerifierAccesEnfantUseCase(parentRepository);
   const obtenirAlertesSoldeUseCase = new ObtenirAlertesSoldeUseCase(parentRepository, factureRepository);
   const obtenirParametresUseCase = new ObtenirParametresEcoleUseCase(schoolSettingsRepository);
-  const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository);
+  const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository, activityLog);
 
   // 16. Use Cases — Orientation
   const orientationRepository = new PrismaOrientationRepository(prisma);
@@ -619,7 +619,7 @@ export function creerContainer() {
   const rejeterEcoleUseCase = new RejeterEcoleUseCase(schoolRepository, userRepository, emailService);
   const changerPlanUseCase = new ChangerPlanAbonnementUseCase(schoolRepository);
   const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(paiementMinesecRepository);
-  const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(eleveOnboardingRepository);
+  const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(eleveOnboardingRepository, activityLog);
 
   return {
     grade: {
@@ -790,8 +790,8 @@ export function creerContainer() {
     eleveOnboarding: {
       creerSquelette: creerSqueletteOnboarding,
       soumettreFormulaire: new SoumettreFormulaireOnboardingUseCase(eleveOnboardingRepository),
-      valider: new ValiderOnboardingUseCase(eleveOnboardingRepository),
-      rejeter: new RejeterOnboardingUseCase(eleveOnboardingRepository),
+      valider: new ValiderOnboardingUseCase(eleveOnboardingRepository, activityLog),
+      rejeter: new RejeterOnboardingUseCase(eleveOnboardingRepository, activityLog),
     },
     statisticalCampaign: {
       verifierCompletude: new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),

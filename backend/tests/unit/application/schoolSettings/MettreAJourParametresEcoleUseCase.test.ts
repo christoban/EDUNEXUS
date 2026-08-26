@@ -3,6 +3,9 @@ import { MettreAJourParametresEcoleUseCase } from '../../../../src/application/s
 import { ObtenirParametresEcoleUseCase } from '../../../../src/application/schoolSettings/ObtenirParametresEcoleUseCase.ts';
 import { InMemorySchoolSettingsRepository } from '../../../helpers/repositories/InMemorySchoolSettingsRepository.ts';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
+
+const stubActivityLog: ActivityLogPort = { log: async () => {} };
 
 describe('SchoolSettings — Use Cases', () => {
   let repo: InMemorySchoolSettingsRepository;
@@ -43,7 +46,7 @@ describe('SchoolSettings — Use Cases', () => {
 
   describe('MettreAJourParametresEcoleUseCase', () => {
     it('devrait persister les paramètres en DB (fix du bug)', async () => {
-      const useCase = new MettreAJourParametresEcoleUseCase(repo);
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
       await useCase.execute({
         schoolId: 'school-1',
         demandeurRole: 'ADMIN',
@@ -62,7 +65,7 @@ describe('SchoolSettings — Use Cases', () => {
     });
 
     it('devrait rejeter si demandeur non Admin', async () => {
-      const useCase = new MettreAJourParametresEcoleUseCase(repo);
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
       await expect(useCase.execute({
         schoolId: 'school-1',
         demandeurRole: 'TEACHER',
@@ -71,7 +74,7 @@ describe('SchoolSettings — Use Cases', () => {
     });
 
     it('devrait rejeter un schoolLanguageMode invalide', async () => {
-      const useCase = new MettreAJourParametresEcoleUseCase(repo);
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
       await expect(useCase.execute({
         schoolId: 'school-1',
         demandeurRole: 'ADMIN',
@@ -80,7 +83,7 @@ describe('SchoolSettings — Use Cases', () => {
     });
 
     it('devrait rejeter un cycle invalide', async () => {
-      const useCase = new MettreAJourParametresEcoleUseCase(repo);
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
       await expect(useCase.execute({
         schoolId: 'school-1',
         demandeurRole: 'ADMIN',
@@ -89,7 +92,7 @@ describe('SchoolSettings — Use Cases', () => {
     });
 
     it('councilPassMark doit être entre 0 et 20', async () => {
-      const useCase = new MettreAJourParametresEcoleUseCase(repo);
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
       await expect(useCase.execute({
         schoolId: 'school-1',
         demandeurRole: 'ADMIN',

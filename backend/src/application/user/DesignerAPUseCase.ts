@@ -5,8 +5,8 @@
  * de TeacherProfile.supervisedSubjectIds.
  */
 import type { StaffProfileRepository } from '@domain/ports/repositories/StaffProfileRepository';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
 export interface DesignerAPCommande {
   userId: string;
@@ -17,7 +17,10 @@ export interface DesignerAPCommande {
 }
 
 export class DesignerAPUseCase {
-  constructor(private readonly staffProfileRepository: StaffProfileRepository) {}
+  constructor(
+    private readonly staffProfileRepository: StaffProfileRepository,
+    private readonly activityLog: ActivityLogPort,
+  ) {}
 
   async execute(commande: DesignerAPCommande): Promise<void> {
     if (commande.demandeurRole !== 'ADMIN') {
@@ -41,7 +44,7 @@ export class DesignerAPUseCase {
     if (commande.action === 'ASSIGN') {
       await this.staffProfileRepository.assignerAP(commande.userId, commande.schoolId, apPermissions, commande.departmentSubjectIds);
 
-      void logActivity({
+      void this.activityLog.log({
         userId: commande.userId,
         schoolId: commande.schoolId,
         action: 'Permission AP assignée',
@@ -50,7 +53,7 @@ export class DesignerAPUseCase {
     } else {
       await this.staffProfileRepository.retirerAP(commande.userId, apPermissions);
 
-      void logActivity({
+      void this.activityLog.log({
         userId: commande.userId,
         schoolId: commande.schoolId,
         action: 'Permission AP retirée',

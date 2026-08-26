@@ -2,12 +2,15 @@
  * APPLICATION — Use case : Rejeter un onboarding élève (doublon, erreur de saisie, etc.)
  */
 import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { peutTransitionnerDepuisPendingValidation } from './rules';
 import type { RejeterOnboardingCommande, RejeterOnboardingResultat } from './types';
 
 export class RejeterOnboardingUseCase {
-  constructor(private readonly eleveOnboardingRepository: EleveOnboardingRepository) {}
+  constructor(
+    private readonly eleveOnboardingRepository: EleveOnboardingRepository,
+    private readonly activityLog: ActivityLogPort,
+  ) {}
 
   async execute(cmd: RejeterOnboardingCommande): Promise<RejeterOnboardingResultat> {
     if (!cmd.rejectionReason?.trim()) throw new Error('Un motif de rejet est requis');
@@ -43,7 +46,7 @@ export class RejeterOnboardingUseCase {
       }
     }
 
-    await logActivity({
+    await this.activityLog.log({
       userId: cmd.rejectedById,
       schoolId: cmd.schoolId,
       action: 'ONBOARDING_REJECTED',

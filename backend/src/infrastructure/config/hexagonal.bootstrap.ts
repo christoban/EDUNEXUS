@@ -158,6 +158,7 @@ import { creerOrientationRoutes } from '@infrastructure/http/routes/orientation.
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
+import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
 import { LoginMasterUseCase } from '@application/masterAdmin/LoginMasterUseCase';
 import { VerifyMfaUseCase } from '@application/masterAdmin/VerifyMfaUseCase';
 import { MasterAuthController } from '@infrastructure/http/controllers/MasterAuthController';
@@ -966,7 +967,7 @@ export function bootstrapHexagonal(app: Application): void {
   const studentDocumentController = new StudentDocumentController(prisma);
   app.use('/api/v2', creerStudentDocumentRoutes(studentDocumentController));
 
-  const designerAPUseCase = new DesignerAPUseCase(new PrismaStaffProfileRepository(prisma));
+  const designerAPUseCase = new DesignerAPUseCase(new PrismaStaffProfileRepository(prisma), new ActivityLogAdapter());
 
   // ── Connexion renforcée (email OTP pour tous les rôles + MFA obligatoire ADMIN/STAFF/TEACHER) ──
   const userRepository = new PrismaUserRepository(prisma);

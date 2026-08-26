@@ -10,8 +10,8 @@
  */
 import type { SchoolSettingsRepository } from '@domain/ports/repositories/SchoolSettingsRepository';
 import type { SchoolLanguageMode, AcademicCalendarType, SchoolCycle } from '@domain/constants/SystemeEducatifCameroun';
+import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
-import { logActivity } from '../../infrastructure/services/audit/ActivityLogService';
 
 export interface MettreAJourParametresCommande {
   schoolId: string;
@@ -62,7 +62,10 @@ const CYCLES_VALIDES: SchoolCycle[] = [
 ];
 
 export class MettreAJourParametresEcoleUseCase {
-  constructor(private readonly settingsRepository: SchoolSettingsRepository) {}
+  constructor(
+    private readonly settingsRepository: SchoolSettingsRepository,
+    private readonly activityLog: ActivityLogPort,
+  ) {}
 
   async execute(commande: MettreAJourParametresCommande): Promise<void> {
     if (commande.demandeurRole !== 'ADMIN') {
@@ -122,7 +125,7 @@ export class MettreAJourParametresEcoleUseCase {
     const avant = await this.settingsRepository.getParametresEffectifs(commande.schoolId).catch(() => null);
     await this.settingsRepository.sauvegarder(commande.schoolId, settingsAMettreAJour);
     if (commande.demandeurId) {
-      void logActivity({
+      void this.activityLog.log({
         userId: commande.demandeurId,
         schoolId: commande.schoolId,
         action: 'Configuration mise à jour',
