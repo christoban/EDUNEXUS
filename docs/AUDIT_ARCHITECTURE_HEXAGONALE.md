@@ -50,33 +50,55 @@ La majorité des bounded contexts avaient été écrits avant la mise en place d
 
 ---
 
-## 1.2 🟠 Couche `application/` qui importe depuis `infrastructure/` (sens de dépendance inversé)
+## 1.2 ✅ RÉSOLU — Couche `application/` qui importait depuis `infrastructure/` (sens de dépendance inversé)
 
-**Règle violée :** les dépendances vont de l'extérieur (infrastructure) vers l'intérieur (domain/application), jamais l'inverse.
+> **Statut : résolu** par le chantier **§1.2** (5 ports services créés + 5 adapters + 10 use cases refactorés + DI câblée).
+> La règle SOLID D est rétablie : `application/` ne dépend plus que de ports (`domain/ports/`).
 
-### Preuve
+### Preuve (état final)
 
 ```
-grep -rln "from '@infrastructure\|from '../../infrastructure" src/application → 22 fichiers
+grep -rln "from '@infrastructure|from '../../infrastructure" src/application → 0 fichier
+./node_modules/.bin/tsc --noEmit → clean
+bun test → 717 pass, 0 fail
 ```
 
-Exemples :
-- `src/application/classCouncil/PublierBulletinsConseilClasseUseCase.ts` → importe `SmsNotificationService` (infra) directement
-- `src/application/assistant/catalog/adminActionCatalog.ts` → importe du code infra
-- `src/application/eleveOnboarding/ValiderOnboardingUseCase.ts` → `logActivity` (infra)
-- `src/application/academicYear/CloturerAnneeUseCase.ts` → `logActivity`
-- `src/application/schoolSettings/MettreAJourParametresEcoleUseCase.ts` → `logActivity`
-- `src/application/entranceExam/*` → divers services infra
+### Résolution détaillée
 
-### Diagnostic
+**5 ports créés** dans `domain/ports/services/` :
+- `SmsNotificationPort` — `notifyBulletinSms`, `notifyLv2WindowOpenSms`
+- `DocumentAiPort` — `extraireDocument`
+- `EmailTemplatePort` — `buildSchoolInviteTemplate`
+- `RealtimeSocketPort` — `emettre` (emettre dans un salon socket)
+- `SchedulingGridPort` — `calculerSqelette`
 
-`logActivity` est le pire contrevenant : appelé depuis 6+ use cases alors qu'un port `ActivityLogPort` existe déjà (utilisé seulement par ClassCouncil). Les autres (Sms, Groq, scraping) sont des appels directs à des implémentations concrètes au lieu de ports.
+**5 adapters créés** dans `infrastructure/` :
+- `SmsNotificationAdapter` (`services/sms/`)
+- `DocumentAiAdapter` (`services/ai/`)
+- `EmailTemplateAdapter` (`services/email/`)
+- `RealtimeSocketAdapter` (`socket/`)
+- `SchedulingGridAdapter` (`scheduling/`)
 
-### Propositions
+**10+ use cases refactorés** (imports + constructeurs + call sites) :
+- `PublierBulletinsConseilClasseUseCase` (+SmsNotificationPort)
+- `activerRessourceLieeSiApplicable` (+SmsNotificationPort)
+- `CreerEvenementAcademiqueUseCase` (+SmsNotificationPort)
+- `DeclencherEvenementUseCase` (+SmsNotificationPort)
+- `ScannerListeCandidatsUseCase` (+DocumentAiPort)
+- `ScannerListeCandidatsPebsUseCase` (+DocumentAiPort)
+- `AnalyserDiplomeUseCase` (+DocumentAiPort)
+- `InviterEcoleUseCase` (+EmailTemplatePort)
+- `EnvoyerMessageUseCase` (+NotificationService +RealtimeSocketPort)
+- `ModererMessageUseCase` (+NotificationService)
+- `GenererSqueletteEmploiDuTempsUseCase` (+SchedulingGridPort)
+- `ProposerEmploiDuTempsUseCase` (+SchedulingGridPort)
 
-- Étendre `ActivityLogPort` à tous les use cases qui logguent (remplacer l'appel direct `logActivity`).
-- `PublierBulletinsConseilClasseUseCase` : injecter `SmsNotificationPort` (port service) au lieu d'importer le service.
-- Créer des ports services manquants : `ScrapingPort`, `GroqPort` (IAService existe déjà — l'utiliser partout).
+**DI câblée** : `container.ts` + `hexagonal.bootstrap.ts` + `inngest/functions/functions.ts`
+
+### Notes
+
+- Le port `NotificationService` (socket) existait déjà ; `EnvoyerMessageUseCase` et `ModererMessageUseCase` ont été migrés pour l'utiliser en injection au lieu d'instanciation directe.
+- `RealtimeSocketPort` créé pour encapsuler `SocketNotificationService` (émetteur/diffuseur) — sépare le port de diffusion du port de notification email/SMS.
 
 ---
 
@@ -198,11 +220,12 @@ Un adapter devrait implémenter un port cohérent. Quand il dépasse 400 lignes,
 
 32 ports repository pour 33 adapters prisma (ratio 1:1 — bon signe), mais :
 - Ports très gros : `IOrientationRepository` (235 lignes), `AnneeAcademiqueRepository` (138), `TimetableRepository` (130).
-- `domain/ports/services/` : 14 ports services (Email, Pdf, Sms, Paiement, IAService...) — bien structurés, mais certains services concrets (SmsNotificationService, GroqClient) sont encore appelés directement par l'application/les controllers.
+- `domain/ports/services/` : 19 ports services (Email, Pdf, Sms, Paiement, IAService, SmsNotification, DocumentAi, EmailTemplate, RealtimeSocket, SchedulingGrid...) — tous avec un adapter sauf `ScrapingPort`, `GroqPort`.
 
 ### Propositions
 
 - Vérifier que chaque port service a un adapter et que plus rien ne l'importe directement.
+- Créer des adapters pour les ports restants sans implémentation (`ScrapingPort`, `GroqPort`).
 
 ---
 
@@ -217,14 +240,17 @@ Inclure la vérification RBAC/tenant dans les use cases lors des extractions (§
 
 ---
 
-## 1.11 🟡 `logActivity` / audit : port existant mais sous-utilisé
+## 1.11 ✅ RÉSOLU — `logActivity` / audit : port existant mais sous-utilisé
 
-- `ActivityLogPort` + `AIActionAuditPort` créés et utilisés par ClassCouncil.
-- Encore 6 use cases qui appellent `logActivity` (infra) en direct : CloturerAnnee, eleveOnboarding (3), MettreAJourParametresEcole, DesignerAP.
+> **Statut : résolu** par le chantier **P2** (logActivity → `ActivityLogPort` injecté).
+> 6 use cases migrés vers `ActivityLogPort` injecté via constructeur (CloturerAnnee, MettreAJourParametresEcole, CreerSqueletteOnboarding, RejeterOnboarding, ValiderOnboarding, DesignerAP).
+> `grep "logActivity" src/application → 0`.
 
-### Proposition
+### Preuve
 
-Migrer ces 6 use cases vers `ActivityLogPort` injecté (même pattern que ClassCouncil).
+```
+grep -rln "logActivity" src/application → 0
+```
 
 ---
 
@@ -234,7 +260,7 @@ Migrer ces 6 use cases vers `ActivityLogPort` injecté (même pattern que ClassC
 - `ClassCouncil` complet : port 15 méthodes + adapters + use cases + policies.
 - `domain/` : plus aucune dépendance externe (vérifié — `grep "@prisma/client" src/domain` = 0 après les correctifs).
 - `domain/policies/LanguagePolicy.ts` : règle de domaine propre.
-- `tests/` : 111 fichiers unitaires + integration, 716 tests verts.
+- `tests/` : 112 fichiers unitaires + integration, 717 tests verts.
 
 ---
 
@@ -338,15 +364,15 @@ En dessous de 800, les candidats "une seule tâche mais grosse" :
 
 | # | Problème | Solution | Difficulté | IA recommandée | Chantier |
 |---|---|---|---|---|---|
-| P1 | application/ dépend de Prisma (115 fichiers) | Par bounded context, créer ports + adapters + injection | Élevée | Claude Code (Tech Lead) | À découper en ~15 sous-chantiers |
+| P1 | application/ dépend de Prisma (115 fichiers) | Par bounded context, créer ports + adapters + injection | Élevée | Claude Code (Tech Lead) | ✅ RÉSOLU |
 | P2 | Controllers god-objects (46/66) | Extraire use cases (pattern ClassCouncil) + sortir GradingEngine | Élevée | Claude Code | Grade, User, Finance d'abord |
-| P3 | application → infrastructure (22 fichiers) | Étendre ActivityLogPort, créer SmsScrapingGroqPorts | Moyenne | DeepSeek | Cross-cutting |
+| P3 | application → infrastructure (22 fichiers) | Étendre ActivityLogPort, créer SmsScrapingGroqPorts | Moyenne | DeepSeek | ✅ RÉSOLU (logActivity + SMS + Email + Socket + Scheduling + AI) |
 | P4 | domain → application (StaffPermissionRules) | Déplacer TemplateMeta dans domain/types | Faible | DeepSeek | 1 commit |
 | P5 | Inngest 1744 lignes / 21 fonctions | Split par domaine + use cases au lieu de prisma inline | Moyenne | DeepSeek | ~5 commits |
 | P6 | bootstrap/container monolithiques | Composition roots par bounded context | Élevée | Claude Code | Chantier dédié |
 | P7 | Duplication calcul moyenne (9 sites) | Centraliser dans domain/rules/moyenneGenerale.ts | Moyenne | DeepSeek | Chantier DRY |
 | P8 | Ports trop gros (Orientation, Timetable) | Interface Segregation : découper en sous-ports | Moyenne | DeepSeek | Au fil des P2 |
-| P9 | logActivity direct (6 use cases) | Migrer vers ActivityLogPort injecté | Faible | DeepSeek | Cross-cutting |
+| P9 | logActivity direct (6 use cases) | Migrer vers ActivityLogPort injecté | Faible | DeepSeek | ✅ RÉSOLU |
 
 ## 3.2 Plan d'action — Taille des fichiers
 
@@ -385,13 +411,13 @@ Les split doivent être des commits atomiques avec zéro régression (bun test +
 | Fichiers backend > 800 lignes | 9 |
 | Fichiers frontend > 600 lignes | 18 |
 | Fichiers frontend > 800 lignes | 11 |
-| application/ qui importe @prisma/client | 115 |
-| application/ qui utilise prisma. | 116 |
-| application/ qui importe infrastructure | 22 |
+| application/ qui importe @prisma/client | 0 ✅ |
+| application/ qui utilise prisma. | 0 ✅ |
+| application/ qui importe infrastructure | 0 ✅ |
 | Controllers avec Prisma direct | 46 / 66 |
 | Fichiers < 800 mais multi-responsabilités (backend) | ~15 |
 | Fichiers < 800 mais multi-responsabilités (frontend) | ~8 |
-| Tests | 716 passants / 111 fichiers |
+| Tests | 717 passants / 112 fichiers |
 | GradingEngine | Encore dans GradeController (à sortir) |
 | Calculs de moyenne dupliqués | 9 sites |
 
