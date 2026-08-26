@@ -180,17 +180,23 @@ grep -rn "reduce((s, g) => s +\|reduce((s, n) => s +" src → 3 occurrences (9 �
 
 ---
 
-## 1.6 🟠 Inngest : un seul fichier de 1744 lignes mélangeant 21 fonctions
+## 1.6 🟠 Partiellement résolu — Inngest 1755 → 5 fichiers (ponytail: 0 UC tant qu'un seul caller)
 
-`src/infrastructure/inngest/functions/functions.ts` = 1744 lignes, 21 `inngest.createFunction(...)`, 23 imports.
+> **Statut : partiellement résolu (ponytail full, 2026-08-26)** — split mécanique, logique métier inline conservée (1 seul caller).
 
-- Violation SOLID S : 21 responsabilités (bulletins, santé, alertes, paiements, prêts, purge, backups, orientation, IA...).
-- Beaucoup de logique métier inline dans les fonctions (calcul de chute de moyenne ligne 796, seuils ligne 1476...).
+`src/infrastructure/inngest/functions/functions.ts` = **1755 → 5** lignes (barrel `export *`).
 
-### Propositions
+| Fichier | Lignes | Fonctions |
+|---|---|---|
+| `reportCards.ts` | 573 | `generateReportCards`, `handleGradeValidatedDropDetection/Batch`, `handleGradeSubmitted` |
+| `health.ts` | 424 | `computeStudentHealthScores`, `handleCritical/Warning/PositiveHealthAlert`, `sendProfessorPrincipalDigest` |
+| `finance.ts` | 311 | `sendPaymentReminders`, `checkAbsenceThreshold`, `markOverdueLoans` |
+| `academic.ts` | 341 | `checkAcademicEvents`, `checkOrientationCheckpoints`, `checkSuspiciousAiActionPattern`, `handleTimetableSeancesAppliquees` |
+| `maintenance.ts` | 224 | `purgeSchoolLogs`, `purgeAnnoncesExpirees`, `purgerCorbeille`, `BackupSchoolDataJob` |
+| `functions.ts` | 5 | barrel `export *` — `server.ts:40` inchangé |
 
-- Découper en 1 fichier par domaine : `functions/reportCards.ts`, `functions/health.ts`, `functions/payments.ts`, `functions/maintenance.ts`, `functions/aiSecurity.ts`...
-- Les fonctions qui calculent de la métrique métier doivent appeler des use cases (pas de Prisma inline).
+- Violation S partiellement levée : 1 responsabilité/fichier (bulletins, santé, finance, académique, maintenance).
+- Logique métier inline (chute moyenne `reportCards.ts:≈796`, seuils `academic.ts:≈1476`) **gardée** — `// ponytail: single caller, UC quand second besoin` (pas de 2e caller).
 
 ---
 
