@@ -115,38 +115,46 @@ grep -rln "from '@application|from '../../application" src/domain → 0
 
 ---
 
-## 1.4 🔴 Controllers HTTP = logique métier + accès Prisma direct (Single Responsibility cassée)
+## 1.4 🟠 Partiellement résolu — Controllers HTTP (3/46 nettoyés, 43 restants)
+
+> **Statut : partiellement résolu (ponytail full, 2026-08-26)** — 3 controllers prioritaires passés à 0 `prisma` data via ports existants, `GradingEngine` sorti vers `domain/rules`.
 
 **Règle violée (SOLID S) :** un controller HTTP ne doit contenir que la coordination requête→use case→réponse. Le calcul métier vit dans un use case / moteur dédié (cf. incident `GradingEngine`).
 
-### Preuve
+### Preuve (état 2026-08-26)
 
-Sur 66 controllers, **46 importent `@prisma/client`** et font des requêtes Prisma directement :
+```
+grep -rln "@prisma/client" src/infrastructure/http/controllers → 43 fichiers (46 → 43)
+grep -n "prisma" src/infrastructure/http/controllers/FinanceController.ts → 0
+grep -n "prisma" src/infrastructure/http/controllers/UserController.ts → 0
+grep -n "prisma" src/infrastructure/http/controllers/GradeController.ts → 3 (ponytail: valider inngest / soumettreEnMasse updateMany / genererTemplate studentProfile — single caller)
+```
 
-| Controller | Lignes | Handlers | `prisma.` direct |
+| Controller | Lignes | `prisma.` direct | État |
 |---|---|---|---|
-| `UserController.ts` | 1174 | ~20 | 26 |
-| `GradeController.ts` | 1072 | ~15 | 32 |
-| `DevController.ts` | 815 | 10 | 49 |
-| `AIController.ts` | 647 | 9 | 34 |
-| `PedagogieController.ts` | 759 | 15 | 39 |
-| `HRController.ts` | 775 | 17 | 31 |
-| `ClasseController.ts` | 757 | 13 | 24 |
-| `FinanceController.ts` | 756 | 11 | 7 |
-| `ReportCardController.ts` | 679 | 9 | 23 |
-| `MasterAdminHexController.ts` | 639 | 18 | 24 |
-
-Le `GradingEngine` vit toujours dans `GradeController.ts` (le calcul de moyenne séquence) au lieu d'un moteur `domain/`.
+| `UserController.ts` | 1174 → ~1100 | 26 → **0** | ✅ 0 data (MFA→`MfaUseCase`+`MfaService`, invite/password→`UserRepository`, garde→`Classe/EnrollmentRepository`, audit→`AIActionAuditPort`) |
+| `GradeController.ts` | 1072 → 665 | 32 → **3 ponytail** | ✅ `calculerMoyenneSequence` → `domain/rules/GradingEngine.ts:87`, 7 UC créés, DI `container.ts:618` |
+| `FinanceController.ts` | 756 | 7+9 audit → **0** | ✅ `findRecuData`+`isEmailDigestAdminEnabled` → `Paiement/SchoolRepository`, audit→`AIActionAuditPort` |
+| `DevController.ts` | 815 | 49 | 🔴 |
+| `AIController.ts` | 647 | 34 | 🔴 |
+| `PedagogieController.ts` | 759 | 39 | 🔴 |
+| `HRController.ts` | 775 | 31 | 🔴 |
+| `ClasseController.ts` | 757 | 24 | 🔴 |
+| `ReportCardController.ts` | 679 | 23 | 🔴 |
+| `MasterAdminHexController.ts` | 639 | 24 | 🔴 |
+| + 36 autres | — | — | 🔴 |
 
 ### Diagnostic
 
-Ces controllers sont devenus des "god objects" : validation, accès DB, calcul métier, orchestration, réponses HTTP — tout mélangé.
+3 god objects nettoyés en réutilisant les `*Repository` existants (ladder ponytail : pas de nouveau UC/port tant qu'un seul caller). 43 restants — même pattern : `prisma.*` → port existant (`Classe`, `Note`, `Paiement`, `School`), `journaliserActionIA(prisma` → `AIActionAuditPort`.
 
 ### Propositions
 
-- Extraire chaque bloc `prisma.*` d'un handler dans un use case dédié (pattern déjà validé sur `ClassCouncilController`).
-- Sortir `GradingEngine` dans `domain/entities` ou `domain/rules` (source unique du calcul de moyenne).
-- Cibler en priorité : `GradeController` (calcul de moyenne = métier), `UserController` (RBAC), `FinanceController`.
+- [x] `GradeController` — `GradingEngine` sorti, 7 UC, 0 `prisma` data
+- [x] `UserController` — MFA/Invite/Password/garde → ports, 0 `prisma`
+- [x] `FinanceController` — 0 `prisma` via repos + audit port
+- [ ] `ClasseController` (13 handlers, `ClasseRepository` existe → 1 ligne/handler) — prochain ponytail
+- [ ] `Dev/AI/Pedagogie/HR/ReportCard/MasterAdminHex` + 36 autres — `prisma.*` → port existant, UC seulement si second caller
 
 ---
 
