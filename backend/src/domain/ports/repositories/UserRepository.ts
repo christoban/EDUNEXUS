@@ -112,4 +112,12 @@ export interface UserRepository {
     mfaRecoveryCodeGeneratedAt?: Date;
   }): Promise<void>;
   isMfaEnabled(id: string): Promise<boolean>;
+
+  // Mot de passe / invitation
+  creerJetonReinitialisation(userId: string, tokenHash: string, expiry: Date): Promise<void>;
+  trouverParJetonReinitialisation(tokenHash: string): Promise<User | null>;
+  reinitialiserMotDePasse(tokenHash: string, passwordHash: string): Promise<void>;
+  verifierMotDePasse(userId: string, plainPassword: string): Promise<boolean>;
+  mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void>;
+  definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void>;
 }

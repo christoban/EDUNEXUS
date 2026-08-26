@@ -23,6 +23,8 @@ import type { MfaUseCase } from '@application/user/MfaUseCase';
 import type { TokenService, PayloadToken } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
@@ -90,6 +92,8 @@ export class UserController {
     private readonly prisma: PrismaClient,
     private readonly userRepository: UserRepository,
     private readonly mfaUseCase: MfaUseCase,
+    private readonly classeRepository: ClasseRepository,
+    private readonly enrollmentRepository: EnrollmentRepository,
   ) {}
 
   // ── Pending login token (cookie temporaire entre les étapes de connexion) ──
@@ -461,9 +465,9 @@ export class UserController {
       // pour notes/présences), mais sans email ni téléphone. Aucun champ "cycle" par classe/
       // section dans le schéma — signal dérivé du template de l'école (School.templateCode).
       if (req.body.role === 'STUDENT' && req.body.classeId && (req.body.email || req.body.phone)) {
-        const classe = await this.prisma.class.findUnique({ where: { id: req.body.classeId }, select: { level: true } });
-        const ecole = await this.prisma.school.findUnique({ where: { id: user.schoolId }, select: { templateCode: true } });
-        const isPrimaireClasse = classe ? isNiveauPrimaireOuMaternelle(classe.level) : getTemplateMeta(ecole?.templateCode).isPrimaire;
+        const classe = await this.classeRepository.findById(req.body.classeId);
+        const ecole = await this.schoolRepository.findById(user.schoolId);
+        const isPrimaireClasse = classe ? isNiveauPrimaireOuMaternelle(classe.level ?? '') : getTemplateMeta(ecole?.templateCode).isPrimaire;
         if (isPrimaireClasse) {
           res.status(400).json({
             success: false,
@@ -502,10 +506,7 @@ export class UserController {
               { expiresIn: '7d' },
             );
 
-            const school = await this.prisma.school.findUnique({
-              where: { id: user.schoolId },
-              select: { name: true },
-            });
+            const school = await this.schoolRepository.findById(user.schoolId);
             const schoolName = school?.name ?? 'votre établissement';
             const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
             const inviteUrl = `${frontendUrl}/invite/set-password?token=${inviteToken}`;
@@ -583,19 +584,13 @@ export class UserController {
         return;
       }
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub as string },
-        select: { id: true, firstName: true, lastName: true, email: true, schoolId: true },
-      });
+      const user = await this.userRepository.findById(payload.sub as string);
       if (!user) {
         res.status(404).json({ success: false, message: 'Compte introuvable.' });
         return;
       }
 
-      const school = await this.prisma.school.findUnique({
-        where: { id: user.schoolId },
-        select: { name: true, subdomain: true },
-      });
+      const school = await this.schoolRepository.findById(user.schoolId);
 
       res.json({
         success: true,
@@ -652,10 +647,7 @@ export class UserController {
       const bcrypt = await import('bcryptjs');
       const passwordHash = await bcrypt.hash(password, 10);
 
-      await this.prisma.user.update({
-        where: { id: payload.sub as string },
-        data: { passwordHash },
-      });
+      await this.userRepository.definirMotDePasseInvitation(payload.sub as string, passwordHash);
 
       res.json({ success: true, message: 'Mot de passe créé avec succès. Vous pouvez maintenant vous connecter.' });
     } catch (error) {
@@ -679,20 +671,14 @@ export class UserController {
         return;
       }
 
-      const user = await this.prisma.user.findFirst({
-        where: { schoolId: school.id, email: email.toLowerCase().trim() },
-        select: { id: true, firstName: true, lastName: true, email: true },
-      });
+      const user = await this.userRepository.findByEmail(email.toLowerCase().trim(), school.id);
 
       if (user?.email) {
         const plainToken = randomBytes(32).toString('hex');
         const tokenHash = createHash('sha256').update(plainToken).digest('hex');
         const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: expiry },
-        });
+        await this.userRepository.creerJetonReinitialisation(user.id, tokenHash, expiry);
 
         const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
         const resetUrl = `${clientUrl}/reset-password?token=${plainToken}&subdomain=${subdomain}`;
@@ -752,31 +738,15 @@ export class UserController {
       }
 
       const tokenHash = createHash('sha256').update(token).digest('hex');
-      const user = await this.prisma.user.findFirst({
-        where: {
-          resetPasswordToken: tokenHash,
-          resetPasswordTokenExpiry: { gt: new Date() },
-        },
-        select: { id: true },
-      });
-
-      if (!user) {
-        res.status(400).json({ success: false, message: 'Lien invalide ou expiré. Demandez un nouveau lien.' });
-        return;
-      }
-
       const bcrypt = await import('bcryptjs');
       const passwordHash = await bcrypt.hash(password, 10);
 
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          passwordHash,
-          resetPasswordToken: null,
-          resetPasswordTokenExpiry: null,
-          refreshTokenVersion: { increment: 1 },
-        },
-      });
+      try {
+        await this.userRepository.reinitialiserMotDePasse(tokenHash, passwordHash);
+      } catch (e: any) {
+        res.status(400).json({ success: false, message: e.message || 'Lien invalide ou expiré. Demandez un nouveau lien.' });
+        return;
+      }
 
       res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.' });
     } catch (error) {
@@ -810,31 +780,21 @@ export class UserController {
         return;
       }
 
-      const user = await this.prisma.user.findUnique({
-        where: { id: authUser.userId },
-        select: { id: true, passwordHash: true },
-      });
-      if (!user) {
+      const existing = await this.userRepository.findById(authUser.userId);
+      if (!existing) {
         res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
         return;
       }
-      if (!user.passwordHash) {
-        res.status(400).json({ success: false, message: 'Aucun mot de passe défini. Contactez votre administrateur.' });
-        return;
-      }
 
-      const bcrypt = await import('bcryptjs');
-      const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+      const ok = await this.userRepository.verifierMotDePasse(authUser.userId, currentPassword);
       if (!ok) {
         res.status(401).json({ success: false, message: 'Mot de passe actuel incorrect.' });
         return;
       }
 
+      const bcrypt = await import('bcryptjs');
       const passwordHash = await bcrypt.hash(newPassword, 10);
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash, refreshTokenVersion: { increment: 1 } },
-      });
+      await this.userRepository.mettreAJourMotDePasse(authUser.userId, passwordHash);
 
       res.json({ success: true, message: 'Mot de passe modifié avec succès.' });
     } catch (error) {
@@ -871,25 +831,12 @@ export class UserController {
       // classe/section dans le schéma — signal dérivé du template de l'école (l'admin et sa
       // cible appartiennent nécessairement à la même école, portée multi-tenant oblige).
       if (req.body.email || req.body.phone) {
-        const cible = await this.prisma.user.findUnique({
-          where: { id: req.params.id as string },
-          select: {
-            role: true,
-            studentProfile: {
-              select: {
-                enrollmentsYearScoped: {
-                  where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-                  take: 1,
-                  select: { class: { select: { level: true } } },
-                },
-              },
-            },
-          },
-        });
+        const cible = await this.userRepository.findById(req.params.id as string);
         const effectiveRole = req.body.role ?? cible?.role;
         if (effectiveRole === 'STUDENT') {
-          const ecole = await this.prisma.school.findUnique({ where: { id: user.schoolId }, select: { templateCode: true } });
-          const niveauClasse = cible?.studentProfile?.enrollmentsYearScoped[0]?.class?.level;
+          const ecole = await this.schoolRepository.findById(user.schoolId);
+          const classeActuelle = await this.enrollmentRepository.getClasseActuelleEleve(req.params.id as string);
+          const niveauClasse = classeActuelle?.level;
           const isPrimaireClasse = niveauClasse
             ? isNiveauPrimaireOuMaternelle(niveauClasse)
             : getTemplateMeta(ecole?.templateCode).isPrimaire;

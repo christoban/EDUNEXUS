@@ -50,6 +50,12 @@ function userRepositoryStub(user: User | null): UserRepository {
     updateMfaTempSecret: async () => {},
     updateMfa: async () => {},
     isMfaEnabled: async () => false,
+    creerJetonReinitialisation: async () => {},
+    trouverParJetonReinitialisation: async () => null,
+    reinitialiserMotDePasse: async () => {},
+    verifierMotDePasse: async () => false,
+    mettreAJourMotDePasse: async () => {},
+    definirMotDePasseInvitation: async () => {},
   };
 }
 

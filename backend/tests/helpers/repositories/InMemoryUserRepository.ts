@@ -239,6 +239,48 @@ export class InMemoryUserRepository implements UserRepository {
   async isMfaEnabled(id: string): Promise<boolean> {
     return this.authData.get(id)?.mfaEnabled ?? false;
   }
+  private passwordHashes = new Map<string, string>();
+  private resetTokens = new Map<string, { hash: string; expiry: Date }>();
+
+  async creerJetonReinitialisation(userId: string, tokenHash: string, expiry: Date): Promise<void> {
+    this.resetTokens.set(userId, { hash: tokenHash, expiry });
+  }
+  async trouverParJetonReinitialisation(tokenHash: string): Promise<User | null> {
+    for (const [userId, data] of this.resetTokens) {
+      if (data.hash === tokenHash && data.expiry > new Date()) return this.store.get(userId) ?? null;
+    }
+    return null;
+  }
+  async reinitialiserMotDePasse(tokenHash: string, passwordHash: string): Promise<void> {
+    for (const [userId, data] of this.resetTokens) {
+      if (data.hash === tokenHash && data.expiry > new Date()) {
+        this.passwordHashes.set(userId, passwordHash);
+        this.resetTokens.delete(userId);
+        return;
+      }
+    }
+    throw new Error('Lien invalide ou expiré. Demandez un nouveau lien.');
+  }
+  async verifierMotDePasse(userId: string, plainPassword: string): Promise<boolean> {
+    const hash = this.passwordHashes.get(userId);
+    if (!hash) return false;
+    const bcrypt = await import('bcryptjs');
+    return bcrypt.compare(plainPassword, hash);
+  }
+  async mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void> {
+    this.passwordHashes.set(userId, passwordHash);
+    this.resetTokens.delete(userId);
+  }
+  async definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void> {
+    this.passwordHashes.set(userId, passwordHash);
+  }
+  // helpers de test
+  definirMotDePasse(userId: string, plainOrHash: string): void {
+    this.passwordHashes.set(userId, plainOrHash);
+  }
+  definirJetonReinitialisation(userId: string, hash: string, expiry: Date): void {
+    this.resetTokens.set(userId, { hash, expiry });
+  }
   // helper de test
   definirMfa(id: string, data: Partial<{ mfaEnabled: boolean; mfaSecret: string | null; mfaTempSecret: string | null; mfaRecoveryCodeHashes: string[] }>): void {
     const cur = this.authData.get(id) ?? { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] };

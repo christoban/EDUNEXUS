@@ -37,6 +37,12 @@ function userRepoMock(user: AuthUserData | null): UserRepository {
     updateMfaTempSecret: async () => {},
     updateMfa: async () => {},
     isMfaEnabled: async () => store.user?.mfaEnabled ?? false,
+    creerJetonReinitialisation: async () => {},
+    trouverParJetonReinitialisation: async () => null,
+    reinitialiserMotDePasse: async () => {},
+    verifierMotDePasse: async () => false,
+    mettreAJourMotDePasse: async () => {},
+    definirMotDePasseInvitation: async () => {},
   };
 }
 

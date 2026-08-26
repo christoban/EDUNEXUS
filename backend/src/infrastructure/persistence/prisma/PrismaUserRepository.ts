@@ -527,6 +527,48 @@ export class PrismaUserRepository implements UserRepository {
     return row?.mfaEnabled ?? false;
   }
 
+  async creerJetonReinitialisation(userId: string, tokenHash: string, expiry: Date): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: expiry } });
+  }
+
+  async trouverParJetonReinitialisation(tokenHash: string): Promise<User | null> {
+    const data = await this.prisma.user.findFirst({
+      where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } },
+      include: { staffProfile: { include: { permissions: true } } },
+    });
+    return data ? this.toDomain(data) : null;
+  }
+
+  async reinitialiserMotDePasse(tokenHash: string, passwordHash: string): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } },
+      select: { id: true },
+    });
+    if (!user) throw new Error('Lien invalide ou expiré. Demandez un nouveau lien.');
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } },
+    });
+  }
+
+  async verifierMotDePasse(userId: string, plainPassword: string): Promise<boolean> {
+    const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+    if (!data?.passwordHash) return false;
+    const bcrypt = await import('bcryptjs');
+    return bcrypt.compare(plainPassword, data.passwordHash);
+  }
+
+  async mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } },
+    });
+  }
+
+  async definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
   private toDomain(data: any): User {
     const permissions: StaffPermissionType[] =
       data.staffProfile?.permissions?.map((p: { permission: StaffPermissionType }) => p.permission) ?? [];

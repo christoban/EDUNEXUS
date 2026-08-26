@@ -1006,6 +1006,8 @@ export function bootstrapHexagonal(app: Application): void {
   const verifierMfaConnexionUseCase = new VerifierMfaConnexionUseCase(userRepository);
   const mfaService = new MfaServiceAdapter();
   const mfaUseCase = new MfaUseCase(userRepository, mfaService);
+  const classeRepositoryForUser = new PrismaClasseRepository(prisma);
+  const enrollmentRepositoryForUser = new PrismaEnrollmentRepository(prisma);
 
   const userController = new UserController(
     container.user.connecter,
@@ -1024,6 +1026,8 @@ export function bootstrapHexagonal(app: Application): void {
     prisma,
     userRepository,
     mfaUseCase,
+    classeRepositoryForUser,
+    enrollmentRepositoryForUser,
   );
 
   const masterAdminHexController = new MasterAdminHexController(
