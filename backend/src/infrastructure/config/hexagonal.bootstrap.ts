@@ -159,6 +159,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { DesignerAPUseCase } from '@application/user/DesignerAPUseCase';
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { SmsNotificationAdapter } from '@infrastructure/services/sms/SmsNotificationAdapter';
 import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter';
 import { RealtimeSocketAdapter } from '@infrastructure/socket/RealtimeSocketAdapter';
@@ -1008,6 +1009,7 @@ export function bootstrapHexagonal(app: Application): void {
   const mfaUseCase = new MfaUseCase(userRepository, mfaService);
   const classeRepositoryForUser = new PrismaClasseRepository(prisma);
   const enrollmentRepositoryForUser = new PrismaEnrollmentRepository(prisma);
+  const auditForUser = new AIActionAuditAdapter(prisma);
 
   const userController = new UserController(
     container.user.connecter,
@@ -1023,7 +1025,7 @@ export function bootstrapHexagonal(app: Application): void {
     container.user.importer,
     loginEmailOtpUseCase,
     verifierMfaConnexionUseCase,
-    prisma,
+    auditForUser,
     userRepository,
     mfaUseCase,
     classeRepositoryForUser,

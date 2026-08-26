@@ -1,5 +1,4 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
 import type { UserRole, StaffPermissionType } from '@domain/types/enums';
 import jwt from 'jsonwebtoken';
 import { passwordError } from '../../../domain/security/PasswordPolicy';
@@ -8,6 +7,7 @@ import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { verifierMotDePasseEtMfa } from '../middlewares/requireUserSensitiveAuth.ts';
 import { emettreJetonReauth } from '../middlewares/requireReauthToken.ts';
 import { createHash, randomBytes } from 'crypto';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 import type { ConnecterUtilisateurUseCase, RoleMismatchError, SchoolSuspendedError } from '@application/user/ConnecterUtilisateurUseCase';
 import type { InscrireUtilisateurUseCase } from '@application/user/InscrireUtilisateurUseCase';
 import type { RafraichirTokenUseCase } from '@application/user/RafraichirTokenUseCase';
@@ -27,7 +27,6 @@ import type { ClasseRepository } from '@domain/ports/repositories/ClasseReposito
 import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
 import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
 import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import * as XLSX from 'xlsx';
 
 const COOKIE_OPTIONS = {
@@ -89,7 +88,7 @@ export class UserController {
     private readonly importer: ImporterUtilisateursUseCase,
     private readonly loginEmailOtp: LoginEmailOtpUseCase,
     private readonly verifierMfaConnexion: VerifierMfaConnexionUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly audit: AIActionAuditPort,
     private readonly userRepository: UserRepository,
     private readonly mfaUseCase: MfaUseCase,
     private readonly classeRepository: ClasseRepository,
@@ -484,7 +483,7 @@ export class UserController {
         passwordHash,
       });
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'creer_eleve', targetType: 'User', targetId: resultat.userId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -552,7 +551,7 @@ export class UserController {
       }
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -860,7 +859,7 @@ export class UserController {
         passwordHash,
       });
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -868,7 +867,7 @@ export class UserController {
       res.json({ success: true, message: 'Utilisateur mis à jour' });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -913,7 +912,7 @@ export class UserController {
         demandeurId: user.userId,
       });
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { fromClasseId, toClasseId },
@@ -921,7 +920,7 @@ export class UserController {
       res.json({ success: true, message: 'Élève transféré avec succès' });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'ERREUR',
