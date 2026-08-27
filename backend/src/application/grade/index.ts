@@ -33,3 +33,6 @@ export type { CalculerMoyenneCommande, CalculerMoyenneResultat } from './Calcule
 
 export { ImporterNotesExcelUseCase } from './ImporterNotesExcelUseCase';
 export type { ImporterNotesExcelCommande, ImporterNotesExcelResultat, ExcelRow, ImportError } from './ImporterNotesExcelUseCase';
+
+export { DetecterChuteMoyenneUseCase, trouverSequencePrecedente } from './DetecterChuteMoyenneUseCase';
+export type { DetecterChuteCommande, DetecterChuteResultat, BatchChuteCommande } from './DetecterChuteMoyenneUseCase';

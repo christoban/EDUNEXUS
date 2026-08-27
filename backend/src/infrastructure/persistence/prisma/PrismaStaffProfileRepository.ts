@@ -72,4 +72,20 @@ export class PrismaStaffProfileRepository implements StaffProfileRepository {
       });
     });
   }
+
+  async findConseillersOrientation(schoolId: string): Promise<string[]> {
+    const conseillers = await this.prisma.staffProfile.findMany({
+      where: { schoolId, permissions: { some: { permission: "MANAGE_ORIENTATION" } } },
+      select: { userId: true },
+    }).catch(() => []);
+    return conseillers.map((c) => c.userId);
+  }
+
+  async findCenseurs(schoolId: string): Promise<Array<{ userId: string; email: string | null; firstName: string }>> {
+    const censeurs = await this.prisma.staffProfile.findMany({
+      where: { schoolId, permissions: { some: { permission: "VALIDATE_GRADES" } } },
+      include: { user: { select: { id: true, email: true, firstName: true } } },
+    });
+    return censeurs.map(c => ({ userId: c.user.id, email: c.user.email ?? null, firstName: c.user.firstName }));
+  }
 }

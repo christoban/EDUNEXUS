@@ -38,4 +38,12 @@ export class PrismaGradeOrientationRepository implements GradeOrientationReposit
     });
     return earliest?.academicYear.startDate ?? null;
   }
+
+  async hasValidatedGrade(schoolId: string, studentId: string): Promise<boolean> {
+    const found = await this.prisma.grade.findFirst({
+      where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
+      select: { id: true },
+    });
+    return !!found;
+  }
 }

@@ -113,6 +113,15 @@ export interface UserRepository {
   }): Promise<void>;
   isMfaEnabled(id: string): Promise<boolean>;
 
+  // Inngest — génération bulletins : requêtes groupées (évite prisma direct dans l'infrastructure)
+  findStudentsForBulletinGeneration(
+    schoolId: string,
+    filters: { classId?: string | null; studentId?: string | null },
+  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string | null; classId: string | null }>>;
+  findStudentNotificationContext(
+    studentId: string,
+  ): Promise<{ id: string; firstName: string; lastName: string; email: string | null; sectionCode: string | null; parents: Array<{ email: string; userId: string }> } | null>;
+
   // Mot de passe / invitation
   creerJetonReinitialisation(userId: string, tokenHash: string, expiry: Date): Promise<void>;
   trouverParJetonReinitialisation(tokenHash: string): Promise<User | null>;

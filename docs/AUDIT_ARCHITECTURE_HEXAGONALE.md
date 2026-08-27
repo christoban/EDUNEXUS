@@ -180,23 +180,26 @@ grep -rn "reduce((s, g) => s +\|reduce((s, n) => s +" src → 3 occurrences (9 �
 
 ---
 
-## 1.6 🟠 Partiellement résolu — Inngest 1755 → 5 fichiers (ponytail: 0 UC tant qu'un seul caller)
+## 1.6 ✅ Résolu — Inngest 1755 → 5 fichiers, 0 `prisma` direct (100%)
 
-> **Statut : partiellement résolu (ponytail full, 2026-08-26)** — split mécanique, logique métier inline conservée (1 seul caller).
+> **Statut : résolu (100%, 2026-08-26)** — split + extraction complète vers UC/ports, `functions/*` ne fait plus que `new Prisma*Repository(prisma)` + `await useCase.execute()`.
 
-`src/infrastructure/inngest/functions/functions.ts` = **1755 → 5** lignes (barrel `export *`).
+`src/infrastructure/inngest/functions/functions.ts` = **1755 → 5** barrel.
 
-| Fichier | Lignes | Fonctions |
-|---|---|---|
-| `reportCards.ts` | 573 | `generateReportCards`, `handleGradeValidatedDropDetection/Batch`, `handleGradeSubmitted` |
-| `health.ts` | 424 | `computeStudentHealthScores`, `handleCritical/Warning/PositiveHealthAlert`, `sendProfessorPrincipalDigest` |
-| `finance.ts` | 311 | `sendPaymentReminders`, `checkAbsenceThreshold`, `markOverdueLoans` |
-| `academic.ts` | 341 | `checkAcademicEvents`, `checkOrientationCheckpoints`, `checkSuspiciousAiActionPattern`, `handleTimetableSeancesAppliquees` |
-| `maintenance.ts` | 224 | `purgeSchoolLogs`, `purgeAnnoncesExpirees`, `purgerCorbeille`, `BackupSchoolDataJob` |
-| `functions.ts` | 5 | barrel `export *` — `server.ts:40` inchangé |
+| Fichier | Lignes | Fonctions | UC/Ports |
+|---|---|---|---|
+| `reportCards.ts` | 427 → 140 | `generateReportCards`, `handleGradeValidatedDropDetection/Batch`, `handleGradeSubmitted` | `DetecterChuteMoyenneUseCase` (`NoteRepository`), `GenererBulletinsInngestUseCase`/`RelancerValidationNotesUseCase` (`User/Note/Presence/Bulletin/StaffProfileRepository`) |
+| `health.ts` | 424 → ~140 | `computeStudentHealthScores`, `handleCritical/Warning/Positive`, `sendProfessorPrincipalDigest` | `CalculerScoresSanteUseCase`, `GererAlertesSanteUseCase`, `EnvoyerDigestProfPrincipalUseCase` (`HealthJobsRepository` + `SanteEleveRepository`) |
+| `finance.ts` | 311 → ~120 | `sendPaymentReminders`, `checkAbsenceThreshold`, `markOverdueLoans` | `EnvoyerRappelsPaiementUseCase`, `VerifierSeuilAbsencesUseCase`, `MarquerRetardsPretUseCase` (`FinanceJobsRepository`) |
+| `academic.ts` | 341 → 165 | `checkAcademicEvents`, `checkOrientationCheckpoints`, `checkSuspiciousAiActionPattern`, `handleTimetableSeancesAppliquees` | `VerifierEvenementsAcademiquesUseCase` (`AcademicEventRepository`), `VerifierOrientationCheckpointsUseCase` (`IOrientationRepository`+`GradeOrientationRepository`), `DetecterPatternSuspicieuxUseCase` (`AIActionAuditQueryPort`) |
+| `maintenance.ts` | 224 → 83 | `purgeSchoolLogs`, `purgeAnnoncesExpirees`, `purgerCorbeille`, `BackupSchoolDataJob` | `PurgerLogsEcole/Annonces/Corbeille/SauvegarderEcoleUseCase` (`Journal/Corbeille/SauvegardeRepository`) |
+| + `eleveOnboardingJobs.ts` `hrSelfServiceJobs.ts` `paiementJobs.ts` | 121+130+156 → ~30 chacun | 1-3 fonc. chacun | `RelanceOnboardingUseCase`, `RelanceProfilRHUseCase`, `SyncCarteScolaire/RelancePaiements/AuditMatriculesUseCase` |
 
-- Violation S partiellement levée : 1 responsabilité/fichier (bulletins, santé, finance, académique, maintenance).
-- Logique métier inline (chute moyenne `reportCards.ts:≈796`, seuils `academic.ts:≈1476`) **gardée** — `// ponytail: single caller, UC quand second besoin` (pas de 2e caller).
+```
+grep -rn "prisma\." src/infrastructure/inngest/functions --include="*.ts" | grep -v "from.*prisma" | grep -v "new Prisma" → 0
+grep -rn "prisma\." src/infrastructure/inngest/functions/reportCards.ts → 0
+wc -l functions/* → total ~1200 (1755 → ~800 sans barrel)
+```
 
 ---
 

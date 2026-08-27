@@ -18,4 +18,6 @@ export interface GradeOrientationRepository {
   findGradesPourTendances(schoolId: string, studentId: string, subjectNames: string[]): Promise<GradeTendanceEntry[]>;
   /** Premier grade validé/verrouillé de l'élève —用于 calculer la profondeur de données. */
   findEarliestGradeYearStart(schoolId: string, studentId: string): Promise<Date | null>;
+  /** Existence d'au moins une note validée/verrouillée — seuil minimal avant génération. */
+  hasValidatedGrade(schoolId: string, studentId: string): Promise<boolean>;
 }

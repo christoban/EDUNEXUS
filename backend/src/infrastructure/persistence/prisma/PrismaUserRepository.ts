@@ -442,6 +442,87 @@ export class PrismaUserRepository implements UserRepository {
       .filter((email): email is string => !!email);
   }
 
+  async findStudentsForBulletinGeneration(
+    schoolId: string,
+    filters: { classId?: string | null; studentId?: string | null },
+  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string | null; classId: string | null }>> {
+    const where: any = {
+      schoolId,
+      role: 'STUDENT' as const,
+      isActive: true,
+      ...(filters.studentId ? { id: filters.studentId } : {}),
+      ...(filters.classId ? whereElevesParClasse(filters.classId) : {}),
+    };
+    const data = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        studentProfile: {
+          select: {
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+              select: { classId: true },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+    return data.map((u: any) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      email: u.email ?? null,
+      classId: u.studentProfile?.enrollmentsYearScoped?.[0]?.classId ?? null,
+    }));
+  }
+
+  async findStudentNotificationContext(
+    studentId: string,
+  ): Promise<{ id: string; firstName: string; lastName: string; email: string | null; sectionCode: string | null; parents: Array<{ email: string; userId: string }> } | null> {
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        studentProfile: {
+          include: {
+            enrollmentsYearScoped: {
+              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+              take: 1,
+              include: { class: { select: { section: { select: { code: true } } } } },
+            },
+            parents: {
+              include: {
+                parentProfile: {
+                  include: { user: { select: { id: true, email: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!student) return null;
+    const sectionCode = (student as any).studentProfile?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null;
+    const parents = ((student as any).studentProfile?.parents ?? [])
+      .map((p: any) => p.parentProfile?.user ? { email: p.parentProfile.user.email, userId: p.parentProfile.user.id } : null)
+      .filter((r: any): r is { email: string; userId: string } => Boolean(r?.email));
+    return {
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      email: student.email ?? null,
+      sectionCode,
+      parents,
+    };
+  }
+
   async findAuthDataById(id: string): Promise<AuthUserData | null> {
     return this.prisma.user.findUnique({
       where: { id },

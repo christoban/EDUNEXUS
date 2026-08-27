@@ -197,6 +197,43 @@ export class InMemoryUserRepository implements UserRepository {
       .map(user => user.email!);
   }
 
+  async findStudentsForBulletinGeneration(
+    schoolId: string,
+    filters: { classId?: string | null; studentId?: string | null },
+  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string | null; classId: string | null }>> {
+    return [...this.store.values()]
+      .filter(u => u.schoolId === schoolId && u.role === 'STUDENT' && this.estActif(u) && u.isActive)
+      .filter(u => !filters.studentId || u.id === filters.studentId)
+      .filter(u => !filters.classId || this.classesParEleve.get(u.id) === filters.classId)
+      .map(u => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email ?? null,
+        classId: this.classesParEleve.get(u.id) ?? null,
+      }));
+  }
+
+  async findStudentNotificationContext(
+    studentId: string,
+  ): Promise<{ id: string; firstName: string; lastName: string; email: string | null; sectionCode: string | null; parents: Array<{ email: string; userId: string }> } | null> {
+    const student = this.store.get(studentId);
+    if (!student || !this.estActif(student)) return null;
+    const parentIds = this.parentsParEleve.get(studentId) ?? new Set();
+    const parents = [...this.store.values()]
+      .filter(u => parentIds.has(u.id) && u.email && this.estActif(u))
+      .map(u => ({ email: u.email!, userId: u.id }));
+    // sectionCode non suivi en mémoire (pas de SectionRepository simulé) — null
+    return {
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      email: student.email ?? null,
+      sectionCode: null,
+      parents,
+    };
+  }
+
   private authData = new Map<string, { mfaEnabled: boolean; mfaSecret: string | null; mfaTempSecret: string | null; mfaRecoveryCodeHashes: string[] }>();
 
   async findAuthDataById(id: string) {

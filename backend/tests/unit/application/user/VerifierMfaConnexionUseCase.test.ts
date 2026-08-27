@@ -27,6 +27,8 @@ function userRepoMock(user: AuthUserData | null): UserRepository {
     restaurer: async () => {},
     transfererEleve: async () => {},
     findEmailsParentsParEleve: async () => [],
+    findStudentsForBulletinGeneration: async () => [],
+    findStudentNotificationContext: async () => null,
     findAuthDataById: async () => store.user,
     saveLoginEmailOtp: async () => {},
     incrementLoginEmailOtpAttempts: async () => {},

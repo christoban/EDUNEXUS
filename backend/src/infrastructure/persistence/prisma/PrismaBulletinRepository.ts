@@ -160,6 +160,53 @@ export class PrismaBulletinRepository implements BulletinRepository {
     await this.prisma.reportCard.delete({ where: { id } });
   }
 
+  async upsertBulletin(data: { schoolId: string; studentId: string; academicYearId: string; academicPeriodId: string; generalAverage: number; rank: number | null; mention: string; absenceCount: number }): Promise<{ id: string }> {
+    const reportCard = await this.prisma.reportCard.upsert({
+      where: { studentId_academicPeriodId: { studentId: data.studentId, academicPeriodId: data.academicPeriodId } },
+      create: {
+        schoolId: data.schoolId,
+        studentId: data.studentId,
+        academicYearId: data.academicYearId,
+        academicPeriodId: data.academicPeriodId,
+        generalAverage: Math.round(data.generalAverage * 100) / 100,
+        rank: data.rank,
+        mention: data.mention,
+        absenceCount: data.absenceCount,
+        isGenerated: true,
+      },
+      update: {
+        generalAverage: Math.round(data.generalAverage * 100) / 100,
+        rank: data.rank,
+        mention: data.mention,
+        absenceCount: data.absenceCount,
+        isGenerated: true,
+      },
+    });
+    return { id: reportCard.id };
+  }
+
+  async upsertLigneMatiere(reportCardId: string, ligne: { subjectId: string; subjectName: string; coefficient: number; seq1Score: number | null; seq2Score: number | null; subjectAverage: number }): Promise<void> {
+    await this.prisma.reportCardSubjectLine.upsert({
+      where: { reportCardId_subjectId: { reportCardId, subjectId: ligne.subjectId } },
+      create: {
+        reportCardId,
+        subjectId: ligne.subjectId,
+        subjectName: ligne.subjectName,
+        coefficient: ligne.coefficient,
+        seq1Score: ligne.seq1Score,
+        seq2Score: ligne.seq2Score,
+        subjectAverage: Math.round(ligne.subjectAverage * 100) / 100,
+      },
+      update: {
+        subjectName: ligne.subjectName,
+        coefficient: ligne.coefficient,
+        seq1Score: ligne.seq1Score,
+        seq2Score: ligne.seq2Score,
+        subjectAverage: Math.round(ligne.subjectAverage * 100) / 100,
+      },
+    });
+  }
+
   private toDomain(data: any): Bulletin {
     return Bulletin.reconstituer({
       id: data.id,

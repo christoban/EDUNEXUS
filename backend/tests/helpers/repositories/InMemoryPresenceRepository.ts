@@ -66,6 +66,10 @@ export class InMemoryPresenceRepository implements PresenceRepository {
     ).length;
   }
 
+  async countAbsencesEtRetards(schoolId: string, studentId: string, academicPeriodId: string): Promise<number> {
+    return [...this.store.values()].filter(p => p.schoolId === schoolId && p.studentId === studentId && p.toObject().academicPeriodId === academicPeriodId && (p.status === 'ABSENT' || p.status === 'LATE')).length;
+  }
+
   async countAbsencesConsecutives(studentId: string): Promise<number> {
     const dernieres = [...this.store.values()]
       .filter(presence => presence.studentId === studentId)

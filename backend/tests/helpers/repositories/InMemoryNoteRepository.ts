@@ -219,6 +219,28 @@ export class InMemoryNoteRepository implements NoteRepository {
     }
   }
 
+  async findForBulletin(params: { schoolId: string; studentId: string; academicYearId: string; classId: string; sequenceIds: string[] }): Promise<Note[]> {
+    return [...this.store.values()].filter(n => {
+      const d = n.toObject();
+      return d.schoolId === params.schoolId && d.studentId === params.studentId && d.academicYearId === params.academicYearId && d.classId === params.classId && params.sequenceIds.includes(d.sequenceId);
+    });
+  }
+
+  async groupMoyennesPourPeriode(params: { schoolId: string; classId: string; academicYearId: string; sequenceIds: string[] }): Promise<Array<{ studentId: string; average: number }>> {
+    const notes = [...this.store.values()].filter(n => {
+      const d = n.toObject();
+      return d.schoolId === params.schoolId && d.classId === params.classId && d.academicYearId === params.academicYearId && params.sequenceIds.includes(d.sequenceId) && (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED');
+    });
+    const byStudent = new Map<string, number[]>();
+    for (const n of notes) {
+      const avg = n.sequenceAverage ?? 0;
+      const arr = byStudent.get(n.studentId) ?? [];
+      arr.push(avg);
+      byStudent.set(n.studentId, arr);
+    }
+    return [...byStudent.entries()].map(([studentId, avgs]) => ({ studentId, average: avgs.reduce((s, a) => s + a, 0) / avgs.length })).sort((a, b) => b.average - a.average);
+  }
+
   compter(): number {
     return this.store.size;
   }

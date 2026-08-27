@@ -23,4 +23,8 @@ export interface BulletinRepository {
   update(bulletin: Bulletin): Promise<void>;
   updatePdfUrl(bulletinId: string, pdfUrl: string): Promise<void>;
   delete(id: string): Promise<void>;
+
+  // Inngest — upsert direct (reportCards inngest historique)
+  upsertBulletin(data: { schoolId: string; studentId: string; academicYearId: string; academicPeriodId: string; generalAverage: number; rank: number | null; mention: string; absenceCount: number }): Promise<{ id: string }>;
+  upsertLigneMatiere(reportCardId: string, ligne: { subjectId: string; subjectName: string; coefficient: number; seq1Score: number | null; seq2Score: number | null; subjectAverage: number }): Promise<void>;
 }

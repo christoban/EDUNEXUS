@@ -64,4 +64,14 @@ export interface AcademicEventRepository {
     closeDate: Date | null;
     status: string;
   }[]>;
+
+  // --- Méthodes batch pour VerifierEvenementsAcademiquesUseCase (seuils Inngest) ---
+  trouverAOuvrir(schoolId: string, maintenant: Date): Promise<AcademicEventData[]>;
+  trouverActifsAvecClotureSansRappel(schoolId: string): Promise<AcademicEventData[]>;
+  trouverFenetresGlissantes(schoolId: string, maintenant: Date): Promise<AcademicEventData[]>;
+  trouverACloturer(schoolId: string, maintenant: Date): Promise<Pick<AcademicEventData, 'id' | 'type' | 'linkedResourceId'>[]>;
+  mettreAJourRappel(id: string, date: Date): Promise<void>;
+  mettreAJourCloture(id: string, closeDate: Date): Promise<void>;
+  mettreAJourStatutEtRessource(id: string, data: { status: string; linkedResourceId: string | null }): Promise<void>;
+  cloturerParIds(ids: string[]): Promise<void>;
 }

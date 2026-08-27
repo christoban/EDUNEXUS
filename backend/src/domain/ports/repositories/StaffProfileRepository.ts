@@ -18,4 +18,8 @@ export interface StaffProfileRepository {
   assignerAP(userId: string, schoolId: string, permissions: StaffPermissionType[], departmentSubjectIds: string[]): Promise<void>;
   /** REMOVE — tx atomique : retire permissions, supprime le profil si vide, vide supervisedSubjectIds. */
   retirerAP(userId: string, permissions: StaffPermissionType[]): Promise<void>;
+  /** Retourne les userId des conseillers d'orientation (permission MANAGE_ORIENTATION) pour une école. */
+  findConseillersOrientation(schoolId: string): Promise<string[]>;
+  /** Inngest — relance validation notes : censeurs (permission VALIDATE_GRADES) */
+  findCenseurs(schoolId: string): Promise<Array<{ userId: string; email: string | null; firstName: string }>>;
 }

@@ -261,6 +261,41 @@ export class PrismaNoteRepository implements NoteRepository {
     return data.map(d => this.toDomain(d));
   }
 
+  async findForBulletin(params: { schoolId: string; studentId: string; academicYearId: string; classId: string; sequenceIds: string[] }): Promise<Note[]> {
+    const data = await this.prisma.grade.findMany({
+      where: {
+        schoolId: params.schoolId,
+        studentId: params.studentId,
+        academicYearId: params.academicYearId,
+        classId: params.classId,
+        sequenceId: { in: params.sequenceIds },
+      },
+      include: { subject: { select: { id: true, name: true, coefficient: true } } },
+    });
+    // Conserve le subject inclus pour enrichissement côté use case (coefficient/name)
+    return data.map((d: any) => {
+      const note = this.toDomain(d);
+      // Attache subject en propriété non typée pour usage inngest historique (facultatif)
+      (note as any).__subject = d.subject;
+      return note;
+    });
+  }
+
+  async groupMoyennesPourPeriode(params: { schoolId: string; classId: string; academicYearId: string; sequenceIds: string[] }): Promise<Array<{ studentId: string; average: number }>> {
+    const rows = await this.prisma.grade.groupBy({
+      by: ['studentId'],
+      where: {
+        schoolId: params.schoolId,
+        classId: params.classId,
+        academicYearId: params.academicYearId,
+        sequenceId: { in: params.sequenceIds },
+      },
+      _avg: { sequenceAverage: true },
+      orderBy: { _avg: { sequenceAverage: 'desc' } },
+    });
+    return rows.map(r => ({ studentId: r.studentId, average: r._avg.sequenceAverage ?? 0 }));
+  }
+
   private toDomain(data: any): Note {
     return Note.reconstituer({
       id: data.id,

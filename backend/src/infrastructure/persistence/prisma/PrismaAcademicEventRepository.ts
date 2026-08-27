@@ -96,4 +96,46 @@ export class PrismaAcademicEventRepository implements AcademicEventRepository {
       },
     });
   }
+
+  async trouverAOuvrir(schoolId: string, maintenant: Date): Promise<AcademicEventData[]> {
+    return this.prisma.academicEvent.findMany({
+      where: { schoolId, status: 'UPCOMING', category: 'FIXED_DATE', openDate: { lte: maintenant } },
+    }) as Promise<AcademicEventData[]>;
+  }
+
+  async trouverActifsAvecClotureSansRappel(schoolId: string): Promise<AcademicEventData[]> {
+    return this.prisma.academicEvent.findMany({
+      where: { schoolId, status: 'ACTIVE', closeDate: { not: null }, reminderSentAt: null },
+    }) as Promise<AcademicEventData[]>;
+  }
+
+  async trouverFenetresGlissantes(schoolId: string, maintenant: Date): Promise<AcademicEventData[]> {
+    return this.prisma.academicEvent.findMany({
+      where: { schoolId, status: 'ACTIVE', category: 'SLIDING_WINDOW', closeDate: { not: null, gt: maintenant } },
+    }) as Promise<AcademicEventData[]>;
+  }
+
+  async trouverACloturer(schoolId: string, maintenant: Date): Promise<Pick<AcademicEventData, 'id' | 'type' | 'linkedResourceId'>[]> {
+    return this.prisma.academicEvent.findMany({
+      where: { schoolId, status: 'ACTIVE', closeDate: { lte: maintenant } },
+      select: { id: true, type: true, linkedResourceId: true },
+    }) as Promise<Pick<AcademicEventData, 'id' | 'type' | 'linkedResourceId'>[]>;
+  }
+
+  async mettreAJourRappel(id: string, date: Date): Promise<void> {
+    await this.prisma.academicEvent.update({ where: { id }, data: { reminderSentAt: date } as any });
+  }
+
+  async mettreAJourCloture(id: string, closeDate: Date): Promise<void> {
+    await this.prisma.academicEvent.update({ where: { id }, data: { closeDate } as any });
+  }
+
+  async mettreAJourStatutEtRessource(id: string, data: { status: string; linkedResourceId: string | null }): Promise<void> {
+    await this.prisma.academicEvent.update({ where: { id }, data: { status: data.status as any, linkedResourceId: data.linkedResourceId } as any });
+  }
+
+  async cloturerParIds(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.prisma.academicEvent.updateMany({ where: { id: { in: ids } }, data: { status: 'CLOSED' as any } });
+  }
 }

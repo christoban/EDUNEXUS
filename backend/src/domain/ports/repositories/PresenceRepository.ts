@@ -49,6 +49,9 @@ export interface PresenceRepository {
   /** Upsert d'enregistrements de présence (SMS) : crée ou met à jour selon l'existant. */
   synchroniserPresencesSms(records: PresenceSmsRecord[]): Promise<void>;
 
+  // Inngest — bulletins : ABSENT + LATE
+  countAbsencesEtRetards(schoolId: string, studentId: string, academicPeriodId: string): Promise<number>;
+
   // Sync hors ligne
   findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]>;
 }
