@@ -1,11 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { StatisticsQueryRepository } from '@domain/ports/repositories/StatisticsQueryRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 const GRADE_STATUSES_VALIDES = ['VALIDATED', 'LOCKED'] as const;
 
 export class StatisticsController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly statRepo: StatisticsQueryRepository,
+    private readonly audit: AIActionAuditPort
+  ) {}
 
   // GET /grades-evolution?classId=&subjectId=&studentId= — moyenne par séquence de l'année en cours
   gradesEvolution = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -15,35 +18,14 @@ export class StatisticsController {
         classId?: string; subjectId?: string; studentId?: string;
       };
 
-      const annee = await this.prisma.academicYear.findFirst({
-        where: { schoolId: user.schoolId, isCurrent: true },
-        select: { id: true },
-      });
+      const annee = await this.statRepo.findCurrentAcademicYear(user.schoolId);
       if (!annee) {
         res.json({ success: true, data: [] });
         return;
       }
 
-      const grades = await this.prisma.grade.findMany({
-        where: {
-          schoolId: user.schoolId,
-          academicYearId: annee.id,
-          validationStatus: { in: [...GRADE_STATUSES_VALIDES] },
-          ...(classId ? { classId } : {}),
-          ...(subjectId ? { subjectId } : {}),
-          ...(studentId ? { studentId } : {}),
-        },
-        select: {
-          sequenceAverage: true,
-          sequence: {
-            select: {
-              id: true,
-              name: true,
-              orderIndex: true,
-              academicPeriod: { select: { name: true } },
-            },
-          },
-        },
+      const grades = await this.statRepo.findGradesEvolution(user.schoolId, annee.id, {
+        classId, subjectId, studentId,
       });
 
       const index = new Map<string, { name: string; orderIndex: number; periodName: string; values: number[] }>();
@@ -72,7 +54,7 @@ export class StatisticsController {
         }))
         .sort((a, b) => a.orderIndex - b.orderIndex);
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'evolution_moyenne_generale', origin: 'UI_DIRECT', outcome: 'SUCCES',
         parametersSummary: { classId, subjectId, studentId },
@@ -80,7 +62,7 @@ export class StatisticsController {
       res.json({ success: true, data });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'evolution_moyenne_generale', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.query,
@@ -95,34 +77,21 @@ export class StatisticsController {
       const user = req.user;
       const { level } = req.query as { level?: string };
 
-      const annee = await this.prisma.academicYear.findFirst({
-        where: { schoolId: user.schoolId, isCurrent: true },
-        select: { id: true },
-      });
+      const annee = await this.statRepo.findCurrentAcademicYear(user.schoolId);
       if (!annee) {
         res.json({ success: true, data: [] });
         return;
       }
 
-      const classes = await this.prisma.class.findMany({
-        where: { schoolId: user.schoolId, ...(level ? { level } : {}) },
-        select: { id: true, name: true, level: true },
-        orderBy: { name: 'asc' },
-      });
+      const classes = await this.statRepo.findClassesByLevel(user.schoolId, level);
       if (classes.length === 0) {
         res.json({ success: true, data: [] });
         return;
       }
 
-      const grades = await this.prisma.grade.findMany({
-        where: {
-          schoolId: user.schoolId,
-          academicYearId: annee.id,
-          classId: { in: classes.map((c) => c.id) },
-          validationStatus: { in: [...GRADE_STATUSES_VALIDES] },
-        },
-        select: { classId: true, studentId: true, sequenceAverage: true },
-      });
+      const grades = await this.statRepo.findGradesForClassComparison(
+        user.schoolId, annee.id, classes.map((c) => c.id)
+      );
 
       const index = new Map<string, { values: number[]; students: Set<string> }>();
       for (const g of grades) {
@@ -147,7 +116,7 @@ export class StatisticsController {
         };
       });
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'classement_classes', origin: 'UI_DIRECT', outcome: 'SUCCES',
         parametersSummary: { level },
@@ -155,7 +124,7 @@ export class StatisticsController {
       res.json({ success: true, data });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'classement_classes', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.query,
@@ -171,10 +140,7 @@ export class StatisticsController {
       const criteria = (req.query.criteria as string) || 'gender';
 
       if (criteria === 'gender') {
-        const profiles = await this.prisma.studentProfile.findMany({
-          where: { studentStatus: 'ACTIVE', user: { schoolId: user.schoolId } },
-          select: { gender: true },
-        });
+        const profiles = await this.statRepo.findStudentsGenderDistribution(user.schoolId);
         const counts = new Map<string, number>();
         for (const p of profiles) {
           const label = p.gender || 'Non renseigné';
@@ -185,16 +151,7 @@ export class StatisticsController {
       }
 
       if (criteria === 'level') {
-        const profiles = await this.prisma.studentProfile.findMany({
-          where: { studentStatus: 'ACTIVE', user: { schoolId: user.schoolId } },
-          select: {
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-              select: { class: { select: { level: true } } },
-              take: 1,
-            },
-          },
-        });
+        const profiles = await this.statRepo.findStudentsLevelDistribution(user.schoolId);
         const counts = new Map<string, number>();
         for (const p of profiles) {
           const label = p.enrollmentsYearScoped?.[0]?.class?.level || 'Non assigné';
@@ -205,10 +162,7 @@ export class StatisticsController {
       }
 
       if (criteria === 'paymentStatus') {
-        const invoices = await this.prisma.invoice.findMany({
-          where: { schoolId: user.schoolId, status: { not: 'CANCELLED' } },
-          select: { studentId: true, status: true },
-        });
+        const invoices = await this.statRepo.findInvoicesPaymentStatuses(user.schoolId);
 
         const byStudent = new Map<string, Set<string>>();
         for (const inv of invoices) {
@@ -240,39 +194,20 @@ export class StatisticsController {
       const user = req.user;
       const teacherId = req.params.teacherId as string;
 
-      const teacher = await this.prisma.user.findFirst({
-        where: { id: teacherId, schoolId: user.schoolId, role: 'TEACHER' },
-        select: { id: true, firstName: true, lastName: true },
-      });
+      const teacher = await this.statRepo.findTeacherById(user.schoolId, teacherId);
       if (!teacher) {
         res.status(404).json({ success: false, message: 'Enseignant introuvable' });
         return;
       }
 
-      const assignments = await this.prisma.teachingAssignment.findMany({
-        where: { teacherId, schoolId: user.schoolId },
-        select: {
-          subjectId: true,
-          classId: true,
-          subject: { select: { name: true, hoursPerWeek: true } },
-          class: { select: { name: true } },
-        },
-      });
+      const assignments = await this.statRepo.findTeachingAssignmentsForTeacher(user.schoolId, teacherId);
 
       const heuresPrevuesParSemaine = assignments.reduce((sum, a) => sum + a.subject.hoursPerWeek, 0);
       const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
       const classIds = [...new Set(assignments.map((a) => a.classId))];
 
       const grades = subjectIds.length > 0
-        ? await this.prisma.grade.findMany({
-            where: {
-              schoolId: user.schoolId,
-              subjectId: { in: subjectIds },
-              classId: { in: classIds },
-              validationStatus: { in: [...GRADE_STATUSES_VALIDES] },
-            },
-            select: { subjectId: true, classId: true, sequenceAverage: true },
-          })
+        ? await this.statRepo.findGradesForTeacherPerformance(user.schoolId, subjectIds, classIds)
         : [];
 
       const gradeIndex = new Map<string, number[]>();
@@ -291,10 +226,7 @@ export class StatisticsController {
       });
 
       const attendances = classIds.length > 0
-        ? await this.prisma.attendance.findMany({
-            where: { schoolId: user.schoolId, teacherId, classId: { in: classIds } },
-            select: { status: true, date: true, classId: true, subjectId: true },
-          })
+        ? await this.statRepo.findAttendanceForTeacher(user.schoolId, teacherId, classIds)
         : [];
 
       const tauxPresence = attendances.length > 0

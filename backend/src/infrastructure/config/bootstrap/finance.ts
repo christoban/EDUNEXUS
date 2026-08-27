@@ -18,6 +18,7 @@ import { PrismaSchoolRepository } from '@infrastructure/persistence/prisma/Prism
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
 import { PrismaDepartmentRepository } from '@infrastructure/persistence/prisma/PrismaDepartmentRepository';
 import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
+import { PrismaStatisticsQueryRepository } from '@infrastructure/persistence/prisma/PrismaStatisticsQueryRepository';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
@@ -64,7 +65,10 @@ export function registerFinanceRoutes(app: Application, prismaParam: typeof pris
   );
   app.use('/api/v2/departments', creerDepartmentRoutes(departmentController));
 
-  const statisticsController = new StatisticsController(p as any);
+  const statisticsController = new StatisticsController(
+    new PrismaStatisticsQueryRepository(p as any),
+    auditForFinance,
+  );
   app.use('/api/v2/statistics', creerStatisticsRoutes(statisticsController));
 
   const communicationsController = new CommunicationsController(p as any);
