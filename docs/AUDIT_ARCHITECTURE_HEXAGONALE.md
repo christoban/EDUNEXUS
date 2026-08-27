@@ -203,16 +203,20 @@ wc -l functions/* → total ~1200 (1755 → ~800 sans barrel)
 
 ---
 
-## 1.7 🟠 `hexagonal.bootstrap.ts` = 3075 lignes (usine à DI monolithique)
+## 1.7 🟠 Partiellement résolu — hexagonal.bootstrap 3200 → 25 + 7 fichiers (ponytail: infra 1748 single misc)
 
-66 controllers + 40+ use cases instanciés dans un seul fichier de 3075 lignes / 191 imports.
+> **Statut : partiellement résolu (ponytail full)** — 3200 → 25 barrel + 7 composition roots (`grade:202`, `user:182`, `finance:72`, `academic:114`, `core:1061`, `hr:180`, `infra:1748`), `server.ts` inchangé.
 
-- Conforme fonctionnellement (rôle de composition), mais intenable : chaque ajout modifie ce fichier énorme, conflits Git fréquents.
+66 controllers + 40+ use cases — `hexagonal.bootstrap.ts` = **3200 → 25** (`export function bootstrapHexagonal` qui appelle 7 `register*`), chaque `bootstrap/*.ts` = 1 bounded context.
 
-### Propositions
+```
+wc -l hexagonal.bootstrap.ts bootstrap/*.ts → 25 + 202+182+72+114+1061+180+1748 = 3584 (même code, 7 fichiers)
+grep -rn "prisma\." bootstrap/infra.ts | wc -l → ~30 (misc `GET /users|classes` + `library` + `LV2/PEBS` — single caller, ponytail)
+```
 
-- Éclater par bounded context : `bootstrap/gradeBootstrap.ts`, `bootstrap/financeBootstrap.ts`, `bootstrap/userBootstrap.ts`... (patterns "composition roots").
-- Le container `container.ts` (803 lignes) est dans le même cas → fusionner ou répartir proprement les responsabilités.
+- Conforme fonctionnellement, conflits Git réduits : chaque ajout touche 1 fichier de domaine, plus 1 barrel de 25 lignes.
+- `infra.ts:1748` reste >500 — contient `GET` + `library` + `LV2/PEBS/A-Level` misc, `// ponytail: single misc, split quand second bounded context` (pas de 2e caller).
+- `container.ts:898` gardé tel quel — `// ponytail: single container, split quand `creerContainer` a 2 callers` (`hexagonal.bootstrap.ts:8` seul caller).
 
 ---
 
