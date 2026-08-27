@@ -114,6 +114,7 @@ function timetableRepositoryStub(edt: EmploiDuTemps, occupation: CreneauOccupe[]
     compterSalles: async () => 0,
     compterMatieres: async () => 0,
     findClassIdsAvecEdtPublie: async () => [],
+    findSlotsEnseignantJour: async () => [],
   };
 }
 

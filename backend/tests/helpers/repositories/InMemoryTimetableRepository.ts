@@ -3,6 +3,7 @@ import { CreneauHoraire } from '@domain/entities/CreneauHoraire';
 import type {
   TimetableRepository,
   CreneauConflitInfo,
+  SlotEnseignantJour,
 } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauALoter } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
@@ -199,4 +200,5 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   async compterSalles(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async compterMatieres(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async findClassIdsAvecEdtPublie(_schoolId: string, _academicYearId: string): Promise<string[]> { return []; }
+  async findSlotsEnseignantJour(_teacherId: string, _dayOfWeek: number, _schoolId: string, _academicYearId?: string): Promise<SlotEnseignantJour[]> { return []; }
 }

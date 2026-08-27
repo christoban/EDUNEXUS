@@ -115,7 +115,16 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
   );
   app.use('/api/v2/academic-years', creerAcademicYearRoutes(academicYearController));
 
-  const pedagogieController = new PedagogieController(p as any);
+  const pedagogieController = new PedagogieController(
+    c.pedagogie.listerProgramme,
+    c.pedagogie.gererProgramme,
+    c.pedagogie.gererChapitre,
+    c.pedagogie.gererCahier,
+    c.pedagogie.calculerProgression,
+    c.pedagogie.obtenirSlot,
+    c.pedagogie.genererRapport,
+    new AIActionAuditAdapter(p as any),
+  );
   app.use('/api/v2/pedagogie', requireAuth, creerPedagogieRoutes(pedagogieController));
 
   app.use('/api/v2/onboarding', creerOnboardingRoutes(onboardingController));

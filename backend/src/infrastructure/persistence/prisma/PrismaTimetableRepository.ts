@@ -11,6 +11,7 @@ import type {
   EleveClasseAvecProfil,
   AffectationSolver,
   NomEnseignant,
+  SlotEnseignantJour,
 } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 import type { TimetableStatus, SlotKind } from '@domain/types/enums';
@@ -245,5 +246,38 @@ export class PrismaTimetableRepository implements TimetableRepository {
   async findClassIdsAvecEdtPublie(schoolId: string, academicYearId: string): Promise<string[]> {
     const timetables = await this.prisma.timetable.findMany({ where: { schoolId, academicYearId, status: 'PUBLISHED' }, select: { classId: true } });
     return timetables.map((t) => t.classId);
+  }
+
+  async findSlotsEnseignantJour(
+    teacherId: string,
+    dayOfWeek: number,
+    schoolId: string,
+    academicYearId?: string
+  ): Promise<SlotEnseignantJour[]> {
+    const slots = await this.prisma.timetableSlot.findMany({
+      where: {
+        teacherId,
+        dayOfWeek,
+        kind: 'CLASS',
+        timetable: {
+          schoolId,
+          ...(academicYearId ? { academicYearId } : {}),
+        },
+      },
+      include: {
+        subject: { select: { id: true, name: true } },
+        timetable: { select: { classId: true, class: { select: { name: true } } } },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+    return slots.map((s: any) => ({
+      id: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      subjectId: s.subjectId,
+      subjectName: s.subject?.name ?? null,
+      classId: s.timetable.classId,
+      className: s.timetable.class?.name ?? null,
+    }));
   }
 }

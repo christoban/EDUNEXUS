@@ -43,3 +43,27 @@ export type {
   DonneesVueConseil,
   DonneesVueConseilParEleve,
 } from './ClassCouncilPreviewQueryPort';
+export type {
+  ProgrammeRepository,
+  ProgrammeProps,
+  ProgrammeCreateData,
+  ProgrammeUpdateData,
+  ProgrammeFilters,
+} from './ProgrammeRepository';
+export type {
+  ChapitreRepository,
+  ChapitreProps,
+  ChapitreCreateData,
+  ChapitreUpdateData,
+} from './ChapitreRepository';
+export type {
+  CahierDeTexteRepository,
+  CahierDeTexteProps,
+  CahierDeTexteCreateData,
+  CahierDeTexteUpdateData,
+  CahierDeTexteFilters,
+} from './CahierDeTexteRepository';
+export type {
+  DepartmentRepository,
+  DepartmentProps,
+} from './DepartmentRepository';

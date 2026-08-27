@@ -21,6 +21,17 @@ export interface GridConfig {
   joursActifs: string[];
 }
 
+/** Créneau d'un enseignant pour un jour donné (pré-remplissage formulaire cahier de texte). */
+export interface SlotEnseignantJour {
+  id: string;
+  startTime: string;
+  endTime: string;
+  subjectId: string | null;
+  subjectName: string | null;
+  classId: string;
+  className: string | null;
+}
+
 /** Contexte d'un créneau résolu pour la résolution de participants (séance → classe/groupe). */
 export interface SlotContexte {
   schoolId: string;
@@ -200,6 +211,14 @@ export interface TimetableRepository {
 
   /** Ids de classes ayant un emploi du temps PUBLISHED pour une année — anomalies établissement. */
   findClassIdsAvecEdtPublie(schoolId: string, academicYearId: string): Promise<string[]>;
+
+  /** Créneaux CLASS d'un enseignant pour un jour, avec matière et classe (pré-remplissage). */
+  findSlotsEnseignantJour(
+    teacherId: string,
+    dayOfWeek: number,
+    schoolId: string,
+    academicYearId?: string
+  ): Promise<SlotEnseignantJour[]>;
 }
 
 /**

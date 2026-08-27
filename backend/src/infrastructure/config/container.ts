@@ -305,6 +305,21 @@ import { PrismaEleveOnboardingRepository } from '@infrastructure/persistence/pri
 import { PrismaImportUtilisateursRepository } from '@infrastructure/persistence/prisma/PrismaImportUtilisateursRepository';
 import { PrismaPushSubscriptionRepository } from '@infrastructure/persistence/prisma/PrismaPushSubscriptionRepository';
 
+// --- Adapters Persistence Pedagogie ---
+import { PrismaProgrammeRepository } from '@infrastructure/persistence/prisma/PrismaProgrammeRepository';
+import { PrismaChapitreRepository } from '@infrastructure/persistence/prisma/PrismaChapitreRepository';
+import { PrismaCahierDeTexteRepository } from '@infrastructure/persistence/prisma/PrismaCahierDeTexteRepository';
+import { PrismaDepartmentRepository } from '@infrastructure/persistence/prisma/PrismaDepartmentRepository';
+
+// --- Use Cases : Pedagogie ---
+import { ListerProgrammeUseCase } from '@application/pedagogie/ListerProgrammeUseCase';
+import { GererProgrammeUseCase } from '@application/pedagogie/GererProgrammeUseCase';
+import { GererChapitreUseCase } from '@application/pedagogie/GererChapitreUseCase';
+import { GererCahierDeTexteUseCase } from '@application/pedagogie/GererCahierDeTexteUseCase';
+import { CalculerProgressionProgrammeUseCase } from '@application/pedagogie/CalculerProgressionProgrammeUseCase';
+import { ObtenirSlotDuJourUseCase } from '@application/pedagogie/ObtenirSlotDuJourUseCase';
+import { GenererRapportPedagogieUseCase } from '@application/pedagogie/GenererRapportPedagogieUseCase';
+
 // --- Use Cases : Orientation ---
 import { CreerFicheOrientationUseCase } from '@application/orientation/CreerFicheOrientationUseCase';
 import { AjouterEntretienUseCase } from '@application/orientation/AjouterEntretienUseCase';
@@ -618,6 +633,19 @@ export function creerContainer() {
     timetableRepository, anneeRepository, schedulingGridAdapter,
   );
 
+  // 12bis. Use Cases — Pedagogie
+  const programmeRepository = new PrismaProgrammeRepository(prisma);
+  const chapitreRepository = new PrismaChapitreRepository(prisma);
+  const cahierDeTexteRepository = new PrismaCahierDeTexteRepository(prisma);
+  const departmentRepository = new PrismaDepartmentRepository(prisma);
+  const listerProgrammeUseCase = new ListerProgrammeUseCase(programmeRepository);
+  const gererProgrammeUseCase = new GererProgrammeUseCase(programmeRepository, anneeRepository);
+  const gererChapitreUseCase = new GererChapitreUseCase(chapitreRepository, programmeRepository);
+  const gererCahierUseCase = new GererCahierDeTexteUseCase(cahierDeTexteRepository, anneeRepository, rattachementRepository);
+  const calculerProgressionUseCase = new CalculerProgressionProgrammeUseCase(programmeRepository, cahierDeTexteRepository, classeRepository, anneeRepository);
+  const obtenirSlotUseCase = new ObtenirSlotDuJourUseCase(timetableRepository, anneeRepository);
+  const genererRapportUseCase = new GenererRapportPedagogieUseCase(cahierDeTexteRepository, departmentRepository, anneeRepository);
+
   // 13. Use Cases — AnneeAcademique
   const promotionRepository = new PrismaPromotionRepository(prisma, enrollmentRepository);
 
@@ -776,6 +804,15 @@ export function creerContainer() {
       genererTableauHonneur: genererTableauHonneurUseCase,
       genererTableauHonneurAnnuel: genererTableauHonneurAnnuelUseCase,
       classeCoefficientRepository,
+    },
+    pedagogie: {
+      listerProgramme: listerProgrammeUseCase,
+      gererProgramme: gererProgrammeUseCase,
+      gererChapitre: gererChapitreUseCase,
+      gererCahier: gererCahierUseCase,
+      calculerProgression: calculerProgressionUseCase,
+      obtenirSlot: obtenirSlotUseCase,
+      genererRapport: genererRapportUseCase,
     },
     subject: {
       creer: creerMatiereUseCase,

@@ -151,7 +151,7 @@ import { buildPayload, getLatestSchoolBackup } from '../../backup/SchoolBackupSe
 import type { PaymentMethod } from '@domain/types/enums';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import { executerBroadcast } from '@infrastructure/http/controllers/CommunicationsController';
-import { calculerAlertesRetardProgramme } from '@infrastructure/http/controllers/PedagogieController';
+import { calculerAlertesRetardProgramme } from '@infrastructure/services/pedagogie/AlerteRetardProgrammeService';
 import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../../services/sms/SmsNotificationService';
 import { notifierParentsPushDabord } from '../../services/notification/PushFirstNotifier';
 import { sendTransactionalEmail } from '../../services/email/EmailService';
