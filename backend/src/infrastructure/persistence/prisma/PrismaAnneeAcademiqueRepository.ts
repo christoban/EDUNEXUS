@@ -1,3 +1,4 @@
+// ponytail: 362l < 500l hard ceiling, single adapter — no split needed until >500l or 2nd impl
 import type { PrismaClient } from '@prisma/client';
 import type {
   AnneeAcademiqueRepository,

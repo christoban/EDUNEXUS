@@ -1,3 +1,4 @@
+// ponytail: 602l → ~530l via helpers, single adapter <800l ceiling, split when 2nd impl or >800l
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { IOrientationRepository, FicheListItem, FicheDetail, EntretienDetail, TestDetail, RecommandationDetail, SuiviDetail, OrientationStats, ListeFichesFilters, CheckpointConfigDetail, AspirationDetail, SerieActuelleDetail, EleveAOrienterDetail } from '@domain/ports/repositories/IOrientationRepository';
 import { FicheOrientation } from '@domain/entities/FicheOrientation';
@@ -5,6 +6,58 @@ import type { NiveauRisque, TypePreoccupation, TypeEntretien, MotifEntretien, St
 
 export class PrismaOrientationRepository implements IOrientationRepository {
   constructor(private readonly prisma: PrismaClient) {}
+
+  private readonly studentSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    studentProfile: {
+      select: {
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+          select: { class: { select: { name: true } } },
+          take: 1,
+        },
+      },
+    },
+  } satisfies Prisma.UserSelect;
+
+  private readonly enrollmentClassSelect = {
+    where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+    select: { class: { select: { name: true } } },
+    take: 1,
+  } as const;
+
+  private readonly enrollmentSerieSelect = {
+    where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+    select: { class: { select: { name: true, level: true, serie: true } } },
+    take: 1,
+  } as const;
+
+  private ficheWhere(schoolId: string, ficheId?: string): Prisma.FicheOrientationWhereInput {
+    return ficheId ? { id: ficheId, schoolId } : { schoolId };
+  }
+
+  private async upsertRecommandation(
+    ficheId: string,
+    studentId: string,
+    payload: Prisma.RecommandationSerieUncheckedUpdateInput,
+  ): Promise<RecommandationDetail> {
+    const existing = await this.prisma.recommandationSerie.findUnique({ where: { ficheOrientationId: ficheId } });
+    if (existing) {
+      const updated = await this.prisma.recommandationSerie.update({ where: { ficheOrientationId: ficheId }, data: payload as Prisma.RecommandationSerieUpdateInput });
+      return updated as RecommandationDetail;
+    }
+    const created = await this.prisma.recommandationSerie.create({
+      data: { ficheOrientationId: ficheId, studentId, ...(payload as unknown as Prisma.RecommandationSerieUncheckedCreateInput) },
+    });
+    return created as RecommandationDetail;
+  }
+
+  private async updateRecommandationStatus(id: string, patch: Prisma.RecommandationSerieUpdateInput): Promise<RecommandationDetail> {
+    const updated = await this.prisma.recommandationSerie.update({ where: { id }, data: patch });
+    return updated as RecommandationDetail;
+  }
 
   async findFicheByStudentAndYear(studentId: string, academicYearId: string): Promise<FicheOrientation | null> {
     const data = await this.prisma.ficheOrientation.findFirst({
@@ -16,7 +69,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
 
   async findFicheById(ficheId: string, schoolId: string): Promise<FicheOrientation | null> {
     const data = await this.prisma.ficheOrientation.findFirst({
-      where: { id: ficheId, schoolId },
+      where: this.ficheWhere(schoolId, ficheId),
     });
     if (!data) return null;
     return this.toDomain(data);
@@ -24,22 +77,9 @@ export class PrismaOrientationRepository implements IOrientationRepository {
 
   async findFicheDetailById(ficheId: string, schoolId: string): Promise<FicheDetail | null> {
     const data = await this.prisma.ficheOrientation.findFirst({
-      where: { id: ficheId, schoolId },
+      where: this.ficheWhere(schoolId, ficheId),
       include: {
-        student: {
-          select: {
-            id: true, firstName: true, lastName: true,
-            studentProfile: {
-              select: {
-                enrollmentsYearScoped: {
-                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-                  select: { class: { select: { name: true } } },
-                  take: 1,
-                },
-              },
-            },
-          },
-        },
+        student: { select: this.studentSelect },
         entretiens: { orderBy: { date: 'desc' } },
         tests: { orderBy: { datePassage: 'desc' } },
         recommandation: true,
@@ -70,33 +110,20 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     const { schoolId, classId, riskLevel, status, academicYearId, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      schoolId,
-      ...(riskLevel ? { riskLevel } : {}),
-      ...(status ? { status } : {}),
+    const where = {
+      ...this.ficheWhere(schoolId),
+      ...(riskLevel ? { riskLevel: riskLevel as any } : {}),
+      ...(status ? { status: status as any } : {}),
       ...(academicYearId ? { academicYearId } : {}),
       ...(classId ? { student: { studentProfile: { enrollmentsYearScoped: { some: { classId, status: 'ACTIVE', academicYear: { isCurrent: true } } } } } } : {}),
-    };
+    } as Prisma.FicheOrientationWhereInput;
 
     const [total, items] = await Promise.all([
       this.prisma.ficheOrientation.count({ where }),
       this.prisma.ficheOrientation.findMany({
         where,
         include: {
-          student: {
-            select: {
-              id: true, firstName: true, lastName: true,
-              studentProfile: {
-                select: {
-                  enrollmentsYearScoped: {
-                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-                    select: { class: { select: { name: true } } },
-                    take: 1,
-                  },
-                },
-              },
-            },
-          },
+          student: { select: this.studentSelect },
           _count: { select: { entretiens: true, tests: true, suivis: true } },
         },
         orderBy: { updatedAt: 'desc' },
@@ -172,10 +199,8 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     notes: string; recommendations: string; nextActions: string;
     parentNotified: boolean; followUpDate: Date; status: StatutEntretien;
   }>): Promise<EntretienDetail> {
-    // Contrôle de tenancy avant écriture : EntretienOrientation n'a pas de schoolId propre, on
-    // passe par sa fiche. Message volontairement identique à celui d'un entretien inexistant.
     const autorise = await this.prisma.entretienOrientation.findFirst({
-      where: { id: entretienId, fiche: { schoolId } },
+      where: { id: entretienId, fiche: this.ficheWhere(schoolId) },
       select: { id: true },
     });
     if (!autorise) throw new Error('Entretien introuvable');
@@ -230,50 +255,23 @@ export class PrismaOrientationRepository implements IOrientationRepository {
   async createOrUpdateRecommandation(ficheId: string, studentId: string, data: {
     serieActuelle: string; serieRecommandee: string; justification: string;
   }): Promise<RecommandationDetail> {
-    const existing = await this.prisma.recommandationSerie.findUnique({
-      where: { ficheOrientationId: ficheId },
+    return this.upsertRecommandation(ficheId, studentId, {
+      serieActuelle: data.serieActuelle,
+      serieRecommandee: data.serieRecommandee,
+      justification: data.justification,
+      status: 'PROPOSEE',
     });
-
-    if (existing) {
-      const updated = await this.prisma.recommandationSerie.update({
-        where: { ficheOrientationId: ficheId },
-        data: {
-          serieActuelle: data.serieActuelle,
-          serieRecommandee: data.serieRecommandee,
-          justification: data.justification,
-        },
-      });
-      return updated as RecommandationDetail;
-    }
-
-    const created = await this.prisma.recommandationSerie.create({
-      data: {
-        ficheOrientationId: ficheId,
-        studentId,
-        serieActuelle: data.serieActuelle,
-        serieRecommandee: data.serieRecommandee,
-        justification: data.justification,
-        status: 'PROPOSEE',
-      },
-    });
-    return created as RecommandationDetail;
   }
 
   async validerRecommandation(recommandationId: string, schoolId: string): Promise<RecommandationDetail> {
-    // Réutilise le lecteur déjà filtré par école plutôt que d'en réécrire un.
     const existante = await this.findRecommandationById(recommandationId, schoolId);
     if (!existante) throw new Error('Recommandation introuvable');
-
-    const updated = await this.prisma.recommandationSerie.update({
-      where: { id: recommandationId },
-      data: { adminValidated: true, status: 'VALIDEE_ADMIN' },
-    });
-    return updated as RecommandationDetail;
+    return this.updateRecommandationStatus(recommandationId, { adminValidated: true, status: 'VALIDEE_ADMIN' });
   }
 
   async findRecommandationById(recommandationId: string, schoolId: string): Promise<RecommandationDetail | null> {
     const reco = await this.prisma.recommandationSerie.findFirst({
-      where: { id: recommandationId, fiche: { schoolId } },
+      where: { id: recommandationId, fiche: this.ficheWhere(schoolId) },
     });
     return reco as RecommandationDetail | null;
   }
@@ -288,9 +286,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
   }): Promise<RecommandationDetail> {
     const tracks = data.suggestedTracks as Array<{ track: string; score: number }>;
     const topTrack = tracks?.[0]?.track ?? data.serieActuelle;
-
-    const existing = await this.prisma.recommandationSerie.findUnique({ where: { ficheOrientationId: ficheId } });
-    const payload = {
+    return this.upsertRecommandation(ficheId, studentId, {
       serieActuelle: data.serieActuelle,
       serieRecommandee: topTrack,
       justification: data.justification,
@@ -299,54 +295,25 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       confidenceLevel: data.confidenceLevel,
       dataDepthMonths: data.dataDepthMonths,
       status: 'CALCULEE' as StatutRecommandation,
-    };
-
-    if (existing) {
-      const updated = await this.prisma.recommandationSerie.update({
-        where: { ficheOrientationId: ficheId },
-        data: payload,
-      });
-      return updated as RecommandationDetail;
-    }
-
-    const created = await this.prisma.recommandationSerie.create({
-      data: { ficheOrientationId: ficheId, studentId, ...payload },
     });
-    return created as RecommandationDetail;
   }
 
   async validerRecommandationConseiller(recommandationId: string, serieRecommandee: string): Promise<RecommandationDetail> {
-    const updated = await this.prisma.recommandationSerie.update({
-      where: { id: recommandationId },
-      data: { serieRecommandee, status: 'VALIDEE_CONSEILLER' },
-    });
-    return updated as RecommandationDetail;
+    return this.updateRecommandationStatus(recommandationId, { serieRecommandee, status: 'VALIDEE_CONSEILLER' });
   }
 
   async proposerRecommandationEleve(recommandationId: string, responseDeadline: Date): Promise<RecommandationDetail> {
-    const updated = await this.prisma.recommandationSerie.update({
-      where: { id: recommandationId },
-      data: { status: 'PROPOSEE_A_L_ELEVE', responseDeadline },
-    });
-    return updated as RecommandationDetail;
+    return this.updateRecommandationStatus(recommandationId, { status: 'PROPOSEE_A_L_ELEVE', responseDeadline });
   }
 
   async choisirPisteEleve(recommandationId: string, track: string): Promise<RecommandationDetail> {
-    const updated = await this.prisma.recommandationSerie.update({
-      where: { id: recommandationId },
-      data: { status: 'VALIDEE_ELEVE', studentChosenTrack: track, finalTrack: track, finalizedAt: new Date() },
-    });
-    return updated as RecommandationDetail;
+    return this.updateRecommandationStatus(recommandationId, { status: 'VALIDEE_ELEVE', studentChosenTrack: track, finalTrack: track, finalizedAt: new Date() });
   }
 
   async finaliserParDefaut(recommandationId: string): Promise<RecommandationDetail> {
     const reco = await this.prisma.recommandationSerie.findUnique({ where: { id: recommandationId } });
     if (!reco) throw new Error('Recommandation introuvable');
-    const updated = await this.prisma.recommandationSerie.update({
-      where: { id: recommandationId },
-      data: { status: 'VALIDEE_PAR_DEFAUT', finalTrack: reco.serieRecommandee, finalizedAt: new Date() },
-    });
-    return updated as RecommandationDetail;
+    return this.updateRecommandationStatus(recommandationId, { status: 'VALIDEE_PAR_DEFAUT', finalTrack: reco.serieRecommandee, finalizedAt: new Date() });
   }
 
   async ajouterRappelEnvoye(recommandationId: string): Promise<void> {
@@ -363,7 +330,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
 
   async findRecommandationsParStatut(schoolId: string, status: StatutRecommandation): Promise<RecommandationDetail[]> {
     const recos = await this.prisma.recommandationSerie.findMany({
-      where: { status, fiche: { schoolId } },
+      where: { status, fiche: this.ficheWhere(schoolId) },
     });
     return recos as RecommandationDetail[];
   }
@@ -453,7 +420,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
   }
 
   async getStats(schoolId: string, academicYearId?: string): Promise<OrientationStats> {
-    const where: any = { schoolId, ...(academicYearId ? { academicYearId } : {}) };
+    const where: Prisma.FicheOrientationWhereInput = { ...this.ficheWhere(schoolId), ...(academicYearId ? { academicYearId } : {}) };
 
     const now = new Date();
     const debutMois = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -523,11 +490,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
     const profile = await this.prisma.studentProfile.findUnique({
       where: { userId: studentId },
       select: {
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { name: true, level: true, serie: true } } },
-          take: 1,
-        },
+        enrollmentsYearScoped: this.enrollmentSerieSelect,
       },
     });
     const classe = profile?.enrollmentsYearScoped[0]?.class ?? null;
@@ -554,11 +517,7 @@ export class PrismaOrientationRepository implements IOrientationRepository {
       },
       select: {
         userId: true,
-        enrollmentsYearScoped: {
-          where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-          select: { class: { select: { name: true } } },
-          take: 1,
-        },
+        enrollmentsYearScoped: this.enrollmentClassSelect,
         user: { select: { firstName: true, lastName: true } },
       },
     });

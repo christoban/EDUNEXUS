@@ -1,3 +1,4 @@
+// ponytail: 674l → 360l via helpers, single adapter <800l ceiling, split when 2nd impl or >800l
 import type { PrismaClient } from '@prisma/client';
 import { User } from '@domain/entities/User';
 import type { UserRepository, AuthUserData } from '@domain/ports/repositories/UserRepository';
@@ -7,353 +8,122 @@ import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async findById(id: string): Promise<User | null> {
-    const data = await this.prisma.user.findUnique({
-      where: { id },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    if (!data) return null;
-    return this.toDomain(data);
+  private readonly staffInclude = { staffProfile: { include: { permissions: true } } } as const;
+  private toDomainList(data: any[]): User[] { return data.map((item) => this.toDomain(item)); }
+  private async findDomain(where: any): Promise<User | null> {
+    const data = await this.prisma.user.findFirst({ where, include: this.staffInclude });
+    return data ? this.toDomain(data) : null;
+  }
+  private async patchUser(id: string, data: any): Promise<void> { await this.prisma.user.update({ where: { id }, data }); }
+  private async assertUserExists(id: string): Promise<void> {
+    const u = await this.prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (!u) throw new Error('Utilisateur introuvable');
+  }
+  private async compareHash(plain: string, hash: string): Promise<boolean> {
+    const bcrypt = await import('bcryptjs');
+    return bcrypt.compare(plain, hash);
+  }
+  private baseUserData(d: ReturnType<User['toObject']>) {
+    return { id: d.id, schoolId: d.schoolId, role: d.role, email: d.email, phone: d.phone, firstName: d.firstName, lastName: d.lastName, avatarUrl: d.avatarUrl, isActive: d.isActive, refreshTokenVersion: d.refreshTokenVersion, createdAt: d.createdAt, updatedAt: d.updatedAt };
   }
 
-  async findByEmail(email: string, schoolId: string): Promise<User | null> {
-    const data = await this.prisma.user.findFirst({
-      where: { email, schoolId },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    if (!data) return null;
-    return this.toDomain(data);
-  }
-
-  async findByPhone(phone: string, schoolId: string): Promise<User | null> {
-    const data = await this.prisma.user.findFirst({
-      where: { phone, schoolId },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    if (!data) return null;
-    return this.toDomain(data);
-  }
-
-  async findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null> {
-    const data = await this.prisma.user.findFirst({
-      where: { phone: { contains: phoneFragment }, schoolId },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    if (!data) return null;
-    return this.toDomain(data);
-  }
+  async findById(id: string): Promise<User | null> { return this.findDomain({ id }); }
+  async findByEmail(email: string, schoolId: string): Promise<User | null> { return this.findDomain({ email, schoolId }); }
+  async findByPhone(phone: string, schoolId: string): Promise<User | null> { return this.findDomain({ phone, schoolId }); }
+  async findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null> { return this.findDomain({ phone: { contains: phoneFragment }, schoolId }); }
 
   async findBySchool(schoolId: string): Promise<User[]> {
-    const data = await this.prisma.user.findMany({
-      where: { schoolId },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    return data.map((item) => this.toDomain(item));
+    const data = await this.prisma.user.findMany({ where: { schoolId }, include: this.staffInclude });
+    return this.toDomainList(data);
   }
-
   async findByRole(schoolId: string, role: UserRole): Promise<User[]> {
-    const data = await this.prisma.user.findMany({
-      where: { schoolId, role },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    return data.map((item) => this.toDomain(item));
+    const data = await this.prisma.user.findMany({ where: { schoolId, role }, include: this.staffInclude });
+    return this.toDomainList(data);
   }
-
   async findByClass(schoolId: string, classId: string): Promise<User[]> {
-    const data = await this.prisma.user.findMany({
-      where: { schoolId, role: 'STUDENT', ...whereElevesParClasse(classId) },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    return data.map((item) => this.toDomain(item));
+    const data = await this.prisma.user.findMany({ where: { schoolId, role: 'STUDENT', ...whereElevesParClasse(classId) }, include: this.staffInclude });
+    return this.toDomainList(data);
   }
-
   async existsByEmail(email: string, schoolId: string): Promise<boolean> {
     const count = await this.prisma.user.count({ where: { email, schoolId } });
     return count > 0;
   }
 
   async save(user: User): Promise<void> {
-    const data = user.toObject();
-
-    await this.prisma.user.create({
-      data: {
-        id: data.id,
-        schoolId: data.schoolId,
-        role: data.role,
-        email: data.email,
-        phone: data.phone,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        avatarUrl: data.avatarUrl,
-        isActive: data.isActive,
-        refreshTokenVersion: data.refreshTokenVersion,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-      },
-    });
-
-    if (data.role === 'STAFF' && data.staffPermissions && data.staffPermissions.length > 0) {
-      const staffProfile = await this.prisma.staffProfile.create({
-        data: {
-          userId: data.id,
-          schoolId: data.schoolId,
-          title: 'STAFF',
-          sectionId: data.staffSectionId,
-        },
-      });
-
-      await this.prisma.staffPermission.createMany({
-        data: data.staffPermissions.map((permission) => ({
-          staffProfileId: staffProfile.id,
-          permission,
-        })),
-      });
+    const d = user.toObject();
+    await this.prisma.user.create({ data: this.baseUserData(d) });
+    if (d.role === 'STAFF' && d.staffPermissions?.length) {
+      const staffProfile = await this.prisma.staffProfile.create({ data: { userId: d.id, schoolId: d.schoolId, title: 'STAFF', sectionId: d.staffSectionId } });
+      await this.prisma.staffPermission.createMany({ data: d.staffPermissions.map((permission) => ({ staffProfileId: staffProfile.id, permission })) });
     }
   }
 
   async update(user: User): Promise<void> {
-    const data = user.toObject();
-
-    await this.prisma.user.update({
-      where: { id: data.id },
-      data: {
-        email: data.email,
-        phone: data.phone,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        avatarUrl: data.avatarUrl,
-        isActive: data.isActive,
-        refreshTokenVersion: data.refreshTokenVersion,
-        lastLogin: data.lastLogin,
-        updatedAt: new Date(),
-      },
-    });
+    const d = user.toObject();
+    await this.patchUser(d.id, { email: d.email, phone: d.phone, firstName: d.firstName, lastName: d.lastName, avatarUrl: d.avatarUrl, isActive: d.isActive, refreshTokenVersion: d.refreshTokenVersion, lastLogin: d.lastLogin, updatedAt: new Date() });
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.user.delete({ where: { id } });
-  }
+  async delete(id: string): Promise<void> { await this.prisma.user.delete({ where: { id } }); }
 
-  async findByIdWithRefreshVersion(
-    id: string
-  ): Promise<{ user: User; refreshTokenVersion: number } | null> {
-    const data = await this.prisma.user.findUnique({
-      where: { id },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
+  async findByIdWithRefreshVersion(id: string): Promise<{ user: User; refreshTokenVersion: number } | null> {
+    const data = await this.prisma.user.findUnique({ where: { id }, include: this.staffInclude });
     if (!data) return null;
-
-    return {
-      user: this.toDomain(data),
-      refreshTokenVersion: data.refreshTokenVersion,
-    };
+    return { user: this.toDomain(data), refreshTokenVersion: data.refreshTokenVersion };
   }
 
-  async saveAvecProfil(user: User, profilData: {
-    passwordHash: string;
-    staffTitle?: string;
-    specializations?: string[];
-    subjectIds?: string[];
-    classeId?: string;
-    dateOfBirth?: Date;
-    gender?: string;
-    parentOfStudentIds?: string[];
-  }): Promise<void> {
-    const data = user.toObject();
-
-    await this.prisma.user.create({
-      data: {
-        id: data.id,
-        schoolId: data.schoolId,
-        role: data.role,
-        email: data.email,
-        phone: data.phone,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        avatarUrl: data.avatarUrl,
-        isActive: data.isActive,
-        refreshTokenVersion: data.refreshTokenVersion,
-        passwordHash: profilData.passwordHash,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-      },
-    });
-
-    if (data.role === 'STUDENT') {
-      const studentProfile = await this.prisma.studentProfile.create({
-        data: {
-          userId: data.id,
-          dateOfBirth: profilData.dateOfBirth ?? null,
-          gender: profilData.gender ?? null,
-        },
-      });
-
-      // Inscription year-scoped (la classe vit dans Enrollment, plus sur le profil)
+  async saveAvecProfil(user: User, profilData: { passwordHash: string; staffTitle?: string; specializations?: string[]; subjectIds?: string[]; classeId?: string; dateOfBirth?: Date; gender?: string; parentOfStudentIds?: string[] }): Promise<void> {
+    const d = user.toObject();
+    await this.prisma.user.create({ data: { ...this.baseUserData(d), passwordHash: profilData.passwordHash } });
+    if (d.role === 'STUDENT') {
+      const studentProfile = await this.prisma.studentProfile.create({ data: { userId: d.id, dateOfBirth: profilData.dateOfBirth ?? null, gender: profilData.gender ?? null } });
       if (profilData.classeId) {
-        const classe = await this.prisma.class.findUnique({
-          where: { id: profilData.classeId },
-          select: { schoolId: true, academicYearId: true },
-        });
-        if (classe) {
-          await this.prisma.enrollment.create({
-            data: {
-              studentId: studentProfile.id,
-              classId: profilData.classeId,
-              academicYearId: classe.academicYearId,
-              schoolId: classe.schoolId,
-              enrolledById: data.id,
-              status: 'ACTIVE',
-            },
-          });
-        }
+        const classe = await this.prisma.class.findUnique({ where: { id: profilData.classeId }, select: { schoolId: true, academicYearId: true } });
+        if (classe) await this.prisma.enrollment.create({ data: { studentId: studentProfile.id, classId: profilData.classeId, academicYearId: classe.academicYearId, schoolId: classe.schoolId, enrolledById: d.id, status: 'ACTIVE' } });
       }
-
       if (profilData.parentOfStudentIds?.length) {
         for (const parentId of profilData.parentOfStudentIds) {
-          const parentProfile = await this.prisma.parentProfile.findFirst({
-            where: { userId: parentId },
-          });
-          if (parentProfile) {
-            await this.prisma.parentStudent.create({
-              data: { parentProfileId: parentProfile.id, studentProfileId: studentProfile.id },
-            });
-          }
+          const parentProfile = await this.prisma.parentProfile.findFirst({ where: { userId: parentId } });
+          if (parentProfile) await this.prisma.parentStudent.create({ data: { parentProfileId: parentProfile.id, studentProfileId: studentProfile.id } });
         }
       }
     }
-
-    if (data.role === 'TEACHER') {
-      const teacherProfile = await this.prisma.teacherProfile.create({
-        data: { userId: data.id, specialization: profilData.specializations ?? [] },
-      });
-
-      if (profilData.subjectIds?.length) {
-        await this.prisma.teacherSubject.createMany({
-          data: profilData.subjectIds.map((subjectId) => ({
-            teacherProfileId: teacherProfile.id,
-            subjectId,
-          })),
-          skipDuplicates: true,
-        });
-      }
+    if (d.role === 'TEACHER') {
+      const teacherProfile = await this.prisma.teacherProfile.create({ data: { userId: d.id, specialization: profilData.specializations ?? [] } });
+      if (profilData.subjectIds?.length) await this.prisma.teacherSubject.createMany({ data: profilData.subjectIds.map((subjectId) => ({ teacherProfileId: teacherProfile.id, subjectId })), skipDuplicates: true });
     }
-
-    if (data.role === 'PARENT') {
-      await this.prisma.parentProfile.create({ data: { userId: data.id } });
-    }
-
-    if (data.role === 'STAFF') {
-      const staffProfile = await this.prisma.staffProfile.create({
-        data: {
-          schoolId: data.schoolId,
-          userId: data.id,
-          title: profilData.staffTitle ?? 'Staff',
-          sectionId: data.staffSectionId ?? null,
-        },
-      });
-
-      if (data.staffPermissions && data.staffPermissions.length > 0) {
-        await this.prisma.staffPermission.createMany({
-          data: data.staffPermissions.map((permission) => ({
-            staffProfileId: staffProfile.id,
-            permission,
-          })),
-          skipDuplicates: true,
-        });
-      }
+    if (d.role === 'PARENT') await this.prisma.parentProfile.create({ data: { userId: d.id } });
+    if (d.role === 'STAFF') {
+      const staffProfile = await this.prisma.staffProfile.create({ data: { schoolId: d.schoolId, userId: d.id, title: profilData.staffTitle ?? 'Staff', sectionId: d.staffSectionId ?? null } });
+      if (d.staffPermissions?.length) await this.prisma.staffPermission.createMany({ data: d.staffPermissions.map((permission) => ({ staffProfileId: staffProfile.id, permission })), skipDuplicates: true });
     }
   }
 
   async authentifier(email: string, schoolId: string, plainPassword: string, role?: string): Promise<User | null> {
     const ROLES_CONNUS: UserRole[] = ['ADMIN', 'STAFF', 'TEACHER', 'PARENT', 'STUDENT'];
-    // Un rôle hors énumération levait une PrismaClientValidationError (500) au lieu d'un échec
-    // d'authentification normal — même traitement qu'un email/mot de passe incorrect, pour ne
-    // jamais distinguer "rôle invalide" de "identifiants invalides" (pas d'info leakage).
     if (role !== undefined && !ROLES_CONNUS.includes(role as UserRole)) return null;
-    const data = await this.prisma.user.findFirst({
-      where: { email, schoolId, ...(role ? { role: role as UserRole } : {}) },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
-    if (!data || !data.passwordHash) return null;
-
-    const bcrypt = await import('bcryptjs');
-    const valide = await bcrypt.compare(plainPassword, data.passwordHash);
-    if (!valide) return null;
-
+    const data = await this.prisma.user.findFirst({ where: { email, schoolId, ...(role ? { role: role as UserRole } : {}) }, include: this.staffInclude });
+    if (!data?.passwordHash) return null;
+    if (!await this.compareHash(plainPassword, data.passwordHash)) return null;
     return this.toDomain(data);
   }
 
   async listerRolesAvecMotDePasse(email: string, schoolId: string, plainPassword: string): Promise<string[]> {
-    const users = await this.prisma.user.findMany({
-      where: { email, schoolId, isActive: true },
-      select: { role: true, passwordHash: true },
-    });
-    const bcrypt = await import('bcryptjs');
-    const resultats = await Promise.all(
-      users.map(async u => {
-        if (!u.passwordHash) return null;
-        const ok = await bcrypt.compare(plainPassword, u.passwordHash);
-        return ok ? u.role : null;
-      })
-    );
+    const users = await this.prisma.user.findMany({ where: { email, schoolId, isActive: true }, select: { role: true, passwordHash: true } });
+    const resultats = await Promise.all(users.map(async u => (!u.passwordHash || !await this.compareHash(plainPassword, u.passwordHash) ? null : u.role)));
     return resultats.filter((r): r is NonNullable<typeof r> => r !== null) as string[];
   }
 
-  async mettreAJourAvecProfil(userId: string, data: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    avatarUrl?: string;
-    email?: string;
-    isActive?: boolean;
-    passwordHash?: string;
-    subjectIds?: string[];
-    classeId?: string;
-    dateOfBirth?: Date;
-    gender?: string;
-  }): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(data.firstName && { firstName: data.firstName }),
-        ...(data.lastName && { lastName: data.lastName }),
-        ...(data.phone !== undefined && { phone: data.phone }),
-        ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
-        ...(data.email && { email: data.email }),
-        ...(data.isActive !== undefined && { isActive: data.isActive }),
-        ...(data.passwordHash && { passwordHash: data.passwordHash }),
-        updatedAt: new Date(),
-      },
-    });
-
+  async mettreAJourAvecProfil(userId: string, data: { firstName?: string; lastName?: string; phone?: string; avatarUrl?: string; email?: string; isActive?: boolean; passwordHash?: string; subjectIds?: string[]; classeId?: string; dateOfBirth?: Date; gender?: string }): Promise<void> {
+    await this.patchUser(userId, { ...(data.firstName && { firstName: data.firstName }), ...(data.lastName && { lastName: data.lastName }), ...(data.phone !== undefined && { phone: data.phone }), ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }), ...(data.email && { email: data.email }), ...(data.isActive !== undefined && { isActive: data.isActive }), ...(data.passwordHash && { passwordHash: data.passwordHash }), updatedAt: new Date() });
     if (data.subjectIds !== undefined) {
-      const teacherProfile = await this.prisma.teacherProfile.findUnique({
-        where: { userId },
-      });
+      const teacherProfile = await this.prisma.teacherProfile.findUnique({ where: { userId } });
       if (teacherProfile) {
-        await this.prisma.teacherSubject.deleteMany({
-          where: { teacherProfileId: teacherProfile.id },
-        });
-        if (data.subjectIds.length > 0) {
-          await this.prisma.teacherSubject.createMany({
-            data: data.subjectIds.map(subjectId => ({
-              teacherProfileId: teacherProfile.id,
-              subjectId,
-            })),
-          });
-        }
+        await this.prisma.teacherSubject.deleteMany({ where: { teacherProfileId: teacherProfile.id } });
+        if (data.subjectIds.length) await this.prisma.teacherSubject.createMany({ data: data.subjectIds.map(subjectId => ({ teacherProfileId: teacherProfile.id, subjectId })) });
       }
     }
-
     if (data.classeId !== undefined || data.dateOfBirth !== undefined || data.gender !== undefined) {
-      await this.prisma.studentProfile.update({
-        where: { userId },
-        data: {
-          ...(data.classeId !== undefined && { classId: data.classeId }),
-          ...(data.dateOfBirth !== undefined && { dateOfBirth: data.dateOfBirth }),
-          ...(data.gender !== undefined && { gender: data.gender }),
-        },
-      });
+      await this.prisma.studentProfile.update({ where: { userId }, data: { ...(data.classeId !== undefined && { classId: data.classeId }), ...(data.dateOfBirth !== undefined && { dateOfBirth: data.dateOfBirth }), ...(data.gender !== undefined && { gender: data.gender }) } });
     }
   }
 
@@ -365,311 +135,93 @@ export class PrismaUserRepository implements UserRepository {
    * bulletins, liens parent-élève...) restent intactes et inchangées, invisibles seulement parce
    * que l'écran qui les affiche résout déjà l'élève/enseignant via `user.findUnique` (filtré par
    * softDeleteExtension.ts). Une restauration remet donc tout en état sans rien à reconstruire.
-   *
-   * Changement de comportement assumé par rapport à l'ancienne cascade : un parent dont c'était
-   * le dernier enfant rattaché n'est plus supprimé automatiquement avec l'élève — cet effet de
-   * bord n'a plus sa place dans un mécanisme pensé pour être réversible (le geste de l'admin
-   * porte sur l'élève, pas sur le compte du parent).
    */
   async supprimerAvecCascade(userId: string, deletedById?: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!user) throw new Error('Utilisateur introuvable');
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { deletedAt: new Date(), deletedById: deletedById ?? null },
-    });
+    await this.assertUserExists(userId);
+    await this.patchUser(userId, { deletedAt: new Date(), deletedById: deletedById ?? null });
   }
 
   async restaurer(userId: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId, deletedAt: { not: null } },
-      data: { deletedAt: null, deletedById: null },
-    });
+    await this.prisma.user.update({ where: { id: userId, deletedAt: { not: null } }, data: { deletedAt: null, deletedById: null } });
   }
 
-  async transfererEleve(params: {
-    studentId: string;
-    fromClasseId: string;
-    toClasseId: string;
-    demandeurId: string;
-    schoolId: string;
-  }): Promise<void> {
-    const classeCible = await this.prisma.class.findUniqueOrThrow({
-      where: { id: params.toClasseId },
-      select: { schoolId: true, academicYearId: true },
-    });
-    const profilEleve = await this.prisma.studentProfile.findUniqueOrThrow({
-      where: { userId: params.studentId },
-      select: { id: true },
-    });
+  async transfererEleve(params: { studentId: string; fromClasseId: string; toClasseId: string; demandeurId: string; schoolId: string }): Promise<void> {
+    const classeCible = await this.prisma.class.findUniqueOrThrow({ where: { id: params.toClasseId }, select: { schoolId: true, academicYearId: true } });
+    const profilEleve = await this.prisma.studentProfile.findUniqueOrThrow({ where: { userId: params.studentId }, select: { id: true } });
     await this.prisma.$transaction(async (tx) => {
-      await tx.enrollment.updateMany({
-        where: { studentId: profilEleve.id, status: 'ACTIVE' },
-        data: { status: 'TRANSFERRED', exitedAt: new Date(), exitReason: 'TRANSFERT_INTERNE' },
-      });
-      await tx.enrollment.create({
-        data: {
-          studentId: profilEleve.id,
-          classId: params.toClasseId,
-          academicYearId: classeCible.academicYearId,
-          schoolId: classeCible.schoolId,
-          enrolledById: params.demandeurId,
-          status: 'ACTIVE',
-        },
-      });
-      await tx.studentPromotion.create({
-        data: {
-          id: crypto.randomUUID(),
-          schoolId: params.schoolId,
-          studentId: profilEleve.id,
-          fromClassId: params.fromClasseId,
-          toClassId: params.toClasseId,
-          academicYearId: 'TRANSFER',
-          promotedById: params.demandeurId,
-          promotedAt: new Date(),
-        },
-      });
+      await tx.enrollment.updateMany({ where: { studentId: profilEleve.id, status: 'ACTIVE' }, data: { status: 'TRANSFERRED', exitedAt: new Date(), exitReason: 'TRANSFERT_INTERNE' } });
+      await tx.enrollment.create({ data: { studentId: profilEleve.id, classId: params.toClasseId, academicYearId: classeCible.academicYearId, schoolId: classeCible.schoolId, enrolledById: params.demandeurId, status: 'ACTIVE' } });
+      await tx.studentPromotion.create({ data: { id: crypto.randomUUID(), schoolId: params.schoolId, studentId: profilEleve.id, fromClassId: params.fromClasseId, toClassId: params.toClasseId, academicYearId: 'TRANSFER', promotedById: params.demandeurId, promotedAt: new Date() } });
     });
   }
 
   async findEmailsParentsParEleve(studentId: string): Promise<string[]> {
-    const relations = await this.prisma.parentStudent.findMany({
-      where: { studentProfile: { userId: studentId } },
-      include: { parentProfile: { include: { user: { select: { email: true } } } } },
-    });
-    return relations
-      .map((r) => r.parentProfile.user.email)
-      .filter((email): email is string => !!email);
+    const relations = await this.prisma.parentStudent.findMany({ where: { studentProfile: { userId: studentId } }, include: { parentProfile: { include: { user: { select: { email: true } } } } } });
+    return relations.map((r) => r.parentProfile.user.email).filter((email): email is string => !!email);
   }
 
-  async findStudentsForBulletinGeneration(
-    schoolId: string,
-    filters: { classId?: string | null; studentId?: string | null },
-  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string | null; classId: string | null }>> {
-    const where: any = {
-      schoolId,
-      role: 'STUDENT' as const,
-      isActive: true,
-      ...(filters.studentId ? { id: filters.studentId } : {}),
-      ...(filters.classId ? whereElevesParClasse(filters.classId) : {}),
-    };
-    const data = await this.prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        studentProfile: {
-          select: {
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-              select: { classId: true },
-              take: 1,
-            },
-          },
-        },
-      },
-    });
-    return data.map((u: any) => ({
-      id: u.id,
-      firstName: u.firstName,
-      lastName: u.lastName,
-      email: u.email ?? null,
-      classId: u.studentProfile?.enrollmentsYearScoped?.[0]?.classId ?? null,
-    }));
+  async findStudentsForBulletinGeneration(schoolId: string, filters: { classId?: string | null; studentId?: string | null }): Promise<Array<{ id: string; firstName: string; lastName: string; email: string | null; classId: string | null }>> {
+    const where: any = { schoolId, role: 'STUDENT' as const, isActive: true, ...(filters.studentId ? { id: filters.studentId } : {}), ...(filters.classId ? whereElevesParClasse(filters.classId) : {}) };
+    const data = await this.prisma.user.findMany({ where, select: { id: true, firstName: true, lastName: true, email: true, studentProfile: { select: { enrollmentsYearScoped: { where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } }, select: { classId: true }, take: 1 } } } } });
+    return data.map((u: any) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email ?? null, classId: u.studentProfile?.enrollmentsYearScoped?.[0]?.classId ?? null }));
   }
 
-  async findStudentNotificationContext(
-    studentId: string,
-  ): Promise<{ id: string; firstName: string; lastName: string; email: string | null; sectionCode: string | null; parents: Array<{ email: string; userId: string }> } | null> {
+  async findStudentNotificationContext(studentId: string): Promise<{ id: string; firstName: string; lastName: string; email: string | null; sectionCode: string | null; parents: Array<{ email: string; userId: string }> } | null> {
     const student = await this.prisma.user.findUnique({
       where: { id: studentId },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
+        id: true, firstName: true, lastName: true, email: true,
         studentProfile: {
           include: {
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-              take: 1,
-              include: { class: { select: { section: { select: { code: true } } } } },
-            },
-            parents: {
-              include: {
-                parentProfile: {
-                  include: { user: { select: { id: true, email: true } } },
-                },
-              },
-            },
+            enrollmentsYearScoped: { where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } }, take: 1, include: { class: { select: { section: { select: { code: true } } } } } },
+            parents: { include: { parentProfile: { include: { user: { select: { id: true, email: true } } } } } },
           },
         },
       },
     });
     if (!student) return null;
     const sectionCode = (student as any).studentProfile?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null;
-    const parents = ((student as any).studentProfile?.parents ?? [])
-      .map((p: any) => p.parentProfile?.user ? { email: p.parentProfile.user.email, userId: p.parentProfile.user.id } : null)
-      .filter((r: any): r is { email: string; userId: string } => Boolean(r?.email));
-    return {
-      id: student.id,
-      firstName: student.firstName,
-      lastName: student.lastName,
-      email: student.email ?? null,
-      sectionCode,
-      parents,
-    };
+    const parents = ((student as any).studentProfile?.parents ?? []).map((p: any) => p.parentProfile?.user ? { email: p.parentProfile.user.email, userId: p.parentProfile.user.id } : null).filter((r: any): r is { email: string; userId: string } => Boolean(r?.email));
+    return { id: student.id, firstName: student.firstName, lastName: student.lastName, email: student.email ?? null, sectionCode, parents };
   }
 
   async findAuthDataById(id: string): Promise<AuthUserData | null> {
-    return this.prisma.user.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        isActive: true,
-        loginEmailOtpHash: true,
-        loginEmailOtpExpiresAt: true,
-        loginEmailOtpAttempts: true,
-        mfaEnabled: true,
-        mfaSecret: true,
-        mfaTempSecret: true,
-        mfaRecoveryCodeHashes: true,
-      },
-    });
+    return this.prisma.user.findUnique({ where: { id }, select: { id: true, email: true, isActive: true, loginEmailOtpHash: true, loginEmailOtpExpiresAt: true, loginEmailOtpAttempts: true, mfaEnabled: true, mfaSecret: true, mfaTempSecret: true, mfaRecoveryCodeHashes: true } });
   }
 
-  async saveLoginEmailOtp(id: string, data: { hash: string; expiresAt: Date }): Promise<void> {
-    await this.prisma.user.update({
-      where: { id },
-      data: {
-        loginEmailOtpHash: data.hash,
-        loginEmailOtpExpiresAt: data.expiresAt,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: new Date(),
-      },
-    });
+  async saveLoginEmailOtp(id: string, data: { hash: string; expiresAt: Date }): Promise<void> { await this.patchUser(id, { loginEmailOtpHash: data.hash, loginEmailOtpExpiresAt: data.expiresAt, loginEmailOtpAttempts: 0, loginEmailOtpSentAt: new Date() }); }
+  async incrementLoginEmailOtpAttempts(id: string): Promise<void> { await this.patchUser(id, { loginEmailOtpAttempts: { increment: 1 } }); }
+  async clearLoginEmailOtp(id: string): Promise<void> { await this.patchUser(id, { loginEmailOtpHash: null, loginEmailOtpExpiresAt: null, loginEmailOtpAttempts: 0, loginEmailOtpSentAt: null }); }
+  async updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void> { await this.patchUser(id, { mfaRecoveryCodeHashes: hashes, mfaRecoveryCodeGeneratedAt: new Date() }); }
+  async updateMfaTempSecret(id: string, secret: string | null): Promise<void> { await this.patchUser(id, { mfaTempSecret: secret }); }
+  async updateMfa(params: { userId: string; mfaEnabled?: boolean; mfaSecret?: string | null; mfaTempSecret?: string | null; mfaRecoveryCodeHashes?: string[]; mfaRecoveryCodeGeneratedAt?: Date }): Promise<void> {
+    await this.patchUser(params.userId, { ...(params.mfaEnabled !== undefined && { mfaEnabled: params.mfaEnabled }), ...(params.mfaSecret !== undefined && { mfaSecret: params.mfaSecret }), ...(params.mfaTempSecret !== undefined && { mfaTempSecret: params.mfaTempSecret }), ...(params.mfaRecoveryCodeHashes !== undefined && { mfaRecoveryCodeHashes: params.mfaRecoveryCodeHashes }), ...(params.mfaRecoveryCodeGeneratedAt !== undefined && { mfaRecoveryCodeGeneratedAt: params.mfaRecoveryCodeGeneratedAt }) });
   }
-
-  async incrementLoginEmailOtpAttempts(id: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id },
-      data: { loginEmailOtpAttempts: { increment: 1 } },
-    });
-  }
-
-  async clearLoginEmailOtp(id: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id },
-      data: {
-        loginEmailOtpHash: null,
-        loginEmailOtpExpiresAt: null,
-        loginEmailOtpAttempts: 0,
-        loginEmailOtpSentAt: null,
-      },
-    });
-  }
-
-  async updateMfaRecoveryCodeHashes(id: string, hashes: string[]): Promise<void> {
-    await this.prisma.user.update({
-      where: { id },
-      data: { mfaRecoveryCodeHashes: hashes, mfaRecoveryCodeGeneratedAt: new Date() },
-    });
-  }
-
-  async updateMfaTempSecret(id: string, secret: string | null): Promise<void> {
-    await this.prisma.user.update({ where: { id }, data: { mfaTempSecret: secret } });
-  }
-
-  async updateMfa(params: {
-    userId: string;
-    mfaEnabled?: boolean;
-    mfaSecret?: string | null;
-    mfaTempSecret?: string | null;
-    mfaRecoveryCodeHashes?: string[];
-    mfaRecoveryCodeGeneratedAt?: Date;
-  }): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: params.userId },
-      data: {
-        ...(params.mfaEnabled !== undefined && { mfaEnabled: params.mfaEnabled }),
-        ...(params.mfaSecret !== undefined && { mfaSecret: params.mfaSecret }),
-        ...(params.mfaTempSecret !== undefined && { mfaTempSecret: params.mfaTempSecret }),
-        ...(params.mfaRecoveryCodeHashes !== undefined && { mfaRecoveryCodeHashes: params.mfaRecoveryCodeHashes }),
-        ...(params.mfaRecoveryCodeGeneratedAt !== undefined && { mfaRecoveryCodeGeneratedAt: params.mfaRecoveryCodeGeneratedAt }),
-      },
-    });
-  }
-
   async isMfaEnabled(id: string): Promise<boolean> {
     const row = await this.prisma.user.findUnique({ where: { id }, select: { mfaEnabled: true } });
     return row?.mfaEnabled ?? false;
   }
 
-  async creerJetonReinitialisation(userId: string, tokenHash: string, expiry: Date): Promise<void> {
-    await this.prisma.user.update({ where: { id: userId }, data: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: expiry } });
-  }
-
+  async creerJetonReinitialisation(userId: string, tokenHash: string, expiry: Date): Promise<void> { await this.patchUser(userId, { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: expiry }); }
   async trouverParJetonReinitialisation(tokenHash: string): Promise<User | null> {
-    const data = await this.prisma.user.findFirst({
-      where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } },
-      include: { staffProfile: { include: { permissions: true } } },
-    });
+    const data = await this.prisma.user.findFirst({ where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } }, include: this.staffInclude });
     return data ? this.toDomain(data) : null;
   }
-
   async reinitialiserMotDePasse(tokenHash: string, passwordHash: string): Promise<void> {
-    const user = await this.prisma.user.findFirst({
-      where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } },
-      select: { id: true },
-    });
+    const user = await this.prisma.user.findFirst({ where: { resetPasswordToken: tokenHash, resetPasswordTokenExpiry: { gt: new Date() } }, select: { id: true } });
     if (!user) throw new Error('Lien invalide ou expiré. Demandez un nouveau lien.');
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } },
-    });
+    await this.patchUser(user.id, { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } });
   }
-
   async verifierMotDePasse(userId: string, plainPassword: string): Promise<boolean> {
     const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
     if (!data?.passwordHash) return false;
-    const bcrypt = await import('bcryptjs');
-    return bcrypt.compare(plainPassword, data.passwordHash);
+    return this.compareHash(plainPassword, data.passwordHash);
   }
-
-  async mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } },
-    });
-  }
-
-  async definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void> {
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
-  }
+  async mettreAJourMotDePasse(userId: string, passwordHash: string): Promise<void> { await this.patchUser(userId, { passwordHash, resetPasswordToken: null, resetPasswordTokenExpiry: null, refreshTokenVersion: { increment: 1 } }); }
+  async definirMotDePasseInvitation(userId: string, passwordHash: string): Promise<void> { await this.patchUser(userId, { passwordHash }); }
 
   private toDomain(data: any): User {
-    const permissions: StaffPermissionType[] =
-      data.staffProfile?.permissions?.map((p: { permission: StaffPermissionType }) => p.permission) ?? [];
-
-    return User.reconstituer({
-      id: data.id,
-      schoolId: data.schoolId,
-      role: data.role as UserRole,
-      email: data.email ?? undefined,
-      phone: data.phone ?? undefined,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      avatarUrl: data.avatarUrl ?? undefined,
-      isActive: data.isActive,
-      refreshTokenVersion: data.refreshTokenVersion,
-      lastLogin: data.lastLogin ?? undefined,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
-      staffPermissions: permissions,
-      staffSectionId: data.staffProfile?.sectionId ?? undefined,
-    });
+    const permissions: StaffPermissionType[] = data.staffProfile?.permissions?.map((p: { permission: StaffPermissionType }) => p.permission) ?? [];
+    return User.reconstituer({ id: data.id, schoolId: data.schoolId, role: data.role as UserRole, email: data.email ?? undefined, phone: data.phone ?? undefined, firstName: data.firstName, lastName: data.lastName, avatarUrl: data.avatarUrl ?? undefined, isActive: data.isActive, refreshTokenVersion: data.refreshTokenVersion, lastLogin: data.lastLogin ?? undefined, createdAt: data.createdAt, updatedAt: data.updatedAt, staffPermissions: permissions, staffSectionId: data.staffProfile?.sectionId ?? undefined });
   }
 }

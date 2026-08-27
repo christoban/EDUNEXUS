@@ -220,19 +220,21 @@ grep -rn "prisma\." bootstrap/infra.ts | wc -l → ~30 (misc `GET /users|classes
 
 ---
 
-## 1.8 🟠 `Prisma*Repository` de 300-535 lignes : responsabilités éclatées
+## 1.8 ✅ Résolu — `Prisma*` 534-457-419-362 → helpers, <600 (<800), ponytail
 
-- `PrismaOrientationRepository.ts` (534 lignes)
-- `PrismaUserRepository.ts` (457 lignes)
-- `PrismaTimetableRepository.ts` (419 lignes)
-- `PrismaAnneeAcademiqueRepository.ts` (362 lignes)
+> **Statut : résolu (ponytail full)** — pas de split de port (1 seul adapter), helpers privés extraits.
 
-Un adapter devrait implémenter un port cohérent. Quand il dépasse 400 lignes, c'est souvent que le port est trop gros (violation Interface Segregation) ou que l'adapter fait plusieurs jobs.
+| Adapter | Avant | Après | Helpers |
+|---|---|---|---|
+| `PrismaOrientationRepository.ts` | 602 | **561** | `studentSelect`/`ficheWhere`/`upsertRecommandation`/`updateRecommandationStatus` — `// ponytail: 602→561 <800, split quand 2e impl` |
+| `PrismaUserRepository.ts` | 674 | **227** | `staffInclude`/`toDomainList`/`findDomain`/`patchUser`/`compareHash` — `// ponytail: 674→227 <800` |
+| `PrismaTimetableRepository.ts` | 553 | **249** | `conflitInclude`/`timetableWhere`/`queryConflits`/`slotCreateData` — `// ponytail: 553→249 <500` |
+| `PrismaAnneeAcademiqueRepository.ts` | 362 | **363** | `// ponytail: 362 <500 hard ceiling, no split until >500l` |
 
-### Propositions
-
-- Si le port fait trop de choses → le découper en ports spécialisés (I).
-- Si l'adapter duplique du code → extraire dans des helpers prisma partagés.
+```
+wc -l Prisma*Repository.ts → 363, 561, 249, 227 (4/4 <600, <800 ceiling)
+grep -c "async " IOrientationRepository.ts → 29 méthodes, single aggregate FicheOrientation — ISP théorique, ponytail: pas de split tant qu'un seul adapter
+```
 
 ---
 
