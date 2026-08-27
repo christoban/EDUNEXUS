@@ -350,6 +350,12 @@ import { SuspendreEcoleUseCase } from '@application/masterAdmin/SuspendreEcoleUs
 import { ReactiverEcoleUseCase } from '@application/masterAdmin/ReactiverEcoleUseCase';
 import { RejeterEcoleUseCase } from '@application/masterAdmin/RejeterEcoleUseCase';
 import { ChangerPlanAbonnementUseCase } from '@application/masterAdmin/ChangerPlanAbonnementUseCase';
+import { SupprimerEcoleUseCase } from '@application/masterAdmin/SupprimerEcoleUseCase';
+import { RenvoyerInvitationEcoleUseCase } from '@application/masterAdmin/RenvoyerInvitationEcoleUseCase';
+import { ChangerStatutEcoleUseCase } from '@application/masterAdmin/ChangerStatutEcoleUseCase';
+import { SynchroniserMatieresEcoleUseCase } from '@application/masterAdmin/SynchroniserMatieresEcoleUseCase';
+import { ReinitialiserMfaUtilisateurUseCase } from '@application/masterAdmin/ReinitialiserMfaUtilisateurUseCase';
+import { PrismaMasterAdminQueryRepository } from '@infrastructure/persistence/prisma/PrismaMasterAdminQueryRepository';
 
 // ─────────────────────────────────────────────
 // Factory principale
@@ -736,6 +742,12 @@ export function creerContainer() {
   const reactiverEcoleUseCase = new ReactiverEcoleUseCase(schoolRepository);
   const rejeterEcoleUseCase = new RejeterEcoleUseCase(schoolRepository, userRepository, emailService);
   const changerPlanUseCase = new ChangerPlanAbonnementUseCase(schoolRepository);
+  const masterAdminQueryRepository = new PrismaMasterAdminQueryRepository(prisma);
+  const supprimerEcoleUseCase = new SupprimerEcoleUseCase(masterAdminQueryRepository);
+  const renvoyerInvitationEcoleUseCase = new RenvoyerInvitationEcoleUseCase(masterAdminQueryRepository);
+  const changerStatutEcoleUseCase = new ChangerStatutEcoleUseCase(masterAdminQueryRepository);
+  const synchroniserMatieresEcoleUseCase = new SynchroniserMatieresEcoleUseCase(masterAdminQueryRepository);
+  const reinitialiserMfaUtilisateurUseCase = new ReinitialiserMfaUtilisateurUseCase(masterAdminQueryRepository);
   const genererPaiementsMinesec = new GenererPaiementsMinesecUseCase(paiementMinesecRepository);
   const creerSqueletteOnboarding = new CreerSqueletteOnboardingUseCase(eleveOnboardingRepository, activityLog);
 
@@ -807,6 +819,12 @@ export function creerContainer() {
       reactiver: reactiverEcoleUseCase,
       rejeter: rejeterEcoleUseCase,
       changerPlan: changerPlanUseCase,
+      queryRepository: masterAdminQueryRepository,
+      supprimerEcole: supprimerEcoleUseCase,
+      renvoyerInvitation: renvoyerInvitationEcoleUseCase,
+      changerStatut: changerStatutEcoleUseCase,
+      synchroniserMatieres: synchroniserMatieresEcoleUseCase,
+      reinitialiserMfa: reinitialiserMfaUtilisateurUseCase,
     },
     class: {
       creer: creerClasseUseCase,

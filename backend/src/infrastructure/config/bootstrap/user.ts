@@ -108,7 +108,12 @@ export function registerUserRoutes(app: Application, prismaParam: typeof prisma 
     c.masterAdmin.reactiver,
     c.masterAdmin.rejeter,
     c.masterAdmin.changerPlan,
-    p as any,
+    c.masterAdmin.queryRepository,
+    c.masterAdmin.supprimerEcole,
+    c.masterAdmin.renvoyerInvitation,
+    c.masterAdmin.changerStatut,
+    c.masterAdmin.synchroniserMatieres,
+    c.masterAdmin.reinitialiserMfa,
   );
 
   app.use('/api/v2/users', creerUserRoutes(userController));
