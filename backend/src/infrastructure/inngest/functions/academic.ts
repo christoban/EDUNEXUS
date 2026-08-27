@@ -1,6 +1,5 @@
 import { inngest } from "../client/index.ts";
 import { prisma } from "../../../config/prisma.ts";
-import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { SocketNotificationService } from '../../services/notification/SocketNotificationService.ts';
 import { PrismaSanteEleveRepository } from "../../persistence/prisma/PrismaSanteEleveRepository";
 import { CalculerIndiceSanteUseCase } from "@application/ai/CalculerIndiceSanteUseCase";
@@ -21,6 +20,7 @@ import { VerifierEvenementsAcademiquesUseCase } from "@application/academicEvent
 import { VerifierOrientationCheckpointsUseCase } from "@application/orientation/VerifierOrientationCheckpointsUseCase";
 import { DetecterPatternSuspicieuxUseCase } from "@application/ai/DetecterPatternSuspicieuxUseCase";
 import { PrismaAIActionAuditQueryAdapter } from "../../persistence/prisma/PrismaAIActionAuditQueryAdapter";
+import { NodemailerEmailService } from "@infrastructure/services/email/NodemailerEmailService";
 
 const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(prisma);
 const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
@@ -100,7 +100,7 @@ export const checkSuspiciousAiActionPattern = inngest.createFunction(
   async ({ step }) => {
     await step.run("detect-and-alert", async () => {
       const adapter = new PrismaAIActionAuditQueryAdapter(prisma);
-      const useCase = new DetecterPatternSuspicieuxUseCase(adapter);
+      const useCase = new DetecterPatternSuspicieuxUseCase(adapter, new NodemailerEmailService());
       await useCase.execute({});
     });
     return { checked: true };

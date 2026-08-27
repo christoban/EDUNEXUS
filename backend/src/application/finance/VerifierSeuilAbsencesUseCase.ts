@@ -1,9 +1,13 @@
 import type { FinanceJobsRepository } from '@domain/ports/repositories/FinanceJobsRepository';
-import { sendTransactionalEmail } from '@infrastructure/services/email/EmailService.ts';
-import { notifyAbsenceThresholdSms } from '@infrastructure/services/sms/SmsNotificationService.ts';
+import type { EmailService } from '@domain/ports/services/EmailService';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 
 export class VerifierSeuilAbsencesUseCase {
-  constructor(private readonly financeJobsRepository: FinanceJobsRepository) {}
+  constructor(
+    private readonly financeJobsRepository: FinanceJobsRepository,
+    private readonly emailService: EmailService,
+    private readonly smsNotification: SmsNotificationPort,
+  ) {}
 
   async execute(): Promise<{ alertsSent: number }> {
     const schools = await this.financeJobsRepository.findActiveSchools();
@@ -30,21 +34,20 @@ export class VerifierSeuilAbsencesUseCase {
         for (const s of surveillants) {
           if (!s.user.email) continue;
           try {
-            await sendTransactionalEmail({
-              recipientEmail: s.user.email,
-              recipientUserId: s.user.id,
-              subject: `Alerte absences — ${studentName} (${count} absences non justifiées)`,
-              html: `<p>Bonjour ${s.user.firstName},</p><p><b>${studentName}</b> cumule <b>${count} absences non justifiées</b> sur les 30 derniers jours (seuil configuré : ${threshold}).</p><p>Une action est requise.</p>`,
-              text: `${studentName} : ${count} absences non justifiées (seuil ${threshold})`,
-              template: "absence_alert",
+            await this.emailService.envoyer({
+              destinataire: s.user.email,
+              sujet: `Alerte absences — ${studentName} (${count} absences non justifiées)`,
+              contenuHtml: `<p>Bonjour ${s.user.firstName},</p><p><b>${studentName}</b> cumule <b>${count} absences non justifiées</b> sur les 30 derniers jours (seuil configuré : ${threshold}).</p><p>Une action est requise.</p>`,
+              contenuTexte: `${studentName} : ${count} absences non justifiées (seuil ${threshold})`,
               eventType: "absence_alert",
+              recipientUserId: s.user.id,
             });
           } catch (err) {
             console.error("Absence alert email error:", err);
           }
         }
 
-        void notifyAbsenceThresholdSms({ schoolId: school.id, studentId: entry.studentId, studentName, count, threshold });
+        void this.smsNotification.notifyAbsenceThresholdSms({ schoolId: school.id, studentId: entry.studentId, studentName, count, threshold });
         alertsSent++;
       }
     }

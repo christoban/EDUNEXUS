@@ -1,10 +1,15 @@
 import type { EleveOnboardingJobsRepository } from '@domain/ports/repositories/EleveOnboardingJobsRepository';
-import { sendTransactionalEmail } from '@infrastructure/services/email/EmailService.ts';
-import { buildOnboardingLinkTemplate } from '@infrastructure/services/email/templates/emailTemplates';
-import { notifyOnboardingReminderSms } from '@infrastructure/services/sms/SmsNotificationService.ts';
+import type { EmailService } from '@domain/ports/services/EmailService';
+import type { EmailTemplatePort } from '@domain/ports/services/EmailTemplatePort';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 
 export class RelanceOnboardingUseCase {
-  constructor(private readonly repository: EleveOnboardingJobsRepository) {}
+  constructor(
+    private readonly repository: EleveOnboardingJobsRepository,
+    private readonly emailService: EmailService,
+    private readonly emailTemplate: EmailTemplatePort,
+    private readonly smsNotification: SmsNotificationPort,
+  ) {}
 
   async execute(step: any): Promise<{ reminded: number; escalated: number; expired: number; processedAt: string }> {
     const dossiers = await this.repository.listerDossiersLinkSent();
@@ -34,35 +39,33 @@ export class RelanceOnboardingUseCase {
           const formUrl = `${frontendUrl}/eleve-onboarding/${dossier.token}`;
           if (dossier.contactEmail) {
             const expiryDaysLeft = Math.max(1, Math.round((dossier.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
-            const tpl = buildOnboardingLinkTemplate({ nomProvisoire: dossier.nomProvisoire, schoolName, formUrl, expiryDays: expiryDaysLeft });
-            await sendTransactionalEmail({
-              recipientEmail: dossier.contactEmail,
-              subject: `RAPPEL — ${tpl.subject}`,
-              template: 'user_invite',
+            const tpl = this.emailTemplate.buildOnboardingLink({ nomProvisoire: dossier.nomProvisoire, schoolName, formUrl, expiryDays: expiryDaysLeft });
+            await this.emailService.envoyer({
+              destinataire: dossier.contactEmail,
+              sujet: `RAPPEL — ${tpl.subject}`,
+              contenuHtml: tpl.html,
+              contenuTexte: tpl.text,
               eventType: 'user_invite',
-              html: tpl.html,
-              text: tpl.text,
               metadata: { schoolId: dossier.schoolId },
             }).catch((err: any) => console.error('[Email] Échec relance onboarding:', err?.message));
           }
           if (dossier.contactTelephone) {
-            await notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.contactTelephone, formUrl });
+            await this.smsNotification.notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.contactTelephone, formUrl });
           }
           if (dossier.parentContactEmail) {
             const expiryDaysLeft = Math.max(1, Math.round((dossier.tokenExpiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
-            const tpl = buildOnboardingLinkTemplate({ nomProvisoire: dossier.nomProvisoire, schoolName, formUrl, expiryDays: expiryDaysLeft });
-            await sendTransactionalEmail({
-              recipientEmail: dossier.parentContactEmail,
-              subject: `RAPPEL — ${tpl.subject}`,
-              template: 'user_invite',
+            const tpl = this.emailTemplate.buildOnboardingLink({ nomProvisoire: dossier.nomProvisoire, schoolName, formUrl, expiryDays: expiryDaysLeft });
+            await this.emailService.envoyer({
+              destinataire: dossier.parentContactEmail,
+              sujet: `RAPPEL — ${tpl.subject}`,
+              contenuHtml: tpl.html,
+              contenuTexte: tpl.text,
               eventType: 'user_invite',
-              html: tpl.html,
-              text: tpl.text,
               metadata: { schoolId: dossier.schoolId },
             }).catch((err: any) => console.error('[Email] Échec relance onboarding (parent):', err?.message));
           }
           if (dossier.parentContactTelephone) {
-            await notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.parentContactTelephone, formUrl });
+            await this.smsNotification.notifyOnboardingReminderSms({ schoolId: dossier.schoolId, nomProvisoire: dossier.nomProvisoire, schoolName, phone: dossier.parentContactTelephone, formUrl });
           }
           await this.repository.incrementerRelance(dossier.id);
         });
@@ -74,13 +77,12 @@ export class RelanceOnboardingUseCase {
           const responsables = await this.repository.trouverResponsables(dossier.schoolId, responsableRole);
           for (const responsable of responsables) {
             if (!responsable.email) continue;
-            await sendTransactionalEmail({
-              recipientEmail: responsable.email,
-              subject: `Dossier d'inscription en attente — ${dossier.nomProvisoire} (${schoolName})`,
-              template: 'user_invite',
+            await this.emailService.envoyer({
+              destinataire: responsable.email,
+              sujet: `Dossier d'inscription en attente — ${dossier.nomProvisoire} (${schoolName})`,
+              contenuHtml: `<p>Bonjour,</p><p>Le dossier d'inscription de <strong>${dossier.nomProvisoire}</strong> n'est toujours pas complété après ${daysSinceCreated} jours. Une relance manuelle ou un nouveau lien (renvoyer-lien) peut être nécessaire.</p>`,
+              contenuTexte: `Le dossier d'inscription de ${dossier.nomProvisoire} n'est toujours pas complété après ${daysSinceCreated} jours.`,
               eventType: 'user_invite',
-              html: `<p>Bonjour,</p><p>Le dossier d'inscription de <strong>${dossier.nomProvisoire}</strong> n'est toujours pas complété après ${daysSinceCreated} jours. Une relance manuelle ou un nouveau lien (renvoyer-lien) peut être nécessaire.</p>`,
-              text: `Le dossier d'inscription de ${dossier.nomProvisoire} n'est toujours pas complété après ${daysSinceCreated} jours.`,
               metadata: { schoolId: dossier.schoolId },
             }).catch((err: any) => console.error('[Email] Échec escalade onboarding:', err?.message));
           }

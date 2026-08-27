@@ -11,12 +11,15 @@ import { inngest } from '../client/index';
 import { prisma } from '../../../config/prisma';
 import { PrismaEleveOnboardingJobsRepository } from '../../persistence/prisma/PrismaEleveOnboardingJobsRepository';
 import { RelanceOnboardingUseCase } from '@application/eleveOnboarding/RelanceOnboardingUseCase';
+import { NodemailerEmailService } from '../../services/email/NodemailerEmailService';
+import { EmailTemplateAdapter } from '../../services/email/EmailTemplateAdapter';
+import { SmsNotificationAdapter } from '../../services/sms/SmsNotificationAdapter';
 
 export const relanceOnboarding = inngest.createFunction(
   { id: 'relance-onboarding-eleve-quotidien', name: 'Relances onboarding élève', triggers: [{ cron: '0 8 * * *' }] },
   async ({ step }) => {
     const repository = new PrismaEleveOnboardingJobsRepository(prisma);
-    const useCase = new RelanceOnboardingUseCase(repository);
+    const useCase = new RelanceOnboardingUseCase(repository, new NodemailerEmailService(), new EmailTemplateAdapter(), new SmsNotificationAdapter());
     return useCase.execute(step);
   }
 );

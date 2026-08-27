@@ -1,11 +1,11 @@
 import type { HrJobsRepository } from '@domain/ports/repositories/HrJobsRepository';
-import { sendTransactionalEmail } from '@infrastructure/services/email/EmailService.ts';
+import type { EmailService } from '@domain/ports/services/EmailService';
 
 const REMINDER_DELAY_DAYS = [7, 14];
 const ESCALATION_DELAY_DAYS = 21;
 
 export class RelanceProfilRHUseCase {
-  constructor(private readonly repository: HrJobsRepository) {}
+  constructor(private readonly repository: HrJobsRepository, private readonly emailService: EmailService) {}
 
   async execute(step: any): Promise<{ reminded: number; escalated: number; processedAt: string }> {
     const FRONTEND_URL = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -25,15 +25,14 @@ export class RelanceProfilRHUseCase {
       if (REMINDER_DELAY_DAYS.includes(daysSinceCreated)) {
         await step.run(`relance-${employe.id}-j${daysSinceCreated}`, async () => {
           if (employe.email) {
-            await sendTransactionalEmail({
-              recipientEmail: employe.email,
-              subject: `Complétez votre profil RH — ${schoolName}`,
-              template: 'user_invite',
+            await this.emailService.envoyer({
+              destinataire: employe.email,
+              sujet: `Complétez votre profil RH — ${schoolName}`,
+              contenuHtml: `<p>Bonjour ${employe.firstName},</p><p><strong>${schoolName}</strong> vous invite à compléter votre profil RH (identité, diplômes, documents) depuis votre tableau de bord.</p><p><a href="${profileUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Compléter mon profil</a></p>`,
+              contenuTexte: `${schoolName} vous invite à compléter votre profil RH : ${profileUrl}`,
               eventType: 'user_invite',
-              html: `<p>Bonjour ${employe.firstName},</p><p><strong>${schoolName}</strong> vous invite à compléter votre profil RH (identité, diplômes, documents) depuis votre tableau de bord.</p><p><a href="${profileUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Compléter mon profil</a></p>`,
-              text: `${schoolName} vous invite à compléter votre profil RH : ${profileUrl}`,
               metadata: { schoolId: employe.schoolId },
-            }).catch((err: any) => console.error('[Email] Échec relance profil RH:', err?.message));
+            });
           }
 
           await this.repository.creerNotification({
@@ -68,15 +67,14 @@ export class RelanceProfilRHUseCase {
         const liste = info.employes.map((n) => `<li>${n}</li>`).join('');
         for (const admin of admins) {
           if (admin.email) {
-            await sendTransactionalEmail({
-              recipientEmail: admin.email,
-              subject: `Profils RH non complétés après ${ESCALATION_DELAY_DAYS} jours — ${info.schoolName}`,
-              template: 'user_invite',
+            await this.emailService.envoyer({
+              destinataire: admin.email,
+              sujet: `Profils RH non complétés après ${ESCALATION_DELAY_DAYS} jours — ${info.schoolName}`,
+              contenuHtml: `<p>Bonjour,</p><p>Les employés suivants n'ont toujours pas complété leur profil RH self-service après ${ESCALATION_DELAY_DAYS} jours :</p><ul>${liste}</ul><p>Une relance personnelle peut être nécessaire.</p>`,
+              contenuTexte: `Profils RH non complétés après ${ESCALATION_DELAY_DAYS} jours : ${info.employes.join(', ')}`,
               eventType: 'user_invite',
-              html: `<p>Bonjour,</p><p>Les employés suivants n'ont toujours pas complété leur profil RH self-service après ${ESCALATION_DELAY_DAYS} jours :</p><ul>${liste}</ul><p>Une relance personnelle peut être nécessaire.</p>`,
-              text: `Profils RH non complétés après ${ESCALATION_DELAY_DAYS} jours : ${info.employes.join(', ')}`,
               metadata: { schoolId },
-            }).catch((err: any) => console.error('[Email] Échec escalade profil RH:', err?.message));
+            });
           }
           await this.repository.creerNotification({
             schoolId, userId: admin.id, type: 'SYSTEM',

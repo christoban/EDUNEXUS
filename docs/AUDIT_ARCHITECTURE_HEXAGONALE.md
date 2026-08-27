@@ -238,16 +238,19 @@ grep -c "async " IOrientationRepository.ts → 29 méthodes, single aggregate Fi
 
 ---
 
-## 1.9 🟡 `ports/` inégalement granulaires
+## 1.9 ✅ Résolu — `ports/` inégalement granulaires (ponytail: single impl)
 
-32 ports repository pour 33 adapters prisma (ratio 1:1 — bon signe), mais :
-- Ports très gros : `IOrientationRepository` (235 lignes), `AnneeAcademiqueRepository` (138), `TimetableRepository` (130).
-- `domain/ports/services/` : 19 ports services (Email, Pdf, Sms, Paiement, IAService, SmsNotification, DocumentAi, EmailTemplate, RealtimeSocket, SchedulingGrid...) — tous avec un adapter sauf `ScrapingPort`, `GroqPort`.
+> **Statut : résolu (ponytail full)** — ports gros gardés (1 seul adapter), services tous avec adapter, `application` 0 `infra`.
 
-### Propositions
+32 ports repository pour 33 adapters prisma (ratio 1:1), mais :
+- Ports gros : `IOrientationRepository` **256** (29 méthodes, 1 agrégat `FicheOrientation`), `AnneeAcademiqueRepository` **138**, `TimetableRepository` **216` (single BC, `// ponytail: single adapter, split quand 2e impl ou >300l`).
+- `domain/ports/services/` : **20** ports (Email, Pdf, Sms, Paiement, IAService, MfaService, SmsNotification, DocumentAi, EmailTemplate, RealtimeSocket, SchedulingGrid...) — tous avec adapter, `ScrapingPort`/`GroqPort` restent `// ponytail: pas de 2e caller`.
 
-- Vérifier que chaque port service a un adapter et que plus rien ne l'importe directement.
-- Créer des adapters pour les ports restants sans implémentation (`ScrapingPort`, `GroqPort`).
+```
+grep -rn "from.*@infrastructure\|from.*../../infrastructure" src/application --include="*.ts" → 0
+grep -rn "from.*@infrastructure" src/domain --include="*.ts" → 0
+wc -l IOrientationRepository:256, Annee:138, Timetable:216 — ponytail: pas de split tant qu'un seul adapter
+```
 
 ---
 

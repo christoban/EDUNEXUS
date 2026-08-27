@@ -2,7 +2,6 @@ import type { HealthJobsRepository } from '@domain/ports/repositories/HealthJobs
 import type { SanteEleveRepository } from '@domain/ports/repositories/SanteEleveRepository';
 import type { IAService } from '@domain/ports/services/IAService';
 import { CalculerIndiceSanteUseCase } from '@application/ai/CalculerIndiceSanteUseCase';
-import { inngest } from '@infrastructure/inngest/client/index.ts';
 
 export class CalculerScoresSanteUseCase {
   private readonly calculerIndice: CalculerIndiceSanteUseCase;
@@ -15,7 +14,8 @@ export class CalculerScoresSanteUseCase {
     this.calculerIndice = new CalculerIndiceSanteUseCase(santeRepository, iaService);
   }
 
-  async execute(): Promise<{ computed: boolean }> {
+  async execute(): Promise<{ computed: boolean; events: Array<{ name: string; data: any }> }> {
+    const events: Array<{ name: string; data: any }> = [];
     const schools = await this.healthJobsRepository.findActiveSchools();
 
     for (const school of schools) {
@@ -40,13 +40,13 @@ export class CalculerScoresSanteUseCase {
           if (!alertsEnabled) continue;
 
           if (score <= criticalThreshold) {
-            await inngest.send({ name: "ai/alert.critical", data: { studentId: student.userId, schoolId: school.id, healthScore: score } });
+            events.push({ name: "ai/alert.critical", data: { studentId: student.userId, schoolId: school.id, healthScore: score } });
           } else if (score <= warningThreshold) {
-            await inngest.send({ name: "ai/alert.warning", data: { studentId: student.userId, schoolId: school.id, healthScore: score } });
+            events.push({ name: "ai/alert.warning", data: { studentId: student.userId, schoolId: school.id, healthScore: score } });
           }
 
           if (tendancePositive) {
-            await inngest.send({ name: "ai/alert.positive", data: { studentId: student.userId, schoolId: school.id, healthScore: score } });
+            events.push({ name: "ai/alert.positive", data: { studentId: student.userId, schoolId: school.id, healthScore: score } });
           }
         } catch (err) {
           console.error(`Health score error for student ${student.userId}:`, err);
@@ -54,6 +54,6 @@ export class CalculerScoresSanteUseCase {
       }
     }
 
-    return { computed: true };
+    return { computed: true, events };
   }
 }

@@ -1,22 +1,38 @@
 import type { HealthJobsRepository } from '@domain/ports/repositories/HealthJobsRepository';
 import type { IAService } from '@domain/ports/services/IAService';
-import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService.ts';
-import { notifierParentsPushDabord } from '@infrastructure/services/notification/PushFirstNotifier.ts';
-
-async function notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
-  const socketService = new SocketNotificationService();
-  await socketService
-    .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
-    .catch((err: any) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
-  const { notifierUtilisateurPush } = await import('@infrastructure/services/notification/PushNotificationService.ts');
-  await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
-}
+import type { NotificationService } from '@domain/ports/services/NotificationService';
 
 export class GererAlertesSanteUseCase {
   constructor(
     private readonly healthJobsRepository: HealthJobsRepository,
     private readonly iaService: IAService,
+    private readonly notificationService: NotificationService,
   ) {}
+
+  private async notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
+    await this.notificationService
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
+      .catch((err: any) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
+    // Push via NotificationService canal PUSH (socket service handles push internally)
+    await this.notificationService
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "PUSH" })
+      .catch(() => {});
+  }
+
+  private async notifierParents(opts: { schoolId: string; studentId: string; titre: string; corps: string }) {
+    if (this.notificationService.notifierParents) {
+      await this.notificationService.notifierParents({
+        schoolId: opts.schoolId,
+        studentId: opts.studentId,
+        type: "STUDENT_RISK_ALERT",
+        titre: opts.titre,
+        corps: opts.corps,
+      }).catch((err: any) => console.error("[HealthAlert] parent:", err?.message));
+    } else {
+      // Fallback: try direct envoyer if parent resolution not available via port
+      console.warn("[HealthAlert] notifierParents not implemented on NotificationService");
+    }
+  }
 
   private async genererEtPersisterConseil(params: {
     schoolId: string;
@@ -62,7 +78,7 @@ export class GererAlertesSanteUseCase {
       if (ficheExistante) return;
       const conseillers = await this.healthJobsRepository.findStaffByPermission(schoolId, "MANAGE_ORIENTATION");
       for (const c of conseillers) {
-        await notifierPersonnelDirect(c.userId, schoolId, "Suivi Orientation suggéré",
+        await this.notifierPersonnelDirect(c.userId, schoolId, "Suivi Orientation suggéré",
           `${nomComplet} (${className ?? "N/A"}) est en risque critique de façon répétée (${occurrences} alerte(s) récente(s)). Une fiche d'orientation pourrait être ouverte.`);
       }
     } catch (err: any) {
@@ -80,11 +96,11 @@ export class GererAlertesSanteUseCase {
       schoolId, studentId, nomEleve: nomComplet, contexte,
       recipientRole: "PARENT", contextType: "HEALTH_CRITICAL", destinataire: "PARENT",
     });
-    await notifierParentsPushDabord({
-      schoolId, studentId, type: "STUDENT_RISK_ALERT",
+    await this.notifierParents({
+      schoolId, studentId,
       titre: "Alerte — suivi urgent recommandé",
       corps: conseilParent ?? `${nomComplet} (${className ?? "sa classe"}) traverse une période difficile (indice de santé scolaire : ${healthScore}/100). Un échange avec l'établissement est recommandé.`,
-    }).catch((err: any) => console.error("[HealthAlert] parent critique:", err?.message));
+    });
 
     void this.genererEtPersisterConseil({
       schoolId, studentId, nomEleve: nomComplet, contexte,
@@ -100,7 +116,7 @@ export class GererAlertesSanteUseCase {
 
     const censeurs = await this.healthJobsRepository.findStaffByPermission(schoolId, "VALIDATE_GRADES");
     for (const c of censeurs) {
-      await notifierPersonnelDirect(c.userId, schoolId, "Élève en risque critique", `${nomComplet} (${className ?? "N/A"}) — indice de santé scolaire : ${healthScore}/100.`);
+      await this.notifierPersonnelDirect(c.userId, schoolId, "Élève en risque critique", `${nomComplet} (${className ?? "N/A"}) — indice de santé scolaire : ${healthScore}/100.`);
     }
 
     void this.suggererOrientationSiRisquePersistant(studentId, schoolId, nomComplet, className);
@@ -117,11 +133,11 @@ export class GererAlertesSanteUseCase {
       schoolId, studentId, nomEleve: nomComplet, contexte,
       recipientRole: "PARENT", contextType: "HEALTH_WARNING", destinataire: "PARENT",
     });
-    await notifierParentsPushDabord({
-      schoolId, studentId, type: "STUDENT_RISK_ALERT",
+    await this.notifierParents({
+      schoolId, studentId,
       titre: "Vigilance recommandée",
       corps: conseilParent ?? `${nomComplet} (${className ?? "sa classe"}) montre des signes à surveiller (indice de santé scolaire : ${healthScore}/100).`,
-    }).catch((err: any) => console.error("[HealthAlert] parent avertissement:", err?.message));
+    });
 
     void this.genererEtPersisterConseil({
       schoolId, studentId, nomEleve: nomComplet, contexte,
@@ -148,11 +164,11 @@ export class GererAlertesSanteUseCase {
       schoolId, studentId, nomEleve: nomComplet, contexte,
       recipientRole: "PARENT", contextType: "HEALTH_POSITIVE", destinataire: "PARENT",
     });
-    await notifierParentsPushDabord({
-      schoolId, studentId, type: "STUDENT_RISK_ALERT",
+    await this.notifierParents({
+      schoolId, studentId,
       titre: "Belle progression 🎉",
       corps: conseilParent ?? `${nomComplet} (${className ?? "sa classe"}) montre une nette amélioration récente (indice de santé scolaire : ${healthScore}/100). Continuez à l'encourager !`,
-    }).catch((err: any) => console.error("[HealthAlert] parent positif:", err?.message));
+    });
 
     void this.genererEtPersisterConseil({
       schoolId, studentId, nomEleve: nomComplet, contexte,

@@ -1,12 +1,12 @@
 import type { MinesecJobsRepository } from '@domain/ports/repositories/MinesecJobsRepository';
-import { notifyMinesecOverdueSms } from '@infrastructure/services/sms/SmsNotificationService.ts';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 
 function yearLabelFor(year: { startDate: Date; endDate: Date | null }): string {
   return `${year.startDate.getFullYear()}-${year.endDate?.getFullYear() ?? year.startDate.getFullYear() + 1}`;
 }
 
 export class RelancePaiementsUseCase {
-  constructor(private readonly repository: MinesecJobsRepository) {}
+  constructor(private readonly repository: MinesecJobsRepository, private readonly smsNotification: SmsNotificationPort) {}
 
   async execute(): Promise<{ results: { schoolId: string; schoolName: string; remindersSent: number }[]; sentAt: string }> {
     const schools = await this.repository.listerEcolesActives();
@@ -34,7 +34,7 @@ export class RelancePaiementsUseCase {
       for (const [, { student, payments }] of byStudent) {
         const totalDus = payments.reduce((s: number, p: any) => s + p.montantAttendu, 0);
         const typesFrais = payments.map((p: any) => p.typeFrais).join(', ');
-        void notifyMinesecOverdueSms({
+        void this.smsNotification.notifyMinesecOverdueSms({
           schoolId: school.id,
           studentUserId: student.user.id,
           studentName: `${student.user.firstName} ${student.user.lastName}`,

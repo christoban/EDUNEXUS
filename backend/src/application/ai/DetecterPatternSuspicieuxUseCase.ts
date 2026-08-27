@@ -1,6 +1,6 @@
 import type { AIActionAuditQueryPort } from '@domain/ports/repositories/AIActionAuditQueryPort';
+import type { EmailService } from '@domain/ports/services/EmailService';
 import { prisma } from '../../config/prisma.ts';
-import { sendTransactionalEmail } from '../../infrastructure/services/email/EmailService.ts';
 
 const FENETRE_ALERTE_MS = 10 * 60 * 1000;
 const SEUIL_REFUS = 3;
@@ -15,7 +15,10 @@ export interface DetecterPatternSuspicieuxResult {
 }
 
 export class DetecterPatternSuspicieuxUseCase {
-  constructor(private readonly auditQueryPort: AIActionAuditQueryPort) {}
+  constructor(
+    private readonly auditQueryPort: AIActionAuditQueryPort,
+    private readonly emailService: EmailService,
+  ) {}
 
   async execute(params: DetecterPatternSuspicieuxParams = {}): Promise<DetecterPatternSuspicieuxResult> {
     const depuis = new Date(Date.now() - FENETRE_ALERTE_MS);
@@ -68,12 +71,11 @@ export class DetecterPatternSuspicieuxUseCase {
 
       for (const operateur of operateurs) {
         if (!operateur.email) continue;
-        await sendTransactionalEmail({
-          recipientEmail: operateur.email,
-          subject: `[Sécurité IA] ${refuseCount} actions refusées en 10 min — utilisateur ${actorUserId}`,
-          html: `<p>Bonjour ${operateur.name ?? ''},<br><br>L'utilisateur <b>${actorUserId}</b> (rôle ${actorRole}${schoolId ? `, établissement ${schoolId}` : ''}) a déclenché <b>${refuseCount} refus</b> en moins de 10 minutes.</p><p>${detail}</p><p>Consultez la vue Sécurité plateforme pour le détail complet.</p>`,
-          text: `${refuseCount} actions refusées en 10 min pour l'utilisateur ${actorUserId} (rôle ${actorRole}).`,
-          template: 'ai_security_alert',
+        await this.emailService.envoyer({
+          destinataire: operateur.email,
+          sujet: `[Sécurité IA] ${refuseCount} actions refusées en 10 min — utilisateur ${actorUserId}`,
+          contenuHtml: `<p>Bonjour ${operateur.name ?? ''},<br><br>L'utilisateur <b>${actorUserId}</b> (rôle ${actorRole}${schoolId ? `, établissement ${schoolId}` : ''}) a déclenché <b>${refuseCount} refus</b> en moins de 10 minutes.</p><p>${detail}</p><p>Consultez la vue Sécurité plateforme pour le détail complet.</p>`,
+          contenuTexte: `${refuseCount} actions refusées en 10 min pour l'utilisateur ${actorUserId} (rôle ${actorRole}).`,
           eventType: 'ai_security_suspicious_pattern',
         });
       }

@@ -16,6 +16,7 @@ import { PrismaStaffProfileRepository } from "../../persistence/prisma/PrismaSta
 import { DetecterChuteMoyenneUseCase, trouverSequencePrecedente } from "@application/grade/DetecterChuteMoyenneUseCase";
 import { GenererBulletinsInngestUseCase } from "@application/reportCard/GenererBulletinsInngestUseCase";
 import { RelancerValidationNotesUseCase } from "@application/reportCard/RelancerValidationNotesUseCase";
+import { NodemailerEmailService } from "@infrastructure/services/email/NodemailerEmailService";
 
 // Re-export for backward compat (anciennement défini ici)
 export { trouverSequencePrecedente };
@@ -45,6 +46,7 @@ export const generateReportCards = inngest.createFunction(
       new PrismaBulletinRepository(prisma),
       new PrismaSchoolRepository(prisma),
       new PrismaMatiereRepository(prisma),
+      new NodemailerEmailService(),
     );
 
     const { academicYear, academicPeriod, generatedStudents } = await step.run("generate-report-cards", async () => {
@@ -123,6 +125,7 @@ export const handleGradeSubmitted = inngest.createFunction(
       new PrismaUserRepository(prisma),
       new PrismaMatiereRepository(prisma),
       new PrismaClasseRepository(prisma),
+      new NodemailerEmailService(),
     );
 
     await step.sleep("wait-48h", "48h");

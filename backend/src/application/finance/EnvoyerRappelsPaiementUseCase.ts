@@ -1,10 +1,15 @@
 import type { FinanceJobsRepository } from '@domain/ports/repositories/FinanceJobsRepository';
-import { sendTransactionalEmail } from '@infrastructure/services/email/EmailService.ts';
-import { notifierParentsPushDabord } from '@infrastructure/services/notification/PushFirstNotifier.ts';
-import { notifyOverdueInvoiceSms } from '@infrastructure/services/sms/SmsNotificationService.ts';
+import type { EmailService } from '@domain/ports/services/EmailService';
+import type { NotificationService } from '@domain/ports/services/NotificationService';
+import type { SmsNotificationPort } from '@domain/ports/services/SmsNotificationPort';
 
 export class EnvoyerRappelsPaiementUseCase {
-  constructor(private readonly financeJobsRepository: FinanceJobsRepository) {}
+  constructor(
+    private readonly financeJobsRepository: FinanceJobsRepository,
+    private readonly emailService: EmailService,
+    private readonly notificationService: NotificationService,
+    private readonly smsNotification: SmsNotificationPort,
+  ) {}
 
   async execute(): Promise<{ processed: number }> {
     const today = new Date();
@@ -45,14 +50,13 @@ export class EnvoyerRappelsPaiementUseCase {
 
       for (const recipient of dedupedRecipients) {
         try {
-          await sendTransactionalEmail({
-            recipientEmail: recipient.email,
-            recipientUserId: recipient.userId,
-            subject: `${subject} — ${schoolName}`,
-            html: `<p>Bonjour,</p><p>Facture : <b>${label}</b></p><p>Montant : <b>${amountFormatted}</b></p><p>Échéance : <b>${dueDateFormatted}</b></p><p>Connectez-vous sur ZekoulABia pour payer en ligne.</p>`,
-            text: `Facture ${label} - ${invoice.amount} XAF - Échéance ${dueDateFormatted}`,
-            template: "payment_reminder",
+          await this.emailService.envoyer({
+            destinataire: recipient.email,
+            sujet: `${subject} — ${schoolName}`,
+            contenuHtml: `<p>Bonjour,</p><p>Facture : <b>${label}</b></p><p>Montant : <b>${amountFormatted}</b></p><p>Échéance : <b>${dueDateFormatted}</b></p><p>Connectez-vous sur ZekoulABia pour payer en ligne.</p>`,
+            contenuTexte: `Facture ${label} - ${invoice.amount} XAF - Échéance ${dueDateFormatted}`,
             eventType: "payment_reminder",
+            recipientUserId: recipient.userId,
           });
           processed++;
         } catch (err) {
@@ -63,23 +67,27 @@ export class EnvoyerRappelsPaiementUseCase {
       if (isOverdue && invoice.studentId) {
         const studentName = `${invoice.student?.firstName ?? ''} ${invoice.student?.lastName ?? ''}`.trim();
         const daysOverdue = Math.abs(daysUntilDue);
-        void notifierParentsPushDabord({
+        const titre = "Facture en retard";
+        const corps = `Facture "${label}" de ${invoice.amount} XAF pour ${studentName} en retard de ${daysOverdue} jour(s).`;
+        if (this.notificationService.notifierParents) {
+          await this.notificationService.notifierParents({
+            schoolId: invoice.schoolId, studentId: invoice.studentId, type: "PAYMENT_REMINDER", titre, corps,
+          }).catch((err: any) => console.error('[PushFirst] parent:', err?.message));
+        } else {
+          for (const parent of parentRecipients) {
+            await this.notificationService
+              .envoyer({ schoolId: invoice.schoolId, userId: parent.userId, type: "PAYMENT_REMINDER", titre, corps, canal: "IN_APP" })
+              .catch((err: any) => console.error('[PushFirst] IN_APP parent:', err?.message));
+          }
+        }
+        void this.smsNotification.notifyOverdueInvoiceSms({
           schoolId: invoice.schoolId,
           studentId: invoice.studentId,
-          type: "PAYMENT_REMINDER",
-          titre: "Facture en retard",
-          corps: `Facture "${label}" de ${invoice.amount} XAF pour ${studentName} en retard de ${daysOverdue} jour(s).`,
-        }).then(({ phonesSansPush }) =>
-          notifyOverdueInvoiceSms({
-            schoolId: invoice.schoolId,
-            studentId: invoice.studentId!,
-            studentName,
-            amount: invoice.amount,
-            daysOverdue,
-            invoiceLabel: label,
-            phones: phonesSansPush,
-          }),
-        );
+          studentName,
+          amount: invoice.amount,
+          daysOverdue,
+          invoiceLabel: label,
+        });
       }
     }
 

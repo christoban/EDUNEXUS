@@ -7,7 +7,7 @@ import type { StaffProfileRepository } from "@domain/ports/repositories/StaffPro
 import type { UserRepository } from "@domain/ports/repositories/UserRepository";
 import type { MatiereRepository } from "@domain/ports/repositories/MatiereRepository";
 import type { ClasseRepository } from "@domain/ports/repositories/ClasseRepository";
-import { sendTransactionalEmail } from "../../infrastructure/services/email/EmailService";
+import type { EmailService } from "@domain/ports/services/EmailService";
 
 export class RelancerValidationNotesUseCase {
   constructor(
@@ -16,6 +16,7 @@ export class RelancerValidationNotesUseCase {
     private readonly userRepository: UserRepository,
     private readonly matiereRepository: MatiereRepository,
     private readonly classeRepository: ClasseRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   async relancer48h(params: { gradeId: string; schoolId: string }): Promise<{ sent: number; skipped: boolean }> {
@@ -34,13 +35,12 @@ export class RelancerValidationNotesUseCase {
     let sent = 0;
     for (const c of censeurs) {
       if (!c.email) continue;
-      await sendTransactionalEmail({
-        recipientEmail: c.email,
+      await this.emailService.envoyer({
+        destinataire: c.email,
         recipientUserId: c.userId,
-        subject: `[RELANCE] Notes en attente de validation — ${subjectName} ${className}`,
-        html: `<p>Bonjour ${c.firstName},<br><br>Des notes de <b>${subjectName}</b> — <b>${className}</b> sont en attente de validation depuis 48h.<br><br>Connectez-vous à ZekoulABia pour valider.</p>`,
-        text: `Notes en attente depuis 48h : ${subjectName} — ${className}`,
-        template: "grade_reminder",
+        sujet: `[RELANCE] Notes en attente de validation — ${subjectName} ${className}`,
+        contenuHtml: `<p>Bonjour ${c.firstName},<br><br>Des notes de <b>${subjectName}</b> — <b>${className}</b> sont en attente de validation depuis 48h.<br><br>Connectez-vous à ZekoulABia pour valider.</p>`,
+        contenuTexte: `Notes en attente depuis 48h : ${subjectName} — ${className}`,
         eventType: "grade_reminder_48h",
       });
       sent++;
@@ -64,13 +64,12 @@ export class RelancerValidationNotesUseCase {
       const email = (admin as any).email ?? (admin as any).toObject?.().email;
       const firstName = (admin as any).firstName ?? (admin as any).toObject?.().firstName;
       if (!email) continue;
-      await sendTransactionalEmail({
-        recipientEmail: email,
+      await this.emailService.envoyer({
+        destinataire: email,
         recipientUserId: admin.id,
-        subject: `[URGENT] Notes bloquées depuis 72h — ${subjectName}`,
-        html: `<p>Bonjour ${firstName},<br><br>Les notes de <b>${subjectName}</b> — <b>${className}</b> sont en attente de validation depuis <b>72h</b>.<br><br>Action requise immédiatement.</p>`,
-        text: `URGENT : Notes bloquées depuis 72h — ${subjectName}`,
-        template: "grade_reminder",
+        sujet: `[URGENT] Notes bloquées depuis 72h — ${subjectName}`,
+        contenuHtml: `<p>Bonjour ${firstName},<br><br>Les notes de <b>${subjectName}</b> — <b>${className}</b> sont en attente de validation depuis <b>72h</b>.<br><br>Action requise immédiatement.</p>`,
+        contenuTexte: `URGENT : Notes bloquées depuis 72h — ${subjectName}`,
         eventType: "grade_reminder_72h",
       });
       sent++;

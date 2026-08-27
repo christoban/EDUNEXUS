@@ -14,6 +14,7 @@ import { PrismaMinesecJobsRepository } from '../../persistence/prisma/PrismaMine
 import { SyncCarteScolaireJobUseCase } from '@application/paiementMinesec/SyncCarteScolaireJobUseCase';
 import { RelancePaiementsUseCase } from '@application/paiementMinesec/RelancePaiementsUseCase';
 import { AuditMatriculesUseCase } from '@application/paiementMinesec/AuditMatriculesUseCase';
+import { SmsNotificationAdapter } from '../../services/sms/SmsNotificationAdapter';
 
 // ─── 1. Sync nocturne cartescolaire.cm ────────────────────────────────────
 // Réutilise SyncFromCarteScolaireUseCase (au lieu de dupliquer la logique) pour ne
@@ -36,7 +37,8 @@ export const relancePaiements = inngest.createFunction(
   { id: 'relance-paiements-hebdo', name: 'Relances paiements en retard', triggers: [{ cron: '0 8 * * 1' }] },
   async () => {
     const repository = new PrismaMinesecJobsRepository(prisma);
-    const useCase = new RelancePaiementsUseCase(repository);
+    const smsNotification = new SmsNotificationAdapter();
+    const useCase = new RelancePaiementsUseCase(repository, smsNotification);
     return useCase.execute();
   }
 );

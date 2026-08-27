@@ -11,4 +11,11 @@ export interface EmailTemplatePort {
     activationUrl: string;
     language?: 'fr' | 'en' | 'bilingual';
   }): EmailTemplate;
+  buildOnboardingLink(payload: {
+    nomProvisoire: string;
+    schoolName: string;
+    formUrl: string;
+    expiryDays: number;
+    language?: 'fr' | 'en';
+  }): EmailTemplate;
 }

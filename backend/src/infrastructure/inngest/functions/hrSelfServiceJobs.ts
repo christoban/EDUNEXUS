@@ -15,12 +15,14 @@ import { inngest } from '../client/index';
 import { prisma } from '../../../config/prisma';
 import { PrismaHrJobsRepository } from '../../persistence/prisma/PrismaHrJobsRepository';
 import { RelanceProfilRHUseCase } from '@application/hr/RelanceProfilRHUseCase';
+import { NodemailerEmailService } from '../../services/email/NodemailerEmailService';
 
 export const relanceProfilRH = inngest.createFunction(
   { id: 'relance-profil-rh-quotidien', name: 'Relances profil RH self-service', triggers: [{ cron: '0 8 * * *' }] },
   async ({ step }) => {
     const repository = new PrismaHrJobsRepository(prisma);
-    const useCase = new RelanceProfilRHUseCase(repository);
+    const emailService = new NodemailerEmailService();
+    const useCase = new RelanceProfilRHUseCase(repository, emailService);
     return useCase.execute(step);
   },
 );

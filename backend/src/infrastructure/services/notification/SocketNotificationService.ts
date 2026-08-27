@@ -2,7 +2,8 @@ import type { NotificationService, EnvoiNotificationOptions } from '@domain/port
 import type { NotificationType as DomainNotificationType } from '@domain/types/enums';
 import type { NotificationType as PrismaNotificationType, UserRole, Prisma } from '@prisma/client';
 import { getIO } from '../../socket/SocketServer.ts';
-import { notifierUtilisateurPush } from './PushNotificationService.ts';
+import { notifierUtilisateurPush, notifierUtilisateurPushAvecResultat } from './PushNotificationService.ts';
+import { getParentContacts } from '../sms/SmsNotificationService.ts';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 
 /**
@@ -135,6 +136,24 @@ export class SocketNotificationService implements NotificationService {
       await prisma.notification.update({ where: { id: notificationId }, data: { isRead: true } });
     } catch (err) {
       console.error('[Notification] Échec marquerLue:', err);
+    }
+  }
+
+  async notifierParents(opts: {
+    schoolId: string;
+    studentId: string;
+    type: DomainNotificationType;
+    titre: string;
+    corps: string;
+  }): Promise<void> {
+    try {
+      const parents = await getParentContacts(opts.studentId);
+      for (const parent of parents) {
+        await this.envoyer({ schoolId: opts.schoolId, userId: parent.userId, type: opts.type, titre: opts.titre, corps: opts.corps, canal: 'IN_APP' }).catch((err) => console.error('[PushFirst] IN_APP parent:', (err as any)?.message));
+        await notifierUtilisateurPushAvecResultat({ userId: parent.userId, title: opts.titre, body: opts.corps }).catch(() => ({ delivered: false }));
+      }
+    } catch (err) {
+      console.error('[Notification] notifierParents error:', err);
     }
   }
 }

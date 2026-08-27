@@ -4,6 +4,9 @@ import { PrismaFinanceJobsRepository } from "../../persistence/prisma/PrismaFina
 import { EnvoyerRappelsPaiementUseCase } from "@application/finance/EnvoyerRappelsPaiementUseCase";
 import { VerifierSeuilAbsencesUseCase } from "@application/finance/VerifierSeuilAbsencesUseCase";
 import { MarquerRetardsPretUseCase } from "@application/finance/MarquerRetardsPretUseCase";
+import { NodemailerEmailService } from "../../services/email/NodemailerEmailService";
+import { SmsNotificationAdapter } from "../../services/sms/SmsNotificationAdapter";
+import { SocketNotificationService } from "../../services/notification/SocketNotificationService";
 
 const financeJobsRepository = new PrismaFinanceJobsRepository(prisma);
 
@@ -11,7 +14,7 @@ export const sendPaymentReminders = inngest.createFunction(
   { id: "send-payment-reminders", name: "Relances paiement automatiques", triggers: [{ cron: "0 8 * * *" }] },
   async ({ step }) => {
     return await step.run("find-and-remind", async () => {
-      const useCase = new EnvoyerRappelsPaiementUseCase(financeJobsRepository);
+      const useCase = new EnvoyerRappelsPaiementUseCase(financeJobsRepository, new NodemailerEmailService(), new SocketNotificationService(), new SmsNotificationAdapter());
       return useCase.execute();
     });
   }
@@ -21,7 +24,7 @@ export const checkAbsenceThreshold = inngest.createFunction(
   { id: "check-absence-threshold", name: "Vérification seuil d'absences", triggers: [{ cron: "0 7 * * *" }] },
   async ({ step }) => {
     return await step.run("check-thresholds", async () => {
-      const useCase = new VerifierSeuilAbsencesUseCase(financeJobsRepository);
+      const useCase = new VerifierSeuilAbsencesUseCase(financeJobsRepository, new NodemailerEmailService(), new SmsNotificationAdapter());
       return useCase.execute();
     });
   }
@@ -30,7 +33,7 @@ export const checkAbsenceThreshold = inngest.createFunction(
 export const markOverdueLoans = inngest.createFunction(
   { id: "mark-overdue-loans", name: "Marquer emprunts en retard", triggers: [{ cron: "0 1 * * *" }] },
   async ({ step }) => {
-    const useCase = new MarquerRetardsPretUseCase(financeJobsRepository);
+    const useCase = new MarquerRetardsPretUseCase(financeJobsRepository, new SocketNotificationService(), new SmsNotificationAdapter());
     const toMark = (await step.run("find-overdue-loans", async () => {
       return useCase.findOverdue();
     })) as unknown as Awaited<ReturnType<typeof useCase.findOverdue>>;

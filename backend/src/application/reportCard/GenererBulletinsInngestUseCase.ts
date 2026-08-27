@@ -13,8 +13,8 @@ import type { PresenceRepository } from "@domain/ports/repositories/PresenceRepo
 import type { BulletinRepository } from "@domain/ports/repositories/BulletinRepository";
 import type { SchoolRepository } from "@domain/ports/repositories/SchoolRepository";
 import type { MatiereRepository } from "@domain/ports/repositories/MatiereRepository";
+import type { EmailService } from "@domain/ports/services/EmailService";
 import { resolveLanguage } from "../../domain/policies/LanguagePolicy";
-import { sendTransactionalEmail } from "../../infrastructure/services/email/EmailService";
 
 export interface GenererBulletinsInngestCommande {
   yearId: string;
@@ -38,6 +38,7 @@ export class GenererBulletinsInngestUseCase {
     private readonly bulletinRepository: BulletinRepository,
     private readonly schoolRepository: SchoolRepository,
     private readonly matiereRepository: MatiereRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   async generer(commande: GenererBulletinsInngestCommande): Promise<GenererBulletinsInngestResultat & { academicYear: any; academicPeriod: any }> {
@@ -203,13 +204,12 @@ export class GenererBulletinsInngestUseCase {
       const recipients = [{ email: ctx.email!, userId: ctx.id }, ...parentRecipients];
       for (const recipient of recipients) {
         try {
-          await sendTransactionalEmail({
-            recipientEmail: recipient.email,
+          await this.emailService.envoyer({
+            destinataire: recipient.email,
             recipientUserId: recipient.userId,
-            subject,
-            html,
-            text,
-            template: "report_card_available",
+            sujet: subject,
+            contenuHtml: html,
+            contenuTexte: text,
             eventType: "report_card_available",
           });
           sent++;

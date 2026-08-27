@@ -11,6 +11,11 @@ const stubEmailTemplate: EmailTemplatePort = {
     html: '<p>test</p>',
     text: `Invitation ${payload.schoolName}`,
   }),
+  buildOnboardingLink: (payload) => ({
+    subject: `Onboarding ${payload.nomProvisoire}`,
+    html: '<p>test</p>',
+    text: `Onboarding ${payload.nomProvisoire}`,
+  }),
 };
 
 describe('InviterEcoleUseCase', () => {

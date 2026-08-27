@@ -25,4 +25,11 @@ export interface NotificationService {
     canal: NotificationChannel;
   }): Promise<void>;
   marquerLue(notificationId: string): Promise<void>;
+  notifierParents?(opts: {
+    schoolId: string;
+    studentId: string;
+    type: NotificationType;
+    titre: string;
+    corps: string;
+  }): Promise<void>;
 }

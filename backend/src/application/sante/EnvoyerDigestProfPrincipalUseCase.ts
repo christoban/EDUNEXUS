@@ -1,17 +1,17 @@
 import type { HealthJobsRepository } from '@domain/ports/repositories/HealthJobsRepository';
-import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService.ts';
-
-async function notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
-  const socketService = new SocketNotificationService();
-  await socketService
-    .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
-    .catch((err: any) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
-  const { notifierUtilisateurPush } = await import('@infrastructure/services/notification/PushNotificationService.ts');
-  await notifierUtilisateurPush({ userId, title: titre, body: corps }).catch(() => {});
-}
+import type { NotificationService } from '@domain/ports/services/NotificationService';
 
 export class EnvoyerDigestProfPrincipalUseCase {
-  constructor(private readonly healthJobsRepository: HealthJobsRepository) {}
+  constructor(private readonly healthJobsRepository: HealthJobsRepository, private readonly notificationService: NotificationService) {}
+
+  private async notifierPersonnelDirect(userId: string, schoolId: string, titre: string, corps: string) {
+    await this.notificationService
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "IN_APP" })
+      .catch((err: any) => console.error("[HealthAlert] IN_APP personnel:", err?.message));
+    await this.notificationService
+      .envoyer({ schoolId, userId, type: "STUDENT_RISK_ALERT", titre, corps, canal: "PUSH" })
+      .catch(() => {});
+  }
 
   async execute(): Promise<{ digestSent: boolean }> {
     const schools = await this.healthJobsRepository.findActiveSchools();
@@ -64,7 +64,7 @@ export class EnvoyerDigestProfPrincipalUseCase {
         if (d.vigilances.length) sections.push(`Vigilance (${d.vigilances.length}) :\n${d.vigilances.join("\n")}`);
         if (d.chutes.length) sections.push(`Chutes de matière hier (${d.chutes.length}) :\n${d.chutes.join("\n")}`);
         if (sections.length === 0) continue;
-        await notifierPersonnelDirect(ppId, school.id, "Votre digest quotidien — élèves à suivre", sections.join("\n\n"));
+        await this.notifierPersonnelDirect(ppId, school.id, "Votre digest quotidien — élèves à suivre", sections.join("\n\n"));
       }
     }
 
