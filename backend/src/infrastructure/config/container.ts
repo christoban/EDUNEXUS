@@ -69,6 +69,8 @@ import { ImporterUtilisateursUseCase } from '@application/user/ImporterUtilisate
 // --- Use Cases : Bulletins ---
 import { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinUseCase';
 import { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
+import { VerifierDisponibiliteBulletinUseCase } from '@application/reportCard/VerifierDisponibiliteBulletinUseCase';
+import { ListerBulletinsUseCase } from '@application/reportCard/ListerBulletinsUseCase';
 
 // --- Use Cases : Conseil de Classe ---
 import { TenirConseilClasseUseCase } from '@application/classCouncil/TenirConseilClasseUseCase';
@@ -363,6 +365,7 @@ export function creerContainer() {
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
   const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
+  const parentRepository = new PrismaParentRepository(prisma);
   const notifierEvenement = (schoolId: string, targetRoles: string[], titre: string, corps: string) =>
     notifierEvenementAcademique(prisma, schoolId, targetRoles, titre, corps);
   const classRoomAssignmentRepository = new PrismaClassRoomAssignmentRepository(prisma);
@@ -422,6 +425,12 @@ export function creerContainer() {
   );
   const envoyerBulletinsUseCase = new EnvoyerBulletinsUseCase(
     bulletinRepository, userRepository, emailService
+  );
+  const verifierDisponibiliteUseCase = new VerifierDisponibiliteBulletinUseCase(
+    anneeRepository, noteRepository, classCouncilRepository
+  );
+  const listerBulletinsUseCase = new ListerBulletinsUseCase(
+    bulletinRepository, parentRepository
   );
 
   // 8. Use Cases — Conseil de Classe
@@ -640,7 +649,6 @@ export function creerContainer() {
   );
 
   // 15. Use Cases — Parent + SchoolSettings
-  const parentRepository = new PrismaParentRepository(prisma);
   const schoolSettingsRepository = new PrismaSchoolSettingsRepository(prisma);
 
   const obtenirEnfantsUseCase = new ObtenirEnfantsUseCase(parentRepository);
@@ -713,10 +721,15 @@ export function creerContainer() {
       anneeRepository,
       classeRepository,
       matiereRepository,
+      sectionRepository,
     },
     reportCard: {
       generer: genererBulletinUseCase,
       envoyer: envoyerBulletinsUseCase,
+      verifierDisponibilite: verifierDisponibiliteUseCase,
+      lister: listerBulletinsUseCase,
+      bulletinRepository,
+      parentRepository,
     },
     classCouncil: {
       creerSession: creerSessionConseilUseCase,

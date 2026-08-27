@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { Bulletin } from '@domain/entities/Bulletin';
-import type { BulletinRepository } from '@domain/ports/repositories/BulletinRepository';
+import type { BulletinRepository, BulletinAvecContexteClasse, BulletinEnrichi, BulletinExportData } from '@domain/ports/repositories/BulletinRepository';
 import type { BulletinTemplate, ReportCardStatus } from '@domain/types/enums';
 
 export class PrismaBulletinRepository implements BulletinRepository {
@@ -55,6 +55,135 @@ export class PrismaBulletinRepository implements BulletinRepository {
       include: { subjectLines: true },
     });
     return data.map(d => this.toDomain(d));
+  }
+
+  async findWithClasseContext(bulletinId: string, schoolId: string): Promise<BulletinAvecContexteClasse | null> {
+    const data = await this.prisma.reportCard.findFirst({
+      where: { id: bulletinId, schoolId },
+      include: {
+        subjectLines: true,
+        student: {
+          include: {
+            studentProfile: {
+              include: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { professorPrincipalId: true } } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    }) as any;
+    if (!data) return null;
+    const bulletin = this.toDomain(data);
+    const professorPrincipalId = data.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.professorPrincipalId ?? null;
+    return { bulletin, professorPrincipalId };
+  }
+
+  async findEnrichedById(bulletinId: string, schoolId: string): Promise<BulletinEnrichi | null> {
+    const data = await this.prisma.reportCard.findFirst({
+      where: { id: bulletinId, schoolId },
+      include: {
+        subjectLines: true,
+        school: { select: { subsystem: true } },
+        student: {
+          select: {
+            firstName: true,
+            lastName: true,
+            studentProfile: {
+              select: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { professorPrincipalId: true, section: { select: { code: true } } } } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    }) as any;
+    if (!data) return null;
+    const bulletin = this.toDomain(data);
+    const professorPrincipalId = data.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.professorPrincipalId ?? null;
+    const sectionCode = data.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null;
+    return {
+      bulletin,
+      schoolSubsystem: data.school?.subsystem ?? null,
+      sectionCode,
+      studentFirstName: data.student?.firstName ?? '',
+      studentLastName: data.student?.lastName ?? '',
+      professorPrincipalId,
+    };
+  }
+
+  async findPreviousByStudent(studentId: string, schoolId: string, excludeBulletinId?: string): Promise<{ generalAverage: number | null } | null> {
+    const data = await this.prisma.reportCard.findFirst({
+      where: { studentId, schoolId, ...(excludeBulletinId ? { id: { not: excludeBulletinId } } : {}) },
+      orderBy: { createdAt: 'desc' },
+      select: { generalAverage: true },
+    }) as any;
+    if (!data) return null;
+    return { generalAverage: data.generalAverage ?? null };
+  }
+
+  async findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string }): Promise<Record<string, unknown>[]> {
+    return this.prisma.reportCard.findMany({
+      where: {
+        schoolId: params.schoolId,
+        studentId: params.studentId,
+        ...(params.academicYearId ? { academicYearId: params.academicYearId } : {}),
+      },
+      include: { academicYear: true, academicPeriod: true },
+      orderBy: { createdAt: 'desc' },
+    }) as unknown as Record<string, unknown>[];
+  }
+
+  async findPaginated(params: {
+    schoolId: string;
+    academicYearId?: string;
+    academicPeriodId?: string;
+    studentId?: string | { in: string[] };
+    classId?: string;
+    page: number;
+    limit: number;
+  }): Promise<{ items: Record<string, unknown>[]; total: number }> {
+    const { whereElevesParClasse } = await import('@application/shared/studentEnrollment');
+    const where: Record<string, unknown> = { schoolId: params.schoolId };
+    if (params.academicYearId) where.academicYearId = params.academicYearId;
+    if (params.academicPeriodId) where.academicPeriodId = params.academicPeriodId;
+    if (params.classId) (where as Record<string, unknown>).student = whereElevesParClasse(params.classId);
+    if (params.studentId !== undefined) where.studentId = params.studentId;
+    const [total, items] = await Promise.all([
+      this.prisma.reportCard.count({ where: where as never }),
+      this.prisma.reportCard.findMany({
+        where: where as never,
+        include: {
+          academicYear: true,
+          academicPeriod: true,
+          student: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (params.page - 1) * params.limit,
+        take: params.limit,
+      }),
+    ]);
+    return { items: items as unknown as Record<string, unknown>[], total };
+  }
+
+  async getStatsValidationParClasse(params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+    const where: Record<string, unknown> = { schoolId: params.schoolId, classId: params.classId };
+    if (params.sequenceIds.length > 0) (where as Record<string, unknown>).sequenceId = { in: params.sequenceIds };
+    const grades = await this.prisma.grade.findMany({ where: where as never, select: { validationStatus: true } });
+    const stats = { total: grades.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+    for (const g of grades) {
+      const s = g.validationStatus as keyof typeof stats;
+      if (s in stats) (stats[s] as number)++;
+    }
+    return stats;
   }
 
   async getMoyennesClasse(
@@ -156,6 +285,21 @@ export class PrismaBulletinRepository implements BulletinRepository {
     });
   }
 
+  async updateClassMasterComment(bulletinId: string, comment: string): Promise<void> {
+    await this.prisma.reportCard.update({ where: { id: bulletinId }, data: { classMasterComment: comment } });
+  }
+
+  async updateAiComment(bulletinId: string, comment: string): Promise<void> {
+    await this.prisma.reportCard.update({ where: { id: bulletinId }, data: { aiComment: comment } });
+  }
+
+  async findRecentSince(schoolId: string, academicPeriodId: string, since: Date): Promise<Array<{ studentId: string; student: { id: string; firstName: string | null; lastName: string | null } }>> {
+    return this.prisma.reportCard.findMany({
+      where: { schoolId, academicPeriodId, createdAt: { gte: since } },
+      include: { student: { select: { id: true, firstName: true, lastName: true } } },
+    }) as unknown as Array<{ studentId: string; student: { id: string; firstName: string | null; lastName: string | null } }>;
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.reportCard.delete({ where: { id } });
   }
@@ -187,6 +331,70 @@ export class PrismaBulletinRepository implements BulletinRepository {
       include: { student: { select: { firstName: true, lastName: true } } },
     });
     return rows.map((r: any) => ({ studentId: r.studentId, student: r.student, generalAverage: r.generalAverage ?? null }));
+  }
+
+  async findForExport(schoolId: string, academicPeriodId: string): Promise<BulletinExportData[]> {
+    const rows = await this.prisma.reportCard.findMany({
+      where: { schoolId, academicPeriodId },
+      include: {
+        academicYear: true,
+        academicPeriod: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            studentProfile: {
+              select: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { name: true, section: { select: { code: true } } } } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        subjectLines: { orderBy: { subjectName: 'asc' } },
+        school: { include: { schoolConfig: true, schoolSettings: true } },
+        section: { select: { code: true } },
+      },
+    });
+    return rows as unknown as BulletinExportData[];
+  }
+
+  async findExportDataByPeriode(schoolId: string, academicPeriodId: string): Promise<BulletinExportData[]> {
+    return this.findForExport(schoolId, academicPeriodId);
+  }
+
+  async findForPdf(bulletinId: string, schoolId: string): Promise<BulletinExportData | null> {
+    const row = await this.prisma.reportCard.findFirst({
+      where: { id: bulletinId, schoolId },
+      include: {
+        academicYear: true,
+        academicPeriod: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            studentProfile: {
+              select: {
+                enrollmentsYearScoped: {
+                  where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
+                  select: { class: { select: { name: true, section: { select: { code: true } } } } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+        subjectLines: { orderBy: { subjectName: 'asc' } },
+        school: { include: { schoolConfig: true, schoolSettings: true } },
+        section: { select: { code: true } },
+      },
+    });
+    return row as unknown as BulletinExportData | null;
   }
 
   async upsertBulletin(data: { schoolId: string; studentId: string; academicYearId: string; academicPeriodId: string; generalAverage: number; rank: number | null; mention: string; absenceCount: number }): Promise<{ id: string }> {

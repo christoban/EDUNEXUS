@@ -305,6 +305,18 @@ export class PrismaNoteRepository implements NoteRepository {
     return rows.map(r => ({ studentId: r.studentId, average: r._avg.sequenceAverage ?? 0 }));
   }
 
+  async getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+    const where: Record<string, unknown> = { schoolId, classId };
+    if (sequenceIds.length > 0) (where as Record<string, unknown>).sequenceId = { in: sequenceIds };
+    const grades = await this.prisma.grade.findMany({ where: where as never, select: { validationStatus: true } });
+    const stats = { total: grades.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+    for (const g of grades) {
+      const s = g.validationStatus as keyof typeof stats;
+      if (s in stats) (stats[s] as number)++;
+    }
+    return stats;
+  }
+
   private toDomain(data: any): Note {
     return Note.reconstituer({
       id: data.id,

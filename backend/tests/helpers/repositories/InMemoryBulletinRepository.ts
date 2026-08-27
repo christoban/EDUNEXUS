@@ -1,10 +1,14 @@
 import { Bulletin } from '@domain/entities/Bulletin';
-import type { BulletinRepository } from '@domain/ports/repositories/BulletinRepository';
+import type { BulletinRepository, BulletinAvecContexteClasse, BulletinEnrichi, BulletinExportData } from '@domain/ports/repositories/BulletinRepository';
 
 export class InMemoryBulletinRepository implements BulletinRepository {
   private store = new Map<string, Bulletin>();
   private periodeStore = new Map<string, Bulletin>(); // key: studentId:academicPeriodId
   private classesParEleve = new Map<string, string>();
+  private profPrincipalByClasse = new Map<string, string>();
+  private sectionCodeByClasse = new Map<string, string>();
+  private schoolSubsystemBySchool = new Map<string, string>();
+  private studentNames = new Map<string, { firstName: string; lastName: string }>();
 
   ajouter(b: Bulletin): void {
     this.store.set(b.id, b);
@@ -18,6 +22,22 @@ export class InMemoryBulletinRepository implements BulletinRepository {
 
   definirClasseEleve(studentId: string, classId: string): void {
     this.classesParEleve.set(studentId, classId);
+  }
+
+  definirProfPrincipal(classeId: string, professorPrincipalId: string): void {
+    this.profPrincipalByClasse.set(classeId, professorPrincipalId);
+  }
+
+  definirSectionCode(classeId: string, code: string): void {
+    this.sectionCodeByClasse.set(classeId, code);
+  }
+
+  definirSchoolSubsystem(schoolId: string, subsystem: string): void {
+    this.schoolSubsystemBySchool.set(schoolId, subsystem);
+  }
+
+  definirStudentName(studentId: string, firstName: string, lastName: string): void {
+    this.studentNames.set(studentId, { firstName, lastName });
   }
 
   async findById(id: string): Promise<Bulletin | null> {
@@ -46,6 +66,40 @@ export class InMemoryBulletinRepository implements BulletinRepository {
         bulletin.schoolId === schoolId &&
         bulletin.academicYearId === academicYearId
     );
+  }
+
+  async findWithClasseContext(bulletinId: string, schoolId: string): Promise<BulletinAvecContexteClasse | null> {
+    const bulletin = this.store.get(bulletinId);
+    if (!bulletin || bulletin.schoolId !== schoolId) return null;
+    const classId = this.classesParEleve.get(bulletin.studentId) ?? null;
+    const professorPrincipalId = classId ? (this.profPrincipalByClasse.get(classId) ?? null) : null;
+    return { bulletin, professorPrincipalId };
+  }
+
+  async findEnrichedById(bulletinId: string, schoolId: string): Promise<BulletinEnrichi | null> {
+    const bulletin = this.store.get(bulletinId);
+    if (!bulletin || bulletin.schoolId !== schoolId) return null;
+    const classId = this.classesParEleve.get(bulletin.studentId) ?? null;
+    const professorPrincipalId = classId ? (this.profPrincipalByClasse.get(classId) ?? null) : null;
+    const sectionCode = classId ? (this.sectionCodeByClasse.get(classId) ?? null) : null;
+    const schoolSubsystem = this.schoolSubsystemBySchool.get(schoolId) ?? null;
+    const names = this.studentNames.get(bulletin.studentId) ?? { firstName: '', lastName: '' };
+    return {
+      bulletin,
+      schoolSubsystem,
+      sectionCode,
+      studentFirstName: names.firstName,
+      studentLastName: names.lastName,
+      professorPrincipalId,
+    };
+  }
+
+  async findPreviousByStudent(studentId: string, schoolId: string, excludeBulletinId?: string): Promise<{ generalAverage: number | null } | null> {
+    const candidates = [...this.store.values()]
+      .filter(b => b.studentId === studentId && b.schoolId === schoolId && b.id !== excludeBulletinId)
+      .sort((a, b) => b.toObject().createdAt.getTime() - a.toObject().createdAt.getTime());
+    if (candidates.length === 0) return null;
+    return { generalAverage: candidates[0].generalAverage ?? null };
   }
 
   async getMoyennesClasse(
@@ -94,8 +148,98 @@ export class InMemoryBulletinRepository implements BulletinRepository {
     }
   }
 
+  async updateClassMasterComment(bulletinId: string, comment: string): Promise<void> {
+    const b = this.store.get(bulletinId);
+    if (!b) throw new Error('Bulletin introuvable');
+    const props = b.toObject();
+    this.store.set(bulletinId, Bulletin.reconstituer({ ...props, classMasterComment: comment }));
+    this.periodeStore.set(`${props.studentId}:${props.academicPeriodId}`, Bulletin.reconstituer({ ...props, classMasterComment: comment }));
+  }
+
+  async updateAiComment(bulletinId: string, comment: string): Promise<void> {
+    const b = this.store.get(bulletinId);
+    if (!b) throw new Error('Bulletin introuvable');
+    const props = b.toObject();
+    this.store.set(bulletinId, Bulletin.reconstituer({ ...props, aiComment: comment }));
+    this.periodeStore.set(`${props.studentId}:${props.academicPeriodId}`, Bulletin.reconstituer({ ...props, aiComment: comment }));
+  }
+
+  async findRecentSince(schoolId: string, academicPeriodId: string, since: Date): Promise<Array<{ studentId: string; student: { id: string; firstName: string | null; lastName: string | null } }>> {
+    return [...this.store.values()]
+      .filter(b => { const p = b.toObject(); return p.schoolId === schoolId && p.academicPeriodId === academicPeriodId && p.createdAt >= since; })
+      .map(b => {
+        const p = b.toObject();
+        const names = this.studentNames.get(p.studentId) ?? { firstName: null, lastName: null };
+        return { studentId: p.studentId, student: { id: p.studentId, firstName: names.firstName ?? null, lastName: names.lastName ?? null } };
+      });
+  }
+
+  async findForExport(schoolId: string, academicPeriodId: string): Promise<BulletinExportData[]> {
+    return [...this.store.values()]
+      .filter(b => { const p = b.toObject(); return p.schoolId === schoolId && p.academicPeriodId === academicPeriodId; })
+      .map(b => {
+        const p = b.toObject();
+        const names = this.studentNames.get(p.studentId) ?? { firstName: '', lastName: '' };
+        const classId = this.classesParEleve.get(p.studentId);
+        const sectionCode = classId ? (this.sectionCodeByClasse.get(classId) ?? null) : null;
+        return {
+          id: p.id, schoolId: p.schoolId, studentId: p.studentId, academicYearId: p.academicYearId, academicPeriodId: p.academicPeriodId,
+          template: p.template as string, generalAverage: p.generalAverage ?? null, rank: p.rank ?? null, totalStudents: (p as any).totalStudents ?? null,
+          absenceCount: p.absenceCount ?? 0, mention: p.mention ?? null, classMasterComment: (p as any).classMasterComment ?? null,
+          academicYear: null, academicPeriod: null,
+          student: { id: p.studentId, firstName: names.firstName, lastName: names.lastName, studentProfile: { enrollmentsYearScoped: classId ? [{ class: { name: classId, section: sectionCode ? { code: sectionCode } : null } } as any] : [] } },
+          subjectLines: (p.lignesMatiere ?? []).map(l => ({ subjectId: l.subjectId, subjectName: l.subjectName, coefficient: l.coefficient, seq1Score: l.seq1Score ?? null, seq2Score: l.seq2Score ?? null, compositionScore: l.compositionScore ?? null, seq3Score: l.seq3Score ?? null, seq4Score: l.seq4Score ?? null, seq5Score: l.seq5Score ?? null, seq6Score: l.seq6Score ?? null, classTestScore: l.classTestScore ?? null, terminalExamScore: l.terminalExamScore ?? null, theoreticalScore: l.theoreticalScore ?? null, practicalScore: l.practicalScore ?? null, professionalAttitude: l.professionalAttitude ?? null, oralScore: l.oralScore ?? null, selfDevelopmentScore: l.selfDevelopmentScore ?? null, subjectAverage: l.subjectAverage ?? null, teacherComment: l.teacherComment ?? null, competenceLabel: l.competenceLabel ?? null })),
+          school: { id: p.schoolId, name: '', subsystem: this.schoolSubsystemBySchool.get(p.schoolId) ?? null, schoolConfig: null, schoolSettings: null },
+          section: sectionCode ? { code: sectionCode } : null,
+        } as unknown as BulletinExportData;
+      });
+  }
+
+  async findExportDataByPeriode(schoolId: string, academicPeriodId: string): Promise<BulletinExportData[]> {
+    return this.findForExport(schoolId, academicPeriodId);
+  }
+
+  async findForPdf(bulletinId: string, schoolId: string): Promise<BulletinExportData | null> {
+    const b = this.store.get(bulletinId);
+    if (!b || b.schoolId !== schoolId) return null;
+    const rows = await this.findForExport(b.schoolId, b.academicPeriodId);
+    return rows.find(r => r.id === bulletinId) ?? null;
+  }
+
   async delete(id: string): Promise<void> {
     this.store.delete(id);
+  }
+
+  async findByEleveFiltre(params: { schoolId: string; studentId: string; academicYearId?: string }): Promise<Record<string, unknown>[]> {
+    return [...this.store.values()]
+      .filter(b => {
+        const p = b.toObject();
+        return p.schoolId === params.schoolId && p.studentId === params.studentId && (!params.academicYearId || p.academicYearId === params.academicYearId);
+      })
+      .map(b => ({ ...b.toObject(), academicYear: null, academicPeriod: null } as unknown as Record<string, unknown>));
+  }
+
+  async findPaginated(params: { schoolId: string; academicYearId?: string; academicPeriodId?: string; studentId?: string | { in: string[] }; classId?: string; page: number; limit: number }): Promise<{ items: Record<string, unknown>[]; total: number }> {
+    let items = [...this.store.values()].filter(b => {
+      const p = b.toObject();
+      if (p.schoolId !== params.schoolId) return false;
+      if (params.academicYearId && p.academicYearId !== params.academicYearId) return false;
+      if (params.academicPeriodId && p.academicPeriodId !== params.academicPeriodId) return false;
+      if (params.classId && this.classesParEleve.get(p.studentId) !== params.classId) return false;
+      if (params.studentId !== undefined) {
+        if (typeof params.studentId === 'string') { if (p.studentId !== params.studentId) return false; }
+        else { if (!params.studentId.in.includes(p.studentId)) return false; }
+      }
+      return true;
+    });
+    const total = items.length;
+    const start = (params.page - 1) * params.limit;
+    const paged = items.slice(start, start + params.limit).map(b => ({ ...b.toObject(), academicYear: null, academicPeriod: null, student: { id: b.studentId, firstName: '', lastName: '' } } as unknown as Record<string, unknown>));
+    return { items: paged, total };
+  }
+
+  async getStatsValidationParClasse(_params: { classId: string; schoolId: string; sequenceIds: string[] }): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+    return { total: 0, DRAFT: 0, SUBMITTED: 0, VALIDATED: 0, LOCKED: 0, REJECTED: 0 };
   }
 
   async findTableauHonneur(params: { classId: string; schoolId: string; academicPeriodId: string; top: number }): Promise<{ student: { firstName: string; lastName: string }; generalAverage: number; mention: string | null }[]> {

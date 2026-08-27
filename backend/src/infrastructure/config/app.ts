@@ -9,6 +9,8 @@ import { AttendanceController } from '@infrastructure/http/controllers/Attendanc
 import { SchoolOnboardingController } from '@infrastructure/http/controllers/SchoolOnboardingController';
 import { ReportCardController } from '@infrastructure/http/controllers/ReportCardController';
 import { GroqIAService } from '@infrastructure/services/ai/GroqIAService';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
+import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { creerGradeRoutes } from '@infrastructure/http/routes/grade.routes';
 import { creerAttendanceRoutes } from '@infrastructure/http/routes/attendance.routes';
 import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.routes';
@@ -53,6 +55,13 @@ export function creerApp(): Application {
     container.reportCard.generer,
     container.reportCard.envoyer,
     new GroqIAService(),
+    container.school.schoolRepository,
+    container.school.classeRepository,
+    container.school.anneeRepository,
+    container.school.sectionRepository,
+    container.reportCard.bulletinRepository,
+    container.reportCard.parentRepository,
+    new AIActionAuditAdapter(prisma as any),
   );
 
   app.use('/api/v2/grades', creerGradeRoutes(gradeController));

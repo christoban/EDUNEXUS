@@ -115,19 +115,21 @@ grep -rln "from '@application|from '../../application" src/domain → 0
 
 ---
 
-## 1.4 🟠 Partiellement résolu — Controllers HTTP (3/46 nettoyés, 43 restants)
+## 1.4 🟠 Partiellement résolu — Controllers HTTP (5/46 nettoyés, 41 restants)
 
-> **Statut : partiellement résolu (ponytail full, 2026-08-26)** — 3 controllers prioritaires passés à 0 `prisma` data via ports existants, `GradingEngine` sorti vers `domain/rules`.
+> **Statut : partiellement résolu (ponytail full, 2026-08-26)** — 5 controllers prioritaires passés à 0 `prisma` data via ports existants, `GradingEngine` sorti vers `domain/rules`.
 
 **Règle violée (SOLID S) :** un controller HTTP ne doit contenir que la coordination requête→use case→réponse. Le calcul métier vit dans un use case / moteur dédié (cf. incident `GradingEngine`).
 
 ### Preuve (état 2026-08-26)
 
 ```
-grep -rln "@prisma/client" src/infrastructure/http/controllers → 43 fichiers (46 → 43)
+grep -rln "@prisma/client" src/infrastructure/http/controllers → 41 fichiers (46 → 41)
 grep -n "prisma" src/infrastructure/http/controllers/FinanceController.ts → 0
 grep -n "prisma" src/infrastructure/http/controllers/UserController.ts → 0
 grep -n "prisma" src/infrastructure/http/controllers/GradeController.ts → 3 (ponytail: valider inngest / soumettreEnMasse updateMany / genererTemplate studentProfile — single caller)
+grep -n "prisma" src/infrastructure/http/controllers/ClasseController.ts → 0
+grep -n "prisma" src/infrastructure/http/controllers/ReportCardController.ts → 0
 ```
 
 | Controller | Lignes | `prisma.` direct | État |
@@ -135,26 +137,27 @@ grep -n "prisma" src/infrastructure/http/controllers/GradeController.ts → 3 (p
 | `UserController.ts` | 1174 → ~1100 | 26 → **0** | ✅ 0 data (MFA→`MfaUseCase`+`MfaService`, invite/password→`UserRepository`, garde→`Classe/EnrollmentRepository`, audit→`AIActionAuditPort`) |
 | `GradeController.ts` | 1072 → 665 | 32 → **3 ponytail** | ✅ `calculerMoyenneSequence` → `domain/rules/GradingEngine.ts:87`, 7 UC créés, DI `container.ts:618` |
 | `FinanceController.ts` | 756 | 7+9 audit → **0** | ✅ `findRecuData`+`isEmailDigestAdminEnabled` → `Paiement/SchoolRepository`, audit→`AIActionAuditPort` |
+| `ClasseController.ts` | 757 → ~680 | 24+9 audit → **0** | ✅ 24 data → 5 UC (`GererMatiere`/`ListerEleves`/`TableauHonneur` x2) + 9 audit→`AIActionAuditPort` |
+| `ReportCardController.ts` | 679 | 23+4 audit → **0** | ✅ 2×1-ligne (`School`/`Classe`/`Annee`) + 7 UC (`VerifierDisponibilite`/`ExporterZip`/`AjouterCommentaire` etc.) + `BulletinRepository` 6 méthodes + audit→`AIActionAuditPort` |
 | `DevController.ts` | 815 | 49 | 🔴 |
 | `AIController.ts` | 647 | 34 | 🔴 |
 | `PedagogieController.ts` | 759 | 39 | 🔴 |
 | `HRController.ts` | 775 | 31 | 🔴 |
-| `ClasseController.ts` | 757 | 24 | 🔴 |
-| `ReportCardController.ts` | 679 | 23 | 🔴 |
 | `MasterAdminHexController.ts` | 639 | 24 | 🔴 |
-| + 36 autres | — | — | 🔴 |
+| + 34 autres | — | — | 🔴 |
 
 ### Diagnostic
 
-3 god objects nettoyés en réutilisant les `*Repository` existants (ladder ponytail : pas de nouveau UC/port tant qu'un seul caller). 43 restants — même pattern : `prisma.*` → port existant (`Classe`, `Note`, `Paiement`, `School`), `journaliserActionIA(prisma` → `AIActionAuditPort`.
+5 god objects nettoyés en réutilisant les `*Repository` existants (ladder ponytail). 41 restants — même pattern : `prisma.*` → port existant (`Bulletin`, `Classe`, `Note`, `Paiement`, `School`), `journaliserActionIA(prisma` → `AIActionAuditPort`.
 
 ### Propositions
 
 - [x] `GradeController` — `GradingEngine` sorti, 7 UC, 0 `prisma` data
 - [x] `UserController` — MFA/Invite/Password/garde → ports, 0 `prisma`
 - [x] `FinanceController` — 0 `prisma` via repos + audit port
-- [ ] `ClasseController` (13 handlers, `ClasseRepository` existe → 1 ligne/handler) — prochain ponytail
-- [ ] `Dev/AI/Pedagogie/HR/ReportCard/MasterAdminHex` + 36 autres — `prisma.*` → port existant, UC seulement si second caller
+- [x] `ClasseController` — 0 `prisma` (24+9 audit → 5 UC + `AIActionAuditPort`)
+- [x] `ReportCardController` — 0 `prisma` (23+4 audit → 7 UC + `BulletinRepository` 6 méthodes + `AIActionAuditPort`)
+- [ ] `Dev/AI/Pedagogie/HR/MasterAdminHex` + 34 autres — `prisma.*` → port existant, UC seulement si second caller
 
 ---
 

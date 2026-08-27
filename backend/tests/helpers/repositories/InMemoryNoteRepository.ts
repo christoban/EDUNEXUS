@@ -251,6 +251,21 @@ export class InMemoryNoteRepository implements NoteRepository {
     return [...byStudent.entries()].map(([studentId, avgs]) => ({ studentId, average: avgs.reduce((s, a) => s + a, 0) / avgs.length })).sort((a, b) => b.average - a.average);
   }
 
+  async getStatsValidationParClasse(classId: string, schoolId: string, sequenceIds: string[]): Promise<{ total: number; DRAFT: number; SUBMITTED: number; VALIDATED: number; LOCKED: number; REJECTED: number }> {
+    const filtered = [...this.store.values()].filter(n => {
+      const d = n.toObject();
+      if (d.schoolId !== schoolId || d.classId !== classId) return false;
+      if (sequenceIds.length > 0 && !sequenceIds.includes(d.sequenceId)) return false;
+      return true;
+    });
+    const stats = { total: filtered.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
+    for (const n of filtered) {
+      const s = n.validationStatus as keyof typeof stats;
+      if (s in stats) (stats[s] as number)++;
+    }
+    return stats;
+  }
+
   compter(): number {
     return this.store.size;
   }

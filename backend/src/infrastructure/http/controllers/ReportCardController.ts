@@ -2,23 +2,40 @@ import type { Request, Response, NextFunction } from 'express';
 import { ZipArchive } from 'archiver';
 import type { GenererBulletinUseCase } from '@application/reportCard/GenererBulletinUseCase';
 import type { EnvoyerBulletinsUseCase } from '@application/reportCard/EnvoyerBulletinsUseCase';
+import type { VerifierDisponibiliteBulletinUseCase } from '@application/reportCard/VerifierDisponibiliteBulletinUseCase';
+import type { ListerBulletinsUseCase } from '@application/reportCard/ListerBulletinsUseCase';
+import type { AjouterCommentaireBulletinUseCase } from '@application/reportCard/AjouterCommentaireBulletinUseCase';
+import type { GenererCommentaireIAUseCase } from '@application/reportCard/GenererCommentaireIAUseCase';
 import type { IAService } from '@domain/ports/services/IAService';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { SectionRepository } from '@domain/ports/repositories/SectionRepository';
+import type { BulletinRepository } from '@domain/ports/repositories/BulletinRepository';
+import type { ParentRepository } from '@domain/ports/repositories/ParentRepository';
 import { BulletinBloqueError } from '@domain/errors/BulletinBloqueError';
 import type { BulletinTemplate } from '@domain/types/enums';
-import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 import { notifyBulletinSms } from '@infrastructure/services/sms/SmsNotificationService';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 import { generateBulletinPdf } from '../../pdf/report-card/index';
 import { getMention } from '../../pdf/report-card/BulletinPdfHelpers';
 import { getEffectiveSchoolSettings } from '../../services/school-settings/SchoolSettingsService';
-import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
 export class ReportCardController {
   constructor(
     private readonly generer: GenererBulletinUseCase,
     private readonly envoyer: EnvoyerBulletinsUseCase,
     private readonly iaService: IAService,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly classeRepository: ClasseRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly sectionRepository: SectionRepository,
+    private readonly bulletinRepository: BulletinRepository,
+    private readonly parentRepository: ParentRepository,
+    private readonly audit: AIActionAuditPort,
+    private readonly verifierUseCase?: VerifierDisponibiliteBulletinUseCase,
+    private readonly listerUseCase?: ListerBulletinsUseCase,
   ) {}
 
   // POST /api/v2/report-cards/generate
@@ -34,16 +51,16 @@ export class ReportCardController {
 
       // Auto-détection des paramètres manquants
       if (!academicPeriodId || !academicYearId) {
-        const currentYear = await prisma.academicYear.findFirst({
-          where: { schoolId: user.schoolId, isCurrent: true },
-          include: { periods: { orderBy: { id: 'asc' }, take: 1 } },
-        });
+        const currentYear = await this.anneeRepository.findCourante(user.schoolId);
         if (!currentYear) {
           res.status(400).json({ success: false, message: 'Aucune année académique courante trouvée' });
           return;
         }
         academicYearId = academicYearId || currentYear.id;
-        academicPeriodId = academicPeriodId || currentYear.periods?.[0]?.id;
+        if (!academicPeriodId) {
+          const periodes = await this.anneeRepository.findPeriodesByAnnee(currentYear.id);
+          academicPeriodId = periodes[0]?.id;
+        }
         if (!academicPeriodId) {
           res.status(400).json({ success: false, message: 'Aucune période académique trouvée' });
           return;
@@ -54,7 +71,7 @@ export class ReportCardController {
         template = settings.bulletinTemplate ?? 'FR_SECONDARY';
       }
       if (!nomEtablissement) {
-        const school = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { name: true } });
+        const school = await this.schoolRepository.findById(user.schoolId);
         nomEtablissement = school?.name ?? 'Établissement';
       }
 
@@ -72,7 +89,7 @@ export class ReportCardController {
         demandeurId: user.userId,
       });
 
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'generer_bulletins_classe', targetType: 'Class', targetId: classId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId, academicYearId, template },
@@ -84,15 +101,9 @@ export class ReportCardController {
         const schoolId = user.schoolId as string
         void (async () => {
           try {
-            const period = await prisma.academicPeriod.findUnique({
-              where: { id: academicPeriodId },
-              select: { name: true },
-            })
+            const period = await this.anneeRepository.findPeriodeById(academicPeriodId, schoolId)
             const periodName = period?.name ?? 'Période'
-            const bulletins = await prisma.reportCard.findMany({
-              where: { schoolId, academicPeriodId, createdAt: { gte: generationStartedAt } },
-              include: { student: { select: { id: true, firstName: true, lastName: true } } },
-            })
+            const bulletins = await this.bulletinRepository.findRecentSince(schoolId, academicPeriodId, generationStartedAt)
             await Promise.all(
               bulletins.map((b) =>
                 notifyBulletinSms({
@@ -110,7 +121,7 @@ export class ReportCardController {
       }
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'generer_bulletins_classe', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -142,16 +153,19 @@ export class ReportCardController {
       }
 
       // Langue de l'email = sous-système de l'école, affiné par la section de la classe si bilingue.
-      const ecole = await prisma.school.findUnique({ where: { id: user.schoolId }, select: { subsystem: true } });
+      const ecole = await this.schoolRepository.findById(user.schoolId);
       let sectionCode: string | null = null;
       if (ecole?.subsystem === 'BILINGUAL') {
-        const cls = await prisma.class.findUnique({ where: { id: classId }, select: { section: { select: { code: true } } } });
-        sectionCode = cls?.section?.code ?? null;
+        const cls = await this.classeRepository.findById(classId);
+        if (cls?.sectionId) {
+          const section = await this.sectionRepository.findById(cls.sectionId);
+          sectionCode = section?.code ?? null;
+        }
       }
       const langue = resolveLanguage(ecole?.subsystem, sectionCode);
 
       const resultat = await this.envoyer.execute({ schoolId: user.schoolId, classId, academicPeriodId, nomEtablissement, nomPeriode, langue });
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'envoyer_bulletins_parents', targetType: 'Class', targetId: classId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, academicPeriodId },
@@ -159,7 +173,7 @@ export class ReportCardController {
       res.json({ success: true, data: resultat });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'envoyer_bulletins_parents', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -173,65 +187,15 @@ export class ReportCardController {
     try {
       const user = req.user;
       const classId = req.params.classId as string;
-      let periodId = req.query.periodId as string | undefined;
-
-      // Auto-détection de la période courante si non fournie
-      if (!periodId) {
-        const currentYear = await prisma.academicYear.findFirst({
-          where: { schoolId: user.schoolId, isCurrent: true },
-          include: { periods: { orderBy: { id: 'asc' }, take: 1 } },
-        });
-        periodId = currentYear?.periods?.[0]?.id;
-      }
-
-      if (!periodId) {
-        res.status(400).json({ success: false, message: 'Aucune période académique trouvée' });
+      const periodId = req.query.periodId as string | undefined;
+      if (!this.verifierUseCase) throw new Error('VerifierDisponibiliteBulletinUseCase non câblé');
+      const result = await this.verifierUseCase.execute({ classId, schoolId: user.schoolId, academicPeriodId: periodId });
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Aucune période')) {
+        res.status(400).json({ success: false, message: error.message });
         return;
       }
-
-      // Séquences rattachées à cette période
-      const sequences = await prisma.academicSequence.findMany({
-        where: { academicPeriodId: periodId },
-        select: { id: true },
-      });
-      const sequenceIds = sequences.map((s) => s.id);
-
-      const grades = await prisma.grade.findMany({
-        where: {
-          schoolId: user.schoolId,
-          classId,
-          ...(sequenceIds.length > 0 ? { sequenceId: { in: sequenceIds } } : {}),
-        },
-        select: { validationStatus: true },
-      });
-
-      const stats = { total: grades.length, VALIDATED: 0, LOCKED: 0, SUBMITTED: 0, DRAFT: 0, REJECTED: 0 };
-      for (const g of grades) {
-        const s = g.validationStatus as keyof typeof stats;
-        if (s in stats) (stats[s] as number)++;
-      }
-
-      // Vérifier conseil de classe verrouillé
-      const conseilLocked = await prisma.classCouncilSession.findFirst({
-        where: { classId, academicPeriodId: periodId, status: 'LOCKED' },
-        select: { id: true },
-      });
-
-      const allValidated = stats.total > 0 && stats.DRAFT === 0 && stats.SUBMITTED === 0 && stats.REJECTED === 0;
-      const canGenerateReportCard = allValidated && !!conseilLocked;
-
-      res.json({
-        canGenerateReportCard,
-        periodId,
-        stats,
-        conseilLocked: !!conseilLocked,
-        reason: !allValidated
-          ? 'Notes non entièrement validées'
-          : !conseilLocked
-          ? 'Conseil de classe non verrouillé'
-          : null,
-      });
-    } catch (error) {
       next(error);
     }
   };
@@ -248,30 +212,7 @@ export class ReportCardController {
         return;
       }
 
-      const reportCards = await prisma.reportCard.findMany({
-        where: { schoolId: user.schoolId, academicPeriodId },
-        include: {
-          academicYear: true,
-          academicPeriod: true,
-          student: {
-            select: {
-              id: true, firstName: true, lastName: true,
-              studentProfile: {
-                select: {
-                  enrollmentsYearScoped: {
-                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-                    select: { class: { select: { name: true } } },
-                    take: 1,
-                  },
-                },
-              },
-            },
-          },
-          subjectLines: { orderBy: { subjectName: 'asc' } },
-          school: { include: { schoolConfig: true } },
-          section: { select: { code: true } },
-        },
-      });
+      const reportCards = await this.bulletinRepository.findForExport(user.schoolId, academicPeriodId);
 
       if (!reportCards.length) {
         res.status(404).json({ success: false, message: 'Aucun bulletin trouvé pour cette classe et cette période' });
@@ -362,32 +303,14 @@ export class ReportCardController {
         return;
       }
 
-      const reportCard = await prisma.reportCard.findFirst({
-        where: { id: req.params.id as string, schoolId: user.schoolId },
-        include: {
-          student: {
-            include: {
-              studentProfile: {
-                include: {
-                  enrollmentsYearScoped: {
-                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-                    select: { class: { select: { professorPrincipalId: true } } },
-                    take: 1,
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!reportCard) {
+      const ctx = await this.bulletinRepository.findWithClasseContext(req.params.id as string, user.schoolId);
+      if (!ctx) {
         res.status(404).json({ success: false, message: 'Bulletin introuvable' });
         return;
       }
 
       // Seul le Professeur Principal de la classe ou un Admin peut écrire le commentaire
-      const professorPrincipalId = reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.professorPrincipalId;
+      const professorPrincipalId = ctx.professorPrincipalId;
       const isPP = professorPrincipalId === user.userId;
       if (role !== 'ADMIN' && !isPP) {
         res.status(403).json({
@@ -397,10 +320,7 @@ export class ReportCardController {
         return;
       }
 
-      await prisma.reportCard.update({
-        where: { id: req.params.id as string },
-        data: { classMasterComment: classMasterComment.trim() },
-      });
+      await this.bulletinRepository.updateClassMasterComment(req.params.id as string, classMasterComment.trim());
 
       res.json({ success: true, message: 'Commentaire enregistré' });
     } catch (error) {
@@ -418,35 +338,13 @@ export class ReportCardController {
       const user = req.user;
       const role: string = (user.role as string).toUpperCase();
 
-      const reportCard = await prisma.reportCard.findFirst({
-        where: { id: req.params.id as string, schoolId: user.schoolId },
-        include: {
-          school: { select: { subsystem: true } },
-          subjectLines: { select: { subjectName: true, subjectAverage: true } },
-          student: {
-            select: {
-              firstName: true,
-              lastName: true,
-              studentProfile: {
-                select: {
-                  enrollmentsYearScoped: {
-                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-                    select: { class: { select: { professorPrincipalId: true, section: { select: { code: true } } } } },
-                    take: 1,
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (!reportCard) {
+      const enriched = await this.bulletinRepository.findEnrichedById(req.params.id as string, user.schoolId);
+      if (!enriched) {
         res.status(404).json({ success: false, message: 'Bulletin introuvable' });
         return;
       }
-
-      const professorPrincipalId = reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.professorPrincipalId;
+      const reportCard = enriched.bulletin;
+      const professorPrincipalId = enriched.professorPrincipalId;
       const isPP = professorPrincipalId === user.userId;
       if (role !== 'ADMIN' && !isPP) {
         res.status(403).json({
@@ -456,11 +354,7 @@ export class ReportCardController {
         return;
       }
 
-      const previous = await prisma.reportCard.findFirst({
-        where: { studentId: reportCard.studentId, schoolId: user.schoolId, id: { not: reportCard.id } },
-        orderBy: { createdAt: 'desc' },
-        select: { generalAverage: true },
-      });
+      const previous = await this.bulletinRepository.findPreviousByStudent(reportCard.studentId, user.schoolId, reportCard.id);
 
       let evolution: 'HAUSSE' | 'BAISSE' | 'STABLE' = 'STABLE';
       if (previous?.generalAverage != null && reportCard.generalAverage != null) {
@@ -468,12 +362,12 @@ export class ReportCardController {
         evolution = diff > 0.5 ? 'HAUSSE' : diff < -0.5 ? 'BAISSE' : 'STABLE';
       }
 
-      const subjectLines: { subjectName: string; subjectAverage: number | null }[] = reportCard.subjectLines ?? [];
+      const subjectLines: { subjectName: string; subjectAverage: number | null }[] = (reportCard.lignesMatiere as unknown as { subjectName: string; subjectAverage: number | null }[]) ?? [];
       const pointsForts = subjectLines.filter((s) => (s.subjectAverage ?? 0) >= 14).map((s) => s.subjectName).slice(0, 3);
       const pointsFaibles = subjectLines.filter((s) => (s.subjectAverage ?? 0) < 10).map((s) => s.subjectName).slice(0, 3);
 
-      const langue = resolveLanguage(reportCard.school?.subsystem, reportCard.student?.studentProfile?.enrollmentsYearScoped?.[0]?.class?.section?.code ?? null);
-      const nomEleve = `${reportCard.student.firstName ?? ''} ${reportCard.student.lastName ?? ''}`.trim();
+      const langue = resolveLanguage(enriched.schoolSubsystem, enriched.sectionCode);
+      const nomEleve = `${enriched.studentFirstName ?? ''} ${enriched.studentLastName ?? ''}`.trim();
 
       const comment = await this.iaService.genererCommentaireBulletin({
         nomEleve,
@@ -484,10 +378,7 @@ export class ReportCardController {
         langue: langue.toUpperCase() as 'FR' | 'EN',
       });
 
-      await prisma.reportCard.update({
-        where: { id: reportCard.id },
-        data: { aiComment: comment },
-      });
+      await this.bulletinRepository.updateAiComment(reportCard.id, comment);
 
       res.json({ success: true, comment });
     } catch (error) {
@@ -501,18 +392,9 @@ export class ReportCardController {
     try {
       const user = req.user;
       const yearId = req.query.yearId as string | undefined;
-
-      const reportCards = await prisma.reportCard.findMany({
-        where: {
-          schoolId: user.schoolId,
-          studentId: user.userId,
-          ...(yearId ? { academicYearId: yearId } : {}),
-        },
-        include: { academicYear: true, academicPeriod: true },
-        orderBy: { createdAt: 'desc' },
-      });
-
-      res.json({ reportCards });
+      if (!this.listerUseCase) throw new Error('ListerBulletinsUseCase non câblé');
+      const result = await this.listerUseCase.mesBulletins({ schoolId: user.schoolId, studentId: user.userId, academicYearId: yearId });
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -522,50 +404,19 @@ export class ReportCardController {
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const role: string = (user.role as string).toUpperCase();
-      const page = Math.max(1, Number(req.query.page) || 1);
-      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
-      const yearId = req.query.yearId as string | undefined;
-      const periodId = req.query.periodId as string | undefined;
-      const studentId = req.query.studentId as string | undefined;
-      const classId = req.query.classId as string | undefined;
-
-      const where: any = { schoolId: user.schoolId };
-      if (yearId) where.academicYearId = yearId;
-      if (periodId) where.academicPeriodId = periodId;
-      if (classId) where.student = whereElevesParClasse(classId);
-
-      if (role === 'STUDENT') {
-        where.studentId = user.userId;
-      } else if (role === 'PARENT') {
-        const parentProfile = await prisma.parentProfile.findUnique({
-          where: { userId: user.userId },
-          include: { children: { include: { studentProfile: true } } },
-        });
-        const childIds = (parentProfile?.children ?? [])
-          .map((c) => c.studentProfile?.userId)
-          .filter((id): id is string => Boolean(id));
-        where.studentId = studentId && childIds.includes(studentId) ? studentId : { in: childIds };
-      } else if (studentId) {
-        where.studentId = studentId;
-      }
-
-      const [total, reportCards] = await Promise.all([
-        prisma.reportCard.count({ where }),
-        prisma.reportCard.findMany({
-          where,
-          include: {
-            academicYear: true,
-            academicPeriod: true,
-            student: { select: { id: true, firstName: true, lastName: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
-      ]);
-
-      res.json({ reportCards, pagination: { total, page, pages: Math.ceil(total / limit), limit } });
+      if (!this.listerUseCase) throw new Error('ListerBulletinsUseCase non câblé');
+      const result = await this.listerUseCase.lister({
+        schoolId: user.schoolId,
+        role: (user.role as string).toUpperCase(),
+        userId: user.userId,
+        page: Number(req.query.page) || 1,
+        limit: Number(req.query.limit) || 10,
+        academicYearId: req.query.yearId as string | undefined,
+        academicPeriodId: req.query.periodId as string | undefined,
+        studentId: req.query.studentId as string | undefined,
+        classId: req.query.classId as string | undefined,
+      });
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -577,29 +428,7 @@ export class ReportCardController {
       const user = req.user;
       const role: string = (user.role as string).toUpperCase();
 
-      const reportCard = await prisma.reportCard.findFirst({
-        where: { id: req.params.id as string, schoolId: user.schoolId },
-        include: {
-          academicYear: true,
-          academicPeriod: true,
-          student: {
-            select: {
-              id: true, firstName: true, lastName: true,
-              studentProfile: {
-                select: {
-                  enrollmentsYearScoped: {
-                    where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-                    select: { class: { select: { name: true, section: { select: { code: true } } } } },
-                    take: 1,
-                  },
-                },
-              },
-            },
-          },
-          subjectLines: { orderBy: { subjectName: 'asc' } },
-          school: { include: { schoolConfig: true, schoolSettings: true } },
-        },
-      });
+      const reportCard = await this.bulletinRepository.findForPdf(req.params.id as string, user.schoolId);
 
       if (!reportCard) {
         res.status(404).json({ success: false, message: 'Bulletin introuvable' });
@@ -611,11 +440,7 @@ export class ReportCardController {
         return;
       }
       if (role === 'PARENT') {
-        const parentProfile = await prisma.parentProfile.findUnique({
-          where: { userId: user.userId },
-          include: { children: { include: { studentProfile: true } } },
-        });
-        const isParent = parentProfile?.children.some((c) => c.studentProfile?.userId === reportCard.studentId);
+        const isParent = await this.parentRepository.aAccesEleve(user.userId, reportCard.studentId);
         if (!isParent) {
           res.status(403).json({ success: false, message: 'Non autorisé' });
           return;

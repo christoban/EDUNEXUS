@@ -10,6 +10,7 @@ import { TemplateController } from '@infrastructure/http/controllers/TemplateCon
 import { StudentDocumentController } from '@infrastructure/http/controllers/StudentDocumentController';
 import { InviteOnboardingController } from '@infrastructure/http/controllers/InviteOnboardingController';
 import { GroqIAService } from '@infrastructure/services/ai/GroqIAService';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { creerOnboardingRoutes } from '@infrastructure/http/routes/onboarding.routes';
 import { creerReportCardRoutes } from '@infrastructure/http/routes/reportCard.routes';
 import { creerClassCouncilRoutes } from '@infrastructure/http/routes/classCouncil.routes';
@@ -37,6 +38,15 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.reportCard.generer,
     c.reportCard.envoyer,
     new GroqIAService(),
+    c.school.schoolRepository,
+    c.school.classeRepository,
+    c.school.anneeRepository,
+    c.school.sectionRepository,
+    c.reportCard.bulletinRepository,
+    c.reportCard.parentRepository,
+    new AIActionAuditAdapter(p as any),
+    c.reportCard.verifierDisponibilite,
+    c.reportCard.lister,
   );
 
   const classCouncilController = new ClassCouncilController(
