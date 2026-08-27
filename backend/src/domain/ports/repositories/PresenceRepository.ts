@@ -24,6 +24,38 @@ export interface PresenceSmsRecord {
   teacherId: string | null;
 }
 
+/** Filtres de lecture des présences — routes lister / statistiques. */
+export interface FiltrePresences {
+  classId?: string;
+  studentId?: string | string[];
+  dateDebut?: Date;
+  dateFin?: Date;
+  status?: AttendanceStatus;
+}
+
+/** Présence enrichie de sa classe (id + nom) — route lister. */
+export interface PresenceLue {
+  id: string;
+  schoolId: string;
+  studentId: string;
+  classId: string;
+  academicPeriodId: string | null;
+  subjectId: string | null;
+  teacherId: string | null;
+  recordedById: string | null;
+  date: Date;
+  status: AttendanceStatus;
+  period: AttendancePeriod;
+  isOfflineSync: boolean;
+  createdAt: Date;
+  class: { id: string; name: string } | null;
+}
+
+/** Présence justifiée, enrichie de l'élève et de la classe — route justifierAbsence. */
+export interface PresenceJustifiee extends PresenceLue {
+  student: { id: string; firstName: string; lastName: string } | null;
+}
+
 export interface PresenceRepository {
   // Lecture
   findById(id: string): Promise<Presence | null>;
@@ -57,4 +89,24 @@ export interface PresenceRepository {
 
   // Sync hors ligne
   findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]>;
+
+  // --- Routes HTTP de lecture (lister / justifier / statistiques) ---
+
+  /** Présence enrichie de sa classe (id + nom) — pour la route lister. */
+  findAvecClasse(
+    params: { schoolId: string; filtre: FiltrePresences; skip: number; take: number },
+  ): Promise<PresenceLue[]>;
+
+  /** Comptage par filtre — pour lister et statistiques. */
+  countByFiltre(schoolId: string, filtre: FiltrePresences): Promise<number>;
+
+  /** Recherche scopée à l'établissement — pour justifierAbsence. */
+  findByIdDansEcole(schoolId: string, id: string): Promise<Presence | null>;
+
+  /** Justification d'une absence, retourne l'enregistrement mis à jour enrichi. */
+  justifierAbsence(
+    schoolId: string,
+    id: string,
+    data: { justification?: string; justifiedById: string; justifiedAt: Date },
+  ): Promise<PresenceJustifiee | null>;
 }

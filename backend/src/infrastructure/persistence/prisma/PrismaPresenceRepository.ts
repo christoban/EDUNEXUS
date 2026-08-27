@@ -1,7 +1,42 @@
 import type { PrismaClient } from '@prisma/client';
 import { Presence } from '@domain/entities/Presence';
-import type { PresenceRepository, StatistiquesPresence, PresenceSmsRecord } from '@domain/ports/repositories/PresenceRepository';
+import type { PresenceRepository, StatistiquesPresence, PresenceSmsRecord, FiltrePresences, PresenceLue, PresenceJustifiee } from '@domain/ports/repositories/PresenceRepository';
 import type { AttendanceStatus, AttendancePeriod } from '@domain/types/enums';
+
+function whereFromFiltre(schoolId: string, filtre: FiltrePresences): Record<string, unknown> {
+  const where: Record<string, unknown> = { schoolId };
+  if (filtre.classId) where.classId = filtre.classId;
+  if (filtre.studentId) {
+    where.studentId = Array.isArray(filtre.studentId) ? { in: filtre.studentId } : filtre.studentId;
+  }
+  if (filtre.dateDebut || filtre.dateFin) {
+    where.date = {
+      ...(filtre.dateDebut ? { gte: filtre.dateDebut } : {}),
+      ...(filtre.dateFin ? { lte: filtre.dateFin } : {}),
+    };
+  }
+  if (filtre.status) where.status = filtre.status;
+  return where;
+}
+
+function toPresenceLue(data: any): PresenceLue {
+  return {
+    id: data.id,
+    schoolId: data.schoolId,
+    studentId: data.studentId,
+    classId: data.classId,
+    academicPeriodId: data.academicPeriodId ?? null,
+    subjectId: data.subjectId ?? null,
+    teacherId: data.teacherId ?? null,
+    recordedById: data.recordedById ?? null,
+    date: data.date,
+    status: data.status,
+    period: data.period,
+    isOfflineSync: data.isOfflineSync,
+    createdAt: data.createdAt,
+    class: data.class ? { id: data.class.id, name: data.class.name } : null,
+  };
+}
 
 export class PrismaPresenceRepository implements PresenceRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -235,6 +270,57 @@ export class PrismaPresenceRepository implements PresenceRepository {
       where: { recordedById: userId, isOfflineSync: true },
     });
     return data.map(d => this.toDomain(d));
+  }
+
+  async findAvecClasse(
+    params: { schoolId: string; filtre: FiltrePresences; skip: number; take: number },
+  ): Promise<PresenceLue[]> {
+    const data = await this.prisma.attendance.findMany({
+      where: whereFromFiltre(params.schoolId, params.filtre),
+      include: { class: { select: { id: true, name: true } } },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      skip: params.skip,
+      take: params.take,
+    });
+    return data.map(d => toPresenceLue(d));
+  }
+
+  async countByFiltre(schoolId: string, filtre: FiltrePresences): Promise<number> {
+    return this.prisma.attendance.count({ where: whereFromFiltre(schoolId, filtre) });
+  }
+
+  async findByIdDansEcole(schoolId: string, id: string): Promise<Presence | null> {
+    const data = await this.prisma.attendance.findFirst({ where: { schoolId, id } });
+    if (!data) return null;
+    return this.toDomain(data);
+  }
+
+  async justifierAbsence(
+    schoolId: string,
+    id: string,
+    data: { justification?: string; justifiedById: string; justifiedAt: Date },
+  ): Promise<PresenceJustifiee | null> {
+    const existant = await this.prisma.attendance.findFirst({ where: { schoolId, id } });
+    if (!existant) return null;
+    const updated = await this.prisma.attendance.update({
+      where: { id },
+      data: {
+        status: 'ABSENT_JUSTIFIED',
+        justification: data.justification,
+        justifiedById: data.justifiedById,
+        justifiedAt: data.justifiedAt,
+        // Le filtre `schoolId` n'est pas replable sur update() (pas unique) —
+        // l'existence a déjà été vérifiée scopée à l'école juste au-dessus.
+      },
+      include: {
+        class: { select: { id: true, name: true } },
+        student: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    return {
+      ...toPresenceLue(updated),
+      student: updated.student ? { id: updated.student.id, firstName: updated.student.firstName, lastName: updated.student.lastName } : null,
+    };
   }
 
   private toDomain(data: any): Presence {

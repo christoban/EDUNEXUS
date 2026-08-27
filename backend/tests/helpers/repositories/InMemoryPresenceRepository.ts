@@ -1,5 +1,5 @@
 import { Presence } from '@domain/entities/Presence';
-import type { PresenceRepository, StatistiquesPresence, PresenceSmsRecord } from '@domain/ports/repositories/PresenceRepository';
+import type { PresenceRepository, StatistiquesPresence, PresenceSmsRecord, FiltrePresences, PresenceLue, PresenceJustifiee } from '@domain/ports/repositories/PresenceRepository';
 import type { AttendancePeriod } from '@domain/types/enums';
 
 export class InMemoryPresenceRepository implements PresenceRepository {
@@ -151,5 +151,77 @@ export class InMemoryPresenceRepository implements PresenceRepository {
         presence.toObject().recordedById === userId &&
         presence.isOfflineSync
     );
+  }
+
+  async findAvecClasse(
+    params: { schoolId: string; filtre: FiltrePresences; skip: number; take: number },
+  ): Promise<PresenceLue[]> {
+    return [...this.store.values()]
+      .filter(p => this.matchesFiltre(p, params.schoolId, params.filtre))
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(params.skip, params.skip + params.take)
+      .map(this.toPresenceLue);
+  }
+
+  async countByFiltre(schoolId: string, filtre: FiltrePresences): Promise<number> {
+    return [...this.store.values()].filter(p => this.matchesFiltre(p, schoolId, filtre)).length;
+  }
+
+  async findByIdDansEcole(schoolId: string, id: string): Promise<Presence | null> {
+    const p = this.store.get(id);
+    return p && p.schoolId === schoolId ? p : null;
+  }
+
+  async justifierAbsence(
+    schoolId: string,
+    id: string,
+    data: { justification?: string; justifiedById: string; justifiedAt: Date },
+  ): Promise<PresenceJustifiee | null> {
+    const p = this.store.get(id);
+    if (!p || p.schoolId !== schoolId) return null;
+    this.store.set(id, Presence.reconstituer({
+      ...p.toObject(),
+      status: 'ABSENT_JUSTIFIED',
+      justification: data.justification,
+      justifiedById: data.justifiedById,
+      justifiedAt: data.justifiedAt,
+    } as any));
+    return {
+      ...this.toPresenceLue(this.store.get(id)!),
+      student: null,
+    };
+  }
+
+  private matchesFiltre(p: Presence, schoolId: string, filtre: FiltrePresences): boolean {
+    if (p.schoolId !== schoolId) return false;
+    if (filtre.classId && p.classId !== filtre.classId) return false;
+    if (filtre.studentId) {
+      const ids = Array.isArray(filtre.studentId) ? filtre.studentId : [filtre.studentId];
+      if (!ids.includes(p.studentId)) return false;
+    }
+    if (filtre.dateDebut && p.date < filtre.dateDebut) return false;
+    if (filtre.dateFin && p.date > filtre.dateFin) return false;
+    if (filtre.status && p.status !== filtre.status) return false;
+    return true;
+  }
+
+  private toPresenceLue(p: Presence): PresenceLue {
+    const obj = p.toObject();
+    return {
+      id: obj.id,
+      schoolId: obj.schoolId,
+      studentId: obj.studentId,
+      classId: obj.classId,
+      academicPeriodId: obj.academicPeriodId ?? null,
+      subjectId: obj.subjectId ?? null,
+      teacherId: obj.teacherId ?? null,
+      recordedById: obj.recordedById ?? null,
+      date: obj.date,
+      status: obj.status,
+      period: obj.period,
+      isOfflineSync: obj.isOfflineSync,
+      createdAt: obj.createdAt,
+      class: null,
+    };
   }
 }

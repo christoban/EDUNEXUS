@@ -1,10 +1,14 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { EnregistrerPresenceUseCase } from '@application/attendance/EnregistrerPresenceUseCase';
 import type { AttendancePeriod, AttendanceStatus } from '@domain/types/enums';
-import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import type { PresenceRepository, FiltrePresences } from '@domain/ports/repositories/PresenceRepository';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { ParentRepository } from '@domain/ports/repositories/ParentRepository';
+import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
+import type { User } from '@domain/entities/User';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 import { notifyAbsenceSms } from '@infrastructure/services/sms/SmsNotificationService';
 import { notifierParentsPushDabord } from '@infrastructure/services/notification/PushFirstNotifier';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 const startOfDayUtc = (dateString: string) => {
   const [y = 0, m = 1, d = 1] = dateString.split('-').map(Number);
@@ -19,6 +23,11 @@ const endOfDayUtc = (dateString: string) => {
 export class AttendanceController {
   constructor(
     private readonly enregistrerPresence: EnregistrerPresenceUseCase,
+    private readonly presenceRepository: PresenceRepository,
+    private readonly userRepository: UserRepository,
+    private readonly parentRepository: ParentRepository,
+    private readonly matiereRepository: MatiereRepository,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   // POST /api/v2/attendance
@@ -55,7 +64,7 @@ export class AttendanceController {
         isOfflineSync: isOfflineSync ?? false,
       });
     } catch (error) {
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         // Route bulk (toute une classe en un appel) — pas un miroir exact de l'action copilot
         // `marquer_absence_eleve` (un seul élève), donc son propre actionName, pas partagé.
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
@@ -76,7 +85,7 @@ export class AttendanceController {
       next(error);
       return;
     }
-    journaliserActionIA(prisma, {
+    this.audit.journaliser({
       actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
       actionName: 'enregistrer_presences_classe', targetType: 'Class', targetId: classId,
       origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { classId, date, period, count: presences.length },
@@ -91,12 +100,12 @@ export class AttendanceController {
       const absentIds = resultat.absents
       void (async () => {
         try {
-          const students = await prisma.user.findMany({
-            where: { id: { in: absentIds } },
-            select: { id: true, firstName: true, lastName: true },
-          })
+          const foundUsers = await Promise.all(
+            absentIds.map(async (id) => this.userRepository.findById(id)),
+          )
+          const students = foundUsers.filter((s): s is User => s !== null)
           const subjectName = subjectId
-            ? (await prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }))?.name
+            ? (await this.matiereRepository.findById(subjectId))?.name
             : undefined
           await Promise.all(
             students.map(async (s) => {
@@ -138,58 +147,53 @@ export class AttendanceController {
       const studentId = req.query.studentId as string | undefined;
       const date = req.query.date as string | undefined;
 
-      const where: any = { schoolId };
-      if (classId) where.classId = classId;
-      if (date) where.date = { gte: startOfDayUtc(date), lte: endOfDayUtc(date) };
+      const filtre: FiltrePresences = {};
+      if (classId) filtre.classId = classId;
+      if (date) {
+        filtre.dateDebut = startOfDayUtc(date);
+        filtre.dateFin = endOfDayUtc(date);
+      }
 
       if (role === 'STUDENT') {
-        where.studentId = userId;
+        filtre.studentId = userId;
       } else if (role === 'PARENT') {
-        const parentProfile = await prisma.parentProfile.findUnique({
-          where: { userId },
-          include: { children: { include: { studentProfile: true } } },
-        });
-        const childIds = (parentProfile?.children ?? [])
-          .map((c) => c.studentProfile?.userId)
-          .filter((id): id is string => Boolean(id));
+        const childIds = await this.parentRepository.findStudentIdsByParent(userId);
         if (childIds.length === 0) {
           res.json({ records: [], pagination: { total: 0, page, pages: 0, limit } });
           return;
         }
-        where.studentId = studentId && childIds.includes(studentId) ? studentId : { in: childIds };
+        filtre.studentId = studentId && childIds.includes(studentId) ? studentId : childIds;
       } else if (studentId) {
-        where.studentId = studentId;
+        filtre.studentId = studentId;
       }
 
       const [total, records] = await Promise.all([
-        prisma.attendance.count({ where }),
-        prisma.attendance.findMany({
-          where,
-          include: { class: true },
-          orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-          skip: (page - 1) * limit,
-          take: limit,
-        }),
+        this.presenceRepository.countByFiltre(schoolId, filtre),
+        this.presenceRepository.findAvecClasse({ schoolId, filtre, skip: (page - 1) * limit, take: limit }),
       ]);
 
       const studentIds = [...new Set(records.map((r) => r.studentId))];
       const recorderIds = [...new Set(records.map((r) => r.recordedById).filter((id): id is string => Boolean(id)))];
 
       const [students, recorders] = await Promise.all([
-        prisma.user.findMany({
-          where: { schoolId, id: { in: studentIds } },
-          select: { id: true, firstName: true, lastName: true, email: true },
-        }),
+        Promise.all(studentIds.map((id) => this.userRepository.findById(id))),
         recorderIds.length
-          ? prisma.user.findMany({
-              where: { schoolId, id: { in: recorderIds } },
-              select: { id: true, firstName: true, lastName: true, role: true },
-            })
+          ? Promise.all(recorderIds.map((id) => this.userRepository.findById(id)))
           : Promise.resolve([]),
       ]);
 
-      const studentMap = new Map(students.map((s) => [s.id, { ...s, name: `${s.firstName} ${s.lastName}`.trim() }]));
-      const recorderMap = new Map(recorders.map((u) => [u.id, { ...u, name: `${u.firstName} ${u.lastName}`.trim() }]));
+      const studentMap = new Map(
+        students.filter((s): s is User => s !== null).map((s) => [
+          s.id,
+          { id: s.id, firstName: s.firstName, lastName: s.lastName, email: s.email ?? null, name: `${s.firstName} ${s.lastName}`.trim() },
+        ]),
+      );
+      const recorderMap = new Map(
+        recorders.filter((u): u is User => u !== null).map((u) => [
+          u.id,
+          { id: u.id, firstName: u.firstName, lastName: u.lastName, role: u.role, name: `${u.firstName} ${u.lastName}`.trim() },
+        ]),
+      );
 
       res.json({
         records: records.map((r) => ({
@@ -218,7 +222,7 @@ export class AttendanceController {
         return;
       }
 
-      const record = await prisma.attendance.findFirst({ where: { id: attendanceId, schoolId } });
+      const record = await this.presenceRepository.findByIdDansEcole(schoolId, attendanceId);
       if (!record) {
         res.status(404).json({ success: false, message: 'Enregistrement introuvable' });
         return;
@@ -228,21 +232,13 @@ export class AttendanceController {
         return;
       }
 
-      const updated = await prisma.attendance.update({
-        where: { id: attendanceId },
-        data: {
-          status: 'ABSENT_JUSTIFIED',
-          justification,
-          justifiedById: user.userId,
-          justifiedAt: new Date(),
-        },
-        include: {
-          student: { select: { id: true, firstName: true, lastName: true } },
-          class: { select: { id: true, name: true } },
-        },
+      const updated = await this.presenceRepository.justifierAbsence(schoolId, attendanceId, {
+        justification,
+        justifiedById: user.userId,
+        justifiedAt: new Date(),
       });
 
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'justifier_absence', targetType: 'Attendance', targetId: attendanceId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { attendanceId, justification },
@@ -250,7 +246,7 @@ export class AttendanceController {
       res.json({ success: true, message: 'Absence justifiée', record: updated });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'justifier_absence', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -272,41 +268,28 @@ export class AttendanceController {
       const from = req.query.from as string | undefined;
       const to = req.query.to as string | undefined;
 
-      const where: any = {
-        schoolId,
-        ...(classId ? { classId } : {}),
-        ...(studentId ? { studentId } : {}),
-      };
-
-      if (from || to) {
-        where.date = {
-          ...(from ? { gte: startOfDayUtc(from) } : {}),
-          ...(to ? { lte: endOfDayUtc(to) } : {}),
-        };
-      }
+      const filtre: FiltrePresences = {};
+      if (classId) filtre.classId = classId;
+      if (studentId) filtre.studentId = studentId;
+      if (from) filtre.dateDebut = startOfDayUtc(from);
+      if (to) filtre.dateFin = endOfDayUtc(to);
 
       if (role === 'STUDENT') {
-        where.studentId = userId;
+        filtre.studentId = userId;
       } else if (role === 'PARENT') {
-        const parentProfile = await prisma.parentProfile.findUnique({
-          where: { userId },
-          include: { children: { include: { studentProfile: true } } },
-        });
-        const childIds = (parentProfile?.children ?? [])
-          .map((c) => c.studentProfile?.userId)
-          .filter((id): id is string => Boolean(id));
+        const childIds = await this.parentRepository.findStudentIdsByParent(userId);
         if (childIds.length === 0) {
           res.json({ stats: { total: 0, present: 0, absent: 0, late: 0, attendanceRate: '0%' } });
           return;
         }
-        where.studentId = { in: childIds };
+        filtre.studentId = childIds;
       }
 
       const [total, present, absent, late] = await Promise.all([
-        prisma.attendance.count({ where }),
-        prisma.attendance.count({ where: { ...where, status: 'PRESENT' } }),
-        prisma.attendance.count({ where: { ...where, status: 'ABSENT' } }),
-        prisma.attendance.count({ where: { ...where, status: 'LATE' } }),
+        this.presenceRepository.countByFiltre(schoolId, filtre),
+        this.presenceRepository.countByFiltre(schoolId, { ...filtre, status: 'PRESENT' }),
+        this.presenceRepository.countByFiltre(schoolId, { ...filtre, status: 'ABSENT' }),
+        this.presenceRepository.countByFiltre(schoolId, { ...filtre, status: 'LATE' }),
       ]);
 
       res.json({

@@ -769,6 +769,9 @@ export function creerContainer() {
     attendance: {
       enregistrerPresence: enregistrerPresenceUseCase,
       traiterSmsPresence: traiterSmsPresenceUseCase,
+      presenceRepository,
+      userRepository,
+      parentRepository,
     },
     school: {
       onboarder: onboarderEcoleUseCase,

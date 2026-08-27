@@ -44,6 +44,11 @@ export function creerApp(): Application {
 
   const attendanceController = new AttendanceController(
     container.attendance.enregistrerPresence,
+    container.attendance.presenceRepository,
+    container.attendance.userRepository,
+    container.attendance.parentRepository,
+    container.school.matiereRepository,
+    new AIActionAuditAdapter(prisma as any),
   );
 
   const onboardingController = new SchoolOnboardingController(

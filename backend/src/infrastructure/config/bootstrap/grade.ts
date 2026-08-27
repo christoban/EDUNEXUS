@@ -3,6 +3,7 @@ import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { creerContainer } from '@infrastructure/config/container';
 import { GradeController } from '@infrastructure/http/controllers/GradeController';
 import { AttendanceController } from '@infrastructure/http/controllers/AttendanceController';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { TimetableController } from '@infrastructure/http/controllers/TimetableController';
 import { TimetableAutoController } from '@infrastructure/http/controllers/TimetableAutoController';
 import { creerGradeRoutes } from '@infrastructure/http/routes/grade.routes';
@@ -41,6 +42,11 @@ export function registerGradeRoutes(app: Application, prismaParam: typeof prisma
 
   const attendanceController = new AttendanceController(
     c.attendance.enregistrerPresence,
+    c.attendance.presenceRepository,
+    c.attendance.userRepository,
+    c.attendance.parentRepository,
+    c.school.matiereRepository,
+    new AIActionAuditAdapter(p),
   );
 
   const timetableController = new TimetableController(
