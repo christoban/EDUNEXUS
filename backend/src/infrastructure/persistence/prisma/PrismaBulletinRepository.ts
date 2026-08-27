@@ -160,6 +160,35 @@ export class PrismaBulletinRepository implements BulletinRepository {
     await this.prisma.reportCard.delete({ where: { id } });
   }
 
+  async findTableauHonneur(params: { classId: string; schoolId: string; academicPeriodId: string; top: number }): Promise<{ student: { firstName: string; lastName: string }; generalAverage: number; mention: string | null }[]> {
+    const { whereProfilesParClasse } = await import('@application/shared/studentEnrollment');
+    const rows = await this.prisma.reportCard.findMany({
+      where: {
+        schoolId: params.schoolId,
+        academicPeriodId: params.academicPeriodId,
+        student: { studentProfile: whereProfilesParClasse(params.classId) as any },
+        generalAverage: { not: null },
+      },
+      include: { student: { select: { firstName: true, lastName: true } } },
+      orderBy: { generalAverage: 'desc' },
+      take: params.top,
+    });
+    return rows.map((r: any) => ({ student: r.student, generalAverage: r.generalAverage!, mention: r.mention ?? null }));
+  }
+
+  async findForAnnual(params: { classId: string; schoolId: string; periodIds: string[] }): Promise<{ studentId: string; student: { firstName: string; lastName: string }; generalAverage: number | null }[]> {
+    const { whereProfilesParClasse } = await import('@application/shared/studentEnrollment');
+    const rows = await this.prisma.reportCard.findMany({
+      where: {
+        schoolId: params.schoolId,
+        academicPeriodId: { in: params.periodIds },
+        student: { studentProfile: whereProfilesParClasse(params.classId) as any },
+      },
+      include: { student: { select: { firstName: true, lastName: true } } },
+    });
+    return rows.map((r: any) => ({ studentId: r.studentId, student: r.student, generalAverage: r.generalAverage ?? null }));
+  }
+
   async upsertBulletin(data: { schoolId: string; studentId: string; academicYearId: string; academicPeriodId: string; generalAverage: number; rank: number | null; mention: string; absenceCount: number }): Promise<{ id: string }> {
     const reportCard = await this.prisma.reportCard.upsert({
       where: { studentId_academicPeriodId: { studentId: data.studentId, academicPeriodId: data.academicPeriodId } },

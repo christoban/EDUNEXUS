@@ -1,6 +1,7 @@
 import type { Application } from 'express';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { creerContainer } from '@infrastructure/config/container';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
@@ -177,7 +178,11 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
     c.class.assignerEleves,
     c.studentGroup.assignerSalleClasse,
     c.studentGroup.retirerAssignationSalle,
-    prisma,
+    new AIActionAuditAdapter(prisma),
+    c.class.listerEleves,
+    undefined as any,
+    c.class.genererTableauHonneur,
+    c.class.genererTableauHonneurAnnuel,
   );
 
   const subjectController = new SubjectController(

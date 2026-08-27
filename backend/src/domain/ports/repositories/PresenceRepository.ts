@@ -52,6 +52,9 @@ export interface PresenceRepository {
   // Inngest — bulletins : ABSENT + LATE
   countAbsencesEtRetards(schoolId: string, studentId: string, academicPeriodId: string): Promise<number>;
 
+  // Classe — liste élèves avec taux de présence
+  findByClasseEtEleves(classId: string, studentIds: string[]): Promise<Array<{ studentId: string; status: string }>>;
+
   // Sync hors ligne
   findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]>;
 }

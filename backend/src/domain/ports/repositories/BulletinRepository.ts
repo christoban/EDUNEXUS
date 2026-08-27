@@ -24,6 +24,10 @@ export interface BulletinRepository {
   updatePdfUrl(bulletinId: string, pdfUrl: string): Promise<void>;
   delete(id: string): Promise<void>;
 
+  // Tableau d'honneur — trimestriel & annuel
+  findTableauHonneur(params: { classId: string; schoolId: string; academicPeriodId: string; top: number }): Promise<{ student: { firstName: string; lastName: string }; generalAverage: number; mention: string | null }[]>;
+  findForAnnual(params: { classId: string; schoolId: string; periodIds: string[] }): Promise<{ studentId: string; student: { firstName: string; lastName: string }; generalAverage: number | null }[]>;
+
   // Inngest — upsert direct (reportCards inngest historique)
   upsertBulletin(data: { schoolId: string; studentId: string; academicYearId: string; academicPeriodId: string; generalAverage: number; rank: number | null; mention: string; absenceCount: number }): Promise<{ id: string }>;
   upsertLigneMatiere(reportCardId: string, ligne: { subjectId: string; subjectName: string; coefficient: number; seq1Score: number | null; seq2Score: number | null; subjectAverage: number }): Promise<void>;

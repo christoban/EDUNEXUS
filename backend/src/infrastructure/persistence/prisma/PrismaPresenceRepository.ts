@@ -221,6 +221,15 @@ export class PrismaPresenceRepository implements PresenceRepository {
     }
   }
 
+  async findByClasseEtEleves(classId: string, studentIds: string[]): Promise<Array<{ studentId: string; status: string }>> {
+    if (studentIds.length === 0) return [];
+    const data = await this.prisma.attendance.findMany({
+      where: { classId, studentId: { in: studentIds } },
+      select: { studentId: true, status: true },
+    });
+    return data.map(d => ({ studentId: d.studentId, status: d.status }));
+  }
+
   async findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]> {
     const data = await this.prisma.attendance.findMany({
       where: { recordedById: userId, isOfflineSync: true },

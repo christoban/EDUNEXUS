@@ -219,6 +219,16 @@ export class InMemoryNoteRepository implements NoteRepository {
     }
   }
 
+  async findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number }>> {
+    if (studentIds.length === 0) return [];
+    return [...this.store.values()]
+      .filter(n => {
+        const d = n.toObject();
+        return d.schoolId === schoolId && d.classId === classId && studentIds.includes(d.studentId) && (n.validationStatus === 'VALIDATED' || n.validationStatus === 'LOCKED');
+      })
+      .map(n => ({ studentId: n.toObject().studentId, sequenceAverage: n.sequenceAverage ?? null, coefficient: n.toObject().coefficient ?? 1 }));
+  }
+
   async findForBulletin(params: { schoolId: string; studentId: string; academicYearId: string; classId: string; sequenceIds: string[] }): Promise<Note[]> {
     return [...this.store.values()].filter(n => {
       const d = n.toObject();

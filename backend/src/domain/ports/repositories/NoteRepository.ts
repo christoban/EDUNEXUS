@@ -82,6 +82,9 @@ export interface NoteRepository {
    */
   verrouillerNotesValidees(studentId: string, classId: string, academicPeriodId: string): Promise<void>;
 
+  // Classe — liste élèves avec moyennes
+  findValideesParClasseEtEleves(schoolId: string, classId: string, studentIds: string[]): Promise<Array<{ studentId: string; sequenceAverage: number | null; coefficient: number }>>;
+
   // Inngest — génération bulletins
   findForBulletin(params: { schoolId: string; studentId: string; academicYearId: string; classId: string; sequenceIds: string[] }): Promise<Note[]>;
   groupMoyennesPourPeriode(params: { schoolId: string; classId: string; academicYearId: string; sequenceIds: string[] }): Promise<Array<{ studentId: string; average: number }>>;

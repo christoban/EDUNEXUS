@@ -23,10 +23,37 @@ export interface ContexteBulletin {
   langue?: "fr" | "en";
 }
 
+export interface TableauHonneurLigne {
+  lastName: string;
+  firstName: string;
+  generalAverage: number;
+  mention?: string | null;
+}
+
+export interface TableauHonneurAnnuelLigne {
+  name: string;
+  annualAvg: number;
+}
+
 export interface PdfService {
   genererBulletin(contexte: ContexteBulletin): Promise<Buffer>;
   genererBulletinsEnMasse(contextes: ContexteBulletin[]): Promise<{
     bulletinId: string;
     pdf: Buffer;
   }[]>;
+  genererTableauHonneur(params: {
+    className: string;
+    periodName: string;
+    yearName: string;
+    schoolName: string;
+    schoolCity?: string;
+    reportCards: TableauHonneurLigne[];
+  }): Promise<Buffer>;
+  genererTableauHonneurAnnuel(params: {
+    className: string;
+    yearName: string;
+    schoolName: string;
+    schoolCity?: string;
+    ranked: TableauHonneurAnnuelLigne[];
+  }): Promise<Buffer>;
 }

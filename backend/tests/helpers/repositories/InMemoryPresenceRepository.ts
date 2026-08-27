@@ -136,6 +136,13 @@ export class InMemoryPresenceRepository implements PresenceRepository {
     this.store.set(p.id, p);
   }
 
+  async findByClasseEtEleves(classId: string, studentIds: string[]): Promise<Array<{ studentId: string; status: string }>> {
+    if (studentIds.length === 0) return [];
+    return [...this.store.values()]
+      .filter(p => p.classId === classId && studentIds.includes(p.studentId))
+      .map(p => ({ studentId: p.studentId, status: p.status }));
+  }
+
   async synchroniserPresencesSms(_records: PresenceSmsRecord[]): Promise<void> {}
 
   async findPresencesHorsLigneEnAttente(userId: string): Promise<Presence[]> {

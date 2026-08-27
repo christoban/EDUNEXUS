@@ -76,4 +76,7 @@ export interface ClassCouncilRepository {
 
   /** Ids de classes ayant un conseil LOCKED pour une période — anomalies établissement. */
   findClassIdsAvecConseilVerrouille(schoolId: string, academicPeriodId: string): Promise<string[]>;
+
+  /** Périodes verrouillées pour une classe — tableau d'honneur annuel (allLocked). */
+  listLockedPeriodIdsForClasse(classId: string, schoolId: string): Promise<string[]>;
 }

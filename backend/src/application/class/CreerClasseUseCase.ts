@@ -1,11 +1,14 @@
 import { Classe } from '@domain/entities/Classe';
 import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
 import type { CreerCanalClasseUseCase } from '@application/messagerie/CreerCanalClasseUseCase';
 import type { CreerCanalParentsUseCase } from '@application/messagerie/CreerCanalParentsUseCase';
+import { CYCLE2_LEVELS, NIVEAU_MAP } from '@application/school/SubjectAssignmentHelper';
 
 export interface CreerClasseCommande {
   schoolId: string;
-  academicYearId: string;
+  academicYearId?: string;
   name: string;
   level?: string;
   serie?: string;
@@ -23,6 +26,8 @@ export interface CreerClasseResultat {
 export class CreerClasseUseCase {
   constructor(
     private readonly classeRepository: ClasseRepository,
+    private readonly anneeAcademiqueRepository?: AnneeAcademiqueRepository,
+    private readonly matiereRepository?: MatiereRepository,
     // Optionnels : une classe doit avoir ses canaux de messagerie dès sa création (jamais créés
     // à la main), mais ce use case reste testable/utilisable sans messagerie câblée (voir
     // CreerClasseUseCase.test.ts, qui l'instancie avec un seul argument).
@@ -31,6 +36,33 @@ export class CreerClasseUseCase {
   ) {}
 
   async execute(commande: CreerClasseCommande): Promise<CreerClasseResultat> {
+    // Résolution de l'année académique courante (ex-prisma.academicYear.findFirst dans controller)
+    let academicYearId = commande.academicYearId;
+    if (!academicYearId) {
+      if (!this.anneeAcademiqueRepository) {
+        throw new Error("Aucune année académique courante — impossible de créer une classe.");
+      }
+      const anneeCourante = await this.anneeAcademiqueRepository.findCourante(commande.schoolId);
+      if (!anneeCourante) {
+        throw new Error("Aucune année académique courante — impossible de créer une classe.");
+      }
+      academicYearId = anneeCourante.id;
+    }
+
+    // Validation MINESEC pour le 2nd cycle (ex-prisma.bacCoefficient.findFirst dans controller)
+    if (commande.level && commande.serie && (CYCLE2_LEVELS as string[]).includes(commande.level)) {
+      const niveauBac = NIVEAU_MAP[commande.level];
+      if (niveauBac && this.matiereRepository) {
+        const seriePart = commande.serie.includes('-') ? commande.serie.split('-')[0]! : commande.serie;
+        const coeffs = await this.matiereRepository.getCoefficientsBACParSerie(seriePart);
+        if (coeffs.length === 0) {
+          throw new Error(
+            `La série "${commande.serie}" n'existe pas au niveau "${commande.level}" dans le programme officiel MINESEC. Vérifiez la combinaison niveau/série.`
+          );
+        }
+      }
+    }
+
     const dejaExiste = await this.classeRepository.existsByName(
       commande.schoolId,
       commande.name
@@ -43,7 +75,7 @@ export class CreerClasseUseCase {
 
     const classe = Classe.create({
       schoolId: commande.schoolId,
-      academicYearId: commande.academicYearId,
+      academicYearId: academicYearId!,
       name: commande.name,
       level: commande.level,
       serie: commande.serie,

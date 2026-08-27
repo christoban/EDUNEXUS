@@ -261,6 +261,11 @@ import { SupprimerClasseUseCase } from '@application/class/SupprimerClasseUseCas
 import { AssignerProfesseurPrincipalUseCase } from '@application/class/AssignerProfesseurPrincipalUseCase';
 import { CreerSousGroupeTPUseCase } from '@application/class/CreerSousGroupeTPUseCase';
 import { AssignerElevesAuSousGroupeUseCase } from '@application/class/AssignerElevesAuSousGroupeUseCase';
+import { GererMatiereClasseUseCase } from '@application/classe/GererMatiereClasseUseCase';
+import { ListerElevesClasseUseCase } from '@application/classe/ListerElevesClasseUseCase';
+import { GenererTableauHonneurUseCase } from '@application/classe/GenererTableauHonneurUseCase';
+import { GenererTableauHonneurAnnuelUseCase } from '@application/classe/GenererTableauHonneurAnnuelUseCase';
+import { PrismaClasseCoefficientRepository } from '@infrastructure/persistence/prisma/PrismaClasseCoefficientRepository';
 
 // --- Use Cases : Matière ---
 import { CreerMatiereUseCase } from '@application/subject/CreerMatiereUseCase';
@@ -492,18 +497,47 @@ export function creerContainer() {
 
   const creerClasseUseCase = new CreerClasseUseCase(
     classeRepository,
+    anneeRepository,
+    matiereRepository,
     new CreerCanalClasseUseCase(messagerieRepository),
     new CreerCanalParentsUseCase(messagerieRepository),
   );
   const modifierClasseUseCase = new ModifierClasseUseCase(classeRepository);
   const supprimerClasseUseCase = new SupprimerClasseUseCase(classeRepository);
   const assignerProfesseurUseCase = new AssignerProfesseurPrincipalUseCase(
-    classeRepository, userRepository
+    classeRepository, userRepository, rattachementRepository
   );
   const creerSousGroupeUseCase = new CreerSousGroupeTPUseCase(
     classeRepository, sousGroupeRepository
   );
   const assignerElevesUseCase = new AssignerElevesAuSousGroupeUseCase(sousGroupeRepository);
+  const listerElevesClasseUseCase = new ListerElevesClasseUseCase(
+    classeRepository,
+    userRepository,
+    noteRepository,
+    presenceRepository,
+  );
+  const classeCoefficientRepository = new PrismaClasseCoefficientRepository(prisma);
+  const gererMatiereClasseUseCase = new GererMatiereClasseUseCase(
+    classeRepository,
+    classeCoefficientRepository,
+  );
+  const genererTableauHonneurUseCase = new GenererTableauHonneurUseCase(
+    classeRepository,
+    anneeRepository,
+    schoolRepository,
+    bulletinRepository,
+    classCouncilRepository,
+    pdfService,
+  );
+  const genererTableauHonneurAnnuelUseCase = new GenererTableauHonneurAnnuelUseCase(
+    classeRepository,
+    anneeRepository,
+    schoolRepository,
+    bulletinRepository,
+    classCouncilRepository,
+    pdfService,
+  );
 
   const creerMatiereUseCase = new CreerMatiereUseCase(matiereRepository, userRepository);
   const modifierMatiereUseCase = new ModifierMatiereUseCase(matiereRepository, userRepository);
@@ -724,6 +758,11 @@ export function creerContainer() {
       assignerProfesseur: assignerProfesseurUseCase,
       creerSousGroupe: creerSousGroupeUseCase,
       assignerEleves: assignerElevesUseCase,
+      listerEleves: listerElevesClasseUseCase,
+      gererMatiere: gererMatiereClasseUseCase,
+      genererTableauHonneur: genererTableauHonneurUseCase,
+      genererTableauHonneurAnnuel: genererTableauHonneurAnnuelUseCase,
+      classeCoefficientRepository,
     },
     subject: {
       creer: creerMatiereUseCase,

@@ -98,6 +98,15 @@ export class InMemoryBulletinRepository implements BulletinRepository {
     this.store.delete(id);
   }
 
+  async findTableauHonneur(params: { classId: string; schoolId: string; academicPeriodId: string; top: number }): Promise<{ student: { firstName: string; lastName: string }; generalAverage: number; mention: string | null }[]> {
+    // InMemory: no student name store — return empty to keep simple; tests override if needed
+    return [];
+  }
+
+  async findForAnnual(params: { classId: string; schoolId: string; periodIds: string[] }): Promise<{ studentId: string; student: { firstName: string; lastName: string }; generalAverage: number | null }[]> {
+    return [];
+  }
+
   async upsertBulletin(data: { schoolId: string; studentId: string; academicYearId: string; academicPeriodId: string; generalAverage: number; rank: number | null; mention: string; absenceCount: number }): Promise<{ id: string }> {
     const existing = this.periodeStore.get(`${data.studentId}:${data.academicPeriodId}`);
     if (existing) {

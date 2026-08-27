@@ -1,5 +1,6 @@
 import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
 
 export interface AssignerProfesseurCommande {
   classeId: string;
@@ -12,6 +13,7 @@ export class AssignerProfesseurPrincipalUseCase {
   constructor(
     private readonly classeRepository: ClasseRepository,
     private readonly userRepository: UserRepository,
+    private readonly rattachementRepository?: RattachementEnseignantRepository,
   ) {}
 
   async execute(commande: AssignerProfesseurCommande): Promise<void> {
@@ -34,6 +36,21 @@ export class AssignerProfesseurPrincipalUseCase {
     }
     if (enseignant.schoolId !== commande.schoolId) {
       throw new Error("Cet enseignant n'appartient pas à votre établissement");
+    }
+
+    // Un PP doit enseigner au moins une matière dans cette classe (ex-prisma.teachingAssignment.findFirst)
+    if (this.rattachementRepository) {
+      const rattache = await this.rattachementRepository.estRattacheALaClasse(
+        commande.teacherUserId,
+        commande.classeId,
+        undefined,
+        { autoriserProfesseurPrincipal: false },
+      );
+      if (!rattache) {
+        throw new Error(
+          "Cet enseignant n'enseigne aucune matière dans cette classe. Assignez-lui d'abord une matière avant de le désigner Professeur Principal."
+        );
+      }
     }
 
     // Un enseignant ne peut être Professeur Principal que d'une seule classe

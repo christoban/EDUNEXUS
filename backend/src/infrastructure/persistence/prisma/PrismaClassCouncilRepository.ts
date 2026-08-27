@@ -224,4 +224,12 @@ export class PrismaClassCouncilRepository implements ClassCouncilRepository {
     });
     return sessions.map((s) => s.classId);
   }
+
+  async listLockedPeriodIdsForClasse(classId: string, schoolId: string): Promise<string[]> {
+    const sessions = await this.prisma.classCouncilSession.findMany({
+      where: { classId, schoolId, status: 'LOCKED' },
+      select: { academicPeriodId: true },
+    });
+    return sessions.map((s) => s.academicPeriodId);
+  }
 }
