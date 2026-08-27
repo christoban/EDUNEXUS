@@ -87,6 +87,7 @@ import { protectMaster, authorizeMaster } from '../../http/middlewares/authMulti
 import { requireMasterSensitiveAuth } from '../../http/middlewares/masterSensitiveAuth';
 import { errorHandler } from '@infrastructure/http/middlewares/errorHandler';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
+import { PrismaAIContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAIContextQueryRepository';
 import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
 import { PrismaSuiviRBACRepository } from '@infrastructure/persistence/prisma/PrismaSuiviRBACRepository';
 import { PrismaAcademicEventRepository } from '@infrastructure/persistence/prisma/PrismaAcademicEventRepository';
@@ -862,7 +863,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   const dashboardController  = new DashboardController(p, enrollmentRepository);
   const emailLogController   = new EmailLogController(p);
   const searchController     = new SearchController(p);
-  const aiController         = new AIController(p, enrollmentRepository, c.prediction.comparerRisque);
+  const aiController         = new AIController(new PrismaAIContextQueryRepository(p), enrollmentRepository, c.prediction.comparerRisque);
   const studentFollowUpRepo  = new PrismaStudentFollowUpRepository(p);
   const suiviRBACRepository    = new PrismaSuiviRBACRepository(p);
   const studentFollowUpController = new StudentFollowUpController(

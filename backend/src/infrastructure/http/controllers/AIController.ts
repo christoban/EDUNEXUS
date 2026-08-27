@@ -1,23 +1,23 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { generateWithGroq } from '../../services/ai/GroqClient.ts';
 import { resolveLanguage, type Language } from '../../../domain/policies/LanguagePolicy';
 import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
 import type { CompareRisquePredictionsUseCase } from '@application/ai/CompareRisquePredictionsUseCase';
 import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
-import { getClassIdActuelEleve, whereProfilesParClasse, whereProfilesParClasses } from '@application/shared/studentEnrollment';
+import type { AIContextQueryRepository } from '@domain/ports/repositories/AIContextQueryRepository';
+import { getClassIdActuelEleve } from '@application/shared/studentEnrollment';
 
 export class AIController {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly contextRepo: AIContextQueryRepository,
     private readonly enrollmentRepository: EnrollmentRepository,
     private readonly compareRisquePredictions?: CompareRisquePredictionsUseCase,
   ) {}
 
   /** Résout la langue de l'école courante (via son sous-système) pour les prompts Groq. */
   private async langueEcole(schoolId: string): Promise<Language> {
-    const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { subsystem: true } });
-    return resolveLanguage(school?.subsystem);
+    const subsystem = await this.contextRepo.getLanguageSousSysteme(schoolId);
+    return resolveLanguage(subsystem);
   }
 
   /**
@@ -34,10 +34,7 @@ export class AIController {
     user: { userId: string; schoolId: string; role: string; permissions?: string[] },
     studentId: string,
   ): Promise<boolean> {
-    const profile = await this.prisma.studentProfile.findFirst({
-      where: { userId: studentId, user: { schoolId: user.schoolId } },
-      select: { id: true },
-    });
+    const profile = await this.contextRepo.findStudentProfile(studentId, user.schoolId);
     if (!profile) return false;
 
     const role = user.role.toUpperCase();
@@ -54,18 +51,14 @@ export class AIController {
       const classId = await getClassIdActuelEleve(this.enrollmentRepository, studentId);
       if (!classId) return false;
       const [assignment, estProfPrincipal] = await Promise.all([
-        this.prisma.teachingAssignment.findFirst({ where: { teacherId: user.userId, classId }, select: { id: true } }),
-        this.prisma.class.findFirst({ where: { id: classId, professorPrincipalId: user.userId }, select: { id: true } }),
+        this.contextRepo.hasTeachingAssignment(user.userId, classId),
+        this.contextRepo.isProfesseurPrincipal(classId, user.userId),
       ]);
-      return !!assignment || !!estProfPrincipal;
+      return assignment || estProfPrincipal;
     }
 
     if (role === 'PARENT') {
-      const lien = await this.prisma.parentStudent.findFirst({
-        where: { parentProfile: { userId: user.userId }, studentProfile: { userId: studentId } },
-        select: { parentProfileId: true },
-      });
-      return !!lien;
+      return this.contextRepo.hasParentStudentLink(user.userId, studentId);
     }
 
     if (role === 'STUDENT') {
@@ -97,9 +90,9 @@ export class AIController {
 
       if (user.role === 'ADMIN') {
         const [students, grades, attendance] = await Promise.all([
-          this.prisma.studentProfile.count({ where: { user: { schoolId } } }),
-          this.prisma.grade.findMany({ where: { schoolId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } }, select: { sequenceAverage: true }, take: 100 }),
-          this.prisma.attendance.groupBy({ by: ['status'], where: { schoolId, date: { gte: new Date(Date.now() - 7 * 86400000) } }, _count: true }),
+          this.contextRepo.countStudentProfiles(schoolId),
+          this.contextRepo.getRecentValidatedGrades(schoolId),
+          this.contextRepo.getAttendanceStatusCountsSince(schoolId, new Date(Date.now() - 7 * 86400000)),
         ]);
         // ponytail: simple avg, stdlib 1-liner — centralize when weighted coeffs diverge
         const avgGrade = grades.length ? (grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length).toFixed(1) : 'N/A';
@@ -109,12 +102,12 @@ export class AIController {
         prompt = `Tu es conseiller pédagogique pour un établissement scolaire camerounais.\nDonnées : ${students} élèves, moyenne ${avgGrade}/20, présence ${attendanceRate}% (7j).\nGénère un insight pédagogique concis (2-3 phrases) avec une recommandation actionnable.`;
 
       } else if (user.role === 'TEACHER') {
-        const profile = await this.prisma.teacherProfile.findUnique({ where: { userId: user.userId }, include: { teacherSubjects: { include: { subject: true } } } });
+        const profile = await this.contextRepo.findTeacherProfileWithSubjects(user.userId);
         const subjects = profile?.teacherSubjects.map((ts) => ts.subject.name).join(', ') || 'non spécifié';
         prompt = `Tu es conseiller pédagogique. Un enseignant de ${subjects} dans un lycée camerounais demande un conseil pédagogique. Donne 2-3 recommandations concrètes adaptées au contexte camerounais.`;
 
       } else if (user.role === 'STUDENT') {
-        const grades = await this.prisma.grade.findMany({ where: { schoolId, studentId: user.userId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } }, include: { subject: true }, orderBy: { createdAt: 'desc' }, take: 5 });
+        const grades = await this.contextRepo.findRecentGradesByStudent(schoolId, user.userId);
         const summary = grades.map((g) => `${g.subject.name}: ${g.sequenceAverage ?? 0}/20`).join(', ');
         prompt = `Tu es un tuteur bienveillant pour un lycéen camerounais. Ses dernières notes : ${summary || 'pas encore de notes'}. Donne un encouragement et un conseil pratique (2-3 phrases).`;
 
@@ -142,24 +135,13 @@ export class AIController {
         return;
       }
 
-      const students = await this.prisma.studentProfile.findMany({
-        where: { user: { schoolId }, ...(classId ? whereProfilesParClasse(classId) : {}) },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true } },
-          enrollmentsYearScoped: {
-            where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-            take: 1,
-            select: { class: { select: { id: true, name: true } } },
-          },
-        },
-        orderBy: { healthScore: 'asc' },
-      });
+      const students = await this.contextRepo.findStudentsByClass(schoolId, classId);
 
       const categorized = students.map((s) => {
         const score = s.healthScore ?? 75;
         const alertLevel =
           score <= 30 ? 'critical' : score <= 50 ? 'warning' : score <= 70 ? 'recommendation' : score <= 85 ? 'good' : 'excellent';
-        return { studentId: s.user.id, name: `${s.user.firstName} ${s.user.lastName}`, className: s.enrollmentsYearScoped[0]?.class?.name ?? '—', healthScore: score, alertLevel };
+        return { studentId: s.userId, name: `${s.firstName} ${s.lastName}`, className: s.className ?? '—', healthScore: score, alertLevel };
       });
 
       res.json({
@@ -187,8 +169,8 @@ export class AIController {
       const teacherId = req.user!.userId;
 
       const [assignments, ppClasses] = await Promise.all([
-        this.prisma.teachingAssignment.findMany({ where: { teacherId, schoolId }, select: { classId: true, subjectId: true, subject: { select: { name: true } } } }),
-        this.prisma.class.findMany({ where: { schoolId, professorPrincipalId: teacherId }, select: { id: true } }),
+        this.contextRepo.findTeachingAssignmentsByTeacher(teacherId, schoolId),
+        this.contextRepo.findClassesByProfesseurPrincipal(teacherId, schoolId),
       ]);
       const classIds = Array.from(new Set([...assignments.map((a) => a.classId), ...ppClasses.map((c) => c.id)]));
       if (classIds.length === 0) { res.json({ students: [], summary: { critical: 0, warning: 0 } }); return; }
@@ -200,22 +182,21 @@ export class AIController {
       const mesMatieresParClasse = new Map<string, { id: string; name: string }[]>();
       for (const a of assignments) {
         const liste = mesMatieresParClasse.get(a.classId) ?? [];
-        liste.push({ id: a.subjectId, name: a.subject.name });
+        liste.push({ id: a.subjectId, name: a.subjectName });
         mesMatieresParClasse.set(a.classId, liste);
       }
 
-      const config = await this.prisma.schoolConfig
-        .findUnique({ where: { schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
-        .catch(() => null) as { aiRiskThreshold: number; aiRiskThresholdCritical: number } | null;
+      const config = await this.contextRepo.getSchoolConfig(schoolId);
       const warningThreshold = config?.aiRiskThreshold ?? 50;
       const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
 
       // Conseiller pédagogique présent dans ~15% des établissements secondaires publics
       // camerounais uniquement — le frontend masque "Signaler au conseiller" quand c'est absent,
       // plutôt que d'offrir une option qui ne mène nulle part (relecture juillet 2026).
-      const conseillerPedagogiqueDisponible = (await this.prisma.staffProfile.count({
-        where: { schoolId, permissions: { some: { permission: { in: ['MANAGE_ORIENTATION', 'MANAGE_PEDAGOGICAL_BRIEF'] } } } },
-      })) > 0;
+      const conseillerPedagogiqueDisponible = (await this.contextRepo.countStaffWithPermission(
+        schoolId,
+        ['MANAGE_ORIENTATION', 'MANAGE_PEDAGOGICAL_BRIEF'],
+      )) > 0;
 
       interface AtRiskEntry {
         studentId: string; name: string; classId: string | null; className: string;
@@ -231,26 +212,12 @@ export class AIController {
       // juillet 2026.
       const ppClassIdList = Array.from(ppClassIds);
       const studentsComposite = ppClassIdList.length
-        ? await this.prisma.studentProfile.findMany({
-            where: { ...whereProfilesParClasses(ppClassIdList), healthScore: { lte: warningThreshold } },
-            include: {
-              user: { select: { id: true, firstName: true, lastName: true } },
-              enrollmentsYearScoped: {
-                where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-                take: 1,
-                select: { class: { select: { id: true, name: true } } },
-              },
-            },
-            orderBy: { healthScore: 'asc' },
-          })
+        ? await this.contextRepo.findStudentsByClasses(ppClassIdList, { healthScoreLte: warningThreshold })
         : [];
 
-      const studentIds = studentsComposite.map((s) => s.user.id);
+      const studentIds = studentsComposite.map((s) => s.userId);
       const recommendations = studentIds.length
-        ? await this.prisma.studentRecommendation.findMany({
-            where: { studentId: { in: studentIds }, recipientRole: 'TEACHER' },
-            orderBy: { createdAt: 'desc' },
-          })
+        ? await this.contextRepo.findStudentRecommendations({ studentIds, recipientRole: 'TEACHER' })
         : [];
       const dernierConseilParEleve = new Map<string, (typeof recommendations)[number]>();
       for (const r of recommendations) if (!dernierConseilParEleve.has(r.studentId)) dernierConseilParEleve.set(r.studentId, r);
@@ -258,13 +225,12 @@ export class AIController {
       const resultComposite: AtRiskEntry[] = studentsComposite.map((s) => {
         const score: number = s.healthScore ?? 75;
         const alertLevel = score <= criticalThreshold ? 'critical' : 'warning';
-        const conseil = dernierConseilParEleve.get(s.user.id);
-        const classId = s.enrollmentsYearScoped[0]?.class?.id ?? null;
+        const conseil = dernierConseilParEleve.get(s.userId);
         return {
-          studentId: s.user.id,
-          name: `${s.user.firstName} ${s.user.lastName}`,
-          classId,
-          className: s.enrollmentsYearScoped[0]?.class?.name ?? '—',
+          studentId: s.userId,
+          name: `${s.firstName} ${s.lastName}`,
+          classId: s.classId,
+          className: s.className ?? '—',
           source: 'COMPOSITE' as const,
           healthScore: score,
           alertLevel,
@@ -274,8 +240,8 @@ export class AIController {
           recommendationId: conseil?.id ?? null,
           // Autorité pour le suivi (Partie B) : PP = pleine autorité, sinon liste de ses propres
           // matières dans cette classe = observation seulement, restreinte à l'une d'elles.
-          isProfesseurPrincipal: classId ? ppClassIds.has(classId) : false,
-          mesMatieres: classId ? (mesMatieresParClasse.get(classId) ?? []) : [],
+          isProfesseurPrincipal: s.classId !== null && ppClassIds.has(s.classId),
+          mesMatieres: s.classId ? (mesMatieresParClasse.get(s.classId) ?? []) : [],
         };
       });
 
@@ -286,29 +252,17 @@ export class AIController {
       const classIdsMatiereSeule = classIds.filter((id) => !ppClassIds.has(id));
       let resultSubjectDrop: AtRiskEntry[] = [];
       if (classIdsMatiereSeule.length > 0) {
-        const elevesMatiereSeule = await this.prisma.studentProfile.findMany({
-          where: whereProfilesParClasses(classIdsMatiereSeule),
-          select: {
-            userId: true,
-            user: { select: { firstName: true, lastName: true } },
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-              take: 1,
-              select: { classId: true, class: { select: { name: true } } },
-            },
-          },
-        });
+        const elevesMatiereSeule = await this.contextRepo.findStudentsByClasses(classIdsMatiereSeule);
         const profilParEleve = new Map(elevesMatiereSeule.map((e) => [e.userId, e]));
 
         const depuis = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const chutes = profilParEleve.size
-          ? await this.prisma.studentRecommendation.findMany({
-              where: {
-                schoolId, recipientRole: 'TEACHER', contextType: 'SUBJECT_DROP',
-                createdAt: { gte: depuis },
-                studentId: { in: Array.from(profilParEleve.keys()) },
-              },
-              orderBy: { createdAt: 'desc' },
+          ? await this.contextRepo.findStudentRecommendations({
+              schoolId,
+              studentIds: Array.from(profilParEleve.keys()),
+              recipientRole: 'TEACHER',
+              contextTypes: ['SUBJECT_DROP'],
+              since: depuis,
             })
           : [];
 
@@ -318,7 +272,7 @@ export class AIController {
           if (!profil || !c.subjectId) continue;
           // Ne garder que si CE professeur enseigne bien CETTE matière dans CETTE classe — pas la
           // chute d'un élève détectée pour un autre enseignant partageant la même classe.
-          const classIdProfil = profil.enrollmentsYearScoped[0]?.classId;
+          const classIdProfil = profil.classId;
           if (!classIdProfil) continue;
           const mesMatieresIci = mesMatieresParClasse.get(classIdProfil) ?? [];
           if (!mesMatieresIci.some((m) => m.id === c.subjectId)) continue;
@@ -328,13 +282,13 @@ export class AIController {
 
         resultSubjectDrop = Array.from(vueParEleveMatiere.values()).map((c): AtRiskEntry => {
           const profil = profilParEleve.get(c.studentId)!;
-          const classIdProfil = profil.enrollmentsYearScoped[0]?.classId;
+          const classIdProfil = profil.classId;
           const matiere = (classIdProfil ? mesMatieresParClasse.get(classIdProfil) ?? [] : []).find((m) => m.id === c.subjectId);
           return {
             studentId: c.studentId,
-            name: `${profil.user.firstName} ${profil.user.lastName}`,
+            name: `${profil.firstName} ${profil.lastName}`,
             classId: classIdProfil ?? null,
-            className: profil.enrollmentsYearScoped[0]?.class?.name ?? '—',
+            className: profil.className ?? '—',
             source: 'SUBJECT_DROP' as const,
             healthScore: null,
             alertLevel: null,
@@ -376,46 +330,16 @@ export class AIController {
       let cibles: { studentId: string; name: string; className: string }[] = [];
 
       if (role === 'STUDENT') {
-        const profile = await this.prisma.studentProfile.findFirst({
-          where: { userId: user.userId, user: { schoolId } },
-          include: {
-            user: { select: { firstName: true, lastName: true } },
-            enrollmentsYearScoped: {
-              where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-              take: 1,
-              select: { class: { select: { name: true } } },
-            },
-          },
-        });
+        const profile = await this.contextRepo.findStudentProfile(user.userId, schoolId);
         if (!profile) { res.json({ children: [] }); return; }
-        cibles = [{ studentId: user.userId, name: `${profile.user.firstName} ${profile.user.lastName}`, className: profile.enrollmentsYearScoped[0]?.class?.name ?? '—' }];
+        cibles = [{ studentId: user.userId, name: `${profile.firstName} ${profile.lastName}`, className: profile.className ?? '—' }];
       } else if (role === 'PARENT') {
-        const parentProfile = await this.prisma.parentProfile.findUnique({
-          where: { userId: user.userId },
-          include: {
-            children: {
-              include: {
-                studentProfile: {
-                  include: {
-                    user: { select: { firstName: true, lastName: true } },
-                    enrollmentsYearScoped: {
-                      where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-                      take: 1,
-                      select: { class: { select: { name: true } } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        });
-        cibles = (parentProfile?.children ?? [])
-          .filter((c) => c.studentProfile)
-          .map((c) => ({
-            studentId: c.studentProfile!.userId,
-            name: `${c.studentProfile!.user.firstName} ${c.studentProfile!.user.lastName}`,
-            className: c.studentProfile!.enrollmentsYearScoped[0]?.class?.name ?? '—',
-          }));
+        const children = await this.contextRepo.findParentChildren(user.userId);
+        cibles = children.map((c) => ({
+          studentId: c.studentId,
+          name: `${c.firstName} ${c.lastName}`,
+          className: c.className ?? '—',
+        }));
       } else {
         res.status(403).json({ success: false, message: 'Accès réservé aux parents et élèves' });
         return;
@@ -423,9 +347,7 @@ export class AIController {
 
       if (cibles.length === 0) { res.json({ children: [] }); return; }
 
-      const config = await this.prisma.schoolConfig
-        .findUnique({ where: { schoolId }, select: { aiRiskThreshold: true, aiRiskThresholdCritical: true } })
-        .catch(() => null) as { aiRiskThreshold: number; aiRiskThresholdCritical: number } | null;
+      const config = await this.contextRepo.getSchoolConfig(schoolId);
       const warningThreshold = config?.aiRiskThreshold ?? 50;
       const criticalThreshold = config?.aiRiskThresholdCritical ?? 30;
 
@@ -439,25 +361,21 @@ export class AIController {
       const CONTEXT_TYPES_CONSEIL_SANTE = ['HEALTH_CRITICAL', 'HEALTH_WARNING', 'HEALTH_POSITIVE'];
       const depuisConvocation = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const [scores, recommendations, convocations] = await Promise.all([
-        this.prisma.studentProfile.findMany({
-          where: { userId: { in: studentIds } },
-          select: { userId: true, healthScore: true },
-        }),
-        this.prisma.studentRecommendation.findMany({
-          where: {
-            studentId: { in: studentIds },
-            recipientRole: role === 'STUDENT' ? 'STUDENT' : 'PARENT',
-            contextType: { in: CONTEXT_TYPES_CONSEIL_SANTE },
-          },
-          orderBy: { createdAt: 'desc' },
+        this.contextRepo.findStudentHealthScores(studentIds),
+        this.contextRepo.findStudentRecommendations({
+          studentIds,
+          recipientRole: role === 'STUDENT' ? 'STUDENT' : 'PARENT',
+          contextTypes: CONTEXT_TYPES_CONSEIL_SANTE,
         }),
         // Convocations — élève uniquement, jamais destinées au parent (voir
         // StudentFollowUpController.creer). Fenêtre de 30 jours pour éviter d'afficher
         // indéfiniment une convocation dont la date est probablement déjà passée.
         role === 'STUDENT'
-          ? this.prisma.studentRecommendation.findMany({
-              where: { studentId: { in: studentIds }, recipientRole: 'STUDENT', contextType: 'CONVOCATION', createdAt: { gte: depuisConvocation } },
-              orderBy: { createdAt: 'desc' },
+          ? this.contextRepo.findStudentRecommendations({
+              studentIds,
+              recipientRole: 'STUDENT',
+              contextTypes: ['CONVOCATION'],
+              since: depuisConvocation,
             })
           : Promise.resolve([]),
       ]);
@@ -540,14 +458,11 @@ export class AIController {
       }
 
       const [school, classes, subjects, departments, periods] = await Promise.all([
-        this.prisma.school.findUnique({
-          where: { id: schoolId },
-          select: { name: true, subsystem: true, educationType: true, templateCode: true },
-        }),
-        this.prisma.class.findMany({ where: { schoolId }, select: { name: true, level: true, serie: true }, orderBy: { name: 'asc' }, take: 60 }),
-        this.prisma.subject.findMany({ where: { schoolId }, select: { name: true, coefficient: true }, orderBy: { name: 'asc' }, take: 80 }),
-        this.prisma.department.findMany({ where: { schoolId }, select: { name: true } }),
-        this.prisma.academicPeriod.findMany({ where: { academicYear: { schoolId, isCurrent: true } }, select: { name: true }, orderBy: { orderIndex: 'asc' } }),
+        this.contextRepo.findSchoolById(schoolId),
+        this.contextRepo.findClassesBySchool(schoolId),
+        this.contextRepo.findSubjectsBySchool(schoolId),
+        this.contextRepo.findDepartmentsBySchool(schoolId),
+        this.contextRepo.findCurrentPeriods(schoolId),
       ]);
 
       const classList = classes.map((c) => c.name).join(', ') || 'aucune classe';
@@ -589,9 +504,9 @@ export class AIController {
       }
 
       const [grades, attendance, studentProfile] = await Promise.all([
-        this.prisma.grade.findMany({ where: { schoolId, studentId, validationStatus: { in: ['VALIDATED', 'LOCKED'] } }, include: { subject: true }, orderBy: { createdAt: 'desc' }, take: 20 }) as Promise<any[]>,
-        this.prisma.attendance.findMany({ where: { schoolId, studentId, date: { gte: since30d } }, select: { status: true } }),
-        this.prisma.studentProfile.findFirst({ where: { userId: studentId, user: { schoolId } }, include: { user: { select: { firstName: true, lastName: true } } } }) as Promise<any>,
+        this.contextRepo.findGradesByStudent(schoolId, studentId),
+        this.contextRepo.findAttendanceStatuses(schoolId, studentId, since30d),
+        this.contextRepo.findStudentProfile(studentId, schoolId),
       ]);
 
       if (!studentProfile) { res.status(404).json({ message: 'Élève introuvable' }); return; }
@@ -600,19 +515,19 @@ export class AIController {
       const avgGrade = grades.length ? grades.reduce((s, g) => s + (g.sequenceAverage ?? 0), 0) / grades.length : 0;
       const absentCount = attendance.filter((a) => a.status === 'ABSENT').length;
       const attendanceRate = attendance.length ? ((attendance.length - absentCount) / attendance.length) * 100 : 100;
-      const weakSubjects = grades.filter((g) => (g.sequenceAverage ?? 0) < 10).map((g) => g.subject.name);
+      const weakSubjects = grades.filter((g) => (g.sequenceAverage ?? 0) < 10).map((g) => g.subjectName);
 
       let riskScore = 0;
       if (avgGrade < 10) riskScore += 40; else if (avgGrade < 12) riskScore += 20;
       if (attendanceRate < 70) riskScore += 35; else if (attendanceRate < 85) riskScore += 15;
       riskScore += Math.min(25, weakSubjects.length * 5);
 
-      const prompt = `Élève : ${studentProfile.user.firstName} ${studentProfile.user.lastName}\nMoyenne : ${avgGrade.toFixed(1)}/20\nPrésence : ${attendanceRate.toFixed(1)}%\nMatières difficiles : ${weakSubjects.slice(0, 3).join(', ') || 'aucune'}\nScore risque : ${riskScore}/100\n\nAnalyse en 3 parties : 1. Diagnostic (1 phrase) 2. Facteurs de risque (2-3 points) 3. Recommandations concrètes (2-3 actions)`;
+      const prompt = `Élève : ${studentProfile.firstName} ${studentProfile.lastName}\nMoyenne : ${avgGrade.toFixed(1)}/20\nPrésence : ${attendanceRate.toFixed(1)}%\nMatières difficiles : ${weakSubjects.slice(0, 3).join(', ') || 'aucune'}\nScore risque : ${riskScore}/100\n\nAnalyse en 3 parties : 1. Diagnostic (1 phrase) 2. Facteurs de risque (2-3 points) 3. Recommandations concrètes (2-3 actions)`;
       const lang = await this.langueEcole(schoolId);
       const analysis = await generateWithGroq(prompt, `Tu es un expert en psychologie scolaire pour lycées camerounais. Sois bienveillant mais honnête. ${instructionLangue(lang)}`);
 
       res.json({
-        studentName: `${studentProfile.user.firstName} ${studentProfile.user.lastName}`,
+        studentName: `${studentProfile.firstName} ${studentProfile.lastName}`,
         riskScore,
         riskLevel: riskScore >= 60 ? 'high' : riskScore >= 35 ? 'medium' : 'low',
         avgGrade: avgGrade.toFixed(1),
@@ -637,7 +552,7 @@ export class AIController {
       const schoolId = req.user!.schoolId;
       const studentId = req.params.studentId as string;
 
-      const anneeCourante = await this.prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+      const anneeCourante = await this.contextRepo.findCurrentAcademicYear(schoolId);
       if (!anneeCourante) { res.status(404).json({ message: 'Aucune année académique courante' }); return; }
 
       const resultat = await this.compareRisquePredictions.execute({
