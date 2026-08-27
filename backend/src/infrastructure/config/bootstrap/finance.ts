@@ -16,6 +16,8 @@ import { creerTimetableGridConfigRoutes } from '@infrastructure/http/routes/time
 import { PrismaPaiementRepository } from '@infrastructure/persistence/prisma/PrismaPaiementRepository';
 import { PrismaSchoolRepository } from '@infrastructure/persistence/prisma/PrismaSchoolRepository';
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
+import { PrismaDepartmentRepository } from '@infrastructure/persistence/prisma/PrismaDepartmentRepository';
+import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
@@ -55,7 +57,11 @@ export function registerFinanceRoutes(app: Application, prismaParam: typeof pris
 
   app.use('/api/v2/finance', creerFinanceRoutes(financeController));
 
-  const departmentController = new DepartmentController(p as any);
+  const departmentController = new DepartmentController(
+    new PrismaDepartmentRepository(p as any),
+    new PrismaStaffProfileRepository(p as any),
+    userRepositoryForFinance,
+  );
   app.use('/api/v2/departments', creerDepartmentRoutes(departmentController));
 
   const statisticsController = new StatisticsController(p as any);

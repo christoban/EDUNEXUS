@@ -1,21 +1,20 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { DepartmentRepository } from '@domain/ports/repositories/DepartmentRepository';
+import type { StaffProfileRepository } from '@domain/ports/repositories/StaffProfileRepository';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import { getPermissionsPourTitre } from '@domain/rules/StaffPermissionRules';
 
 export class DepartmentController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly departmentRepository: DepartmentRepository,
+    private readonly staffProfileRepository: StaffProfileRepository,
+    private readonly userRepository: UserRepository,
+  ) {}
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user;
-      const departments = await this.prisma.department.findMany({
-        where: { schoolId: user.schoolId },
-        include: {
-          head: { select: { id: true, firstName: true, lastName: true } },
-          subjects: { select: { id: true, name: true }, orderBy: { name: 'asc' } },
-        },
-        orderBy: { name: 'asc' },
-      });
+      const departments = await this.departmentRepository.findBySchool(user.schoolId);
       res.json({ success: true, data: departments });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -31,16 +30,14 @@ export class DepartmentController {
         return;
       }
 
-      const existing = await this.prisma.department.findUnique({
-        where: { schoolId_name: { schoolId: user.schoolId, name: name.trim() } },
-      });
+      const existing = await this.departmentRepository.findByName(user.schoolId, name.trim());
       if (existing) {
         res.status(409).json({ success: false, message: `Le département '${name}' existe déjà` });
         return;
       }
 
-      const department = await this.prisma.department.create({
-        data: { schoolId: user.schoolId, name: name.trim(), color: color ?? '#6b7280' },
+      const department = await this.departmentRepository.create({
+        schoolId: user.schoolId, name: name.trim(), color: color ?? '#6b7280',
       });
       res.status(201).json({ success: true, data: department });
     } catch (error) {
@@ -56,10 +53,7 @@ export class DepartmentController {
         name?: string; color?: string; headId?: string | null; subjectIds?: string[];
       };
 
-      const department = await this.prisma.department.findFirst({
-        where: { id: departmentId, schoolId: user.schoolId },
-        select: { id: true, headId: true },
-      });
+      const department = await this.departmentRepository.findByIdAndSchool(departmentId, user.schoolId);
       if (!department) {
         res.status(404).json({ success: false, message: 'Département introuvable' });
         return;
@@ -69,83 +63,32 @@ export class DepartmentController {
       if (name?.trim()) data.name = name.trim();
       if (color) data.color = color;
 
+      const apPermissions = getPermissionsPourTitre('Animateur Pédagogique');
+
       if (headId !== undefined) {
         const newHeadId = headId || null;
+        const headChanged = newHeadId !== department.headId;
 
-        if (newHeadId !== department.headId) {
-          // Retirer les permissions AP de l'ancien head
-          if (department.headId) {
-            const oldStaffProfile = await this.prisma.staffProfile.findUnique({
-              where: { userId: department.headId },
-              select: { id: true },
-            });
-            if (oldStaffProfile) {
-              await this.prisma.staffPermission.deleteMany({
-                where: {
-                  staffProfileId: oldStaffProfile.id,
-                  permission: 'SUPERVISE_DEPARTMENT_TEACHERS',
-                },
-              });
-            }
+        if (headChanged && department.headId) {
+          await this.staffProfileRepository.retirerAP(department.headId, apPermissions);
+        }
+
+        if (headChanged && newHeadId) {
+          // Vérifier que le nouveau head est un enseignant
+          const newHead = await this.userRepository.findEmployeeById(newHeadId, user.schoolId);
+          if (!newHead || newHead.role !== 'TEACHER') {
+            res.status(400).json({ success: false, message: 'L\'Animateur Pédagogique doit être un enseignant (TEACHER).' });
+            return;
           }
 
-          // Retirer supervisedSubjectIds de l'ancien head
-          if (department.headId) {
-            await this.prisma.teacherProfile.updateMany({
-              where: { userId: department.headId },
-              data: { supervisedSubjectIds: [] },
+          // Un enseignant ne peut être Animateur Pédagogique que d'un seul département
+          const deptExistant = await this.departmentRepository.findDepartmentHeadingByHead(newHeadId, departmentId);
+          if (deptExistant) {
+            res.status(409).json({
+              success: false,
+              message: `${newHead.firstName} ${newHead.lastName} est déjà Animateur Pédagogique du département "${deptExistant.name}". Un enseignant ne peut être AP que d'un seul département.`,
             });
-          }
-
-          // Ajouter les permissions AP au nouveau head
-          if (newHeadId) {
-            // Vérifier que le nouveau head est un enseignant
-            const newHead = await this.prisma.user.findUnique({
-              where: { id: newHeadId },
-              select: { role: true, firstName: true, lastName: true },
-            });
-            if (!newHead || newHead.role !== 'TEACHER') {
-              res.status(400).json({ success: false, message: 'L\'Animateur Pédagogique doit être un enseignant (TEACHER).' });
-              return;
-            }
-
-            // Un enseignant ne peut être Animateur Pédagogique que d'un seul département
-            const deptExistant = await this.prisma.department.findFirst({
-              where: { headId: newHeadId, id: { not: departmentId } },
-              select: { name: true },
-            });
-            if (deptExistant) {
-              res.status(409).json({
-                success: false,
-                message: `${newHead.firstName} ${newHead.lastName} est déjà Animateur Pédagogique du département "${deptExistant.name}". Un enseignant ne peut être AP que d'un seul département.`,
-              });
-              return;
-            }
-
-            const apPermissions = getPermissionsPourTitre('Animateur Pédagogique');
-            let staffProfile = await this.prisma.staffProfile.findUnique({
-              where: { userId: newHeadId },
-              select: { id: true },
-            });
-            if (!staffProfile) {
-              staffProfile = await this.prisma.staffProfile.create({
-                data: { schoolId: user.schoolId, userId: newHeadId, title: 'Animateur Pédagogique' },
-              });
-            }
-            await this.prisma.staffPermission.createMany({
-              data: apPermissions.map(p => ({ staffProfileId: staffProfile!.id, permission: p })),
-              skipDuplicates: true,
-            });
-
-            // Synchroniser supervisedSubjectIds avec les matières actuelles du département
-            const deptSubjects = await this.prisma.subject.findMany({
-              where: { departmentId },
-              select: { id: true },
-            });
-            await this.prisma.teacherProfile.updateMany({
-              where: { userId: newHeadId },
-              data: { supervisedSubjectIds: deptSubjects.map(s => s.id) },
-            });
+            return;
           }
         }
 
@@ -153,36 +96,19 @@ export class DepartmentController {
       }
 
       if (Array.isArray(subjectIds)) {
-        // Retirer tous les sujets du département
-        await this.prisma.subject.updateMany({
-          where: { departmentId },
-          data: { departmentId: null },
-        });
-        // Rattacher les nouveaux sujets
+        await this.departmentRepository.detacherMatieres(departmentId);
         if (subjectIds.length > 0) {
-          await this.prisma.subject.updateMany({
-            where: { id: { in: subjectIds }, schoolId: user.schoolId },
-            data: { departmentId },
-          });
-        }
-        // Synchroniser supervisedSubjectIds du head courant (ou futur)
-        const effectiveHeadId = data.headId !== undefined ? data.headId : department.headId;
-        if (effectiveHeadId) {
-          await this.prisma.teacherProfile.updateMany({
-            where: { userId: effectiveHeadId },
-            data: { supervisedSubjectIds: subjectIds },
-          });
+          await this.departmentRepository.rattacherMatieres(departmentId, subjectIds);
         }
       }
 
-      const updated = await this.prisma.department.update({
-        where: { id: departmentId },
-        data,
-        include: {
-          head: { select: { id: true, firstName: true, lastName: true } },
-          subjects: { select: { id: true, name: true }, orderBy: { name: 'asc' } },
-        },
-      });
+      const effectiveHeadId = headId !== undefined ? (headId || null) : department.headId;
+      const effectiveSubjectIds = Array.isArray(subjectIds) ? subjectIds : (department.subjects ?? []).map(s => s.id);
+      if (effectiveHeadId) {
+        await this.staffProfileRepository.assignerAP(effectiveHeadId, user.schoolId, apPermissions, effectiveSubjectIds);
+      }
+
+      const updated = await this.departmentRepository.updateWithHead(departmentId, data);
       res.json({ success: true, data: updated });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -194,20 +120,17 @@ export class DepartmentController {
       const user = req.user;
       const departmentId = req.params.id as string;
 
-      const department = await this.prisma.department.findFirst({
-        where: { id: departmentId, schoolId: user.schoolId },
-        include: { subjects: { select: { id: true }, take: 1 } },
-      });
+      const department = await this.departmentRepository.findByIdAndSchool(departmentId, user.schoolId);
       if (!department) {
         res.status(404).json({ success: false, message: 'Département introuvable' });
         return;
       }
-      if (department.subjects.length > 0) {
+      if ((department.subjects ?? []).length > 0) {
         res.status(400).json({ success: false, message: 'Supprimez d\'abord les matières de ce département' });
         return;
       }
 
-      await this.prisma.department.delete({ where: { id: departmentId } });
+      await this.departmentRepository.delete(departmentId);
       res.json({ success: true, message: 'Département supprimé' });
     } catch (error) {
       this.gererErreur(error, res, next);
@@ -220,37 +143,21 @@ export class DepartmentController {
       const user = req.user;
       const departmentId = req.params.id as string;
 
-      const dept = await this.prisma.department.findFirst({
-        where: { id: departmentId, schoolId: user.schoolId },
-        select: { id: true, subjects: { select: { id: true, name: true } } },
-      });
+      const dept = await this.departmentRepository.findByIdAndSchool(departmentId, user.schoolId);
       if (!dept) {
         res.status(404).json({ success: false, message: 'Département introuvable' });
         return;
       }
 
-      const subjectIds = dept.subjects.map(s => s.id);
+      const subjectIds = (dept.subjects ?? []).map(s => s.id);
       if (subjectIds.length === 0) {
         res.json({ success: true, data: [] });
         return;
       }
 
-      const assignments = await this.prisma.teachingAssignment.findMany({
-        where: { subjectId: { in: subjectIds }, schoolId: user.schoolId },
-        select: {
-          teacherId: true,
-          subjectId: true,
-          classId: true,
-          teacher: { select: { firstName: true, lastName: true } },
-          subject: { select: { name: true } },
-          class: { select: { name: true } },
-        },
-      });
+      const assignments = await this.departmentRepository.findAssignmentsForSubjectIds(user.schoolId, subjectIds);
 
-      const grades = await this.prisma.grade.findMany({
-        where: { schoolId: user.schoolId, subjectId: { in: subjectIds }, validationStatus: { in: ['VALIDATED', 'LOCKED'] } },
-        select: { subjectId: true, classId: true, sequenceAverage: true },
-      });
+      const grades = await this.departmentRepository.findGradesForSubjectIds(user.schoolId, subjectIds);
 
       const gradeIndex = new Map<string, number[]>();
       for (const g of grades) {
