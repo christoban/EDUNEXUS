@@ -254,14 +254,18 @@ wc -l IOrientationRepository:256, Annee:138, Timetable:216 — ponytail: pas de 
 
 ---
 
-## 1.10 🟡 RBAC/multi-tenant : risque résiduel sur les controllers non refactorés
+## 1.10 🟡 RBAC/multi-tenant — 3/46 controllers sécurisés via UC, 43 restants (ponytail: fixé via 1.4)
 
-- Les controllers refactorés (ClassCouncil) vérifient RBAC + isolation tenant par use case. Les controllers legacy (`UserController`, `GradeController`, `FinanceController`) le font encore dans le handler avec Prisma direct.
-- Risque : chaque refactor de controller en use case doit impérativement préserver les contrôles RBAC/tenant (règle §4.12 de AGENTS.md).
+> **Statut : partiellement couvert** — `ClassCouncil` + `Grade`/`User`/`Finance` (post-1.4) vérifient RBAC/tenant via UC/ports, 43 legacy le font encore en handler.
 
-### Proposition
+- `UserController` (post-1.4) : `MfaUseCase`/`UserRepository` scopés `schoolId`, garde maternelle via `Classe/EnrollmentRepository` + `isPrimaire` (ex: `UserController.ts:464,842`)
+- `GradeController` : `SaisirNoteUseCase`/`ModifierNoteUseCase` scopés `schoolId` + `estEnseignantAssigne` + `peutEtreModifiee`
+- `FinanceController` : `PaiementRepository.findRecuData` scopé `schoolId` + `checkFinancePermission` (ADMIN/MANAGE_FINANCE)
+- Risque restant : 43/66 `grep -rln "req.user.*schoolId" src/infrastructure/http/controllers` → 43 fichiers avec RBAC inline `prisma.*` (ex: `DevController:49`, `AIController:34`, `Pedagogie:39`) — chaque extraction §1.4 doit préserver `schoolId` + `permissions` (AGENTS.md §4.12), jamais supposer hérité.
 
-Inclure la vérification RBAC/tenant dans les use cases lors des extractions (§1.4), jamais supposer hérité.
+```
+// ponytail: RBAC fixé incrémentalement via §1.4, pas de nouveau port tant qu'un seul UC le porte
+```
 
 ---
 
