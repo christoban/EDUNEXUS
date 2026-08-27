@@ -10,5 +10,7 @@ export interface AIActionAuditPort {
     outcome: 'SUCCES' | 'REFUSE' | 'ERREUR';
     refusalReason?: string | null;
     parametersSummary?: unknown;
+    /** Uniquement pour origin=AI_ASSISTANT : le message ayant déclenché l'appel. */
+    triggeringMessage?: string | null;
   }): void;
 }

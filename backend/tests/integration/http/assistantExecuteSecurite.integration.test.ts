@@ -25,6 +25,8 @@ import type { Server } from 'http';
 import type { AddressInfo } from 'net';
 import type { PrismaClient } from '@prisma/client';
 import { AssistantController } from '../../../src/infrastructure/http/controllers/AssistantController.ts';
+import { PrismaAssistantContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAssistantContextQueryRepository';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { buildAdminActionCatalog } from '@infrastructure/assistant/catalog/adminActionCatalog';
 import { requireAuth } from '../../../src/infrastructure/http/middlewares/auth.ts';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
@@ -107,7 +109,13 @@ beforeAll(async () => {
     supprimerClasse: new SupprimerClasseUseCase(classeRepo),
   } as unknown as Parameters<typeof buildAdminActionCatalog>[0]);
 
-  const controller = new AssistantController(prismaTest as unknown as PrismaClient, catalog, modeleSimule);
+  const controller = new AssistantController(
+    new PrismaAssistantContextQueryRepository(prismaTest),
+    catalog,
+    new AIActionAuditAdapter(prismaTest),
+    prismaTest as unknown as PrismaClient,
+    modeleSimule,
+  );
 
   const app = express();
   app.use(express.json());

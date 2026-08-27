@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateText, tool, APICallError } from 'ai';
@@ -10,9 +10,10 @@ import {
   type ActionContext,
   type ActionDefinition,
 } from '@infrastructure/assistant/catalog/catalogShared';
+import type { AssistantContextQueryRepository } from '@domain/ports/repositories/AssistantContextQueryRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 /** Fenêtre pendant laquelle une action non-destructive reste annulable (5 minutes). */
 const UNDO_WINDOW_MS = 5 * 60 * 1000;
@@ -67,9 +68,20 @@ function detecterParametreHallucine(action: ActionDefinition, input: Record<stri
  * toute exécution — on ne fait jamais confiance au prompt.
  */
 export class AssistantController {
+  /** Construit le contexte d'action du catalogue (école + rôle + client Prisma vivant). */
+  private readonly ctx: (req: Request) => ActionContext;
+
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly contextRepo: AssistantContextQueryRepository,
     private readonly catalog: ActionDefinition[],
+    private readonly audit: AIActionAuditPort,
+    /**
+     * Client Prisma requis UNIQUEMENT pour bâtir l'`ActionContext` du catalogue : les
+     * `execute()/undo()` des actions appelées ici font leurs requêtes métier via
+     * `ctx.prisma` (voir catalogShared). Hors d'ici, le contrôleur n'utilise plus jamais ce
+     * client directement — toutes ses lectures/écritures passent par `contextRepo`/`audit`.
+     */
+    prismaClient: PrismaClient,
     /**
      * Génération de texte, injectable — production : `generateText` du SDK `ai` (défaut).
      *
@@ -84,22 +96,11 @@ export class AssistantController {
      * Même patron d'optionnalité que `CreerClasseUseCase` : la production ne passe rien.
      */
     private readonly genererTexte: typeof generateText = generateText,
-  ) {}
-
-  private get logRepo() {
-    return this.prisma.assistantActionLog;
-  }
-
-  private get helpArticleRepo() {
-    return this.prisma.helpArticle;
-  }
-
-  private get helpQueryLogRepo() {
-    return this.prisma.assistantHelpQueryLog;
-  }
-
-  private get conversationRepo() {
-    return this.prisma.assistantConversationTurn;
+  ) {
+    this.ctx = (req: Request): ActionContext => {
+      const user = req.user!;
+      return { schoolId: user.schoolId, userId: user.userId, role: user.role, prisma: prismaClient };
+    };
   }
 
   /**
@@ -117,11 +118,7 @@ export class AssistantController {
     const MAX_TOURS = 10; // ~5 échanges — au-delà, coût en tokens disproportionné pour un gain de contexte marginal
     const MAX_CARACTERES_PAR_TOUR = 600;
 
-    const tournsDesc = await this.conversationRepo.findMany({
-      where: { conversationId, schoolId, userId },
-      orderBy: { createdAt: 'desc' },
-      take: MAX_TOURS,
-    });
+    const tournsDesc = await this.contextRepo.findConversationTurns(conversationId, schoolId, userId, MAX_TOURS);
     if (tournsDesc.length === 0) return '';
     const turns = tournsDesc.reverse();
 
@@ -143,14 +140,9 @@ export class AssistantController {
 
   /** Persiste un tour (utilisateur ou assistant) dans l'historique du fil de conversation. */
   private saveTurn(conversationId: string, schoolId: string, userId: string, role: 'user' | 'assistant', content: string, toolCalls?: unknown) {
-    this.conversationRepo
-      .create({ data: { conversationId, schoolId, userId, role, content, toolCalls: (toolCalls as Prisma.InputJsonValue) ?? undefined } })
+    this.contextRepo
+      .createConversationTurn({ conversationId, schoolId, userId, role, content, toolCalls })
       .catch((e: any) => console.error('[AssistantConversationTurn]', e?.message));
-  }
-
-  private ctx(req: Request): ActionContext {
-    const user = req.user!;
-    return { schoolId: user.schoolId, userId: user.userId, role: user.role, prisma: this.prisma };
   }
 
   /**
@@ -166,34 +158,21 @@ export class AssistantController {
     screenKey: string | null,
   ): Promise<{ system: string; helpArticles: { title: string; content: string; relatedSelectors: unknown }[] }> {
     const [school, classes, subjects, teachers, periods] = await Promise.all([
-      this.prisma.school.findUnique({
-        where: { id: schoolId },
-        select: { name: true, subsystem: true, educationType: true, templateCode: true },
-      }),
-      this.prisma.class.findMany({
-        where: { schoolId },
-        select: {
-          name: true,
-          _count: { select: { enrollments: { where: { status: 'ACTIVE', academicYear: { isCurrent: true } } } } },
-        },
-        orderBy: { name: 'asc' },
-        take: 80,
-      }),
-      this.prisma.subject.findMany({ where: { schoolId }, select: { name: true, coefficient: true }, orderBy: { name: 'asc' }, take: 100 }),
-      this.prisma.user.findMany({ where: { schoolId, role: 'TEACHER' }, select: { firstName: true, lastName: true }, take: 100 }),
-      this.prisma.academicPeriod.findMany({ where: { academicYear: { schoolId, isCurrent: true } }, select: { name: true }, orderBy: { orderIndex: 'asc' } }),
+      this.contextRepo.findSchoolContext(schoolId),
+      this.contextRepo.findClassesBySchool(schoolId),
+      this.contextRepo.findSubjectsBySchool(schoolId),
+      this.contextRepo.findTeachersBySchool(schoolId),
+      this.contextRepo.findCurrentPeriods(schoolId),
     ]);
 
-    const classList = classes.map((c) => `${c.name} (${c._count.enrollments} élèves)`).join(', ') || 'aucune classe';
+    const classList = classes.map((c) => `${c.name} (${c.enrollmentsCount} élèves)`).join(', ') || 'aucune classe';
     const subjectList = subjects.map((s) => `${s.name} (coeff ${s.coefficient})`).join(', ') || 'aucune matière';
     const teacherList = teachers.map((t) => `${t.firstName ?? ''} ${t.lastName ?? ''}`.trim()).filter(Boolean).join(', ') || 'aucun enseignant';
     const periodList = periods.map((p) => p.name).join(', ') || 'non configurées';
     const langue = resolveLanguage(school?.subsystem);
 
     const helpArticles = screenKey
-      ? await this.helpArticleRepo.findMany({
-          where: { screenKey, locale: langue, role: { has: role.toUpperCase() } },
-        })
+      ? await this.contextRepo.findHelpArticles(screenKey, langue, role.toUpperCase())
       : [];
 
     const helpSection = helpArticles.length > 0
@@ -288,17 +267,15 @@ export class AssistantController {
       );
 
       const logQuery = (responseType: 'MESSAGE' | 'ACTION' | 'ESCALATE') => {
-        this.helpQueryLogRepo
-          .create({
-            data: {
-              schoolId: user.schoolId,
-              userId: user.userId,
-              role: user.role,
-              screenKey,
-              question: message,
-              responseType,
-              articleFound: helpArticles.length > 0,
-            },
+        this.contextRepo
+          .createHelpQueryLog({
+            schoolId: user.schoolId,
+            userId: user.userId,
+            role: user.role,
+            screenKey,
+            question: message,
+            responseType,
+            articleFound: helpArticles.length > 0,
           })
           .catch((e: any) => console.error('[AssistantHelpQueryLog]', e?.message));
       };
@@ -362,7 +339,7 @@ export class AssistantController {
         if (!candidateAction) continue;
         const champManquant = detecterParametreHallucine(candidateAction, tc.input as Record<string, unknown>);
         if (champManquant) {
-          journaliserActionIA(this.prisma, {
+          this.audit.journaliser({
             actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
             actionName: candidateAction.name, origin: 'AI_ASSISTANT', outcome: 'REFUSE',
             refusalReason: 'parametre_hallucine', parametersSummary: tc.input, triggeringMessage: message,
@@ -382,7 +359,7 @@ export class AssistantController {
         // DOUBLE-VÉRIFICATION SERVEUR : l'action doit figurer dans le catalogue autorisé.
         const action = allowed.find((a) => a.name === tc.toolName);
         if (!action) {
-          journaliserActionIA(this.prisma, {
+          this.audit.journaliser({
             actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
             actionName: tc.toolName, origin: 'AI_ASSISTANT', outcome: 'REFUSE',
             refusalReason: 'action_hors_catalogue_autorise', parametersSummary: tc.input, triggeringMessage: message,
@@ -400,36 +377,32 @@ export class AssistantController {
             executed.push({ error: e?.message ?? 'Impossible de préparer l\'action.', actionType: action.name });
             continue;
           }
-          const log = await this.logRepo.create({
-            data: {
-              schoolId: user.schoolId,
-              userId: user.userId,
-              actionType: action.name,
-              parameters: input,
-              destructive: true,
-              status: 'PENDING_CONFIRMATION',
-              undoable: false,
-            },
+          const log = await this.contextRepo.createActionLog({
+            schoolId: user.schoolId,
+            userId: user.userId,
+            actionType: action.name,
+            parameters: input,
+            destructive: true,
+            status: 'PENDING_CONFIRMATION',
+            undoable: false,
           });
           pending.push({ pendingActionId: log.id, actionType: action.name, summary });
         } else {
           try {
             const r = await action.execute(input, ctx);
             const undoData = { ...(r.undoData ?? {}), __section: r.section ?? null, __entity: r.entity ?? null };
-            const log = await this.logRepo.create({
-              data: {
-                schoolId: user.schoolId,
-                userId: user.userId,
-                actionType: action.name,
-                parameters: input,
-                destructive: false,
-                status: 'EXECUTED',
-                undoable: true,
-                undoData,
-                resultLabel: r.resultLabel,
-              },
+            const log = await this.contextRepo.createActionLog({
+              schoolId: user.schoolId,
+              userId: user.userId,
+              actionType: action.name,
+              parameters: input,
+              destructive: false,
+              status: 'EXECUTED',
+              undoable: true,
+              undoData,
+              resultLabel: r.resultLabel,
             });
-            journaliserActionIA(this.prisma, {
+            this.audit.journaliser({
               actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
               actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'SUCCES',
               parametersSummary: input, triggeringMessage: message,
@@ -443,7 +416,7 @@ export class AssistantController {
               undoable: true,
             });
           } catch (e: any) {
-            journaliserActionIA(this.prisma, {
+            this.audit.journaliser({
               actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
               actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'ERREUR',
               refusalReason: e?.message, parametersSummary: input, triggeringMessage: message,
@@ -488,7 +461,7 @@ export class AssistantController {
         return;
       }
 
-      const log = await this.logRepo.findUnique({ where: { id: pendingActionId } });
+      const log = await this.contextRepo.findActionLogById(pendingActionId);
       if (!log || log.schoolId !== user.schoolId) {
         res.status(404).json({ success: false, message: 'Action introuvable' });
         return;
@@ -499,7 +472,7 @@ export class AssistantController {
       }
 
       if (!confirmed) {
-        await this.logRepo.update({ where: { id: log.id }, data: { status: 'CANCELLED' } });
+        await this.contextRepo.updateActionLog(log.id, { status: 'CANCELLED' });
         res.json({ success: true, cancelled: true });
         return;
       }
@@ -508,7 +481,7 @@ export class AssistantController {
       const allowed = filterCatalogForUser(this.catalog, user);
       const action = allowed.find((a) => a.name === log.actionType);
       if (!action || !action.destructive) {
-        journaliserActionIA(this.prisma, {
+        this.audit.journaliser({
           actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
           actionName: log.actionType, origin: 'AI_ASSISTANT', outcome: 'REFUSE',
           refusalReason: 'action_hors_catalogue_autorise', parametersSummary: log.parameters,
@@ -519,11 +492,8 @@ export class AssistantController {
 
       try {
         const r = await action.execute(log.parameters, this.ctx(req));
-        await this.logRepo.update({
-          where: { id: log.id },
-          data: { status: 'EXECUTED', resultLabel: r.resultLabel, executedAt: new Date() },
-        });
-        journaliserActionIA(this.prisma, {
+        await this.contextRepo.updateActionLog(log.id, { status: 'EXECUTED', resultLabel: r.resultLabel, executedAt: new Date() });
+        this.audit.journaliser({
           actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
           actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'SUCCES', parametersSummary: log.parameters,
         });
@@ -532,7 +502,7 @@ export class AssistantController {
           executed: { actionLogId: log.id, label: r.resultLabel, section: r.section ?? null, entity: r.entity ?? null },
         });
       } catch (e: any) {
-        journaliserActionIA(this.prisma, {
+        this.audit.journaliser({
           actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
           actionName: action.name, origin: 'AI_ASSISTANT', outcome: 'ERREUR',
           refusalReason: e?.message, parametersSummary: log.parameters,
@@ -554,7 +524,7 @@ export class AssistantController {
         return;
       }
 
-      const log = await this.logRepo.findUnique({ where: { id: actionLogId } });
+      const log = await this.contextRepo.findActionLogById(actionLogId);
       if (!log || log.schoolId !== user.schoolId) {
         res.status(404).json({ success: false, message: 'Action introuvable' });
         return;
@@ -578,7 +548,7 @@ export class AssistantController {
       const undoData = (log.undoData ?? {}) as Record<string, unknown>;
       try {
         await action.undo(log.parameters, undoData, this.ctx(req));
-        await this.logRepo.update({ where: { id: log.id }, data: { status: 'UNDONE', undoneAt: new Date() } });
+        await this.contextRepo.updateActionLog(log.id, { status: 'UNDONE', undoneAt: new Date() });
         res.json({ success: true, undone: true, section: undoData.__section ?? null, entity: undoData.__entity ?? null });
       } catch (e: any) {
         res.status(400).json({ success: false, message: e?.message ?? 'Échec de l\'annulation.' });

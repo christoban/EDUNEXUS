@@ -17,6 +17,7 @@ export class AIActionAuditAdapter implements AIActionAuditPort {
       outcome: params.outcome,
       refusalReason: params.refusalReason,
       parametersSummary: params.parametersSummary,
+      triggeringMessage: params.triggeringMessage,
     });
   }
 }

@@ -15,6 +15,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import { randomUUID } from 'crypto';
 import { AssistantController } from '../../../src/infrastructure/http/controllers/AssistantController.ts';
+import { PrismaAssistantContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAssistantContextQueryRepository';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { prismaTest } from '../../helpers/prismaTestClient.ts';
 import { creerEcoleTest, creerUtilisateurTest, nettoyerEcole } from '../../helpers/dbFixtures.ts';
 
@@ -51,7 +53,12 @@ const attendreEcriture = async (predicate: () => Promise<boolean>, timeoutMs = 3
 
 describe('AssistantController.saveTurn — écriture JSON toolCalls sans cast', () => {
   it('persiste un tour utilisateur puis un tour assistant avec ses toolCalls, relisibles via loadHistoryBlock', async () => {
-    const controller = new AssistantController(prismaTest, []) as unknown as AssistantControllerTestAccess;
+    const controller = new AssistantController(
+      new PrismaAssistantContextQueryRepository(prismaTest),
+      [],
+      new AIActionAuditAdapter(prismaTest),
+      prismaTest,
+    ) as unknown as AssistantControllerTestAccess;
     const conversationId = randomUUID();
     const toolCalls = [{ name: 'creer_classe', input: { name: '6ème A', capacity: 45 } }];
 

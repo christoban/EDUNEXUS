@@ -42,6 +42,8 @@ import { DisciplineCouncilController } from '@infrastructure/http/controllers/Di
 import { DisciplineController } from '@infrastructure/http/controllers/DisciplineController';
 import { StudentFollowUpController } from '@infrastructure/http/controllers/StudentFollowUpController';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
+import { PrismaAssistantContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAssistantContextQueryRepository';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { DevController } from '@infrastructure/http/controllers/DevController';
 import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
@@ -1050,7 +1052,12 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
 
   // Un seul copilot, un seul catalogue combiné (Principe 0.1) — chaque action porte son
   // propre `allowedRoles`/`requiredPermission`, filtré côté serveur par filterCatalogForUser.
-  const assistantController = new AssistantController(p, [...adminActionCatalog, ...teacherActionCatalog, ...staffActionCatalog, ...parentActionCatalog, ...studentActionCatalog]);
+  const assistantController = new AssistantController(
+    new PrismaAssistantContextQueryRepository(p),
+    [...adminActionCatalog, ...teacherActionCatalog, ...staffActionCatalog, ...parentActionCatalog, ...studentActionCatalog],
+    new AIActionAuditAdapter(p),
+    p,
+  );
   app.post('/api/v2/assistant/execute', requireAuth, requireRole('ADMIN', 'TEACHER', 'STAFF', 'PARENT', 'STUDENT'), assistantController.execute);
   app.post('/api/v2/assistant/confirm-action', requireAuth, requireRole('ADMIN', 'TEACHER', 'STAFF', 'PARENT', 'STUDENT'), assistantController.confirmAction);
   app.post('/api/v2/assistant/undo-action', requireAuth, requireRole('ADMIN', 'TEACHER', 'STAFF', 'PARENT', 'STUDENT'), assistantController.undoAction);
