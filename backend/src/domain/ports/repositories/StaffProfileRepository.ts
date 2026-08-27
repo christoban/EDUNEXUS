@@ -22,4 +22,6 @@ export interface StaffProfileRepository {
   findConseillersOrientation(schoolId: string): Promise<string[]>;
   /** Inngest — relance validation notes : censeurs (permission VALIDATE_GRADES) */
   findCenseurs(schoolId: string): Promise<Array<{ userId: string; email: string | null; firstName: string }>>;
+  /** HR — code de section d'un employé (sectionId nullable si aucun profil staff). */
+  findSectionIdByUserId(userId: string): Promise<string | null>;
 }

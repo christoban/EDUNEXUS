@@ -1,7 +1,7 @@
 // ponytail: 674l → 360l via helpers, single adapter <800l ceiling, split when 2nd impl or >800l
 import type { PrismaClient } from '@prisma/client';
 import { User } from '@domain/entities/User';
-import type { UserRepository, AuthUserData } from '@domain/ports/repositories/UserRepository';
+import type { UserRepository, AuthUserData, EmployeeDetail } from '@domain/ports/repositories/UserRepository';
 import type { StaffPermissionType, UserRole } from '@domain/types/enums';
 import { whereElevesParClasse } from '@application/shared/studentEnrollment';
 
@@ -9,6 +9,12 @@ export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   private readonly staffInclude = { staffProfile: { include: { permissions: true } } } as const;
+  private readonly employeeSelect: any = {
+    id: true, firstName: true, lastName: true, email: true, phone: true, role: true, createdAt: true, updatedAt: true,
+    teacherProfile: { select: { id: true, specialization: true, supervisedSubjectIds: true } },
+    staffProfile: { select: { id: true, title: true, sectionId: true } },
+    school: { select: { id: true, name: true, subsystem: true } },
+  };
   private toDomainList(data: any[]): User[] { return data.map((item) => this.toDomain(item)); }
   private async findDomain(where: any): Promise<User | null> {
     const data = await this.prisma.user.findFirst({ where, include: this.staffInclude });
@@ -43,6 +49,21 @@ export class PrismaUserRepository implements UserRepository {
   async findByClass(schoolId: string, classId: string): Promise<User[]> {
     const data = await this.prisma.user.findMany({ where: { schoolId, role: 'STUDENT', ...whereElevesParClasse(classId) }, include: this.staffInclude });
     return this.toDomainList(data);
+  }
+  async findEmployeeById(userId: string, schoolId: string): Promise<EmployeeDetail | null> {
+    const data = await this.prisma.user.findFirst({
+      where: { id: userId, schoolId, role: { in: ['TEACHER', 'STAFF'] } },
+      select: this.employeeSelect,
+    });
+    return data ? (data as unknown as EmployeeDetail) : null;
+  }
+  async findEmployees(schoolId: string, activeOnly = false): Promise<EmployeeDetail[]> {
+    const data = await this.prisma.user.findMany({
+      where: { schoolId, role: { in: ['TEACHER', 'STAFF'] }, ...(activeOnly ? { isActive: true } : {}) },
+      select: this.employeeSelect,
+      orderBy: [{ role: 'asc' }, { lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return data as unknown as EmployeeDetail[];
   }
   async existsByEmail(email: string, schoolId: string): Promise<boolean> {
     const count = await this.prisma.user.count({ where: { email, schoolId } });

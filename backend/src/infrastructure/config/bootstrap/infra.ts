@@ -10,7 +10,8 @@ import { TeacherUnavailabilityController } from '@infrastructure/http/controller
 import { StudentGroupController } from '@infrastructure/http/controllers/StudentGroupController';
 import { AIActionAuditController } from '@infrastructure/http/controllers/AIActionAuditController';
 import { CorbeilleController } from '@infrastructure/http/controllers/CorbeilleController';
-import { HRController, traiterDemandeConge } from '@infrastructure/http/controllers/HRController';
+import { HRController } from '@infrastructure/http/controllers/HRController';
+import { traiterDemandeConge } from '@infrastructure/services/hr/TraiterCongeService';
 import { HRSelfServiceController } from '@infrastructure/http/controllers/HRSelfServiceController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
 import { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';

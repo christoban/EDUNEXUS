@@ -1,6 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient, Prisma, CareerEventType, StaffAttendanceStatus, LeaveType, LeaveStatus } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { SectionRepository } from '@domain/ports/repositories/SectionRepository';
+import type { StaffProfileRepository } from '@domain/ports/repositories/StaffProfileRepository';
+import type { LeaveRepository } from '@domain/ports/repositories/LeaveRepository';
+import type { EmployeeFileRepository } from '@domain/ports/repositories/EmployeeFileRepository';
+import type { CareerEventRepository } from '@domain/ports/repositories/CareerEventRepository';
+import type { StaffAttendanceRepository } from '@domain/ports/repositories/StaffAttendanceRepository';
+import type { MissionOrderRepository } from '@domain/ports/repositories/MissionOrderRepository';
+import { traiterDemandeConge } from '@infrastructure/services/hr/TraiterCongeService';
 import ExcelJS from 'exceljs';
 import {
   generateAttestationTravailPdf,
@@ -9,7 +18,6 @@ import {
 } from '../../pdf/hr/HrDocumentPdfRenderer';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 
-type EmployeeRole = 'TEACHER' | 'STAFF';
 type LeaveStatusValue = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 function normalizeDateInput(value?: string | null): Date {
@@ -38,59 +46,19 @@ function slugify(value: string): string {
     .toLowerCase();
 }
 
-function daysBetweenInclusive(startDate: Date, endDate: Date): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  const diff = Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
-  return diff + 1;
-}
-
-// ─── Traitement d'une demande de congé (extrait pour être réutilisable hors HTTP —
-// ex. catalogue copilot) ────────────────────────────────────────────────────────
-
-export interface TraiterCongeResultat {
-  id: string;
-  statut: LeaveStatusValue;
-}
-
-export async function traiterDemandeConge(
-  prisma: PrismaClient,
-  schoolId: string,
-  requestId: string,
-  statut: 'APPROVED' | 'REJECTED',
-  validatedById: string | undefined,
-): Promise<TraiterCongeResultat> {
-  const leaveRequest = await prisma.leaveRequest.findFirst({ where: { id: requestId, schoolId } });
-  if (!leaveRequest) throw new Error('Demande de congé introuvable');
-  if (leaveRequest.statut !== 'PENDING') throw new Error('La demande a déjà été traitée');
-
-  const updated = await prisma.leaveRequest.update({
-    where: { id: requestId },
-    data: { statut, validatedBy: validatedById ?? null, validatedAt: new Date() },
-  });
-
-  if (statut === 'APPROVED') {
-    const year = new Date(leaveRequest.dateDebut).getFullYear();
-    const balance = await prisma.leaveBalance.upsert({
-      where: { userId_annee: { userId: leaveRequest.userId, annee: year } },
-      create: { userId: leaveRequest.userId, schoolId, annee: year, soldeInitial: 30, soldeRestant: 30 },
-      update: {},
-    });
-
-    const jours = daysBetweenInclusive(new Date(leaveRequest.dateDebut), new Date(leaveRequest.dateFin));
-    await prisma.leaveBalance.update({
-      where: { id: balance.id },
-      data: { soldeRestant: Math.max(0, Number(balance.soldeRestant) - jours) },
-    });
-  }
-
-  return { id: updated.id, statut: updated.statut };
-}
-
 export class HRController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly sectionRepository: SectionRepository,
+    private readonly staffProfileRepository: StaffProfileRepository,
+    private readonly leaveRepository: LeaveRepository,
+    private readonly employeeFileRepository: EmployeeFileRepository,
+    private readonly careerEventRepository: CareerEventRepository,
+    private readonly staffAttendanceRepository: StaffAttendanceRepository,
+    private readonly missionOrderRepository: MissionOrderRepository,
+    private readonly audit: AIActionAuditPort,
+  ) {}
 
   private getSchoolId(req: Request): string {
     return req.user?.schoolId;
@@ -101,29 +69,14 @@ export class HRController {
   }
 
   private async loadEmployeeOrFail(userId: string, schoolId: string) {
-    return this.prisma.user.findFirst({
-      where: { id: userId, schoolId, role: { in: ['TEACHER', 'STAFF'] as EmployeeRole[] } },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-        teacherProfile: { select: { id: true, specialization: true, supervisedSubjectIds: true } },
-        staffProfile: { select: { id: true, title: true, sectionId: true } },
-        school: { select: { id: true, name: true, subsystem: true } },
-      },
-    });
+    return this.userRepository.findEmployeeById(userId, schoolId);
   }
 
-  private async getEmployeeSectionCode(userId: string, schoolId: string): Promise<string | null> {
+  private async getEmployeeSectionCode(userId: string): Promise<string | null> {
     try {
-      const staff = await this.prisma.staffProfile.findUnique({ where: { userId } });
-      if (!staff?.sectionId) return null;
-      const section = await this.prisma.section.findUnique({ where: { id: staff.sectionId } });
+      const sectionId = await this.staffProfileRepository.findSectionIdByUserId(userId);
+      if (!sectionId) return null;
+      const section = await this.sectionRepository.findById(sectionId);
       return section?.code ?? null;
     } catch {
       return null;
@@ -131,52 +84,25 @@ export class HRController {
   }
 
   private async fetchEmployeeFile(userId: string) {
-    return this.prisma.employeeFile.findUnique({ where: { userId } });
+    return this.employeeFileRepository.findByUser(userId);
   }
 
   private async getCurrentLeaveBalance(userId: string, schoolId: string) {
     const year = new Date().getFullYear();
-    const balance = await this.prisma.leaveBalance.findUnique({
-      where: { userId_annee: { userId, annee: year } },
-    }).catch(() => null);
-
+    const balance = await this.leaveRepository.findBalanceForYear(userId, year);
     if (balance) return balance;
 
-    const fallback = await this.prisma.leaveBalance.findFirst({
-      where: { userId, schoolId },
-      orderBy: { annee: 'desc' },
-    });
-
+    const fallback = await this.leaveRepository.findLatestBalance(userId, schoolId);
     if (fallback) return fallback;
 
-    return this.prisma.leaveBalance.create({
-      data: {
-        userId,
-        schoolId,
-        annee: year,
-        soldeInitial: 30,
-        soldeRestant: 30,
-      },
-    });
+    return this.leaveRepository.createBalance({ userId, schoolId, annee: year });
   }
 
   private async ensureLeaveBalance(userId: string, schoolId: string) {
     const year = new Date().getFullYear();
-    const existing = await this.prisma.leaveBalance.findUnique({
-      where: { userId_annee: { userId, annee: year } },
-    }).catch(() => null);
-
+    const existing = await this.leaveRepository.findBalanceForYear(userId, year);
     if (existing) return existing;
-
-    return this.prisma.leaveBalance.create({
-      data: {
-        userId,
-        schoolId,
-        annee: year,
-        soldeInitial: 30,
-        soldeRestant: 30,
-      },
-    });
+    return this.leaveRepository.createBalance({ userId, schoolId, annee: year });
   }
 
   private async sendPdf(res: Response, filename: string, buffer: Buffer): Promise<void> {
@@ -188,24 +114,8 @@ export class HRController {
   listEmployees = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = this.getSchoolId(req);
-      const users = await this.prisma.user.findMany({
-        where: { schoolId, role: { in: ['TEACHER', 'STAFF'] } },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phone: true,
-          role: true,
-          teacherProfile: { select: { id: true, specialization: true, supervisedSubjectIds: true } },
-          staffProfile: { select: { id: true, title: true, sectionId: true } },
-        },
-        orderBy: [{ role: 'asc' }, { lastName: 'asc' }, { firstName: 'asc' }],
-      });
-
-      const files = await this.prisma.employeeFile.findMany({
-        where: { userId: { in: users.map((employee) => employee.id) } },
-      });
+      const users = await this.userRepository.findEmployees(schoolId);
+      const files = await this.employeeFileRepository.findManyByUserIds(users.map((employee) => employee.id));
       const fileByUserId = new Map<string, any>(files.map((file: any) => [file.userId, file]));
 
       res.json({
@@ -221,35 +131,13 @@ export class HRController {
     }
   };
 
-  /**
-   * GET /api/v2/hr/export/liste-nominale-minesec — fichier Excel de liste nominative du
-   * personnel, pour le recensement biométrique MINESEC en cours (mars-avril 2026, prolongé).
-   * Colonnes basées sur les champs disponibles côté EduNexus (nom, prénom, fonction, N° CNPS,
-   * date de prise de service, statut) — le modèle exact fourni par l'administration centrale
-   * MINESEC n'a pas été trouvé publiquement ; à ajuster une fois confirmé par un chef
-   * d'établissement ou une source officielle (voir EduNexus_Carte_Complete_V2.md, MODULE 19).
-   */
   exportListeNominaleMinesec = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = this.getSchoolId(req);
-      const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+      const school = await this.schoolRepository.findById(schoolId);
 
-      const users = await this.prisma.user.findMany({
-        where: { schoolId, role: { in: ['TEACHER', 'STAFF'] as EmployeeRole[] }, isActive: true },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          staffProfile: { select: { title: true } },
-          teacherProfile: { select: { specialization: true } },
-        },
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-      });
-
-      const files = await this.prisma.employeeFile.findMany({
-        where: { userId: { in: users.map((u) => u.id) } },
-      });
+      const users = await this.userRepository.findEmployees(schoolId, true);
+      const files = await this.employeeFileRepository.findManyByUserIds(users.map((u) => u.id));
       const fileByUserId = new Map<string, any>(files.map((f: any) => [f.userId, f]));
 
       const workbook = new ExcelJS.Workbook();
@@ -294,9 +182,8 @@ export class HRController {
   getEmployee = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = this.getSchoolId(req);
-      const { id } = req.params;
+      const employeeId = String(req.params.id);
 
-      const employeeId = String(id);
       const employee = await this.loadEmployeeOrFail(employeeId, schoolId);
       if (!employee) {
         res.status(404).json({ success: false, message: 'Employé introuvable' });
@@ -305,18 +192,15 @@ export class HRController {
 
       const [file, careerEvents, leaveRequests, leaveBalance] = await Promise.all([
         this.fetchEmployeeFile(employeeId),
-        this.prisma.careerEvent.findMany({ where: { userId: employeeId, schoolId }, orderBy: { date: 'desc' } }),
-        this.prisma.leaveRequest.findMany({ where: { userId: employeeId, schoolId }, orderBy: { createdAt: 'desc' } }),
+        this.careerEventRepository.findByUserOrdered(employeeId, schoolId),
+        this.leaveRepository.findRequestsBySchool(schoolId, employeeId),
         this.getCurrentLeaveBalance(employeeId, schoolId),
       ]);
 
       res.json({
         success: true,
         data: {
-          employee: {
-            ...employee,
-            fullName: formatEmployeeName(employee),
-          },
+          employee: { ...employee, fullName: formatEmployeeName(employee) },
           file,
           careerEvents,
           leaveRequests,
@@ -365,21 +249,25 @@ export class HRController {
         return;
       }
 
+      const existing = await this.fetchEmployeeFile(employeeId);
       const data = {
+        id: existing?.id ?? '',
+        userId: employeeId,
+        schoolId,
         dateNaissance: body.dateNaissance ? normalizeDateInput(body.dateNaissance) : null,
-        // diplomes : JSON dynamique fourni par le client, forme non figée — cast local plutôt
-        // qu'un `as any` sur tout le payload, qui masquait par ailleurs schoolId manquant.
-        diplomes: (body.diplomes ?? []) as Prisma.InputJsonValue,
+        gender: null,
+        diplomes: (body.diplomes ?? []) as any,
         numeroCNPS: body.numeroCNPS?.trim() || null,
         typeContrat: body.typeContrat?.trim() || null,
         dateEmbauche: body.dateEmbauche ? normalizeDateInput(body.dateEmbauche) : null,
         echelonActuel: body.echelonActuel?.trim() || null,
+        documentsUrls: [],
+        selfServiceCompletedAt: null,
+        remindersSentCount: 0,
+        lastReminderAt: null,
+        escalatedAt: null,
       };
-
-      const existing = await this.fetchEmployeeFile(employeeId);
-      const file = existing
-        ? await this.prisma.employeeFile.update({ where: { userId: employeeId }, data })
-        : await this.prisma.employeeFile.create({ data: { ...data, userId: employeeId, schoolId } });
+      const file = await this.employeeFileRepository.save(data);
 
       res.status(existing ? 200 : 201).json({ success: true, data: file });
     } catch (error) {
@@ -404,14 +292,12 @@ export class HRController {
         return;
       }
 
-      const event = await this.prisma.careerEvent.create({
-        data: {
-          userId: employeeId,
-          schoolId,
-          type: body.type as CareerEventType,
-          date: normalizeDateInput(body.date),
-          observation: body.observation?.trim() || null,
-        },
+      const event = await this.careerEventRepository.create({
+        userId: employeeId,
+        schoolId,
+        type: body.type,
+        date: normalizeDateInput(body.date),
+        observation: body.observation?.trim() || null,
       });
 
       res.status(201).json({ success: true, data: event });
@@ -431,11 +317,7 @@ export class HRController {
         return;
       }
 
-      const events = await this.prisma.careerEvent.findMany({
-        where: { userId: employeeId, schoolId },
-        orderBy: { date: 'desc' },
-      });
-
+      const events = await this.careerEventRepository.findByUserOrdered(employeeId, schoolId);
       res.json({ success: true, data: events });
     } catch (error) {
       next(error);
@@ -461,19 +343,12 @@ export class HRController {
         const employee = await this.loadEmployeeOrFail(entry.userId, schoolId);
         if (!employee) return null;
 
-        return this.prisma.staffAttendance.upsert({
-          where: { userId_date: { userId: entry.userId, date: normalizedDate } },
-          create: {
-            userId: entry.userId,
-            schoolId,
-            date: normalizedDate,
-            statut: entry.statut as StaffAttendanceStatus,
-            note: entry.note?.trim() || null,
-          },
-          update: {
-            statut: entry.statut as StaffAttendanceStatus,
-            note: entry.note?.trim() || null,
-          },
+        return this.staffAttendanceRepository.upsert({
+          userId: entry.userId,
+          schoolId,
+          date: normalizedDate,
+          statut: entry.statut,
+          note: entry.note?.trim() || null,
         });
       }));
 
@@ -496,15 +371,7 @@ export class HRController {
       const start = new Date(`${normalizedDate}T00:00:00.000Z`);
       const end = new Date(`${normalizedDate}T23:59:59.999Z`);
 
-      const records = await this.prisma.staffAttendance.findMany({
-        where: {
-          schoolId,
-          ...(userId ? { userId } : {}),
-          date: { gte: start, lte: end },
-        },
-        include: { user: { select: { id: true, firstName: true, lastName: true, role: true } } },
-        orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
-      });
+      const records = await this.staffAttendanceRepository.findBySchool(schoolId, { userId, debut: start, fin: end });
 
       res.json({ success: true, data: records });
     } catch (error) {
@@ -530,16 +397,13 @@ export class HRController {
 
       await this.ensureLeaveBalance(body.userId, schoolId);
 
-      const leaveRequest = await this.prisma.leaveRequest.create({
-        data: {
-          userId: body.userId,
-          schoolId,
-          type: body.type as LeaveType,
-          dateDebut: normalizeDateInput(body.dateDebut),
-          dateFin: normalizeDateInput(body.dateFin),
-          motif: body.motif?.trim() || null,
-          statut: 'PENDING',
-        },
+      const leaveRequest = await this.leaveRepository.createRequest({
+        userId: body.userId,
+        schoolId,
+        type: body.type,
+        dateDebut: normalizeDateInput(body.dateDebut),
+        dateFin: normalizeDateInput(body.dateFin),
+        motif: body.motif?.trim() || null,
       });
 
       res.status(201).json({ success: true, data: leaveRequest });
@@ -560,11 +424,11 @@ export class HRController {
         return;
       }
 
-      let updated: TraiterCongeResultat;
+      let updated;
       try {
-        updated = await traiterDemandeConge(this.prisma, schoolId, String(id), body.statut as 'APPROVED' | 'REJECTED', currentUser?.id);
+        updated = await traiterDemandeConge(this.leaveRepository, schoolId, String(id), body.statut as 'APPROVED' | 'REJECTED', currentUser?.id);
       } catch (err) {
-        journaliserActionIA(this.prisma, {
+        this.audit.journaliser({
           actorUserId: currentUser?.userId, actorRole: currentUser?.role, schoolId,
           actionName: 'traiter_demande_conge', targetType: 'LeaveRequest', targetId: String(id),
           origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -575,7 +439,7 @@ export class HRController {
         return;
       }
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: currentUser?.id ?? currentUser?.userId, actorRole: currentUser?.role, schoolId,
         actionName: 'traiter_demande_conge', targetType: 'LeaveRequest', targetId: String(id),
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: body,
@@ -589,21 +453,9 @@ export class HRController {
   listLeaveRequests = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = this.getSchoolId(req);
-      const { userId, statut } = req.query as Record<string, string>;
+      const { userId } = req.query as Record<string, string>;
 
-      const leaveRequests = await this.prisma.leaveRequest.findMany({
-        where: {
-          schoolId,
-          ...(userId ? { userId } : {}),
-          ...(statut ? { statut: statut as LeaveStatus } : {}),
-        },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, role: true } },
-          validator: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-
+      const leaveRequests = await this.leaveRepository.findRequestsBySchool(schoolId, userId);
       res.json({ success: true, data: leaveRequests });
     } catch (error) {
       next(error);
@@ -621,7 +473,7 @@ export class HRController {
         return;
       }
 
-      const balances = await this.prisma.leaveBalance.findMany({ where: { userId, schoolId }, orderBy: { annee: 'desc' } });
+      const balances = await this.leaveRepository.findBalancesByUser(userId, schoolId);
       const current = balances[0] ?? await this.getCurrentLeaveBalance(userId, schoolId);
 
       res.json({ success: true, data: { current, balances } });
@@ -643,11 +495,11 @@ export class HRController {
       }
 
       const file = await this.fetchEmployeeFile(employeeId);
-      const sectionCode = await this.getEmployeeSectionCode(employeeId, schoolId);
-      const lang = resolveLanguage(employee.school.subsystem, sectionCode);
+      const sectionCode = await this.getEmployeeSectionCode(employeeId);
+      const lang = resolveLanguage(employee.school?.subsystem ?? 'FRANCOPHONE', sectionCode);
       const roleLabelEn = employee.role === 'TEACHER' ? 'teacher' : 'staff member';
       const pdf = await generateAttestationTravailPdf({
-        schoolName: employee.school.name,
+        schoolName: employee.school?.name ?? '',
         employeeName: formatEmployeeName(employee),
         roleLabel: employee.role === 'TEACHER' ? 'enseignant(e)' : 'membre du personnel',
         roleLabelEn,
@@ -679,11 +531,11 @@ export class HRController {
       }
 
       const file = await this.fetchEmployeeFile(employeeId);
-      const sectionCode = await this.getEmployeeSectionCode(employeeId, schoolId);
-      const lang = resolveLanguage(employee.school.subsystem, sectionCode);
+      const sectionCode = await this.getEmployeeSectionCode(employeeId);
+      const lang = resolveLanguage(employee.school?.subsystem ?? 'FRANCOPHONE', sectionCode);
       const roleLabelEn = employee.role === 'TEACHER' ? 'teacher' : 'staff member';
       const pdf = await generateCertificatTravailPdf({
-        schoolName: employee.school.name,
+        schoolName: employee.school?.name ?? '',
         employeeName: formatEmployeeName(employee),
         roleLabel: employee.role === 'TEACHER' ? 'enseignant(e)' : 'membre du personnel',
         roleLabelEn,
@@ -718,16 +570,14 @@ export class HRController {
         return;
       }
 
-      const missionOrder = await this.prisma.missionOrder.create({
-        data: {
-          userId: body.userId,
-          schoolId,
-          motif: body.motif.trim(),
-          lieu: body.lieu.trim(),
-          dateDebut: normalizeDateInput(body.dateDebut),
-          dateFin: normalizeDateInput(body.dateFin),
-          signataire: body.signataire?.trim() || null,
-        },
+      const missionOrder = await this.missionOrderRepository.create({
+        userId: body.userId,
+        schoolId,
+        motif: body.motif.trim(),
+        lieu: body.lieu.trim(),
+        dateDebut: normalizeDateInput(body.dateDebut),
+        dateFin: normalizeDateInput(body.dateFin),
+        signataire: body.signataire?.trim() || null,
       });
 
       res.status(201).json({ success: true, data: missionOrder });
@@ -741,24 +591,19 @@ export class HRController {
       const schoolId = this.getSchoolId(req);
       const missionId = String(req.params.id);
 
-      const missionOrder = await this.prisma.missionOrder.findFirst({
-        where: { id: missionId, schoolId },
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, role: true } },
-          school: { select: { id: true, name: true, subsystem: true } },
-        },
-      });
+      const missionOrder = await this.missionOrderRepository.findByIdAndSchool(missionId, schoolId);
 
       if (!missionOrder) {
         res.status(404).json({ success: false, message: 'Ordre de mission introuvable' });
         return;
       }
 
-      const sectionCode = await this.getEmployeeSectionCode(missionOrder.user.id, schoolId);
-      const lang = resolveLanguage(missionOrder.school.subsystem, sectionCode);
+      const employee = await this.loadEmployeeOrFail(missionOrder.userId, schoolId);
+      const sectionCode = await this.getEmployeeSectionCode(missionOrder.userId);
+      const lang = resolveLanguage(employee?.school?.subsystem ?? 'FRANCOPHONE', sectionCode);
       const pdf = await generateMissionOrderPdf({
-        schoolName: missionOrder.school.name,
-        employeeName: formatEmployeeName(missionOrder.user),
+        schoolName: employee?.school?.name ?? '',
+        employeeName: employee ? formatEmployeeName(employee) : missionOrder.userId,
         motif: missionOrder.motif,
         lieu: missionOrder.lieu,
         dateDebut: missionOrder.dateDebut,
@@ -767,7 +612,7 @@ export class HRController {
         language: lang,
       });
 
-      await this.sendPdf(res, `ordre-mission-${slugify(formatEmployeeName(missionOrder.user))}.pdf`, pdf);
+      await this.sendPdf(res, `ordre-mission-${slugify(employee ? formatEmployeeName(employee) : missionOrder.userId)}.pdf`, pdf);
     } catch (error) {
       next(error);
     }

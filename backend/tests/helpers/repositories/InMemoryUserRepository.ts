@@ -1,5 +1,5 @@
 import { User } from '@domain/entities/User';
-import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { UserRepository, EmployeeDetail } from '@domain/ports/repositories/UserRepository';
 import type { UserRole } from '@domain/types/enums';
 
 export class InMemoryUserRepository implements UserRepository {
@@ -65,6 +65,23 @@ export class InMemoryUserRepository implements UserRepository {
         this.classesParEleve.get(user.id) === classId &&
         this.estActif(user)
     );
+  }
+
+  async findEmployeeById(userId: string, schoolId: string): Promise<EmployeeDetail | null> {
+    const u = this.store.get(userId);
+    if (!u || u.schoolId !== schoolId || (u.role !== 'TEACHER' && u.role !== 'STAFF')) return null;
+    return this.toEmployee(u);
+  }
+
+  async findEmployees(schoolId: string, activeOnly = false): Promise<EmployeeDetail[]> {
+    return [...this.store.values()]
+      .filter(u => u.schoolId === schoolId && (u.role === 'TEACHER' || u.role === 'STAFF') && (!activeOnly || u.isActive))
+      .map(u => this.toEmployee(u));
+  }
+
+  private toEmployee(user: User): EmployeeDetail {
+    const p = user.toObject();
+    return { id: p.id, firstName: p.firstName, lastName: p.lastName, email: p.email ?? null, phone: p.phone ?? null, role: p.role, createdAt: p.createdAt, updatedAt: p.updatedAt };
   }
 
   async existsByEmail(email: string, schoolId: string): Promise<boolean> {

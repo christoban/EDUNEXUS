@@ -42,6 +42,8 @@ function userRepositoryStub(user: User | null): UserRepository {
     restaurer: async () => {},
     transfererEleve: async () => {},
     findEmailsParentsParEleve: async () => [],
+    findEmployeeById: async () => null,
+    findEmployees: async () => [],
     findStudentsForBulletinGeneration: async () => [],
     findStudentNotificationContext: async () => null,
     findAuthDataById: async () => null,

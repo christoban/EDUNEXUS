@@ -5,6 +5,20 @@
 import type { User } from '@domain/entities/User';
 import type { UserRole } from '@domain/types/enums';
 
+export interface EmployeeDetail {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  createdAt: Date;
+  updatedAt: Date;
+  teacherProfile?: { id: string; specialization: string[]; supervisedSubjectIds: string[] } | null;
+  staffProfile?: { id: string; title: string | null; sectionId: string | null } | null;
+  school?: { id: string; name: string; subsystem: string } | null;
+}
+
 /** Données d'authentification d'un compte école (OTP email + MFA). */
 export interface AuthUserData {
   id: string;
@@ -28,6 +42,10 @@ export interface UserRepository {
   findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null>;
   findBySchool(schoolId: string): Promise<User[]>;
   findByRole(schoolId: string, role: UserRole): Promise<User[]>;
+
+  // HR — lectures employé (TEACHER/STAFF) avec profils embarqués
+  findEmployeeById(userId: string, schoolId: string): Promise<EmployeeDetail | null>;
+  findEmployees(schoolId: string, activeOnly?: boolean): Promise<EmployeeDetail[]>;
   /** Élèves (role STUDENT) inscrits dans une classe donnée, via StudentProfile.classId. */
   findByClass(schoolId: string, classId: string): Promise<User[]>;
   existsByEmail(email: string, schoolId: string): Promise<boolean>;

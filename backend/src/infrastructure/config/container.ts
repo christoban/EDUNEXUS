@@ -305,6 +305,14 @@ import { PrismaEleveOnboardingRepository } from '@infrastructure/persistence/pri
 import { PrismaImportUtilisateursRepository } from '@infrastructure/persistence/prisma/PrismaImportUtilisateursRepository';
 import { PrismaPushSubscriptionRepository } from '@infrastructure/persistence/prisma/PrismaPushSubscriptionRepository';
 
+// --- Adapters Persistence HR ---
+import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
+import { PrismaLeaveRepository } from '@infrastructure/persistence/prisma/PrismaLeaveRepository';
+import { PrismaEmployeeFileRepository } from '@infrastructure/persistence/prisma/PrismaEmployeeFileRepository';
+import { PrismaCareerEventRepository } from '@infrastructure/persistence/prisma/PrismaCareerEventRepository';
+import { PrismaStaffAttendanceRepository } from '@infrastructure/persistence/prisma/PrismaStaffAttendanceRepository';
+import { PrismaMissionOrderRepository } from '@infrastructure/persistence/prisma/PrismaMissionOrderRepository';
+
 // --- Adapters Persistence Pedagogie ---
 import { PrismaProgrammeRepository } from '@infrastructure/persistence/prisma/PrismaProgrammeRepository';
 import { PrismaChapitreRepository } from '@infrastructure/persistence/prisma/PrismaChapitreRepository';
@@ -633,6 +641,14 @@ export function creerContainer() {
     timetableRepository, anneeRepository, schedulingGridAdapter,
   );
 
+  // 12. Use Cases — HR (repos, câblés dans HRController + copilot core)
+  const staffProfileRepository = new PrismaStaffProfileRepository(prisma);
+  const leaveRepository = new PrismaLeaveRepository(prisma);
+  const employeeFileRepository = new PrismaEmployeeFileRepository(prisma);
+  const careerEventRepository = new PrismaCareerEventRepository(prisma);
+  const staffAttendanceRepository = new PrismaStaffAttendanceRepository(prisma);
+  const missionOrderRepository = new PrismaMissionOrderRepository(prisma);
+
   // 12bis. Use Cases — Pedagogie
   const programmeRepository = new PrismaProgrammeRepository(prisma);
   const chapitreRepository = new PrismaChapitreRepository(prisma);
@@ -813,6 +829,17 @@ export function creerContainer() {
       calculerProgression: calculerProgressionUseCase,
       obtenirSlot: obtenirSlotUseCase,
       genererRapport: genererRapportUseCase,
+    },
+    hr: {
+      userRepository,
+      schoolRepository,
+      sectionRepository,
+      staffProfileRepository,
+      leaveRepository,
+      employeeFileRepository,
+      careerEventRepository,
+      staffAttendanceRepository,
+      missionOrderRepository,
     },
     subject: {
       creer: creerMatiereUseCase,

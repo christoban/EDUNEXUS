@@ -88,4 +88,9 @@ export class PrismaStaffProfileRepository implements StaffProfileRepository {
     });
     return censeurs.map(c => ({ userId: c.user.id, email: c.user.email ?? null, firstName: c.user.firstName }));
   }
+
+  async findSectionIdByUserId(userId: string): Promise<string | null> {
+    const staff = await this.prisma.staffProfile.findUnique({ where: { userId }, select: { sectionId: true } });
+    return staff?.sectionId ?? null;
+  }
 }

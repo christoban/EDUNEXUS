@@ -2,6 +2,7 @@ import type { Application } from 'express';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { creerContainer } from '@infrastructure/config/container';
+import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
 import { RoomController } from '@infrastructure/http/controllers/RoomController';
@@ -9,7 +10,8 @@ import { TeacherUnavailabilityController } from '@infrastructure/http/controller
 import { StudentGroupController } from '@infrastructure/http/controllers/StudentGroupController';
 import { AIActionAuditController } from '@infrastructure/http/controllers/AIActionAuditController';
 import { CorbeilleController } from '@infrastructure/http/controllers/CorbeilleController';
-import { HRController, traiterDemandeConge } from '@infrastructure/http/controllers/HRController';
+import { HRController } from '@infrastructure/http/controllers/HRController';
+import { traiterDemandeConge } from '@infrastructure/services/hr/TraiterCongeService';
 import { HRSelfServiceController } from '@infrastructure/http/controllers/HRSelfServiceController';
 import { ParentController } from '@infrastructure/http/controllers/ParentController';
 import { SchoolSettingsController } from '@infrastructure/http/controllers/SchoolSettingsController';
@@ -169,7 +171,18 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
   const c = container;
 
   // ── Module RH (C.2) ───────────────────────────────────────────────────────
-  const hrController = new HRController(p);
+  const hrController = new HRController(
+    c.hr.userRepository,
+    c.hr.schoolRepository,
+    c.hr.sectionRepository,
+    c.hr.staffProfileRepository,
+    c.hr.leaveRepository,
+    c.hr.employeeFileRepository,
+    c.hr.careerEventRepository,
+    c.hr.staffAttendanceRepository,
+    c.hr.missionOrderRepository,
+    new AIActionAuditAdapter(p as any),
+  );
   app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
 
   // ── Module RH — self-service employé (accès ADMIN/STAFF/TEACHER, scopé à soi-même) ──
