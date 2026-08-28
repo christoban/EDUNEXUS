@@ -1,5 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { StudentProfileRepository } from '@domain/ports/repositories/StudentProfileRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { BulletinRepository } from '@domain/ports/repositories/BulletinRepository';
+import type { StudentDocumentRepository } from '@domain/ports/repositories/StudentDocumentRepository';
 import {
   generateCertificatPdf,
   generateCarteScolairepdf,
@@ -9,48 +13,33 @@ import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 
 const VERIFY_BASE = process.env.CLIENT_URL || 'http://localhost:3000';
 
-async function fetchStudent(prisma: PrismaClient, userId: string, schoolId: string) {
-  return prisma.studentProfile.findFirst({
-    where: { userId, user: { schoolId } },
-    include: {
-      user: { select: { firstName: true, lastName: true, phone: true, schoolId: true } },
-      enrollmentsYearScoped: {
-        where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
-        take: 1,
-        select: { class: { select: { name: true, section: { select: { code: true } } } } },
-      },
-      parents: {
-        include: {
-          parentProfile: {
-            include: { user: { select: { firstName: true, lastName: true, phone: true } } },
-          },
-        },
-        take: 1,
-      },
-    },
-  });
-}
-
 function classeActuelle(student: { enrollmentsYearScoped: { class: { name: string; section: { code: string } | null } | null }[] | undefined }) {
   return student?.enrollmentsYearScoped?.[0]?.class ?? null;
 }
 
-async function fetchSchool(prisma: PrismaClient, schoolId: string) {
-  return prisma.school.findUnique({
-    where: { id: schoolId },
-    select: { name: true, city: true, phone: true, logoUrl: true, subsystem: true },
-  });
-}
-
-async function fetchCurrentYear(prisma: PrismaClient, schoolId: string) {
-  return prisma.academicYear.findFirst({
-    where: { schoolId, isCurrent: true },
-    select: { name: true },
-  });
-}
-
 export class StudentDocumentController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly studentProfileRepository: StudentProfileRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly anneeRepository: AnneeAcademiqueRepository,
+    private readonly bulletinRepository: BulletinRepository,
+    private readonly documentRepository: StudentDocumentRepository,
+  ) {}
+
+  private async fetchStudent(userId: string, schoolId: string) {
+    return this.studentProfileRepository.findForDocument(userId, schoolId);
+  }
+
+  private async fetchSchool(schoolId: string) {
+    const school = await this.schoolRepository.findById(schoolId);
+    return school
+      ? { name: school.name, city: undefined, phone: undefined, logoUrl: undefined, subsystem: school.subsystem }
+      : null;
+  }
+
+  private async fetchCurrentYear(schoolId: string) {
+    return this.anneeRepository.findCourante(schoolId);
+  }
 
   // ─── GET /api/v2/students/:id/certificat ─────────────────────
   getCertificat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -58,31 +47,29 @@ export class StudentDocumentController {
       const user = req.user;
       const studentUserId = req.params.id as string;
 
-      const student = await fetchStudent(this.prisma, studentUserId, user.schoolId);
+      const student = await this.fetchStudent(studentUserId, user.schoolId);
       if (!student) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
       }
 
       const [school, year] = await Promise.all([
-        fetchSchool(this.prisma, user.schoolId),
-        fetchCurrentYear(this.prisma, user.schoolId),
+        this.fetchSchool(user.schoolId),
+        this.fetchCurrentYear(user.schoolId),
       ]);
 
       const studentName = `${student.user.lastName} ${student.user.firstName}`;
 
-      const doc = await this.prisma.verifiableDocument.create({
-        data: {
-          type: 'CERTIFICATE',
-          studentId: student.id,
-          schoolId: user.schoolId,
-          dataSnapshot: {
-            studentName,
-            matricule: student.matricule ?? null,
-            className: classeActuelle(student)?.name ?? '—',
-            yearName: year?.name ?? '—',
-            status: student.studentStatus,
-          },
+      const doc = await this.documentRepository.create({
+        type: 'CERTIFICATE',
+        studentId: student.id,
+        schoolId: user.schoolId,
+        dataSnapshot: {
+          studentName,
+          matricule: student.matricule ?? null,
+          className: classeActuelle(student)?.name ?? '—',
+          yearName: year?.name ?? '—',
+          status: student.studentStatus,
         },
       });
 
@@ -98,9 +85,6 @@ export class StudentDocumentController {
         matricule: student.matricule ?? undefined,
         className: classeActuelle(student)?.name ?? '—',
         yearName: year?.name ?? '—',
-        // timeZone: 'UTC' explicite — la date est stockée en UTC minuit ; sans ça, le
-        // formatage dépend de l'heure locale du serveur (actuellement UTC+1, où ça reste
-        // correct "par accident", mais casserait sur un serveur à fuseau négatif).
         dateOfBirth: student.dateOfBirth
           ? student.dateOfBirth.toLocaleDateString(lang === 'en' ? 'en-GB' : 'fr-FR', { timeZone: 'UTC' })
           : undefined,
@@ -128,31 +112,29 @@ export class StudentDocumentController {
       const user = req.user;
       const studentUserId = req.params.id as string;
 
-      const student = await fetchStudent(this.prisma, studentUserId, user.schoolId);
+      const student = await this.fetchStudent(studentUserId, user.schoolId);
       if (!student) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
       }
 
       const [school, year] = await Promise.all([
-        fetchSchool(this.prisma, user.schoolId),
-        fetchCurrentYear(this.prisma, user.schoolId),
+        this.fetchSchool(user.schoolId),
+        this.fetchCurrentYear(user.schoolId),
       ]);
 
       const studentName = `${student.user.lastName} ${student.user.firstName}`;
       const parent = student.parents[0]?.parentProfile?.user;
 
-      const doc = await this.prisma.verifiableDocument.create({
-        data: {
-          type: 'STUDENT_CARD',
-          studentId: student.id,
-          schoolId: user.schoolId,
-          dataSnapshot: {
-            studentName,
-            matricule: student.matricule ?? null,
-            className: classeActuelle(student)?.name ?? '—',
-            yearName: year?.name ?? '—',
-          },
+      const doc = await this.documentRepository.create({
+        type: 'STUDENT_CARD',
+        studentId: student.id,
+        schoolId: user.schoolId,
+        dataSnapshot: {
+          studentName,
+          matricule: student.matricule ?? null,
+          className: classeActuelle(student)?.name ?? '—',
+          yearName: year?.name ?? '—',
         },
       });
 
@@ -193,7 +175,7 @@ export class StudentDocumentController {
       const studentUserId = req.params.id as string;
       const motif = (req.query.motif as string | undefined) ?? '';
 
-      const student = await fetchStudent(this.prisma, studentUserId, user.schoolId);
+      const student = await this.fetchStudent(studentUserId, user.schoolId);
       if (!student) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
@@ -208,29 +190,23 @@ export class StudentDocumentController {
       }
 
       const [school, year, lastBulletin] = await Promise.all([
-        fetchSchool(this.prisma, user.schoolId),
-        fetchCurrentYear(this.prisma, user.schoolId),
-        this.prisma.reportCard.findFirst({
-          where: { studentId: studentUserId, schoolId: user.schoolId },
-          orderBy: { createdAt: 'desc' },
-          select: { generalAverage: true },
-        }),
+        this.fetchSchool(user.schoolId),
+        this.fetchCurrentYear(user.schoolId),
+        this.bulletinRepository.findPreviousByStudent(studentUserId, user.schoolId),
       ]);
 
       const studentName = `${student.user.lastName} ${student.user.firstName}`;
 
-      const doc = await this.prisma.verifiableDocument.create({
-        data: {
-          type: 'TRANSFER_LETTER',
-          studentId: student.id,
-          schoolId: user.schoolId,
-          dataSnapshot: {
-            studentName,
-            matricule: student.matricule ?? null,
-            className: classeActuelle(student)?.name ?? '—',
-            yearName: year?.name ?? '—',
-            motif: motif || student.studentStatus,
-          },
+      const doc = await this.documentRepository.create({
+        type: 'TRANSFER_LETTER',
+        studentId: student.id,
+        schoolId: user.schoolId,
+        dataSnapshot: {
+          studentName,
+          matricule: student.matricule ?? null,
+          className: classeActuelle(student)?.name ?? '—',
+          yearName: year?.name ?? '—',
+          motif: motif || student.studentStatus,
         },
       });
 
@@ -269,19 +245,14 @@ export class StudentDocumentController {
     try {
       const documentId = req.params.documentId as string;
 
-      const doc = await this.prisma.verifiableDocument.findUnique({
-        where: { id: documentId },
-      });
+      const doc = await this.documentRepository.findById(documentId);
 
       if (!doc) {
         res.status(404).json({ success: false, message: 'Document introuvable ou invalide.' });
         return;
       }
 
-      const school = await this.prisma.school.findUnique({
-        where: { id: doc.schoolId },
-        select: { name: true },
-      });
+      const school = await this.schoolRepository.findById(doc.schoolId);
 
       const typeLabel: Record<string, string> = {
         CERTIFICATE: 'Certificat de scolarité',

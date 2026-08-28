@@ -18,6 +18,14 @@ export class PrismaMatriculeImportRepository implements MatriculeImportRepositor
     return this.prisma.matriculeImportJob.findUnique({ where: { id: jobId } }) as Promise<MatriculeImportJobData | null>;
   }
 
+  async listerJobs(schoolId: string, limit = 20): Promise<MatriculeImportJobData[]> {
+    return this.prisma.matriculeImportJob.findMany({ where: { schoolId }, orderBy: { createdAt: 'desc' }, take: limit }) as Promise<MatriculeImportJobData[]>;
+  }
+
+  async trouverJobPourEcole(jobId: string, schoolId: string): Promise<MatriculeImportJobData | null> {
+    return this.prisma.matriculeImportJob.findFirst({ where: { id: jobId, schoolId } }) as Promise<MatriculeImportJobData | null>;
+  }
+
   async mettreAJourJob(jobId: string, data: Record<string, unknown>): Promise<void> {
     await this.prisma.matriculeImportJob.update({
       where: { id: jobId },

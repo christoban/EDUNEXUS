@@ -12,6 +12,37 @@ export class PrismaLv2ChoiceRepository implements Lv2ChoiceRepository {
     return this.prisma.lv2ChoiceWindow.findUnique({ where: { id: fenetreId } }) as Promise<Lv2ChoiceWindowRef | null>;
   }
 
+  async listerFenetres(schoolId: string): Promise<Lv2ChoiceWindowRef[]> {
+    return this.prisma.lv2ChoiceWindow.findMany({ where: { schoolId }, orderBy: { createdAt: 'desc' } }) as Promise<Lv2ChoiceWindowRef[]>;
+  }
+
+  async trouverProfilEleveAvecClasse(userId: string, schoolId: string): Promise<{ id: string; classId: string | null; level: string | null } | null> {
+    const profile = await this.prisma.studentProfile.findFirst({
+      where: { user: { id: userId, schoolId } },
+      select: { id: true, enrollmentsYearScoped: { where: { status: 'ACTIVE', academicYear: { isCurrent: true } }, select: { class: { select: { id: true, level: true } } }, take: 1 } },
+    });
+    if (!profile) return null;
+    const cls = profile.enrollmentsYearScoped?.[0]?.class;
+    return { id: profile.id, classId: cls?.id ?? null, level: cls?.level ?? null };
+  }
+
+  async trouverFenetreOuverteParNiveauExacte(schoolId: string, level: string): Promise<Lv2ChoiceWindowRef | null> {
+    return this.prisma.lv2ChoiceWindow.findFirst({
+      where: { schoolId, level, status: 'OPEN', openDate: { lte: new Date() }, closeDate: { gte: new Date() } },
+    }) as Promise<Lv2ChoiceWindowRef | null>;
+  }
+
+  async trouverSoumission(windowId: string, studentProfileId: string): Promise<Lv2ChoiceSubmissionRef | null> {
+    return this.prisma.lv2ChoiceSubmission.findUnique({
+      where: { windowId_studentProfileId: { windowId, studentProfileId } },
+      include: { chosenSubject: { select: { id: true, name: true } } },
+    }) as Promise<Lv2ChoiceSubmissionRef | null>;
+  }
+
+  async listerMatieresLV2(schoolId: string): Promise<{ id: string; name: string }[]> {
+    return this.prisma.subject.findMany({ where: { schoolId, isLV2: true }, select: { id: true, name: true } }) as Promise<{ id: string; name: string }[]>;
+  }
+
   async trouverFenetreOuverteParNiveau(schoolId: string, level: string, academicYearId: string): Promise<Lv2ChoiceWindowRef | null> {
     return this.prisma.lv2ChoiceWindow.findFirst({
       where: { schoolId, level, academicYearId, status: 'OPEN' },

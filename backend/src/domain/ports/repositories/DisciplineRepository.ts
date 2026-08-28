@@ -25,10 +25,18 @@ export interface DisciplineRecordData {
   startDate: Date | null;
   endDate: Date | null;
   createdAt: Date;
+  student?: { id: string; firstName: string; lastName: string };
+  decidedBy?: { id: string; firstName: string; lastName: string };
+  status?: string | null;
 }
 
 export interface DisciplineRepository {
   verifierEleve(studentId: string, schoolId: string): Promise<boolean>;
+  findRecordsBySchool(schoolId: string, filters: { studentId?: string; type?: string; status?: string; page: number; limit: number }): Promise<DisciplineRecordData[]>;
+  countRecordsBySchool(schoolId: string, filters: { studentId?: string; type?: string; status?: string }): Promise<number>;
+  trouverRecord(id: string, schoolId: string): Promise<DisciplineRecordData | null>;
+  leverRecord(id: string): Promise<DisciplineRecordData>;
+  findParentEmails(studentId: string): Promise<string[]>;
 
   creerSession(data: {
     schoolId: string;

@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import type {
   StudentBulletinOptions,
   StudentProfileRepository,
+  StudentDocumentProfile,
 } from '@domain/ports/repositories/StudentProfileRepository';
 
 export class PrismaStudentProfileRepository implements StudentProfileRepository {
@@ -34,5 +35,23 @@ export class PrismaStudentProfileRepository implements StudentProfileRepository 
         (subject) => subject.subjectId,
       ),
     }));
+  }
+
+  async findForDocument(userId: string, schoolId: string): Promise<StudentDocumentProfile | null> {
+    return this.prisma.studentProfile.findFirst({
+      where: { userId, user: { schoolId } },
+      include: {
+        user: { select: { firstName: true, lastName: true, phone: true, schoolId: true } },
+        enrollmentsYearScoped: {
+          where: { status: 'ACTIVE' as const, academicYear: { isCurrent: true } },
+          take: 1,
+          select: { class: { select: { name: true, section: { select: { code: true } } } } },
+        },
+        parents: {
+          include: { parentProfile: { include: { user: { select: { firstName: true, lastName: true, phone: true } } } } },
+          take: 1,
+        },
+      },
+    });
   }
 }

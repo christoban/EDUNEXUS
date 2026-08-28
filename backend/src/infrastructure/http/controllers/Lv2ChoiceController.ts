@@ -1,21 +1,22 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
+import type { Lv2ChoiceRepository } from '@domain/ports/repositories/Lv2ChoiceRepository';
 import { OuvrirFenetreChoixLV2UseCase } from '@application/lv2Choice/OuvrirFenetreChoixLV2UseCase';
 import { SoumettreChoixLV2EleveUseCase } from '@application/lv2Choice/SoumettreChoixLV2EleveUseCase';
 import { SaisirChoixLV2ManuelUseCase } from '@application/lv2Choice/SaisirChoixLV2ManuelUseCase';
 import { AppliquerChoixLV2UseCase } from '@application/lv2Choice/AppliquerChoixLV2UseCase';
 import { SuivreFenetreChoixLV2UseCase } from '@application/lv2Choice/SuivreFenetreChoixLV2UseCase';
 import { notifyLv2WindowOpenSms } from '@infrastructure/services/sms/SmsNotificationService';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 
 export class Lv2ChoiceController {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly lv2Repository: Lv2ChoiceRepository,
     private readonly ouvrirFenetre: OuvrirFenetreChoixLV2UseCase,
     private readonly soumettreChoix: SoumettreChoixLV2EleveUseCase,
     private readonly saisirManuel: SaisirChoixLV2ManuelUseCase,
     private readonly appliquerChoix: AppliquerChoixLV2UseCase,
     private readonly suivreFenetre: SuivreFenetreChoixLV2UseCase,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   // POST /api/v2/lv2-choice-windows
@@ -33,9 +34,8 @@ export class Lv2ChoiceController {
         schoolId, level, academicYearId,
         openDate: new Date(openDate), closeDate: new Date(closeDate),
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
-        // Bug indépendant : execute() retourne { windowId }, jamais `id`.
         actionName: 'ouvrir_fenetre_choix_lv2', targetType: 'Lv2ChoiceWindow', targetId: result.windowId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
       });
@@ -46,7 +46,7 @@ export class Lv2ChoiceController {
         });
       }
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'ouvrir_fenetre_choix_lv2', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
@@ -83,14 +83,11 @@ export class Lv2ChoiceController {
     } catch (err) { next(err); }
   };
 
-  // GET /api/v2/lv2-choice-windows — liste des fenêtres de l'établissement, toutes années/niveaux
+  // GET /api/v2/lv2-choice-windows — liste des fenêtres de l'établissement
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const windows = await this.prisma.lv2ChoiceWindow.findMany({
-        where: { schoolId },
-        orderBy: { createdAt: 'desc' },
-      });
+      const windows = await this.lv2Repository.listerFenetres(schoolId);
       res.json({ success: true, data: windows });
     } catch (err) { next(err); }
   };
@@ -111,58 +108,25 @@ export class Lv2ChoiceController {
       const schoolId = req.user!.schoolId;
       const userId = req.user!.userId;
 
-      // Récupérer le profil élève
-      const profile = await this.prisma.studentProfile.findFirst({
-        where: { user: { id: userId, schoolId } },
-        select: {
-          id: true,
-          enrollmentsYearScoped: {
-            where: { status: 'ACTIVE', academicYear: { isCurrent: true } },
-            select: { classId: true },
-            take: 1,
-          },
-        },
-      });
+      const profile = await this.lv2Repository.trouverProfilEleveAvecClasse(userId, schoolId);
       if (!profile) {
         res.status(404).json({ success: false, message: 'Profil élève introuvable' });
         return;
       }
-
-      const classe = await this.prisma.class.findUnique({ where: { id: profile.enrollmentsYearScoped?.[0]?.classId ?? '' } });
-      if (!classe) {
+      if (!profile.classId || !profile.level) {
         res.status(404).json({ success: false, message: 'Classe introuvable' });
         return;
       }
 
-      // Fenêtre ouverte pour le niveau
-      const window = await this.prisma.lv2ChoiceWindow.findFirst({
-        where: {
-          schoolId,
-          level: classe.level,
-          status: 'OPEN',
-          openDate: { lte: new Date() },
-          closeDate: { gte: new Date() },
-        },
-      });
+      const window = await this.lv2Repository.trouverFenetreOuverteParNiveauExacte(schoolId, profile.level);
 
       if (!window) {
         res.json({ success: true, data: null });
         return;
       }
 
-      // Soumission existante
-      const submission = await this.prisma.lv2ChoiceSubmission.findUnique({
-        where: {
-          windowId_studentProfileId: { windowId: window.id, studentProfileId: profile.id },
-        },
-        include: { chosenSubject: { select: { id: true, name: true } } },
-      });
-
-      // Matières LV2 disponibles — filtrées sur le flag isLV2 (matières-langues réelles créées à l'activation)
-      const lv2Subjects = await this.prisma.subject.findMany({
-        where: { schoolId, isLV2: true },
-        select: { id: true, name: true },
-      });
+      const submission = await this.lv2Repository.trouverSoumission(window.id, profile.id);
+      const lv2Subjects = await this.lv2Repository.listerMatieresLV2(schoolId);
 
       res.json({
         success: true,

@@ -29,6 +29,7 @@ import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/pri
 import { PrismaRattachementEnseignantRepository } from '@infrastructure/persistence/prisma/PrismaRattachementEnseignantRepository';
 import { PrismaSectionRepository } from '@infrastructure/persistence/prisma/PrismaSectionRepository';
 import { PrismaStudentProfileRepository } from '@infrastructure/persistence/prisma/PrismaStudentProfileRepository';
+import { PrismaStudentDocumentRepository } from '@infrastructure/persistence/prisma/PrismaStudentDocumentRepository';
 
 // --- Adapters Audit ---
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
@@ -378,6 +379,7 @@ export function creerContainer() {
   const sectionRepository = new PrismaSectionRepository(prisma);
   const studentProfileRepository = new PrismaStudentProfileRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
+  const studentDocumentRepository = new PrismaStudentDocumentRepository(prisma);
   const rattachementRepository = new PrismaRattachementEnseignantRepository(prisma);
   const roomRepository = new PrismaRoomRepository(prisma);
   const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
@@ -967,6 +969,7 @@ export function creerContainer() {
       verifierRecu: new VerifierRecuUseCase(paiementMinesecRepository, new CarteScolaireScrapingAdapter()),
       confirmerFuzzy: new ConfirmerCorrespondanceFuzzyUseCase(matriculeImportRepository),
       signalerErreur: new SignalerErreurCarteScolaireUseCase(matriculeImportRepository),
+      matriculeImportRepository,
     },
     eleveOnboarding: {
       creerSquelette: creerSqueletteOnboarding,
@@ -1028,6 +1031,13 @@ export function creerContainer() {
     },
     notification: {
       service: notificationService,
+    },
+    studentDocument: {
+      studentProfileRepository,
+      schoolRepository,
+      anneeRepository,
+      bulletinRepository,
+      documentRepository: studentDocumentRepository,
     },
   };
 }

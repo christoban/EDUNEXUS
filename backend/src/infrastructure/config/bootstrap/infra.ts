@@ -2,6 +2,8 @@ import type { Application } from 'express';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@infrastructure/persistence/prisma/prisma.client';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
+import { PrismaDisciplineRepository } from '@infrastructure/persistence/prisma/PrismaDisciplineRepository';
+import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
 import { creerContainer } from '@infrastructure/config/container';
 import { ClasseController } from '@infrastructure/http/controllers/ClasseController';
 import { SubjectController } from '@infrastructure/http/controllers/SubjectController';
@@ -151,7 +153,6 @@ import { assignerMatieresPourClasse, CYCLE2_LEVELS as SYNC_CYCLE2_LEVELS, parseS
 import { buildPayload, getLatestSchoolBackup } from '../../backup/SchoolBackupService';
 import type { PaymentMethod } from '@domain/types/enums';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { executerBroadcast } from '@infrastructure/http/controllers/CommunicationsController';
 import { calculerAlertesRetardProgramme } from '@infrastructure/services/pedagogie/AlerteRetardProgrammeService';
 import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../../services/sms/SmsNotificationService';
 import { notifierParentsPushDabord } from '../../services/notification/PushFirstNotifier';
@@ -259,12 +260,13 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
 
   // ── LV2 Choice (Sous-module C) ─────────────────────────────────────────
   const lv2ChoiceController = new Lv2ChoiceController(
-    prisma,
+    new PrismaLv2ChoiceRepository(p),
     c.lv2Choice.ouvrirFenetre,
     c.lv2Choice.soumettreChoix,
     c.lv2Choice.saisirManuel,
     c.lv2Choice.appliquerChoix,
     c.lv2Choice.suivreFenetre,
+    new AIActionAuditAdapter(p),
   );
   app.use('/api/v2/lv2-choice-windows', creerLv2ChoiceRoutes(lv2ChoiceController));
   app.use('/api/v2/students/me', creerLv2ChoiceStudentRoutes(lv2ChoiceController));
@@ -857,7 +859,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
 
   // ── Discipline ───────────────────────────────────────────────────────────────
   // Extraits de bootstrap.ts vers DisciplineController (déviation architecturale corrigée)
-  const disciplineController = new DisciplineController(p);
+  const disciplineController = new DisciplineController(new PrismaDisciplineRepository(p), new PrismaUserRepository(p), new AIActionAuditAdapter(p));
   app.use('/api/v2/discipline', creerDisciplineRoutes(disciplineController));
 
   // ── Bibliothèque ─────────────────────────────────────────────────────────────

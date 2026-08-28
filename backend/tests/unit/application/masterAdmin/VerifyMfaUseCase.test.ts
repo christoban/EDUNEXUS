@@ -19,6 +19,25 @@ function authRepoMock(masterUser: MasterUserAuthData | null): MasterUserAuthRepo
     updateMfaRecoveryCodes: async (_id, hashes) => {
       if (store.masterUser) store.masterUser.mfaRecoveryCodeHashes = hashes;
     },
+    setMfaTempSecret: async (_id, secret) => {
+      if (store.masterUser) store.masterUser.mfaTempSecret = secret;
+    },
+    activateMfa: async (_id, data) => {
+      if (store.masterUser) {
+        store.masterUser.mfaEnabled = true;
+        store.masterUser.mfaSecret = data.mfaSecret;
+        store.masterUser.mfaTempSecret = null;
+        store.masterUser.mfaRecoveryCodeHashes = data.recoveryCodeHashes;
+      }
+    },
+    deactivateMfa: async () => {
+      if (store.masterUser) {
+        store.masterUser.mfaEnabled = false;
+        store.masterUser.mfaSecret = null;
+        store.masterUser.mfaTempSecret = null;
+        store.masterUser.mfaRecoveryCodeHashes = [];
+      }
+    },
   };
 }
 
@@ -33,6 +52,7 @@ function masterUser(overrides: Partial<MasterUserAuthData>): MasterUserAuthData 
     passwordHash: 'hash',
     mfaEnabled: false,
     mfaSecret: null,
+    mfaTempSecret: null,
     mfaRecoveryCodeHashes: [],
     loginEmailOtpHash: null,
     loginEmailOtpExpiresAt: null,

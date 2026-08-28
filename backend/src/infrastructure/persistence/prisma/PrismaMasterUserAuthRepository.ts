@@ -93,4 +93,31 @@ export class PrismaMasterUserAuthRepository implements MasterUserAuthRepository 
       data: { mfaRecoveryCodeHashes: hashes },
     });
   }
+
+  async setMfaTempSecret(masterUserId: string, secret: string): Promise<void> {
+    await this.prisma.masterUser.update({
+      where: { id: masterUserId },
+      data: { mfaTempSecret: secret },
+    });
+  }
+
+  async activateMfa(masterUserId: string, data: { mfaSecret: string; recoveryCodeHashes: string[] }): Promise<void> {
+    await this.prisma.masterUser.update({
+      where: { id: masterUserId },
+      data: {
+        mfaEnabled: true,
+        mfaSecret: data.mfaSecret,
+        mfaTempSecret: null,
+        mfaRecoveryCodeHashes: data.recoveryCodeHashes,
+        mfaRecoveryCodeGeneratedAt: new Date(),
+      },
+    });
+  }
+
+  async deactivateMfa(masterUserId: string): Promise<void> {
+    await this.prisma.masterUser.update({
+      where: { id: masterUserId },
+      data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] },
+    });
+  }
 }

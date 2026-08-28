@@ -100,7 +100,13 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
   app.get('/api/v2/templates/import-eleves', requireAuth, requireRole('ADMIN'), templateController.importEleves);
   app.get('/api/v2/templates/import-enseignants', requireAuth, requireRole('ADMIN'), templateController.importEnseignants);
 
-  const studentDocumentController = new StudentDocumentController(p as any);
+  const studentDocumentController = new StudentDocumentController(
+    c.studentDocument.studentProfileRepository,
+    c.studentDocument.schoolRepository,
+    c.studentDocument.anneeRepository,
+    c.studentDocument.bulletinRepository,
+    c.studentDocument.documentRepository,
+  );
   app.use('/api/v2', creerStudentDocumentRoutes(studentDocumentController));
 
   const academicYearController = new AcademicYearController(

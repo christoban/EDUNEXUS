@@ -20,6 +20,11 @@ export interface Lv2ChoiceSubmissionRef {
 }
 
 export interface Lv2ChoiceRepository {
+  listerFenetres(schoolId: string): Promise<Lv2ChoiceWindowRef[]>;
+  trouverProfilEleveAvecClasse(userId: string, schoolId: string): Promise<{ id: string; classId: string | null; level: string | null } | null>;
+  trouverFenetreOuverteParNiveauExacte(schoolId: string, level: string): Promise<Lv2ChoiceWindowRef | null>;
+  trouverSoumission(windowId: string, studentProfileId: string): Promise<Lv2ChoiceSubmissionRef | null>;
+  listerMatieresLV2(schoolId: string): Promise<{ id: string; name: string }[]>;
   trouverFenetre(fenetreId: string): Promise<Lv2ChoiceWindowRef | null>;
   trouverFenetreOuverteParNiveau(schoolId: string, level: string, academicYearId: string): Promise<Lv2ChoiceWindowRef | null>;
   trouverFenetreOuverteActive(schoolId: string, level: string): Promise<Lv2ChoiceWindowRef | null>;

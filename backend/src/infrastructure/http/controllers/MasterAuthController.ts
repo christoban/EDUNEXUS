@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import { logMasterAuthAudit } from '../../services/audit/MasterAuthAuditService';
 import { LoginMasterUseCase } from '../../../application/masterAdmin/LoginMasterUseCase';
 import { VerifyMfaUseCase } from '../../../application/masterAdmin/VerifyMfaUseCase';
-import { prisma } from '../../../config/prisma';
+import type { MasterUserAuthRepository } from '@domain/ports/repositories/MasterUserAuthRepository';
 
 const getMasterSecret = (): string =>
   process.env.MASTER_JWT_SECRET || process.env.JWT_SECRET || '';
@@ -15,6 +15,7 @@ export class MasterAuthController {
   constructor(
     private readonly loginUseCase: LoginMasterUseCase,
     private readonly verifyMfaUseCase: VerifyMfaUseCase,
+    private readonly masterUserAuthRepository: MasterUserAuthRepository,
   ) {}
 
   login = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -227,16 +228,13 @@ export class MasterAuthController {
   // ── Génère un secret temporaire + QR code (appelé avant mfaEnable) ─────────
   mfaSetup = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const masterUser = await prisma.masterUser.findUnique({
-        where: { id: req.masterUser!.id },
-        select: { id: true, email: true, mfaEnabled: true },
-      });
+      const masterUser = await this.masterUserAuthRepository.findById(req.masterUser!.id);
       if (!masterUser) { res.status(404).json({ success: false, message: 'Compte introuvable' }); return; }
       if (masterUser.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA déjà activé sur ce compte.' }); return; }
 
       const secret: string = generateSecret();
 
-      await prisma.masterUser.update({ where: { id: masterUser.id }, data: { mfaTempSecret: secret } });
+      await this.masterUserAuthRepository.setMfaTempSecret(masterUser.id, secret);
 
       const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia Admin', label: masterUser.email, secret });
       const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
@@ -253,10 +251,7 @@ export class MasterAuthController {
       const { totpCode } = req.body;
       if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
 
-      const masterUser = await prisma.masterUser.findUnique({
-        where: { id: req.masterUser!.id },
-        select: { id: true, email: true, mfaTempSecret: true, mfaEnabled: true },
-      });
+      const masterUser = await this.masterUserAuthRepository.findById(req.masterUser!.id);
       if (!masterUser?.mfaTempSecret) {
         res.status(400).json({ success: false, message: 'Aucune configuration MFA en cours. Recommencez depuis l\'étape 1.' });
         return;
@@ -280,15 +275,9 @@ export class MasterAuthController {
       const formatted = rawCodes.map(c => `${c.slice(0,4)}-${c.slice(4,8)}-${c.slice(8,12)}-${c.slice(12,16)}`);
       const hashed = await Promise.all(rawCodes.map(c => bcrypt.hash(c, 10)));
 
-      await prisma.masterUser.update({
-        where: { id: masterUser.id },
-        data: {
-          mfaEnabled: true,
-          mfaSecret: masterUser.mfaTempSecret,
-          mfaTempSecret: null,
-          mfaRecoveryCodeHashes: hashed,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
+      await this.masterUserAuthRepository.activateMfa(masterUser.id, {
+        mfaSecret: masterUser.mfaTempSecret,
+        recoveryCodeHashes: hashed,
       });
 
       void logMasterAuthAudit({ req, outcome: 'success', reason: 'mfa_enabled', email: masterUser.email });
@@ -301,16 +290,10 @@ export class MasterAuthController {
   // ── Désactive le MFA (password + code TOTP via requireMasterSensitiveAuth) ─
   mfaDisable = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const masterUser = await prisma.masterUser.findUnique({
-        where: { id: req.masterUser!.id },
-        select: { id: true, email: true, mfaEnabled: true },
-      });
+      const masterUser = await this.masterUserAuthRepository.findById(req.masterUser!.id);
       if (!masterUser?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif sur ce compte.' }); return; }
 
-      await prisma.masterUser.update({
-        where: { id: masterUser.id },
-        data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] },
-      });
+      await this.masterUserAuthRepository.deactivateMfa(masterUser.id);
 
       void logMasterAuthAudit({ req, outcome: 'success', reason: 'mfa_disabled', email: masterUser.email });
       res.json({ success: true, message: 'MFA désactivé.' });
@@ -322,10 +305,7 @@ export class MasterAuthController {
   // ── Régénère les codes de récupération (password + TOTP via middleware) ────
   mfaRegenCodes = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const masterUser = await prisma.masterUser.findUnique({
-        where: { id: req.masterUser!.id },
-        select: { id: true, email: true, mfaEnabled: true },
-      });
+      const masterUser = await this.masterUserAuthRepository.findById(req.masterUser!.id);
       if (!masterUser?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif.' }); return; }
 
       const rawCodes = Array.from({ length: 8 }, () => {
@@ -335,10 +315,7 @@ export class MasterAuthController {
       const formatted = rawCodes.map(c => `${c.slice(0,4)}-${c.slice(4,8)}-${c.slice(8,12)}-${c.slice(12,16)}`);
       const hashed = await Promise.all(rawCodes.map(c => bcrypt.hash(c, 10)));
 
-      await prisma.masterUser.update({
-        where: { id: masterUser.id },
-        data: { mfaRecoveryCodeHashes: hashed, mfaRecoveryCodeGeneratedAt: new Date() },
-      });
+      await this.masterUserAuthRepository.updateMfaRecoveryCodes(masterUser.id, hashed);
 
       void logMasterAuthAudit({ req, outcome: 'success', reason: 'recovery_codes_regenerated', email: masterUser.email });
       res.json({ success: true, data: { recoveryCodes: formatted } });

@@ -1,6 +1,7 @@
 import type {
   StudentBulletinOptions,
   StudentProfileRepository,
+  StudentDocumentProfile,
 } from '@domain/ports/repositories/StudentProfileRepository';
 
 export class InMemoryStudentProfileRepository
@@ -21,5 +22,9 @@ export class InMemoryStudentProfileRepository
         (profile): profile is StudentBulletinOptions =>
           profile !== undefined,
       );
+  }
+
+  async findForDocument(_userId: string, _schoolId: string): Promise<StudentDocumentProfile | null> {
+    return null;
   }
 }

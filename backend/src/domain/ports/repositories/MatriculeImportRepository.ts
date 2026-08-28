@@ -28,6 +28,8 @@ export interface StudentProfileMatriculeData {
 export interface MatriculeImportRepository {
   creerJob(data: { schoolId: string; uploadedBy: string; fileName: string; totalRows: number }): Promise<MatriculeImportJobData>;
   trouverJob(jobId: string): Promise<MatriculeImportJobData | null>;
+  listerJobs(schoolId: string, limit?: number): Promise<MatriculeImportJobData[]>;
+  trouverJobPourEcole(jobId: string, schoolId: string): Promise<MatriculeImportJobData | null>;
   mettreAJourJob(jobId: string, data: Record<string, unknown>): Promise<void>;
   listerProfilsEcole(schoolId: string): Promise<StudentProfileMatriculeData[]>;
   trouverProfilParId(profileId: string, schoolId: string): Promise<StudentProfileMatriculeData | null>;

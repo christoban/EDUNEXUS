@@ -15,6 +15,7 @@ function repoMock(owner: Partial<GroupOwnerAuthData> & { id: string; email: stri
     passwordHash: 'hash',
     mfaEnabled: owner.mfaEnabled,
     mfaSecret: owner.mfaSecret,
+    mfaTempSecret: null,
     mfaRecoveryCodeHashes: owner.mfaRecoveryCodeHashes,
     loginEmailOtpHash: null,
     loginEmailOtpExpiresAt: null,

@@ -6,6 +6,7 @@ export interface GroupOwnerAuthData {
   passwordHash: string;
   mfaEnabled: boolean;
   mfaSecret: string | null;
+  mfaTempSecret: string | null;
   mfaRecoveryCodeHashes: string[];
   loginEmailOtpHash: string | null;
   loginEmailOtpExpiresAt: Date | null;
@@ -21,4 +22,7 @@ export interface SchoolGroupOwnerAuthRepository {
   incrementLoginOtpAttempts(ownerId: string): Promise<void>;
   clearLoginOtp(ownerId: string): Promise<void>;
   updateMfaRecoveryCodes(ownerId: string, hashes: string[]): Promise<void>;
+  setMfaTempSecret(ownerId: string, secret: string): Promise<void>;
+  activateMfa(ownerId: string, data: { mfaSecret: string; recoveryCodeHashes: string[] }): Promise<void>;
+  deactivateMfa(ownerId: string): Promise<void>;
 }

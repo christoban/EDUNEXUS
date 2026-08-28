@@ -151,7 +151,6 @@ import { assignerMatieresPourClasse, CYCLE2_LEVELS as SYNC_CYCLE2_LEVELS, parseS
 import { buildPayload, getLatestSchoolBackup } from '../../backup/SchoolBackupService';
 import type { PaymentMethod } from '@domain/types/enums';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { executerBroadcast } from '@infrastructure/http/controllers/CommunicationsController';
 import { calculerAlertesRetardProgramme } from '@infrastructure/services/pedagogie/AlerteRetardProgrammeService';
 import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../../services/sms/SmsNotificationService';
 import { notifierParentsPushDabord } from '../../services/notification/PushFirstNotifier';

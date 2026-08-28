@@ -154,7 +154,7 @@ import { assignerMatieresPourClasse, CYCLE2_LEVELS as SYNC_CYCLE2_LEVELS, parseS
 import { buildPayload, getLatestSchoolBackup } from '../../backup/SchoolBackupService';
 import type { PaymentMethod } from '@domain/types/enums';
 import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { executerBroadcast } from '@infrastructure/http/controllers/CommunicationsController';
+import { executerBroadcast } from '@infrastructure/services/communication/BroadcastService';
 import { calculerAlertesRetardProgramme } from '@infrastructure/services/pedagogie/AlerteRetardProgrammeService';
 import { notifyDisciplineSms, DISCIPLINE_TYPE_LABELS } from '../../services/sms/SmsNotificationService';
 import { notifierParentsPushDabord } from '../../services/notification/PushFirstNotifier';
@@ -924,7 +924,8 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     c.matricule.verifierRecu,
     c.matricule.confirmerFuzzy,
     c.matricule.signalerErreur,
-    prisma,
+    c.matricule.matriculeImportRepository,
+    new AIActionAuditAdapter(p),
   );
   app.use('/api/v2/matricules', creerMatriculeRoutes(matriculeController));
   // Route orpheline retrouvée : la méthode existait sur le controller mais n'était montée nulle part.

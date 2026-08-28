@@ -8,6 +8,7 @@ export interface MasterUserAuthData {
   passwordHash: string;
   mfaEnabled: boolean;
   mfaSecret: string | null;
+  mfaTempSecret: string | null;
   mfaRecoveryCodeHashes: string[];
   loginEmailOtpHash: string | null;
   loginEmailOtpExpiresAt: Date | null;
@@ -35,4 +36,7 @@ export interface MasterUserAuthRepository {
   /** Applique le nouveau mot de passe ET efface l'OTP password-change en une écriture. */
   applyPasswordChange(masterUserId: string, passwordHash: string): Promise<void>;
   updateMfaRecoveryCodes(masterUserId: string, hashes: string[]): Promise<void>;
+  setMfaTempSecret(masterUserId: string, secret: string): Promise<void>;
+  activateMfa(masterUserId: string, data: { mfaSecret: string; recoveryCodeHashes: string[] }): Promise<void>;
+  deactivateMfa(masterUserId: string): Promise<void>;
 }

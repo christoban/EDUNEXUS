@@ -135,7 +135,7 @@ export function registerUserRoutes(app: Application, prismaParam: typeof prisma 
     },
   );
   const verifyMfaUseCase = new VerifyMfaUseCase(masterUserAuthRepository);
-  const masterAuthController = new MasterAuthController(loginMasterUseCase, verifyMfaUseCase);
+  const masterAuthController = new MasterAuthController(loginMasterUseCase, verifyMfaUseCase, masterUserAuthRepository);
   app.use('/api/v2/master/auth', creerMasterAuthRoutes(masterAuthController));
   app.use('/api/v2/master', creerMasterAdminHexRoutes(masterAdminHexController));
 
@@ -159,7 +159,7 @@ export function registerUserRoutes(app: Application, prismaParam: typeof prisma 
     },
   );
   const verifyGroupOwnerMfaUseCase = new VerifyGroupOwnerMfaUseCase(schoolGroupOwnerAuthRepository);
-  const groupAuthController = new GroupAuthController(loginGroupOwnerUseCase, verifyGroupOwnerMfaUseCase);
+  const groupAuthController = new GroupAuthController(loginGroupOwnerUseCase, verifyGroupOwnerMfaUseCase, schoolGroupOwnerAuthRepository);
   app.use('/api/v2/group/auth', creerGroupAuthRoutes(groupAuthController));
 
   const groupDashboardController = new GroupDashboardController(

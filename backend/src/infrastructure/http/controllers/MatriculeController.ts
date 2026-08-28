@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
+import type { MatriculeImportRepository } from '@domain/ports/repositories/MatriculeImportRepository';
 import { ImporterMatriculesUseCase } from '@application/matricule/ImporterMatriculesUseCase';
 import { VerifierMatriculeUseCase } from '@application/matricule/VerifierMatriculeUseCase';
 import { SyncFromCarteScolaireUseCase } from '@application/matricule/SyncFromCarteScolaireUseCase';
@@ -7,7 +8,6 @@ import { VerifierRecuUseCase } from '@application/matricule/VerifierRecuUseCase'
 import { ConfirmerCorrespondanceFuzzyUseCase } from '@application/matricule/ConfirmerCorrespondanceFuzzyUseCase';
 import { SignalerErreurCarteScolaireUseCase } from '@application/matricule/SignalerErreurCarteScolaireUseCase';
 import { parseMatriculeExcel } from '@application/matricule/parserMatriculeExcel';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class MatriculeController {
@@ -18,7 +18,8 @@ export class MatriculeController {
     private readonly _verifierRecu: VerifierRecuUseCase,
     private readonly _confirmerFuzzy: ConfirmerCorrespondanceFuzzyUseCase,
     private readonly _signalerErreur: SignalerErreurCarteScolaireUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly matriculeRepository: MatriculeImportRepository,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   // POST /api/v2/matricules/import
@@ -51,11 +52,7 @@ export class MatriculeController {
   listJobs = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const jobs = await this.prisma.matriculeImportJob.findMany({
-        where: { schoolId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      });
+      const jobs = await this.matriculeRepository.listerJobs(schoolId, 20);
       res.json({ success: true, data: jobs });
     } catch (err) { next(err); }
   };
@@ -64,12 +61,7 @@ export class MatriculeController {
   getJob = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const jobId = String(req.params['id']);
-      // findFirst et non findUnique : `where` de findUnique n'accepte que des champs uniques,
-      // or schoolId ne l'est pas. Un job d'une autre école doit être introuvable, pas seulement
-      // interdit — le 404 existant ci-dessous s'en charge, sans message distinct.
-      const job = await this.prisma.matriculeImportJob.findFirst({
-        where: { id: jobId, schoolId: req.user!.schoolId },
-      });
+      const job = await this.matriculeRepository.trouverJobPourEcole(jobId, req.user!.schoolId);
       if (!job) {
         res.status(404).json({ success: false, message: 'Job introuvable' });
         return;
@@ -89,18 +81,12 @@ export class MatriculeController {
         return;
       }
 
-      const profile = await this.prisma.studentProfile.findFirst({
-        where: { id: studentId, user: { schoolId } },
-      });
+      const profile = await this.matriculeRepository.trouverProfilParId(studentId, schoolId);
       if (!profile) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
       }
-
-      await this.prisma.studentProfile.update({
-        where: { id: studentId },
-        data: { matricule, matriculeSource: 'MANUAL' },
-      });
+      await this.matriculeRepository.mettreAJourMatricule(studentId, { matricule, matriculeSource: 'MANUAL', matriculeMatchType: 'MANUAL' });
 
       res.json({ success: true, message: 'Matricule mis à jour' });
     } catch (err) { next(err); }
@@ -116,18 +102,12 @@ export class MatriculeController {
         return;
       }
 
-      const profile = await this.prisma.studentProfile.findFirst({
-        where: { id: studentProfileId, user: { schoolId } },
-      });
+      const profile = await this.matriculeRepository.trouverProfilParId(studentProfileId, schoolId);
       if (!profile) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
       }
-
-      await this.prisma.studentProfile.update({
-        where: { id: studentProfileId },
-        data: { matricule, matriculeSource: 'MANUAL' },
-      });
+      await this.matriculeRepository.mettreAJourMatricule(studentProfileId, { matricule, matriculeSource: 'MANUAL', matriculeMatchType: 'MANUAL' });
 
       res.json({ success: true, message: 'Matricule associé' });
     } catch (err) { next(err); }
@@ -161,14 +141,14 @@ export class MatriculeController {
       const schoolId = req.user!.schoolId;
       const studentId = String(req.params['studentId']);
       const result = await this._verifierMatricule.execute(schoolId, studentId);
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'verifier_matricule_eleve', targetType: 'User', targetId: studentId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { studentId },
       });
       res.json({ success: true, data: result });
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'verifier_matricule_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.params,

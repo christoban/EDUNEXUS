@@ -5,7 +5,7 @@ import { generateSecret, generateURI, verifySync } from 'otplib';
 import QRCode from 'qrcode';
 import { LoginGroupOwnerUseCase } from '../../../application/schoolGroup/LoginGroupOwnerUseCase';
 import { VerifyGroupOwnerMfaUseCase } from '../../../application/schoolGroup/VerifyGroupOwnerMfaUseCase';
-import { prisma } from '../../../config/prisma';
+import type { SchoolGroupOwnerAuthRepository } from '@domain/ports/repositories/SchoolGroupOwnerAuthRepository';
 
 const getGroupOwnerSecret = (): string =>
   process.env.GROUP_OWNER_JWT_SECRET || process.env.JWT_SECRET || '';
@@ -14,6 +14,7 @@ export class GroupAuthController {
   constructor(
     private readonly loginUseCase: LoginGroupOwnerUseCase,
     private readonly verifyMfaUseCase: VerifyGroupOwnerMfaUseCase,
+    private readonly ownerAuthRepository: SchoolGroupOwnerAuthRepository,
   ) {}
 
   login = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -156,16 +157,13 @@ export class GroupAuthController {
 
   mfaSetup = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const owner = await prisma.schoolGroupOwner.findUnique({
-        where: { id: req.groupOwner!.id },
-        select: { id: true, email: true, mfaEnabled: true },
-      });
+      const owner = await this.ownerAuthRepository.findById(req.groupOwner!.id);
       if (!owner) { res.status(404).json({ success: false, message: 'Compte introuvable' }); return; }
       if (owner.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA déjà activé sur ce compte.' }); return; }
 
       const secret: string = generateSecret();
 
-      await prisma.schoolGroupOwner.update({ where: { id: owner.id }, data: { mfaTempSecret: secret } });
+      await this.ownerAuthRepository.setMfaTempSecret(owner.id, secret);
 
       const otpauthUrl: string = generateURI({ issuer: 'ZekoulABia Groupe Scolaire', label: owner.email, secret });
       const qrDataUri: string = await QRCode.toDataURL(otpauthUrl);
@@ -181,10 +179,7 @@ export class GroupAuthController {
       const { totpCode } = req.body;
       if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
 
-      const owner = await prisma.schoolGroupOwner.findUnique({
-        where: { id: req.groupOwner!.id },
-        select: { id: true, email: true, mfaTempSecret: true, mfaEnabled: true },
-      });
+      const owner = await this.ownerAuthRepository.findById(req.groupOwner!.id);
       if (!owner?.mfaTempSecret) {
         res.status(400).json({ success: false, message: "Aucune configuration MFA en cours. Recommencez depuis l'étape 1." });
         return;
@@ -207,15 +202,9 @@ export class GroupAuthController {
       const formatted = rawCodes.map(c => `${c.slice(0,4)}-${c.slice(4,8)}-${c.slice(8,12)}-${c.slice(12,16)}`);
       const hashed = await Promise.all(rawCodes.map(c => bcrypt.hash(c, 10)));
 
-      await prisma.schoolGroupOwner.update({
-        where: { id: owner.id },
-        data: {
-          mfaEnabled: true,
-          mfaSecret: owner.mfaTempSecret,
-          mfaTempSecret: null,
-          mfaRecoveryCodeHashes: hashed,
-          mfaRecoveryCodeGeneratedAt: new Date(),
-        },
+      await this.ownerAuthRepository.activateMfa(owner.id, {
+        mfaSecret: owner.mfaTempSecret,
+        recoveryCodeHashes: hashed,
       });
 
       res.json({ success: true, data: { recoveryCodes: formatted } });
@@ -226,16 +215,10 @@ export class GroupAuthController {
 
   mfaDisable = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const owner = await prisma.schoolGroupOwner.findUnique({
-        where: { id: req.groupOwner!.id },
-        select: { id: true, mfaEnabled: true },
-      });
+      const owner = await this.ownerAuthRepository.findById(req.groupOwner!.id);
       if (!owner?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif sur ce compte.' }); return; }
 
-      await prisma.schoolGroupOwner.update({
-        where: { id: owner.id },
-        data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] },
-      });
+      await this.ownerAuthRepository.deactivateMfa(owner.id);
 
       res.json({ success: true, message: 'MFA désactivé.' });
     } catch (error: any) {
@@ -245,10 +228,7 @@ export class GroupAuthController {
 
   mfaRegenCodes = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
-      const owner = await prisma.schoolGroupOwner.findUnique({
-        where: { id: req.groupOwner!.id },
-        select: { id: true, mfaEnabled: true },
-      });
+      const owner = await this.ownerAuthRepository.findById(req.groupOwner!.id);
       if (!owner?.mfaEnabled) { res.status(400).json({ success: false, message: 'MFA non actif.' }); return; }
 
       const rawCodes = Array.from({ length: 8 }, () => {
@@ -258,10 +238,7 @@ export class GroupAuthController {
       const formatted = rawCodes.map(c => `${c.slice(0,4)}-${c.slice(4,8)}-${c.slice(8,12)}-${c.slice(12,16)}`);
       const hashed = await Promise.all(rawCodes.map(c => bcrypt.hash(c, 10)));
 
-      await prisma.schoolGroupOwner.update({
-        where: { id: owner.id },
-        data: { mfaRecoveryCodeHashes: hashed, mfaRecoveryCodeGeneratedAt: new Date() },
-      });
+      await this.ownerAuthRepository.updateMfaRecoveryCodes(owner.id, hashed);
 
       res.json({ success: true, data: { recoveryCodes: formatted } });
     } catch (error: any) {

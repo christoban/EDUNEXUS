@@ -47,4 +47,29 @@ export class InMemorySchoolGroupOwnerAuthRepository implements SchoolGroupOwnerA
     const owner = this.store.get(ownerId);
     if (owner) owner.mfaRecoveryCodeHashes = hashes;
   }
+
+  async setMfaTempSecret(ownerId: string, secret: string): Promise<void> {
+    const owner = this.store.get(ownerId);
+    if (owner) owner.mfaTempSecret = secret;
+  }
+
+  async activateMfa(ownerId: string, data: { mfaSecret: string; recoveryCodeHashes: string[] }): Promise<void> {
+    const owner = this.store.get(ownerId);
+    if (owner) {
+      owner.mfaEnabled = true;
+      owner.mfaSecret = data.mfaSecret;
+      owner.mfaTempSecret = null;
+      owner.mfaRecoveryCodeHashes = data.recoveryCodeHashes;
+    }
+  }
+
+  async deactivateMfa(ownerId: string): Promise<void> {
+    const owner = this.store.get(ownerId);
+    if (owner) {
+      owner.mfaEnabled = false;
+      owner.mfaSecret = null;
+      owner.mfaTempSecret = null;
+      owner.mfaRecoveryCodeHashes = [];
+    }
+  }
 }

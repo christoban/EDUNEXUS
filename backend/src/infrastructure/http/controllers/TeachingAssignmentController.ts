@@ -1,9 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
 import { CYCLE2_LEVELS, parseSerie } from '@application/school/SubjectAssignmentHelper';
+import type { RattachementEnseignantRepository } from '@domain/ports/repositories/RattachementEnseignantRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 export class TeachingAssignmentController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly rattachementRepository: RattachementEnseignantRepository,
+    private readonly audit: AIActionAuditPort,
+  ) {}
 
   // GET /api/v2/teaching-assignments?classId=:id
   getByClass = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -16,10 +20,7 @@ export class TeachingAssignmentController {
         return;
       }
 
-      const cls = await this.prisma.class.findFirst({
-        where: { id: classId, schoolId },
-        select: { id: true, name: true, level: true, serie: true, filiere: true },
-      });
+      const cls = await this.rattachementRepository.trouverClasse(classId, schoolId);
       if (!cls) {
         res.status(404).json({ success: false, message: 'Classe introuvable' });
         return;
@@ -35,22 +36,12 @@ export class TeachingAssignmentController {
 
       // Matières du programme de cette classe : SubjectCoefficient (niveau) + ClassSubjectOverride (classe)
       const [coefficients, overrides] = await Promise.all([
-        this.prisma.subjectCoefficient.findMany({
-          where: {
-            schoolId,
-            classLevel: cls.level ?? undefined,
-            OR: resolvedSerie
-              ? [{ serieCode: resolvedSerie }, { serieCode: null }]
-              : [{ serieCode: null }],
-          },
-          include: { subject: { select: { id: true, name: true } } },
-          orderBy: { subject: { name: 'asc' } },
+        this.rattachementRepository.listerCoefficients({
+          schoolId,
+          classLevel: cls.level ?? null,
+          serieCode: resolvedSerie,
         }),
-        this.prisma.classSubjectOverride.findMany({
-          where: { classId, schoolId },
-          include: { subject: { select: { id: true, name: true } } },
-          orderBy: { subject: { name: 'asc' } },
-        }),
+        this.rattachementRepository.listerOverrides(classId, schoolId),
       ]);
 
       // Les overrides prennent priorité : on exclut les matières déjà couvertes
@@ -78,25 +69,14 @@ export class TeachingAssignmentController {
       ];
 
       // Affectations existantes pour cette classe
-      const assignments = await this.prisma.teachingAssignment.findMany({
-        where: { classId, schoolId },
-        include: { teacher: { select: { id: true, firstName: true, lastName: true } } },
-      });
+      const assignments = await this.rattachementRepository.listerAffectations(classId, schoolId);
       const assignmentMap = new Map(assignments.map(a => [a.subjectId, a]));
 
       // Pour chaque matière : enseignants éligibles (qui ont déclaré cette matière)
       const data = await Promise.all(
         allSubjects.map(async s => {
           const assignment = assignmentMap.get(s.subjectId);
-          const eligibleTeachers = await this.prisma.user.findMany({
-            where: {
-              schoolId,
-              role: 'TEACHER',
-              teacherProfile: { teacherSubjects: { some: { subjectId: s.subjectId } } },
-            },
-            select: { id: true, firstName: true, lastName: true },
-            orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-          });
+          const eligibleTeachers = await this.rattachementRepository.listerEnseignantsEligibles(schoolId, s.subjectId);
 
           return {
             subjectId: s.subjectId,
@@ -137,10 +117,7 @@ export class TeachingAssignmentController {
       }
 
       // Vérifier que la classe appartient à cette école
-      const cls = await this.prisma.class.findFirst({
-        where: { id: classId, schoolId },
-        select: { id: true, academicYearId: true },
-      });
+      const cls = await this.rattachementRepository.trouverClasse(classId, schoolId);
       if (!cls) {
         res.status(404).json({ success: false, message: 'Classe introuvable' });
         return;
@@ -148,34 +125,61 @@ export class TeachingAssignmentController {
 
       if (!teacherId) {
         // Désaffecter
-        await this.prisma.teachingAssignment.deleteMany({
-          where: { classId, subjectId, schoolId },
+        await this.rattachementRepository.retirer({ classId, subjectId, schoolId });
+        this.audit.journaliser({
+          actorUserId: req.user!.userId,
+          actorRole: req.user!.role,
+          schoolId,
+          actionName: 'retirer_affectation',
+          targetType: 'TeachingAssignment',
+          targetId: `${classId}:${subjectId}`,
+          origin: 'UI_DIRECT',
+          outcome: 'SUCCES',
+          parametersSummary: { classId, subjectId },
         });
         res.json({ success: true, message: 'Affectation supprimée' });
         return;
       }
 
       // Vérifier que c'est bien un enseignant de cette école
-      const teacher = await this.prisma.user.findFirst({
-        where: { id: teacherId, schoolId, role: 'TEACHER' },
-        select: { id: true },
-      });
-      if (!teacher) {
+      const enseignantValide = await this.rattachementRepository.verifierEnseignant(teacherId, schoolId);
+      if (!enseignantValide) {
         res.status(400).json({ success: false, message: 'Enseignant introuvable' });
         return;
       }
 
-      await this.prisma.teachingAssignment.upsert({
-        where: { classId_subjectId: { classId, subjectId } },
-        // academicYearId repris de la classe elle-même (source de vérité year-scoped) plutôt que
-        // d'une résolution séparée de "l'année courante" — l'affectation est pour CETTE classe,
-        // qui porte déjà son année.
-        create: { classId, subjectId, teacherId, schoolId, academicYearId: cls.academicYearId },
-        update: { teacherId },
+      await this.rattachementRepository.assigner({
+        classId,
+        subjectId,
+        teacherId,
+        schoolId,
+        academicYearId: cls.academicYearId,
+      });
+
+      this.audit.journaliser({
+        actorUserId: req.user!.userId,
+        actorRole: req.user!.role,
+        schoolId,
+        actionName: 'assigner_enseignant',
+        targetType: 'TeachingAssignment',
+        targetId: `${classId}:${subjectId}`,
+        origin: 'UI_DIRECT',
+        outcome: 'SUCCES',
+        parametersSummary: { classId, subjectId, teacherId },
       });
 
       res.json({ success: true, message: 'Affectation enregistrée' });
     } catch (error) {
+      this.audit.journaliser({
+        actorUserId: req.user?.userId,
+        actorRole: req.user?.role,
+        schoolId: req.user?.schoolId,
+        actionName: 'assigner_enseignant',
+        origin: 'UI_DIRECT',
+        outcome: 'ERREUR',
+        refusalReason: error instanceof Error ? error.message : undefined,
+        parametersSummary: req.body,
+      });
       next(error);
     }
   };

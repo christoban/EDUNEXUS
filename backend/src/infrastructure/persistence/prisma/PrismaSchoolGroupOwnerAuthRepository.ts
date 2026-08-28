@@ -60,4 +60,31 @@ export class PrismaSchoolGroupOwnerAuthRepository implements SchoolGroupOwnerAut
       data: { mfaRecoveryCodeHashes: hashes },
     });
   }
+
+  async setMfaTempSecret(ownerId: string, secret: string): Promise<void> {
+    await this.prisma.schoolGroupOwner.update({
+      where: { id: ownerId },
+      data: { mfaTempSecret: secret },
+    });
+  }
+
+  async activateMfa(ownerId: string, data: { mfaSecret: string; recoveryCodeHashes: string[] }): Promise<void> {
+    await this.prisma.schoolGroupOwner.update({
+      where: { id: ownerId },
+      data: {
+        mfaEnabled: true,
+        mfaSecret: data.mfaSecret,
+        mfaTempSecret: null,
+        mfaRecoveryCodeHashes: data.recoveryCodeHashes,
+        mfaRecoveryCodeGeneratedAt: new Date(),
+      },
+    });
+  }
+
+  async deactivateMfa(ownerId: string): Promise<void> {
+    await this.prisma.schoolGroupOwner.update({
+      where: { id: ownerId },
+      data: { mfaEnabled: false, mfaSecret: null, mfaTempSecret: null, mfaRecoveryCodeHashes: [] },
+    });
+  }
 }

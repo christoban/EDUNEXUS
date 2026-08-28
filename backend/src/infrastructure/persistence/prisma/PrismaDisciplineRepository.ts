@@ -12,6 +12,42 @@ export class PrismaDisciplineRepository implements DisciplineRepository {
     return !!student;
   }
 
+  async findRecordsBySchool(schoolId: string, filters: { studentId?: string; type?: string; status?: string; page: number; limit: number }): Promise<DisciplineRecordData[]> {
+    return this.prisma.disciplineRecord.findMany({
+      where: { schoolId, ...(filters.studentId ? { studentId: filters.studentId } : {}), ...(filters.type ? { type: filters.type as DisciplineType } : {}), ...(filters.status ? { status: filters.status as any } : {}) },
+      include: { student: { select: { id: true, firstName: true, lastName: true } }, decidedBy: { select: { id: true, firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip: (filters.page - 1) * filters.limit,
+      take: filters.limit,
+    });
+  }
+
+  async countRecordsBySchool(schoolId: string, filters: { studentId?: string; type?: string; status?: string }): Promise<number> {
+    return this.prisma.disciplineRecord.count({
+      where: { schoolId, ...(filters.studentId ? { studentId: filters.studentId } : {}), ...(filters.type ? { type: filters.type as DisciplineType } : {}), ...(filters.status ? { status: filters.status as any } : {}) },
+    });
+  }
+
+  async trouverRecord(id: string, schoolId: string): Promise<DisciplineRecordData | null> {
+    return this.prisma.disciplineRecord.findFirst({ where: { id, schoolId } });
+  }
+
+  async leverRecord(id: string): Promise<DisciplineRecordData> {
+    return this.prisma.disciplineRecord.update({
+      where: { id },
+      data: { status: 'LIFTED' },
+      include: { student: { select: { id: true, firstName: true, lastName: true } } },
+    });
+  }
+
+  async findParentEmails(studentId: string): Promise<string[]> {
+    const parentLinks = await this.prisma.parentStudent.findMany({
+      where: { studentProfile: { userId: studentId } },
+      include: { parentProfile: { include: { user: { select: { email: true } } } } },
+    });
+    return parentLinks.map((l) => l.parentProfile?.user?.email).filter((e): e is string => Boolean(e));
+  }
+
   async creerSession(data: {
     schoolId: string;
     studentId: string;

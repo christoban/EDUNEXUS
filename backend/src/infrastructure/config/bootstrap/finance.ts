@@ -8,6 +8,7 @@ import { creerDepartmentRoutes } from '@infrastructure/http/routes/department.ro
 import { StatisticsController } from '@infrastructure/http/controllers/StatisticsController';
 import { creerStatisticsRoutes } from '@infrastructure/http/routes/statistics.routes';
 import { CommunicationsController } from '@infrastructure/http/controllers/CommunicationsController';
+import { BroadcastService } from '@infrastructure/services/communication/BroadcastService';
 import { creerCommunicationsRoutes } from '@infrastructure/http/routes/communications.routes';
 import { TeachingAssignmentController } from '@infrastructure/http/controllers/TeachingAssignmentController';
 import { creerTeachingAssignmentRoutes } from '@infrastructure/http/routes/teaching-assignment.routes';
@@ -19,6 +20,7 @@ import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaU
 import { PrismaDepartmentRepository } from '@infrastructure/persistence/prisma/PrismaDepartmentRepository';
 import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
 import { PrismaStatisticsQueryRepository } from '@infrastructure/persistence/prisma/PrismaStatisticsQueryRepository';
+import { PrismaRattachementEnseignantRepository } from '@infrastructure/persistence/prisma/PrismaRattachementEnseignantRepository';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
@@ -71,10 +73,14 @@ export function registerFinanceRoutes(app: Application, prismaParam: typeof pris
   );
   app.use('/api/v2/statistics', creerStatisticsRoutes(statisticsController));
 
-  const communicationsController = new CommunicationsController(p as any);
+  const broadcastService = new BroadcastService(p as any);
+  const communicationsController = new CommunicationsController(broadcastService, auditForFinance);
   app.use('/api/v2/communications', creerCommunicationsRoutes(communicationsController));
 
-  const teachingAssignmentController = new TeachingAssignmentController(p as any);
+  const teachingAssignmentController = new TeachingAssignmentController(
+    new PrismaRattachementEnseignantRepository(p as any),
+    auditForFinance,
+  );
   app.use('/api/v2/teaching-assignments', creerTeachingAssignmentRoutes(teachingAssignmentController));
 
   const timetableGridConfigController = new TimetableGridConfigController(p as any);

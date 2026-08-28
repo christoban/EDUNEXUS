@@ -14,6 +14,7 @@ function makeStore(overrides: Partial<MasterUserAuthData> = {}): MasterUserAuthD
     passwordHash: 'hash-initial',
     mfaEnabled: false,
     mfaSecret: null,
+    mfaTempSecret: null,
     mfaRecoveryCodeHashes: [],
     loginEmailOtpHash: null,
     loginEmailOtpExpiresAt: null,
@@ -52,6 +53,19 @@ function authRepoMock(store: MasterUserAuthData): MasterUserAuthRepository {
       store.passwordChangeEmailOtpSentAt = null;
     },
     updateMfaRecoveryCodes: async () => {},
+    setMfaTempSecret: async (_id, secret) => { store.mfaTempSecret = secret; },
+    activateMfa: async (_id, data) => {
+      store.mfaEnabled = true;
+      store.mfaSecret = data.mfaSecret;
+      store.mfaTempSecret = null;
+      store.mfaRecoveryCodeHashes = data.recoveryCodeHashes;
+    },
+    deactivateMfa: async () => {
+      store.mfaEnabled = false;
+      store.mfaSecret = null;
+      store.mfaTempSecret = null;
+      store.mfaRecoveryCodeHashes = [];
+    },
   };
 }
 
