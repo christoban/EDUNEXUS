@@ -1,5 +1,5 @@
 import type { PrismaClient, APEETransactionType } from '@prisma/client';
-import type { ApeeRepository, ApeeTransactionData } from '@domain/ports/repositories/ApeeRepository';
+import type { ApeeRepository, ApeeTransactionData, ApeeTransactionAvecAuteurs, ApeeSolde } from '@domain/ports/repositories/ApeeRepository';
 
 export class PrismaApeeRepository implements ApeeRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -39,5 +39,36 @@ export class PrismaApeeRepository implements ApeeRepository {
       where: { id },
       data: { valide: true, valideParId, valideAt: new Date() },
     });
+  }
+
+  async listerTransactions(schoolId: string, includeAuteurs: boolean): Promise<ApeeTransactionAvecAuteurs[]> {
+    return this.prisma.aPEETransaction.findMany({
+      where: { schoolId },
+      orderBy: { date: 'desc' },
+      include: includeAuteurs ? {
+        creePar: { select: { firstName: true, lastName: true } },
+        validePar: { select: { firstName: true, lastName: true } },
+      } : undefined,
+    });
+  }
+
+  async attacherJustificatif(id: string, justificatifUrl: string): Promise<ApeeTransactionData> {
+    return this.prisma.aPEETransaction.update({
+      where: { id },
+      data: { justificatifUrl },
+    });
+  }
+
+  async obtenirSolde(schoolId: string): Promise<ApeeSolde> {
+    const [collectes, depensesValidees, depensesEnAttente] = await Promise.all([
+      this.prisma.aPEETransaction.aggregate({ where: { schoolId, type: 'COLLECTE' }, _sum: { montant: true } }),
+      this.prisma.aPEETransaction.aggregate({ where: { schoolId, type: 'DEPENSE', valide: true }, _sum: { montant: true } }),
+      this.prisma.aPEETransaction.count({ where: { schoolId, type: 'DEPENSE', valide: false } }),
+    ]);
+    return {
+      totalCollectes: collectes._sum.montant ?? 0,
+      totalDepenses: depensesValidees._sum.montant ?? 0,
+      depensesEnAttente: depensesEnAttente,
+    };
   }
 }

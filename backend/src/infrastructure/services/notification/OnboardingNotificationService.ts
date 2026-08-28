@@ -41,7 +41,28 @@ export async function notifierOnboardingLienCree(
       where: { id: schoolId },
       select: { name: true },
     });
-    const schoolName = school?.name ?? 'votre établissement';
+    await notifierOnboardingLienCreeAvecEcole(schoolId, school?.name ?? null, nomProvisoire, result);
+  } catch (err: unknown) {
+    console.error('[Onboarding] Échec notification lien créé:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** Variante sans Prisma (controller hexagonal) — schoolName résolu en amont via SchoolRepository. */
+export async function notifierOnboardingLienCreeAvecEcole(
+  schoolId: string,
+  schoolName: string | null,
+  nomProvisoire: string,
+  result: {
+    token: string;
+    tokenExpiresAt: Date;
+    contactEmail: string | null;
+    contactTelephone: string | null;
+    parentContactEmail?: string | null;
+    parentContactTelephone?: string | null;
+  },
+): Promise<void> {
+  try {
+    const schoolNameResolved = schoolName ?? 'votre établissement';
     const formUrl = `${frontendUrl()}/eleve-onboarding/${result.token}`;
     const expiryDays = Math.max(
       1,
@@ -57,7 +78,7 @@ export async function notifierOnboardingLienCree(
 
     for (const dest of destinataires) {
       if (dest.email) {
-        const tpl = buildOnboardingLinkTemplate({ nomProvisoire, schoolName, formUrl, expiryDays });
+        const tpl = buildOnboardingLinkTemplate({ nomProvisoire, schoolName: schoolNameResolved, formUrl, expiryDays });
         await sendTransactionalEmail({
           recipientEmail: dest.email,
           subject: tpl.subject,
@@ -71,7 +92,7 @@ export async function notifierOnboardingLienCree(
         );
       }
       if (dest.phone) {
-        void notifyOnboardingLinkSms({ schoolId, nomProvisoire, schoolName, phone: dest.phone, expiryDays, formUrl });
+        void notifyOnboardingLinkSms({ schoolId, nomProvisoire, schoolName: schoolNameResolved, phone: dest.phone, expiryDays, formUrl });
       }
     }
   } catch (err: unknown) {
@@ -100,23 +121,47 @@ export async function notifierOnboardingValidation(
       select: { name: true, subdomain: true },
     });
     const schoolName = school?.name ?? 'votre établissement';
+    await notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result);
+  } catch (err: unknown) {
+    console.error('[Onboarding] Échec notification validation:', err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** Variante sans Prisma (controller hexagonal) — schoolName/subdomain résolus en amont via SchoolRepository. */
+export async function notifierOnboardingValidationAvecEcole(
+  schoolId: string,
+  schoolName: string | null,
+  subdomain: string | null,
+  result: {
+    comptesCrees: {
+      role: 'STUDENT' | 'PARENT';
+      resetToken: string | null;
+      contactEmail: string | null;
+      contactTelephone: string | null;
+      compteExistant: boolean;
+      accessMode?: 'FULL_ACCESS' | 'SMS_ONLY';
+    }[];
+  },
+): Promise<void> {
+  try {
+    const schoolNameResolved = schoolName ?? 'votre établissement';
 
     for (const compte of result.comptesCrees) {
       if (compte.compteExistant) continue;
 
       if (compte.accessMode === 'SMS_ONLY') {
         if (compte.contactTelephone) {
-          void notifyOnboardingActivatedSmsOnly({ schoolId, schoolName, phone: compte.contactTelephone });
+          void notifyOnboardingActivatedSmsOnly({ schoolId, schoolName: schoolNameResolved, phone: compte.contactTelephone });
         }
         continue;
       }
 
       if (!compte.resetToken) continue;
       const recipientName = compte.role === 'PARENT' ? 'Parent' : 'Élève';
-      const setupUrl = `${frontendUrl()}/reset-password?token=${compte.resetToken}&subdomain=${school?.subdomain ?? ''}`;
+      const setupUrl = `${frontendUrl()}/reset-password?token=${compte.resetToken}&subdomain=${subdomain ?? ''}`;
 
       if (compte.contactEmail) {
-        const tpl = buildOnboardingPasswordSetupTemplate({ recipientName, schoolName, setupUrl });
+        const tpl = buildOnboardingPasswordSetupTemplate({ recipientName, schoolName: schoolNameResolved, setupUrl });
         await sendTransactionalEmail({
           recipientEmail: compte.contactEmail,
           subject: tpl.subject,
@@ -130,7 +175,7 @@ export async function notifierOnboardingValidation(
         );
       }
       if (compte.contactTelephone) {
-        void notifyOnboardingActivatedSms({ schoolId, schoolName, phone: compte.contactTelephone, setupUrl });
+        void notifyOnboardingActivatedSms({ schoolId, schoolName: schoolNameResolved, phone: compte.contactTelephone, setupUrl });
       }
     }
   } catch (err: unknown) {

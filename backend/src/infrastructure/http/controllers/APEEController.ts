@@ -1,27 +1,27 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient } from '@prisma/client';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
+import type { ApeeRepository } from '@domain/ports/repositories/ApeeRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
 import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-import { PrismaApeeRepository } from '@infrastructure/persistence/prisma/PrismaApeeRepository';
 import { generateRapportAPEEPdf } from '../../pdf/apee/ApeeReportPdfRenderer';
 
 const JUSTIFICATIFS_DIR = path.resolve(process.cwd(), 'storage', 'apee-justificatifs');
 
 /**
- * Préfixe /api/v2/apee (MODULE 7/11, chantier Transparence APEE — Juillet 2026). Registre
- * consultable par l'Intendant (saisie + upload + validation) et par le Parent (lecture seule,
- * anonymisée : le parent ne voit jamais qui a créé/validé une transaction, seulement les
- * montants/catégories/dates — voir `list` et `solde` ci-dessous).
+ * Préfixe /api/v2/apee (MODULE 7/11, chantier Transparence APEE — Juillet 2026).
  */
 export class APEEController {
   private readonly creerTransaction: CreerTransactionAPEEUseCase;
   private readonly validerDepense: ValiderDepenseAPEEUseCase;
 
-  constructor(private readonly prisma: PrismaClient) {
-    const apeeRepository = new PrismaApeeRepository(prisma);
+  constructor(
+    private readonly apeeRepository: ApeeRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly audit: AIActionAuditPort,
+  ) {
     this.creerTransaction = new CreerTransactionAPEEUseCase(apeeRepository);
     this.validerDepense = new ValiderDepenseAPEEUseCase(apeeRepository);
   }
@@ -51,14 +51,14 @@ export class APEEController {
         date: body.date ? new Date(body.date) : undefined,
       });
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'enregistrer_transaction_apee', targetType: 'APEETransaction', targetId: transaction.id,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: body,
       });
       res.status(201).json({ success: true, data: transaction });
     } catch (error) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'enregistrer_transaction_apee', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -73,18 +73,11 @@ export class APEEController {
       const schoolId = req.user!.schoolId;
       const isParent = req.user!.role === 'PARENT';
 
-      const transactions = await this.prisma.aPEETransaction.findMany({
-        where: { schoolId },
-        orderBy: { date: 'desc' },
-        include: isParent ? undefined : {
-          creePar: { select: { firstName: true, lastName: true } },
-          validePar: { select: { firstName: true, lastName: true } },
-        },
-      });
+      const transactions = await this.apeeRepository.listerTransactions(schoolId, !isParent);
 
       // Vue parent anonymisée : jamais l'identité de qui a créé/validé, seulement l'opération.
       const data = isParent
-        ? transactions.map((t: any) => ({
+        ? transactions.map((t) => ({
             id: t.id, type: t.type, montant: t.montant, categorie: t.categorie,
             description: t.description, date: t.date, valide: t.valide,
           }))
@@ -105,7 +98,7 @@ export class APEEController {
 
       if (!file) { res.status(400).json({ success: false, message: 'Aucun fichier reçu' }); return; }
 
-      const transaction = await this.prisma.aPEETransaction.findFirst({ where: { id: transactionId, schoolId } });
+      const transaction = await this.apeeRepository.trouverParId(transactionId, schoolId);
       if (!transaction) { res.status(404).json({ success: false, message: 'Transaction introuvable' }); return; }
       if (transaction.type !== 'DEPENSE') {
         res.status(400).json({ success: false, message: 'Seule une dépense peut recevoir un justificatif' });
@@ -119,10 +112,7 @@ export class APEEController {
       const filePath = path.join(schoolDir, fileName);
       fs.writeFileSync(filePath, file.buffer);
 
-      const updated = await this.prisma.aPEETransaction.update({
-        where: { id: transactionId },
-        data: { justificatifUrl: filePath },
-      });
+      const updated = await this.apeeRepository.attacherJustificatif(transactionId, filePath);
 
       res.json({ success: true, data: updated });
     } catch (error) {
@@ -142,14 +132,14 @@ export class APEEController {
         valideParId: req.user!.userId,
       });
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'valider_depense_apee', targetType: 'APEETransaction', targetId: transactionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { transactionId },
       });
       res.json({ success: true, data: transaction });
     } catch (error) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'valider_depense_apee', targetType: 'APEETransaction', targetId: String(req.params['id']),
         origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -168,30 +158,23 @@ export class APEEController {
     try {
       const schoolId = req.user!.schoolId;
 
-      const [collectes, depensesValidees, depensesEnAttente] = await Promise.all([
-        this.prisma.aPEETransaction.aggregate({ where: { schoolId, type: 'COLLECTE' }, _sum: { montant: true } }),
-        this.prisma.aPEETransaction.aggregate({ where: { schoolId, type: 'DEPENSE', valide: true }, _sum: { montant: true } }),
-        this.prisma.aPEETransaction.count({ where: { schoolId, type: 'DEPENSE', valide: false } }),
-      ]);
+      const solde = await this.apeeRepository.obtenirSolde(schoolId);
 
-      const totalCollectes = collectes._sum.montant ?? 0;
-      const totalDepenses = depensesValidees._sum.montant ?? 0;
-
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'solde_apee', origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: {},
       });
       res.json({
         success: true,
         data: {
-          totalCollectes,
-          totalDepenses,
-          solde: totalCollectes - totalDepenses,
-          depensesEnAttenteDeJustificatifOuValidation: depensesEnAttente,
+          totalCollectes: solde.totalCollectes,
+          totalDepenses: solde.totalDepenses,
+          solde: solde.totalCollectes - solde.totalDepenses,
+          depensesEnAttenteDeJustificatifOuValidation: solde.depensesEnAttente,
         },
       });
     } catch (error) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'solde_apee', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: {},
@@ -204,20 +187,17 @@ export class APEEController {
   rapportPdf = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId;
-      const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+      const school = await this.schoolRepository.findById(schoolId);
 
-      const transactions = await this.prisma.aPEETransaction.findMany({
-        where: { schoolId },
-        orderBy: { date: 'asc' },
-      });
+      const transactions = await this.apeeRepository.listerTransactions(schoolId, false);
 
-      const totalCollectes = transactions.filter((t: any) => t.type === 'COLLECTE').reduce((s: number, t: any) => s + t.montant, 0);
-      const totalDepenses = transactions.filter((t: any) => t.type === 'DEPENSE' && t.valide).reduce((s: number, t: any) => s + t.montant, 0);
+      const totalCollectes = transactions.filter((t) => t.type === 'COLLECTE').reduce((s, t) => s + t.montant, 0);
+      const totalDepenses = transactions.filter((t) => t.type === 'DEPENSE' && t.valide).reduce((s, t) => s + t.montant, 0);
 
       const pdf = await generateRapportAPEEPdf({
         schoolName: school?.name ?? 'ZekoulABia',
         periodeLabel: `Année scolaire ${new Date().getFullYear()}`,
-        transactions,
+        transactions: transactions.map((t) => ({ type: t.type as 'COLLECTE' | 'DEPENSE', montant: t.montant, categorie: t.categorie, description: t.description, date: t.date, valide: t.valide })),
         totalCollectes,
         totalDepenses,
         solde: totalCollectes - totalDepenses,

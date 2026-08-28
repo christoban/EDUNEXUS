@@ -14,6 +14,17 @@ export interface ApeeTransactionData {
   createdAt: Date;
 }
 
+export interface ApeeTransactionAvecAuteurs extends ApeeTransactionData {
+  creePar?: { firstName: string; lastName: string } | null;
+  validePar?: { firstName: string; lastName: string } | null;
+}
+
+export interface ApeeSolde {
+  totalCollectes: number;
+  totalDepenses: number;
+  depensesEnAttente: number;
+}
+
 export interface ApeeRepository {
   creer(data: {
     schoolId: string;
@@ -29,4 +40,8 @@ export interface ApeeRepository {
   trouverParId(id: string, schoolId: string): Promise<ApeeTransactionData | null>;
 
   valider(id: string, valideParId: string): Promise<ApeeTransactionData>;
+
+  listerTransactions(schoolId: string, includeAuteurs: boolean): Promise<ApeeTransactionAvecAuteurs[]>;
+  attacherJustificatif(id: string, justificatifUrl: string): Promise<ApeeTransactionData>;
+  obtenirSolde(schoolId: string): Promise<ApeeSolde>;
 }

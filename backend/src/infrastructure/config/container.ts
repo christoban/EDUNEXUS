@@ -976,6 +976,7 @@ export function creerContainer() {
       soumettreFormulaire: new SoumettreFormulaireOnboardingUseCase(eleveOnboardingRepository),
       valider: new ValiderOnboardingUseCase(eleveOnboardingRepository, activityLog),
       rejeter: new RejeterOnboardingUseCase(eleveOnboardingRepository, activityLog),
+      repository: eleveOnboardingRepository,
     },
     statisticalCampaign: {
       verifierCompletude: new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),

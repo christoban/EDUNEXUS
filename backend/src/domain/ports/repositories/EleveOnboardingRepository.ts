@@ -9,6 +9,8 @@ export interface OnboardingSettings {
   defaultRecipient: OnboardingRecipient;
   ageThresholdForParent: number;
   tokenExpiryDays: number;
+  reminderDelayDays?: number[];
+  escalationDelayDays?: number;
   responsableRole: string;
 }
 
@@ -23,7 +25,9 @@ export interface OnboardingRecord {
   parentContactTelephone: string | null;
   recipientType: OnboardingRecipient;
   eleveADispositif: boolean | null;
+  eleveDispositifOS: string | null;
   parentADispositif: boolean | null;
+  parentDispositifOS: string | null;
   sourceType: OnboardingSource;
   examCandidateId: string | null;
   token: string;
@@ -77,8 +81,12 @@ export interface ValiderOnboardingInput {
 export interface EleveOnboardingRepository {
   // Lectures
   findSettings(schoolId: string): Promise<OnboardingSettings | null>;
+  upsertSettings(schoolId: string, data: Partial<OnboardingSettings>): Promise<OnboardingSettings>;
   findOnboardingById(id: string, schoolId: string): Promise<OnboardingRecord | null>;
   findOnboardingByToken(token: string): Promise<OnboardingRecord | null>;
+  findOnboardingByTokenWithClasse(token: string): Promise<(OnboardingRecord & { classe?: { name: string; level: string } | null }) | null>;
+  listOnboardings(schoolId: string, status?: string): Promise<OnboardingRecord[]>;
+  findOnboardingForPdf(id: string, schoolId: string): Promise<(OnboardingRecord & { classe?: { name: string } | null; school?: { name: string } | null }) | null>;
   findClassOnboardingInfo(classId: string): Promise<{ level: string; templateCode: string | null } | null>;
   findProfilesParDateNaissance(schoolId: string, dateOfBirth: Date): Promise<OnboardingProfileMatch[]>;
   findGroupTransferRequestByOnboarding(onboardingId: string): Promise<{ sourceUserId: string } | null>;

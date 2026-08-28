@@ -1,31 +1,16 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient, OnboardingStatus } from '@prisma/client';
 import type { DispositifOS } from '@application/eleveOnboarding/types';
+import type { EleveOnboardingRepository } from '@domain/ports/repositories/EleveOnboardingRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { CreerSqueletteOnboardingUseCase } from '@application/eleveOnboarding/CreerSqueletteOnboardingUseCase';
 import { SoumettreFormulaireOnboardingUseCase } from '@application/eleveOnboarding/SoumettreFormulaireOnboardingUseCase';
 import { ValiderOnboardingUseCase } from '@application/eleveOnboarding/ValiderOnboardingUseCase';
 import { RejeterOnboardingUseCase } from '@application/eleveOnboarding/RejeterOnboardingUseCase';
-import { notifierOnboardingLienCree, notifierOnboardingValidation } from '@infrastructure/services/notification/OnboardingNotificationService';
+import { notifierOnboardingLienCreeAvecEcole, notifierOnboardingValidationAvecEcole } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { generateOnboardingFormPdf } from '../../pdf/onboarding/OnboardingFormPdfRenderer';
 
 /**
- * Préfixe /api/v2/eleve-onboarding — distinct de /api/v2/onboarding (déjà pris par
- * l'onboarding d'établissement, sans rapport). Voir spec-onboarding-eleve-autoservice.md
- * section 0, point 4.
- *
- * Les deux endpoints publics (token) renvoient des messages d'erreur explicites (400/404/410)
- * au lieu de next(err) — même esprit que InviteOnboardingController pour son propre flux à
- * token public : un parent qui tombe sur un lien expiré doit voir "lien expiré", pas une
- * erreur générique. Les endpoints authentifiés suivent la convention next(err) déjà en place
- * partout ailleurs dans le projet (générique, mais cohérent avec l'existant).
- *
- * Notifications (email/SMS) envoyées directement depuis le contrôleur, fire-and-forget,
- * après la réponse HTTP — même pattern que EntranceExamController/PebsExamController
- * (void notifyXxxSms(...) après res.json), pas via un événement Inngest : ce sont des
- * envois ponctuels déclenchés par une action utilisateur, pas un traitement récurrent.
- * Seule la relance quotidienne (J+3/J+7/escalade/expiration) est un vrai job Inngest,
- * car c'est la seule partie de ce module qui doit tourner sans déclencheur utilisateur
- * (voir backend/src/inngest/eleveOnboardingJobs.ts).
+ * Préfixe /api/v2/eleve-onboarding — distinct de /api/v2/onboarding.
  */
 export class EleveOnboardingController {
   constructor(
@@ -33,12 +18,10 @@ export class EleveOnboardingController {
     private readonly _soumettreFormulaire: SoumettreFormulaireOnboardingUseCase,
     private readonly _valider: ValiderOnboardingUseCase,
     private readonly _rejeter: RejeterOnboardingUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly onboardingRepository: EleveOnboardingRepository,
+    private readonly schoolRepository: SchoolRepository,
   ) {}
 
-  // ADMIN a toujours accès ; STAFF doit détenir MANAGE_ENROLLMENT (typiquement Intendant/
-  // Économe/Bursar — celui qui encaisse déjà l'inscription). Ne gate pas les deux routes
-  // publiques token, qui n'ont pas de req.user.
   private checkEnrollmentPermission(req: Request, res: Response): boolean {
     const user = req.user!;
     if (user.role === 'ADMIN') return true;
@@ -56,6 +39,7 @@ export class EleveOnboardingController {
       if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const createdById = req.user!.userId;
+
       const {
         nomProvisoire, classId, contactEmail, contactTelephone, parentContactEmail, parentContactTelephone,
         recipientType, sourceType, examCandidateId,
@@ -79,7 +63,8 @@ export class EleveOnboardingController {
         eleveADispositif, eleveDispositifOS, parentADispositif, parentDispositifOS, aucunContactDisponible,
       });
       res.json({ success: true, data: result });
-      void notifierOnboardingLienCree(this.prisma, schoolId, nomProvisoire, result);
+      const school = await this.schoolRepository.findById(schoolId);
+      void notifierOnboardingLienCreeAvecEcole(schoolId, school?.name ?? null, nomProvisoire, result);
     } catch (err) { next(err); }
   };
 
@@ -87,10 +72,7 @@ export class EleveOnboardingController {
   getByToken = async (req: Request, res: Response, _next: NextFunction) => {
     try {
       const token = String(req.params['token']);
-      const onboarding = await this.prisma.studentOnboarding.findUnique({
-        where: { token },
-        include: { classe: { select: { name: true, level: true } } },
-      });
+      const onboarding = await this.onboardingRepository.findOnboardingByTokenWithClasse(token);
 
       if (!onboarding) {
         res.status(404).json({ success: false, message: 'Lien invalide' });
@@ -102,7 +84,7 @@ export class EleveOnboardingController {
       }
       if (onboarding.tokenExpiresAt.getTime() < Date.now()) {
         if (onboarding.status !== 'EXPIRED') {
-          await this.prisma.studentOnboarding.update({ where: { id: onboarding.id }, data: { status: 'EXPIRED' } });
+          await this.onboardingRepository.marquerOnboardingExpire(onboarding.id);
         }
         res.status(410).json({ success: false, message: 'Ce lien a expiré — demandez à votre établissement de le renvoyer' });
         return;
@@ -156,12 +138,7 @@ export class EleveOnboardingController {
       if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const status = req.query['status'] as string | undefined;
-      const dossiers = await this.prisma.studentOnboarding.findMany({
-        where: { schoolId, ...(status ? { status: status as OnboardingStatus } : {}) },
-        include: { classe: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
-      });
+      const dossiers = await this.onboardingRepository.listOnboardings(schoolId, status);
       res.json({ success: true, data: dossiers });
     } catch (err) { next(err); }
   };
@@ -178,7 +155,8 @@ export class EleveOnboardingController {
 
       const result = await this._valider.execute({ schoolId, onboardingId, validatedById, validatorRole, classId });
       res.json({ success: true, data: result });
-      void notifierOnboardingValidation(this.prisma, schoolId, result);
+      const school = await this.schoolRepository.findById(schoolId);
+      void notifierOnboardingValidationAvecEcole(schoolId, school?.name ?? null, school?.subdomain ?? null, result);
     } catch (err) { next(err); }
   };
 
@@ -206,7 +184,7 @@ export class EleveOnboardingController {
     try {
       if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
-      const settings = await this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId } });
+      const settings = await this.onboardingRepository.findSettings(schoolId);
       res.json({
         success: true,
         data: settings ?? {
@@ -236,11 +214,7 @@ export class EleveOnboardingController {
         ...(responsableRole !== undefined && { responsableRole }),
       };
 
-      const settings = await this.prisma.schoolOnboardingSettings.upsert({
-        where: { schoolId },
-        create: { schoolId, ...data },
-        update: data,
-      });
+      const settings = await this.onboardingRepository.upsertSettings(schoolId, data);
       res.json({ success: true, data: settings });
     } catch (err) { next(err); }
   };
@@ -253,7 +227,7 @@ export class EleveOnboardingController {
       const createdById = req.user!.userId;
       const onboardingId = String(req.params['id']);
 
-      const existing = await this.prisma.studentOnboarding.findFirst({ where: { id: onboardingId, schoolId } });
+      const existing = await this.onboardingRepository.findOnboardingById(onboardingId, schoolId);
       if (!existing) {
         res.status(404).json({ success: false, message: 'Dossier introuvable' });
         return;
@@ -263,9 +237,7 @@ export class EleveOnboardingController {
         return;
       }
 
-      // Invalide l'ancien dossier et en recrée un neuf avec un nouveau token (même
-      // squelette) — plus simple et plus sûr qu'une mutation en place du token existant.
-      await this.prisma.studentOnboarding.update({ where: { id: existing.id }, data: { status: 'EXPIRED' } });
+      await this.onboardingRepository.marquerOnboardingExpire(existing.id);
       const result = await this._creerSquelette.execute({
         schoolId, createdById,
         nomProvisoire: existing.nomProvisoire,
@@ -284,23 +256,19 @@ export class EleveOnboardingController {
         aucunContactDisponible: !existing.contactEmail && !existing.contactTelephone && !existing.parentContactEmail && !existing.parentContactTelephone,
       });
       res.json({ success: true, data: result });
-      void notifierOnboardingLienCree(this.prisma, schoolId, existing.nomProvisoire, result);
+      const school = await this.schoolRepository.findById(schoolId);
+      void notifierOnboardingLienCreeAvecEcole(schoolId, school?.name ?? null, existing.nomProvisoire, result);
     } catch (err) { next(err); }
   };
 
-  // GET /api/v2/eleve-onboarding/:id/pdf — version imprimable du formulaire, pour les familles
-  // sans aucun accès numérique (Axe 2, Plan Diversité Numérique) : même contenu que le
-  // formulaire en ligne, à remplir à la main puis ressaisir sur place par le staff.
+  // GET /api/v2/eleve-onboarding/:id/pdf
   exporterPdf = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!this.checkEnrollmentPermission(req, res)) return;
       const schoolId = req.user!.schoolId;
       const onboardingId = String(req.params['id']);
 
-      const onboarding = await this.prisma.studentOnboarding.findFirst({
-        where: { id: onboardingId, schoolId },
-        include: { classe: { select: { name: true } }, school: { select: { name: true } } },
-      });
+      const onboarding = await this.onboardingRepository.findOnboardingForPdf(onboardingId, schoolId);
       if (!onboarding) {
         res.status(404).json({ success: false, message: 'Dossier introuvable' });
         return;

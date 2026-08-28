@@ -939,7 +939,8 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     c.eleveOnboarding.soumettreFormulaire,
     c.eleveOnboarding.valider,
     c.eleveOnboarding.rejeter,
-    prisma,
+    c.eleveOnboarding.repository,
+    c.school.schoolRepository,
   );
   app.use('/api/v2/eleve-onboarding', creerEleveOnboardingRoutes(eleveOnboardingController));
 

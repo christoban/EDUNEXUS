@@ -15,6 +15,9 @@ function apeeCreerMock() {
       if (tx) { tx.valide = true; tx.valideParId = valideParId; tx.valideAt = new Date(); }
       return tx!;
     },
+    listerTransactions: async () => (tx ? [tx] : []),
+    attacherJustificatif: async () => tx!,
+    obtenirSolde: async () => ({ totalCollectes: 0, totalDepenses: 0, depensesEnAttente: 0 }),
   } as ApeeRepository;
 }
 
@@ -27,6 +30,9 @@ function apeeValiderMock(overrides: Partial<{ creeParId: string; valide: boolean
     creer: async () => tx,
     trouverParId: async () => tx,
     valider: async (id: string, valideParId: string) => ({ ...tx, valide: true, valideParId, valideAt: new Date() }),
+    listerTransactions: async () => [tx],
+    attacherJustificatif: async () => tx,
+    obtenirSolde: async () => ({ totalCollectes: 0, totalDepenses: 0, depensesEnAttente: 0 }),
   } as ApeeRepository;
 }
 

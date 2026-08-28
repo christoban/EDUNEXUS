@@ -348,7 +348,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
   app.use('/api/v2/messagerie', creerMessagerieRoutes(messagerieController));
 
   // ── Transparence financière APEE ─────────────────────────────────────────────
-  const apeeController = new APEEController(p);
+  const apeeController = new APEEController(new PrismaApeeRepository(p), c.school.schoolRepository, new AIActionAuditAdapter(p));
   app.use('/api/v2/apee', creerApeeRoutes(apeeController));
 
   // ── Conseil de Discipline (Art. 30) ──────────────────────────────────────────

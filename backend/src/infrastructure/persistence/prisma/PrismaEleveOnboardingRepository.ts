@@ -26,12 +26,48 @@ export class PrismaEleveOnboardingRepository implements EleveOnboardingRepositor
     return this.prisma.schoolOnboardingSettings.findUnique({ where: { schoolId } });
   }
 
+  async upsertSettings(schoolId: string, data: Partial<OnboardingSettings>): Promise<OnboardingSettings> {
+    return this.prisma.schoolOnboardingSettings.upsert({
+      where: { schoolId },
+      create: {
+        schoolId,
+        selfServiceEnabled: data.selfServiceEnabled ?? false,
+        defaultRecipient: data.defaultRecipient ?? 'ELEVE',
+        ageThresholdForParent: data.ageThresholdForParent ?? 15,
+        tokenExpiryDays: data.tokenExpiryDays ?? 14,
+        reminderDelayDays: data.reminderDelayDays ?? [3, 7],
+        escalationDelayDays: data.escalationDelayDays ?? 10,
+        responsableRole: (data.responsableRole ?? 'ADMIN') as any,
+      },
+      update: data as any,
+    });
+  }
+
   async findOnboardingById(id: string, schoolId: string): Promise<OnboardingRecord | null> {
     return this.prisma.studentOnboarding.findFirst({ where: { id, schoolId } });
   }
 
   async findOnboardingByToken(token: string): Promise<OnboardingRecord | null> {
     return this.prisma.studentOnboarding.findUnique({ where: { token } });
+  }
+
+  async findOnboardingByTokenWithClasse(token: string): Promise<(OnboardingRecord & { classe?: { name: string; level: string } | null }) | null> {
+    return this.prisma.studentOnboarding.findUnique({ where: { token }, include: { classe: { select: { name: true, level: true } } } });
+  }
+
+  async listOnboardings(schoolId: string, status?: string): Promise<OnboardingRecord[]> {
+    return this.prisma.studentOnboarding.findMany({
+      where: { schoolId, ...(status ? { status: status as any } : {}) },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  async findOnboardingForPdf(id: string, schoolId: string): Promise<(OnboardingRecord & { classe?: { name: string } | null; school?: { name: string } | null }) | null> {
+    return this.prisma.studentOnboarding.findFirst({
+      where: { id, schoolId },
+      include: { classe: { select: { name: true } }, school: { select: { name: true } } },
+    });
   }
 
   async findClassOnboardingInfo(classId: string): Promise<{ level: string; templateCode: string | null } | null> {
