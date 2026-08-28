@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, Prisma } from '@prisma/client';
 import type { EmployeeFileRepository, EmployeeFileData } from '@domain/ports/repositories/EmployeeFileRepository';
 
 export class PrismaEmployeeFileRepository implements EmployeeFileRepository {
@@ -21,6 +21,15 @@ export class PrismaEmployeeFileRepository implements EmployeeFileRepository {
       where: { userId: data.userId },
       create: { userId: data.userId, schoolId: data.schoolId, dateNaissance: data.dateNaissance, gender: data.gender, diplomes: (data.diplomes ?? []) as any, numeroCNPS: data.numeroCNPS, typeContrat: data.typeContrat, dateEmbauche: data.dateEmbauche, echelonActuel: data.echelonActuel, documentsUrls: (data.documentsUrls ?? []) as any },
       update: { dateNaissance: data.dateNaissance, gender: data.gender, diplomes: (data.diplomes ?? []) as any, numeroCNPS: data.numeroCNPS, typeContrat: data.typeContrat, dateEmbauche: data.dateEmbauche, echelonActuel: data.echelonActuel, documentsUrls: (data.documentsUrls ?? []) as any },
+    });
+  }
+
+  async upsertByUser(userId: string, schoolId: string, data: Partial<EmployeeFileData>): Promise<EmployeeFileData> {
+    const { id: _id, userId: _uid, schoolId: _sid, ...fields } = data;
+    return this.prisma.employeeFile.upsert({
+      where: { userId },
+      create: { userId, schoolId, ...fields } as Prisma.EmployeeFileUncheckedCreateInput,
+      update: fields as Prisma.EmployeeFileUpdateInput,
     });
   }
 }

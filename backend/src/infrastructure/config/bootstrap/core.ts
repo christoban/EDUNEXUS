@@ -91,6 +91,7 @@ import { errorHandler } from '@infrastructure/http/middlewares/errorHandler';
 import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/PrismaEnrollmentRepository';
 import { PrismaDashboardQueryRepository } from '@infrastructure/persistence/prisma/PrismaDashboardQueryRepository';
 import { PrismaAIContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAIContextQueryRepository';
+import { PrismaActivitiesLogQueryRepository } from '@infrastructure/persistence/prisma/PrismaActivitiesLogQueryRepository';
 import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
 import { PrismaSuiviRBACRepository } from '@infrastructure/persistence/prisma/PrismaSuiviRBACRepository';
 import { PrismaAcademicEventRepository } from '@infrastructure/persistence/prisma/PrismaAcademicEventRepository';
@@ -870,7 +871,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
 
   // ── Thin controllers (pas de use case — Prisma direct, aucune logique métier) ──
   const enrollmentRepository = new PrismaEnrollmentRepository(p);
-  const activitiesController = new ActivitiesLogController(p);
+  const activitiesController = new ActivitiesLogController(new PrismaActivitiesLogQueryRepository(p));
   const dashboardController  = new DashboardController(new PrismaDashboardQueryRepository(p), enrollmentRepository);
   const emailLogController   = new EmailLogController(p);
   const searchController     = new SearchController(p);

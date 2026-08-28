@@ -985,6 +985,7 @@ export function creerContainer() {
         new PrismaStatisticalCampaignRepository(prisma),
         new VerifierCompletudeSupplementUseCase(new PrismaStatisticalCampaignRepository(prisma)),
       ),
+      repository: new PrismaStatisticalCampaignRepository(prisma),
     },
     statisticalCampaignMinedub: {
       genererRapport: new GenererRapportSyntheseMinedubUseCase(

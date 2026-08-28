@@ -1,9 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient, Prisma } from '@prisma/client';
 import { AnalyserDiplomeUseCase } from '@application/hr/AnalyserDiplomeUseCase';
 import { DocumentAiAdapter } from '@infrastructure/services/ai/DocumentAiAdapter';
+import type { EmployeeFileRepository, EmployeeFileData } from '@domain/ports/repositories/EmployeeFileRepository';
 
 interface EmployeeDocumentEntry {
   type: string;
@@ -29,13 +29,13 @@ const ALLOWED_DOCUMENT_TYPES = ['DIPLOME_ACADEMIQUE', 'DIPLOME_PROFESSIONNEL', '
 export class HRSelfServiceController {
   private readonly analyserDiplome = new AnalyserDiplomeUseCase(new DocumentAiAdapter());
 
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly employeeFileRepository: EmployeeFileRepository) {}
 
   // GET /api/v2/hr-self-service/me
   getMyFile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user!.userId;
-      const file = await this.prisma.employeeFile.findUnique({ where: { userId } });
+      const file = await this.employeeFileRepository.findByUser(userId);
       res.json({ success: true, data: file });
     } catch (err) { next(err); }
   };
@@ -56,11 +56,7 @@ export class HRSelfServiceController {
 
       if (body['confirmComplete'] === true) data.selfServiceCompletedAt = new Date();
 
-      const file = await this.prisma.employeeFile.upsert({
-        where: { userId },
-        create: { userId, schoolId, ...data },
-        update: data,
-      });
+      const file = await this.employeeFileRepository.upsertByUser(userId, schoolId, data as Partial<EmployeeFileData>);
       res.json({ success: true, data: file });
     } catch (err) { next(err); }
   };
@@ -85,17 +81,13 @@ export class HRSelfServiceController {
       const filePath = path.join(userDir, fileName);
       fs.writeFileSync(filePath, file.buffer);
 
-      const existing = await this.prisma.employeeFile.findUnique({ where: { userId } });
+      const existing = await this.employeeFileRepository.findByUser(userId);
       const documents: EmployeeDocumentEntry[] = Array.isArray(existing?.documentsUrls)
         ? (existing.documentsUrls as unknown as EmployeeDocumentEntry[])
         : [];
       documents.push({ type, label: label || type, url: filePath, uploadedAt: new Date().toISOString() });
 
-      const updated = await this.prisma.employeeFile.upsert({
-        where: { userId },
-        create: { userId, schoolId, documentsUrls: documents as unknown as Prisma.InputJsonValue },
-        update: { documentsUrls: documents as unknown as Prisma.InputJsonValue },
-      });
+      const updated = await this.employeeFileRepository.upsertByUser(userId, schoolId, { documentsUrls: documents });
       res.json({ success: true, data: updated });
     } catch (err) { next(err); }
   };
@@ -123,7 +115,7 @@ export class HRSelfServiceController {
     try {
       const userId = req.user!.userId;
       const index = Number(req.params['index']);
-      const file = await this.prisma.employeeFile.findUnique({ where: { userId } });
+      const file = await this.employeeFileRepository.findByUser(userId);
       const documents: EmployeeDocumentEntry[] = Array.isArray(file?.documentsUrls)
         ? (file.documentsUrls as unknown as EmployeeDocumentEntry[])
         : [];

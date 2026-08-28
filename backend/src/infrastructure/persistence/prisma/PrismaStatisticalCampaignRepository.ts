@@ -1,8 +1,10 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type {
   StatisticalCampaignRepository,
+  StatisticalSubmission,
   SupplementData,
   TemplateData,
+  EcoleStatistiqueMeta,
 } from '@domain/ports/repositories/StatisticalCampaignRepository';
 
 export class PrismaStatisticalCampaignRepository implements StatisticalCampaignRepository {
@@ -42,5 +44,32 @@ export class PrismaStatisticalCampaignRepository implements StatisticalCampaignR
       },
       select: { id: true },
     });
+  }
+
+  async sauvegarderSupplement(schoolId: string, data: Record<string, unknown>, lastUpdatedBy: string): Promise<SupplementData> {
+    return this.prisma.schoolStatisticalSupplement.upsert({
+      where: { schoolId },
+      create: { schoolId, ...data, lastUpdatedBy },
+      update: { ...data, lastUpdatedBy },
+    }) as unknown as SupplementData;
+  }
+
+  async trouverEcoleMeta(schoolId: string): Promise<EcoleStatistiqueMeta | null> {
+    return this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { subsystem: true, educationType: true },
+    }) as unknown as EcoleStatistiqueMeta | null;
+  }
+
+  async trouverSubmissionParId(id: string): Promise<StatisticalSubmission | null> {
+    return this.prisma.statisticalSubmission.findUnique({ where: { id } }) as unknown as StatisticalSubmission | null;
+  }
+
+  async listerDernieresSubmissions(schoolId: string): Promise<StatisticalSubmission[]> {
+    return this.prisma.statisticalSubmission.findMany({
+      where: { schoolId },
+      orderBy: { generatedAt: 'desc' },
+      take: 20,
+    }) as unknown as StatisticalSubmission[];
   }
 }

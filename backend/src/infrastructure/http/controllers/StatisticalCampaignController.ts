@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient } from '@prisma/client';
+import type { StatisticalCampaignRepository } from '@domain/ports/repositories/StatisticalCampaignRepository';
 import { VerifierCompletudeSupplementUseCase } from '@application/statisticalCampaign/VerifierCompletudeSupplementUseCase';
 import { GenererDeclarationStatistiqueMinesecUseCase } from '@application/statisticalCampaign/GenererDeclarationStatistiqueMinesecUseCase';
 import { LibreOfficeUnavailableError, LibreOfficeConversionError } from '@application/statisticalCampaign/xlsEngine';
@@ -17,14 +17,14 @@ export class StatisticalCampaignController {
   constructor(
     private readonly _verifierCompletude: VerifierCompletudeSupplementUseCase,
     private readonly _genererDeclaration: GenererDeclarationStatistiqueMinesecUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly _repo: StatisticalCampaignRepository,
   ) {}
 
   // GET /api/v2/statistical-campaign/supplement
   getSupplement = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const supplement = await this.prisma.schoolStatisticalSupplement.findUnique({ where: { schoolId } });
+      const supplement = await this._repo.trouverSupplement(schoolId);
       res.json({ success: true, data: supplement });
     } catch (err) { next(err); }
   };
@@ -46,11 +46,7 @@ export class StatisticalCampaignController {
         if (key in body) data[key] = body[key];
       }
 
-      const supplement = await this.prisma.schoolStatisticalSupplement.upsert({
-        where: { schoolId },
-        create: { schoolId, ...data, lastUpdatedBy: userId },
-        update: { ...data, lastUpdatedBy: userId },
-      });
+      const supplement = await this._repo.sauvegarderSupplement(schoolId, data, userId);
       res.json({ success: true, data: supplement });
     } catch (err) { next(err); }
   };
@@ -75,10 +71,7 @@ export class StatisticalCampaignController {
   getMeta = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const school = await this.prisma.school.findUnique({
-        where: { id: schoolId },
-        select: { subsystem: true, educationType: true },
-      });
+      const school = await this._repo.trouverEcoleMeta(schoolId);
       const subsystems = school ? getRelevantSubsystems(school) : ['GEN_FR'];
       res.json({
         success: true,
@@ -118,7 +111,7 @@ export class StatisticalCampaignController {
     try {
       const schoolId = req.user!.schoolId;
       const id = String(req.params['id']);
-      const submission = await this.prisma.statisticalSubmission.findUnique({ where: { id } });
+      const submission = await this._repo.trouverSubmissionParId(id);
       if (!submission || submission.schoolId !== schoolId || !submission.filePath) {
         res.status(404).json({ success: false, message: 'Déclaration introuvable' });
         return;
@@ -137,11 +130,7 @@ export class StatisticalCampaignController {
   listSubmissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const submissions = await this.prisma.statisticalSubmission.findMany({
-        where: { schoolId },
-        orderBy: { generatedAt: 'desc' },
-        take: 20,
-      });
+      const submissions = await this._repo.listerDernieresSubmissions(schoolId);
       res.json({ success: true, data: submissions });
     } catch (err) { next(err); }
   };

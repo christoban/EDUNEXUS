@@ -23,6 +23,18 @@ export interface TemplateData {
   filePath: string;
 }
 
+export interface StatisticalSubmission {
+  id: string;
+  schoolId: string;
+  filePath: string | null;
+  generatedAt: Date;
+}
+
+export interface EcoleStatistiqueMeta {
+  subsystem: string;
+  educationType: string;
+}
+
 export interface StatisticalCampaignRepository {
   trouverSupplement(schoolId: string): Promise<SupplementData | null>;
   trouverTemplateActif(ministry: string): Promise<TemplateData | null>;
@@ -34,4 +46,8 @@ export interface StatisticalCampaignRepository {
     filePath?: string | null;
     unresolvedFieldsReport?: unknown;
   }): Promise<{ id: string }>;
+  sauvegarderSupplement(schoolId: string, data: Record<string, unknown>, lastUpdatedBy: string): Promise<SupplementData>;
+  trouverEcoleMeta(schoolId: string): Promise<EcoleStatistiqueMeta | null>;
+  trouverSubmissionParId(id: string): Promise<StatisticalSubmission | null>;
+  listerDernieresSubmissions(schoolId: string): Promise<StatisticalSubmission[]>;
 }

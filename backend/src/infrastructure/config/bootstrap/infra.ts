@@ -232,7 +232,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
   const statisticalCampaignController = new StatisticalCampaignController(
     c.statisticalCampaign.verifierCompletude,
     c.statisticalCampaign.genererDeclaration,
-    prisma,
+    c.statisticalCampaign.repository,
   );
   app.use('/api/v2/statistical-campaign', creerStatisticalCampaignRoutes(statisticalCampaignController));
 

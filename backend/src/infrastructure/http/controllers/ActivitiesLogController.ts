@@ -1,22 +1,14 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
+import type { ActivitiesLogQueryRepository } from '@domain/ports/repositories/ActivitiesLogQueryRepository';
 
 export class ActivitiesLogController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly activitiesLogRepository: ActivitiesLogQueryRepository) {}
 
   getTimeline = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = req.user!;
       const limit = Math.min(Number(req.query.limit) || 20, 50);
-      const schoolId = user.schoolId;
-      const whereActivity = schoolId ? { schoolId } : {};
-      const whereAI = schoolId ? { schoolId } : {};
-      const whereEmail = schoolId ? { schoolId } : {};
-      const [activities, aiActions, emails] = await Promise.all([
-        this.prisma.activitiesLog.findMany({ where: whereActivity, orderBy: { createdAt: 'desc' }, take: limit }),
-        this.prisma.aIActionAuditLog.findMany({ where: whereAI, orderBy: { timestamp: 'desc' }, take: limit }),
-        this.prisma.emailLog.findMany({ where: whereEmail, orderBy: { createdAt: 'desc' }, take: limit }),
-      ]);
+      const { activities, aiActions, emails } = await this.activitiesLogRepository.findTimeline(user.schoolId, limit);
       const timeline = [
         ...activities.map(a => ({ id: a.id, type: 'ACTIVITY' as const, timestamp: a.createdAt, title: a.action, details: a.description, raw: a })),
         ...aiActions.map(a => ({ id: a.id, type: 'AI_ACTION' as const, timestamp: a.timestamp, title: a.actionName, details: a.refusalReason ?? a.outcome, raw: a })),
@@ -36,25 +28,9 @@ export class ActivitiesLogController {
       const search = String(req.query.search || '').trim();
       const skip = (page - 1) * limit;
 
-      const where: any = {
-        ...(user.schoolId ? { schoolId: user.schoolId } : {}),
-        ...(user.role === 'TEACHER' ? { userId: user.userId } : {}),
-        ...(search ? {
-          OR: [
-            { action: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
-          ],
-        } : {}),
-      };
-
       const [count, logs] = await Promise.all([
-        this.prisma.activitiesLog.count({ where }),
-        this.prisma.activitiesLog.findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
-          skip,
-          take: limit,
-        }),
+        this.activitiesLogRepository.countAll({ schoolId: user.schoolId, userId: user.role === 'TEACHER' ? user.userId : null, search }),
+        this.activitiesLogRepository.findAll({ schoolId: user.schoolId, userId: user.role === 'TEACHER' ? user.userId : null, search, skip, limit }),
       ]);
 
       res.json({ logs, page, pages: Math.ceil(count / limit), total: count });

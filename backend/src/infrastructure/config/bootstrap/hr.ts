@@ -185,7 +185,7 @@ export function registerHrRoutes(app: Application, prismaParam: typeof prisma = 
   app.use('/api/v2/hr', requireAuth, requireRole('ADMIN', 'STAFF'), creerHrRoutes(hrController));
 
   // ── Module RH — self-service employé (accès ADMIN/STAFF/TEACHER, scopé à soi-même) ──
-  const hrSelfServiceController = new HRSelfServiceController(p);
+  const hrSelfServiceController = new HRSelfServiceController(c.hr.employeeFileRepository);
   app.use('/api/v2/hr-self-service', creerHrSelfServiceRoutes(hrSelfServiceController));
 
 
