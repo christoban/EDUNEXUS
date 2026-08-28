@@ -48,6 +48,17 @@ export interface CreerFollowUpData {
   note?: string;
 }
 
+export interface ConseillerDisponible {
+  id: string;
+  name: string;
+}
+
+export interface CreerConvocationData {
+  schoolId: string;
+  studentId: string;
+  content: string;
+}
+
 export interface StudentFollowUpRepository {
   create(data: CreerFollowUpData): Promise<FollowUpActionDetail>;
   findById(id: string, schoolId: string): Promise<FollowUpActionDetail | null>;
@@ -57,4 +68,8 @@ export interface StudentFollowUpRepository {
   listOpen(schoolId: string, options: { assignedToId?: string }): Promise<FollowUpActionDetail[]>;
   /** Historique complet (closes incluses) pour la fiche d'un élève. */
   listForStudent(studentProfileId: string, schoolId: string): Promise<FollowUpActionDetail[]>;
+  /** Conseillers pédagogiques/orientation d'un établissement, pour "Signaler au conseiller". */
+  listConseillersDisponibles(schoolId: string): Promise<ConseillerDisponible[]>;
+  /** Persiste un message destiné à l'élève dans son espace (ex. convocation), contexte CONVOCATION/STUDENT. */
+  createConvocation(data: CreerConvocationData): Promise<void>;
 }

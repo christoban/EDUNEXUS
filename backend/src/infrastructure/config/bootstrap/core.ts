@@ -93,6 +93,7 @@ import { PrismaEnrollmentRepository } from '@infrastructure/persistence/prisma/P
 import { PrismaDashboardQueryRepository } from '@infrastructure/persistence/prisma/PrismaDashboardQueryRepository';
 import { PrismaAIContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAIContextQueryRepository';
 import { PrismaActivitiesLogQueryRepository } from '@infrastructure/persistence/prisma/PrismaActivitiesLogQueryRepository';
+import { PrismaEmailLogQueryRepository } from '@infrastructure/persistence/prisma/PrismaEmailLogQueryRepository';
 import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
 import { PrismaSuiviRBACRepository } from '@infrastructure/persistence/prisma/PrismaSuiviRBACRepository';
 import { PrismaAcademicEventRepository } from '@infrastructure/persistence/prisma/PrismaAcademicEventRepository';
@@ -875,7 +876,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   const enrollmentRepository = new PrismaEnrollmentRepository(p);
   const activitiesController = new ActivitiesLogController(new PrismaActivitiesLogQueryRepository(p));
   const dashboardController  = new DashboardController(new PrismaDashboardQueryRepository(p), enrollmentRepository);
-  const emailLogController   = new EmailLogController(p);
+  const emailLogController   = new EmailLogController(new PrismaEmailLogQueryRepository(p));
   const searchController     = new SearchController(new PrismaSearchQueryRepository(p));
   const aiController         = new AIController(new PrismaAIContextQueryRepository(p), enrollmentRepository, c.prediction.comparerRisque);
   const studentFollowUpRepo  = new PrismaStudentFollowUpRepository(p);
@@ -886,7 +887,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     new ListerActionsEnCoursUseCase(studentFollowUpRepo),
     new AssignerActionSuiviUseCase(studentFollowUpRepo, suiviRBACRepository),
     new ListerHistoriqueSuiviEleveUseCase(studentFollowUpRepo, suiviRBACRepository),
-    prisma,
+    studentFollowUpRepo,
   );
   const lv2ChoiceRepository = new PrismaLv2ChoiceRepository(p);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(p);

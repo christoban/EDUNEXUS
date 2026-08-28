@@ -3,6 +3,8 @@ import type {
   StudentFollowUpRepository,
   FollowUpActionDetail,
   CreerFollowUpData,
+  ConseillerDisponible,
+  CreerConvocationData,
 } from '@domain/ports/repositories/StudentFollowUpRepository';
 
 const SELECT_DETAIL = {
@@ -187,5 +189,25 @@ export class PrismaStudentFollowUpRepository implements StudentFollowUpRepositor
       select: SELECT_DETAIL,
     });
     return rows.map(versDetail);
+  }
+
+  async listConseillersDisponibles(schoolId: string): Promise<ConseillerDisponible[]> {
+    const conseillers = await this.prisma.staffProfile.findMany({
+      where: { schoolId, permissions: { some: { permission: { in: ['MANAGE_ORIENTATION', 'MANAGE_PEDAGOGICAL_BRIEF'] } } } },
+      select: { userId: true, user: { select: { firstName: true, lastName: true } } },
+    });
+    return conseillers.map((c) => ({ id: c.userId, name: `${c.user.firstName} ${c.user.lastName}` }));
+  }
+
+  async createConvocation(data: CreerConvocationData): Promise<void> {
+    await this.prisma.studentRecommendation.create({
+      data: {
+        schoolId: data.schoolId,
+        studentId: data.studentId,
+        recipientRole: 'STUDENT',
+        contextType: 'CONVOCATION',
+        content: data.content,
+      },
+    });
   }
 }

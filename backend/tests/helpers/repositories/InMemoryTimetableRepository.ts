@@ -4,6 +4,7 @@ import type {
   TimetableRepository,
   CreneauConflitInfo,
   SlotEnseignantJour,
+  ContexteAdjustIA,
 } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauALoter } from '@domain/ports/repositories/TimetableRepository';
 import type { GridConfig } from '@domain/ports/repositories/TimetableRepository';
@@ -204,4 +205,5 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   async compterMatieres(_ids: string[], _schoolId: string): Promise<number> { return 0; }
   async findClassIdsAvecEdtPublie(_schoolId: string, _academicYearId: string): Promise<string[]> { return []; }
   async findSlotsEnseignantJour(_teacherId: string, _dayOfWeek: number, _schoolId: string, _academicYearId?: string): Promise<SlotEnseignantJour[]> { return []; }
+  async findContexteAdjustIA(_timetableId: string, _schoolId: string): Promise<ContexteAdjustIA | null> { return null; }
 }

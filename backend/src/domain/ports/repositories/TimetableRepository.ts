@@ -1,6 +1,7 @@
 import type { EmploiDuTemps } from '@domain/entities/EmploiDuTemps';
 import type { CreneauHoraire } from '@domain/entities/CreneauHoraire';
 import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
+import type { TimetableStatus } from '@domain/types/enums';
 
 export interface CreneauConflitInfo {
   id: string;
@@ -68,6 +69,24 @@ export interface AffectationSolver {
 export interface NomEnseignant {
   id: string;
   nomComplet: string;
+}
+
+/** Créneau du contexte "adjust IA" : matière et enseignant résolus pour le prompt LLM. */
+export interface SlotContexteAdjustIA {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  subject: { id: string; name: string } | null;
+  teacher: { id: string; firstName: string; lastName: string } | null;
+}
+
+/** Contexte complet pour l'assistant IA "adjust" : EDT + nom de classe + créneaux enrichis. */
+export interface ContexteAdjustIA {
+  id: string;
+  status: TimetableStatus;
+  class: { name: string };
+  slots: SlotContexteAdjustIA[];
 }
 
 export interface TimetableRepository {
@@ -225,6 +244,9 @@ export interface TimetableRepository {
     schoolId: string,
     academicYearId?: string
   ): Promise<SlotEnseignantJour[]>;
+
+  /** Contexte complet pour l'assistant IA "adjust" : EDT, nom de classe et créneaux enrichis. */
+  findContexteAdjustIA(timetableId: string, schoolId: string): Promise<ContexteAdjustIA | null>;
 }
 
 /**

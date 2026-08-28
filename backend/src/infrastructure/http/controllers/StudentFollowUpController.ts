@@ -1,7 +1,6 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import type { CreerActionSuiviEleveUseCase } from '@application/suivi/CreerActionSuiviEleveUseCase';
-import type { FollowUpActionType, InterviewMode } from '@domain/ports/repositories/StudentFollowUpRepository';
+import type { FollowUpActionType, InterviewMode, StudentFollowUpRepository } from '@domain/ports/repositories/StudentFollowUpRepository';
 import type { ClorreActionSuiviUseCase } from '@application/suivi/ClorreActionSuiviUseCase';
 import type { ListerActionsEnCoursUseCase } from '@application/suivi/ListerActionsEnCoursUseCase';
 import type { AssignerActionSuiviUseCase } from '@application/suivi/AssignerActionSuiviUseCase';
@@ -24,7 +23,7 @@ export class StudentFollowUpController {
     private readonly listerActionsEnCours: ListerActionsEnCoursUseCase,
     private readonly assignerActionSuivi: AssignerActionSuiviUseCase,
     private readonly listerHistoriqueEleve: ListerHistoriqueSuiviEleveUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly repo: StudentFollowUpRepository,
   ) {}
 
   // Liste des destinataires possibles pour "Signaler au conseiller" — MANAGE_ORIENTATION
@@ -38,13 +37,10 @@ export class StudentFollowUpController {
   conseillersDisponibles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId;
-      const conseillers = await this.prisma.staffProfile.findMany({
-        where: { schoolId, permissions: { some: { permission: { in: ['MANAGE_ORIENTATION', 'MANAGE_PEDAGOGICAL_BRIEF'] } } } },
-        select: { userId: true, user: { select: { firstName: true, lastName: true } } },
-      });
+      const conseillers = await this.repo.listConseillersDisponibles(schoolId);
       res.json({
         success: true,
-        data: conseillers.map((c) => ({ id: c.userId, name: `${c.user.firstName} ${c.user.lastName}` })),
+        data: conseillers,
       });
     } catch (error) {
       next(error);
@@ -139,8 +135,7 @@ export class StudentFollowUpController {
       if (action.type === 'CONVOCATION_ELEVE' && action.targetDate) {
         const dateStr = new Date(action.targetDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
         const corps = `${action.createdByName} souhaite te voir le ${dateStr}. Passe le voir dès que possible pour convenir d'un moment.`;
-        void this.prisma.studentRecommendation
-          .create({ data: { schoolId: user.schoolId, studentId: action.studentId, recipientRole: 'STUDENT', contextType: 'CONVOCATION', content: corps } })
+        void this.repo.createConvocation({ schoolId: user.schoolId, studentId: action.studentId, content: corps })
           .catch((err) => console.error('[Suivi] notif élève convocation:', err?.message));
       }
 

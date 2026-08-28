@@ -1,16 +1,16 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import { generateWithGroq } from '../../services/ai/GroqClient.ts';
 import { resolveLanguage } from '../../../domain/policies/LanguagePolicy';
 import { instructionLangue } from '../../services/ai/prompts/LanguagePrompt';
 import type { ModifierCreneauUseCase } from '@application/timetable/ModifierCreneauUseCase';
+import type { TimetableRepository } from '@domain/ports/repositories/TimetableRepository';
 import { NOMS_JOURS } from '@domain/types/joursSemaine';
 import { ConflitHoraireError } from '@domain/errors/ConflitHoraireError';
 import { ConflitSalleError } from '@domain/errors/ConflitSalleError';
 
 export class TimetableAutoController {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly timetableRepository: TimetableRepository,
     private readonly modifierCreneau: ModifierCreneauUseCase,
   ) {}
 
@@ -25,20 +25,7 @@ export class TimetableAutoController {
         return;
       }
 
-      const timetable = await this.prisma.timetable.findFirst({
-        where: { id: timetableId, schoolId },
-        include: {
-          class: { select: { name: true } },
-          slots: {
-            where: { kind: 'CLASS', subjectId: { not: null } },
-            include: {
-              subject: { select: { id: true, name: true } },
-              teacher: { select: { id: true, firstName: true, lastName: true } },
-            },
-            orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-          },
-        },
-      });
+      const timetable = await this.timetableRepository.findContexteAdjustIA(timetableId, schoolId);
 
       if (!timetable) {
         res.status(404).json({ success: false, message: 'Emploi du temps introuvable.' });

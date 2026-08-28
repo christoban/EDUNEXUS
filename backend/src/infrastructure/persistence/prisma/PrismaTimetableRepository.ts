@@ -6,6 +6,7 @@ import type {
   TimetableRepository,
   CreneauConflitInfo,
   CreneauALoter,
+  ContexteAdjustIA,
   GridConfig,
   SlotContexte,
   EleveClasseAvecProfil,
@@ -291,5 +292,30 @@ export class PrismaTimetableRepository implements TimetableRepository {
       classId: s.timetable.classId,
       className: s.timetable.class?.name ?? null,
     }));
+  }
+
+  async findContexteAdjustIA(timetableId: string, schoolId: string): Promise<ContexteAdjustIA | null> {
+    const data = await this.prisma.timetable.findFirst({
+      where: { id: timetableId, schoolId },
+      select: {
+        id: true,
+        status: true,
+        class: { select: { name: true } },
+        slots: {
+          where: { kind: 'CLASS', subjectId: { not: null } },
+          select: {
+            id: true,
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+            subject: { select: { id: true, name: true } },
+            teacher: { select: { id: true, firstName: true, lastName: true } },
+          },
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        },
+      },
+    });
+    if (!data) return null;
+    return data as unknown as ContexteAdjustIA;
   }
 }

@@ -1,8 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
+import type { EmailLogQueryRepository } from '@domain/ports/repositories/EmailLogQueryRepository';
 
 export class EmailLogController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly emailLogRepository: EmailLogQueryRepository) {}
 
   getLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -12,17 +12,7 @@ export class EmailLogController {
       const status = String(req.query.status || '').trim();
       const schoolId = req.user!.schoolId;
 
-      const where: any = { ...(schoolId ? { schoolId } : {}) };
-      if (status) where.status = status;
-      if (search) where.OR = [
-        { to: { contains: search, mode: 'insensitive' } },
-        { subject: { contains: search, mode: 'insensitive' } },
-      ];
-
-      const [total, logs] = await Promise.all([
-        this.prisma.emailLog.count({ where }),
-        this.prisma.emailLog.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
-      ]);
+      const { logs, total } = await this.emailLogRepository.listBySchool({ schoolId, status, search, skip: (page - 1) * limit, limit });
 
       res.json({ logs, pagination: { total, page, pages: Math.ceil(total / limit), limit } });
     } catch (error) {

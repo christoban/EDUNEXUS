@@ -906,6 +906,7 @@ export function creerContainer() {
       appliquerProposition: appliquerPropositionEmploiDuTempsUseCase,
       simulerEmploiDuTemps: simulerEmploiDuTempsUseCase,
       genererSquelette: genererSqueletteEmploiDuTempsUseCase,
+      timetableRepository,
     },
     academicYear: {
       creer: creerAnneeUseCase,

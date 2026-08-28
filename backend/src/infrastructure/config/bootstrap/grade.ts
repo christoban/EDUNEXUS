@@ -197,7 +197,7 @@ export function registerGradeRoutes(app: Application, prismaParam: typeof prisma
   });
 
   const timetableAutoController = new TimetableAutoController(
-    p,
+    c.timetable.timetableRepository,
     c.timetable.modifierCreneau,
   );
   app.post('/api/v2/timetables/:id/adjust', requireAuth, requireRole('ADMIN', 'STAFF'), timetableAutoController.adjust);
