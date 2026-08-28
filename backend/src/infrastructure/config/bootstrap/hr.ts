@@ -43,7 +43,6 @@ import { DisciplineCouncilController } from '@infrastructure/http/controllers/Di
 import { DisciplineController } from '@infrastructure/http/controllers/DisciplineController';
 import { StudentFollowUpController } from '@infrastructure/http/controllers/StudentFollowUpController';
 import { AssistantController } from '@infrastructure/http/controllers/AssistantController';
-import { DevController } from '@infrastructure/http/controllers/DevController';
 import { OnboardingPEBSController } from '@infrastructure/http/controllers/OnboardingPEBSController';
 import { creerClasseRoutes } from '@infrastructure/http/routes/classe.routes';
 import { creerSubjectRoutes } from '@infrastructure/http/routes/subject.routes';
@@ -82,7 +81,6 @@ import { creerMessagerieRoutes } from '@infrastructure/http/routes/messagerie.ro
 import { creerApeeRoutes } from '@infrastructure/http/routes/apee.routes';
 import { creerDisciplineCouncilRoutes } from '@infrastructure/http/routes/disciplineCouncil.routes';
 import { creerDisciplineRoutes } from '@infrastructure/http/routes/discipline.routes';
-import { creerDevRoutes } from '@infrastructure/http/routes/dev.routes';
 import { requireAuth, requireRole } from '../../http/middlewares/auth';
 import { protectMaster, authorizeMaster } from '../../http/middlewares/authMultiTenant';
 import { requireMasterSensitiveAuth } from '../../http/middlewares/masterSensitiveAuth';
