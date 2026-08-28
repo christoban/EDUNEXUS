@@ -66,4 +66,14 @@ export interface SchoolSettingsRepository {
    * Sauvegarde tous les paramètres sur les 3 tables Prisma en transaction.
    */
   sauvegarder(schoolId: string, settings: Partial<SchoolSettingsComplets>): Promise<void>;
+
+  /**
+   * Liste des champs SchoolConfig personnalisés localement (registre d'overrides V2.2).
+   */
+  getChampsPersonnalises(schoolId: string): Promise<string[]>;
+
+  /**
+   * Ajoute des champs au registre d'overrides (union, jamais de suppression implicite).
+   */
+  marquerChampsPersonnalises(schoolId: string, champs: string[]): Promise<void>;
 }

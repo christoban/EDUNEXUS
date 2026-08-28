@@ -5,6 +5,7 @@ import type {
 } from '@domain/ports/repositories/SchoolSettingsRepository';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
 import type { SchoolLanguageMode, SchoolCycle } from '@domain/constants/SystemeEducatifCameroun';
+import { ajouterOverrides } from '@domain/rules/configLocaleTemplate';
 
 export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository {
   constructor(private readonly prisma: PrismaClient) {}
@@ -145,6 +146,28 @@ export class PrismaSchoolSettingsRepository implements SchoolSettingsRepository 
           ...(updates.councilPassMark !== undefined && { councilPassMark: updates.councilPassMark }),
         },
       });
+    });
+  }
+
+  async getChampsPersonnalises(schoolId: string): Promise<string[]> {
+    const config = await this.prisma.schoolConfig.findUnique({
+      where: { schoolId },
+      select: { configOverrides: true },
+    });
+    const overrides = config?.configOverrides;
+    if (Array.isArray(overrides)) {
+      return overrides.filter((c): c is string => typeof c === 'string');
+    }
+    return [];
+  }
+
+  async marquerChampsPersonnalises(schoolId: string, champs: string[]): Promise<void> {
+    const existants = await this.getChampsPersonnalises(schoolId);
+    const fusionnes = ajouterOverrides(existants, champs);
+    await this.prisma.schoolConfig.upsert({
+      where: { schoolId },
+      create: { schoolId, configOverrides: fusionnes },
+      update: { configOverrides: fusionnes },
     });
   }
 }

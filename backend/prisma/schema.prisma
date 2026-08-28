@@ -280,6 +280,10 @@ model SchoolConfig {
   passwordRequireDigit             Boolean          @default(true)
   sessionTimeoutMin                Int              @default(60)
   updatedAt                        DateTime         @updatedAt
+  /// V2.2 — Registre des champs SchoolConfig personnalisés localement (non hérités du template).
+  /// Tableau JSON de noms de champs (ex: ["passMark","smsEnabled"]). Jamais écrasé par une
+  /// ré-application de template.
+  configOverrides                  Json             @default("[]")
   absenceAlertThreshold            Int              @default(3)
   christmasBreakEnd                DateTime?
   christmasBreakStart              DateTime?

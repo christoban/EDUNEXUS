@@ -11,7 +11,6 @@
 
 | # | Section | Détail | Faisabilité |
 |---|---|---|---|
-| V2.2 | Configuration intelligente (« config locale > template ») | Rien n'existe (`configLocal`, `resolveConfig`, `override`… introuvables). Lié à V0.4 : pas de terrain car le template n'est jamais ré-appliqué. | ⚠️ Tech Lead — YAGNI : ne pas construire de moteur générique sans 2-3 cas réels |
 | V2.15 | Tâches administratives | Aucun modèle `Task`/`Tache`, aucun fichier applicatif. | ✅ Muse Spark — 1 table `Task` minimale (lazy), à préciser les champs |
 | V3.5 | Reporting Engine mature (métriques versionnées) | Aucun `MetricDefinition`, aucun cache/agrégation de métriques paramétrables. | ⚠️ Tech Lead — moteur générique interdit sans 2-3 cas (I) |
 | V3.9 | Tests de bout en bout (e2e) | Aucun `playwright.config`/`cypress.config` ; `playwright` en dépendance mais jamais importé ; 0 des 5 scénarios e2e demandés. | ✅ Muse Spark (scaffold) / ⚠️ Humain (choix des 5 scénarios) |
@@ -24,6 +23,7 @@
 |---|---|---|
 | V0.1 | 6 use cases importent l'infrastructure directement ; certains prennent `PrismaClient` en constructeur ; aucun outil (`dependency-cruiser`/`ESLint boundaries`) ne verrouille l'hexagonal. | ✅ Muse Spark quand le port existe déjà / ⚠️ Tech Lead si nouveau port à créer |
 | V0.4 | Pas de `TemplateVersion`/`TemplateConfiguration` ; **aucune ré-application de template** (donc la règle « jamais écraser un override » est sans objet). | ⚠️ Tech Lead — changement de flux transverse |
+| V2.2 | Socle livré (registre `configOverrides` + règle pure `fusionnerConfigLocaleTemplate`), mais **ré-application effective** d'un template mis à jour = dépend de V0.4 (`TemplateVersion`/`TemplateConfiguration`). | ⚠️ Tech Lead — Phase 2 dépend de V0.4 |
 | V1.1 | Pas de « profil académique » unifié (forces/faiblesses) au-delà du `healthScore`. | ⚠️ Tech Lead — spec produit manquante (qu'est-ce qu'un profil ?) |
 | V1.4 | Mapping de colonnes figé en dur ; pas d'étape « Correction » ; scope limité à STUDENT/TEACHER (pas personnel/parents/classes). | ⚠️ Tech Lead — étape « Correction » = décision produit |
 | V1.6 | **Absents** : `AssessmentParticipation`, `AssessmentScope`, `HarmonizedAssessmentSession`, `InvigilationPolicy`, `Assessment Calendar` par rôle, `Assessment Workload`. Grade et Attendance **jamais croisés** (7/20 d'un absent = 7/20 d'un présent). | ⚠️ Tech Lead — 6 modèles à spécifier MINESEC |

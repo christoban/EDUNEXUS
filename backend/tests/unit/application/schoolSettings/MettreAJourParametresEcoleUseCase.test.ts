@@ -99,5 +99,33 @@ describe('SchoolSettings — Use Cases', () => {
         councilPassMark: 25,
       })).rejects.toThrow('entre 0 et 20');
     });
+
+    it('V2.2 : marque les champs SchoolConfig modifiés comme overrides locaux', async () => {
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
+      await useCase.execute({
+        schoolId: 'school-1',
+        demandeurRole: 'ADMIN',
+        passMark: 12,
+        smsEnabled: true,
+        schoolName: 'Nouveau nom',
+      });
+
+      const champs = await repo.getChampsPersonnalises('school-1');
+      expect(champs).toContain('passMark');
+      expect(champs).toContain('smsEnabled');
+      expect(champs).not.toContain('schoolName');
+    });
+
+    it('V2.2 : ne marque rien si aucun champ SchoolConfig modifié', async () => {
+      const useCase = new MettreAJourParametresEcoleUseCase(repo, stubActivityLog);
+      await useCase.execute({
+        schoolId: 'school-1',
+        demandeurRole: 'ADMIN',
+        schoolName: 'Seulement le nom',
+      });
+
+      expect(repo.champsMarquesAppels).toHaveLength(0);
+      expect(await repo.getChampsPersonnalises('school-1')).toEqual([]);
+    });
   });
 });

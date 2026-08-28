@@ -12,6 +12,7 @@ import type { SchoolSettingsRepository } from '@domain/ports/repositories/School
 import type { SchoolLanguageMode, AcademicCalendarType, SchoolCycle } from '@domain/constants/SystemeEducatifCameroun';
 import type { ActivityLogPort } from '@domain/ports/services/ActivityLogPort';
 import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
+import { extraireChampsConfigModifies } from '@domain/rules/configLocaleTemplate';
 
 export interface MettreAJourParametresCommande {
   schoolId: string;
@@ -124,6 +125,14 @@ export class MettreAJourParametresEcoleUseCase {
 
     const avant = await this.settingsRepository.getParametresEffectifs(commande.schoolId).catch(() => null);
     await this.settingsRepository.sauvegarder(commande.schoolId, settingsAMettreAJour);
+
+    // V2.2 : tout champ SchoolConfig modifié devient un override local, jamais écrasé
+    // par une future ré-application de template.
+    const champsConfigModifies = extraireChampsConfigModifies(commande as unknown as Record<string, unknown>);
+    if (champsConfigModifies.length > 0) {
+      await this.settingsRepository.marquerChampsPersonnalises(commande.schoolId, champsConfigModifies);
+    }
+
     if (commande.demandeurId) {
       void this.activityLog.log({
         userId: commande.demandeurId,

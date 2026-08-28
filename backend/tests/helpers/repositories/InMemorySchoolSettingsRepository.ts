@@ -7,6 +7,8 @@ import { MINESEC_DEFAULTS } from '@domain/constants/SystemeEducatifCameroun';
 export class InMemorySchoolSettingsRepository implements SchoolSettingsRepository {
   private store = new Map<string, SchoolSettingsComplets>();
   dernieresSauvegardes: Partial<SchoolSettingsComplets>[] = [];
+  private overrides = new Map<string, string[]>();
+  champsMarquesAppels: { schoolId: string; champs: string[] }[] = [];
 
   definir(schoolId: string, settings: Partial<SchoolSettingsComplets>): void {
     this.store.set(schoolId, {
@@ -51,5 +53,15 @@ export class InMemorySchoolSettingsRepository implements SchoolSettingsRepositor
     if (existant) {
       this.store.set(schoolId, { ...existant, ...updates });
     }
+  }
+
+  async getChampsPersonnalises(schoolId: string): Promise<string[]> {
+    return this.overrides.get(schoolId) ?? [];
+  }
+
+  async marquerChampsPersonnalises(schoolId: string, champs: string[]): Promise<void> {
+    this.champsMarquesAppels.push({ schoolId, champs });
+    const existants = this.overrides.get(schoolId) ?? [];
+    this.overrides.set(schoolId, [...new Set([...existants, ...champs])]);
   }
 }
