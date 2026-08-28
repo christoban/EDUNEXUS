@@ -125,7 +125,8 @@ export function calculerMoyenneSequence(
   const max = grade.maxValue || 20;
 
   if (mode === 'weighted' && grade.classTestScore != null && grade.terminalExamScore != null) {
-    return clamp(grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7, 0, max);
+    const raw = grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7;
+    return Number(clamp(raw, 0, max).toFixed(2));
   }
 
   if (mode === 'triple') {
@@ -133,17 +134,21 @@ export function calculerMoyenneSequence(
     const ds2 = grade.seq2Score;
     const compo = grade.compositionScore;
     if (ds1 != null && ds2 != null && compo != null) {
-      return clamp((ds1 + ds2 + compo * 2) / 4, 0, max);
+      const raw = (ds1 + ds2 + compo * 2) / 4;
+      return Number(clamp(raw, 0, max).toFixed(2));
     }
   }
 
-  if (grade.sequenceScore != null) return clamp(grade.sequenceScore, 0, max);
+  if (grade.sequenceScore != null) return Number(clamp(grade.sequenceScore, 0, max).toFixed(2));
   if (grade.theoreticalScore != null && grade.practicalScore != null) {
-    return clamp((grade.theoreticalScore + grade.practicalScore) / 2, 0, max);
+    const raw = (grade.theoreticalScore + grade.practicalScore) / 2;
+    return Number(clamp(raw, 0, max).toFixed(2));
   }
   if (grade.classTestScore != null && grade.terminalExamScore != null) {
-    return clamp(grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7, 0, max);
+    const raw = grade.classTestScore * 0.3 + grade.terminalExamScore * 0.7;
+    return Number(clamp(raw, 0, max).toFixed(2));
   }
 
   return 0;
 }
+

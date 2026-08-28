@@ -1,14 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { UserRole, StaffPermissionType } from '@domain/types/enums';
-import jwt from 'jsonwebtoken';
-import { passwordError } from '../../../domain/security/PasswordPolicy';
-import { parseDateFR } from '../../../shared/date/parseDateFR';
-import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
-import { verifierMotDePasseEtMfa } from '../middlewares/requireUserSensitiveAuth.ts';
-import { emettreJetonReauth } from '../middlewares/requireReauthToken.ts';
-import { createHash, randomBytes } from 'crypto';
-import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
-import type { ConnecterUtilisateurUseCase, RoleMismatchError, SchoolSuspendedError } from '@application/user/ConnecterUtilisateurUseCase';
+import type { ConnecterUtilisateurUseCase } from '@application/user/ConnecterUtilisateurUseCase';
 import type { InscrireUtilisateurUseCase } from '@application/user/InscrireUtilisateurUseCase';
 import type { RafraichirTokenUseCase } from '@application/user/RafraichirTokenUseCase';
 import type { DeconnecterUtilisateurUseCase } from '@application/user/DeconnecterUtilisateurUseCase';
@@ -20,1026 +11,164 @@ import type { ImporterUtilisateursUseCase } from '@application/user/ImporterUtil
 import type { LoginEmailOtpUseCase } from '@application/user/LoginEmailOtpUseCase';
 import type { VerifierMfaConnexionUseCase } from '@application/user/VerifierMfaConnexionUseCase';
 import type { MfaUseCase } from '@application/user/MfaUseCase';
-import type { TokenService, PayloadToken } from '@domain/ports/services/TokenService';
+import type { TokenService } from '@domain/ports/services/TokenService';
 import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
 import type { EnrollmentRepository } from '@domain/ports/repositories/EnrollmentRepository';
-import { getTemplateMeta } from '@application/school/schoolTemplateConfig';
-import { isNiveauPrimaireOuMaternelle } from '../../../lib/classSerieValidator';
-import * as XLSX from 'xlsx';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-};
+import { UserAuthController } from './user/UserAuthController';
+import { UserMfaPasswordController } from './user/UserMfaPasswordController';
+import { UserLifecycleController } from './user/UserLifecycleController';
+import { UserImportController } from './user/UserImportController';
 
-const ACCESS_COOKIE_MAX_AGE_MS = 15 * 60 * 1000; // 15 min — doit rester synchronisé avec JwtTokenService
+export * from './user/userAuthHelper';
+export * from './user/UserAuthController';
+export * from './user/UserMfaPasswordController';
+export * from './user/UserLifecycleController';
+export * from './user/UserImportController';
 
 /**
- * Durée du cookie refresh_token, graduée par rôle — doit rester synchronisée avec
- * REFRESH_EXPIRY_PAR_ROLE dans JwtTokenService.ts. Un cookie plus long que le JWT qu'il
- * transporte ne serait pas dangereux en soi (le JWT expiré serait rejeté à la vérification),
- * mais un cookie plus COURT couperait la session avant l'expiration réelle du token — les
- * deux durées doivent donc correspondre exactement.
+ * UserController — Façade de composition regroupant les contrôleurs spécialisés :
+ * - UserAuthController (login multi-étapes, logout, refresh, reauth)
+ * - UserMfaPasswordController (statut/reconfiguration MFA, reset/change password)
+ * - UserLifecycleController (création, invitations, modification, suppression, transferts, AP)
+ * - UserImportController (import Excel)
  */
-const REFRESH_COOKIE_MAX_AGE_MS_PAR_ROLE: Record<string, number> = {
-  ADMIN: 7 * 24 * 60 * 60 * 1000,
-  STAFF: 7 * 24 * 60 * 60 * 1000,
-  TEACHER: 30 * 24 * 60 * 60 * 1000,
-  STUDENT: 30 * 24 * 60 * 60 * 1000,
-  PARENT: 30 * 24 * 60 * 60 * 1000,
-};
-const REFRESH_COOKIE_MAX_AGE_MS_DEFAUT = 7 * 24 * 60 * 60 * 1000;
-
-function dureeCookieRefreshMs(role: string): number {
-  return REFRESH_COOKIE_MAX_AGE_MS_PAR_ROLE[role.toUpperCase()] ?? REFRESH_COOKIE_MAX_AGE_MS_DEFAUT;
-}
-
-// Rôles dont la connexion exige une double authentification (MFA/TOTP) en plus du code email.
-// Parent/Élève n'en font pas partie — mot de passe + code email seulement.
-const MFA_REQUIRED_ROLES = ['ADMIN', 'STAFF', 'TEACHER'];
-
-interface PendingLoginPayload {
-  userId: string;
-  schoolId: string;
-  role: string;
-  permissions: string[];
-  nomComplet: string;
-  roleMismatch: boolean;
-  redirectTo?: string | null;
-  tokenType: 'pending_login' | 'pending_mfa' | 'pending_mfa_setup';
-}
-
 export class UserController {
+  public readonly authController: UserAuthController;
+  public readonly mfaPasswordController: UserMfaPasswordController;
+  public readonly lifecycleController: UserLifecycleController;
+  public readonly importController: UserImportController;
+
   constructor(
-    private readonly connecter: ConnecterUtilisateurUseCase,
-    private readonly inscrire: InscrireUtilisateurUseCase,
-    private readonly rafraichir: RafraichirTokenUseCase,
-    private readonly deconnecter: DeconnecterUtilisateurUseCase,
-    private readonly modifier: ModifierUtilisateurUseCase,
-    private readonly supprimer: SupprimerUtilisateurUseCase,
-    private readonly transferer: TransfererEleveUseCase,
-    private readonly tokenService: TokenService,
-    private readonly schoolRepository: SchoolRepository,
-    private readonly designerAP: DesignerAPUseCase,
-    private readonly importer: ImporterUtilisateursUseCase,
-    private readonly loginEmailOtp: LoginEmailOtpUseCase,
-    private readonly verifierMfaConnexion: VerifierMfaConnexionUseCase,
-    private readonly audit: AIActionAuditPort,
-    private readonly userRepository: UserRepository,
-    private readonly mfaUseCase: MfaUseCase,
-    private readonly classeRepository: ClasseRepository,
-    private readonly enrollmentRepository: EnrollmentRepository,
-  ) {}
+    connecter: ConnecterUtilisateurUseCase,
+    inscrire: InscrireUtilisateurUseCase,
+    rafraichir: RafraichirTokenUseCase,
+    deconnecter: DeconnecterUtilisateurUseCase,
+    modifier: ModifierUtilisateurUseCase,
+    supprimer: SupprimerUtilisateurUseCase,
+    transferer: TransfererEleveUseCase,
+    tokenService: TokenService,
+    schoolRepository: SchoolRepository,
+    designerAP: DesignerAPUseCase,
+    importer: ImporterUtilisateursUseCase,
+    loginEmailOtp: LoginEmailOtpUseCase,
+    verifierMfaConnexion: VerifierMfaConnexionUseCase,
+    audit: AIActionAuditPort,
+    userRepository: UserRepository,
+    mfaUseCase: MfaUseCase,
+    classeRepository: ClasseRepository,
+    enrollmentRepository: EnrollmentRepository,
+  ) {
+    this.authController = new UserAuthController(
+      connecter,
+      loginEmailOtp,
+      verifierMfaConnexion,
+      mfaUseCase,
+      deconnecter,
+      rafraichir,
+      tokenService,
+      schoolRepository,
+      userRepository,
+    );
 
-  // ── Pending login token (cookie temporaire entre les étapes de connexion) ──
+    this.mfaPasswordController = new UserMfaPasswordController(
+      mfaUseCase,
+      userRepository,
+      schoolRepository,
+    );
 
-  private signPendingToken(payload: Omit<PendingLoginPayload, 'tokenType'>, tokenType: PendingLoginPayload['tokenType'], expiresIn: string): string {
-    return jwt.sign({ ...payload, tokenType }, process.env.JWT_SECRET!, { expiresIn: expiresIn as jwt.SignOptions['expiresIn'] });
+    this.lifecycleController = new UserLifecycleController(
+      inscrire,
+      modifier,
+      supprimer,
+      transferer,
+      designerAP,
+      audit,
+      userRepository,
+      schoolRepository,
+      classeRepository,
+      enrollmentRepository,
+    );
+
+    this.importController = new UserImportController(importer);
   }
 
-  private setPendingCookie(res: Response, token: string, maxAgeMs: number): void {
-    res.cookie('pending_login_token', token, { ...COOKIE_OPTIONS, maxAge: maxAgeMs });
-  }
+  // ── Auth & Session ──────────────────────────────────────────────────────────
+  login = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.login(req, res, next);
 
-  private readPendingToken(req: Request, expectedType: PendingLoginPayload['tokenType']): PendingLoginPayload {
-    const raw = req.cookies?.pending_login_token;
-    if (!raw) throw new Error('Session de connexion expirée. Veuillez recommencer.');
-    let decoded: PendingLoginPayload & { exp?: number; iat?: number; nbf?: number };
-    try {
-      decoded = jwt.verify(raw, process.env.JWT_SECRET!) as PendingLoginPayload & { exp?: number; iat?: number; nbf?: number };
-    } catch {
-      throw new Error('Session de connexion expirée. Veuillez recommencer.');
-    }
-    if (decoded.tokenType !== expectedType) {
-      throw new Error('Session de connexion invalide. Veuillez recommencer.');
-    }
-    // jwt.verify renvoie aussi les claims standard (exp/iat/nbf) dans le payload decode. Si on
-    // reinjecte ce payload tel quel dans un futur jwt.sign(..., { expiresIn }) pour l-etape
-    // suivante, jsonwebtoken refuse ("Bad options.expiresIn option the payload already has an
-    // exp property") — on les retire ici, une fois pour toutes, plutot que dans chaque appelant.
-    const { exp, iat, nbf, ...clean } = decoded;
-    return clean as PendingLoginPayload;
-  }
+  verifyLoginOtp = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.verifyLoginOtp(req, res, next);
 
-  private issueFinalSession(res: Response, payload: Omit<PendingLoginPayload, 'tokenType'>) {
-    const tokens = this.tokenService.genererTokens({
-      userId: payload.userId,
-      schoolId: payload.schoolId,
-      role: payload.role as UserRole,
-      permissions: payload.permissions as StaffPermissionType[],
-      tokenType: 'access',
-    });
-    res.cookie('access_token', tokens.accessToken, { ...COOKIE_OPTIONS, maxAge: ACCESS_COOKIE_MAX_AGE_MS });
-    res.cookie('refresh_token', tokens.refreshToken, { ...COOKIE_OPTIONS, maxAge: dureeCookieRefreshMs(payload.role) });
-    res.clearCookie('pending_login_token', { path: '/' });
-    return {
-      userId: payload.userId,
-      role: payload.role,
-      permissions: payload.permissions,
-      nomComplet: payload.nomComplet,
-      roleMismatch: payload.roleMismatch,
-      redirectTo: payload.redirectTo ?? null,
-    };
-  }
+  resendLoginOtp = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.resendLoginOtp(req, res, next);
 
-  // POST /api/v2/auth/login
-  login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { email, password, subdomain, role } = req.body;
-      if (!email || !password || !subdomain) {
-        res.status(400).json({ success: false, message: 'email, password et subdomain requis' });
-        return;
-      }
+  verifyLoginMfa = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.verifyLoginMfa(req, res, next);
 
-      const school = await this.schoolRepository.findBySubdomain(subdomain);
-      if (!school) {
-        res.status(404).json({ success: false, message: 'Établissement introuvable' });
-        return;
-      }
+  firstMfaSetup = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.firstMfaSetup(req, res, next);
 
-      const resultat = await this.connecter.execute({
-        email,
-        plainPassword: password,
-        schoolId: school.id,
-        role: role || undefined,
-      });
+  firstMfaEnable = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.firstMfaEnable(req, res, next);
 
-      // Identifiants valides — jamais de session immédiate : toute connexion (tous rôles)
-      // passe désormais par un code de vérification envoyé par email avant l'accès complet.
-      await this.loginEmailOtp.envoyer(resultat.userId);
+  reauth = (req: Request, res: Response): Promise<void> =>
+    this.authController.reauth(req, res);
 
-      const pendingPayload: Omit<PendingLoginPayload, 'tokenType'> = {
-        userId: resultat.userId,
-        schoolId: resultat.schoolId,
-        role: resultat.role,
-        permissions: resultat.permissions,
-        nomComplet: resultat.nomComplet,
-        roleMismatch: resultat.roleMismatch ?? false,
-        redirectTo: resultat.redirectTo ?? null,
-      };
-      const token = this.signPendingToken(pendingPayload, 'pending_login', '10m');
-      this.setPendingCookie(res, token, 10 * 60 * 1000);
+  logout = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.logout(req, res, next);
 
-      res.json({ success: true, step: 'email_otp', message: 'Code de vérification envoyé par email' });
-    } catch (error) {
-      // École suspendue — credentials valides mais accès bloqué
-      if (error instanceof Error && (error as SchoolSuspendedError).code === 'SCHOOL_SUSPENDED') {
-        res.status(403).json({
-          success: false,
-          error: 'SCHOOL_SUSPENDED',
-          message: 'Votre établissement a été suspendu. Contactez le support ZekoulABia.',
-        });
-        return;
-      }
-      // Cas multi-rôles : l'utilisateur doit choisir son rôle parmi les disponibles
-      if (error instanceof Error && error.message === 'ROLE_MISMATCH_MULTIPLE') {
-        res.status(422).json({
-          success: false,
-          code: 'ROLE_MISMATCH_MULTIPLE',
-          message: 'Le rôle sélectionné ne correspond à aucun compte dans cet établissement.',
-          availableRoles: (error as RoleMismatchError).availableRoles,
-        });
-        return;
-      }
-      this.gererErreur(error, res, next);
-    }
-  };
+  refresh = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.authController.refresh(req, res, next);
 
-  // POST /api/v2/users/auth/verify-login-otp
-  verifyLoginOtp = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const decoded = this.readPendingToken(req, 'pending_login');
-      const { otp } = req.body;
-      if (!otp) {
-        res.status(400).json({ success: false, message: 'Code OTP requis' });
-        return;
-      }
+  // ── MFA & Mots de passe ─────────────────────────────────────────────────────
+  mfaStatus = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.mfaStatus(req, res, next);
 
-      await this.loginEmailOtp.verifier(decoded.userId, otp);
+  mfaReconfigureStart = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.mfaReconfigureStart(req, res, next);
 
-      const base = { ...decoded };
+  mfaReconfigureConfirm = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.mfaReconfigureConfirm(req, res, next);
 
-      if (MFA_REQUIRED_ROLES.includes(decoded.role)) {
-        const mfaEnabled = await this.userRepository.isMfaEnabled(decoded.userId);
+  mfaRegenCodes = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.mfaRegenCodes(req, res, next);
 
-        if (mfaEnabled) {
-          const token = this.signPendingToken(base, 'pending_mfa', '10m');
-          this.setPendingCookie(res, token, 10 * 60 * 1000);
-          res.json({ success: true, step: 'totp_required' });
-          return;
-        }
+  forgotPassword = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.forgotPassword(req, res, next);
 
-        // MFA jamais configuré (1re connexion, ou compte existant pas encore migré) — accès
-        // bloqué tant que la configuration obligatoire n'est pas terminée (voir mfa/first-setup).
-        const token = this.signPendingToken(base, 'pending_mfa_setup', '20m');
-        this.setPendingCookie(res, token, 20 * 60 * 1000);
-        res.json({ success: true, step: 'mfa_setup_required' });
-        return;
-      }
+  resetPassword = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.resetPassword(req, res, next);
 
-      // PARENT / STUDENT (et tout rôle hors liste MFA) — session complète immédiate
-      const data = this.issueFinalSession(res, base);
-      res.json({ success: true, step: 'done', data });
-    } catch (error: any) {
-      res.status(401).json({ success: false, message: error.message || 'Code invalide' });
-    }
-  };
+  changePassword = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.mfaPasswordController.changePassword(req, res, next);
 
-  // POST /api/v2/users/auth/resend-login-otp
-  resendLoginOtp = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const decoded = this.readPendingToken(req, 'pending_login');
-      await this.loginEmailOtp.envoyer(decoded.userId);
-      const token = this.signPendingToken(decoded, 'pending_login', '10m');
-      this.setPendingCookie(res, token, 10 * 60 * 1000);
-      res.json({ success: true, message: 'Nouveau code de vérification envoyé' });
-    } catch (error: any) {
-      res.status(400).json({ success: false, message: error.message || 'Erreur lors du renvoi' });
-    }
-  };
+  // ── Cycle de vie utilisateurs ───────────────────────────────────────────────
+  register = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.register(req, res, next);
 
-  // POST /api/v2/users/auth/verify-login-mfa
-  verifyLoginMfa = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const decoded = this.readPendingToken(req, 'pending_mfa');
-      const { code } = req.body;
-      if (!code) {
-        res.status(400).json({ success: false, message: 'Code MFA requis' });
-        return;
-      }
+  validateInvite = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.validateInvite(req, res, next);
 
-      await this.verifierMfaConnexion.execute(decoded.userId, code);
+  completeInvite = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.completeInvite(req, res, next);
 
-      const data = this.issueFinalSession(res, decoded);
-      res.json({ success: true, step: 'done', data });
-    } catch (error: any) {
-      res.status(401).json({ success: false, message: error.message || 'Code MFA invalide' });
-    }
-  };
+  update = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.update(req, res, next);
 
-  // POST /api/v2/users/auth/mfa/first-setup — configuration MFA obligatoire (1re connexion Admin/Staff/Teacher)
-  firstMfaSetup = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const decoded = this.readPendingToken(req, 'pending_mfa_setup');
-      const data = await this.mfaUseCase.firstMfaSetup(decoded.userId);
-      res.json({ success: true, data });
-    } catch (error: any) {
-      const msg: string = error.message || 'Erreur';
-      const status = msg.includes('introuvable') ? 404 : msg.includes('déjà activé') ? 400 : msg.includes('expirée') || msg.includes('invalide') ? 401 : 500;
-      res.status(status).json({ success: false, message: msg });
-    }
-  };
+  delete = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.delete(req, res, next);
 
-  // POST /api/v2/users/auth/mfa/first-enable — vérifie le TOTP, active le MFA, termine la connexion
-  firstMfaEnable = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const decoded = this.readPendingToken(req, 'pending_mfa_setup');
-      const { totpCode } = req.body;
-      if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
+  transfer = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.transfer(req, res, next);
 
-      const { recoveryCodes } = await this.mfaUseCase.firstMfaEnable(decoded.userId, totpCode);
-      const data = this.issueFinalSession(res, decoded);
-      res.json({ success: true, data: { ...data, recoveryCodes } });
-    } catch (error: any) {
-      const msg: string = error.message || 'Erreur';
-      const status = msg.includes('Aucune configuration') ? 400 : msg.includes('déjà activé') ? 400 : msg.includes('TOTP invalide') ? 401 : 500;
-      res.status(status).json({ success: false, message: msg });
-    }
-  };
+  apDesignation = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.lifecycleController.apDesignation(req, res, next);
 
-  // GET /api/v2/users/mfa/status — statut MFA du compte authentifié (Admin/Staff/Teacher)
-  mfaStatus = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const userId = req.user?.userId;
-      const data = await this.mfaUseCase.mfaStatus(userId);
-      res.json({ success: true, data });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  };
-
-  // POST /api/v2/users/mfa/reconfigure/start — génère un NOUVEAU secret (gardé par requireUserSensitiveAuth)
-  mfaReconfigureStart = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const userId = req.user?.userId;
-      const data = await this.mfaUseCase.mfaReconfigureStart(userId);
-      res.json({ success: true, data });
-    } catch (error: any) {
-      const msg: string = error.message || 'Erreur';
-      const status = msg.includes("Configurez d'abord") ? 400 : 500;
-      res.status(status).json({ success: false, message: msg });
-    }
-  };
-
-  // POST /api/v2/users/mfa/reconfigure/confirm — confirme le nouveau secret + régénère les codes
-  mfaReconfigureConfirm = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const userId = req.user?.userId;
-      const { totpCode } = req.body;
-      if (!totpCode) { res.status(400).json({ success: false, message: 'Code TOTP requis' }); return; }
-      const data = await this.mfaUseCase.mfaReconfigureConfirm(userId, totpCode);
-      res.json({ success: true, data });
-    } catch (error: any) {
-      const msg: string = error.message || 'Erreur';
-      const status = msg.includes('Aucune reconfiguration') ? 400 : msg.includes('TOTP invalide') ? 401 : 500;
-      res.status(status).json({ success: false, message: msg });
-    }
-  };
-
-  // POST /api/v2/users/mfa/regen-codes — régénère uniquement les codes de récupération (gardé)
-  mfaRegenCodes = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    try {
-      const userId = req.user?.userId;
-      const data = await this.mfaUseCase.mfaRegenCodes(userId);
-      res.json({ success: true, data });
-    } catch (error: any) {
-      const msg: string = error.message || 'Erreur';
-      const status = msg.includes('MFA non actif') ? 400 : 500;
-      res.status(status).json({ success: false, message: msg });
-    }
-  };
-
-  // POST /api/v2/users/auth/reauth — ouvre une fenêtre de grâce de ré-authentification
-  // (Couche 1, PLAN_IMPLEMENTATION_BACKUP.md §1.5) : mot de passe + MFA vérifiés une fois,
-  // jeton court terme réutilisable ensuite pour les actions destructives de gravité complète.
-  reauth = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.userId;
-      const { password, code } = req.body as { password?: string; code?: string };
-      const resultat = await verifierMotDePasseEtMfa(userId, String(password ?? '').trim(), String(code ?? '').trim());
-      if (!resultat.ok) {
-        const echec = resultat as { ok: false; statusCode: number; message: string };
-        res.status(echec.statusCode).json({ success: false, message: echec.message });
-        return;
-      }
-      emettreJetonReauth(res, userId);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message || 'Erreur' });
-    }
-  };
-
-  // POST /api/v2/auth/logout
-  logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      if (user?.userId) {
-        await this.deconnecter.execute(user.userId);
-      }
-      res.clearCookie('access_token', { path: '/' });
-      res.clearCookie('refresh_token', { path: '/' });
-      res.json({ success: true, message: 'Déconnecté avec succès' });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // POST /api/v2/auth/refresh
-  refresh = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const refreshToken = req.cookies?.refresh_token;
-      if (!refreshToken) {
-        res.status(401).json({ success: false, message: 'Token de rafraîchissement manquant' });
-        return;
-      }
-
-      // JwtTokenService écrit toujours refreshTokenVersion (défaut 0) à la signature — voir
-      // genererTokens — même si le port le déclare optionnel.
-      const payload = this.tokenService.verifierRefreshToken(refreshToken) as PayloadToken & { refreshTokenVersion: number };
-      const tokens = await this.rafraichir.execute(payload);
-
-      res.cookie('access_token', tokens.accessToken, {
-        ...COOKIE_OPTIONS,
-        maxAge: ACCESS_COOKIE_MAX_AGE_MS,
-      });
-      res.cookie('refresh_token', tokens.refreshToken, {
-        ...COOKIE_OPTIONS,
-        maxAge: dureeCookieRefreshMs(payload.role),
-      });
-
-      res.json({ success: true, message: 'Tokens rafraîchis' });
-    } catch (error) {
-      // Ne pas effacer les cookies sur erreur transitoire (redémarrage backend, réseau)
-      // Seul un logout explicite ou un refresh token vraiment expiré mérite un clearCookie
-      res.status(401).json({ success: false, message: 'Session expirée — reconnectez-vous' });
-    }
-  };
-
-  // POST /api/v2/users
-  register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      const bcrypt = await import('bcryptjs');
-      const isDevMode = process.env.EMAIL_DISABLED === 'true';
-
-      let passwordHash: string;
-      if (isDevMode) {
-        // Dev : mot de passe fixe — le frontend est ignoré volontairement
-        passwordHash = await bcrypt.hash('chris123456789', 10);
-      } else {
-        // Prod : hash aléatoire — l'utilisateur crée son mot de passe via le lien d'invitation
-        const crypto = await import('crypto');
-        passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
-      }
-
-      // dateOfBirth traité explicitement (voir même correctif sur `update`) : évite de
-      // dépendre implicitement de la coercion Date|string de Prisma.
-      let dateOfBirth: Date | undefined;
-      if (req.body.dateOfBirth) {
-        const parsed = parseDateFR(String(req.body.dateOfBirth));
-        if (!parsed) {
-          res.status(400).json({ success: false, message: `Date de naissance invalide : "${req.body.dateOfBirth}"` });
-          return;
-        }
-        dateOfBirth = parsed;
-      }
-
-      // Maternelle/primaire : jamais d'identifiants de connexion propres pour l'élève, même
-      // via la création directe (même règle que le module eleveOnboarding — voir
-      // determinerRecipientType). Le compte élève reste créable (StudentProfile obligatoire
-      // pour notes/présences), mais sans email ni téléphone. Aucun champ "cycle" par classe/
-      // section dans le schéma — signal dérivé du template de l'école (School.templateCode).
-      if (req.body.role === 'STUDENT' && req.body.classeId && (req.body.email || req.body.phone)) {
-        const classe = await this.classeRepository.findById(req.body.classeId);
-        const ecole = await this.schoolRepository.findById(user.schoolId);
-        const isPrimaireClasse = classe ? isNiveauPrimaireOuMaternelle(classe.level ?? '') : getTemplateMeta(ecole?.templateCode).isPrimaire;
-        if (isPrimaireClasse) {
-          res.status(400).json({
-            success: false,
-            message: "Un élève de maternelle/primaire ne peut pas avoir d'identifiants de connexion propres (email/téléphone) — créez plutôt un compte PARENT pour la connexion.",
-          });
-          return;
-        }
-      }
-
-      const resultat = await this.inscrire.execute({
-        schoolId: user.schoolId,
-        ...req.body,
-        dateOfBirth,
-        passwordHash,
-      });
-
-      this.audit.journaliser({
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'creer_eleve', targetType: 'User', targetId: resultat.userId,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
-      });
-      res.status(201).json({ success: true, data: resultat });
-
-      // Envoi du lien d'invitation (prod uniquement, tout rôle avec email — le garde-fou
-      // maternelle/primaire ci-dessus garantit qu'un STUDENT avec email est bien un élève du
-      // secondaire, donc éligible aux identifiants propres comme PARENT/STAFF/TEACHER).
-      const recipientEmail: string | undefined = (req.body.email as string | undefined)?.trim();
-      const role: string = req.body.role || '';
-      if (!isDevMode && recipientEmail && ['STAFF', 'TEACHER', 'STUDENT', 'PARENT'].includes(role)) {
-        (async () => {
-          try {
-            const jwt = await import('jsonwebtoken');
-            const inviteToken = jwt.default.sign(
-              { sub: resultat.userId, email: recipientEmail, schoolId: user.schoolId, type: 'user_invite' },
-              process.env.JWT_SECRET!,
-              { expiresIn: '7d' },
-            );
-
-            const school = await this.schoolRepository.findById(user.schoolId);
-            const schoolName = school?.name ?? 'votre établissement';
-            const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
-            const inviteUrl = `${frontendUrl}/invite/set-password?token=${inviteToken}`;
-
-            console.log(`[Invite] Lien d'invitation pour ${recipientEmail}: ${inviteUrl}`);
-
-            const { sendTransactionalEmail } = await import('../../services/email/EmailService.ts');
-            await sendTransactionalEmail({
-              recipientEmail,
-              subject: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,
-              html: `
-                <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
-                  <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-                    <h1 style="color:white;margin:0;font-size:20px;">🎓 ZekoulABia</h1>
-                  </div>
-                  <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
-                    <h2 style="color:#1a1209;margin-top:0;">Bonjour ${String(req.body.firstName || '').trim()} ${String(req.body.lastName || '').trim()},</h2>
-                    <p style="color:#6b5c45;font-size:15px;line-height:1.6;">
-                      Vous avez été invité(e) à rejoindre <strong>${schoolName}</strong> sur ZekoulABia.
-                      Cliquez sur le bouton ci-dessous pour créer votre mot de passe et accéder à votre espace.
-                    </p>
-                    <div style="text-align:center;margin:28px 0 16px;">
-                      <a href="${inviteUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">
-                        🔑 Créer mon mot de passe
-                      </a>
-                    </div>
-                    <p style="color:#a89478;font-size:13px;text-align:center;">Ce lien expire dans 7 jours.</p>
-                    <hr style="border:none;border-top:1px solid #e8e0d4;margin:20px 0;" />
-                    <p style="color:#a89478;font-size:12px;margin:0;text-align:center;">
-                      ZekoulABia · Plateforme de gestion scolaire · Cameroun
-                    </p>
-                  </div>
-                </div>
-              `,
-              template: 'user_invitation',
-              eventType: 'user_invite',
-              metadata: { schoolId: user.schoolId },
-            });
-          } catch (emailErr) {
-            console.error('[Email] Invitation error:', emailErr);
-          }
-        })();
-      }
-    } catch (error) {
-      const user = req.user;
-      this.audit.journaliser({
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'creer_eleve', origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
-      this.gererErreur(error, res, next);
-    }
-  };
-
-  // GET /api/v2/users/auth/invite/validate?token=...
-  validateInvite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const token = req.query.token as string;
-      if (!token) {
-        res.status(400).json({ success: false, message: 'Token manquant' });
-        return;
-      }
-
-      const jwt = await import('jsonwebtoken');
-      let payload: any;
-      try {
-        payload = jwt.default.verify(token, process.env.JWT_SECRET!);
-      } catch {
-        res.status(401).json({ success: false, message: 'Lien invalide ou expiré. Contactez votre administrateur.' });
-        return;
-      }
-
-      if (payload.type !== 'user_invite') {
-        res.status(401).json({ success: false, message: 'Lien invalide.' });
-        return;
-      }
-
-      const user = await this.userRepository.findById(payload.sub as string);
-      if (!user) {
-        res.status(404).json({ success: false, message: 'Compte introuvable.' });
-        return;
-      }
-
-      const school = await this.schoolRepository.findById(user.schoolId);
-
-      res.json({
-        success: true,
-        data: {
-          email: user.email || payload.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          schoolName: school?.name ?? '',
-          subdomain: school?.subdomain ?? '',
-        },
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // POST /api/v2/users/auth/invite/complete
-  completeInvite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { token, password, confirmPassword } = req.body as {
-        token?: string;
-        password?: string;
-        confirmPassword?: string;
-      };
-
-      if (!token || !password) {
-        res.status(400).json({ success: false, message: 'Token et mot de passe requis.' });
-        return;
-      }
-      if (password !== confirmPassword) {
-        res.status(400).json({ success: false, message: 'Les mots de passe ne correspondent pas.' });
-        return;
-      }
-      const pwdErr = passwordError(password);
-      if (pwdErr) {
-        res.status(400).json({ success: false, message: pwdErr });
-        return;
-      }
-
-      const jwt = await import('jsonwebtoken');
-      let payload: any;
-      try {
-        payload = jwt.default.verify(token, process.env.JWT_SECRET!);
-      } catch {
-        res.status(401).json({ success: false, message: 'Lien invalide ou expiré. Contactez votre administrateur.' });
-        return;
-      }
-
-      if (payload.type !== 'user_invite') {
-        res.status(401).json({ success: false, message: 'Lien invalide.' });
-        return;
-      }
-
-      const bcrypt = await import('bcryptjs');
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      await this.userRepository.definirMotDePasseInvitation(payload.sub as string, passwordHash);
-
-      res.json({ success: true, message: 'Mot de passe créé avec succès. Vous pouvez maintenant vous connecter.' });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // POST /api/v2/users/auth/forgot-password
-  forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { email, subdomain } = req.body as { email?: string; subdomain?: string };
-      if (!email || !subdomain) {
-        res.status(400).json({ success: false, message: 'email et subdomain requis.' });
-        return;
-      }
-
-      const school = await this.schoolRepository.findBySubdomain(subdomain);
-      if (!school) {
-        // Réponse identique pour ne pas révéler l'existence du sous-domaine
-        res.json({ success: true, message: 'Si ce compte existe, un email de réinitialisation a été envoyé.' });
-        return;
-      }
-
-      const user = await this.userRepository.findByEmail(email.toLowerCase().trim(), school.id);
-
-      if (user?.email) {
-        const plainToken = randomBytes(32).toString('hex');
-        const tokenHash = createHash('sha256').update(plainToken).digest('hex');
-        const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1h
-
-        await this.userRepository.creerJetonReinitialisation(user.id, tokenHash, expiry);
-
-        const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
-        const resetUrl = `${clientUrl}/reset-password?token=${plainToken}&subdomain=${subdomain}`;
-        const name = `${user.firstName} ${user.lastName}`;
-
-        await sendTransactionalEmail({
-          recipientEmail: user.email,
-          subject: 'Réinitialisation de votre mot de passe — ZekoulABia',
-          template: 'password_reset',
-          eventType: 'password_reset',
-          html: `
-            <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px;background:#f9f7f4;border-radius:12px">
-              <div style="background:linear-gradient(135deg,#059669,#047857);border-radius:10px;padding:24px 28px;margin-bottom:28px">
-                <h1 style="color:white;margin:0;font-size:22px;font-weight:800">🔐 Réinitialisation du mot de passe</h1>
-              </div>
-              <p style="color:#374151;font-size:16px">Bonjour <strong>${name}</strong>,</p>
-              <p style="color:#374151;font-size:15px">Vous avez demandé la réinitialisation de votre mot de passe pour votre compte ZekoulABia.</p>
-              <p style="color:#374151;font-size:15px">Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe. Ce lien expirera dans <strong>1 heure</strong>.</p>
-              <div style="text-align:center;margin:32px 0">
-                <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#047857);color:white;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:16px;font-weight:800">
-                  Réinitialiser mon mot de passe
-                </a>
-              </div>
-              <p style="color:#6b7280;font-size:13px">Si vous n'avez pas fait cette demande, ignorez simplement cet email. Votre mot de passe ne sera pas modifié.</p>
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-              <p style="color:#9ca3af;font-size:12px;text-align:center">ZekoulABia — Système de gestion scolaire</p>
-            </div>`,
-          metadata: { schoolId: school.id },
-        });
-      }
-
-      res.json({ success: true, message: 'Si ce compte existe, un email de réinitialisation a été envoyé.' });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // POST /api/v2/users/auth/reset-password
-  resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { token, password, confirmPassword } = req.body as {
-        token?: string; password?: string; confirmPassword?: string;
-      };
-
-      if (!token || !password) {
-        res.status(400).json({ success: false, message: 'Token et mot de passe requis.' });
-        return;
-      }
-      if (password !== confirmPassword) {
-        res.status(400).json({ success: false, message: 'Les mots de passe ne correspondent pas.' });
-        return;
-      }
-      const pwdErr = passwordError(password);
-      if (pwdErr) {
-        res.status(400).json({ success: false, message: pwdErr });
-        return;
-      }
-
-      const tokenHash = createHash('sha256').update(token).digest('hex');
-      const bcrypt = await import('bcryptjs');
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      try {
-        await this.userRepository.reinitialiserMotDePasse(tokenHash, passwordHash);
-      } catch (e: any) {
-        res.status(400).json({ success: false, message: e.message || 'Lien invalide ou expiré. Demandez un nouveau lien.' });
-        return;
-      }
-
-      res.json({ success: true, message: 'Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.' });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // POST /api/v2/users/auth/change-password  (authentifié)
-  changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const authUser = req.user as { userId: string };
-      const { currentPassword, newPassword, confirmPassword } = req.body as {
-        currentPassword?: string; newPassword?: string; confirmPassword?: string;
-      };
-
-      if (!currentPassword || !newPassword) {
-        res.status(400).json({ success: false, message: 'Mot de passe actuel et nouveau mot de passe requis.' });
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        res.status(400).json({ success: false, message: 'Les mots de passe ne correspondent pas.' });
-        return;
-      }
-      if (newPassword === currentPassword) {
-        res.status(400).json({ success: false, message: 'Le nouveau mot de passe doit être différent de l\'ancien.' });
-        return;
-      }
-      const pwdErr = passwordError(newPassword);
-      if (pwdErr) {
-        res.status(400).json({ success: false, message: pwdErr });
-        return;
-      }
-
-      const existing = await this.userRepository.findById(authUser.userId);
-      if (!existing) {
-        res.status(404).json({ success: false, message: 'Utilisateur introuvable.' });
-        return;
-      }
-
-      const ok = await this.userRepository.verifierMotDePasse(authUser.userId, currentPassword);
-      if (!ok) {
-        res.status(401).json({ success: false, message: 'Mot de passe actuel incorrect.' });
-        return;
-      }
-
-      const bcrypt = await import('bcryptjs');
-      const passwordHash = await bcrypt.hash(newPassword, 10);
-      await this.userRepository.mettreAJourMotDePasse(authUser.userId, passwordHash);
-
-      res.json({ success: true, message: 'Mot de passe modifié avec succès.' });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  // PUT /api/v2/users/:id
-  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      let passwordHash: string | undefined;
-
-      if (req.body.password) {
-        const bcrypt = await import('bcryptjs');
-        passwordHash = await bcrypt.hash(req.body.password, 10);
-      }
-
-      // dateOfBirth traité explicitement (pas via le spread ...req.body) : parseDateFR valide
-      // le format et construit en UTC, plutôt que de compter sur la coercion implicite de Prisma.
-      let dateOfBirth: Date | undefined;
-      if (req.body.dateOfBirth) {
-        const parsed = parseDateFR(String(req.body.dateOfBirth));
-        if (!parsed) {
-          res.status(400).json({ success: false, message: `Date de naissance invalide : "${req.body.dateOfBirth}"` });
-          return;
-        }
-        dateOfBirth = parsed;
-      }
-
-      // Maternelle/primaire : même garde-fou qu'à la création (voir register ci-dessus) — un
-      // élève ne doit jamais se voir attribuer un email/téléphone propre par une modification
-      // ultérieure, même si la création initiale ne l'avait pas fait. Aucun champ "cycle" par
-      // classe/section dans le schéma — signal dérivé du template de l'école (l'admin et sa
-      // cible appartiennent nécessairement à la même école, portée multi-tenant oblige).
-      if (req.body.email || req.body.phone) {
-        const cible = await this.userRepository.findById(req.params.id as string);
-        const effectiveRole = req.body.role ?? cible?.role;
-        if (effectiveRole === 'STUDENT') {
-          const ecole = await this.schoolRepository.findById(user.schoolId);
-          const classeActuelle = await this.enrollmentRepository.getClasseActuelleEleve(req.params.id as string);
-          const niveauClasse = classeActuelle?.level;
-          const isPrimaireClasse = niveauClasse
-            ? isNiveauPrimaireOuMaternelle(niveauClasse)
-            : getTemplateMeta(ecole?.templateCode).isPrimaire;
-          if (isPrimaireClasse) {
-            res.status(400).json({
-              success: false,
-              message: "Un élève de maternelle/primaire ne peut pas avoir d'identifiants de connexion propres (email/téléphone) — créez plutôt un compte PARENT pour la connexion.",
-            });
-            return;
-          }
-        }
-      }
-
-      await this.modifier.execute({
-        cibleUserId: req.params.id as string,
-        demandeurId: user.userId,
-        demandeurRole: user.role,
-        schoolId: user.schoolId,
-        ...req.body,
-        dateOfBirth,
-        passwordHash,
-      });
-
-      this.audit.journaliser({
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
-      });
-      res.json({ success: true, message: 'Utilisateur mis à jour' });
-    } catch (error) {
-      const user = req.user;
-      this.audit.journaliser({
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'modifier_eleve', targetType: 'User', targetId: req.params.id as string,
-        origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
-      this.gererErreur(error, res, next);
-    }
-  };
-
-  // DELETE /api/v2/users/:id
-  delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      await this.supprimer.execute({
-        userId: req.params.id as string,
-        schoolId: user.schoolId,
-        demandeurRole: user.role,
-        demandeurId: user.userId,
-      });
-      res.json({ success: true, message: 'Utilisateur mis à la corbeille' });
-    } catch (error) {
-      this.gererErreur(error, res, next);
-    }
-  };
-
-  // POST /api/v2/students/:id/transfer
-  transfer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      const { fromClasseId, toClasseId } = req.body;
-
-      if (!fromClasseId || !toClasseId) {
-        res.status(400).json({ success: false, message: 'fromClasseId et toClasseId requis' });
-        return;
-      }
-
-      await this.transferer.execute({
-        studentId: req.params.id as string,
-        fromClasseId,
-        toClasseId,
-        schoolId: user.schoolId,
-        demandeurId: user.userId,
-      });
-
-      this.audit.journaliser({
-        actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
-        actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
-        origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { fromClasseId, toClasseId },
-      });
-      res.json({ success: true, message: 'Élève transféré avec succès' });
-    } catch (error) {
-      const user = req.user;
-      this.audit.journaliser({
-        actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
-        actionName: 'transferer_eleve', targetType: 'User', targetId: req.params.id as string,
-        origin: 'UI_DIRECT', outcome: 'ERREUR',
-        refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
-      });
-      this.gererErreur(error, res, next);
-    }
-  };
-
-  // POST /api/v2/users/import
-  importUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      const role = req.body.role as string;
-      const file = req.file as Express.Multer.File | undefined;
-
-      if (!file) {
-        res.status(400).json({ success: false, message: 'Fichier requis (.xlsx ou .xls)' });
-        return;
-      }
-      if (role !== 'STUDENT' && role !== 'TEACHER') {
-        res.status(400).json({ success: false, message: "role doit être 'STUDENT' ou 'TEACHER'" });
-        return;
-      }
-
-      const wb = XLSX.read(file.buffer, { type: 'buffer' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rowsJson = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
-
-      const rows = rowsJson.map((r, i) => ({
-        ligne: i + 2,
-        nom: String(r.nom || '').trim(),
-        prenom: String(r.prenom || '').trim(),
-        email: String(r.email || '').trim(),
-        telephone: String(r.telephone || '').trim(),
-        matricule: String(r.matricule || '').trim(),
-        dateNaissance: String(r.date_naissance || '').trim(),
-        sexe: String(r.sexe ?? r.genre ?? r.sex ?? '').trim(),
-        classe: String(r.classe || '').trim(),
-        nomParent: String(r.nom_parent || '').trim(),
-        prenomParent: String(r.prenom_parent || '').trim(),
-        emailParent: String(r.email_parent || '').trim(),
-        telephoneParent: String(r.telephone_parent || '').trim(),
-        matieres: String(r.matieres || '').trim(),
-        classePrincipale: String(r.classe_principale || '').trim(),
-        pebs: String(r.pebs ?? r.PEBS ?? '').trim(),
-        lv2: String(r.lv2 ?? r.LV2 ?? '').trim(),
-      }));
-
-      if (rows.length === 0) {
-        res.status(400).json({ success: false, message: 'Aucune ligne trouvée dans le fichier' });
-        return;
-      }
-
-      const resultat = await this.importer.execute(user.schoolId, rows, role as 'STUDENT' | 'TEACHER');
-
-      res.json({ success: true, data: resultat });
-    } catch (error) {
-      this.gererErreur(error, res, next);
-    }
-  };
-
-  // PATCH /api/v2/users/:id/ap-designation
-  apDesignation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = req.user;
-      const { departmentSubjectIds, action } = req.body as {
-        departmentSubjectIds?: string[];
-        action?: string;
-      };
-
-      if (action !== 'ASSIGN' && action !== 'REMOVE') {
-        res.status(400).json({ success: false, message: "action doit être 'ASSIGN' ou 'REMOVE'" });
-        return;
-      }
-      if (!Array.isArray(departmentSubjectIds)) {
-        res.status(400).json({ success: false, message: 'departmentSubjectIds (tableau) requis' });
-        return;
-      }
-
-      await this.designerAP.execute({
-        userId: req.params.id as string,
-        schoolId: user.schoolId,
-        demandeurRole: user.role,
-        departmentSubjectIds,
-        action,
-      });
-
-      const msg = action === 'ASSIGN'
-        ? 'Enseignant désigné Animateur Pédagogique avec succès'
-        : 'Désignation AP retirée avec succès';
-      res.json({ success: true, message: msg });
-    } catch (error) {
-      this.gererErreur(error, res, next);
-    }
-  };
-
-  private gererErreur(error: unknown, res: Response, next: NextFunction): void {
-    if (error instanceof Error) {
-      if (error.message.includes('existe déjà')) {
-        res.status(409).json({ success: false, message: error.message });
-        return;
-      }
-      if (error.message.includes('incorrect') || error.message.includes('expirée')) {
-        res.status(401).json({ success: false, message: error.message });
-        return;
-      }
-      // 'refusé' (racine) plutôt que 'refusée' : matche aussi bien "Accès refusé" (masculin,
-      // ex. isolation multi-tenant) que "Permission refusée" (féminin) — les use cases de ce
-      // controller sont censés préfixer toute erreur d'autorisation par "Accès refusé : ...".
-      if (error.message.includes('refusé')) {
-        res.status(403).json({ success: false, message: error.message });
-        return;
-      }
-      if (error.message.includes('introuvable')) {
-        res.status(404).json({ success: false, message: error.message });
-        return;
-      }
-    }
-    next(error);
-  }
+  // ── Import Excel ────────────────────────────────────────────────────────────
+  importUsers = (req: Request, res: Response, next: NextFunction): Promise<void> =>
+    this.importController.importUsers(req, res, next);
 }
