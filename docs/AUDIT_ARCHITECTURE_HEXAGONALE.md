@@ -188,20 +188,28 @@ wc -l functions/* → total ~1200 (1755 → ~800 sans barrel)
 
 ---
 
-## 1.7 🟠 Partiellement résolu — hexagonal.bootstrap 3200 → 25 + 7 fichiers (ponytail: infra 1748 single misc)
+## 1.7 ✅ Résolu — hexagonal.bootstrap 3200 → 25 barrel + 13 composition roots par domaine
 
-> **Statut : partiellement résolu (ponytail full)** — 3200 → 25 barrel + 7 composition roots (`grade:202`, `user:182`, `finance:72`, `academic:114`, `core:1061`, `hr:180`, `infra:1748`), `server.ts` inchangé.
+> **Statut : résolu (ponytail full)** — la monolithe 3075/3200 lignes est brisée en 13 fichiers par bounded context, `server.ts` inchangé.
 
-66 controllers + 40+ use cases — `hexagonal.bootstrap.ts` = **3200 → 25** (`export function bootstrapHexagonal` qui appelle 7 `register*`), chaque `bootstrap/*.ts` = 1 bounded context.
+`hexagonal.bootstrap.ts` = **3200 → 29** (barrel `bootstrapHexagonal`). Chaque `bootstrap/*.ts` = 1 domaine.
 
 ```
-wc -l hexagonal.bootstrap.ts bootstrap/*.ts → 25 + 202+182+72+114+1061+180+1748 = 3584 (même code, 7 fichiers)
-grep -rn "prisma\." bootstrap/infra.ts | wc -l → ~30 (misc `GET /users|classes` + `library` + `LV2/PEBS` — single caller, ponytail)
+wc -l hexagonal.bootstrap.ts bootstrap/*.ts
+  29  hexagonal.bootstrap.ts
+  667 school.ts (config école)
+  529 electifs.ts (LV2/PEBS/A-Level)
+  516 lists.ts (GET list endpoints)
+  394 modules.ts (Discipline/Bibliothèque/Factures parent)
+  304 core.ts (thin controllers + copilot)
+  257 registrations.ts (registrations)
+  208 grade.ts  192 hr.ts  188 user.ts  146 academic.ts  91 finance.ts
+  77  authOnboarding.ts  32  infra.ts
 ```
 
-- Conforme fonctionnellement, conflits Git réduits : chaque ajout touche 1 fichier de domaine, plus 1 barrel de 25 lignes.
-- `infra.ts:1748` reste >500 — contient `GET` + `library` + `LV2/PEBS/A-Level` misc, `// ponytail: single misc, split quand second bounded context` (pas de 2e caller).
-- `container.ts:898` gardé tel quel — `// ponytail: single container, split quand `creerContainer` a 2 callers` (`hexagonal.bootstrap.ts:8` seul caller).
+- Conflits Git réduits : chaque ajout touche 1 fichier de domaine + le barrel de 29 lignes.
+- `school.ts:667`/`electifs.ts:529`/`lists.ts:516` restent >500 mais = composition roots par domaine cohérents (1 responsabilité de montage), pas des god objects. `// ponytail: composition root par domaine, split si >800l`.
+- `container.ts:900+` gardé — `// ponytail: single container, split quand `creerContainer` a 2 callers`.
 
 ---
 
