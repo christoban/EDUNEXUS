@@ -315,15 +315,31 @@ grep -rln "logActivity" src/application → 0
 
 | Fichier | Lignes | Responsabilités identifiées | Action |
 |---|---|---|---|
-| `src/infrastructure/config/hexagonal.bootstrap.ts` | **3075** | Composition de 66 controllers + 40+ use cases + routes | 🔴 Split par bounded context |
-| `src/application/assistant/catalog/adminActionCatalog.ts` | **2080** | ~35 actions IA (bulletin, notes, RH, finance, APEE...) | 🔴 Split en 1 fichier par domaine |
-| `src/infrastructure/inngest/functions/functions.ts` | **1744** | 21 fonctions Inngest (bulletins, santé, paiements, backups, purge...) | 🔴 Split 1 fichier par domaine |
+| `src/infrastructure/config/hexagonal.bootstrap.ts` | **3075** | Composition de 66 controllers + 40+ use cases + routes | 🟢 **RÉSOLU** (split par bounded context §1.7) |
+| `src/application/assistant/catalog/adminActionCatalog.ts` | **2080** | ~35 actions IA (bulletin, notes, RH, finance, APEE...) | 🟢 **RÉSOLU** (split en 7 modules + façade §2.2) |
+| `src/infrastructure/inngest/functions/functions.ts` | **1744** | 21 fonctions Inngest (bulletins, santé, paiements, backups, purge...) | 🟡 A faire (prochaine itération) |
 | `src/application/statisticalCampaign/minesecEsgFieldMap.ts` | **1629** | Data mapping ESG (déclaratif) | 🟡 Data pure, pas de logique — mais découpable par niveau/filière |
-| `src/infrastructure/http/controllers/UserController.ts` | **1174** | Auth + profils + RBAC + transfert élèves + import | 🔴 Split par use case |
-| `src/application/school/ActiverEtablissementUseCase.ts` | **1094** | Activation école + onboarding conversationnel + PEBS + LV2 + coefficients | 🔴 Split en 3-4 use cases |
-| `src/infrastructure/http/controllers/GradeController.ts` | **1072** | Saisie + validation + calcul moyenne (GradingEngine) + statistiques | 🔴 Split + sortir GradingEngine |
-| `src/infrastructure/http/controllers/DevController.ts` | 815 | Routes dev/test hétérogènes | 🔴 À supprimer en prod / scoper |
-| `src/infrastructure/config/container.ts` | 803 | DI monolithique | 🟠 Fusionner/répartir avec §1.7 |
+| `src/infrastructure/http/controllers/UserController.ts` | **1174** | Auth + profils + RBAC + transfert élèves + import | ✅ **RÉSOLU** (split §2.2 — façade 174 + `user/` 4 modules) |
+| `src/application/school/ActiverEtablissementUseCase.ts` | 1094 | Activation école + onboarding conversationnel + PEBS + LV2 + coefficients | ✅ **RÉSOLU** (split §2.2 — façade 162 + `activation/` 5 modules) |
+| `src/infrastructure/http/controllers/GradeController.ts` | 1072 | Saisie + validation + calcul moyenne (GradingEngine) + statistiques | ✅ **RÉSOLU** (split + façade 132 + `grade/` 4 contrôleurs + GradingEngine extrait) |
+| `src/infrastructure/http/controllers/DevController.ts` | 815 | Routes dev/test hétérogènes | 🟡 Dev-only — gardé (dette documentée) |
+| `src/infrastructure/config/container.ts` | 803 | DI monolithique | 🟢 **RÉSOLU** (split par bounded context §1.7) |
+
+✅ **RÉSOLU — 4 fichiers >800 lignes scindés (Partie 2 — Juin-Sept 2026)** :
+
+| Fichier | Avant | Après | Action réalisée |
+|---|---|---|---|
+| `src/application/school/ActiverEtablissementUseCase.ts` | 1094 | 162 + `activation/` (5 modules) | Split en 5 modules + façade |
+| `src/application/assistant/catalog/adminActionCatalog.ts` | 2080 | 143 + `admin/` (7 modules par domaine) | Split en 7 modules + façade |
+| `src/infrastructure/http/controllers/GradeController.ts` | 1072 | 132 + `grade/` (4 contrôleurs + erreurs) | Split + façade + extraction GradingEngine |
+| `src/infrastructure/http/controllers/UserController.ts` | 1174 | 174 + `user/` (4 contrôleurs + helper) | Split + façade |
+| `src/application/school/ActiverEtablissementUseCase.ts` | 1094 | 162 + `activation/` (5 modules) | Split en 5 modules + façade |
+| `src/application/assistant/catalog/adminActionCatalog.ts` | 2080 | 143 + `admin/` (7 modules par domaine) | Split en 7 modules + façade |
+| `src/infrastructure/http/controllers/GradeController.ts` | 1072 | 132 + `grade/` (4 contrôleurs + erreurs) | Split + façade + extraction GradingEngine |
+| `src/infrastructure/http/controllers/UserController.ts` | 1174 | 174 + `user/` (4 contrôleurs + helper) | Split + façade |
+
+#### Bonus : Corrections techniques associées
+- `src/domain/rules/GradingEngine.ts` : `calculerMoyenneSequence` — arrondi `toFixed(2)` (fix flottant `12.7999...` → `12.80`) → **résout 2 tests préexistants GradeController/Scénario B**
 
 **Frontend :**
 
