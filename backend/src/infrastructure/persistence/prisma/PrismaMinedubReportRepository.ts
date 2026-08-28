@@ -1,7 +1,9 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type {
   MinedubReportRepository,
+  MinedubSupplementComplet,
   MinedubSupplementData,
+  MinedubRapport,
 } from '@domain/ports/repositories/MinedubReportRepository';
 
 export class PrismaMinedubReportRepository implements MinedubReportRepository {
@@ -20,6 +22,35 @@ export class PrismaMinedubReportRepository implements MinedubReportRepository {
       },
     });
     return supplement;
+  }
+
+  async trouverSupplementComplet(schoolId: string): Promise<MinedubSupplementComplet | null> {
+    const supplement = await this.prisma.minedubSchoolSupplement.findUnique({ where: { schoolId } });
+    return supplement as unknown as MinedubSupplementComplet | null;
+  }
+
+  async sauvegarderSupplement(
+    schoolId: string,
+    data: Record<string, unknown>,
+    lastUpdatedBy: string,
+  ): Promise<MinedubSupplementComplet> {
+    return this.prisma.minedubSchoolSupplement.upsert({
+      where: { schoolId },
+      create: { schoolId, ...data, lastUpdatedBy },
+      update: { ...data, lastUpdatedBy },
+    }) as unknown as MinedubSupplementComplet;
+  }
+
+  async listerRapports(schoolId: string): Promise<MinedubRapport[]> {
+    return this.prisma.minedubStatisticalReport.findMany({
+      where: { schoolId },
+      orderBy: { generatedAt: 'desc' },
+      take: 20,
+    }) as unknown as MinedubRapport[];
+  }
+
+  async trouverRapportParId(id: string): Promise<MinedubRapport | null> {
+    return this.prisma.minedubStatisticalReport.findUnique({ where: { id } }) as unknown as MinedubRapport | null;
   }
 
   async creerRapport(data: {

@@ -27,6 +27,29 @@ export interface InscriptionMinesecInfo {
   id: string;
 }
 
+export interface ExamRegistrationListItem {
+  id: string;
+  anneeScolaire: string;
+  typeExamen: TypeExamen;
+  status: string;
+  session: number;
+  matriculeNational: string;
+  numeroCandidatExamen: string | null;
+  resultatStatus: string | null;
+  resultatMention: string | null;
+  resultatScore: number | null;
+  resultatSource: string | null;
+  resultatVerifiedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface ExamResultUpdateData {
+  resultatStatus: string;
+  resultatMention: string | null;
+  resultatScore: number | null;
+  resultatSource: string;
+}
+
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 export interface ExamDossierRepository {
@@ -39,4 +62,12 @@ export interface ExamDossierRepository {
     anneeScolaire: string; typeExamen: TypeExamen; session: number;
     matriculeNational: string; paiementMinesecId: string | null;
   }): Promise<ExamRegistrationInfo>;
+  /** Vérifie l'appartenance d'un StudentProfile à l'école courante (isolation multi-tenant). */
+  studentProfileBelongsToSchool(profileId: string, schoolId: string): Promise<boolean>;
+  /** Inscriptions aux examens d'un élève, plus récentes en premier. */
+  findExamRegistrationsByStudent(studentId: string): Promise<ExamRegistrationListItem[]>;
+  /** Pose le numéro de candidat (count 0 = inexistant OU hors école — volontairement indiscernables). */
+  setNumeroCandidat(examId: string, schoolId: string, numeroCandidatExamen: string): Promise<number>;
+  /** Enregistre le résultat (count 0 = inexistant OU hors école — même logique). */
+  setExamResult(examId: string, schoolId: string, data: ExamResultUpdateData): Promise<number>;
 }

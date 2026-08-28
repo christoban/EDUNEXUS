@@ -395,6 +395,7 @@ export function creerContainer() {
   const pushSubscriptionRepository = new PrismaPushSubscriptionRepository(prisma);
   const enrollmentRepository = new PrismaEnrollmentRepository(prisma);
   const matriculeImportRepository = new PrismaMatriculeImportRepository(prisma);
+  const minedubReportRepository = new PrismaMinedubReportRepository(prisma);
   const paiementMinesecRepository = new PrismaPaiementMinesecRepository(prisma);
   const parentRepository = new PrismaParentRepository(prisma);
   const notifierEvenement = (schoolId: string, targetRoles: string[], titre: string, corps: string) =>
@@ -989,9 +990,10 @@ export function creerContainer() {
       repository: new PrismaStatisticalCampaignRepository(prisma),
     },
     statisticalCampaignMinedub: {
+      repository: minedubReportRepository,
       genererRapport: new GenererRapportSyntheseMinedubUseCase(
         new PrismaStatisticalQueryAdapter(prisma),
-        new PrismaMinedubReportRepository(prisma),
+        minedubReportRepository,
       ),
     },
     paiementMinesec: {
@@ -1003,6 +1005,7 @@ export function creerContainer() {
     },
     examen: {
       prepareDossier: new PrepareExamDossierUseCase(examDossierRepository),
+      examDossierRepository,
     },
     lv2Choice: {
       ouvrirFenetre: new OuvrirFenetreChoixLV2UseCase(lv2ChoiceRepository),

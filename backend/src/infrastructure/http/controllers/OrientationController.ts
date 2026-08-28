@@ -15,8 +15,9 @@ import type { ChoisirPisteEleveUseCase } from '@application/orientation/ChoisirP
 import type { ListerElevesAOrienterUseCase } from '@application/orientation/ListerElevesAOrienterUseCase';
 import type { ConfigurerCheckpointOrientationUseCase } from '@application/orientation/ConfigurerCheckpointOrientationUseCase';
 import type { IOrientationRepository } from '@domain/ports/repositories/IOrientationRepository';
-import type { PrismaClient } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { AnneeAcademiqueRepository } from '@domain/ports/repositories/AnneeAcademiqueRepository';
+import type { ParentRepository } from '@domain/ports/repositories/ParentRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 const TYPES_PREOCCUPATION: TypePreoccupation[] = ['SCOLAIRE', 'COMPORTEMENTAL', 'FAMILIAL', 'PROFESSIONNEL', 'SANTE', 'AUTRE'];
 
@@ -37,7 +38,9 @@ export class OrientationController {
     private readonly choisirPisteEleve: ChoisirPisteEleveUseCase,
     private readonly listerElevesAOrienter: ListerElevesAOrienterUseCase,
     private readonly configurerCheckpoint: ConfigurerCheckpointOrientationUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly audit: AIActionAuditPort,
+    private readonly anneeRepo: AnneeAcademiqueRepository,
+    private readonly parentRepo: ParentRepository,
   ) {}
 
   private checkPermission(user: any, res: Response): boolean {
@@ -312,7 +315,7 @@ export class OrientationController {
         prochainRdv: prochainRdv ? new Date(prochainRdv) : undefined,
         notes,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'ajouter_suivi_orientation', targetType: 'OrientationFiche', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { ficheId: req.params.id, riskLevel, mainConcern },
@@ -320,7 +323,7 @@ export class OrientationController {
       res.status(201).json({ success: true, data: suivi });
     } catch (err) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'ajouter_suivi_orientation', targetType: 'OrientationFiche', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -341,7 +344,7 @@ export class OrientationController {
   // ── Moteur de checkpoints (A.5 du plan) ──────────────────────────────────────────
 
   private async anneeCouranteId(schoolId: string): Promise<string | null> {
-    const annee = await this.prisma.academicYear.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+    const annee = await this.anneeRepo.findCourante(schoolId);
     return annee?.id ?? null;
   }
 
@@ -470,10 +473,7 @@ export class OrientationController {
       const studentId = user.role === 'STUDENT' ? user.userId : (req.query.studentId as string);
       if (user.role === 'PARENT') {
         if (!studentId) { res.status(400).json({ success: false, message: 'studentId requis' }); return; }
-        const lien = await this.prisma.parentStudent.findFirst({
-          where: { parentProfile: { userId: user.userId }, studentProfile: { userId: studentId } },
-          select: { parentProfileId: true },
-        });
+        const lien = await this.parentRepo.aAccesEleve(user.userId, studentId);
         if (!lien) { res.status(403).json({ success: false, message: 'Cet élève n\'est pas rattaché à votre compte' }); return; }
       }
 

@@ -239,7 +239,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
   // ── Interopérabilité statistique MINEDUB (rapport PDF non officiel) ────
   const statisticalCampaignMinedubController = new StatisticalCampaignMinedubController(
     c.statisticalCampaignMinedub.genererRapport,
-    prisma,
+    c.statisticalCampaignMinedub.repository,
   );
   app.use('/api/v2/statistical-campaign-minedub', creerStatisticalCampaignMinedubRoutes(statisticalCampaignMinedubController));
 
@@ -257,7 +257,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
   // ── Inscriptions Examens ────────────────────────────────────────────────
   const examenController = new ExamenController(
     c.examen.prepareDossier,
-    prisma,
+    c.examen.examDossierRepository,
   );
   app.use('/api/v2/examens', creerExamenRoutes(examenController));
 

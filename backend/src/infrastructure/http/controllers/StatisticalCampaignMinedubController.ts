@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import type { PrismaClient } from '@prisma/client';
+import type { MinedubReportRepository } from '@domain/ports/repositories/MinedubReportRepository';
 import { GenererRapportSyntheseMinedubUseCase } from '@application/statisticalCampaignMinedub/GenererRapportSyntheseMinedubUseCase';
 
 /**
@@ -11,14 +11,14 @@ import { GenererRapportSyntheseMinedubUseCase } from '@application/statisticalCa
 export class StatisticalCampaignMinedubController {
   constructor(
     private readonly _genererRapport: GenererRapportSyntheseMinedubUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly minedubReportRepository: MinedubReportRepository,
   ) {}
 
   // GET /api/v2/statistical-campaign-minedub/supplement
   getSupplement = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const supplement = await this.prisma.minedubSchoolSupplement.findUnique({ where: { schoolId } });
+      const supplement = await this.minedubReportRepository.trouverSupplementComplet(schoolId);
       res.json({ success: true, data: supplement });
     } catch (err) { next(err); }
   };
@@ -33,11 +33,7 @@ export class StatisticalCampaignMinedubController {
       const data: Record<string, unknown> = {};
       for (const key of allowedKeys) if (key in body) data[key] = body[key];
 
-      const supplement = await this.prisma.minedubSchoolSupplement.upsert({
-        where: { schoolId },
-        create: { schoolId, ...data, lastUpdatedBy: userId },
-        update: { ...data, lastUpdatedBy: userId },
-      });
+      const supplement = await this.minedubReportRepository.sauvegarderSupplement(schoolId, data, userId);
       res.json({ success: true, data: supplement });
     } catch (err) { next(err); }
   };
@@ -56,9 +52,7 @@ export class StatisticalCampaignMinedubController {
   listReports = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const reports = await this.prisma.minedubStatisticalReport.findMany({
-        where: { schoolId }, orderBy: { generatedAt: 'desc' }, take: 20,
-      });
+      const reports = await this.minedubReportRepository.listerRapports(schoolId);
       res.json({ success: true, data: reports });
     } catch (err) { next(err); }
   };
@@ -68,7 +62,7 @@ export class StatisticalCampaignMinedubController {
     try {
       const schoolId = req.user!.schoolId;
       const id = String(req.params['id']);
-      const report = await this.prisma.minedubStatisticalReport.findUnique({ where: { id } });
+      const report = await this.minedubReportRepository.trouverRapportParId(id);
       if (!report || report.schoolId !== schoolId) {
         res.status(404).json({ success: false, message: 'Rapport introuvable' });
         return;

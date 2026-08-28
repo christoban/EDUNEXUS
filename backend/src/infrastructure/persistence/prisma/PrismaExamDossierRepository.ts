@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { ExamDossierRepository, StudentProfileExamInfo, ExamRegistrationInfo, PaiementMinesecInfo, InscriptionMinesecInfo } from '@domain/ports/repositories/ExamDossierRepository';
+import type { ExamDossierRepository, StudentProfileExamInfo, ExamRegistrationInfo, PaiementMinesecInfo, InscriptionMinesecInfo, ExamRegistrationListItem, ExamResultUpdateData } from '@domain/ports/repositories/ExamDossierRepository';
 import type { TypeExamen, TypeFraisMinesec } from '@domain/types/enums';
 
 export class PrismaExamDossierRepository implements ExamDossierRepository {
@@ -60,5 +60,58 @@ export class PrismaExamDossierRepository implements ExamDossierRepository {
   }): Promise<ExamRegistrationInfo> {
     const registration = await this.prisma.examRegistration.create({ data });
     return { id: registration.id };
+  }
+
+  async studentProfileBelongsToSchool(profileId: string, schoolId: string): Promise<boolean> {
+    const profile = await this.prisma.studentProfile.findFirst({
+      where: { id: profileId, user: { schoolId } },
+      select: { id: true },
+    });
+    return profile !== null;
+  }
+
+  async findExamRegistrationsByStudent(studentId: string): Promise<ExamRegistrationListItem[]> {
+    const registrations = await this.prisma.examRegistration.findMany({
+      where: { studentId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return registrations.map((r) => ({
+      id: r.id,
+      anneeScolaire: r.anneeScolaire,
+      typeExamen: r.typeExamen,
+      status: r.status,
+      session: r.session,
+      matriculeNational: r.matriculeNational,
+      numeroCandidatExamen: r.numeroCandidatExamen,
+      resultatStatus: r.resultatStatus,
+      resultatMention: r.resultatMention,
+      resultatScore: r.resultatScore,
+      resultatSource: r.resultatSource,
+      resultatVerifiedAt: r.resultatVerifiedAt,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  async setNumeroCandidat(examId: string, schoolId: string, numeroCandidatExamen: string): Promise<number> {
+    const maj = await this.prisma.examRegistration.updateMany({
+      where: { id: examId, schoolId },
+      data: { numeroCandidatExamen, status: 'CONFIRMED' },
+    });
+    return maj.count;
+  }
+
+  async setExamResult(examId: string, schoolId: string, data: ExamResultUpdateData): Promise<number> {
+    const maj = await this.prisma.examRegistration.updateMany({
+      where: { id: examId, schoolId },
+      data: {
+        resultatStatus: data.resultatStatus,
+        resultatMention: data.resultatMention,
+        resultatScore: data.resultatScore,
+        resultatSource: data.resultatSource,
+        resultatVerifiedAt: new Date(),
+        status: 'RESULT_AVAILABLE',
+      },
+    });
+    return maj.count;
   }
 }

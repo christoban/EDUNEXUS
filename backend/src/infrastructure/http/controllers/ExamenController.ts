@@ -1,11 +1,11 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
 import { PrepareExamDossierUseCase } from '@application/examen/PrepareExamDossierUseCase';
+import type { ExamDossierRepository } from '@domain/ports/repositories/ExamDossierRepository';
 
 export class ExamenController {
   constructor(
     private readonly _prepareDossier: PrepareExamDossierUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly examDossierRepository: ExamDossierRepository,
   ) {}
 
   // POST /api/v2/examens/register
@@ -30,18 +30,13 @@ export class ExamenController {
       const schoolId = req.user!.schoolId;
       const studentId = String(req.params['studentId']);
 
-      const profile = await this.prisma.studentProfile.findFirst({
-        where: { id: studentId, user: { schoolId } },
-      });
-      if (!profile) {
+      const belongs = await this.examDossierRepository.studentProfileBelongsToSchool(studentId, schoolId);
+      if (!belongs) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
       }
 
-      const registrations = await this.prisma.examRegistration.findMany({
-        where: { studentId },
-        orderBy: { createdAt: 'desc' },
-      });
+      const registrations = await this.examDossierRepository.findExamRegistrationsByStudent(studentId);
 
       res.json({ success: true, data: registrations });
     } catch (err) { next(err); }
@@ -57,14 +52,10 @@ export class ExamenController {
         return;
       }
 
-      // updateMany et non update : `where` de update n'accepte que des champs uniques, or
-      // schoolId ne l'est pas. Le count à 0 signifie « inexistante OU hors de mon école » —
-      // volontairement indiscernables, pour ne pas révéler l'existence d'un examen d'une autre école.
-      const maj = await this.prisma.examRegistration.updateMany({
-        where: { id: examId, schoolId: req.user!.schoolId },
-        data: { numeroCandidatExamen, status: 'CONFIRMED' },
-      });
-      if (maj.count === 0) {
+      // Le count à 0 signifie « inexistante OU hors de mon école » — volontairement
+      // indiscernables, pour ne pas révéler l'existence d'un examen d'une autre école.
+      const maj = await this.examDossierRepository.setNumeroCandidat(examId, req.user!.schoolId, numeroCandidatExamen);
+      if (maj === 0) {
         res.status(404).json({ success: false, message: 'Inscription à l\'examen introuvable' });
         return;
       }
@@ -85,19 +76,14 @@ export class ExamenController {
         return;
       }
 
-      // updateMany : voir le commentaire de setCandidateNumber.
-      const maj = await this.prisma.examRegistration.updateMany({
-        where: { id: examId, schoolId: req.user!.schoolId },
-        data: {
-          resultatStatus,
-          resultatMention: resultatMention ?? null,
-          resultatScore: resultatScore ?? null,
-          resultatSource: resultatSource ?? 'MANUAL_IMPORT',
-          resultatVerifiedAt: new Date(),
-          status: 'RESULT_AVAILABLE',
-        },
+      // count 0 : voir le commentaire de setCandidateNumber.
+      const maj = await this.examDossierRepository.setExamResult(examId, req.user!.schoolId, {
+        resultatStatus,
+        resultatMention: resultatMention ?? null,
+        resultatScore: resultatScore ?? null,
+        resultatSource: resultatSource ?? 'MANUAL_IMPORT',
       });
-      if (maj.count === 0) {
+      if (maj === 0) {
         res.status(404).json({ success: false, message: 'Inscription à l\'examen introuvable' });
         return;
       }

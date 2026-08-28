@@ -105,6 +105,7 @@ import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persiste
 import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/prisma/PrismaStudentAffectationRepository';
 import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
+import { PrismaParentRepository } from '@infrastructure/persistence/prisma/PrismaParentRepository';
 import { PrismaClasseRepository } from '@infrastructure/persistence/prisma/PrismaClasseRepository';
 import { PrismaMatiereRepository } from '@infrastructure/persistence/prisma/PrismaMatiereRepository';
 import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
@@ -921,7 +922,9 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     c.orientation.choisirPisteEleve,
     c.orientation.listerElevesAOrienter,
     c.orientation.configurerCheckpoint,
-    prisma,
+    new AIActionAuditAdapter(p),
+    anneeRepository,
+    new PrismaParentRepository(p),
   );
 
   app.use('/api/v2/orientation', creerOrientationRoutes(orientationController));
