@@ -1,5 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { EntranceExamRepository } from '@domain/ports/repositories/EntranceExamRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 import { CreerSessionConcoursUseCase } from '@application/entranceExam/CreerSessionConcoursUseCase';
 import { AjouterCandidatsConcoursUseCase } from '@application/entranceExam/AjouterCandidatsConcoursUseCase';
 import { CalculerAdmissionConcoursUseCase } from '@application/entranceExam/CalculerAdmissionConcoursUseCase';
@@ -8,9 +10,8 @@ import { ResumeSessionConcoursUseCase } from '@application/entranceExam/ResumeSe
 import { ScannerListeCandidatsUseCase } from '@application/entranceExam/ScannerListeCandidatsUseCase';
 import { DetecterAnomaliesConcoursUseCase } from '@application/entranceExam/DetecterAnomaliesConcoursUseCase';
 import { notifyAdmissionProvisoireSms, notifyCepResultSms } from '@infrastructure/services/sms/SmsNotificationService';
-import { notifierOnboardingLienCree } from '@infrastructure/services/notification/OnboardingNotificationService';
+import { notifierOnboardingLienCreeAvecEcole } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { parseDateFR } from '../../../shared/date/parseDateFR';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class EntranceExamController {
@@ -22,17 +23,16 @@ export class EntranceExamController {
     private readonly _resumeSession: ResumeSessionConcoursUseCase,
     private readonly _scannerListe: ScannerListeCandidatsUseCase,
     private readonly _detecterAnomalies: DetecterAnomaliesConcoursUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly entranceExamRepository: EntranceExamRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   // GET /api/v2/entrance-exams — liste des sessions de l'établissement, toutes années/statuts
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const sessions = await this.prisma.entranceExamSession.findMany({
-        where: { schoolId },
-        orderBy: { createdAt: 'desc' },
-      });
+      const sessions = await this.entranceExamRepository.listerSessions(schoolId);
       res.json({ success: true, data: sessions });
     } catch (err) { next(err); }
   };
@@ -51,7 +51,7 @@ export class EntranceExamController {
         admissionThreshold: admissionThreshold ?? undefined,
         availableSeats: availableSeats ?? undefined,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         // Bug indépendant : execute() retourne { sessionId }, jamais `id`.
         actionName: 'creer_session_concours_entree', targetType: 'EntranceExamSession', targetId: result.sessionId,
@@ -59,7 +59,7 @@ export class EntranceExamController {
       });
       res.status(201).json({ success: true, data: result });
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'creer_session_concours_entree', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
@@ -118,7 +118,7 @@ export class EntranceExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._calculerAdmission.execute({ schoolId, sessionId });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'calculer_admission_concours', targetType: 'EntranceExamSession', targetId: sessionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
@@ -130,7 +130,7 @@ export class EntranceExamController {
         });
       }
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'calculer_admission_concours', targetType: 'EntranceExamSession', targetId: String(req.params['id']),
         origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -179,13 +179,14 @@ export class EntranceExamController {
       const result = await this._enregistrerCep.execute({ schoolId, candidateId, cepResult, enregistreParId });
       res.json({ success: true, data: result });
       // SMS distinct de la notification onboarding : celui-ci annonce l'admission (Phase 4 du
-      // concours), l'autre (notifierOnboardingLienCree) invite à compléter le dossier — jamais
+      // concours), l'autre (notifierOnboardingLienCreeAvecEcole) invite à compléter le dossier — jamais
       // le même message deux fois (règle métier n°6 de la spec onboarding auto-service).
       void notifyCepResultSms({
         schoolId, candidateName: result.candidateName, parentPhone: result.parentPhone, result: cepResult,
       });
       if (result.onboarding) {
-        void notifierOnboardingLienCree(this.prisma, schoolId, result.candidateName, result.onboarding);
+        const school = await this.schoolRepository.findById(schoolId);
+        void notifierOnboardingLienCreeAvecEcole(schoolId, school?.name ?? null, result.candidateName, result.onboarding);
       }
     } catch (err) { next(err); }
   };
@@ -196,14 +197,14 @@ export class EntranceExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._resumeSession.execute(schoolId, sessionId);
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'resume_session_concours', targetType: 'EntranceExamSession', targetId: sessionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
       });
       res.json({ success: true, data: result });
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'resume_session_concours', targetType: 'EntranceExamSession', targetId: String(req.params['id']),
         origin: 'UI_DIRECT', outcome: 'ERREUR',

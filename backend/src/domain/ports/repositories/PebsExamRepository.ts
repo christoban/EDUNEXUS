@@ -28,6 +28,7 @@ export interface PebsCandidateData {
 }
 
 export interface PebsExamRepository {
+  listerSessions(schoolId: string): Promise<PebsSessionData[]>;
   trouverSession(sessionId: string): Promise<PebsSessionData | null>;
   creerSession(data: {
     schoolId: string;

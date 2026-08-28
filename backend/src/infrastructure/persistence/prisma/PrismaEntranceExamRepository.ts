@@ -11,6 +11,13 @@ import type {
 export class PrismaEntranceExamRepository implements EntranceExamRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async listerSessions(schoolId: string): Promise<EntranceSessionData[]> {
+    return this.prisma.entranceExamSession.findMany({
+      where: { schoolId },
+      orderBy: { createdAt: 'desc' },
+    }) as Promise<EntranceSessionData[]>;
+  }
+
   async trouverSession(sessionId: string): Promise<EntranceSessionData | null> {
     return this.prisma.entranceExamSession.findUnique({ where: { id: sessionId } }) as Promise<EntranceSessionData | null>;
   }

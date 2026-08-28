@@ -94,6 +94,7 @@ import { PrismaAIContextQueryRepository } from '@infrastructure/persistence/pris
 import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
 import { PrismaSuiviRBACRepository } from '@infrastructure/persistence/prisma/PrismaSuiviRBACRepository';
 import { PrismaAcademicEventRepository } from '@infrastructure/persistence/prisma/PrismaAcademicEventRepository';
+import { PrismaCoreDomainQueryRepository } from '@infrastructure/persistence/prisma/PrismaCoreDomainQueryRepository';
 import { PrismaAnnouncementRepository } from '@infrastructure/persistence/prisma/PrismaAnnouncementRepository';
 import { PrismaMessagerieRepository } from '@infrastructure/persistence/prisma/PrismaMessagerieRepository';
 import { PrismaStudentGroupSetRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupSetRepository';
@@ -898,7 +899,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     new ListerEvenementsUseCase(academicEventRepository),
     new ObtenirEvenementsActifsUseCase(academicEventRepository),
   );
-  const coreDomainController = new CoreDomainController(p);
+  const coreDomainController = new CoreDomainController(new PrismaCoreDomainQueryRepository(p));
   const publicController     = new PublicController(p);
   const smsController        = new SMSController(p, c.attendance.traiterSmsPresence);
 

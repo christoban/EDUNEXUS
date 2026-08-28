@@ -10,6 +10,13 @@ import type {
 export class PrismaPebsExamRepository implements PebsExamRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  async listerSessions(schoolId: string): Promise<PebsSessionData[]> {
+    return this.prisma.pebsExamSession.findMany({
+      where: { schoolId },
+      orderBy: { createdAt: 'desc' },
+    }) as Promise<PebsSessionData[]>;
+  }
+
   async trouverSession(sessionId: string): Promise<PebsSessionData | null> {
     return this.prisma.pebsExamSession.findUnique({ where: { id: sessionId } }) as Promise<PebsSessionData | null>;
   }

@@ -31,6 +31,7 @@ export interface EntranceCandidateData {
 }
 
 export interface EntranceExamRepository {
+  listerSessions(schoolId: string): Promise<EntranceSessionData[]>;
   trouverSession(sessionId: string): Promise<EntranceSessionData | null>;
   creerSession(data: {
     schoolId: string;

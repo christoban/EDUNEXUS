@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PebsExamRepository } from '@domain/ports/repositories/PebsExamRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 import { CreerSessionPebsUseCase } from '@application/pebsExam/CreerSessionPebsUseCase';
 import { AjouterCandidatsPebsUseCase } from '@application/pebsExam/AjouterCandidatsPebsUseCase';
 import { CalculerSelectionPebsUseCase } from '@application/pebsExam/CalculerSelectionPebsUseCase';
@@ -8,7 +9,6 @@ import { ResumeSessionPebsUseCase } from '@application/pebsExam/ResumeSessionPeb
 import { ScannerListeCandidatsPebsUseCase } from '@application/pebsExam/ScannerListeCandidatsPebsUseCase';
 import { DetecterAnomaliesPebsUseCase } from '@application/pebsExam/DetecterAnomaliesPebsUseCase';
 import { notifyPebsSelectionSms } from '@infrastructure/services/sms/SmsNotificationService';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
 import XLSX from 'xlsx';
 
 export class PebsExamController {
@@ -20,17 +20,15 @@ export class PebsExamController {
     private readonly _resumeSession: ResumeSessionPebsUseCase,
     private readonly _scannerListe: ScannerListeCandidatsPebsUseCase,
     private readonly _detecterAnomalies: DetecterAnomaliesPebsUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly pebsExamRepository: PebsExamRepository,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   // GET /api/v2/pebs-exams — liste des sessions de l'établissement, toutes années/niveaux/statuts
   lister = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const schoolId = req.user!.schoolId;
-      const sessions = await this.prisma.pebsExamSession.findMany({
-        where: { schoolId },
-        orderBy: { createdAt: 'desc' },
-      });
+      const sessions = await this.pebsExamRepository.listerSessions(schoolId);
       res.json({ success: true, data: sessions });
     } catch (err) { next(err); }
   };
@@ -49,7 +47,7 @@ export class PebsExamController {
         availableSeats: availableSeats ?? undefined,
         targetClassId,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         // Bug indépendant : execute() retourne { sessionId }, jamais `id` — le cast `as any`
         // masquait un ciblage d'audit toujours undefined pour cette action.
@@ -58,7 +56,7 @@ export class PebsExamController {
       });
       res.status(201).json({ success: true, data: result });
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'creer_session_selection_pebs', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: err instanceof Error ? err.message : undefined, parametersSummary: req.body,
@@ -105,14 +103,14 @@ export class PebsExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._calculerSelection.execute({ schoolId, sessionId });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'calculer_selection_pebs', targetType: 'PebsExamSession', targetId: sessionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
       });
       res.json({ success: true, data: result });
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'calculer_selection_pebs', targetType: 'PebsExamSession', targetId: String(req.params['id']),
         origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -179,14 +177,14 @@ export class PebsExamController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
       const result = await this._resumeSession.execute(schoolId, sessionId);
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user!.userId, actorRole: req.user!.role, schoolId,
         actionName: 'resume_session_pebs', targetType: 'PebsExamSession', targetId: sessionId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: { sessionId },
       });
       res.json({ success: true, data: result });
     } catch (err) {
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: req.user?.userId, actorRole: req.user?.role, schoolId: req.user?.schoolId,
         actionName: 'resume_session_pebs', targetType: 'PebsExamSession', targetId: String(req.params['id']),
         origin: 'UI_DIRECT', outcome: 'ERREUR',

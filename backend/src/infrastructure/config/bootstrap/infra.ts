@@ -100,6 +100,7 @@ import { PrismaStudentGroupRepository } from '@infrastructure/persistence/prisma
 import { PrismaStudentGroupMembershipRepository } from '@infrastructure/persistence/prisma/PrismaStudentGroupMembershipRepository';
 import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/prisma/PrismaStudentAffectationRepository';
 import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
+import { PrismaEntranceExamRepository } from '@infrastructure/persistence/prisma/PrismaEntranceExamRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 import { PrismaClasseRepository } from '@infrastructure/persistence/prisma/PrismaClasseRepository';
 import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/PrismaTimetableRepository';
@@ -137,6 +138,7 @@ import { AffecterPEBSEnMasseUseCase } from '@application/student/AffecterPEBSEnM
 import { CreerTransactionAPEEUseCase } from '@application/apee/CreerTransactionAPEEUseCase';
 import { ValiderDepenseAPEEUseCase } from '@application/apee/ValiderDepenseAPEEUseCase';
 import { PrismaApeeRepository } from '@infrastructure/persistence/prisma/PrismaApeeRepository';
+import { PrismaPebsExamRepository } from '@infrastructure/persistence/prisma/PrismaPebsExamRepository';
 import { buildAdminActionCatalog } from '@infrastructure/assistant/catalog/adminActionCatalog';
 import { buildTeacherActionCatalog } from '@infrastructure/assistant/catalog/teacherActionCatalog';
 import { buildStaffActionCatalog } from '@infrastructure/assistant/catalog/staffActionCatalog';
@@ -280,7 +282,9 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
     c.entranceExam.resumeSession,
     c.entranceExam.scannerListe,
     c.entranceExam.detecterAnomalies,
-    prisma,
+    new PrismaEntranceExamRepository(p),
+    c.school.schoolRepository,
+    new AIActionAuditAdapter(p),
   );
   app.use('/api/v2/entrance-exams', creerEntranceExamRoutes(entranceExamController));
 
@@ -293,7 +297,8 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
     c.pebsExam.resumeSession,
     c.pebsExam.scannerListe,
     c.pebsExam.detecterAnomalies,
-    prisma,
+    new PrismaPebsExamRepository(p),
+    new AIActionAuditAdapter(p),
   );
   app.use('/api/v2/pebs-exams', creerPebsExamRoutes(pebsExamController));
 
