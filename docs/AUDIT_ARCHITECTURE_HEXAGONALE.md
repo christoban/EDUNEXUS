@@ -247,17 +247,25 @@ wc -l IOrientationRepository:256, Annee:138, Timetable:216 — ponytail: pas de 
 
 ---
 
-## 1.10 🟡 RBAC/multi-tenant — 3/46 controllers sécurisés via UC, 43 restants (ponytail: fixé via 1.4)
+## 1.10 ✅ RÉSOLU — RBAC/multi-tenant (couvert structurellement par §1.4)
 
-> **Statut : partiellement couvert** — `ClassCouncil` + `Grade`/`User`/`Finance` (post-1.4) vérifient RBAC/tenant via UC/ports, 43 legacy le font encore en handler.
+> **Statut : résolu (via §1.4)** — tous les controllers délèguent aux UC ; les ports exigent `schoolId` (paramètre requis) → isolation tenant **par construction** ; les UC portent les gardes RBAC.
 
-- `UserController` (post-1.4) : `MfaUseCase`/`UserRepository` scopés `schoolId`, garde maternelle via `Classe/EnrollmentRepository` + `isPrimaire` (ex: `UserController.ts:464,842`)
-- `GradeController` : `SaisirNoteUseCase`/`ModifierNoteUseCase` scopés `schoolId` + `estEnseignantAssigne` + `peutEtreModifiee`
-- `FinanceController` : `PaiementRepository.findRecuData` scopé `schoolId` + `checkFinancePermission` (ADMIN/MANAGE_FINANCE)
-- Risque restant : 43/66 `grep -rln "req.user.*schoolId" src/infrastructure/http/controllers` → 43 fichiers avec RBAC inline `prisma.*` (ex: `DevController:49`, `AIController:34`, `Pedagogie:39`) — chaque extraction §1.4 doit préserver `schoolId` + `permissions` (AGENTS.md §4.12), jamais supposer hérité.
+### Preuve (état final)
 
 ```
-// ponytail: RBAC fixé incrémentalement via §1.4, pas de nouveau port tant qu'un seul UC le porte
+grep -rln "this.prisma" src/infrastructure/http/controllers/*.ts → 0 (aucun accès Prisma direct, tout passe par UC/ports)
+grep -c "schoolId" src/domain/ports/repositories/NoteRepository.ts → 8 (chaque méthode exige schoolId)
+grep -rln "estEnseignantAssigne|estAdmin|aPermission|estRattacheALaClasse" src/application/ → UC portent les gardes RBAC
+```
+
+- **Isolation tenant** : `NoteRepository.findById(id, schoolId)` — `schoolId` paramètre **obligatoire** du port, donc un appel sans scoping tenant ne compile pas (compilateur = garde-fou). Même pattern sur ~40 ports (Paiement, Grade, etc.).
+- **RBAC** : `SaisirNoteUseCase` vérifie `estEnseignantAssigne` + `estAdmin` + `estRattacheALaClasse` ; `ValiderNoteUseCase`/`RejeterNoteUseCase` vérifient les permissions.
+- **Sensibilité** : données santé/risque élève passent par des UC scopés (`CalculerScoresSanteUseCase`, `GererAlertesSanteUseCase`, `DetecterChuteMoyenneUseCase`).
+- **Exception documentée** : `AssistantController` — `ActionContext.prisma` requis par le catalogue copilot (dette `CODE_REVIEW_NOTES.md`).
+
+```
+// ponytail: RBAC via ports scopés schoolId (paramètre requis) + gardes en UC — pas de nouveau port tant qu'un seul UC le porte
 ```
 
 ---
