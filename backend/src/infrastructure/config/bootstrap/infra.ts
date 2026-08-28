@@ -358,7 +358,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
   app.use('/api/v2/apee', creerApeeRoutes(apeeController));
 
   // ── Conseil de Discipline (Art. 30) ──────────────────────────────────────────
-  const disciplineCouncilController = new DisciplineCouncilController(p);
+  const disciplineCouncilController = new DisciplineCouncilController(new PrismaDisciplineRepository(p), c.school.schoolRepository);
   app.use('/api/v2/discipline-council', creerDisciplineCouncilRoutes(disciplineCouncilController));
 
   // ── GET list endpoints (Prisma direct, thin routes) ─────────────────────

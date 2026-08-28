@@ -1,15 +1,17 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { GroupTransferRepository } from '../../../domain/ports/repositories/GroupTransferRepository';
+import type { GroupeScolaireQueryRepository } from '../../../domain/ports/repositories/GroupeScolaireQueryRepository';
 import { ListerDemandesTransfertEntrantesUseCase } from '../../../application/schoolGroup/ListerDemandesTransfertEntrantesUseCase';
 import { AccepterTransfertEleveUseCase } from '../../../application/schoolGroup/AccepterTransfertEleveUseCase';
 import { AccepterTransfertEnseignantUseCase } from '../../../application/schoolGroup/AccepterTransfertEnseignantUseCase';
 import { RejeterTransfertGroupeUseCase } from '../../../application/schoolGroup/RejeterTransfertGroupeUseCase';
-import { notifierOnboardingLienCree } from '@infrastructure/services/notification/OnboardingNotificationService';
+import { notifierOnboardingLienCreeAvecEcole } from '@infrastructure/services/notification/OnboardingNotificationService';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 export class AdminGroupTransferController {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly groupTransferRepository: GroupTransferRepository,
+    private readonly groupeScolaireQueryRepository: GroupeScolaireQueryRepository,
     private readonly listerEntrantesUseCase: ListerDemandesTransfertEntrantesUseCase,
     private readonly accepterEleveUseCase: AccepterTransfertEleveUseCase,
     private readonly accepterEnseignantUseCase: AccepterTransfertEnseignantUseCase,
@@ -31,7 +33,7 @@ export class AdminGroupTransferController {
       const schoolId = req.user!.schoolId;
       const demandeId = String(req.params.id);
 
-      const demande = await this.prisma.groupTransferRequest.findUnique({ where: { id: demandeId } });
+      const demande = await this.groupTransferRepository.trouverParId(demandeId);
       if (!demande) { res.status(404).json({ success: false, message: 'Demande introuvable' }); return; }
 
       if (demande.type === 'STUDENT') {
@@ -39,13 +41,16 @@ export class AdminGroupTransferController {
           demandeId, targetSchoolId: schoolId, acceptedById: req.user!.userId,
         });
         res.json({ success: true, data: onboarding });
-        void notifierOnboardingLienCree(this.prisma, schoolId, onboarding.nomProvisoire, onboarding).catch((err) =>
+
+        const school = await this.groupeScolaireQueryRepository.trouverEcoleDetail(schoolId);
+        const schoolName = school?.name ?? null;
+        void notifierOnboardingLienCreeAvecEcole(schoolId, schoolName, onboarding.nomProvisoire, onboarding).catch((err) =>
           console.error('[AdminGroupTransfer] notification onboarding:', err?.message));
       } else {
         const resultat = await this.accepterEnseignantUseCase.execute({ demandeId, targetSchoolId: schoolId });
         res.json({ success: true, data: resultat });
 
-        const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+        const school = await this.groupeScolaireQueryRepository.trouverEcoleDetail(schoolId);
         const schoolName = school?.name ?? 'votre nouvel établissement';
         const frontendUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
         const jwt = await import('jsonwebtoken');

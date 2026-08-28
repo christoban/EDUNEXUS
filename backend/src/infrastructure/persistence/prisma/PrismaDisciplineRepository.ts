@@ -1,4 +1,4 @@
-import type { PrismaClient, Prisma, DisciplineType } from '@prisma/client';
+import type { PrismaClient, Prisma, DisciplineType, DisciplineCouncilStatus } from '@prisma/client';
 import type { DisciplineRepository, DisciplineSessionData, DisciplineRecordData } from '@domain/ports/repositories/DisciplineRepository';
 
 export class PrismaDisciplineRepository implements DisciplineRepository {
@@ -73,6 +73,18 @@ export class PrismaDisciplineRepository implements DisciplineRepository {
   async trouverSession(id: string, schoolId: string): Promise<DisciplineSessionData | null> {
     return this.prisma.disciplineCouncilSession.findFirst({
       where: { id, schoolId },
+      include: { student: { select: { id: true, firstName: true, lastName: true } } },
+    });
+  }
+
+  async listerSessions(schoolId: string, status?: string): Promise<DisciplineSessionData[]> {
+    return this.prisma.disciplineCouncilSession.findMany({
+      where: { schoolId, ...(status ? { status: status as DisciplineCouncilStatus } : {}) },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true } },
+        presidedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

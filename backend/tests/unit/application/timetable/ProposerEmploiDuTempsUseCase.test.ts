@@ -105,6 +105,8 @@ function timetableRepositoryStub(edt: EmploiDuTemps, occupation: CreneauOccupe[]
     findOccupationEcole: async () => occupation,
     creerCreneauxEnLot: async () => ({ creneauxCrees: 0 }),
     getGridConfig: async () => gridConfig as never,
+    saveGridConfig: async (_s: string, d: never) => d,
+    countTimetablesBySchool: async () => 0,
     classeAppartientAEcole: async () => true,
     findSlotAvecContexte: async () => null,
     findElevesClasseAvecProfils: async () => [],

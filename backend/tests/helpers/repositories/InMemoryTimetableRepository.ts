@@ -6,6 +6,7 @@ import type {
   SlotEnseignantJour,
 } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauALoter } from '@domain/ports/repositories/TimetableRepository';
+import type { GridConfig } from '@domain/ports/repositories/TimetableRepository';
 import type { CreneauOccupe } from '@domain/ports/services/SchedulingSolverPort';
 
 export class InMemoryTimetableRepository implements TimetableRepository {
@@ -191,6 +192,8 @@ export class InMemoryTimetableRepository implements TimetableRepository {
   // --- Lectures solveur (no-op par défaut — les tests concernés stubent ce qu'ils exercent) ---
 
   async getGridConfig(_schoolId: string) { return null; }
+  async saveGridConfig(_schoolId: string, data: GridConfig): Promise<GridConfig> { return data; }
+  async countTimetablesBySchool(_schoolId: string): Promise<number> { return 0; }
   async classeAppartientAEcole(_classId: string, _schoolId: string): Promise<boolean> { return true; }
   async findSlotAvecContexte(_slotId: string) { return null; }
   async findElevesClasseAvecProfils(_schoolId: string, _classId: string) { return []; }

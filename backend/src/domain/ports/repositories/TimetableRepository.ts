@@ -182,6 +182,12 @@ export interface TimetableRepository {
    */
   getGridConfig(schoolId: string): Promise<GridConfig | null>;
 
+  /** Persiste (create/update) la configuration de grille d'une école. */
+  saveGridConfig(schoolId: string, data: GridConfig): Promise<GridConfig>;
+
+  /** Nombre d'emplois du temps existants pour une école (avertissement "EDT déjà en place"). */
+  countTimetablesBySchool(schoolId: string): Promise<number>;
+
   /** Vérifie qu'une classe appartient bien à l'école (isolation multi-tenant). */
   classeAppartientAEcole(classId: string, schoolId: string): Promise<boolean>;
 

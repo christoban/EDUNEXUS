@@ -177,7 +177,8 @@ export function registerUserRoutes(app: Application, prismaParam: typeof prisma 
   app.use('/api/v2/group/transfers', creerGroupTransferRoutes(groupTransferController));
 
   const adminGroupTransferController = new AdminGroupTransferController(
-    p as any,
+    groupTransferRepository,
+    groupeScolaireQueryRepository,
     new ListerDemandesTransfertEntrantesUseCase(groupTransferRepository, groupeScolaireQueryRepository),
     new AccepterTransfertEleveUseCase(groupTransferRepository, groupeScolaireQueryRepository, c.eleveOnboarding.creerSquelette),
     new AccepterTransfertEnseignantUseCase(groupTransferRepository, groupeScolaireQueryRepository, c.user.inscrire),

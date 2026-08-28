@@ -205,6 +205,18 @@ export class PrismaTimetableRepository implements TimetableRepository {
     return config;
   }
 
+  async saveGridConfig(schoolId: string, data: GridConfig): Promise<GridConfig> {
+    return this.prisma.timetableGridConfig.upsert({
+      where: { schoolId },
+      create: { schoolId, ...data },
+      update: data,
+    });
+  }
+
+  async countTimetablesBySchool(schoolId: string): Promise<number> {
+    return this.prisma.timetable.count({ where: { schoolId } });
+  }
+
   async classeAppartientAEcole(classId: string, schoolId: string): Promise<boolean> {
     const classe = await this.prisma.class.findFirst({ where: { id: classId, schoolId }, select: { id: true } });
     return !!classe;

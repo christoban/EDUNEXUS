@@ -21,6 +21,7 @@ import { PrismaDepartmentRepository } from '@infrastructure/persistence/prisma/P
 import { PrismaStaffProfileRepository } from '@infrastructure/persistence/prisma/PrismaStaffProfileRepository';
 import { PrismaStatisticsQueryRepository } from '@infrastructure/persistence/prisma/PrismaStatisticsQueryRepository';
 import { PrismaRattachementEnseignantRepository } from '@infrastructure/persistence/prisma/PrismaRattachementEnseignantRepository';
+import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/PrismaTimetableRepository';
 import { AIActionAuditAdapter } from '@infrastructure/services/ai/AIActionAuditAdapter';
 import { SocketNotificationService } from '@infrastructure/services/notification/SocketNotificationService';
 
@@ -83,6 +84,8 @@ export function registerFinanceRoutes(app: Application, prismaParam: typeof pris
   );
   app.use('/api/v2/teaching-assignments', creerTeachingAssignmentRoutes(teachingAssignmentController));
 
-  const timetableGridConfigController = new TimetableGridConfigController(p as any);
+  const timetableGridConfigController = new TimetableGridConfigController(
+    new PrismaTimetableRepository(p as any),
+  );
   app.use('/api/v2/timetable-grid-config', creerTimetableGridConfigRoutes(timetableGridConfigController));
 }

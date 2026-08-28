@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { TimetableRepository, GridConfig } from '@domain/ports/repositories/TimetableRepository';
 
 export interface PeriodeGrille {
   ordre: number
@@ -62,12 +62,12 @@ export function calculerSqelette(cfg: {
 }
 
 export class TimetableGridConfigController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly timetableRepository: TimetableRepository) {}
 
   get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId
-      const config = await this.prisma.timetableGridConfig.findUnique({ where: { schoolId } })
+      const config = await this.timetableRepository.getGridConfig(schoolId)
       if (!config) {
         res.json({ success: true, data: null })
         return
@@ -103,19 +103,15 @@ export class TimetableGridConfigController {
         res.status(400).json({ success: false, message: 'Total de périodes doit être entre 1 et 12' }); return
       }
 
-      const data = {
+      const data: GridConfig = {
         heureDebut, dureePeriode, periodesAvantP1, dureePetitePause,
         periodesAvantP2, dureeGrandePause, periodesApresP2, joursActifs,
       }
 
-      const config = await this.prisma.timetableGridConfig.upsert({
-        where: { schoolId },
-        create: { schoolId, ...data },
-        update: data,
-      })
+      const config = await this.timetableRepository.saveGridConfig(schoolId, data)
 
       // Vérifier si des EDT existent (pour afficher l'avertissement côté frontend)
-      const timetableCount = await this.prisma.timetable.count({ where: { schoolId } })
+      const timetableCount = await this.timetableRepository.countTimetablesBySchool(schoolId)
 
       const squelette = calculerSqelette(config)
       res.json({ success: true, data: { config, squelette, timetableCount } })

@@ -13,6 +13,8 @@ export interface DisciplineSessionData {
   pv: string | null;
   disciplineRecordId: string | null;
   createdAt: Date;
+  student?: { id: string; firstName: string; lastName: string };
+  presidedBy?: { id: string; firstName: string; lastName: string };
 }
 
 export interface DisciplineRecordData {
@@ -49,6 +51,8 @@ export interface DisciplineRepository {
   }): Promise<DisciplineSessionData>;
 
   trouverSession(id: string, schoolId: string): Promise<DisciplineSessionData | null>;
+
+  listerSessions(schoolId: string, status?: string): Promise<DisciplineSessionData[]>;
 
   creerRecord(data: {
     schoolId: string;

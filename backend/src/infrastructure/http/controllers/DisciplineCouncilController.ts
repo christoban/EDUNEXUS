@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient, DisciplineCouncilStatus } from '@prisma/client';
+import type { DisciplineRepository } from '@domain/ports/repositories/DisciplineRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { ConvoquerConseilDisciplineUseCase, type CompositionConseil } from '@application/discipline/ConvoquerConseilDisciplineUseCase';
 import { TenirConseilDisciplineUseCase } from '@application/discipline/TenirConseilDisciplineUseCase';
-import { PrismaDisciplineRepository } from '../../persistence/prisma/PrismaDisciplineRepository';
 import { generatePVConseilDisciplinePdf } from '../../pdf/discipline/DisciplineCouncilMinutesPdfRenderer';
 
 /**
@@ -14,8 +14,10 @@ export class DisciplineCouncilController {
   private readonly convoquer: ConvoquerConseilDisciplineUseCase;
   private readonly tenir: TenirConseilDisciplineUseCase;
 
-  constructor(private readonly prisma: PrismaClient) {
-    const disciplineRepo = new PrismaDisciplineRepository(prisma);
+  constructor(
+    private readonly disciplineRepo: DisciplineRepository,
+    private readonly schoolRepository: SchoolRepository,
+  ) {
     this.convoquer = new ConvoquerConseilDisciplineUseCase(disciplineRepo);
     this.tenir = new TenirConseilDisciplineUseCase(disciplineRepo);
   }
@@ -81,14 +83,7 @@ export class DisciplineCouncilController {
       const schoolId = req.user!.schoolId;
       const { status } = req.query as Record<string, string>;
 
-      const sessions = await this.prisma.disciplineCouncilSession.findMany({
-        where: { schoolId, ...(status ? { status: status as DisciplineCouncilStatus } : {}) },
-        include: {
-          student: { select: { id: true, firstName: true, lastName: true } },
-          presidedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+      const sessions = await this.disciplineRepo.listerSessions(schoolId, status);
 
       res.json({ success: true, data: sessions });
     } catch (error) { next(error); }
@@ -100,16 +95,13 @@ export class DisciplineCouncilController {
       const schoolId = req.user!.schoolId;
       const sessionId = String(req.params['id']);
 
-      const session = await this.prisma.disciplineCouncilSession.findFirst({
-        where: { id: sessionId, schoolId },
-        include: { student: { select: { firstName: true, lastName: true } } },
-      });
+      const session = await this.disciplineRepo.trouverSession(sessionId, schoolId);
       if (!session || session.status !== 'TENU') {
         res.status(404).json({ success: false, message: 'PV indisponible — le conseil n\'a pas encore été tenu' });
         return;
       }
 
-      const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } });
+      const school = await this.schoolRepository.findById(schoolId);
 
       const pdf = await generatePVConseilDisciplinePdf({
         schoolName: school?.name ?? 'ZekoulABia',
