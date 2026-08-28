@@ -21,7 +21,7 @@
 
 | # | Manque précis | Faisabilité |
 |---|---|---|
-| V0.1 | 6 use cases importent l'infrastructure directement ; certains prennent `PrismaClient` en constructeur ; aucun outil (`dependency-cruiser`/`ESLint boundaries`) ne verrouille l'hexagonal. | ✅ Muse Spark quand le port existe déjà / ⚠️ Tech Lead si nouveau port à créer |
+| ~~V0.1~~ | ~~6 use cases importent l'infrastructure directement~~ | ✅ **RÉSOLU** — chantier P1 : 0 import infrastructure dans application/, guards CI en place |
 | V0.4 | Pas de `TemplateVersion`/`TemplateConfiguration` ; **aucune ré-application de template** (donc la règle « jamais écraser un override » est sans objet). | ⚠️ Tech Lead — changement de flux transverse |
 | V2.2 | Socle livré (registre `configOverrides` + règle pure `fusionnerConfigLocaleTemplate`), mais **ré-application effective** d'un template mis à jour = dépend de V0.4 (`TemplateVersion`/`TemplateConfiguration`). | ⚠️ Tech Lead — Phase 2 dépend de V0.4 |
 | V1.1 | Pas de « profil académique » unifié (forces/faiblesses) au-delà du `healthScore`. | ⚠️ Tech Lead — spec produit manquante (qu'est-ce qu'un profil ?) |

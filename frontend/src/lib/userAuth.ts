@@ -33,6 +33,7 @@ export async function logoutUser(): Promise<void> {
   // aucun délai de grâce (Plan offline-first V1 §3).
   await db.cachedData.clear()
   await db.pendingActions.clear()
+  await db.messages.clear()
   localStorage.removeItem('zekoulabia_user')
   purgerCle() // clé de chiffrement — voir tâche 4
 
