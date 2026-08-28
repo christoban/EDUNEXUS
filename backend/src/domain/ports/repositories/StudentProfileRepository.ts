@@ -29,4 +29,5 @@ export interface StudentProfileRepository {
     studentIds: string[],
   ): Promise<StudentBulletinOptions[]>;
   findForDocument(userId: string, schoolId: string): Promise<StudentDocumentProfile | null>;
+  findByIdAndSchool(profileId: string, schoolId: string): Promise<{ id: string } | null>;
 }

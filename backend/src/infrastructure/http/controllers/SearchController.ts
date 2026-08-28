@@ -1,9 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
-import { Prisma } from '@prisma/client';
+import type { SearchQueryRepository } from '@domain/ports/repositories/SearchQueryRepository';
 
 export class SearchController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly searchRepo: SearchQueryRepository) {}
 
   globalSearch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -18,26 +17,10 @@ export class SearchController {
       }
 
       const [users, classes, subjects, activities] = await Promise.all([
-        this.prisma.user.findMany({
-          where: { ...(schoolId ? { schoolId } : {}), OR: [{ firstName: { contains: q, mode: Prisma.QueryMode.insensitive } }, { lastName: { contains: q, mode: Prisma.QueryMode.insensitive } }, { email: { contains: q, mode: Prisma.QueryMode.insensitive } }] },
-          select: { id: true, firstName: true, lastName: true, email: true, role: true, createdAt: true },
-          take: 100,
-        }),
-        this.prisma.class.findMany({
-          where: { ...(schoolId ? { schoolId } : {}), name: { contains: q, mode: Prisma.QueryMode.insensitive } },
-          select: { id: true, name: true, createdAt: true },
-          take: 100,
-        }),
-        this.prisma.subject.findMany({
-          where: { ...(schoolId ? { schoolId } : {}), OR: [{ name: { contains: q, mode: Prisma.QueryMode.insensitive } }, { code: { contains: q, mode: Prisma.QueryMode.insensitive } }] },
-          select: { id: true, name: true, code: true, createdAt: true },
-          take: 100,
-        }),
-        this.prisma.activitiesLog.findMany({
-          where: { ...(schoolId ? { schoolId } : {}), OR: [{ action: { contains: q, mode: Prisma.QueryMode.insensitive } }, { description: { contains: q, mode: Prisma.QueryMode.insensitive } }] },
-          select: { id: true, action: true, description: true, createdAt: true },
-          take: 100,
-        }),
+        this.searchRepo.searchUsers(schoolId, q, 100),
+        this.searchRepo.searchClasses(schoolId, q, 100),
+        this.searchRepo.searchSubjects(schoolId, q, 100),
+        this.searchRepo.searchActivities(schoolId, q, 100),
       ]);
 
       const merged = [

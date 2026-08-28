@@ -60,4 +60,7 @@ export interface PaiementMinesecRepository {
     matricule: string | null;
   } | null>;
   trouverEnrollmentActif(studentId: string, schoolId: string): Promise<InscriptionMinesecData | null>;
+  listerPaiements(studentId: string, anneeScolaire: string): Promise<PaiementMinesecData[]>;
+  listerImpayesMinesecSchool(schoolId: string, now: Date): Promise<{ id: string; studentId: string; studentName: string; typeFrais: string; montantAttendu: number; dateEcheance: Date | null }[]>;
+  listerImpayesEtablissementSchool(schoolId: string): Promise<{ id: string; studentId: string; studentName: string; typeFrais: string; montantAttendu: number; montantPaye: number | null }[]>;
 }

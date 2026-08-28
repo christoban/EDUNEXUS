@@ -249,7 +249,8 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
     c.paiementMinesec.genererPaiementsEcole,
     c.paiementMinesec.getDashboard,
     c.paiementMinesec.getOverview,
-    prisma,
+    c.paiementMinesec.paiementMinesecRepository,
+    c.studentDocument.studentProfileRepository,
   );
   app.use('/api/v2/paiements-minesec', creerPaiementMinesecRoutes(paiementMinesecController));
 

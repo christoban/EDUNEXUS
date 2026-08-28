@@ -186,4 +186,42 @@ export class PrismaPaiementMinesecRepository implements PaiementMinesecRepositor
       orderBy: { createdAt: 'desc' },
     }) as Promise<InscriptionMinesecData | null>;
   }
+
+  async listerPaiements(studentId: string, anneeScolaire: string): Promise<PaiementMinesecData[]> {
+    return this.prisma.paiementMinesec.findMany({
+      where: { studentId, anneeScolaire },
+      orderBy: { typeFrais: 'asc' },
+    }) as Promise<PaiementMinesecData[]>;
+  }
+
+  async listerImpayesMinesecSchool(schoolId: string, now: Date): Promise<{ id: string; studentId: string; studentName: string; typeFrais: string; montantAttendu: number; dateEcheance: Date | null }[]> {
+    const rows = await this.prisma.paiementMinesec.findMany({
+      where: { schoolId, status: 'IMPAYE', dateEcheance: { lt: now } },
+      include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
+      orderBy: { dateEcheance: 'asc' },
+    });
+    return rows.map((p) => ({
+      id: p.id,
+      studentId: p.studentId,
+      studentName: p.student?.user ? `${p.student.user.firstName} ${p.student.user.lastName}` : '',
+      typeFrais: p.typeFrais,
+      montantAttendu: p.montantAttendu,
+      dateEcheance: p.dateEcheance,
+    }));
+  }
+
+  async listerImpayesEtablissementSchool(schoolId: string): Promise<{ id: string; studentId: string; studentName: string; typeFrais: string; montantAttendu: number; montantPaye: number | null }[]> {
+    const rows = await this.prisma.paiementEtablissement.findMany({
+      where: { schoolId, status: 'IMPAYE' },
+      include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
+    });
+    return rows.map((p) => ({
+      id: p.id,
+      studentId: p.studentId,
+      studentName: p.student?.user ? `${p.student.user.firstName} ${p.student.user.lastName}` : '',
+      typeFrais: p.typeFrais,
+      montantAttendu: p.montantAttendu,
+      montantPaye: p.montantPaye,
+    }));
+  }
 }

@@ -779,6 +779,7 @@ export function creerContainer() {
       onboarder: onboarderEcoleUseCase,
       approuver: approuverEcoleUseCase,
       schoolRepository,
+      invitationRepository,
       anneeRepository,
       classeRepository,
       matiereRepository,
@@ -998,6 +999,7 @@ export function creerContainer() {
       genererPaiementsEcole: new GenererPaiementsMinesecPourEcoleUseCase(paiementMinesecRepository, genererPaiementsMinesec),
       getDashboard: new GetStudentPaymentDashboardUseCase(paiementMinesecRepository),
       getOverview: new GetSchoolPaymentOverviewUseCase(paiementMinesecRepository),
+      paiementMinesecRepository,
     },
     examen: {
       prepareDossier: new PrepareExamDossierUseCase(examDossierRepository),

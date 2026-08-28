@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { sendTransactionalEmail } from '../../services/email/EmailService.ts';
 import { passwordError } from '../../../domain/security/PasswordPolicy';
+import type { InvitationRepository } from '../../../domain/ports/repositories/InvitationRepository';
+import type { SchoolRepository } from '../../../domain/ports/repositories/SchoolRepository';
 
 const LETTRES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -75,7 +76,10 @@ function previewGen(
 }
 
 export class InviteOnboardingController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly invitationRepository: InvitationRepository,
+    private readonly schoolRepository: SchoolRepository,
+  ) {}
 
   // POST /api/v2/onboarding/preview-structure
   previewStructure = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -93,10 +97,7 @@ export class InviteOnboardingController {
   validateInvite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const token = req.params.token as string;
-      const invite = await this.prisma.schoolInvite.findUnique({
-        where: { token },
-        select: { id: true, email: true, schoolName: true, plan: true, status: true, expiresAt: true, notes: true },
-      });
+      const invite = await this.invitationRepository.findByToken(token);
 
       if (!invite) {
         res.status(404).json({ success: false, message: 'Invitation introuvable ou invalide.' });
@@ -156,13 +157,13 @@ export class InviteOnboardingController {
         return;
       }
 
-      const invite2 = await this.prisma.schoolInvite.findUnique({ where: { token } });
+      const invite2 = await this.invitationRepository.findByToken(token);
       if (!invite2 || invite2.status !== 'PENDING') {
         res.status(404).json({ success: false, message: 'Invitation invalide ou déjà utilisée.' });
         return;
       }
       if (invite2.expiresAt < new Date()) {
-        await this.prisma.schoolInvite.update({ where: { token }, data: { status: 'EXPIRED' } });
+        await this.invitationRepository.marquerExpiree(token);
         res.status(410).json({ success: false, message: 'Cette invitation a expiré.' });
         return;
       }
@@ -173,7 +174,7 @@ export class InviteOnboardingController {
       }
 
       const subdomainClean = String(subdomain).toLowerCase().trim().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-      const existing = await this.prisma.school.findUnique({ where: { subdomain: subdomainClean } });
+      const existing = await this.schoolRepository.findBySubdomain(subdomainClean);
       if (existing && existing.id !== invite2.schoolId) {
         res.status(409).json({ success: false, message: `Le sous-domaine "${subdomainClean}" est déjà pris. Choisissez-en un autre.` });
         return;
@@ -181,56 +182,42 @@ export class InviteOnboardingController {
 
       const passwordHash = await bcrypt.hash(String(password), 10);
 
-      const { school } = await this.prisma.$transaction(async (tx) => {
-        const validLogo = typeof logoBase64 === 'string' && logoBase64.startsWith('data:image/') && logoBase64.length <= 2_000_000
-          ? logoBase64
-          : null;
+      const validLogo = typeof logoBase64 === 'string' && logoBase64.startsWith('data:image/') && logoBase64.length <= 2_000_000
+        ? logoBase64
+        : null;
 
-        const school = await tx.school.update({
-          where: { id: invite2.schoolId },
-          data: {
-            name: String(nom).trim(),
-            subdomain: subdomainClean,
-            address: adresse?.trim() || null,
-            city: ville?.trim() || null,
-            region: region?.trim() || null,
-            phone: telephone?.trim() || null,
-            email: email?.trim() || null,
-            subsystem,
-            educationType,
-            ownership,
-            ...(admissionTypeValue ? { admissionType: admissionTypeValue } : {}),
-            status: 'PENDING',
-            plan: invite2.plan,
-            logoUrl: validLogo,
-            onboardingConfig: onboardingConfig || undefined,
-            templateCode: onboardingConfig?.templateCode ?? null,
-          },
-        });
-
-        await tx.user.create({
-          data: {
-            schoolId: school.id,
-            role: 'ADMIN',
-            email: String(adminEmail).trim().toLowerCase(),
-            firstName: String(adminPrenom).trim(),
-            lastName: String(adminNom).trim(),
-            passwordHash,
-          },
-        });
-
-        await tx.schoolInvite.update({
-          where: { token },
-          data: { status: 'USED', schoolId: school.id },
-        });
-
-        return { school };
+      const { schoolId } = await this.invitationRepository.completeOnboarding({
+        token,
+        school: {
+          id: invite2.schoolId,
+          name: String(nom).trim(),
+          subdomain: subdomainClean,
+          address: adresse?.trim() || null,
+          city: ville?.trim() || null,
+          region: region?.trim() || null,
+          phone: telephone?.trim() || null,
+          email: email?.trim() || null,
+          subsystem,
+          educationType,
+          ownership,
+          admissionType: admissionTypeValue,
+          plan: invite2.plan,
+          logoUrl: validLogo,
+          onboardingConfig: onboardingConfig || undefined,
+          templateCode: onboardingConfig?.templateCode ?? null,
+        },
+        admin: {
+          email: String(adminEmail).trim().toLowerCase(),
+          firstName: String(adminPrenom).trim(),
+          lastName: String(adminNom).trim(),
+          passwordHash,
+        },
       });
 
       res.status(201).json({
         success: true,
         data: {
-          schoolId: school.id,
+          schoolId,
           message: 'Votre demande a été soumise avec succès.',
         },
       });

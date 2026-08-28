@@ -54,4 +54,11 @@ export class PrismaStudentProfileRepository implements StudentProfileRepository 
       },
     });
   }
+
+  async findByIdAndSchool(profileId: string, schoolId: string): Promise<{ id: string } | null> {
+    return this.prisma.studentProfile.findFirst({
+      where: { id: profileId, user: { schoolId } },
+      select: { id: true },
+    });
+  }
 }

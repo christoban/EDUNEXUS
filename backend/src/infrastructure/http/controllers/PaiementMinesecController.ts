@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { PaiementMinesecRepository } from '@domain/ports/repositories/PaiementMinesecRepository';
+import type { StudentProfileRepository } from '@domain/ports/repositories/StudentProfileRepository';
 import { GenererPaiementsMinesecUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecUseCase';
 import { GenererPaiementsMinesecPourEcoleUseCase } from '@application/paiementMinesec/GenererPaiementsMinesecPourEcoleUseCase';
 import { GetStudentPaymentDashboardUseCase } from '@application/paiementMinesec/GetStudentPaymentDashboardUseCase';
@@ -11,7 +12,8 @@ export class PaiementMinesecController {
     private readonly _genererPaiementsEcole: GenererPaiementsMinesecPourEcoleUseCase,
     private readonly _getDashboard: GetStudentPaymentDashboardUseCase,
     private readonly _getOverview: GetSchoolPaymentOverviewUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly paiementRepository: PaiementMinesecRepository,
+    private readonly studentProfileRepository: StudentProfileRepository,
   ) {}
 
   // POST /api/v2/paiements-minesec/generate/:studentProfileId
@@ -51,18 +53,13 @@ export class PaiementMinesecController {
       const anneeScolaire = String(req.params['anneeScolaire']);
 
       // Vérifier que l'élève appartient à l'école
-      const profile = await this.prisma.studentProfile.findFirst({
-        where: { id: studentId, user: { schoolId } },
-      });
+      const profile = await this.studentProfileRepository.findByIdAndSchool(studentId, schoolId);
       if (!profile) {
         res.status(404).json({ success: false, message: 'Élève introuvable' });
         return;
       }
 
-      const paiements = await this.prisma.paiementMinesec.findMany({
-        where: { studentId, anneeScolaire },
-        orderBy: { typeFrais: 'asc' },
-      });
+      const paiements = await this.paiementRepository.listerPaiements(studentId, anneeScolaire);
 
       res.json({ success: true, data: paiements });
     } catch (err) { next(err); }
@@ -98,30 +95,14 @@ export class PaiementMinesecController {
       const schoolId = req.user!.schoolId;
       const now = new Date();
 
-      const impayesMinesec = await this.prisma.paiementMinesec.findMany({
-        where: { schoolId, status: 'IMPAYE', dateEcheance: { lt: now } },
-        include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
-        orderBy: { dateEcheance: 'asc' },
-      });
-
-      const impayesEtab = await this.prisma.paiementEtablissement.findMany({
-        where: { schoolId, status: 'IMPAYE' },
-        include: { student: { include: { user: { select: { firstName: true, lastName: true } } } } },
-      });
+      const impayesMinesec = await this.paiementRepository.listerImpayesMinesecSchool(schoolId, now);
+      const impayesEtab = await this.paiementRepository.listerImpayesEtablissementSchool(schoolId);
 
       res.json({
         success: true,
         data: {
-          minesec: impayesMinesec.map((p: any) => ({
-            id: p.id, studentId: p.studentId,
-            studentName: p.student?.user ? `${p.student.user.firstName} ${p.student.user.lastName}` : '',
-            typeFrais: p.typeFrais, montantAttendu: p.montantAttendu, dateEcheance: p.dateEcheance,
-          })),
-          etablissement: impayesEtab.map((p: any) => ({
-            id: p.id, studentId: p.studentId,
-            studentName: p.student?.user ? `${p.student.user.firstName} ${p.student.user.lastName}` : '',
-            typeFrais: p.typeFrais, montantAttendu: p.montantAttendu, montantPaye: p.montantPaye,
-          })),
+          minesec: impayesMinesec,
+          etablissement: impayesEtab,
         },
       });
     } catch (err) { next(err); }

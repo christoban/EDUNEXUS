@@ -15,6 +15,29 @@ export interface InvitationProps {
   createdAt: Date;
 }
 
+export interface CompleteOnboardingCommand {
+  token: string;
+  school: {
+    id: string;
+    name: string;
+    subdomain: string;
+    address: string | null;
+    city: string | null;
+    region: string | null;
+    phone: string | null;
+    email: string | null;
+    subsystem: string;
+    educationType: string;
+    ownership: string;
+    admissionType?: string;
+    plan: string;
+    logoUrl: string | null;
+    onboardingConfig?: any;
+    templateCode: string | null;
+  };
+  admin: { email: string; firstName: string; lastName: string; passwordHash: string };
+}
+
 export interface InvitationRepository {
   findByToken(token: string): Promise<InvitationProps | null>;
   findBySchoolId(schoolId: string): Promise<InvitationProps[]>;
@@ -23,4 +46,7 @@ export interface InvitationRepository {
   update(invitation: InvitationProps): Promise<void>;
   expireToutes(schoolId: string): Promise<void>;
   marquerUtilisee(token: string): Promise<void>;
+  marquerExpiree(token: string): Promise<void>;
+  /** Finalise l'inscription via invitation : met à jour l'école, crée l'admin et marque l'invitation USED — en une transaction atomique. */
+  completeOnboarding(command: CompleteOnboardingCommand): Promise<{ schoolId: string }>;
 }

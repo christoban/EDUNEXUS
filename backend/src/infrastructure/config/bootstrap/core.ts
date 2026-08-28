@@ -18,6 +18,7 @@ import { ActivitiesLogController } from '@infrastructure/http/controllers/Activi
 import { DashboardController } from '@infrastructure/http/controllers/DashboardController';
 import { EmailLogController } from '@infrastructure/http/controllers/EmailLogController';
 import { SearchController } from '@infrastructure/http/controllers/SearchController';
+import { PrismaSearchQueryRepository } from '@infrastructure/persistence/prisma/PrismaSearchQueryRepository';
 import { AIController } from '@infrastructure/http/controllers/AIController';
 import { AcademicEventController } from '@infrastructure/http/controllers/AcademicEventController';
 import { CoreDomainController } from '@infrastructure/http/controllers/CoreDomainController';
@@ -874,7 +875,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   const activitiesController = new ActivitiesLogController(new PrismaActivitiesLogQueryRepository(p));
   const dashboardController  = new DashboardController(new PrismaDashboardQueryRepository(p), enrollmentRepository);
   const emailLogController   = new EmailLogController(p);
-  const searchController     = new SearchController(p);
+  const searchController     = new SearchController(new PrismaSearchQueryRepository(p));
   const aiController         = new AIController(new PrismaAIContextQueryRepository(p), enrollmentRepository, c.prediction.comparerRisque);
   const studentFollowUpRepo  = new PrismaStudentFollowUpRepository(p);
   const suiviRBACRepository    = new PrismaSuiviRBACRepository(p);

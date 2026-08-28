@@ -1,6 +1,7 @@
 import type {
   InvitationRepository,
   InvitationProps,
+  CompleteOnboardingCommand,
 } from '@domain/ports/repositories/InvitationRepository';
 
 export class InMemoryInvitationRepository implements InvitationRepository {
@@ -28,5 +29,16 @@ export class InMemoryInvitationRepository implements InvitationRepository {
   async marquerUtilisee(token: string) {
     const inv = this.store.get(token);
     if (inv) this.store.set(token, { ...inv, status: 'USED' });
+  }
+  async marquerExpiree(token: string) {
+    const inv = this.store.get(token);
+    if (inv) this.store.set(token, { ...inv, status: 'EXPIRED' });
+  }
+  async completeOnboarding(command: CompleteOnboardingCommand) {
+    const inv = this.store.get(command.token);
+    if (inv) {
+      this.store.set(command.token, { ...inv, status: 'USED', schoolId: command.school.id });
+    }
+    return { schoolId: command.school.id };
   }
 }

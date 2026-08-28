@@ -62,7 +62,10 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     c.classCouncil.genererRapport,
   );
 
-  const inviteOnboardingController = new InviteOnboardingController(p as any);
+  const inviteOnboardingController = new InviteOnboardingController(
+    c.school.invitationRepository,
+    c.school.schoolRepository,
+  );
   app.get('/api/v2/onboarding/invite/:token', inviteOnboardingController.validateInvite);
   app.post('/api/v2/onboarding/invite/:token/complete', inviteOnboardingController.completeOnboarding);
   app.post('/api/v2/onboarding/preview-structure', inviteOnboardingController.previewStructure);
