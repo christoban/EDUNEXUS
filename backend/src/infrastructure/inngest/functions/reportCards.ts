@@ -13,6 +13,10 @@ import { PrismaMatiereRepository } from "../../persistence/prisma/PrismaMatiereR
 import { PrismaUserRepository } from "../../persistence/prisma/PrismaUserRepository";
 import { PrismaClasseRepository } from "../../persistence/prisma/PrismaClasseRepository";
 import { PrismaStaffProfileRepository } from "../../persistence/prisma/PrismaStaffProfileRepository";
+import { PrismaStudentRecommendationRepository } from "../../persistence/prisma/PrismaStudentRecommendationRepository";
+import { PrismaSchoolConfigRepository } from "../../persistence/prisma/PrismaSchoolConfigRepository";
+import { PrismaTeachingAssignmentRepository } from "../../persistence/prisma/PrismaTeachingAssignmentRepository";
+import { PrismaStudentProfileRepository } from "../../persistence/prisma/PrismaStudentProfileRepository";
 import { DetecterChuteMoyenneUseCase, trouverSequencePrecedente } from "@application/grade/DetecterChuteMoyenneUseCase";
 import { GenererBulletinsInngestUseCase } from "@application/reportCard/GenererBulletinsInngestUseCase";
 import { RelancerValidationNotesUseCase } from "@application/reportCard/RelancerValidationNotesUseCase";
@@ -26,6 +30,19 @@ const calculerIndiceSanteUseCase = new CalculerIndiceSanteUseCase(
   new PrismaSanteEleveRepository(prisma),
   iaService,
 );
+
+const creerDetecterChuteUseCase = () =>
+  new DetecterChuteMoyenneUseCase(
+    new PrismaNoteRepository(prisma),
+    new SocketNotificationService(),
+    iaService,
+    new PrismaAnneeAcademiqueRepository(prisma),
+    new PrismaStudentRecommendationRepository(prisma),
+    new PrismaMatiereRepository(prisma),
+    new PrismaSchoolConfigRepository(prisma),
+    new PrismaTeachingAssignmentRepository(prisma),
+    new PrismaStudentProfileRepository(prisma),
+  );
 
 export const generateReportCards = inngest.createFunction(
   { id: "Generate-Report-Cards", triggers: [{ event: "reportcard/generate" }] },
@@ -79,11 +96,7 @@ export const handleGradeValidatedDropDetection = inngest.createFunction(
     const { studentId, subjectId, schoolId, sequenceId } = event.data as {
       gradeId: string; studentId: string; subjectId: string; schoolId: string; sequenceId: string;
     };
-    const useCase = new DetecterChuteMoyenneUseCase(
-      new PrismaNoteRepository(prisma),
-      new SocketNotificationService(),
-      iaService,
-    );
+    const useCase = creerDetecterChuteUseCase();
     const resultat = await useCase.execute({ studentId, subjectId, schoolId, sequenceId });
     if (!resultat) return { skipped: true };
     return { notified: !!resultat.teacherId };
@@ -97,11 +110,7 @@ export const handleGradeValidatedBatchDropDetection = inngest.createFunction(
       schoolId: string;
       grades: Array<{ studentId: string; subjectId: string; sequenceId: string }>;
     };
-    const useCase = new DetecterChuteMoyenneUseCase(
-      new PrismaNoteRepository(prisma),
-      new SocketNotificationService(),
-      iaService,
-    );
+    const useCase = creerDetecterChuteUseCase();
     const { enseignantsNotifies } = await useCase.executeBatch({ schoolId, grades });
     return { enseignantsNotifies };
   },

@@ -67,3 +67,7 @@ export type {
   DepartmentRepository,
   DepartmentProps,
 } from './DepartmentRepository';
+
+export type { StudentRecommendationRepository, StudentRecommendationData } from './StudentRecommendationRepository';
+export type { SchoolConfigRepository } from './SchoolConfigRepository';
+export type { TeachingAssignmentRepository, TeachingAssignmentData } from './TeachingAssignmentRepository';

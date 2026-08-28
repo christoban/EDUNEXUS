@@ -30,6 +30,9 @@ import { PrismaRattachementEnseignantRepository } from '@infrastructure/persiste
 import { PrismaSectionRepository } from '@infrastructure/persistence/prisma/PrismaSectionRepository';
 import { PrismaStudentProfileRepository } from '@infrastructure/persistence/prisma/PrismaStudentProfileRepository';
 import { PrismaStudentDocumentRepository } from '@infrastructure/persistence/prisma/PrismaStudentDocumentRepository';
+import { PrismaSchoolConfigRepository } from '@infrastructure/persistence/prisma/PrismaSchoolConfigRepository';
+import { PrismaTeachingAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaTeachingAssignmentRepository';
+import { PrismaStudentRecommendationRepository } from '@infrastructure/persistence/prisma/PrismaStudentRecommendationRepository';
 
 // --- Adapters Audit ---
 import { ActivityLogAdapter } from '@infrastructure/services/audit/ActivityLogAdapter';
@@ -380,6 +383,9 @@ export function creerContainer() {
   const studentProfileRepository = new PrismaStudentProfileRepository(prisma);
   const anneeRepository = new PrismaAnneeAcademiqueRepository(prisma);
   const studentDocumentRepository = new PrismaStudentDocumentRepository(prisma);
+  const schoolConfigRepository = new PrismaSchoolConfigRepository(prisma);
+  const teachingAssignmentRepository = new PrismaTeachingAssignmentRepository(prisma);
+  const studentRecommendationRepository = new PrismaStudentRecommendationRepository(prisma);
   const rattachementRepository = new PrismaRattachementEnseignantRepository(prisma);
   const roomRepository = new PrismaRoomRepository(prisma);
   const studentGroupSetRepository = new PrismaStudentGroupSetRepository(prisma);
@@ -420,7 +426,7 @@ export function creerContainer() {
 
   // 5. Use Cases — Import
   const importerUtilisateursUseCase = new ImporterUtilisateursUseCase(
-    importUtilisateursRepository, userRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository
+    importUtilisateursRepository, userRepository, anneeRepository, studentGroupSetRepository, studentGroupRepository, studentGroupMembershipRepository, emailService
   );
 
   // 6. Use Cases — Présences
@@ -785,6 +791,7 @@ export function creerContainer() {
       classeRepository,
       matiereRepository,
       sectionRepository,
+      schoolConfigRepository,
     },
     reportCard: {
       generer: genererBulletinUseCase,
@@ -793,6 +800,7 @@ export function creerContainer() {
       lister: listerBulletinsUseCase,
       bulletinRepository,
       parentRepository,
+      studentRecommendationRepository,
     },
     classCouncil: {
       creerSession: creerSessionConseilUseCase,
@@ -845,6 +853,7 @@ export function creerContainer() {
       genererTableauHonneur: genererTableauHonneurUseCase,
       genererTableauHonneurAnnuel: genererTableauHonneurAnnuelUseCase,
       classeCoefficientRepository,
+      teachingAssignmentRepository,
     },
     pedagogie: {
       listerProgramme: listerProgrammeUseCase,

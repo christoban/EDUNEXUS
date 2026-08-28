@@ -6,6 +6,7 @@ import type { StudentGroupSetRepository } from '@domain/ports/repositories/Stude
 import type { StudentGroupRepository } from '@domain/ports/repositories/StudentGroupRepository';
 import type { StudentGroupMembershipRepository } from '@domain/ports/repositories/StudentGroupMembershipRepository';
 import type { ImportUtilisateursRepository } from '@domain/ports/repositories/ImportUtilisateursRepository';
+import type { EmailService } from '@domain/ports/services/EmailService';
 import { synchroniserAppartenanceLV2, synchroniserAppartenanceProgramme } from '@application/studentGroup/syncGroupMembership';
 import { parseDateFR } from '../../shared/date/parseDateFR';
 export interface ImportRow {
@@ -57,6 +58,7 @@ export class ImporterUtilisateursUseCase {
     private readonly groupSetRepository: StudentGroupSetRepository,
     private readonly groupRepository: StudentGroupRepository,
     private readonly membershipRepository: StudentGroupMembershipRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   async execute(
@@ -334,22 +336,20 @@ export class ImporterUtilisateursUseCase {
     return d
   }
 
-  // Dev mode : juste logué en console, aucun email réel envoyé
+// Dev mode : juste logué en console, aucun email réel envoyé
   private async envoyerEmailDevMode(email: string, prenom: string, nom: string, schoolId: string, schoolName: string): Promise<void> {
     try {
-      const { sendTransactionalEmail } = await import('../../infrastructure/services/email/EmailService.ts')
-      await sendTransactionalEmail({
-        recipientEmail: email,
-        subject: `[DEV] Compte créé — ${schoolName}`,
-        html: `<p>Bonjour ${prenom} ${nom}, compte créé. Mot de passe dev : <strong>${DEV_PASS}</strong></p>`,
-        template: 'user_invitation',
+      await this.emailService.envoyer({
+        destinataire: email,
+        sujet: `[DEV] Compte créé — ${schoolName}`,
+        contenuHtml: `<p>Bonjour ${prenom} ${nom},</p><p>Votre compte a été créé. Mot de passe dev : <strong>${DEV_PASS}</strong></p>`,
         eventType: 'user_import',
         metadata: { schoolId },
       })
     } catch { /* non bloquant */ }
   }
 
-  // Prod : lien JWT valable 7 jours, l'utilisateur crée son propre mot de passe
+// Prod : lien JWT valable 7 jours, l'utilisateur crée son propre mot de passe
   private async envoyerEmailLienInvitation(
     userId: string,
     email: string,
@@ -369,13 +369,10 @@ export class ImporterUtilisateursUseCase {
       )
       const inviteUrl = `${frontendUrl}/invite/set-password?token=${inviteToken}`
 
-      console.log(`[Import] Lien invitation ${email}: ${inviteUrl}`)
-
-      const { sendTransactionalEmail } = await import('../../infrastructure/services/email/EmailService.ts')
-      await sendTransactionalEmail({
-        recipientEmail: email,
-        subject: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,
-        html: `
+      await this.emailService.envoyer({
+        destinataire: email,
+        sujet: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,
+        contenuHtml: `
           <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
             <div style="background:#1a2e1e;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
               <h1 style="color:white;margin:0;font-size:20px;">🎓 ZekoulABia</h1>
@@ -383,8 +380,8 @@ export class ImporterUtilisateursUseCase {
             <div style="background:#ffffff;padding:32px;border-radius:0 0 12px 12px;border:1px solid #e8e0d4;">
               <h2 style="color:#1a1209;margin-top:0;">Bonjour ${prenom} ${nom},</h2>
               <p style="color:#6b5c45;font-size:15px;line-height:1.6;">
-                Vous avez été ajouté(e) sur <strong>ZekoulABia — ${schoolName}</strong>.
-                Cliquez ci-dessous pour créer votre mot de passe et accéder à votre espace.
+                Vous avez été invité(e) à rejoindre <strong>ZekoulABia — ${schoolName}</strong>.
+                Cliquez sur le bouton ci-dessous pour créer votre mot de passe et accéder à votre espace.
               </p>
               <div style="text-align:center;margin:28px 0 16px;">
                 <a href="${inviteUrl}" style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;">
@@ -399,7 +396,7 @@ export class ImporterUtilisateursUseCase {
             </div>
           </div>
         `,
-        template: 'user_invitation',
+        contenuTexte: `ZekoulABia — Créez votre mot de passe · ${schoolName}`,
         eventType: 'user_import',
         metadata: { schoolId },
       })
