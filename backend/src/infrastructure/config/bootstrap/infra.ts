@@ -199,7 +199,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
     c.room.creer,
     c.room.modifier,
     c.room.supprimer,
-    prisma,
+    new AIActionAuditAdapter(prisma),
   );
 
   const teacherUnavailabilityController = new TeacherUnavailabilityController(
@@ -207,7 +207,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
     c.teacherUnavailability.modifier,
     c.teacherUnavailability.supprimer,
     c.teacherUnavailability.lister,
-    prisma,
+    new AIActionAuditAdapter(prisma),
   );
 
   const studentGroupController = new StudentGroupController(

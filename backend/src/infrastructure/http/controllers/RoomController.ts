@@ -1,16 +1,15 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
 import type { CreerSalleUseCase } from '@application/room/CreerSalleUseCase';
 import type { ModifierSalleUseCase } from '@application/room/ModifierSalleUseCase';
 import type { SupprimerSalleUseCase } from '@application/room/SupprimerSalleUseCase';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 export class RoomController {
   constructor(
     private readonly creer: CreerSalleUseCase,
     private readonly modifier: ModifierSalleUseCase,
     private readonly supprimer: SupprimerSalleUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   creerSalle = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -20,7 +19,7 @@ export class RoomController {
         schoolId: user.schoolId,
         ...req.body,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'creer_salle', targetType: 'Room', targetId: resultat.roomId,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -28,7 +27,7 @@ export class RoomController {
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_salle', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -45,7 +44,7 @@ export class RoomController {
         schoolId: user.schoolId,
         ...req.body,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'modifier_salle', targetType: 'Room', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -53,7 +52,7 @@ export class RoomController {
       res.json({ success: true, message: 'Salle mise à jour' });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'modifier_salle', targetType: 'Room', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -71,7 +70,7 @@ export class RoomController {
         schoolId: user.schoolId,
         demandeurId: user.userId,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'supprimer_salle', targetType: 'Room', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -79,7 +78,7 @@ export class RoomController {
       res.json({ success: true, message: 'Salle mise à la corbeille' });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'supprimer_salle', targetType: 'Room', targetId: req.params.id as string,
         origin: 'UI_DIRECT', outcome: 'ERREUR',

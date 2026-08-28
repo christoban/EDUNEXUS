@@ -31,6 +31,14 @@ export class PrismaMatiereRepository implements MatiereRepository {
     return subjects.map(subject => subject.id);
   }
 
+  async findLV2BySchool(schoolId: string): Promise<MatiereProps[]> {
+    const data = await this.prisma.subject.findMany({
+      where: { schoolId, isLV2: true },
+      orderBy: { name: 'asc' },
+    });
+    return data.map(d => this.toProps(d));
+  }
+
   async getCoefficientPourClasse(
     subjectId: string,
     classLevel: string,
@@ -105,6 +113,18 @@ export class PrismaMatiereRepository implements MatiereRepository {
       where: { id, deletedAt: { not: null } },
       data: { deletedAt: null, deletedById: null },
     });
+  }
+
+  async listerSupprimes(schoolId: string) {
+    return this.prisma.subject.findMany({
+      where: { schoolId, deletedAt: { not: null } },
+      select: { id: true, name: true, code: true, deletedAt: true, deletedById: true },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  async trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null> {
+    return this.prisma.subject.findFirst({ where: { id, schoolId, deletedAt: { not: null } }, select: { id: true } });
   }
 
   async assignerEnseignant(teacherProfileId: string, subjectId: string): Promise<void> {

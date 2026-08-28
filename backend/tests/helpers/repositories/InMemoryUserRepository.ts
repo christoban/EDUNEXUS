@@ -188,6 +188,24 @@ export class InMemoryUserRepository implements UserRepository {
     this.utilisateursSupprimes.delete(userId);
   }
 
+  async listerSupprimes(schoolId: string) {
+    return [...this.store.values()]
+      .filter(u => u.schoolId === schoolId && !this.estActif(u))
+      .map(u => ({
+        id: u.id, role: u.role, firstName: u.firstName, lastName: u.lastName,
+        email: u.email ?? null, deletedAt: null, deletedById: null,
+      }));
+  }
+
+  async trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null> {
+    const u = this.store.get(id);
+    return u && u.schoolId === schoolId && !this.estActif(u) ? { id: u.id } : null;
+  }
+
+  async findByIds(ids: string[]) {
+    return [...this.store.values()].filter(u => ids.includes(u.id)).map(u => ({ id: u.id, firstName: u.firstName, lastName: u.lastName }));
+  }
+
   async transfererEleve(params: {
     studentId: string;
     fromClasseId: string;

@@ -1,32 +1,30 @@
 import type { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import * as XLSX from 'xlsx';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
+import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
 
 export class TemplateController {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    private readonly classeRepository: ClasseRepository,
+    private readonly schoolRepository: SchoolRepository,
+    private readonly matiereRepository: MatiereRepository,
+  ) {}
 
   importEleves = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId;
 
-      const [classes, school, lv2Subjects] = await Promise.all([
-        this.prisma.class.findMany({
-          where: { schoolId },
-          select: { name: true },
-          orderBy: { name: 'asc' },
-        }),
-        this.prisma.school.findUnique({
-          where: { id: schoolId },
-          select: { hasPEBSFrancophone: true, hasPEBSAnglophone: true },
-        }),
-        this.prisma.subject.findMany({
-          where: { schoolId, isLV2: true },
-          select: { name: true },
-          orderBy: { name: 'asc' },
-        }),
+      const [classes, pebsFlags, lv2Subjects] = await Promise.all([
+        this.classeRepository.findBySchool(schoolId),
+        this.schoolRepository.findPEBSFlags(schoolId),
+        this.matiereRepository.findLV2BySchool(schoolId),
       ]);
 
-      const hasPEBS = !!(school?.hasPEBSFrancophone || school?.hasPEBSAnglophone);
+      const classNames = classes.map((c) => c.name).sort((a, b) => a.localeCompare(b));
+      const lv2Names = lv2Subjects.map((s) => s.name).sort((a, b) => a.localeCompare(b));
+
+      const hasPEBS = !!(pebsFlags?.hasPEBSFrancophone || pebsFlags?.hasPEBSAnglophone);
 
       const baseHeaders = ['matricule', 'nom', 'prenom', 'email', 'date_naissance', 'classe', 'nom_parent', 'prenom_parent', 'email_parent', 'telephone_parent'];
       const baseRow1 = ['2025001', 'NGONO', 'Marie', 'marie.ngono@eleve.cm', '15/03/2010', '6e A', 'NGONO', 'Robert', 'robert.ngono@email.cm', '+237690000001'];
@@ -44,9 +42,9 @@ export class TemplateController {
         extraRow2.push('');
         extraRow3.push('');
       }
-      if (lv2Subjects.length > 0) {
+      if (lv2Names.length > 0) {
         extraHeaders.push('lv2');
-        extraRow1.push(lv2Subjects[0].name);
+        extraRow1.push(lv2Names[0]);
         extraRow2.push('');
         extraRow3.push('');
       }
@@ -82,12 +80,12 @@ export class TemplateController {
           ['  Laissez vide pour les élèves non-PEBS'],
         );
       }
-      if (lv2Subjects.length > 0) {
+      if (lv2Names.length > 0) {
         if (!hasPEBS) instrLines.push([''], ['--- COLONNES OPTIONNELLES AVANCÉES ---']);
         instrLines.push(
           [''],
           ['Colonne "lv2" (Langue Vivante 2) — valeurs acceptées :'],
-          ...lv2Subjects.map(s => [`  • ${s.name}`]),
+          ...lv2Names.map(s => [`  • ${s}`]),
           ['  Laissez vide si l\'élève n\'a pas de LV2'],
         );
       }
@@ -98,7 +96,7 @@ export class TemplateController {
         ['Format téléphone : +237XXXXXXXXX (9 chiffres après +237)'],
         [''],
         ['Classes disponibles dans votre établissement :'],
-        ...classes.map(c => [`  • ${c.name}`]),
+        ...classNames.map(c => [`  • ${c}`]),
         [''],
         ['Important :'],
         ['  • Les lignes grisées sont des exemples — supprimez-les avant import'],
@@ -123,19 +121,15 @@ export class TemplateController {
   importEnseignants = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const schoolId = req.user!.schoolId;
-      const subjects = await this.prisma.subject.findMany({
-        where: { schoolId },
-        select: { name: true },
-        orderBy: { name: 'asc' },
-      });
+      const [subjects, classes] = await Promise.all([
+        this.matiereRepository.findBySchool(schoolId),
+        this.classeRepository.findBySchool(schoolId),
+      ]);
+
+      const subjectNames = subjects.map(s => s.name).sort((a, b) => a.localeCompare(b));
+      const classNames = classes.map(c => c.name).sort((a, b) => a.localeCompare(b));
 
       const wb = XLSX.utils.book_new();
-
-      const classes = await this.prisma.class.findMany({
-        where: { schoolId },
-        select: { name: true },
-        orderBy: { name: 'asc' },
-      });
 
       const headers = ['nom', 'prenom', 'email', 'telephone', 'matieres', 'classe_principale'];
       const ws = XLSX.utils.aoa_to_sheet([
@@ -171,10 +165,10 @@ export class TemplateController {
         [''],
 
         ['Matières disponibles dans votre établissement :'],
-        ...subjects.map(s => [`  • ${s.name}`]),
+        ...subjectNames.map(s => [`  • ${s}`]),
         [''],
         ['Classes disponibles dans votre établissement :'],
-        ...classes.map(c => [`  • ${c.name}`]),
+        ...classNames.map(c => [`  • ${c}`]),
         [''],
         ['Important :'],
         ['  • Un mot de passe temporaire sera généré automatiquement'],

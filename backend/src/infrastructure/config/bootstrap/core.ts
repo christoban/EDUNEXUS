@@ -103,6 +103,8 @@ import { PrismaStudentAffectationRepository } from '@infrastructure/persistence/
 import { PrismaLv2ChoiceRepository } from '@infrastructure/persistence/prisma/PrismaLv2ChoiceRepository';
 import { PrismaAnneeAcademiqueRepository } from '@infrastructure/persistence/prisma/PrismaAnneeAcademiqueRepository';
 import { PrismaClasseRepository } from '@infrastructure/persistence/prisma/PrismaClasseRepository';
+import { PrismaMatiereRepository } from '@infrastructure/persistence/prisma/PrismaMatiereRepository';
+import { PrismaUserRepository } from '@infrastructure/persistence/prisma/PrismaUserRepository';
 import { PrismaTimetableRepository } from '@infrastructure/persistence/prisma/PrismaTimetableRepository';
 import { PrismaClassCouncilRepository } from '@infrastructure/persistence/prisma/PrismaClassCouncilRepository';
 import { PrismaSubjectAssignmentRepository } from '@infrastructure/persistence/prisma/PrismaSubjectAssignmentRepository';
@@ -814,7 +816,12 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   app.get('/api/v2/security/audit-log', requireAuth, requireRole('ADMIN'), aiActionAuditController.journalEtablissement);
 
   // ── Couche 1 — Écran Corbeille ───────────────────────────────────────────
-  const corbeilleController = new CorbeilleController(p);
+  const corbeilleController = new CorbeilleController(
+    new PrismaUserRepository(p),
+    new PrismaClasseRepository(p),
+    new PrismaMatiereRepository(p),
+    new AIActionAuditAdapter(p),
+  );
   app.get('/api/v2/corbeille', requireAuth, requireRole('ADMIN'), corbeilleController.lister);
   app.post('/api/v2/corbeille/:type/:id/restore', requireAuth, requireRole('ADMIN'), corbeilleController.restaurer);
 

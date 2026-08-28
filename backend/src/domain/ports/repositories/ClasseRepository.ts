@@ -49,4 +49,8 @@ export interface ClasseRepository {
    */
   supprimerAvecCascade(classeId: string, deletedById?: string): Promise<void>;
   restaurer(classeId: string): Promise<void>;
+
+  /** Corbeille (Couche 1) — classes soft-deleted d'une école. */
+  listerSupprimes(schoolId: string): Promise<Array<{ id: string; name: string; level: string | null; deletedAt: Date | null; deletedById: string | null }>>;
+  trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null>;
 }

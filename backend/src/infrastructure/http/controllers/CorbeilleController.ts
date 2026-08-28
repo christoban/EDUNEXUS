@@ -8,24 +8,20 @@
  * rôles (Censeur, etc.) — l'admin resterait alors le seul à voir l'ensemble de l'établissement.
  */
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
-
-/**
- * Dispatch dynamique par nom de modèle (User/Class/Subject uniquement — les 3 seules valeurs
- * possibles de `modele` ci-dessous), sur le sous-ensemble de méthodes réellement utilisé ici.
- * Un `as any` masquerait une vraie faute de frappe sur le nom du modèle ; cette interface
- * ciblée garde au moins la forme des appels (where/data) type-checkée.
- */
-interface DelegateCorbeille {
-  findFirst(args: { where: { id: string; schoolId: string; deletedAt: { not: null } }; select: { schoolId: true } }): Promise<{ schoolId: string } | null>;
-  update(args: { where: { id: string; deletedAt: { not: null } }; data: { deletedAt: null; deletedById: null } }): Promise<unknown>;
-}
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
+import type { ClasseRepository } from '@domain/ports/repositories/ClasseRepository';
+import type { MatiereRepository } from '@domain/ports/repositories/MatiereRepository';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 type TypeCorbeille = 'utilisateur' | 'classe' | 'matiere';
 
 export class CorbeilleController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly classeRepository: ClasseRepository,
+    private readonly matiereRepository: MatiereRepository,
+    private readonly audit: AIActionAuditPort,
+  ) {}
 
   // GET /api/v2/corbeille
   lister = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -35,35 +31,23 @@ export class CorbeilleController {
 
       const [utilisateurs, classes, matieres] = await Promise.all([
         (!type || type === 'utilisateur')
-          ? this.prisma.user.findMany({
-              where: { schoolId: user.schoolId, deletedAt: { not: null } },
-              select: { id: true, role: true, firstName: true, lastName: true, email: true, deletedAt: true, deletedById: true },
-              orderBy: { deletedAt: 'desc' },
-            })
+          ? this.userRepository.listerSupprimes(user.schoolId)
           : [],
         (!type || type === 'classe')
-          ? this.prisma.class.findMany({
-              where: { schoolId: user.schoolId, deletedAt: { not: null } },
-              select: { id: true, name: true, level: true, deletedAt: true, deletedById: true },
-              orderBy: { deletedAt: 'desc' },
-            })
+          ? this.classeRepository.listerSupprimes(user.schoolId)
           : [],
         (!type || type === 'matiere')
-          ? this.prisma.subject.findMany({
-              where: { schoolId: user.schoolId, deletedAt: { not: null } },
-              select: { id: true, name: true, code: true, deletedAt: true, deletedById: true },
-              orderBy: { deletedAt: 'desc' },
-            })
+          ? this.matiereRepository.listerSupprimes(user.schoolId)
           : [],
       ]);
 
-      const deletedByIds = [...new Set([...utilisateurs, ...classes, ...matieres].map((r: any) => r.deletedById).filter(Boolean))];
+      const deletedByIds = [...new Set([...utilisateurs, ...classes, ...matieres].map((r) => r.deletedById).filter((id): id is string => !!id))];
       const auteurs = deletedByIds.length > 0
-        ? await this.prisma.user.findMany({ where: { id: { in: deletedByIds }, deletedAt: undefined }, select: { id: true, firstName: true, lastName: true } })
+        ? await this.userRepository.findByIds(deletedByIds)
         : [];
       const nomAuteur = (id: string | null) => {
         if (!id) return null;
-        const a = auteurs.find((x: any) => x.id === id);
+        const a = auteurs.find((x) => x.id === id);
         return a ? `${a.firstName} ${a.lastName}` : null;
       };
 
@@ -73,17 +57,17 @@ export class CorbeilleController {
       res.json({
         success: true,
         data: {
-          utilisateurs: utilisateurs.map((u: any) => ({
+          utilisateurs: utilisateurs.map((u) => ({
             id: u.id, type: 'utilisateur', role: u.role, nom: `${u.firstName} ${u.lastName}`, email: u.email,
-            deletedAt: u.deletedAt, deletedByNom: nomAuteur(u.deletedById), purgeLe: purgeLe(u.deletedAt),
+            deletedAt: u.deletedAt, deletedByNom: nomAuteur(u.deletedById), purgeLe: purgeLe(u.deletedAt!),
           })),
-          classes: classes.map((c: any) => ({
+          classes: classes.map((c) => ({
             id: c.id, type: 'classe', nom: c.name, niveau: c.level,
-            deletedAt: c.deletedAt, deletedByNom: nomAuteur(c.deletedById), purgeLe: purgeLe(c.deletedAt),
+            deletedAt: c.deletedAt, deletedByNom: nomAuteur(c.deletedById), purgeLe: purgeLe(c.deletedAt!),
           })),
-          matieres: matieres.map((m: any) => ({
+          matieres: matieres.map((m) => ({
             id: m.id, type: 'matiere', nom: m.name, code: m.code,
-            deletedAt: m.deletedAt, deletedByNom: nomAuteur(m.deletedById), purgeLe: purgeLe(m.deletedAt),
+            deletedAt: m.deletedAt, deletedByNom: nomAuteur(m.deletedById), purgeLe: purgeLe(m.deletedAt!),
           })),
         },
       });
@@ -98,29 +82,34 @@ export class CorbeilleController {
       const user = req.user;
       const { type, id } = req.params as { type: TypeCorbeille; id: string };
 
-      let cible: { schoolId: string } | null = null;
+      let cible: { id: string } | null = null;
       let modele: 'user' | 'class' | 'subject';
-      if (type === 'utilisateur') { modele = 'user'; } else if (type === 'classe') { modele = 'class'; } else if (type === 'matiere') { modele = 'subject'; } else {
+      let restorer: (id: string) => Promise<void>;
+      if (type === 'utilisateur') {
+        modele = 'user';
+        cible = await this.userRepository.trouverSupprime(id, user.schoolId);
+        restorer = (restoreId) => this.userRepository.restaurer(restoreId);
+      } else if (type === 'classe') {
+        modele = 'class';
+        cible = await this.classeRepository.trouverSupprime(id, user.schoolId);
+        restorer = (restoreId) => this.classeRepository.restaurer(restoreId);
+      } else if (type === 'matiere') {
+        modele = 'subject';
+        cible = await this.matiereRepository.trouverSupprime(id, user.schoolId);
+        restorer = (restoreId) => this.matiereRepository.restaurer(restoreId);
+      } else {
         res.status(400).json({ success: false, message: 'Type de corbeille inconnu' });
         return;
       }
 
-      const delegate = this.prisma[modele] as unknown as DelegateCorbeille;
-      cible = await delegate.findFirst({
-        where: { id, schoolId: user.schoolId, deletedAt: { not: null } },
-        select: { schoolId: true },
-      });
       if (!cible) {
         res.status(404).json({ success: false, message: 'Élément introuvable dans la corbeille' });
         return;
       }
 
-      await delegate.update({
-        where: { id, deletedAt: { not: null } },
-        data: { deletedAt: null, deletedById: null },
-      });
+      await restorer(id);
 
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: `restaurer_${type}`, targetType: modele, targetId: id,
         origin: 'UI_DIRECT', outcome: 'SUCCES',

@@ -25,6 +25,8 @@ export interface MatiereRepository {
   findBySchool(schoolId: string): Promise<MatiereProps[]>;
   findByEnseignant(teacherProfileId: string): Promise<MatiereProps[]>;
   findIdsLV2BySchool(schoolId: string): Promise<string[]>;
+  /** Matières LV2 (langue vivante 2) d'un établissement, ordonnées par nom — TemplateController. */
+  findLV2BySchool(schoolId: string): Promise<MatiereProps[]>;
 
   /**
    * Anti-doublon sur le code (si fourni).
@@ -69,4 +71,8 @@ export interface MatiereRepository {
   // Suppression douce (Couche 1) — pose deletedAt, ne touche plus aux données liées.
   delete(id: string, deletedById?: string): Promise<void>;
   restaurer(id: string): Promise<void>;
+
+  /** Corbeille (Couche 1) — matières soft-deleted d'une école. */
+  listerSupprimes(schoolId: string): Promise<Array<{ id: string; name: string; code: string | null; deletedAt: Date | null; deletedById: string | null }>>;
+  trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null>;
 }

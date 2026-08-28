@@ -1,10 +1,9 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
 import type { CreerIndisponibiliteEnseignantUseCase } from '@application/timetable/CreerIndisponibiliteEnseignantUseCase';
 import type { ModifierIndisponibiliteEnseignantUseCase } from '@application/timetable/ModifierIndisponibiliteEnseignantUseCase';
 import type { SupprimerIndisponibiliteEnseignantUseCase } from '@application/timetable/SupprimerIndisponibiliteEnseignantUseCase';
 import type { ListerIndisponibilitesEnseignantUseCase } from '@application/timetable/ListerIndisponibilitesEnseignantUseCase';
-import { journaliserActionIA } from '@infrastructure/services/ai/AIActionAuditLogger';
+import type { AIActionAuditPort } from '@domain/ports/services/AIActionAuditPort';
 
 export class TeacherUnavailabilityController {
   constructor(
@@ -12,7 +11,7 @@ export class TeacherUnavailabilityController {
     private readonly modifier: ModifierIndisponibiliteEnseignantUseCase,
     private readonly supprimer: SupprimerIndisponibiliteEnseignantUseCase,
     private readonly lister: ListerIndisponibilitesEnseignantUseCase,
-    private readonly prisma: PrismaClient,
+    private readonly audit: AIActionAuditPort,
   ) {}
 
   listerIndisponibilites = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -40,7 +39,7 @@ export class TeacherUnavailabilityController {
         endTime: req.body.endTime as string,
         reason: req.body.reason as string | undefined,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'creer_indisponibilite_enseignant', targetType: 'TeacherUnavailability',
         targetId: resultat.id, origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -48,7 +47,7 @@ export class TeacherUnavailabilityController {
       res.status(201).json({ success: true, data: resultat });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'creer_indisponibilite_enseignant', origin: 'UI_DIRECT', outcome: 'ERREUR',
         refusalReason: error instanceof Error ? error.message : undefined, parametersSummary: req.body,
@@ -69,7 +68,7 @@ export class TeacherUnavailabilityController {
         reason: req.body.reason as string | null | undefined,
         active: req.body.active as boolean | undefined,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'modifier_indisponibilite_enseignant', targetType: 'TeacherUnavailability',
         targetId: req.params.id as string, origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -77,7 +76,7 @@ export class TeacherUnavailabilityController {
       res.json({ success: true, message: 'Indisponibilité mise à jour' });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'modifier_indisponibilite_enseignant', targetType: 'TeacherUnavailability',
         targetId: req.params.id as string, origin: 'UI_DIRECT', outcome: 'ERREUR',
@@ -94,7 +93,7 @@ export class TeacherUnavailabilityController {
         id: req.params.id as string,
         schoolId: user.schoolId,
       });
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user.userId, actorRole: user.role, schoolId: user.schoolId,
         actionName: 'supprimer_indisponibilite_enseignant', targetType: 'TeacherUnavailability',
         targetId: req.params.id as string, origin: 'UI_DIRECT', outcome: 'SUCCES', parametersSummary: req.body,
@@ -102,7 +101,7 @@ export class TeacherUnavailabilityController {
       res.json({ success: true, message: 'Indisponibilité supprimée' });
     } catch (error) {
       const user = req.user;
-      journaliserActionIA(this.prisma, {
+      this.audit.journaliser({
         actorUserId: user?.userId, actorRole: user?.role, schoolId: user?.schoolId,
         actionName: 'supprimer_indisponibilite_enseignant', targetType: 'TeacherUnavailability',
         targetId: req.params.id as string, origin: 'UI_DIRECT', outcome: 'ERREUR',

@@ -18,6 +18,14 @@ export class PrismaSchoolRepository implements SchoolRepository {
     return this.toDomain(data);
   }
 
+  async findPEBSFlags(schoolId: string): Promise<{ hasPEBSFrancophone: boolean; hasPEBSAnglophone: boolean } | null> {
+    const data = await this.prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { hasPEBSFrancophone: true, hasPEBSAnglophone: true },
+    });
+    return data;
+  }
+
   async findAll(): Promise<School[]> {
     const data = await this.prisma.school.findMany();
     return data.map((item) => this.toDomain(item));

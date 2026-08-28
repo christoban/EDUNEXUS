@@ -155,6 +155,18 @@ export class PrismaClasseRepository implements ClasseRepository {
     });
   }
 
+  async listerSupprimes(schoolId: string) {
+    return this.prisma.class.findMany({
+      where: { schoolId, deletedAt: { not: null } },
+      select: { id: true, name: true, level: true, deletedAt: true, deletedById: true },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  async trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null> {
+    return this.prisma.class.findFirst({ where: { id, schoolId, deletedAt: { not: null } }, select: { id: true } });
+  }
+
   private toDomain(data: any): Classe {
     return Classe.reconstituer({
       id: data.id,

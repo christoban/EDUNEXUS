@@ -96,7 +96,11 @@ export function registerAcademicRoutes(app: Application, prismaParam: typeof pri
     } catch (err) { next(err); }
   });
 
-  const templateController = new TemplateController(p as any);
+  const templateController = new TemplateController(
+    c.school.classeRepository,
+    c.school.schoolRepository,
+    c.school.matiereRepository,
+  );
   app.get('/api/v2/templates/import-eleves', requireAuth, requireRole('ADMIN'), templateController.importEleves);
   app.get('/api/v2/templates/import-enseignants', requireAuth, requireRole('ADMIN'), templateController.importEnseignants);
 

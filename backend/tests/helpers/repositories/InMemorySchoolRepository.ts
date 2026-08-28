@@ -12,6 +12,11 @@ export class InMemorySchoolRepository implements SchoolRepository {
   async findBySubdomain(subdomain: string) {
     return [...this.store.values()].find(s => s.subdomain === subdomain) ?? null;
   }
+  async findPEBSFlags(schoolId: string) {
+    const s = this.store.get(schoolId);
+    if (!s) return null;
+    return { hasPEBSFrancophone: false, hasPEBSAnglophone: false };
+  }
   async findAll() { return [...this.store.values()]; }
   async findByStatus(status: SchoolStatus) {
     return [...this.store.values()].filter(s => s.status === status);

@@ -65,6 +65,12 @@ export class InMemoryMatiereRepository implements MatiereRepository {
       .map(matiere => matiere.id);
   }
 
+  async findLV2BySchool(schoolId: string): Promise<MatiereProps[]> {
+    return (await this.findBySchool(schoolId))
+      .filter(matiere => this.lv2SubjectIds.has(matiere.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   async getCoefficientPourClasse(
     subjectId: string,
     classLevel: string,
@@ -188,6 +194,8 @@ export class InMemoryMatiereRepository implements MatiereRepository {
   }
 
   async restaurer(_id: string): Promise<void> {}
+  async listerSupprimes(_schoolId: string) { return []; }
+  async trouverSupprime(_id: string, _schoolId: string): Promise<{ id: string } | null> { return null; }
 
   async assignerEnseignant(
     teacherProfileId: string,

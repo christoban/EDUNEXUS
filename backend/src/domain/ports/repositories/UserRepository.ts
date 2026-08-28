@@ -99,6 +99,11 @@ export interface UserRepository {
   supprimerAvecCascade(userId: string, deletedById?: string): Promise<void>;
   restaurer(userId: string): Promise<void>;
 
+  // Corbeille (Couche 1) — éléments soft-deleted d'une école.
+  listerSupprimes(schoolId: string): Promise<Array<{ id: string; role: string; firstName: string; lastName: string; email: string | null; deletedAt: Date | null; deletedById: string | null }>>;
+  trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null>;
+  findByIds(ids: string[]): Promise<Array<{ id: string; firstName: string; lastName: string }>>;
+
   // Transfert d'élève vers une autre classe
   transfererEleve(params: {
     studentId: string;

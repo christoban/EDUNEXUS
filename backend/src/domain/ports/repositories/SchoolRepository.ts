@@ -8,6 +8,8 @@ export interface SchoolRepository {
   // Lecture
   findById(id: string): Promise<School | null>;
   findBySubdomain(subdomain: string): Promise<School | null>;
+  /** Drapeaux PEBS d'un établissement — TemplateController (import élèves). */
+  findPEBSFlags(schoolId: string): Promise<{ hasPEBSFrancophone: boolean; hasPEBSAnglophone: boolean } | null>;
   findAll(): Promise<School[]>;
   findByStatus(status: SchoolStatus): Promise<School[]>;
   existsBySubdomain(subdomain: string): Promise<boolean>;

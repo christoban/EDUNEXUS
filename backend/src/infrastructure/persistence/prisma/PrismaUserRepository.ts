@@ -166,6 +166,22 @@ export class PrismaUserRepository implements UserRepository {
     await this.prisma.user.update({ where: { id: userId, deletedAt: { not: null } }, data: { deletedAt: null, deletedById: null } });
   }
 
+  async listerSupprimes(schoolId: string) {
+    return this.prisma.user.findMany({
+      where: { schoolId, deletedAt: { not: null } },
+      select: { id: true, role: true, firstName: true, lastName: true, email: true, deletedAt: true, deletedById: true },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  async trouverSupprime(id: string, schoolId: string): Promise<{ id: string } | null> {
+    return this.prisma.user.findFirst({ where: { id, schoolId, deletedAt: { not: null } }, select: { id: true } });
+  }
+
+  async findByIds(ids: string[]) {
+    return this.prisma.user.findMany({ where: { id: { in: ids }, deletedAt: undefined }, select: { id: true, firstName: true, lastName: true } });
+  }
+
   async transfererEleve(params: { studentId: string; fromClasseId: string; toClasseId: string; demandeurId: string; schoolId: string }): Promise<void> {
     const classeCible = await this.prisma.class.findUniqueOrThrow({ where: { id: params.toClasseId }, select: { schoolId: true, academicYearId: true } });
     const profilEleve = await this.prisma.studentProfile.findUniqueOrThrow({ where: { userId: params.studentId }, select: { id: true } });
