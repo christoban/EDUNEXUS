@@ -1,19 +1,21 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { SchoolRepository } from '@domain/ports/repositories/SchoolRepository';
 import { sendContactRequestEmail, sendTransactionalEmail } from '../../services/email/EmailService.ts';
 
 export class PublicController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly schoolRepository: SchoolRepository) {}
 
   // GET /api/v2/public/schools — liste publique des écoles joignables (APPROVED, ACTIVE, SUSPENDED)
   // Retourne uniquement les champs nécessaires au sélecteur — jamais le statut ni le motif de suspension
   listSchools = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const schools = await this.prisma.school.findMany({
-        where: { status: { in: ['APPROVED', 'ACTIVE', 'SUSPENDED'] } },
-        select: { id: true, name: true, subdomain: true, city: true, region: true, logoUrl: true },
-        orderBy: { name: 'asc' },
-      });
+      const schools = (await this.schoolRepository.findAll())
+        .filter((s) => ['APPROVED', 'ACTIVE', 'SUSPENDED'].includes(s.status))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((s) => {
+          const o = s.toObject();
+          return { id: o.id, name: o.name, subdomain: o.subdomain, city: o.city, region: o.region, logoUrl: o.logoUrl };
+        });
       res.json({ success: true, data: schools });
     } catch (error) {
       next(error);

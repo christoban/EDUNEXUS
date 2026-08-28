@@ -57,6 +57,12 @@ export class InMemoryUserRepository implements UserRepository {
     );
   }
 
+  async findActiveByRoles(schoolId: string, roles: UserRole[]): Promise<{ id: string }[]> {
+    return [...this.store.values()]
+      .filter(u => u.schoolId === schoolId && roles.includes(u.role) && u.isActive && this.estActif(u))
+      .map(u => ({ id: u.id }));
+  }
+
   async findByClass(schoolId: string, classId: string): Promise<User[]> {
     return [...this.store.values()].filter(
       user =>

@@ -7,10 +7,10 @@
  * séparée, réservée à l'opérateur plateforme : voir MasterAdminHexController.listerJournalSecuriteIA.
  */
 import type { Request, Response, NextFunction } from 'express';
-import type { PrismaClient } from '@prisma/client';
+import type { AIActionAuditLogQueryRepository } from '@domain/ports/repositories/AIActionAuditLogQueryRepository';
 
 export class AIActionAuditController {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly auditLogRepository: AIActionAuditLogQueryRepository) {}
 
   // GET /api/v2/security/audit-log
   journalEtablissement = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -20,20 +20,19 @@ export class AIActionAuditController {
       const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
       const take = parseInt(limit, 10);
 
-      const where: any = { schoolId: user.schoolId };
-      if (outcome) where.outcome = outcome;
-      if (origin) where.origin = origin;
-      if (actorRole) where.actorRole = actorRole;
-      if (actionName) where.actionName = actionName;
-
-      const [entries, total] = await Promise.all([
-        this.prisma.aIActionAuditLog.findMany({ where, skip, take, orderBy: { timestamp: 'desc' } }),
-        this.prisma.aIActionAuditLog.count({ where }),
-      ]);
+      const { logs, total } = await this.auditLogRepository.listBySchool({
+        schoolId: user.schoolId,
+        outcome,
+        origin,
+        actorRole,
+        actionName,
+        skip,
+        limit: take,
+      });
 
       res.json({
         success: true,
-        data: entries,
+        data: logs,
         pagination: { page: parseInt(page, 10), limit: take, total, pages: Math.ceil(total / take) },
       });
     } catch (error) {

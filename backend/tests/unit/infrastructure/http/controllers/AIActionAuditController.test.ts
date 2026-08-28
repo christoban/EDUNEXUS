@@ -1,15 +1,12 @@
 import { describe, it, expect } from 'bun:test';
 import { AIActionAuditController } from '@infrastructure/http/controllers/AIActionAuditController';
 
-function creerPrismaFake() {
-  const appelsFindMany: any[] = [];
-  const prisma = {
-    aIActionAuditLog: {
-      findMany: async (args: any) => { appelsFindMany.push(args); return []; },
-      count: async () => 0,
-    },
+function creerRepoFake() {
+  const appels: any[] = [];
+  const repo = {
+    listBySchool: async (input: any) => { appels.push(input); return { logs: [], total: 0 }; },
   } as any;
-  return { prisma, appelsFindMany };
+  return { repo, appels };
 }
 
 function creerReqRes(user: { schoolId: string; role: string }, query: Record<string, string>) {
@@ -22,8 +19,8 @@ function creerReqRes(user: { schoolId: string; role: string }, query: Record<str
 
 describe('AIActionAuditController.journalEtablissement — cloisonnement établissement', () => {
   it('filtre toujours sur le schoolId de la session, jamais sur un schoolId fourni par le client', async () => {
-    const { prisma, appelsFindMany } = creerPrismaFake();
-    const controller = new AIActionAuditController(prisma);
+    const { repo, appels } = creerRepoFake();
+    const controller = new AIActionAuditController(repo);
 
     // Un admin de l'école "ecole-legitime" tente de forcer un autre schoolId via la query —
     // le contrôleur ne lit même pas ce champ, mais on vérifie ici le comportement réel bout en bout.
@@ -34,13 +31,13 @@ describe('AIActionAuditController.journalEtablissement — cloisonnement établi
 
     await controller.journalEtablissement(req, res, next);
 
-    expect(appelsFindMany).toHaveLength(1);
-    expect(appelsFindMany[0].where.schoolId).toBe('ecole-legitime');
+    expect(appels).toHaveLength(1);
+    expect(appels[0].schoolId).toBe('ecole-legitime');
   });
 
   it('applique les filtres optionnels (outcome, origin) sans jamais permettre de changer le schoolId', async () => {
-    const { prisma, appelsFindMany } = creerPrismaFake();
-    const controller = new AIActionAuditController(prisma);
+    const { repo, appels } = creerRepoFake();
+    const controller = new AIActionAuditController(repo);
 
     const { req, res, next } = creerReqRes(
       { schoolId: 'ecole-A', role: 'ADMIN' },
@@ -49,12 +46,14 @@ describe('AIActionAuditController.journalEtablissement — cloisonnement établi
 
     await controller.journalEtablissement(req, res, next);
 
-    expect(appelsFindMany[0].where).toEqual({ schoolId: 'ecole-A', outcome: 'REFUSE', origin: 'AI_ASSISTANT' });
+    expect(appels[0].schoolId).toBe('ecole-A');
+    expect(appels[0].outcome).toBe('REFUSE');
+    expect(appels[0].origin).toBe('AI_ASSISTANT');
   });
 
   it('renvoie une réponse paginée même quand le journal est vide', async () => {
-    const { prisma } = creerPrismaFake();
-    const controller = new AIActionAuditController(prisma);
+    const { repo } = creerRepoFake();
+    const controller = new AIActionAuditController(repo);
     const { req, res, next, getJson } = creerReqRes({ schoolId: 'ecole-A', role: 'ADMIN' }, {});
 
     await controller.journalEtablissement(req, res, next);

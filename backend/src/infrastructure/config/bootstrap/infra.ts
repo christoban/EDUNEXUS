@@ -321,7 +321,7 @@ export function registerInfraRoutes(app: Application, prismaParam: typeof prisma
   const modifierAnnonceUseCase = new ModifierAnnonceUseCase(announcementRepository);
   const supprimerAnnonceUseCase = new SupprimerAnnonceUseCase(announcementRepository);
   const announcementController = new AnnouncementController(
-    prisma,
+    new PrismaUserRepository(p),
     creerAnnonceUseCase,
     listerAnnoncesUseCase,
     modifierAnnonceUseCase,

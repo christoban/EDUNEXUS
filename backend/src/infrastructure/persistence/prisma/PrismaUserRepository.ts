@@ -46,6 +46,12 @@ export class PrismaUserRepository implements UserRepository {
     const data = await this.prisma.user.findMany({ where: { schoolId, role }, include: this.staffInclude });
     return this.toDomainList(data);
   }
+  async findActiveByRoles(schoolId: string, roles: UserRole[]): Promise<{ id: string }[]> {
+    return this.prisma.user.findMany({
+      where: { schoolId, role: { in: roles }, isActive: true },
+      select: { id: true },
+    });
+  }
   async findByClass(schoolId: string, classId: string): Promise<User[]> {
     const data = await this.prisma.user.findMany({ where: { schoolId, role: 'STUDENT', ...whereElevesParClasse(classId) }, include: this.staffInclude });
     return this.toDomainList(data);

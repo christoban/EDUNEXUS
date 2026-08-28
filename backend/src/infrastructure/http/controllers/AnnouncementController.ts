@@ -1,5 +1,6 @@
-import type { PrismaClient, UserRole } from '@prisma/client';
+import type { UserRole } from '@domain/types/enums';
 import type { Request, Response, NextFunction } from 'express';
+import type { UserRepository } from '@domain/ports/repositories/UserRepository';
 import type { CreerAnnonceUseCase } from '@application/announcement/CreerAnnonceUseCase';
 import type { ListerAnnoncesUseCase } from '@application/announcement/ListerAnnoncesUseCase';
 import type { ModifierAnnonceUseCase } from '@application/announcement/ModifierAnnonceUseCase';
@@ -10,7 +11,7 @@ export class AnnouncementController {
   private readonly notificationService: SocketNotificationService;
 
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly userRepository: UserRepository,
     private readonly creerAnnonce: CreerAnnonceUseCase,
     private readonly listerAnnonces: ListerAnnoncesUseCase,
     private readonly modifierAnnonce: ModifierAnnonceUseCase,
@@ -43,10 +44,7 @@ export class AnnouncementController {
 
       const rolesCibles = Array.from(new Set((annonce.targetRoles ?? targetRoles ?? []) as UserRole[]));
       const destinataires = rolesCibles.length > 0
-        ? await this.prisma.user.findMany({
-            where: { schoolId: user.schoolId, role: { in: rolesCibles }, isActive: true },
-            select: { id: true },
-          })
+        ? await this.userRepository.findActiveByRoles(user.schoolId, rolesCibles)
         : [];
 
       await Promise.allSettled(

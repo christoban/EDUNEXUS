@@ -13,6 +13,7 @@ function userRepoMock(user: AuthUserData | null): UserRepository {
     findByPhoneContient: async () => null,
     findBySchool: async () => [],
     findByRole: async () => [],
+    findActiveByRoles: async () => [],
     findByClass: async () => [],
     existsByEmail: async () => false,
     save: async () => {},

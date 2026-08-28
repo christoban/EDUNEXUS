@@ -94,6 +94,7 @@ import { PrismaDashboardQueryRepository } from '@infrastructure/persistence/pris
 import { PrismaAIContextQueryRepository } from '@infrastructure/persistence/prisma/PrismaAIContextQueryRepository';
 import { PrismaActivitiesLogQueryRepository } from '@infrastructure/persistence/prisma/PrismaActivitiesLogQueryRepository';
 import { PrismaEmailLogQueryRepository } from '@infrastructure/persistence/prisma/PrismaEmailLogQueryRepository';
+import { PrismaAIActionAuditLogQueryRepository } from '@infrastructure/persistence/prisma/PrismaAIActionAuditLogQueryRepository';
 import { PrismaStudentFollowUpRepository } from '@infrastructure/persistence/prisma/PrismaStudentFollowUpRepository';
 import { PrismaSuiviRBACRepository } from '@infrastructure/persistence/prisma/PrismaSuiviRBACRepository';
 import { PrismaAcademicEventRepository } from '@infrastructure/persistence/prisma/PrismaAcademicEventRepository';
@@ -817,7 +818,7 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
   });
 
   // ── Sécurité de l'assistant IA — Journal d'établissement ───────────────────
-  const aiActionAuditController = new AIActionAuditController(p);
+  const aiActionAuditController = new AIActionAuditController(new PrismaAIActionAuditLogQueryRepository(p));
   app.get('/api/v2/security/audit-log', requireAuth, requireRole('ADMIN'), aiActionAuditController.journalEtablissement);
 
   // ── Couche 1 — Écran Corbeille ───────────────────────────────────────────
@@ -904,8 +905,8 @@ export function registerCoreRoutes(app: Application, prismaParam: typeof prisma 
     new ObtenirEvenementsActifsUseCase(academicEventRepository),
   );
   const coreDomainController = new CoreDomainController(new PrismaCoreDomainQueryRepository(p));
-  const publicController     = new PublicController(p);
-  const smsController        = new SMSController(p, c.attendance.traiterSmsPresence);
+  const publicController     = new PublicController(c.school.schoolRepository);
+  const smsController        = new SMSController(c.school.schoolRepository, c.attendance.traiterSmsPresence);
 
   const orientationController = new OrientationController(
     c.orientation.creerFiche,

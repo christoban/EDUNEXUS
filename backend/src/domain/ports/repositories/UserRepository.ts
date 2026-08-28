@@ -42,6 +42,8 @@ export interface UserRepository {
   findByPhoneContient(phoneFragment: string, schoolId: string): Promise<User | null>;
   findBySchool(schoolId: string): Promise<User[]>;
   findByRole(schoolId: string, role: UserRole): Promise<User[]>;
+  /** Destinataires actifs d'une annonce, ciblés par rôle(s) — ids seulement. */
+  findActiveByRoles(schoolId: string, roles: UserRole[]): Promise<{ id: string }[]>;
 
   // HR — lectures employé (TEACHER/STAFF) avec profils embarqués
   findEmployeeById(userId: string, schoolId: string): Promise<EmployeeDetail | null>;
