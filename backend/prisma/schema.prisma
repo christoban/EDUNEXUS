@@ -838,6 +838,20 @@ model SchoolTemplate {
   cycleCoefficients      CycleCoefficient[]
   bacCoefficients        BacCoefficient[]
   anglophoneSubjectLoads AnglophoneSubjectLoad[]
+  versions               SchoolTemplateVersion[]
+}
+
+model SchoolTemplateVersion {
+  id           String       @id @default(cuid())
+  templateCode String
+  version      Int
+  config       Json
+  publishedAt  DateTime?
+  active       Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  template     SchoolTemplate @relation(fields: [templateCode], references: [code])
+
+  @@unique([templateCode, version])
 }
 
 model CycleCoefficient {
@@ -3549,6 +3563,14 @@ model SchoolStatisticalSupplement {
   // officielles MINESEC, voir CampaignFieldMapping catégorie C pour Eleves_ESTP_Fr/Atelier_Workshop)
   effectifsTechniquesDetail Json? // liste [{specialiteAcronyme, anneeEtude, divisions, fillesTotal, garconsTotal, fillesRedoublants, garconsRedoublants}]
   ateliersDetail            Json? // liste [{atelier, etat, equipements: [{designation, quantite, etat}], nombrePostesTravail}]
+
+  // Section Manuels-Didactics (Catégorie C intégrale — codes 5100-5133)
+  // Nombre de livres/guides pédagogiques par discipline et niveau
+  manuelsDetail Json? // liste [{code, discipline, niveaux: {Form1, Form2, ..., UpperSixth, "6e", ..., "Tle", other}, total}]
+
+  // Section Themes_Transversaux (Catégorie C intégrale — questionnaire 7.1-7.3)
+  // VIH/SIDA, éducation sexuelle, orientations parents
+  themesTransversauxDetail Json? // {reglementInterieur: boolean, aspects: [...], partiesPrenantes: [...], themes: [...], sessionsParents: boolean}
 
   lastUpdatedAt DateTime @updatedAt
   lastUpdatedBy String

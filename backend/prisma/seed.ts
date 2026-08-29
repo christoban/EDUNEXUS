@@ -1027,6 +1027,25 @@ async function main() {
   }
   console.log(`   → ${schoolTemplates.length} templates seeded`);
 
+  // 0a-b. Version v1 (config vide, inerte) pour chaque template — V0.4 Phase 2
+  // Ré-application tant que config = {} : ne change rien par défaut en attendant
+  // qu'une vraie version soit publiée avec des defaults SchoolConfig.
+  console.log("\n🗂 Seeding SchoolTemplateVersion v1...");
+  for (const t of schoolTemplates) {
+    await prisma.schoolTemplateVersion.upsert({
+      where: { templateCode_version: { templateCode: t.code, version: 1 } },
+      update: {},
+      create: {
+        templateCode: t.code,
+        version: 1,
+        config: {},
+        publishedAt: new Date(),
+        active: true,
+      },
+    });
+  }
+  console.log(`   → ${schoolTemplates.length} versions v1 seeded`);
+
   // 0b. Sentinel template pour les données référençant "__ALL__"
   await prisma.schoolTemplate.upsert({
     where:  { code: "__ALL__" },

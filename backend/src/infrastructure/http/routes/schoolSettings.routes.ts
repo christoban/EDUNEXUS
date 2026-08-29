@@ -6,5 +6,7 @@ export function creerSchoolSettingsRoutes(controller: SchoolSettingsController):
   const router = Router();
   router.get('/', requireAuth, controller.getSettings);
   router.put('/', requireAuth, requireRole('ADMIN'), controller.updateSettings);
+  router.post('/reapply-template/propose', requireAuth, requireRole('ADMIN'), controller.proposeReapply);
+  router.post('/reapply-template/apply', requireAuth, requireRole('ADMIN'), controller.applyReapply);
   return router;
 }

@@ -44,6 +44,8 @@ export function registerAuthOnboardingRoutes(app: Application, prismaParam: type
   const schoolSettingsController = new SchoolSettingsController(
     c.schoolSettings.obtenir,
     c.schoolSettings.mettreAJour,
+    c.schoolSettings.proposerReapplication,
+    c.schoolSettings.appliquerReapplication,
   );
 
   app.use('/api/v2/parent', creerParentRoutes(parentController));

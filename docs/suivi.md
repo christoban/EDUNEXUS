@@ -21,16 +21,14 @@
 
 | # | Manque précis | Faisabilité |
 |---|---|---|
-| ~~V0.1~~ | ~~6 use cases importent l'infrastructure directement~~ | ✅ **RÉSOLU** — chantier P1 : 0 import infrastructure dans application/, guards CI en place |
-| V0.4 | Pas de `TemplateVersion`/`TemplateConfiguration` ; **aucune ré-application de template** (donc la règle « jamais écraser un override » est sans objet). | ⚠️ Tech Lead — changement de flux transverse |
-| V2.2 | Socle livré (registre `configOverrides` + règle pure `fusionnerConfigLocaleTemplate`), mais **ré-application effective** d'un template mis à jour = dépend de V0.4 (`TemplateVersion`/`TemplateConfiguration`). | ⚠️ Tech Lead — Phase 2 dépend de V0.4 |
+| V0.4 | **Phase 2 partiellement RÉSOLUE** : modèle `SchoolTemplateVersion` (migration `add_template_version_and_supplements`) + `ReapplicationTemplateUseCase` partagé (propose/apply pures) + routes `POST /api/v2/school-settings/reapply-template/{propose,apply}` + RBAC ADMIN + audit. Reste : publication d'une vraie version (config defaults) côté seed/admin, phase 3 « toutes écoles du template ». | ✅ Muse Spark (Phase 2) / ⚠️ Tech Lead (Phase 3) |
 | V1.1 | Pas de « profil académique » unifié (forces/faiblesses) au-delà du `healthScore`. | ⚠️ Tech Lead — spec produit manquante (qu'est-ce qu'un profil ?) |
 | V1.4 | Mapping de colonnes figé en dur ; pas d'étape « Correction » ; scope limité à STUDENT/TEACHER (pas personnel/parents/classes). | ⚠️ Tech Lead — étape « Correction » = décision produit |
 | V1.6 | **Absents** : `AssessmentParticipation`, `AssessmentScope`, `HarmonizedAssessmentSession`, `InvigilationPolicy`, `Assessment Calendar` par rôle, `Assessment Workload`. Grade et Attendance **jamais croisés** (7/20 d'un absent = 7/20 d'un présent). | ⚠️ Tech Lead — 6 modèles à spécifier MINESEC |
 | V2.4 | LV2/PEBS en **double écriture** (`lv2SubjectId`/`pebsFiliere` restent source de vérité) — à unifier. | ⚠️ Tech Lead — unification = risque de perte de données |
 | V2.11 | Présence enseignants : **aucun QR/GPS/photo** dans le schéma ; pas de gate de présence avant saisie du cahier de textes. | ⚠️ Tech Lead / Humain — hardware dérive, besoin calibration physique |
 | V2.12 | **Aucun moteur de routage par urgence** (canal codé en dur) ; pas de suivi envoyé/reçu/lu/confirmé (seul `isRead`). | ⚠️ Tech Lead — matrice urgence→canal à spécifier |
-| V2.14 | Recensement MINESEC : ~**6 feuilles sur 17** couvertes. | ✅ Muse Spark — ajouter des feuilles (copier `xlsEngine.ts`) |
+| V2.14 | Recensement MINESEC : **~7 feuilles sur 17** couvertes (ajout Students_ESG_Eng, Students_ESTP_Eng, Manuels-Didactics, Themes_Tranversaux en A_AUTO/C_MANUAL). Reste : feuilles doc/réservées (NOTICE, Variables Essentielles…) hors périmètre école. | ✅ Muse Spark |
 | V3.1 | Cache miroir RBAC **absent** ; dépendance graduée par opération **absente** ; `db.messages` **non purgé** au logout. | ✅ Muse Spark pour `db.messages` (1 ligne) / ⚠️ Tech Lead pour cache RBAC gradué |
 | V3.3 | Confirmation utilisateur obligatoire = **2 actions sur ~54** seulement ; le reste s'exécute sans confirmation (undo a posteriori). | ⚠️ Tech Lead — généraliser = décision sécurité transverse |
 | V3.4 | « Forces/faiblesses par matière » = simple détection de chute, pas une vue consolidée. | ⚠️ Tech Lead — vue à spécifier |
@@ -59,7 +57,7 @@
 | V2.9 | Tout le module orientation — **aucun test**. | ✅ Muse Spark |
 | V2.10 | `CalculerAdmissionConcoursUseCase` non testé. | ✅ Muse Spark |
 | V2.13 | APEE — **zéro test**. | ✅ Muse Spark — fait (8 tests) |
-| V2.14 | Recensement MINESEC — **aucun test**. | ✅ Muse Spark |
+| V2.14 | Recensement MINESEC — **aucun test**. | ✅ Muse Spark — fait (2 tests : resolveEsgEngFields + minesecManuelsFieldMap) |
 | V3.1 | Aucun test frontend (pas de script `test` dans `frontend/package.json`). | ✅ Muse Spark (scaffold vitest) |
 | V3.3 | `AssistantController`, catalogues d'actions, RBAC/anti-hallucination — **zéro test** (seule la journalisation en aval est testée). | ✅ Muse Spark pour RBAC (mocker Groq) / ⚠️ Tech Lead pour `/execute` non déterministe |
 | V3.4 | `CreerActionSuiviEleveUseCase` (escalade) non testé. | ✅ Muse Spark |

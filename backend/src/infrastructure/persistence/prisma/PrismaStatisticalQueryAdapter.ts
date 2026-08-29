@@ -7,7 +7,7 @@ import type {
   FeePlanRow,
   PersonnelRow,
 } from '@domain/ports/repositories/StatisticalQueryPort';
-import { NIVEAUX_ESG, NIVEAUX_PRIMAIRES } from '@domain/ports/repositories/StatisticalQueryPort';
+import { NIVEAUX_ESG, NIVEAUX_ESG_EN, NIVEAUX_PRIMAIRES } from '@domain/ports/repositories/StatisticalQueryPort';
 
 export class PrismaStatisticalQueryAdapter implements StatisticalQueryPort {
   constructor(private readonly prisma: PrismaClient) {}
@@ -21,7 +21,7 @@ export class PrismaStatisticalQueryAdapter implements StatisticalQueryPort {
           some: {
             status: 'ACTIVE',
             academicYear: { isCurrent: true },
-            class: { level: { in: [...NIVEAUX_ESG] } },
+            class: { level: { in: [...NIVEAUX_ESG, ...NIVEAUX_ESG_EN] } },
           },
         },
       },

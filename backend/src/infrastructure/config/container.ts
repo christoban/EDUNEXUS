@@ -224,6 +224,7 @@ import { TabPfnPredictionService } from '@infrastructure/services/ai/TabPfnPredi
 // --- Adapters Persistence Parent + SchoolSettings ---
 import { PrismaParentRepository } from '@infrastructure/persistence/prisma/PrismaParentRepository';
 import { PrismaSchoolSettingsRepository } from '@infrastructure/persistence/prisma/PrismaSchoolSettingsRepository';
+import { PrismaSchoolTemplateVersionRepository } from '@infrastructure/persistence/prisma/PrismaSchoolTemplateVersionRepository';
 
 // --- Use Cases : Parent ---
 import { ObtenirEnfantsUseCase } from '@application/parent/ObtenirEnfantsUseCase';
@@ -233,6 +234,8 @@ import { VerifierAccesEnfantUseCase } from '@application/parent/VerifierAccesEnf
 // --- Use Cases : SchoolSettings ---
 import { ObtenirParametresEcoleUseCase } from '@application/schoolSettings/ObtenirParametresEcoleUseCase';
 import { MettreAJourParametresEcoleUseCase } from '@application/schoolSettings/MettreAJourParametresEcoleUseCase';
+import { ProposerReapplicationTemplateUseCase } from '@application/schoolSettings/ProposerReapplicationTemplateUseCase';
+import { AppliquerReapplicationTemplateUseCase } from '@application/schoolSettings/AppliquerReapplicationTemplateUseCase';
 
 // --- Use Cases : Timetable ---
 import { CreerEmploiDuTempsUseCase } from '@application/timetable/CreerEmploiDuTempsUseCase';
@@ -715,6 +718,8 @@ export function creerContainer() {
   const obtenirAlertesSoldeUseCase = new ObtenirAlertesSoldeUseCase(parentRepository, factureRepository);
   const obtenirParametresUseCase = new ObtenirParametresEcoleUseCase(schoolSettingsRepository);
   const mettreAJourParametresUseCase = new MettreAJourParametresEcoleUseCase(schoolSettingsRepository, activityLog);
+  const proposerReapplicationUseCase = new ProposerReapplicationTemplateUseCase(schoolSettingsRepository, new PrismaSchoolTemplateVersionRepository(prisma));
+  const appliquerReapplicationUseCase = new AppliquerReapplicationTemplateUseCase(schoolSettingsRepository, new PrismaSchoolTemplateVersionRepository(prisma), activityLog);
 
   // 15b. Use Cases — Notes (suite)
   const modifierNoteUseCase = new ModifierNoteUseCase(noteRepository, matiereRepository, schoolSettingsRepository);
@@ -956,6 +961,8 @@ export function creerContainer() {
     schoolSettings: {
       obtenir: obtenirParametresUseCase,
       mettreAJour: mettreAJourParametresUseCase,
+      proposerReapplication: proposerReapplicationUseCase,
+      appliquerReapplication: appliquerReapplicationUseCase,
     },
     orientation: {
       creerFiche: creerFicheOrientationUseCase,

@@ -9,10 +9,14 @@ import type { StatisticalQueryPort } from '@domain/ports/repositories/Statistica
 import type { StatisticalCampaignRepository } from '@domain/ports/repositories/StatisticalCampaignRepository';
 import { decryptTemplate, setCellValue, writeWorkbookToFile, cleanupSession, type WorkbookSession } from './xlsEngine';
 import { resolveEsgFields, resolveIdentificationAutoFields, resolveFeeAutoFields, type ResolvedCell } from './resolveAutoFields';
+import { resolveEsgEngFields } from './resolveEsgEngFields';
 import { resolvePersonnelFields } from './resolvePersonnelFields';
 import { VerifierCompletudeSupplementUseCase } from './VerifierCompletudeSupplementUseCase';
 import { IDENTIFICATION_FIELDS, INFRASTRUCTURE_FIELDS, FINANCEMENT_FIELDS } from './minesecFixedFieldMap';
 import { ESTP_GRID_BLOCKS } from './minesecEstpGridMap';
+import { ESTP_ENG_GRID_BLOCKS } from './minesecEstpEngGridMap';
+import { MANUELS_FIELD_MAPPING } from './minesecManuelsFieldMap';
+import { THEMES_FIELD_MAPPING } from './minesecThemesFieldMap';
 import type { ChampNonResolu, GenererDeclarationStatistiqueCommande, GenererDeclarationStatistiqueResultat } from './types';
 
 function getByPath(obj: any, keyPath: string): any {
@@ -90,6 +94,9 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
     const esg = await resolveEsgFields(this.query, cmd.schoolId);
     applyCells(esg.cells);
     champsNonResolus.push(...esg.nonCouverts);
+    const esgEng = await resolveEsgEngFields(this.query, cmd.schoolId);
+    applyCells(esgEng.cells);
+    champsNonResolus.push(...esgEng.nonCouverts);
     applyCells(await resolveFeeAutoFields(this.query, cmd.schoolId));
     const personnel = await resolvePersonnelFields(this.query, cmd.schoolId);
     applyCells(personnel.cells);
@@ -181,6 +188,90 @@ export class GenererDeclarationStatistiqueMinesecUseCase {
         setCellValue(wsEstp, `${garconsCol}${targetBlock.totalRow}`, entry.garconsTotal ?? 0, 'NUMBER');
         setCellValue(wsEstp, `${fillesCol}${targetBlock.redoubRow}`, entry.fillesRedoublants ?? 0, 'NUMBER');
         setCellValue(wsEstp, `${garconsCol}${targetBlock.redoubRow}`, entry.garconsRedoublants ?? 0, 'NUMBER');
+      }
+    }
+
+    // ── Catégorie C_MANUAL — spécialités techniques ESTP EN (grille dynamique) ──
+    const wsEstpEng = wb.getWorksheet('Students_ESTP_Eng');
+    const blockByAnneeEng = new Map<string, typeof ESTP_ENG_GRID_BLOCKS>();
+    for (const block of ESTP_ENG_GRID_BLOCKS) {
+      const base = block.blockLabel.replace(/ suite$/, '');
+      if (!blockByAnneeEng.has(base)) blockByAnneeEng.set(base, []);
+      blockByAnneeEng.get(base)!.push(block);
+    }
+    const usedSlotIndexEng = new Map<string, number>();
+
+    if (wsEstpEng) {
+      for (const entry of effectifsTechniques) {
+        const base: string = entry.anneeEtude;
+        const blocks = blockByAnneeEng.get(base);
+        if (!blocks) {
+          champsNonResolus.push({ fieldCode: 'ESTP_ENG_ANNEE_INCONNUE', sheetName: 'Students_ESTP_Eng', cellReference: '', fieldLabel: `Specialite ${entry.specialiteAcronyme} — annee "${base}"`, raison: "Annee d'etude non reconnue dans la grille officielle." });
+          continue;
+        }
+        const used = usedSlotIndexEng.get(base) ?? 0;
+        let remaining = used;
+        let targetBlock = null as typeof ESTP_ENG_GRID_BLOCKS[number] | null;
+        let slotIdx = 0;
+        for (const b of blocks) {
+          if (remaining < b.nbSlots) { targetBlock = b; slotIdx = remaining; break; }
+          remaining -= b.nbSlots;
+        }
+        if (!targetBlock) {
+          champsNonResolus.push({ fieldCode: 'ESTP_ENG_CRENEAUX_INSUFFISANTS', sheetName: 'Students_ESTP_Eng', cellReference: '', fieldLabel: `Specialite ${entry.specialiteAcronyme} — ${base}`, raison: 'Nombre de specialites declarées superieur au nombre de creneaux disponibles.' });
+          continue;
+        }
+        usedSlotIndexEng.set(base, used + 1);
+
+        const startColIdx = colToIndex(targetBlock.firstSlotCols[0]);
+        const fillesColIdx = startColIdx + slotIdx * 2;
+        const garconsColIdx = fillesColIdx + 1;
+        const fillesCol = indexToCol(fillesColIdx);
+        const garconsCol = indexToCol(garconsColIdx);
+
+        setCellValue(wsEstpEng, `${fillesCol}${targetBlock.nameRow}`, entry.specialiteAcronyme, 'TEXT');
+        setCellValue(wsEstpEng, `${fillesCol}${targetBlock.divRow}`, entry.divisions ?? 0, 'NUMBER');
+        setCellValue(wsEstpEng, `${fillesCol}${targetBlock.totalRow}`, entry.fillesTotal ?? 0, 'NUMBER');
+        setCellValue(wsEstpEng, `${garconsCol}${targetBlock.totalRow}`, entry.garconsTotal ?? 0, 'NUMBER');
+        setCellValue(wsEstpEng, `${fillesCol}${targetBlock.redoubRow}`, entry.fillesRedoublants ?? 0, 'NUMBER');
+        setCellValue(wsEstpEng, `${garconsCol}${targetBlock.redoubRow}`, entry.garconsRedoublants ?? 0, 'NUMBER');
+      }
+    }
+
+    // ── Catégorie C_MANUAL — Manuels-Didactics ──
+    const manuelsDetail: any[] = Array.isArray(supplement?.manuelDetail) ? supplement.manuelDetail : [];
+    for (const mapping of MANUELS_FIELD_MAPPING) {
+      const ws = wb.getWorksheet('Manuels-Didactics');
+      if (!ws) continue;
+      const entry = manuelsDetail.find((m: any) => m.code === mapping.fieldCode || m.discipline === mapping.discipline);
+      if (!entry) {
+        champsNonResolus.push({ fieldCode: mapping.fieldCode, sheetName: 'Manuels-Didactics', cellReference: mapping.otherCell, fieldLabel: mapping.discipline, raison: 'Non renseigne dans le formulaire complementaire.' });
+        continue;
+      }
+      for (const c of mapping.anglophoneCells) {
+        const val = entry.niveaux?.[c.level] ?? 0;
+        setCellValue(ws, c.cell, val, 'NUMBER');
+      }
+      for (const c of mapping.francophoneCells) {
+        const val = entry.niveaux?.[c.level] ?? 0;
+        setCellValue(ws, c.cell, val, 'NUMBER');
+      }
+      setCellValue(ws, mapping.otherCell, entry.other ?? 0, 'NUMBER');
+    }
+
+    // ── Catégorie C_MANUAL — Themes Transversaux ──
+    const themesDetail: any = supplement?.themesTransversauxDetail ?? null;
+    if (themesDetail) {
+      const ws = wb.getWorksheet('Themes_Tranversaux');
+      if (ws) {
+        for (const mapping of THEMES_FIELD_MAPPING) {
+          const value = themesDetail[mapping.questionRef];
+          if (value === undefined || value === null) {
+            champsNonResolus.push({ fieldCode: mapping.fieldCode, sheetName: 'Themes_Tranversaux', cellReference: mapping.cellRef, fieldLabel: mapping.fieldLabel, raison: 'Non renseigne dans le formulaire complementaire.' });
+            continue;
+          }
+          setCellValue(ws, mapping.cellRef, value, mapping.dataType);
+        }
       }
     }
 

@@ -8,6 +8,9 @@
 /** Niveaux du cycle secondaire couverts par la feuille ESG. */
 export const NIVEAUX_ESG = ['6e', '5e', '4e', '3e', '2nde', '1ere', 'Tle'] as const;
 
+/** Niveaux anglophones du secondaire couverts par la feuille Students_ESG_Eng. */
+export const NIVEAUX_ESG_EN = ['Form1', 'Form2', 'Form3', 'Form4', 'Form5', 'LowerSixth', 'UpperSixth'] as const;
+
 /** Niveaux du cycle primaire (FR + EN) couverts par le rapport MINEDUB. */
 export const NIVEAUX_PRIMAIRES_FR = ['SIL', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'] as const;
 export const NIVEAUX_PRIMAIRES_EN = ['Class1', 'Class2', 'Class3', 'Class4', 'Class5', 'Class6'] as const;
